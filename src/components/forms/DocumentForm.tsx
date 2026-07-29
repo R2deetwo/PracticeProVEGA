@@ -319,8 +319,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                         {hints.map((hint, idx) => (
                             <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border text-xs ${
                                 hint.type === 'error' ? 'bg-rose-50/50 border-rose-200 text-rose-700 dark:bg-rose-900/10 dark:border-rose-900/40' :
-                                hint.type === 'warning' ? 'bg-amber-50/50 border-amber-200 text-amber-700 dark:bg-amber-900/10 dark:border-amber-900/40' :
-                                'bg-blue-50/50 border-blue-200 text-blue-700 dark:bg-blue-900/10 dark:border-blue-900/40'
+                                hint.type === 'warning' ? 'bg-amber-50 dark:bg-amber-950/40/50 border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300 dark:bg-amber-900/10 dark:border-amber-900/40' :
+                                'bg-blue-50 dark:bg-blue-950/40/50 border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-300 dark:bg-blue-900/10 dark:border-blue-900/40'
                             }`}>
                                 <div className="text-base flex-shrink-0">{hint.icon}</div>
                                 <p className="font-medium leading-relaxed">{hint.text}</p>
@@ -389,11 +389,11 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                 className="w-full h-32 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 outline-none resize-y custom-scrollbar"
                                 placeholder="Paste or type content…"
                             />
-                            <button type="button" onClick={() => setContent(undefined)} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300">← Back to upload</button>
+                            <button type="button" onClick={() => setContent(undefined)} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 dark:hover:text-zinc-300">← Back to upload</button>
                         </div>
                     ) : (
                         <div
-                            className={`relative border-2 border-dashed p-5 rounded-lg text-center transition-colors ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}
+                            className={`relative border-2 border-dashed p-5 rounded-lg text-center transition-colors ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}
                             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                             onDragLeave={() => setIsDragging(false)}
                             onDrop={e => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
@@ -412,9 +412,9 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                     <CloudArrowUpIcon className="w-6 h-6 text-slate-300 mx-auto" />
                                     <input autoComplete="off" data-lpignore="true" type="file" id="file-upload" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
                                     <div className="text-sm">
-                                        <label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary-600 hover:underline">Upload a file</label>
+                                        <label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary-600 dark:text-primary-300 hover:underline">Upload a file</label>
                                         <span className="text-slate-400"> or </span>
-                                        <button type="button" onClick={() => setContent('')} className="text-primary-600 hover:underline font-medium">type content</button>
+                                        <button type="button" onClick={() => setContent('')} className="text-primary-600 dark:text-primary-300 hover:underline font-medium">type content</button>
                                     </div>
                                     <p className="text-2xs text-slate-400">PDF, DOCX, PNG, JPG · 10 MB max</p>
                                 </div>
@@ -453,7 +453,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                     type="button"
                                     //@ts-ignore
                                     onClick={() => setLitigationStatus(step.id)}
-                                    className={`py-2 text-xs font-semibold rounded-md transition-colors ${litigationStatus === step.id ? 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}
+                                    className={`py-2 text-xs font-semibold rounded-md transition-colors ${litigationStatus === step.id ? 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}
                                 >
                                     {step.label}
                                 </button>

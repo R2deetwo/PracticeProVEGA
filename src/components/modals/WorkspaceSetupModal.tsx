@@ -50,7 +50,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
   <div className="space-y-6">
     <div className="flex flex-col items-center text-center p-4 pb-0">
        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-        <LockClosedIcon className="w-8 h-8 text-blue-600" />
+        <LockClosedIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
        </div>
        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Activate Your Workspace</h3>
        <p className="text-sm text-slate-500 mt-2 max-w-sm">
@@ -84,13 +84,13 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
             What will you use PracticePro for?
           </label>
           <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => setProduct('legal')} className={`p-3 text-center border rounded-xl transition-all ${product === 'legal' ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setProduct('legal')} className={`p-3 text-center border rounded-xl transition-all ${product === 'legal' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-1 ring-primary-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
               <div className="font-bold text-xs text-slate-900 dark:text-white">Vega (Legal)</div>
             </button>
-            <button type="button" onClick={() => setProduct('property')} className={`p-3 text-center border rounded-xl transition-all ${product === 'property' ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setProduct('property')} className={`p-3 text-center border rounded-xl transition-all ${product === 'property' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
               <div className="font-bold text-xs text-slate-900 dark:text-white">Atrium (Property)</div>
             </button>
-            <button type="button" onClick={() => setProduct('unified')} className={`p-3 text-center border rounded-xl transition-all ${product === 'unified' ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setProduct('unified')} className={`p-3 text-center border rounded-xl transition-all ${product === 'unified' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
               <div className="font-bold text-xs text-slate-900 dark:text-white">Unified</div>
             </button>
           </div>
@@ -100,7 +100,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
           <button 
             type="button" 
             onClick={onClose} 
-            className="px-4 py-2.5 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:bg-zinc-800 rounded-xl font-bold text-sm transition-colors"
+            className="px-4 py-2.5 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-xl font-bold text-sm transition-colors"
           >
             Cancel
           </button>

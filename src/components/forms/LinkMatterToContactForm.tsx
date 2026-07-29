@@ -73,7 +73,7 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
                     id="as-client"
                     checked={asClient}
                     onChange={(e) => setAsClient(e.target.checked)}
-                    className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    className="h-5 w-5 rounded border-slate-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500 cursor-pointer"
                 />
                 <label htmlFor="as-client" className="text-sm text-slate-700 dark:text-zinc-300 cursor-pointer select-none">
                     <span className="font-bold block">Set as Primary {clientNoun}</span>

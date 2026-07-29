@@ -2789,6 +2789,85 @@ export const clearAllNotifications = mutation({
 });
 
 /**
+ * recordTermsAcceptance — Stores a durable, server-side record of a user
+ * accepting the Terms of Service / Privacy Policy.
+ *
+ * WHY THIS EXISTS (NDPA §25 — Demonstrable Consent):
+ * Previously, consent was stored ONLY in localStorage (volatile,
+ * device-local). If the user cleared their browser data, switched
+ * devices, or uninstalled the app, there was NO server-side proof that
+ * they had ever accepted the terms. This mutation creates a permanent
+ * database record that can be audited and produced as evidence of
+ * consent. The localStorage copy is still kept for fast UI gating
+ * (so the acceptance bar doesn't reappear on every page load), but
+ * the database record is the legally authoritative one.
+ */
+export const recordTermsAcceptance = mutation({
+  args: {
+    termsVersion: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let firmId: string | null = null;
+    let userId: string | null = null;
+    let userEmail: string | undefined = undefined;
+
+    try {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      firmId = auth.firmId;
+      userId = auth.userId;
+      userEmail = args.userEmail || auth.user?.email || undefined;
+    } catch {
+      // User may not be fully authenticated yet (e.g., during signup).
+      // Still record the acceptance with whatever info we have.
+      userEmail = args.userEmail;
+    }
+
+    const now = new Date().toISOString();
+    // Convex mutations run on the server, so navigator/Capacitor are not
+    // available. The client should pass userAgent and platform if needed;
+    // for now we record what we can determine server-side.
+    const userAgent = 'server-side-mutation';
+    const platform = 'server';
+
+    const recordId = crypto.randomUUID();
+    await ctx.db.insert("termsAcceptance", {
+      id: recordId,
+      firmId,
+      userId,
+      userEmail: userEmail || null,
+      termsVersion: args.termsVersion,
+      acceptedAt: now,
+      userAgent,
+      platform,
+      ipHash: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { success: true, recordId, acceptedAt: now };
+  },
+});
+
+/**
+ * getTermsAcceptance — Queries the most recent terms acceptance record
+ * for a given user email. Used to verify consent server-side (e.g., for
+ * audit reports or NDPA compliance checks).
+ */
+export const getTermsAcceptance = query({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (!args.userEmail) return null;
+    const records = await ctx.db
+      .query("termsAcceptance")
+      .withIndex("by_user_email", (q: any) => q.eq("userEmail", args.userEmail))
+      .order("desc")
+      .take(10);
+    return records.length > 0 ? records[0] : null;
+  },
+});
+
+/**
  * deleteItem (ROBUST VERSION)
  * Handles both Convex Internal IDs and Custom UUIDs (Legacy).
  * Strategy A → B → C cascade ensures deletion succeeds regardless of ID format.

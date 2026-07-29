@@ -77,9 +77,9 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
     return (
       <div className="flex flex-col gap-4 -m-2">
         <div className="space-y-2 sm:space-y-3 pb-6">
-          <div className="p-3 sm:p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 text-center space-y-3">
+          <div className="p-3 sm:p-4 bg-indigo-50 dark:bg-indigo-950/40/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 text-center space-y-3">
             <div className="w-14 h-14 bg-white dark:bg-zinc-900 rounded-xl shadow-sm flex items-center justify-center mx-auto ring-2 ring-indigo-500/10">
-              <ShieldCheckIcon className="w-6 h-6 text-indigo-600" />
+              <ShieldCheckIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-300" />
             </div>
             <div>
               <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Invite a Team Member</h3>
@@ -90,7 +90,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
             
             <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2">
               <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Invite Code</p>
-              <div className="text-3xl font-black tracking-[0.3em] text-primary-600 font-mono">
+              <div className="text-3xl font-black tracking-[0.3em] text-primary-600 dark:text-primary-300 font-mono">
                 {inviteCode || 'CODE_PENDING'}
               </div>
             </div>

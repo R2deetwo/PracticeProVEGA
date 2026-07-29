@@ -625,7 +625,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     <span className="text-2xs uppercase font-black tracking-widest text-slate-500 dark:text-zinc-400">
                         {roleLabel}s ({list.length})
                     </span>
-                    <button type="button" onClick={() => addParty(side, roleLabel)} className="text-2xs font-bold text-primary-600 dark:text-primary-400 flex items-center gap-1">
+                    <button type="button" onClick={() => addParty(side, roleLabel)} className="text-2xs font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400 flex items-center gap-1">
                         <PlusIcon className="w-3 h-3" /> Add
                     </button>
                 </div>
@@ -666,8 +666,8 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     onClick={() => updateParty(side, p.id, { isRepresentative: !p.isRepresentative, capacity: '' })}
                                     className={`text-3xs font-bold px-1.5 py-0.5 rounded border transition-colors ${
                                         p.isRepresentative 
-                                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/50' 
-                                        : 'text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800'
+                                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/50' 
+                                        : 'text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800'
                                     }`}
                                 >
                                     Rep. Action?
@@ -724,7 +724,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     <button
                                         type="button"
                                         onClick={() => setIsCreatingNewType(false)}
-                                        className="text-xs text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 px-3 rounded-lg transition-colors"
+                                        className="text-xs text-red-500 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-950/40 dark:hover:bg-red-900/10 px-3 rounded-lg transition-colors"
                                     >
                                         Cancel
                                     </button>
@@ -792,7 +792,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             matterType: matterType,
                                             subCategoryName: subCategory || undefined,
                                         })}
-                                        className="mt-2 text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                                        className="mt-2 text-2xs font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400 hover:underline flex items-center gap-1"
                                     >
                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -848,7 +848,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <button
                                 type="button"
                                 onClick={() => setIsCreatingClient(!isCreatingClient)}
-                                className="text-2xs font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                                className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline flex items-center gap-1"
                             >
                                 {isCreatingClient ? 'Cancel & Select' : '+ Create Profile'}
                             </button>
@@ -1018,10 +1018,10 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 locked and prompts an upgrade.
                             */}
                             {billingModel === BillingModel.Retainer && (
-                                <div className="animate-in fade-in slide-in-from-right-2 duration-300 col-span-full mt-2 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/30 space-y-3">
+                                <div className="animate-in fade-in slide-in-from-right-2 duration-300 col-span-full mt-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40/60 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/30 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
-                                            <p className="text-2xs font-bold text-emerald-700/80 dark:text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Recurring Retainer</p>
+                                            <p className="text-2xs font-bold text-emerald-700 dark:text-emerald-300/80 dark:text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Recurring Retainer</p>
                                             <h4 className="text-sm font-bold text-slate-800 dark:text-white">Payment Frequency</h4>
                                             <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                                 System auto-generates a draft invoice per cycle, staged for your review in the Billing Monitor.
@@ -1074,7 +1074,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     </div>
 
                                     {retainerAutoBillingEnabled && features.canUseRetainerAutoBilling && (
-                                        <div className="flex items-center gap-2 pt-1 text-2xs text-emerald-700 dark:text-emerald-400 font-medium">
+                                        <div className="flex items-center gap-2 pt-1 text-2xs text-emerald-700 dark:text-emerald-300 dark:text-emerald-400 font-medium">
                                             <CalendarIcon className="w-3 h-3" />
                                             <span>
                                                 Next invoice will stage automatically based on the {billingFrequency.toLowerCase()} cycle starting from matter creation.
@@ -1141,7 +1141,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                                         className={`px-2 py-1 text-3xs font-bold rounded transition-colors ${
                                                             representingSide === r 
                                                             ? 'bg-primary-500 text-white shadow-sm'
-                                                            : 'bg-slate-200 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
+                                                            : 'bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
                                                         }`}
                                                     >
                                                         {r === 'Claimant' ? cRole : dRole}s
@@ -1181,7 +1181,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                         placeholder="Select next hearing date"
                                     />
                                 </div>
-                                <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before). <span className="font-semibold text-primary-600">Pro plan feature.</span></p>
+                                <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before). <span className="font-semibold text-primary-600 dark:text-primary-300">Pro plan feature.</span></p>
                             </div>
                         </div>
                     )}

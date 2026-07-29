@@ -204,8 +204,8 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
           {unitName}{tenantName ? ` • Tenant: ${tenantName}` : ''}
         </p>
         {/* Ledger vs Invoice explainer */}
-        <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-          <p className="text-2xs text-emerald-700 leading-relaxed">
+        <div className="mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100">
+          <p className="text-2xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
             <strong>Atrium Ledger</strong> tracks rent & service charges for this property.
             Formal <strong>Invoices</strong> (for {isProperty ? 'professional fees' : 'professional/legal fees'}) are managed separately in Billing.
           </p>
@@ -237,7 +237,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
           </div>
         </div>
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:bg-zinc-900 transition-colors">Cancel</button>
+          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors">Cancel</button>
           <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
             {loading ? 'Saving...' : 'Record Payment'}
           </button>
@@ -451,7 +451,7 @@ const ModalManager: React.FC = () => {
                 <button
                   key={c.id}
                   onClick={() => openModal('newProperty', c.id)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50/50 transition-all flex items-center justify-between group"
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold group-hover:bg-primary-100 group-hover:text-primary-600">

@@ -50,7 +50,7 @@ const SendPostActivationEmailModal: React.FC = () => {
   };
 
   if (!email || !name) {
-    return <p className="text-sm text-red-500">Error: Could not load email content — missing client email or name.</p>;
+    return <p className="text-sm text-red-500 dark:text-red-400">Error: Could not load email content — missing client email or name.</p>;
   }
 
   return (
@@ -75,7 +75,7 @@ const SendPostActivationEmailModal: React.FC = () => {
         </div>
       </div>
        <div className="pt-4 flex flex-col sm:flex-row justify-end gap-2">
-        <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
           Close
         </button>
          <button 

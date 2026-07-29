@@ -104,14 +104,14 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                         <button
                             type="button"
                             onClick={onDelete}
-                            className="px-4 py-2 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80 transition-colors"
+                            className="px-4 py-2 bg-red-100 text-red-700 dark:text-red-400 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80 transition-colors"
                         >
                             Delete Template
                         </button>
                     )}
                 </div>
                 <div className="space-x-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
                     <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Template'}</button>
                 </div>
             </div>
@@ -125,14 +125,14 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                         <button 
                             type="button" 
                             onClick={() => handleCopyPlaceholder(p.placeholder)}
-                            className="w-full text-left p-2 bg-white dark:bg-gray-700 rounded-md font-mono text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/40 transition-colors"
+                            className="w-full text-left p-2 bg-white dark:bg-gray-700 rounded-md font-mono text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/40 transition-colors"
                         >
                             {p.placeholder}
                         </button>
                     </Tooltip>
                 ))}
             </div>
-             {copied && <p className="text-center text-xs text-green-600 font-semibold mt-4">Copied to clipboard!</p>}
+             {copied && <p className="text-center text-xs text-green-600 dark:text-green-400 font-semibold mt-4">Copied to clipboard!</p>}
         </div>
     </div>
   );

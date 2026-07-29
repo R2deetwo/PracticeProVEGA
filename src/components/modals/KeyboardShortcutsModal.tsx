@@ -8,7 +8,7 @@ interface ShortcutItemProps {
 }
 
 const ShortcutItem: React.FC<ShortcutItemProps> = ({ keys, description }) => (
- <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+ <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-zinc-800 last:border-0">
   <span className="text-sm text-gray-700 dark:text-zinc-300">{description}</span>
   <div className="flex gap-1">
    {keys.map((key, index) => (

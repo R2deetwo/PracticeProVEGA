@@ -70,14 +70,14 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
                     </div>
 
                     {/* Label */}
-                    <p title={stage} className={`text-3xs font-bold transition-colors duration-300 w-full text-center px-1 leading-tight line-clamp-1 h-3 ${isCurrent || isCompleted || isLoading ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
+                    <p title={stage} className={`text-3xs font-bold transition-colors duration-300 w-full text-center px-1 leading-tight line-clamp-1 h-3 ${isCurrent || isCompleted || isLoading ? 'text-primary-600 dark:text-primary-300 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
                       {stage}
                     </p>
                   </div>
 
                   {/* Connector Line */}
                   {index < stages.length - 1 && (
-                    <div className="flex-1 min-w-[1.5rem] h-[1px] mx-0 relative overflow-visible bg-gray-200 dark:bg-zinc-700 z-0 mt-[15px]">
+                    <div className="flex-1 min-w-[1.5rem] h-[1px] mx-0 relative overflow-visible bg-gray-200 dark:bg-zinc-800 dark:bg-zinc-700 z-0 mt-[15px]">
                       {/* mt-15px aligns line exactly with center of h-8 container/w-7 circle */}
                       <div className={`absolute top-0 left-0 h-full bg-green-500 transition-all duration-500 ease-in-out`} style={{ width: isCompleted ? '100%' : '0%' }}></div>
                     </div>

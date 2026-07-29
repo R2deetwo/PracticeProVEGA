@@ -35,7 +35,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
           </div>
           <div>
             <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Bulk Edit Properties</h3>
-            <p className="text-sm text-slate-500 font-medium">Updating <span className="text-primary-600 font-bold">{propertyIds.length}</span> selected properties.</p>
+            <p className="text-sm text-slate-500 font-medium">Updating <span className="text-primary-600 dark:text-primary-300 font-bold">{propertyIds.length}</span> selected properties.</p>
           </div>
         </div>
 
@@ -76,11 +76,11 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
             </div>
           </div>
 
-          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-4">
-            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-100 dark:border-amber-900/50 flex items-start gap-4">
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-lg">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             </div>
-            <p className="text-xs text-amber-800 leading-relaxed font-medium">
+            <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
               Warning: Bulk changes are permanent. Any specific details like lease data or valuations tied to the previous status may be hidden or reset based on the new status.
             </p>
           </div>
@@ -89,7 +89,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
             <button 
               type="button" 
               onClick={onClose} 
-              className="flex-1 sm:flex-none px-10 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-2xs font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+              className="flex-1 sm:flex-none px-10 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-2xs font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
             >
               <XIcon className="w-4 h-4" /> Cancel
             </button>

@@ -330,13 +330,13 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                             </button>
                         )}
                         <div>
-                            <p className="text-2xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em]">New Matter</p>
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-[0.2em]">New Matter</p>
                             <h1 id="smart-matter-title" className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                                 {step === 0 ? 'What type of matter is this?' : MATTER_TYPES.find(m => m.type === matterType)?.label + ' Matter'}
                             </h1>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                    <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 dark:hover:text-white transition-colors">
                         <XIcon className="w-4 h-4" />
                     </button>
                 </div>
@@ -440,7 +440,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                 <div key={field.fieldId}>
                                                     <label className={lbl}>
                                                         {field.label}
-                                                        {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                                                        {field.required && <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>}
                                                     </label>
                                                     {field.type === 'textarea' ? (
                                                         <textarea
@@ -483,7 +483,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     )}
 
                                     {/* ALOA hint */}
-                                    <div className="flex items-start gap-2 p-3 bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-xl">
+                                    <div className="flex items-start gap-2 p-3 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-xl">
                                         <svg className="w-4 h-4 text-primary-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.75 3.75 0 01-5.3 0l-.347-.347z" /></svg>
                                         <p className="text-2xs text-primary-700 dark:text-primary-300 leading-snug">
                                             <span className="font-bold">ALOA will draft: </span>
@@ -498,7 +498,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                 <label className={lbl}>Matter Title</label>
                                 {autoTitle ? (
                                     <div className="space-y-1">
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-primary-800 dark:text-primary-200">
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-primary-800 dark:text-primary-200">
                                             <span className="text-2xs font-bold text-primary-500 uppercase tracking-wide flex-shrink-0">Auto</span>
                                             {autoTitle}
                                         </div>
@@ -527,7 +527,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* Property Address */}
                                     <div>
-                                        <label className={lbl}>Property Address <span className="text-red-500">*</span></label>
+                                        <label className={lbl}>Property Address <span className="text-red-500 dark:text-red-400">*</span></label>
                                         <textarea rows={2} className={inp + ' resize-none'} value={propertyAddress} onChange={e => setPropertyAddress(e.target.value)} placeholder="Full property address..." />
                                     </div>
 
@@ -619,14 +619,14 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* Tenanted / Rental sub-section */}
                                     {(propertyCategory === 'Tenanted Property' || propertyCategory === 'Personal Residence' || propertyCategory === 'Other') && (
-                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-xl animate-fade-in">
+                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/40/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-xl animate-fade-in">
                                             <div className="flex justify-between items-center">
-                                                <p className="text-2xs font-black text-emerald-600 uppercase tracking-[0.15em]">
+                                                <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.15em]">
                                                     {numberOfUnits > 1 ? `${unitsData[activeUnitIndex].unitName} Details` : 'Rental / Lease Details'}
                                                 </p>
                                                 {numberOfUnits > 1 && (
                                                     <input autoComplete="off" data-lpignore="true"  
-                                                        className="text-2xs font-bold bg-transparent border-none text-emerald-600 focus:ring-0 p-0 text-right w-24"
+                                                        className="text-2xs font-bold bg-transparent border-none text-emerald-600 dark:text-emerald-400 focus:ring-0 p-0 text-right w-24"
                                                         value={unitsData[activeUnitIndex].unitName}
                                                         onChange={e => updateUnit(activeUnitIndex, 'unitName', e.target.value)}
                                                         placeholder="Unit Name"
@@ -694,8 +694,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* For Sale sub-section */}
                                     {propertyCategory === 'Property For Sale' && (
-                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-xl animate-fade-in">
-                                            <p className="text-2xs font-black text-blue-600 uppercase tracking-[0.15em]">Listing Details</p>
+                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/50 dark:border-blue-900/20 rounded-xl animate-fade-in">
+                                            <p className="text-2xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em]">Listing Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Target Price (₦)</label>
@@ -717,8 +717,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* Disputed sub-section */}
                                     {propertyCategory === 'Disputed Property' && (
-                                        <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
-                                            <p className="text-2xs font-black text-red-600 uppercase tracking-[0.15em]">Dispute / Litigation Details</p>
+                                        <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-950/40 dark:bg-red-900/10 border border-red-100 dark:border-red-900/50 dark:border-red-900/30 rounded-xl">
+                                            <p className="text-2xs font-black text-red-600 dark:text-red-400 uppercase tracking-[0.15em]">Dispute / Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Court</label>
@@ -739,7 +739,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* Add litigation toggle for non-disputed categories */}
                                     {propertyCategory !== 'Disputed Property' && (
                                         <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-slate-100 dark:border-zinc-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
-                                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={reHasLitigation} onChange={e => setReHasLitigation(e.target.checked)} className="w-4 h-4 rounded text-primary-600 accent-primary-600" />
+                                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={reHasLitigation} onChange={e => setReHasLitigation(e.target.checked)} className="w-4 h-4 rounded text-primary-600 dark:text-primary-300 accent-primary-600" />
                                             <div>
                                                 <p className="text-sm font-bold text-slate-800 dark:text-white">This property is also in litigation</p>
                                                 <p className="text-xs text-slate-500 dark:text-zinc-400">Check to add court & dispute details</p>
@@ -747,8 +747,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                         </label>
                                     )}
                                     {reHasLitigation && propertyCategory !== 'Disputed Property' && (
-                                        <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
-                                            <p className="text-2xs font-black text-red-600 uppercase tracking-[0.15em]">Litigation Details</p>
+                                        <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-950/40 dark:bg-red-900/10 border border-red-100 dark:border-red-900/50 dark:border-red-900/30 rounded-xl">
+                                            <p className="text-2xs font-black text-red-600 dark:text-red-400 uppercase tracking-[0.15em]">Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Court</label>
@@ -797,14 +797,14 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                             <option value="">Select existing client...</option>
                                             {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
-                                        <button onClick={() => setIsNewClient(true)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors whitespace-nowrap">
+                                        <button onClick={() => setIsNewClient(true)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 transition-colors whitespace-nowrap">
                                             + New
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="flex gap-2">
                                         <input autoComplete="off" data-lpignore="true"  className={`${inp} flex-1`} value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="New client name..." autoFocus />
-                                        <button onClick={() => setIsNewClient(false)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">
+                                        <button onClick={() => setIsNewClient(false)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 transition-colors">
                                             Pick
                                         </button>
                                     </div>
@@ -887,7 +887,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                             {/* Start drafting toggle (only for litigation) */}
                             {isLitigation && (
                                 <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-slate-100 dark:border-zinc-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
-                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={startDrafting} onChange={e => setStartDrafting(e.target.checked)} className="w-4 h-4 rounded text-primary-600 accent-primary-600" />
+                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={startDrafting} onChange={e => setStartDrafting(e.target.checked)} className="w-4 h-4 rounded text-primary-600 dark:text-primary-300 accent-primary-600" />
                                     <div>
                                         <p className="text-sm font-bold text-slate-800 dark:text-white">Open in DraftPro after creating</p>
                                         <p className="text-xs text-slate-500 dark:text-zinc-400">Jump straight to AI-assisted document drafting</p>

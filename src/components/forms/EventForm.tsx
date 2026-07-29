@@ -263,7 +263,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                             <div className="flex justify-between items-center mb-0.5">
                                 <label htmlFor="type" className={labelClass}>Activity Type</label>
                                 {onNavigate && (
-                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-3xs font-black text-primary-600 uppercase tracking-widest hover:underline">Customize</button>
+                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-3xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline">Customize</button>
                                 )}
                             </div>
                             <select id="type" value={type} onChange={e => setType(e.target.value)} className={commonInputClass} required>
@@ -310,13 +310,13 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div className={`flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all ${reminderEnabled ? 'ring-2 ring-primary-500' : ''}`}>
-                             <div className={`p-2 rounded-xl transition-colors ${reminderEnabled ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
+                             <div className={`p-2 rounded-xl transition-colors ${reminderEnabled ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 dark:bg-primary-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
                                 <BellIcon className="w-5 h-5" />
                              </div>
                              <div className="flex-grow">
                                 <label htmlFor="reminderEnabled" className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest cursor-pointer block mb-1">Notifications</label>
                                 <div className="flex items-center gap-3">
-                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" id="reminderEnabled" checked={reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer" />
+                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" id="reminderEnabled" checked={reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500 cursor-pointer" />
                                     {reminderEnabled && (
                                         <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
                                             {/* Stepper UI — touch-friendly +/- buttons + free-text input.
@@ -329,7 +329,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                                         const current = parseInt(reminderValueStr, 10) || 1;
                                                         setReminderValueStr(String(Math.max(1, current - 1)));
                                                     }}
-                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
                                                     aria-label="Decrease reminder value"
                                                 >
                                                     −
@@ -360,7 +360,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                                         const current = parseInt(reminderValueStr, 10) || 1;
                                                         setReminderValueStr(String(Math.min(999, current + 1)));
                                                     }}
-                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
                                                     aria-label="Increase reminder value"
                                                 >
                                                     +
@@ -379,13 +379,13 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                         </div>
 
                         <div className={`flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all ${recurrenceEnabled ? 'ring-2 ring-indigo-500' : ''}`}>
-                             <div className={`p-2 rounded-xl transition-colors ${recurrenceEnabled ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
+                             <div className={`p-2 rounded-xl transition-colors ${recurrenceEnabled ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 dark:bg-indigo-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
                                 <RepeatIcon className="w-5 h-5" />
                              </div>
                              <div className="flex-grow">
                                 <label htmlFor="recurrenceEnabled" className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest cursor-pointer block mb-1">Recurrence</label>
                                 <div className="flex items-center gap-3">
-                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" id="recurrenceEnabled" checked={recurrenceEnabled} onChange={e => setRecurrenceEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" id="recurrenceEnabled" checked={recurrenceEnabled} onChange={e => setRecurrenceEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 dark:text-indigo-300 focus:ring-indigo-500 cursor-pointer" />
                                     {recurrenceEnabled && (
                                         <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2 duration-300">
                                             <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
@@ -402,7 +402,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                 </div>
 
                 {isCourtEventType && (
-                    <div className="p-3 sm:p-4 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30 space-y-2 sm:space-y-3">
+                    <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-950/40/50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/50 dark:border-amber-900/30 space-y-2 sm:space-y-3">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-amber-600 text-white rounded-lg shadow-sm ring-2 ring-amber-500/10">
                                 <MapPinIcon className="w-3.5 h-3.5" />

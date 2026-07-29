@@ -37,9 +37,9 @@ const QuickLookModal: React.FC = () => {
 
   const getIcon = () => {
     switch (type) {
-      case 'Matter': return <MattersIcon className="w-8 h-8 text-primary-600" />;
-      case 'Task': return <TasksIcon className="w-8 h-8 text-primary-600" />;
-      case 'Contact': return <ContactsIcon className="w-8 h-8 text-primary-600" />;
+      case 'Matter': return <MattersIcon className="w-8 h-8 text-primary-600 dark:text-primary-300" />;
+      case 'Task': return <TasksIcon className="w-8 h-8 text-primary-600 dark:text-primary-300" />;
+      case 'Contact': return <ContactsIcon className="w-8 h-8 text-primary-600 dark:text-primary-300" />;
       default: return null;
     }
   };
@@ -48,7 +48,7 @@ const QuickLookModal: React.FC = () => {
     <div className="space-y-5">
       {/* Type badge + Icon */}
       <div className="flex items-start justify-between">
-        <div className="p-3 bg-primary-50 rounded-xl shadow-sm">
+        <div className="p-3 bg-primary-50 dark:bg-primary-900/30 rounded-xl shadow-sm">
           {getIcon()}
         </div>
         <span className="px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-500 text-2xs font-black uppercase tracking-[0.2em] rounded-full">
@@ -58,7 +58,7 @@ const QuickLookModal: React.FC = () => {
 
       {/* Title */}
       <div>
-        <p className="text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">{type} Overview</p>
+        <p className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest mb-1">{type} Overview</p>
         <h3 className="text-xl font-black text-slate-800 dark:text-zinc-100 tracking-tight leading-tight">
           {item.title || item.name}
         </h3>
@@ -81,7 +81,7 @@ const QuickLookModal: React.FC = () => {
           </div>
           <div>
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-0.5">FILE REFERENCE</p>
-            <p className="text-sm font-black font-mono text-primary-600">{item.referenceNumber || 'N/A'}</p>
+            <p className="text-sm font-black font-mono text-primary-600 dark:text-primary-300">{item.referenceNumber || 'N/A'}</p>
           </div>
         </div>
       )}
@@ -89,7 +89,7 @@ const QuickLookModal: React.FC = () => {
       {type === 'Task' && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <span className={`px-2 py-0.5 rounded-md text-2xs font-black uppercase tracking-widest ${item.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            <span className={`px-2 py-0.5 rounded-md text-2xs font-black uppercase tracking-widest ${item.status === 'done' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'}`}>
               {item.status.replace('_', ' ')}
             </span>
             <span className="px-2 py-0.5 rounded-md text-2xs font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 text-slate-500">
@@ -123,7 +123,7 @@ const QuickLookModal: React.FC = () => {
           {item.email && (
             <>
               <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mt-3 mb-1">EMAIL</p>
-              <p className="text-sm font-bold text-primary-600">{item.email}</p>
+              <p className="text-sm font-bold text-primary-600 dark:text-primary-300">{item.email}</p>
             </>
           )}
         </div>

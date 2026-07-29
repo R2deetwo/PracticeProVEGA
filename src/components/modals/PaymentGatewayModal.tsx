@@ -56,8 +56,8 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
           {/* Header */}
           <div className="text-center mb-2">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <BuildingLibraryIcon className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Bank Transfer</span>
+              <BuildingLibraryIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Bank Transfer</span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
             {description && <p className="text-sm text-slate-500 mt-1">{description}</p>}
@@ -118,7 +118,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               <div className="flex items-center justify-between group">
                 <div>
                   <p className="text-2xs font-bold text-slate-400 uppercase">Amount</p>
-                  <p className="text-lg font-bold text-emerald-600"><NairaSymbol />{formatNaira(amount)}</p>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400"><NairaSymbol />{formatNaira(amount)}</p>
                 </div>
                 <button
                   onClick={() => copyToClipboard(String(amount), 'Amount')}
@@ -137,7 +137,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               type="checkbox"
               checked={confirmChecked}
               onChange={(e) => setConfirmChecked(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500"
+              className="mt-1 w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-emerald-600 dark:text-emerald-400 focus:ring-emerald-500"
             />
             <span className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
               I have transferred the exact amount to the account above and understand that my payment will be verified manually by the firm.
@@ -148,7 +148,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
           <button
             onClick={handleConfirmPayment}
             disabled={!confirmChecked}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:bg-zinc-700 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
           >
             I've Completed This Payment
           </button>
@@ -174,8 +174,8 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
 
       {step === 'confirmed' && (
         <div className="text-center animate-scale-in">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircleIcon className="w-12 h-12 text-emerald-600" />
+          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
           </div>
           <h3 className="text-2xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Payment Reported</h3>
           <p className="text-slate-500 mb-6">Your firm will verify the transfer and update the invoice status.</p>

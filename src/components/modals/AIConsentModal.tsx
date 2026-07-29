@@ -14,7 +14,7 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="text-center">
-        <div className="w-14 h-14 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-14 h-14 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
@@ -43,7 +43,7 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
       <div className="flex gap-3">
         <button 
           onClick={onDecline}
-          className="flex-1 py-3 px-4 border border-slate-300 dark:border-zinc-700 rounded-xl font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:bg-zinc-900 transition-colors"
+          className="flex-1 py-3 px-4 border border-slate-300 dark:border-zinc-700 rounded-xl font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors"
         >
           Decline
         </button>

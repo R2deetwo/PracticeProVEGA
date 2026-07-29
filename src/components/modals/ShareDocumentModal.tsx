@@ -87,7 +87,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
     <div className="space-y-6">
       <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
         <div className="p-2 bg-white dark:bg-zinc-900 rounded shadow-sm">
-          <PaperClipIcon className="w-6 h-6 text-primary-600" />
+          <PaperClipIcon className="w-6 h-6 text-primary-600 dark:text-primary-300" />
         </div>
         <div>
           <h4 className="font-bold text-slate-800 dark:text-zinc-100 text-sm">{document.title}</h4>
@@ -104,13 +104,13 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
             <div
               key={user.id}
               onClick={() => handleToggleUser(user.id)}
-              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary-50' : 'hover:bg-slate-50 dark:bg-zinc-900'}`}
+              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary-50 dark:bg-primary-900/30' : 'hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900'}`}
             >
               <input autoComplete="off" data-lpignore="true" 
                 type="checkbox"
                 checked={selectedUserIds.has(user.id)}
                 readOnly
-                className="rounded border-gray-300 dark:border-zinc-700 text-primary-600 focus:ring-primary-500 pointer-events-none"
+                className="rounded border-gray-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500 pointer-events-none"
               />
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${getUserColor(user.name)}`}>
                 {getInitials(user.name)}
@@ -143,7 +143,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg hover:bg-slate-50 transition-colors">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
           Cancel
         </button>
         <button

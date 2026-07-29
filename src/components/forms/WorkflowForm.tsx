@@ -168,7 +168,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                             <PlusIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                            <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice Area'}</h3>
                         </div>
                     </div>
@@ -212,7 +212,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                                 <PlusIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-2xs font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Process</p>
+                                <p className="text-2xs font-bold text-indigo-600 dark:text-indigo-300/70 uppercase tracking-widest leading-none mb-0.5">Process</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Workflow Stages</h3>
                             </div>
                         </div>

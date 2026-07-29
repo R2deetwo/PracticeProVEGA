@@ -312,7 +312,7 @@ export const MatterIngestionWizard: React.FC = () => {
               `}>
                 {isDone ? <CheckCircleIcon className="w-4 h-4" /> : idx + 1}
               </div>
-              <span className={`text-2xs font-bold whitespace-nowrap ${isActive ? 'text-primary-600' : 'text-slate-400'}`}>
+              <span className={`text-2xs font-bold whitespace-nowrap ${isActive ? 'text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>
                 {s.label}
               </span>
               {idx < 3 && <ChevronRightIcon className="w-3 h-3 text-slate-200" />}
@@ -331,8 +331,8 @@ export const MatterIngestionWizard: React.FC = () => {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
-            <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-inner border-2 border-dashed border-primary-400">
-              <FoldersIcon className="w-12 h-12 text-primary-600" />
+            <div className="w-24 h-24 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-inner border-2 border-dashed border-primary-400">
+              <FoldersIcon className="w-12 h-12 text-primary-600 dark:text-primary-300" />
             </div>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">Drop Master Firm Folder Here</h3>
             <p className="text-slate-500 max-w-md mb-8 leading-relaxed">
@@ -366,7 +366,7 @@ export const MatterIngestionWizard: React.FC = () => {
               <div className="absolute inset-0 border-4 border-primary-100 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <SparklesIcon className="w-10 h-10 text-primary-600 animate-pulse" />
+                <SparklesIcon className="w-10 h-10 text-primary-600 dark:text-primary-300 animate-pulse" />
               </div>
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">ALOA Intelligence at Work</h3>
@@ -385,19 +385,19 @@ export const MatterIngestionWizard: React.FC = () => {
         {/* STEP 3: VALIDATION */}
         {step === 'validation' && (
           <div className="h-full flex flex-col">
-            <div className="p-4 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-100 dark:border-amber-900/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-1.5 bg-amber-100 text-amber-600 rounded">
+                <div className="p-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded">
                   <ShieldCheckIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-amber-800 uppercase">Manual Validation Required</p>
-                  <p className="text-2xs text-amber-700">Review extraction results before committing to the database. Adjust fields as needed.</p>
+                  <p className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase">Manual Validation Required</p>
+                  <p className="text-2xs text-amber-700 dark:text-amber-300">Review extraction results before committing to the database. Adjust fields as needed.</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer group">
-                  <div className={`w-10 h-6 rounded-full p-1 transition-colors ${importDocuments ? 'bg-primary-600' : 'bg-slate-300'}`} onClick={() => setImportDocuments(!importDocuments)}>
+                  <div className={`w-10 h-6 rounded-full p-1 transition-colors ${importDocuments ? 'bg-primary-600' : 'bg-slate-300 dark:bg-zinc-700'}`} onClick={() => setImportDocuments(!importDocuments)}>
                     <div className={`w-4 h-4 bg-white dark:bg-zinc-900 rounded-full transition-transform ${importDocuments ? 'translate-x-4' : ''}`} />
                   </div>
                   <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Import Documents</span>
@@ -418,10 +418,10 @@ export const MatterIngestionWizard: React.FC = () => {
                 </thead>
                 <tbody>
                   {draftMatters.map(draft => (
-                    <tr key={draft.id} className="bg-slate-50 hover:bg-white dark:bg-zinc-900 transition-all rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800">
+                    <tr key={draft.id} className="bg-slate-50 hover:bg-white dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-all rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800">
                       <td className="p-4 rounded-l-xl">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded flex items-center justify-center">
+                          <div className="w-8 h-8 bg-blue-100 text-blue-600 dark:text-blue-400 rounded flex items-center justify-center">
                             <MatterIcon className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
@@ -437,18 +437,18 @@ export const MatterIngestionWizard: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="px-2 py-0.5 bg-slate-200 rounded text-2xs font-bold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
+                        <span className="px-2 py-0.5 bg-slate-200 dark:bg-zinc-700 rounded text-2xs font-bold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
                           {draft.type}
                         </span>
                       </td>
                       <td className="p-4 text-center">
-                        <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${importDocuments ? 'bg-green-100 text-green-700' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 opacity-50'}`}>
+                        <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${importDocuments ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 opacity-50'}`}>
                           <DocumentTextIcon className="w-3.5 h-3.5" />
                           <span className="text-xs font-bold">{draft.files.length}</span>
                         </div>
                       </td>
                       <td className="p-4 rounded-r-xl text-right">
-                        <button className="text-primary-600 hover:underline text-xs font-bold">Edit Fields</button>
+                        <button className="text-primary-600 dark:text-primary-300 hover:underline text-xs font-bold">Edit Fields</button>
                       </td>
                     </tr>
                   ))}
@@ -459,7 +459,7 @@ export const MatterIngestionWizard: React.FC = () => {
             <div className="p-6 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50 dark:bg-zinc-900/50">
               <div>
                 {ingestionError && (
-                  <p className="text-xs font-bold text-red-600 mb-1">⚠ Last attempt failed: {ingestionError}</p>
+                  <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-1">⚠ Last attempt failed: {ingestionError}</p>
                 )}
                 <p className="text-sm font-bold text-slate-900 dark:text-white">Batch Ready</p>
                 <p className="text-xs text-slate-500">{draftMatters.length} Matters to be ingested. {importDocuments ? `${files.length} documents will be queued.` : 'Skipping document binary upload.'}</p>
@@ -486,16 +486,16 @@ export const MatterIngestionWizard: React.FC = () => {
             </div>
             <div className="flex justify-between w-full max-w-md mb-8">
               <span className="text-xs font-bold text-slate-400 uppercase">{progress.label}</span>
-              <span className="text-xs font-mono font-bold text-primary-600">{Math.round((progress.current / progress.total) * 100)}%</span>
+              <span className="text-xs font-mono font-bold text-primary-600 dark:text-primary-300">{Math.round((progress.current / progress.total) * 100)}%</span>
             </div>
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 font-medium">
                 <ArrowPathIcon className="w-4 h-4 animate-spin text-primary-500" />
                 Sequential Batching... Ensuring data integrity
               </div>
-              <div className="p-4 bg-primary-50 rounded-xl border border-primary-100 flex items-center gap-3">
+              <div className="p-4 bg-primary-50 dark:bg-primary-900/30 rounded-xl border border-primary-100 flex items-center gap-3">
                 <div className="w-2 h-2 bg-primary-600 rounded-full animate-ping"></div>
-                <span className="text-2xs font-bold text-primary-700 uppercase tracking-widest">Processing Index: {progress.current} of {progress.total}</span>
+                <span className="text-2xs font-bold text-primary-700 dark:text-primary-300 uppercase tracking-widest">Processing Index: {progress.current} of {progress.total}</span>
               </div>
             </div>
           </div>
@@ -504,8 +504,8 @@ export const MatterIngestionWizard: React.FC = () => {
         {/* STEP 5: FINISHED */}
         {step === 'complete' && (
           <div className="h-full flex flex-col items-center justify-center p-12 text-center">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-8 shadow-inner">
-              <CheckCircleIcon className="w-12 h-12 text-green-600" />
+            <div className="w-24 h-24 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mb-8 shadow-inner">
+              <CheckCircleIcon className="w-12 h-12 text-green-600 dark:text-green-400" />
             </div>
             <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Ingestion Successful!</h3>
             <p className="text-slate-500 max-w-md mb-12">

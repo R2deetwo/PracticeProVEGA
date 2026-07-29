@@ -1652,4 +1652,28 @@ export default defineSchema({
     .index("by_firm_created",    ["firmId", "createdAt"])
     .index("by_type",            ["type"]),
 
+  // ─── Terms Acceptance Records (NDPA §25 demonstrable consent) ───────
+  // Stores a durable, server-side record every time a user accepts the
+  // Terms of Service / Privacy Policy. Previously consent was only stored
+  // in localStorage (volatile, device-local, not demonstrable). Now both
+  // localStorage (for fast UI gating) AND the database (for legal proof)
+  // are written.
+  termsAcceptance: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    userEmail: nullableString,
+    termsVersion: nullableString,           // e.g. '2026-07-27-v4'
+    acceptedAt: nullableString,             // ISO timestamp
+    userAgent: nullableString,              // browser/device fingerprint
+    platform: nullableString,               // 'web' | 'android' | 'ios'
+    ipHash: nullableString,                 // hashed IP for abuse detection (not raw IP)
+    id: nullableString,                     // Legacy field — frontend copy of _id
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_user", ["userId"])
+    .index("by_user_email", ["userEmail"])
+    .index("by_custom_id", ["id"]),
+
 }, { schemaValidation: false });

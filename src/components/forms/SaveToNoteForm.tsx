@@ -518,7 +518,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                 <div className="text-lg sm:text-xl leading-relaxed font-medium block whitespace-pre-wrap break-words">
                                     <span className="opacity-0">{content}</span>
                                     {content && !content.endsWith(' ') && <span className="opacity-0"> </span>}
-                                    <span className="text-primary-600 dark:text-primary-400 font-bold italic">
+                                    <span className="text-primary-600 dark:text-primary-300 dark:text-primary-400 font-bold italic">
                                         {interimTranscript}
                                     </span>
                                     <span className="inline-block w-[4px] h-[1.1em] bg-primary-500 ml-1 translate-y-[0.1em] animate-cursor-pulse" />
@@ -557,7 +557,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                 <button
                                     type="button"
                                     onClick={() => setContent("")}
-                                    className="p-2 sm:p-3 text-slate-400 hover:text-red-500 hover:bg-slate-50 dark:hover:bg-zinc-900 rounded-xl sm:rounded-2xl transition-all"
+                                    className="p-2 sm:p-3 text-slate-400 hover:text-red-500 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-900 rounded-xl sm:rounded-2xl transition-all"
                                     title="Clear All"
                                 >
                                     <DismissIcon className="w-5 h-5" />
@@ -614,7 +614,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                 <h3 className="text-2xl font-black text-slate-900 dark:text-zinc-100 italic tracking-tight">SAVE NOTE</h3>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Archive to your firm library</p>
                             </div>
-                            <button onClick={() => setViewMode('compose')} className="p-3 bg-slate-100 dark:bg-zinc-800 rounded-full text-slate-500 hover:bg-slate-200 transition-colors">
+                            <button onClick={() => setViewMode('compose')} className="p-3 bg-slate-100 dark:bg-zinc-800 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
                                 <DismissIcon className="w-5 h-5" />
                             </button>
                         </div>
@@ -634,23 +634,23 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                             <div className="grid grid-cols-3 gap-2 sm:gap-4">
                                 <button
                                     onClick={() => setDestinationType('property')}
-                                    className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'property' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
+                                    className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'property' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
                                 >
-                                    <SparklesIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'property' ? 'text-primary-600' : 'text-slate-400'}`} />
+                                    <SparklesIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'property' ? 'text-primary-600 dark:text-primary-300' : 'text-slate-400'}`} />
                                     <span className="font-bold text-2xs sm:text-sm tracking-tight text-center">Specific Property</span>
                                 </button>
                                 <button
                                     onClick={() => setDestinationType('matter')}
-                                    className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'matter' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
+                                    className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'matter' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
                                 >
-                                    <SparklesIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'matter' ? 'text-primary-600' : 'text-slate-400'}`} />
+                                    <SparklesIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'matter' ? 'text-primary-600 dark:text-primary-300' : 'text-slate-400'}`} />
                                     <span className="font-bold text-2xs sm:text-sm tracking-tight text-center">Specific Matter</span>
                                 </button>
                                 <button
                                     onClick={() => setDestinationType('notebook')}
-                                    className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'notebook' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
+                                    className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'notebook' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
                                 >
-                                    <FolderIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'notebook' ? 'text-primary-600' : 'text-slate-400'}`} />
+                                    <FolderIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'notebook' ? 'text-primary-600 dark:text-primary-300' : 'text-slate-400'}`} />
                                     <span className="font-bold text-2xs sm:text-sm tracking-tight text-center">Personal Notebook</span>
                                 </button>
                             </div>
@@ -674,8 +674,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                             </div>
                                         </div>
                                         <div className="flex p-1 bg-slate-100 dark:bg-zinc-900 rounded-[20px]">
-                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600' : 'text-slate-400'}`}>General Note</button>
-                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600' : 'text-slate-400'}`}>Task / Log</button>
+                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>General Note</button>
+                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>Task / Log</button>
                                         </div>
                                     </div>
                                 ) : destinationType === 'matter' ? (
@@ -695,8 +695,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                             </div>
                                         </div>
                                         <div className="flex p-1 bg-slate-100 dark:bg-zinc-900 rounded-[20px]">
-                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600' : 'text-slate-400'}`}>Memo</button>
-                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600' : 'text-slate-400'}`}>Endorsement</button>
+                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Memo</button>
+                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>Endorsement</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -719,7 +719,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                                 autoFocus
                                             />
                                         )}
-                                        <button onClick={() => setIsCreatingNewNotebook(!isCreatingNewNotebook)} className={`p-4 rounded-2xl transition-all ${isCreatingNewNotebook ? 'bg-red-50 text-red-500' : 'bg-slate-100 dark:bg-zinc-800 text-slate-500'}`}>
+                                        <button onClick={() => setIsCreatingNewNotebook(!isCreatingNewNotebook)} className={`p-4 rounded-2xl transition-all ${isCreatingNewNotebook ? 'bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400' : 'bg-slate-100 dark:bg-zinc-800 text-slate-500'}`}>
                                             {isCreatingNewNotebook ? <XMarkIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
                                         </button>
                                     </div>
@@ -735,7 +735,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                 </button>
                                 <button
                                     onClick={() => setViewMode('compose')}
-                                    className="w-full mt-4 py-4 text-slate-400 font-bold text-2xs uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                    className="w-full mt-4 py-4 text-slate-400 font-bold text-2xs uppercase tracking-widest hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
                                 >
                                     Back to Editor
                                 </button>

@@ -306,7 +306,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   return (
     <div className="p-1 sm:p-4">
       <div className="mb-6 flex items-start gap-4">
-        <div className="p-3 bg-green-100 rounded-2xl text-green-600">
+        <div className="p-3 bg-green-100 dark:bg-green-900/40 rounded-2xl text-green-600 dark:text-green-400">
           <Receipt className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
@@ -317,7 +317,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         {lastPayment && (
           <button
             onClick={() => handleDownloadTenantReceipt(lastPayment)}
-            className="flex-shrink-0 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 border border-slate-200 dark:border-zinc-700"
+            className="flex-shrink-0 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 border border-slate-200 dark:border-zinc-700"
             title={lastPayment.paidDate ? `Last paid: ${new Date(lastPayment.paidDate).toLocaleDateString('en-GB')} for ${formatNaira(lastPayment.amount)}` : undefined}
           >
             <DownloadIcon className="w-4 h-4" /> Download Last Receipt
@@ -375,38 +375,38 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-2xs font-black text-primary-600 uppercase tracking-widest ml-1">Period Start</label>
+                <label className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest ml-1">Period Start</label>
                 <div className="relative">
                   <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
                   <input autoComplete="off" data-lpignore="true" 
                     type="date"
                     value={periodStart}
                     onChange={e => setPeriodStart(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-2xs font-black text-primary-600 uppercase tracking-widest ml-1">Period End</label>
+                <label className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest ml-1">Period End</label>
                 <div className="relative">
                   <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
                   <input autoComplete="off" data-lpignore="true" 
                     type="date"
                     value={periodEnd}
                     onChange={e => setPeriodEnd(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-2xl border border-primary-100">
-            <div className="p-2 bg-primary-100 rounded-lg text-primary-600">
+          <div className="flex items-center gap-3 p-4 bg-primary-50 dark:bg-primary-900/30 rounded-2xl border border-primary-100">
+            <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg text-primary-600 dark:text-primary-300">
               <OfficeBuildingIcon className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-2xs font-bold text-primary-600 uppercase tracking-tight">Property / Unit</p>
+              <p className="text-2xs font-bold text-primary-600 dark:text-primary-300 uppercase tracking-tight">Property / Unit</p>
               <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 break-words">{unitDisplayLabel}</p>
             </div>
           </div>
@@ -489,7 +489,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       </div>
 
       <div className="flex justify-center">
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
           <XIcon className="w-4 h-4" /> Cancel
         </button>
       </div>

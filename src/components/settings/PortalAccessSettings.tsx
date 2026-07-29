@@ -1519,8 +1519,8 @@ const SecurityNotice: React.FC<{ isProperty: boolean; isUnified: boolean }> = ({
       <div>
         <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Security & Data Protection</p>
         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-          Invitation links expire after 7 days for security, but once a resident sets their password they can
-          access the portal anytime — the 7-day window only applies to the initial invitation, not to ongoing access.
+          Invitation links expire after 30 days for security, but once a resident sets their password they can
+          access the portal anytime — the 30-day window only applies to the initial invitation, not to ongoing access.
           Passwords are hashed with PBKDF2-SHA512 and never stored in plaintext. All data is encrypted in transit and at rest, compliant with NDPA 2023.
           {isUnified && ' Both Client and Resident portals share the same security infrastructure.'}
         </p>

@@ -594,7 +594,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <OfficeBuildingIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Primary Details</p>
+                            <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Primary Details</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Address & Category</h3>
                         </div>
                     </div>
@@ -719,7 +719,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <SparklesIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-2xs font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Features</p>
+                            <p className="text-2xs font-bold text-emerald-600 dark:text-emerald-400/70 uppercase tracking-widest leading-none mb-0.5">Features</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Amenities</h3>
                         </div>
                     </div>
@@ -745,7 +745,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                         <div className="flex flex-wrap gap-2">
                             {amenities.map(amenity => (
-                                <div key={amenity} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-xs font-bold">
+                                <div key={amenity} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-xs font-bold">
                                     {amenity}
                                     <button type="button" onClick={() => handleRemoveAmenity(amenity)} className="hover:text-rose-500 transition-colors">
                                         <XIcon className="w-3.5 h-3.5" />
@@ -766,23 +766,23 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <ZapIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-2xs font-bold text-amber-600/70 uppercase tracking-widest leading-none mb-0.5">Alerts</p>
+                            <p className="text-2xs font-bold text-amber-600 dark:text-amber-400/70 uppercase tracking-widest leading-none mb-0.5">Alerts</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Automation</h3>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
-                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
+                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Lease Expiry Alerts</span>
                         </label>
                         {rentCollectionMode === 'Full (Collect Rent)' && (
                             <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
-                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindRentDue} onChange={e => setRemindRentDue(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
+                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindRentDue} onChange={e => setRemindRentDue(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
                                 <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Rent Due Alerts</span>
                             </label>
                         )}
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
-                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={autoCreateMaintenanceTask} onChange={e => setAutoCreateMaintenanceTask(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
+                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={autoCreateMaintenanceTask} onChange={e => setAutoCreateMaintenanceTask(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Maintenance Tasks</span>
                         </label>
                     </div>
@@ -913,13 +913,13 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 2. Sale Details */}
                 {isSale && (
-                    <div className="p-3 sm:p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/50 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-blue-600 text-white rounded-lg shadow-sm ring-2 ring-blue-500/10">
                                 <CalculatorIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-2xs font-bold text-blue-600/70 uppercase tracking-widest leading-none mb-0.5">Sale Details</p>
+                                <p className="text-2xs font-bold text-blue-600 dark:text-blue-400/70 uppercase tracking-widest leading-none mb-0.5">Sale Details</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Listing Info</h3>
                             </div>
                         </div>
@@ -954,7 +954,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <CalendarIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Rental Details</p>
+                                <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Rental Details</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lease & Rent Configuration</h3>
                             </div>
                         </div>
@@ -969,7 +969,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm border ${
                                             activeUnitIndex === index 
                                             ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20' 
-                                            : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50/50 dark:hover:bg-primary-900/10'
+                                            : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 dark:hover:bg-primary-900/10'
                                         }`}
                                     >
                                         {unit.unitName}
@@ -985,7 +985,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         type="checkbox" 
                                         checked={autoSyncUnits} 
                                         onChange={e => setAutoSyncUnits(e.target.checked)} 
-                                        className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-4 h-4" 
+                                        className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-4 h-4" 
                                     />
                                     <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
                                         Copy Unit 1 fields to other units automatically
@@ -1102,7 +1102,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <div className="flex items-center justify-between mb-1">
                                         <label className={labelClass}>Legal Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
-                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
@@ -1140,7 +1140,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <div className="flex items-center justify-between mb-1">
                                         <label className={labelClass}>Agency Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
-                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
@@ -1175,7 +1175,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <div className="flex items-center justify-between mb-1">
                                         <label className={labelClass}>Caution Deposit (<NairaSymbol />)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
-                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isCautionNA} onChange={e => updateUnit(activeUnitIndex, 'isCautionNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isCautionNA} onChange={e => updateUnit(activeUnitIndex, 'isCautionNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
@@ -1191,7 +1191,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
 
                             {/* Total Tenancy Package Summary Card */}
-                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
+                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <p className="text-2xs font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
@@ -1266,7 +1266,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         />
                                     </div>
                                     {!unitsData[activeUnitIndex].occupantFirstName && !unitsData[activeUnitIndex].occupantLastName && unitsData[activeUnitIndex].tenantName && (
-                                        <p className="text-2xs text-amber-600 mt-1">Current legacy name: {unitsData[activeUnitIndex].tenantName} (Please fill first/last name to update)</p>
+                                        <p className="text-2xs text-amber-600 dark:text-amber-400 mt-1">Current legacy name: {unitsData[activeUnitIndex].tenantName} (Please fill first/last name to update)</p>
                                     )}
                                 </div>
                                 <div className="space-y-2 group">
@@ -1310,7 +1310,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                                 type="number"
                                                 value={managementFee}
                                                 onChange={e => setManagementFee(parseFloat(e.target.value) || 0)}
-                                                className="flex-grow bg-transparent border-none text-sm font-bold text-primary-600 focus:ring-0 placeholder:text-slate-300"
+                                                className="flex-grow bg-transparent border-none text-sm font-bold text-primary-600 dark:text-primary-300 focus:ring-0 placeholder:text-slate-300"
                                                 max={100}
                                                 placeholder="0"
                                             />
@@ -1324,7 +1324,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         type="checkbox"
                                         checked={unitsData[activeUnitIndex].isPeriodicReviewEnabled}
                                         onChange={e => updateUnit(activeUnitIndex, 'isPeriodicReviewEnabled', e.target.checked)}
-                                        className="rounded border-slate-200 text-primary-600 focus:ring-primary-500"
+                                        className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                                     />
                                     <span className="text-2xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-widest">Enable Periodic Review</span>
                                 </label>
@@ -1355,7 +1355,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="text-2xs font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-2"
+                            className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline flex items-center gap-2"
                         >
                             Upload Files
                         </button>

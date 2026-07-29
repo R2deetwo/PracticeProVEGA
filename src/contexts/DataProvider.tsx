@@ -399,20 +399,109 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleRunDocumentAnalysis,
         handleApplyCustomStageChecklist,
         // Stubs for remaining interface requirements
-        handleDeleteAllChats: () => addToast("Chats cleared.", { type: 'success' }),
-        restoreFromLocalBackup: async () => addToast("Restored from backup.", { type: 'success' }),
-        handleRestoreBackup: async (key: string) => addToast(`Restored backup: ${key}`, { type: 'success' }),
-        handleExportData: async () => addToast("Data export is coming soon.", { type: 'info' }),
+        // HONESTY POLICY: Stubs that don't actually do anything must NOT show
+        // success toasts — that's dishonest and confuses users into thinking
+        // data was saved/deleted when it wasn't. These now show 'info' or
+        // 'warning' toasts clearly stating the feature is not yet available.
+        // The ones that CAN be implemented are implemented below.
+        handleDeleteAllChats: async () => {
+            // Actually delete all chat conversations for this firm
+            try {
+                const conversations = (appStateRef.current as any).chatConversations || [];
+                for (const conv of conversations) {
+                    await baseActions.deleteItem('chatConversations', conv.id || conv._id, 'Conversation');
+                }
+                addToast(`Cleared ${conversations.length} conversations.`, { type: 'success' });
+            } catch (e) {
+                addToast('Failed to clear chats. Please try again.', { type: 'error' });
+            }
+        },
+        restoreFromLocalBackup: async () => addToast('Local backup restore is not yet available. Contact support if you need to recover data.', { type: 'warning' }),
+        handleRestoreBackup: async (_key: string) => addToast('Backup restore is not yet available. Contact support if you need to recover data.', { type: 'warning' }),
+        handleExportData: async () => {
+            // Real data export — generates a JSON file and triggers download
+            try {
+                const state = appStateRef.current as any;
+                const exportData: Record<string, any> = {
+                    _exportInfo: {
+                        exportedAt: new Date().toISOString(),
+                        firmId: currentUser?.firmId || 'unknown',
+                        exportedBy: currentUser?.email || 'unknown',
+                        version: '1.0',
+                    },
+                };
+                // Export all array-based tables
+                const tablesToExport = [
+                    'matters', 'contacts', 'tasks', 'documents', 'events',
+                    'invoices', 'timeEntries', 'expenses', 'noteNotebooks',
+                    'notePages', 'researchNotebooks', 'researchSources',
+                    'workflows', 'checklistTemplates', 'properties',
+                ];
+                for (const table of tablesToExport) {
+                    if (state[table]) {
+                        exportData[table] = state[table];
+                    }
+                }
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `practicepro-export-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                addToast('Data export downloaded successfully.', { type: 'success' });
+            } catch (e: any) {
+                console.error('[handleExportData] Export failed:', e);
+                addToast(`Export failed: ${e.message || 'Unknown error'}`, { type: 'error' });
+            }
+        },
         handleResetPracticeData: async () => handlePurgeData(),
         handleRenamePage: (id: string, title: string) => baseActions.updateItem('notePages', { id, title }, 'Page'),
         registerBroadcastHandler: (h: any) => {},
         handleRemoteAction: (p: any) => {},
         ensureUserInState: async (u: any) => {},
-        handleSyncGoogleContacts: async () => addToast("Google Contacts sync is coming soon.", { type: 'info' }),
-        handleToggleBookmarkCase: (id: string) => addToast("Case bookmarking is coming soon.", { type: 'info' }),
-        handleUpdateClientActionItem: async (matterId: string, itemId: string, completed: boolean) => addToast("Action item updated.", { type: 'success' }),
-        handleSaveEmailAsDocument: (email: any) => addToast("Email saved as document.", { type: 'success' }),
-        handleInviteExternalCounsel: async (invite: any) => addToast("External counsel invitations are coming soon.", { type: 'info' }),
+        handleSyncGoogleContacts: async () => addToast('Google Contacts sync is not yet available. This feature is on our roadmap.', { type: 'info' }),
+        handleToggleBookmarkCase: (_id: string) => addToast('Case bookmarking is not yet available. This feature is on our roadmap.', { type: 'info' }),
+        handleUpdateClientActionItem: async (matterId: string, itemId: string, completed: boolean) => {
+            // Actually update the client action item on the matter
+            try {
+                const matter = (appStateRef.current as any).matters?.find((m: any) => m.id === matterId);
+                if (!matter) {
+                    addToast('Matter not found.', { type: 'error' });
+                    return;
+                }
+                const actionItems = (matter.clientActionItems || []).map((item: any) =>
+                    item.id === itemId ? { ...item, completed } : item
+                );
+                await baseActions.updateItem('matters', { id: matterId, clientActionItems: actionItems }, 'Action Item');
+                addToast(completed ? 'Action item marked complete.' : 'Action item reopened.', { type: 'success' });
+            } catch (e) {
+                addToast('Failed to update action item.', { type: 'error' });
+            }
+        },
+        handleSaveEmailAsDocument: (email: any) => {
+            // Actually save the email as a document
+            try {
+                const docData = {
+                    title: email.subject || `Email from ${email.from || 'Unknown'}`,
+                    content: email.body || email.content || '',
+                    matterId: email.matterId || null,
+                    categoryId: 'cat_email',
+                    dateFiled: new Date().toISOString(),
+                    source: 'generated' as const,
+                    uploadedBy: currentUser?.id || '',
+                    assignedUsers: [],
+                    metadata: { type: 'email', from: email.from, to: email.to, date: email.date },
+                };
+                baseActions.addItem('documents', docData, 'Document');
+                addToast('Email saved as document.', { type: 'success' });
+            } catch (e) {
+                addToast('Failed to save email as document.', { type: 'error' });
+            }
+        },
+        handleInviteExternalCounsel: async (_invite: any) => addToast('External counsel invitations are not yet available. This feature is on our roadmap.', { type: 'info' }),
         handleUpdatePageContent: async (id: string, title: string, content: string) => baseActions.updateItem('notePages', { id, title, content }, 'Page'),
         handleDeleteNotebook: async (id: string, name: string) => baseActions.deleteItem('noteNotebooks', id, name),
         handleRestoreItem: async (item: any) => {

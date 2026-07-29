@@ -65,12 +65,12 @@ export const AloaTaskCoach: React.FC<AloaTaskCoachProps> = ({
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-white dark:bg-zinc-800 rounded-lg shadow-sm">
-                        <SparklesIcon className="w-3.5 h-3.5 text-primary-600" />
+                        <SparklesIcon className="w-3.5 h-3.5 text-primary-600 dark:text-primary-300" />
                     </div>
-                    <p className="text-2xs font-black uppercase tracking-[0.2em] text-primary-600">ARIA Smart Assistant</p>
+                    <p className="text-2xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-300">ARIA Smart Assistant</p>
                 </div>
-                <div className="px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 border border-primary-200/30">
-                    <span className="text-3xs font-black uppercase tracking-tighter text-primary-700">Enterprise Intelligence</span>
+                <div className="px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 border border-primary-200 dark:border-primary-800/30">
+                    <span className="text-3xs font-black uppercase tracking-tighter text-primary-700 dark:text-primary-300">Enterprise Intelligence</span>
                 </div>
             </div>
 
@@ -91,9 +91,9 @@ export const AloaTaskCoach: React.FC<AloaTaskCoachProps> = ({
                         <button 
                             type="button"
                             onClick={() => onAction('draft', { title: taskTitle })}
-                            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 border border-primary-100 dark:border-primary-500/20 rounded-xl transition-all group/btn shadow-sm"
+                            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/20 border border-primary-100 dark:border-primary-500/20 rounded-xl transition-all group/btn shadow-sm"
                         >
-                            <DocumentPlusIcon className="w-3.5 h-3.5 text-primary-600 group-hover/btn:scale-110 transition-transform" />
+                            <DocumentPlusIcon className="w-3.5 h-3.5 text-primary-600 dark:text-primary-300 group-hover/btn:scale-110 transition-transform" />
                             <span className="text-2xs font-bold text-slate-700 dark:text-zinc-200">Initialize Draft</span>
                         </button>
                     )}
@@ -101,9 +101,9 @@ export const AloaTaskCoach: React.FC<AloaTaskCoachProps> = ({
                     <button 
                         type="button"
                         onClick={() => onAction('research', { query: taskTitle })}
-                        className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 border border-primary-100 dark:border-primary-500/20 rounded-xl transition-all group/btn shadow-sm"
+                        className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/20 border border-primary-100 dark:border-primary-500/20 rounded-xl transition-all group/btn shadow-sm"
                     >
-                        <MagnifyingGlassIcon className="w-3.5 h-3.5 text-primary-600 group-hover/btn:scale-110 transition-transform" />
+                        <MagnifyingGlassIcon className="w-3.5 h-3.5 text-primary-600 dark:text-primary-300 group-hover/btn:scale-110 transition-transform" />
                         <span className="text-2xs font-bold text-slate-700 dark:text-zinc-200">Legal Research</span>
                     </button>
                 </div>

@@ -285,7 +285,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                           </div>
                           <div className="w-32">
                               <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Amount</label>
-                              <input autoComplete="off" data-lpignore="true"  type="text" value={formatNumberWithCommas(item.total)} onChange={e => handleLineItemChange(index, 'total', parseFormattedNumber(e.target.value))} className={`${commonInputClass} font-bold text-primary-600`} />
+                              <input autoComplete="off" data-lpignore="true"  type="text" value={formatNumberWithCommas(item.total)} onChange={e => handleLineItemChange(index, 'total', parseFormattedNumber(e.target.value))} className={`${commonInputClass} font-bold text-primary-600 dark:text-primary-300`} />
                           </div>
                           <button type="button" onClick={() => removeLineItem(index)} className="p-2 text-rose-400 hover:text-rose-600 transition-colors mt-5">
                               <TrashIcon className="w-4 h-4" />

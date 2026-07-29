@@ -164,7 +164,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
      </div>
      <button
       onClick={() => onClose()}
-      className="active-press touch-target group flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all flex-shrink-0"
+      className="active-press touch-target group flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all flex-shrink-0"
       aria-label="Close modal"
      >
       <XIcon className="h-5 w-5 transition-transform group-hover:rotate-90 duration-300" />

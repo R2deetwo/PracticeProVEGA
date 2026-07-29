@@ -217,7 +217,7 @@ const Screen0: React.FC<{
                                 onClick={() => onChange({ legalAction: action, jurisdiction: undefined, selectedState: undefined })}
                                 className={`relative p-3 rounded-xl border text-left transition-all duration-150 ${
                                     isSelected
-                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 shadow-sm shadow-primary-200 dark:shadow-none'
+                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40 shadow-sm shadow-primary-200 dark:shadow-none'
                                         : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-slate-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800'
                                 }`}
                             >
@@ -275,7 +275,7 @@ const Screen0: React.FC<{
                                         onClick={() => onChange({ jurisdiction: court, selectedState: court === CourtType.StateHighCourt ? data.selectedState : undefined })}
                                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all duration-150 ${
                                             isSelected
-                                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40'
+                                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40'
                                                 : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-slate-300 dark:hover:border-zinc-600'
                                         }`}
                                     >
@@ -292,7 +292,7 @@ const Screen0: React.FC<{
                                                 Generic
                                             </span>
                                         ) : (
-                                            <span className="text-2xs font-medium text-amber-600 dark:amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                                            <span className="text-2xs font-medium text-amber-600 dark:text-amber-400 dark:amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-900/50 dark:border-amber-800">
                                                 Enquire
                                             </span>
                                         )}
@@ -303,7 +303,7 @@ const Screen0: React.FC<{
                                         <div className="mt-3 ml-2 pl-4 border-l-2 border-primary-500/30 space-y-3 animate-in slide-in-from-left-2 duration-300">
                                             <div className="flex items-center justify-between">
                                                 <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Select Judicial Jurisdiction</p>
-                                                <span className="text-3xs font-bold text-primary-500 bg-primary-50 dark:bg-primary-900/20 px-2 py-0.5 rounded-full border border-primary-100 dark:border-primary-800">Choose State</span>
+                                                <span className="text-3xs font-bold text-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/20 px-2 py-0.5 rounded-full border border-primary-100 dark:border-primary-800">Choose State</span>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {STATE_HIGH_COURTS.map(({ state, label: stateLabel, hasActiveModule: stateHasModule }) => {
@@ -316,7 +316,7 @@ const Screen0: React.FC<{
                                                             className={`flex items-center justify-between px-3 py-2 rounded-xl border text-2xs font-semibold transition-all shadow-sm ${
                                                                 stateSelected
                                                                     ? 'border-primary-500 bg-primary-100/50 dark:bg-primary-900/40 text-primary-900 dark:text-white shadow-primary-100 dark:shadow-none'
-                                                                    : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 text-slate-600 dark:text-zinc-400 hover:border-slate-300 hover:bg-slate-50'
+                                                                    : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 text-slate-600 dark:text-zinc-400 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
                                                             }`}
                                                         >
                                                             <span>{stateLabel}</span>
@@ -346,10 +346,10 @@ const Screen0: React.FC<{
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 rounded-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
                     {/* Module header — citation language suitable for a litigation lawyer */}
                     {activeModule && (
-                        <div className="flex items-start gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900/50">
+                        <div className="flex items-start gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900/50">
                             <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-3xs font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-wider">Pursuant to</p>
+                                <p className="text-3xs font-bold text-emerald-600 dark:text-emerald-400 dark:text-emerald-500 uppercase tracking-wider">Pursuant to</p>
                                 <p className="text-2xs font-bold text-emerald-800 dark:text-emerald-300 leading-tight mt-0.5">
                                     {activeModule.name}
                                 </p>
@@ -406,7 +406,7 @@ const Screen0: React.FC<{
                             <div className="pt-3 border-t border-slate-200 dark:border-zinc-700">
                                 <div className="flex flex-wrap gap-1.5">
                                     {rule.strategicFlags.slice(0, 2).map((flag: string) => (
-                                        <span key={flag} className="inline-flex items-start gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-2xs text-amber-700 dark:text-amber-400 font-medium">
+                                        <span key={flag} className="inline-flex items-start gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 dark:border-amber-800 text-2xs text-amber-700 dark:text-amber-300 dark:text-amber-400 font-medium">
                                             <InfoIcon className="w-3 h-3 flex-shrink-0 mt-px" />
                                             {flag}
                                         </span>
@@ -566,7 +566,7 @@ const Screen1: React.FC<{
                 <button 
                   type="button" 
                   onClick={() => addParty(side, roleLabel)} 
-                  className="text-2xs uppercase font-black text-primary-600 dark:text-primary-400 flex items-center gap-1 hover:text-primary-500 transition-colors whitespace-nowrap"
+                  className="text-2xs uppercase font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 flex items-center gap-1 hover:text-primary-500 transition-colors whitespace-nowrap"
                 >
                     <PlusIcon className="w-3.5 h-3.5 flex-shrink-0" /> Add
                 </button>
@@ -594,7 +594,7 @@ const Screen1: React.FC<{
                                 />
                                 {p.isRepresentative && (
                                     <input autoComplete="off" data-lpignore="true" 
-                                        className="w-full bg-slate-50 dark:bg-zinc-800/50 border border-amber-100 dark:border-amber-900/30 rounded-lg px-2 py-1.5 text-2xs placeholder-amber-400/50 outline-none focus:border-amber-400 text-amber-700 dark:text-amber-400 font-bold"
+                                        className="w-full bg-slate-50 dark:bg-zinc-800/50 border border-amber-100 dark:border-amber-900/50 dark:border-amber-900/30 rounded-lg px-2 py-1.5 text-2xs placeholder-amber-400/50 outline-none focus:border-amber-400 text-amber-700 dark:text-amber-300 dark:text-amber-400 font-bold"
                                         placeholder="Legal Capacity (e.g. suing as administrator of...)"
                                         value={p.capacity || ''}
                                         onChange={e => updateParty(side, p.id, { capacity: e.target.value })}
@@ -617,7 +617,7 @@ const Screen1: React.FC<{
                                 onClick={() => updateParty(side, p.id, { isRepresentative: !p.isRepresentative, capacity: '' })}
                                 className={`text-3xs font-black uppercase tracking-wider px-2 py-1 rounded-md border transition-all whitespace-nowrap ${
                                     p.isRepresentative 
-                                    ? 'bg-amber-100/50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40' 
+                                    ? 'bg-amber-100 dark:bg-amber-900/40/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40' 
                                     : 'text-slate-400 border-slate-100 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-500'
                                 }`}
                             >
@@ -675,7 +675,7 @@ const Screen1: React.FC<{
                     <div className="flex items-center gap-2">
                         <span className="text-3xs font-bold text-slate-400 dark:text-zinc-500">Auto Generate</span>
                         <div 
-                            className={`w-7 h-4 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${data.titleAutoGenerated !== false ? 'bg-primary-500' : 'bg-slate-300 dark:bg-zinc-600'}`}
+                            className={`w-7 h-4 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${data.titleAutoGenerated !== false ? 'bg-primary-500' : 'bg-slate-300 dark:bg-zinc-700 dark:bg-zinc-600'}`}
                             onClick={() => {
                                 const isAuto = data.titleAutoGenerated !== false;
                                 if (isAuto) {
@@ -719,7 +719,7 @@ const Screen1: React.FC<{
                                 }}
                                 className={`flex-1 py-1.5 text-xs font-bold rounded border transition-colors truncate ${
                                     data.representingSide === r 
-                                    ? 'border-primary-500 text-primary-700 bg-primary-50 dark:bg-primary-950/40 dark:text-primary-400'
+                                    ? 'border-primary-500 text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40 dark:text-primary-400'
                                     : 'border-slate-200 text-slate-500 dark:border-zinc-700 dark:text-zinc-400'
                                 }`}
                             >
@@ -786,7 +786,7 @@ const Screen1: React.FC<{
                         </button>
                     </div>
                     {data.isCreatingNewClient ? (
-                        <div className="space-y-2 p-3 bg-primary-50/50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/50 rounded-xl">
+                        <div className="space-y-2 p-3 bg-primary-50 dark:bg-primary-900/30/50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/50 rounded-xl">
                             <input autoComplete="off" data-lpignore="true"  
                                 className={`${inputCls} !py-2 text-xs`} 
                                 placeholder="Full Name or Company Name" 
@@ -932,7 +932,7 @@ const Screen2: React.FC<{
                                 onClick={() => toggle(u.id)}
                                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
                                     isSelected
-                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40'
+                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40'
                                         : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-slate-300 dark:hover:border-zinc-600'
                                 }`}
                             >
@@ -1012,7 +1012,7 @@ const Screen3: React.FC<{
         (value !== undefined && value !== null) ? (
             <div className="flex items-start justify-between py-2 border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
                 <span className="text-2xs text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{label}</span>
-                <span className={`text-sm text-right max-w-[60%] ${highlight ? 'font-bold text-primary-600 dark:text-primary-400' : 'text-slate-800 dark:text-zinc-200'}`}>
+                <span className={`text-sm text-right max-w-[60%] ${highlight ? 'font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400' : 'text-slate-800 dark:text-zinc-200'}`}>
                     {value}
                 </span>
             </div>
@@ -1035,11 +1035,11 @@ const Screen3: React.FC<{
 
             {/* Module status */}
             {activeModule && (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
                     <ShieldCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                     <div className="min-w-0">
-                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{activeModule.name}</p>
-                        <p className="text-2xs text-emerald-600 dark:text-emerald-500">{activeModule.version} — Active</p>
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 dark:text-emerald-400">{activeModule.name}</p>
+                        <p className="text-2xs text-emerald-600 dark:text-emerald-400 dark:text-emerald-500">{activeModule.version} — Active</p>
                     </div>
                 </div>
             )}
@@ -1055,7 +1055,7 @@ const Screen3: React.FC<{
                         </div>
                     ))}
                     {(data as any).extraTasks?.map((task: string, i: number) => (
-                        <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary-50/30 dark:bg-primary-900/10 border border-primary-200/50 dark:border-primary-800/50 animate-in slide-in-from-left-2 transition-all">
+                        <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-900/30/30 dark:bg-primary-900/10 border border-primary-200/50 dark:border-primary-800/50 animate-in slide-in-from-left-2 transition-all">
                             <PlusIcon className="w-3 h-3 text-primary-500 flex-shrink-0" />
                             <span className="text-xs text-primary-700 dark:text-primary-300 font-medium">{task}</span>
                         </div>
@@ -1093,9 +1093,9 @@ const Screen3: React.FC<{
 
             {/* Warning if no module */}
             {data.legalAction && data.jurisdiction && !activeModule && (
-                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 flex-shrink-0 mt-px" />
-                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 dark:border-amber-800">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-px" />
+                    <p className="text-xs text-amber-700 dark:text-amber-300 dark:text-amber-400">
                         No specific rules module is active for this court. Generic guidance will apply.
                         Visit <strong>Settings → Legal Intelligence</strong> to enquire about adding this court's rules.
                     </p>
@@ -1289,7 +1289,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 <div className="flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-5 pb-3 sm:pb-4 border-b border-slate-100 dark:border-zinc-800">
                     <div className="flex items-start justify-between mb-4">
                         <div>
-                            <p className="text-2xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em] mb-1">
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-[0.2em] mb-1">
                                 Enterprise Matter Creation
                             </p>
                             <h1 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -1298,7 +1298,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                            className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                         >
                             <XIcon className="w-4 h-4" />
                         </button>
@@ -1313,7 +1313,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                                     onClick={() => i < screen && setScreen(i)}
                                     className={`text-3xs font-bold uppercase tracking-wider transition-colors ${
                                         i === screen
-                                            ? 'text-primary-600 dark:text-primary-400'
+                                            ? 'text-primary-600 dark:text-primary-300 dark:text-primary-400'
                                             : i < screen
                                             ? 'text-primary-400 dark:text-primary-600 cursor-pointer hover:text-primary-500'
                                             : 'text-slate-300 dark:text-zinc-600 cursor-default'
@@ -1350,7 +1350,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                     <button
                         type="button"
                         onClick={() => screen === 0 ? onClose() : setScreen(s => s - 1)}
-                        className="px-5 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-slate-800 dark:hover:text-white transition-all"
+                        className="px-5 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 hover:text-slate-800 dark:hover:text-white transition-all"
                     >
                         {screen === 0 ? 'Cancel' : '← Back'}
                     </button>

@@ -29,7 +29,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
         return {
           headline: "Keep your whole team on track.",
           subline: "Experience how we prevent things from slipping through the cracks. Manage unlimited team tasks with an account.",
-          icon: <SparklesIcon className="w-12 h-12 text-blue-500" />
+          icon: <SparklesIcon className="w-12 h-12 text-blue-500 dark:text-blue-400" />
         };
       case 'invoice':
         return {
@@ -65,7 +65,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
       {/* Visual background element */}
       <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-primary-500/10 to-transparent pointer-events-none" />
       
-      <div className="mb-6 relative z-10 p-4 bg-primary-50 rounded-2xl">
+      <div className="mb-6 relative z-10 p-4 bg-primary-50 dark:bg-primary-900/30 rounded-2xl">
         {icon}
       </div>
 
@@ -88,7 +88,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
         
         <button
           onClick={onClose}
-          className="w-full py-3 text-slate-400 hover:text-slate-600 dark:text-zinc-400 font-bold text-sm transition-colors"
+          className="w-full py-3 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400 font-bold text-sm transition-colors"
         >
           Maybe later, I'm still exploring
         </button>
@@ -100,7 +100,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
         </p>
         <button 
           onClick={onSignup} // In a real app, this would be onLogin
-          className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline"
+          className="text-xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline"
         >
           Sign In
         </button>

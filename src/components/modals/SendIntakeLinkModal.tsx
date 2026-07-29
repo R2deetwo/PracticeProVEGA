@@ -53,7 +53,7 @@ const SendIntakeLinkModal: React.FC = () => {
       </div>
        <div className="pt-4 flex flex-col sm:flex-row justify-end gap-2">
         {/* FIX: Wrapped closeModal in an arrow function to prevent passing the event object and causing a type error. */}
-        <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
           Close
         </button>
          <button 

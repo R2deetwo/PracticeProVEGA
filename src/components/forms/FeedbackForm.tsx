@@ -107,7 +107,7 @@ const FeedbackForm: React.FC = () => {
                             ? opt === 'Data Restoration Request'
                                 ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                                 : 'bg-primary-600 border-primary-600 text-white shadow-sm' 
-                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700'
                         }`}
                     >
                         {opt === 'Data Restoration Request' ? <div className="flex items-center gap-1.5"><RefreshCw className="w-3 h-3" /> {opt}</div> : opt}
@@ -117,9 +117,9 @@ const FeedbackForm: React.FC = () => {
 
             {/* Data Restoration Request — special form */}
             {isRestoreTicket ? (
-                <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-xl">
+                <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/40 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 dark:border-blue-800/50 rounded-xl">
                     <div className="flex items-start gap-2">
-                        <div className="text-lg leading-none mt-0.5"><RefreshCw className="w-5 h-5 text-blue-600 animate-spin-slow" /></div>
+                        <div className="text-lg leading-none mt-0.5"><RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin-slow" /></div>
                         <div>
                             <p className="text-sm font-bold text-blue-900 dark:text-blue-100">Request Workspace Data Restoration</p>
                             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
@@ -131,7 +131,7 @@ const FeedbackForm: React.FC = () => {
                     <div className="space-y-2.5">
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Your Email (Old Account) <span className="text-red-500">*</span>
+                                Your Email (Old Account) <span className="text-red-500 dark:text-red-400">*</span>
                             </label>
                             <input autoComplete="off" data-lpignore="true" 
                                 type="email"
@@ -139,7 +139,7 @@ const FeedbackForm: React.FC = () => {
                                 onChange={e => setRestoreNewEmail(e.target.value)}
                                 readOnly={!!currentUser?.email}
                                 placeholder="Enter your email address"
-                                className="w-full bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 read-only:bg-slate-100 dark:read-only:bg-zinc-900 read-only:text-slate-500"
+                                className="w-full bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-900/50 dark:border-blue-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 read-only:bg-slate-100 dark:read-only:bg-zinc-900 read-only:text-slate-500"
                                 required
                             />
                         </div>
@@ -152,7 +152,7 @@ const FeedbackForm: React.FC = () => {
                                 value={restoreFirmName}
                                 onChange={e => setRestoreFirmName(e.target.value)}
                                 placeholder="e.g. Adenike & Associates"
-                                className="w-full bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                className="w-full bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-900/50 dark:border-blue-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                             />
                         </div>
                         <div>
@@ -164,12 +164,12 @@ const FeedbackForm: React.FC = () => {
                                 onChange={e => setFeedback(e.target.value)}
                                 rows={3}
                                 placeholder="Any other details that may help us find your data (e.g. approx. date you last used the app, number of matters, team size...)"
-                                className="w-full bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                                className="w-full bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-900/50 dark:border-blue-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                             />
                         </div>
                     </div>
 
-                    <p className="text-xs text-blue-600/80 dark:text-blue-400/80 border-t border-blue-200 dark:border-blue-800 pt-3">
+                    <p className="text-xs text-blue-600/80 dark:text-blue-400/80 border-t border-blue-200 dark:border-blue-900/50 dark:border-blue-800 pt-3">
                         Alternatively, email us directly at <strong>practiceprovega@gmail.com</strong> with "Workspace Restore" in the subject line.
                     </p>
                 </div>

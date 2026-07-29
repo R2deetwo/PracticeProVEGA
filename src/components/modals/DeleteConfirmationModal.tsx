@@ -92,8 +92,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
        {message}
       </div>
      ) : (
-      <div className="mt-3 p-3 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg">
-       <p className="text-sm text-amber-700">
+      <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500 rounded-r-lg">
+       <p className="text-sm text-amber-700 dark:text-amber-300">
          It is strongly advised that you inform the firm administrator of these changes after you have made them.
        </p>
        <p className="text-sm font-semibold mt-2">Do you still want to proceed?</p>
@@ -102,7 +102,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     </div>
     <button
      onClick={onCancel}
-     className="flex-shrink-0 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:bg-zinc-800 transition-colors"
+     className="flex-shrink-0 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 transition-colors"
      aria-label="Close"
     >
      <X className="w-4 h-4" />
@@ -114,15 +114,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     <div className="px-5 sm:px-6 pb-2 space-y-3">
      {/* Export Option */}
      {onExport && (
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+      <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg flex items-center justify-between">
        <div>
-        <h4 className="text-sm font-bold text-blue-800">Save your data first?</h4>
-        <p className="text-xs text-blue-600">You can download a complete archive before deleting.</p>
+        <h4 className="text-sm font-bold text-blue-800 dark:text-blue-200">Save your data first?</h4>
+        <p className="text-xs text-blue-600 dark:text-blue-400">You can download a complete archive before deleting.</p>
        </div>
        <button
         type="button"
         onClick={onExport}
-        className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-blue-300 text-blue-700 text-xs font-bold rounded shadow-sm hover:bg-blue-50"
+        className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold rounded shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950/40"
        >
         <DownloadIcon className="w-3 h-3" /> Export
        </button>
@@ -140,7 +140,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         type="text"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        className="w-full p-2.5 text-sm border border-rose-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white"
+        className="w-full p-2.5 text-sm border border-rose-300 dark:border-rose-800 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white"
         placeholder={verificationText}
         autoComplete="off"
        />
@@ -170,7 +170,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     <button
      type="button"
      onClick={onCancel}
-     className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 transition-colors active:scale-[0.98]"
+     className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors active:scale-[0.98]"
     >
      Cancel
     </button>

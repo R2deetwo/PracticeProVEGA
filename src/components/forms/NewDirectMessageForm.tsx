@@ -146,8 +146,8 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                     type="button"
                     onClick={() => setMode('direct')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${mode === 'direct'
-                        ? 'bg-white dark:bg-zinc-700 shadow text-primary-600 dark:text-primary-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'
+                        ? 'bg-white dark:bg-zinc-700 shadow text-primary-600 dark:text-primary-300 dark:text-primary-400'
+                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 dark:text-zinc-400'
                         }`}
                 >
                     <UserCircleIcon className="w-4 h-4" />
@@ -157,8 +157,8 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                     type="button"
                     onClick={() => setMode('group')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${mode === 'group'
-                        ? 'bg-white dark:bg-zinc-700 shadow text-primary-600 dark:text-primary-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'
+                        ? 'bg-white dark:bg-zinc-700 shadow text-primary-600 dark:text-primary-300 dark:text-primary-400'
+                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 dark:text-zinc-400'
                         }`}
                 >
                     <ChatAltIcon className="w-4 h-4" />
@@ -183,7 +183,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                     </div>
 
                     {existingChatId && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 dark:border-blue-800 rounded-lg flex items-center justify-between">
                             <span className="text-sm text-blue-800 dark:text-blue-200">You already have a chat with this person.</span>
                             <button
                                 type="button"
@@ -233,12 +233,12 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Members</label>
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-zinc-700 rounded-md p-2 space-y-1 custom-scrollbar">
                             {availableUsers.map(user => (
-                                <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-700/50">
+                                <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700/50">
                                     <input autoComplete="off" data-lpignore="true" 
                                         type="checkbox"
                                         checked={selectedUsers.has(user.id)}
                                         onChange={() => handleToggleUser(user.id)}
-                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                                     />
                                     <div className={`h-6 w-6 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-2xs ${getUserColor(user.id)}`}>
                                         {getInitials(user.name)}
@@ -274,7 +274,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
             )}
 
             <div className="pt-4 flex justify-end items-center space-x-2 border-t border-slate-100 dark:border-zinc-800">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-slate-200 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-slate-200 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 transition-colors">Cancel</button>
                 {(mode === 'group' || !existingChatId) && (
                     <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-2">
                         {mode === 'direct' ? 'Start Chat' : 'Create Group'}

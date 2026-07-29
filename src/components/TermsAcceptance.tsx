@@ -13,12 +13,20 @@
  *   - Links open the full documents in a clean route (web) or external browser (APK)
  *   - Single "Accept" button — no checkboxes, no expandable sections
  *
- * LEGAL COMPLIANCE:
- *   The acceptance timestamp + terms version is stored in localStorage.
- *   The bar reappears when TERMS_VERSION is bumped.
+ * LEGAL COMPLIANCE (NDPA §25 — Demonstrable Consent):
+ *   The acceptance timestamp + terms version is stored in BOTH:
+ *   1. localStorage (for fast UI gating — so the bar doesn't reappear)
+ *   2. The Convex database (for legal proof — durable, server-side record)
+ *
+ *   Previously consent was ONLY in localStorage (volatile, device-local).
+ *   Now the database record is the legally authoritative one, satisfying
+ *   NDPA §25's requirement for demonstrable consent records.
  */
 import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TermsAcceptanceProps {
     onAccepted: () => void;
@@ -74,13 +82,28 @@ function openLegalDocument(doc: 'terms' | 'privacy') {
 
 const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDeclined, onClose }) => {
     const [dismissed, setDismissed] = useState(false);
+    const { currentUser } = useAuth();
+    const recordAcceptance = useMutation(api.myFunctions.recordTermsAcceptance);
     const previousVersion = getPreviousVersion();
     const isUpdate = previousVersion !== null && previousVersion !== TERMS_VERSION;
 
     if (dismissed) return null;
 
-    const handleAccept = () => {
+    const handleAccept = async () => {
+        // 1. localStorage — for fast UI gating (bar doesn't reappear)
         markTermsAccepted();
+        // 2. Database — for NDPA §25 demonstrable consent (durable, server-side)
+        // This is fire-and-forget — if it fails, the user still gets to use
+        // the app (localStorage is the gate). But we log the error so we
+        // can investigate missing consent records.
+        try {
+            await recordAcceptance({
+                termsVersion: TERMS_VERSION,
+                userEmail: currentUser?.email,
+            });
+        } catch (err) {
+            console.warn('[TermsAcceptance] Failed to record consent in database:', err);
+        }
         onAccepted();
     };
 

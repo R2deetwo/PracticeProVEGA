@@ -146,7 +146,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
     <div className="space-y-6">
       <div className="text-center font-sans">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-2xs font-bold rounded uppercase tracking-widest flex items-center gap-1">
+          <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-2xs font-bold rounded uppercase tracking-widest flex items-center gap-1">
             <SparklesIcon className="w-3 h-3" /> Smart Indexing
           </span>
         </div>
@@ -167,39 +167,39 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-1.5">
                 <p className="text-sm font-bold truncate text-slate-800 dark:text-zinc-100">{item.file.name}</p>
-                <span className={`text-2xs font-bold uppercase tracking-wider ${item.status === 'completed' ? 'text-green-600' :
-                  item.status === 'failed' ? 'text-red-500' : 'text-primary-500 animate-pulse'
+                <span className={`text-2xs font-bold uppercase tracking-wider ${item.status === 'completed' ? 'text-green-600 dark:text-green-400' :
+                  item.status === 'failed' ? 'text-red-500 dark:text-red-400' : 'text-primary-500 animate-pulse'
                   }`}>
                   {item.status === 'uploading' ? (item.progress < 50 ? 'Initializing...' : 'Indexing Content...') :
                     item.status === 'failed' ? 'Failed' :
                       item.status === 'completed' ? 'Indexed' : 'Queued'}
                 </span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+              <div className="w-full bg-slate-200 dark:bg-zinc-700 rounded-full h-1 overflow-hidden">
                 <div
                   className={`h-full transition-all duration-700 ease-out ${item.status === 'failed' ? 'bg-red-500' : 'bg-primary-600'
                     }`}
                   style={{ width: `${item.progress}%` }}
                 />
               </div>
-              {item.error && <p className="text-2xs text-red-500 mt-1 font-medium">{item.error}</p>}
+              {item.error && <p className="text-2xs text-red-500 dark:text-red-400 mt-1 font-medium">{item.error}</p>}
             </div>
 
             <div className="flex items-center gap-1">
               {item.status === 'failed' && (
-                <button onClick={() => handleRetry(idx)} className="p-2 text-slate-500 hover:text-primary-600 rounded-lg hover:bg-primary-50" title="Retry">
+                <button onClick={() => handleRetry(idx)} className="p-2 text-slate-500 hover:text-primary-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30" title="Retry">
                   <RevertIcon className="w-4 h-4" />
                 </button>
               )}
 
               {(item.status === 'pending' || item.status === 'failed') && (
-                <button onClick={() => handleRemove(idx)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                <button onClick={() => handleRemove(idx)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40">
                   <DismissIcon className="w-4 h-4" />
                 </button>
               )}
 
               {item.status === 'completed' && (
-                <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center">
                   <CheckCircleIcon className="w-5 h-5 text-green-500" />
                 </div>
               )}
@@ -218,7 +218,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
             type="button"
             onClick={() => setIsCourtProcess(!isCourtProcess)}
             disabled={isProcessing}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-2 ring-primary-500/10 ${isCourtProcess ? 'bg-primary-600' : 'bg-slate-300'} ${isProcessing ? 'opacity-50' : ''}`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-2 ring-primary-500/10 ${isCourtProcess ? 'bg-primary-600' : 'bg-slate-300 dark:bg-zinc-700'} ${isProcessing ? 'opacity-50' : ''}`}
           >
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${isCourtProcess ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
@@ -231,7 +231,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
           onClick={onClose}
           className={`px-8 py-2.5 rounded-xl font-bold transition-all ${isDone
             ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/20'
-            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200'
+            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
             }`}
         >
           {isDone ? 'Close Window' : 'Continue in Background'}

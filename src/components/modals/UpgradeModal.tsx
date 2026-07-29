@@ -50,8 +50,8 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <SparklesIcon className="w-7 h-7 text-primary-600" />
+        <div className="w-14 h-14 bg-primary-100 dark:bg-primary-900/40 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <SparklesIcon className="w-7 h-7 text-primary-600 dark:text-primary-300" />
         </div>
         <h3 className="text-xl font-black text-slate-900 dark:text-white mb-1">Unlock {featureName}</h3>
         <p className="text-sm text-slate-500">Upgrade to {planConfig.title} for full access.</p>
@@ -63,7 +63,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
         <ul className="space-y-3">
           {planConfig.features.map((feat, i) => (
             <li key={i} className="flex items-start gap-3">
-              <div className="p-1 bg-emerald-100 rounded-full text-emerald-600 mt-0.5"><CheckIcon className="w-3 h-3" /></div>
+              <div className="p-1 bg-emerald-100 dark:bg-emerald-900/40 rounded-full text-emerald-600 dark:text-emerald-400 mt-0.5"><CheckIcon className="w-3 h-3" /></div>
               <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">{feat}</p>
             </li>
           ))}
@@ -86,7 +86,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
       </div>
 
       <div className="text-center">
-        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-100 font-medium">
+        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-zinc-100 font-medium">
           Maybe Later
         </button>
       </div>

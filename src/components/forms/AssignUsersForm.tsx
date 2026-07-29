@@ -39,12 +39,12 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
         <form onSubmit={handleSave} className="space-y-3">
             <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-slate-200 dark:border-zinc-700">
                 {assignableUsers.map(user => (
-                    <label key={user.id} className="flex items-center space-x-3 p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700/50 cursor-pointer">
+                    <label key={user.id} className="flex items-center space-x-3 p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700/50 cursor-pointer">
                         <input autoComplete="off" data-lpignore="true" 
                             type="checkbox"
                             checked={assigned.has(user.id)}
                             onChange={() => handleToggle(user.id)}
-                            className="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            className="h-5 w-5 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                         />
                         <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.name)}`}>
                            {getInitials(user.name)}
@@ -59,7 +59,7 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
                 ))}
             </div>
             <div className="mt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
+                <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
                 <button type="submit" className="px-6 py-2 text-sm bg-primary-600 text-white rounded-lg font-semibold">Save</button>
             </div>
         </form>

@@ -54,7 +54,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                         <UserGeneratorIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                        <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                        <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                         <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lead Information</h3>
                     </div>
                 </div>
@@ -86,13 +86,13 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
 
     const clientRequestForm = (
         <div className="space-y-2 sm:space-y-3">
-            <div className="p-3 sm:p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 space-y-3">
+            <div className="p-3 sm:p-4 bg-indigo-50 dark:bg-indigo-950/40/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 space-y-3">
                 <div className="flex items-center gap-4 mb-2 px-1">
                     <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
                         <MailIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                        <p className="text-2xs font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Request</p>
+                        <p className="text-2xs font-bold text-indigo-600 dark:text-indigo-300/70 uppercase tracking-widest leading-none mb-0.5">Request</p>
                         <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Service Details</h3>
                     </div>
                 </div>
@@ -108,7 +108,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-2xs font-black text-slate-400 uppercase tracking-widest">Email</span>
-                        <span className="text-sm font-black text-primary-600 truncate ml-4">{email}</span>
+                        <span className="text-sm font-black text-primary-600 dark:text-primary-300 truncate ml-4">{email}</span>
                     </div>
                 </div>
             </div>

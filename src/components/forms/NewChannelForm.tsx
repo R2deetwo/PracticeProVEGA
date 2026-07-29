@@ -71,14 +71,14 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Add Members</label>
-                <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2 space-y-2">
+                <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-zinc-700 dark:border-gray-700 rounded-md p-2 space-y-2">
                     {users.filter(u => u.id !== currentUser?.id && u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel).map(user => (
                         <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
                             <input autoComplete="off" data-lpignore="true" 
                                 type="checkbox"
                                 checked={selectedUsers.has(user.id)}
                                 onChange={() => handleToggleUser(user.id)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                             />
                             <div className={`h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.id)}`}>
                                 {getInitials(user.name)}
@@ -89,7 +89,7 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
                 </div>
             </div>
             <div className="pt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold">Create Channel</button>
             </div>
         </form>

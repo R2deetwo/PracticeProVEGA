@@ -265,8 +265,8 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                         <div className="space-y-2 group">
                             <label className={labelClass}>Type</label>
                             <div className="inline-flex gap-1 bg-slate-50 dark:bg-zinc-900/50 p-0.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700">
-                                <button type="button" onClick={() => setContactType(ContactType.Individual)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Individual ? 'bg-white dark:bg-zinc-800 text-primary-600 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}>Individual</button>
-                                <button type="button" onClick={() => setContactType(ContactType.Company)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Company ? 'bg-white dark:bg-zinc-800 text-primary-600 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}>Corporate</button>
+                                <button type="button" onClick={() => setContactType(ContactType.Individual)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Individual ? 'bg-white dark:bg-zinc-800 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}>Individual</button>
+                                <button type="button" onClick={() => setContactType(ContactType.Company)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Company ? 'bg-white dark:bg-zinc-800 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}>Corporate</button>
                             </div>
                         </div>
                         <div className="space-y-2 group">
@@ -276,7 +276,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                     <button 
                                         type="button" 
                                         onClick={() => setIsAddingCategory(true)}
-                                        className="text-2xs font-black text-primary-600 uppercase tracking-widest hover:underline mb-1.5"
+                                        className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline mb-1.5"
                                     >
                                         + Add New
                                     </button>
@@ -472,7 +472,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                         <OfficeBuildingIcon className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-3 sm:mb-4 opacity-50" />
                                         <p className="text-2xs text-slate-400 font-extrabold uppercase tracking-[0.2em] mb-2 px-4 sm:px-6">Portfolio management requires a saved contact</p>
                                         <p className="text-2xs text-slate-500 mb-4 sm:mb-6 px-4 sm:px-8">Save this contact first to enable property registration.</p>
-                                        <button type="button" disabled className="inline-flex items-center gap-2 sm:gap-3 text-xs font-semibold bg-slate-200 text-slate-400 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl cursor-not-allowed">
+                                        <button type="button" disabled className="inline-flex items-center gap-2 sm:gap-3 text-xs font-semibold bg-slate-200 dark:bg-zinc-700 text-slate-400 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl cursor-not-allowed">
                                             <PlusIcon className="w-4 h-4" /> Register New Property
                                         </button>
                                     </div>
@@ -480,7 +480,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                     <div className="space-y-4 sm:space-y-6">
                                         <div className="flex justify-between items-center px-2">
                                             <span className="text-2xs font-black text-slate-400 uppercase tracking-widest">Property Portfolio</span>
-                                            <button type="button" onClick={handleAddProperty} className="text-2xs font-black text-primary-600 uppercase tracking-widest hover:underline">+ Register New Property</button>
+                                            <button type="button" onClick={handleAddProperty} className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline">+ Register New Property</button>
                                         </div>
 
                                         {(contactToEdit.properties || []).length > 0 ? (
@@ -488,7 +488,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                                 {(contactToEdit.properties || []).map((prop) => (
                                                     <div key={prop.id} onClick={() => { onClose(); navigateTo('propertyDetail', prop.id); }} className="group p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm hover:border-primary-300 dark:hover:border-primary-800 transition-all cursor-pointer flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-xl text-slate-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-colors">
+                                                            <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-xl text-slate-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:group-hover:bg-primary-900/20 transition-colors">
                                                                 <OfficeBuildingIcon className="w-5 h-5" />
                                                             </div>
                                                             <div>
@@ -503,7 +503,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                         ) : (
                                             <div className="text-center py-6 sm:py-10 bg-slate-50/50 dark:bg-zinc-900/50 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
                                                 <p className="text-xs text-slate-400 font-bold mb-3 sm:mb-4">No properties registered yet</p>
-                                                <button type="button" onClick={handleAddProperty} className="text-2xs font-black text-primary-600 uppercase tracking-widest hover:underline">+ Map First Property</button>
+                                                <button type="button" onClick={handleAddProperty} className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline">+ Map First Property</button>
                                             </div>
                                         )}
                                     </div>

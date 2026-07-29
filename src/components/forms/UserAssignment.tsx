@@ -71,7 +71,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
                  <button 
                     type="button" 
                     onClick={handleToggleOpen} 
-                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/20 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors border border-primary-200 dark:border-primary-800"
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-primary-600 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/20 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors border border-primary-200 dark:border-primary-800"
                 >
                     <PlusIcon className="w-3.5 h-3.5" />
                     Assign
@@ -81,12 +81,12 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
                     <div ref={popoverRef} className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-800 border-2 border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl p-2 z-50 animate-fade-in-up">
                         <div className="max-h-60 overflow-y-auto custom-scrollbar">
                             {assignableUsers.map(user => (
-                                <label key={user.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition-colors">
+                                <label key={user.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 cursor-pointer transition-colors">
                                     <input autoComplete="off" data-lpignore="true" 
                                         type="checkbox"
                                         checked={assignedUserIds.has(user.id)}
                                         onChange={() => onToggle(user.id)}
-                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                                     />
                                     <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.name)}`}>{getInitials(user.name)}</div>
                                     <div className="flex flex-col">

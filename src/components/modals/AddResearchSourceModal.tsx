@@ -16,8 +16,8 @@ const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: bool
     onClick={onClick}
     type="button"
     className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${isActive
-        ? 'bg-white dark:bg-zinc-900 text-primary-600 shadow-sm ring-1 ring-slate-200'
-        : 'text-slate-500 hover:text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:bg-zinc-800'
+        ? 'bg-white dark:bg-zinc-900 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-200'
+        : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800'
       }`}
   >
     {icon}
@@ -145,9 +145,9 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
   const commonInputClass = inputClassic;
 
   const Guidance: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
-    <div className="flex gap-2 items-start p-3 bg-blue-50 border border-blue-100 rounded-lg">
-      <div className="mt-0.5 text-blue-500">{icon}</div>
-      <p className="text-2xs font-medium text-blue-800 leading-relaxed">{text}</p>
+    <div className="flex gap-2 items-start p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-lg">
+      <div className="mt-0.5 text-blue-500 dark:text-blue-400">{icon}</div>
+      <p className="text-2xs font-medium text-blue-800 dark:text-blue-200 leading-relaxed">{text}</p>
     </div>
   );
 
@@ -159,7 +159,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <TabButton label="Paste Text" icon={<ClipboardListIcon className="w-4 h-4" />} isActive={activeTab === 'paste'} onClick={() => setActiveTab('paste')} />
       </div>
 
-      {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-200">{error}</div>}
+      {error && <div className="p-3 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-900/50">{error}</div>}
 
       {activeTab === 'website' && (
         <div className="space-y-4 animate-fade-in">
@@ -192,7 +192,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<UploadIcon className="w-3.5 h-3.5" />} text="PDF and Text files only. Ensure documents are clearly legible for optimal AI extraction. Limit of 20 sources per notebook." />
           <div
-            className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl p-8 text-center hover:bg-slate-50 dark:bg-zinc-900 transition-colors cursor-pointer group"
+            className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl p-8 text-center hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
           >
             <input autoComplete="off" data-lpignore="true" type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".pdf,.txt" multiple />
@@ -210,7 +210,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
               {files.map((file, idx) => (
                 <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-700">
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <DocumentLinkIcon className="w-4 h-4 text-blue-500" />
+                    <DocumentLinkIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                     <span className="text-sm truncate font-medium">{file.name}</span>
                     <span className="text-xs text-slate-400">({formatBytes(file.size)})</span>
                   </div>
@@ -244,7 +244,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
       )}
 
       <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-zinc-800">
-        <button type="button" onClick={onClose} className="px-5 py-2 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+        <button type="button" onClick={onClose} className="px-5 py-2 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">Cancel</button>
         <button
           type="submit"
           disabled={processing}

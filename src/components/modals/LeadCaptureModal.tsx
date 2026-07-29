@@ -44,8 +44,8 @@ const LeadCaptureModal: React.FC = () => {
   return (
     <div className="p-1 sm:p-2 animate-fade-in">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4 scale-110 shadow-sm">
-          <SparklesIcon className="w-8 h-8 text-primary-600" />
+        <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-2xl flex items-center justify-center mx-auto mb-4 scale-110 shadow-sm">
+          <SparklesIcon className="w-8 h-8 text-primary-600 dark:text-primary-300" />
         </div>
         <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Access Interactive Demo</h3>
         <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
@@ -58,14 +58,14 @@ const LeadCaptureModal: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedProduct('vega')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'vega' ? 'bg-white dark:bg-zinc-900 text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-300'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'vega' ? 'bg-white dark:bg-zinc-900 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 dark:text-zinc-300'}`}
           >
             Vega (Legal OS)
           </button>
           <button
             type="button"
             onClick={() => setSelectedProduct('atrium')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'atrium' ? 'bg-white dark:bg-zinc-900 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-300'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'atrium' ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 dark:text-zinc-300'}`}
           >
             Atrium (Property OS)
           </button>
@@ -114,7 +114,7 @@ const LeadCaptureModal: React.FC = () => {
         </button>
         
         <p className="text-center text-xs text-slate-400">
-          By continuing, you agree to our <button type="button" onClick={() => { closeModal(); setTimeout(() => navigateTo('privacyPolicy'), 100); }} className="underline hover:text-slate-600 dark:text-zinc-400">Privacy Policy</button>.
+          By continuing, you agree to our <button type="button" onClick={() => { closeModal(); setTimeout(() => navigateTo('privacyPolicy'), 100); }} className="underline hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400">Privacy Policy</button>.
         </p>
       </form>
     </div>

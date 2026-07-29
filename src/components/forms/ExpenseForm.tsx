@@ -94,7 +94,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                             <Receipt className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-2xs font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                            <p className="text-2xs font-bold text-emerald-600 dark:text-emerald-400/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Matter Association</h3>
                         </div>
                     </div>
@@ -122,7 +122,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                             <CalendarIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Finance</p>
+                            <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Finance</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Amount & Date</h3>
                         </div>
                     </div>
@@ -144,7 +144,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                         </div>
                     </div>                    <div className="flex flex-wrap justify-between items-center gap-4 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
                          <label htmlFor="isBillable" className="flex items-center gap-4 cursor-pointer">
-                            <div className={`p-1.5 rounded-lg transition-colors ${isBillable ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
+                            <div className={`p-1.5 rounded-lg transition-colors ${isBillable ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
                                 <Receipt className="w-3.5 h-3.5" />
                             </div>
                             <div>
@@ -163,13 +163,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                     </div>
                     
                     {taxAnalysis && (
-                        <div className={`p-3 sm:p-4 rounded-xl border transition-all animate-in slide-in-from-top-2 duration-500 ${taxAnalysis.isDeductible ? 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/30' : 'bg-rose-50/50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/30'}`}>
+                        <div className={`p-3 sm:p-4 rounded-xl border transition-all animate-in slide-in-from-top-2 duration-500 ${taxAnalysis.isDeductible ? 'bg-emerald-50 dark:bg-emerald-950/40/50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/30' : 'bg-rose-50/50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/30'}`}>
                             <div className="flex gap-4">
-                                <div className={`p-2 rounded-xl h-fit ${taxAnalysis.isDeductible ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/20'}`}>
+                                <div className={`p-2 rounded-xl h-fit ${taxAnalysis.isDeductible ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-900/20' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/20'}`}>
                                     {taxAnalysis.isDeductible ? <ShieldCheckIcon className="w-5 h-5" /> : <InfoIcon className="w-5 h-5" />}
                                 </div>
                                 <div>
-                                    <p className={`text-xs font-black uppercase tracking-widest mb-1 ${taxAnalysis.isDeductible ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                                    <p className={`text-xs font-black uppercase tracking-widest mb-1 ${taxAnalysis.isDeductible ? 'text-emerald-700 dark:text-emerald-300 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                                         {taxAnalysis.isDeductible ? 'Likely Deductible Asset' : 'Likely Non-Deductible Outlay'}
                                     </p>
                                     <p className="text-sm text-slate-700 dark:text-zinc-300 font-medium leading-relaxed">{taxAnalysis.reason}</p>

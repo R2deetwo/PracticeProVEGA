@@ -50,7 +50,7 @@ const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({ onClose
       <div className="pt-4 border-t border-slate-200 dark:border-zinc-700 flex justify-end">
         <button
           onClick={onClose}
-          className="px-5 py-2 text-sm font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:bg-zinc-800 rounded-xl transition-colors"
+          className="px-5 py-2 text-sm font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-xl transition-colors"
         >
           Close
         </button>

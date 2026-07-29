@@ -50,7 +50,7 @@ const RequestFinancialDocumentForm: React.FC<RequestFinancialDocumentFormProps> 
             </div>
             <div className="pt-4 flex justify-end space-x-2">
                 {/* FIX: Wrapped closeModal in an arrow function to match the event handler type. */}
-                <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+                <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">
                     Cancel
                 </button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">

@@ -312,7 +312,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           <div className="px-1">
             <div className="bg-slate-50/50 dark:bg-zinc-800/30 p-3 sm:p-4 rounded-xl border border-slate-100 dark:border-zinc-700/50 space-y-2 sm:space-y-3 text-left">
               <div className="flex items-center gap-4">
-                  <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-sm">
+                  <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-sm">
                       <UserCircleIcon className="w-3.5 h-3.5" />
                   </div>
                   <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Assignment</h3>
@@ -370,8 +370,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
               {/* NOTIFICATION DISPATCH PREVIEW — shown when external stakeholder is selected */}
               {notificationPreviewText && (
-                <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 dark:border-blue-800 rounded-lg">
+                  <svg className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                   <p className="text-2xs text-blue-700 dark:text-blue-300 font-medium">{notificationPreviewText}</p>
@@ -385,7 +385,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     <option key={user.id} value={user.id}>{user.name || 'Unknown User'} ({user.role})</option>
                   ))}
                 </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-primary-50 dark:bg-primary-900/30 text-primary-600 rounded-xl pointer-events-none group-hover/delegate:scale-110 transition-transform">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-300 rounded-xl pointer-events-none group-hover/delegate:scale-110 transition-transform">
                     <PlusIcon className="w-4 h-4" />
                 </div>
               </div>
