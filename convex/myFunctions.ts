@@ -2475,20 +2475,49 @@ export const createTask = mutation({
               await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
                 to: email,
                 subject: `New Task Assigned: ${args.title}`,
-                html: `
-                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #16a34a;">New Task Assigned</h2>
-                    <p>Hi ${assigneeUser.name || 'there'},</p>
-                    <p>${creatorName} has assigned you a task:</p>
-                    <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                      <h3 style="margin: 0 0 8px;">${args.title}</h3>
-                      ${args.description ? `<p style="color: #64748b; margin: 0;">${args.description}</p>` : ''}
-                      ${args.dueDate ? `<p style="color: #dc2626; margin: 8px 0 0;"><strong>Due: ${new Date(args.dueDate).toLocaleDateString('en-GB')}</strong></p>` : ''}
-                    </div>
-                    <p>Please log in to your portal to view and complete this task.</p>
-                    <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">PracticePro — Practice Management</p>
-                  </div>
-                `,
+                html: `<!DOCTYPE html>
+<html lang="en" style="margin:0;padding:0;">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f4f6f8;-webkit-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0F172A 0%,#16A34A 100%);border-radius:16px 16px 0 0;padding:28px 32px 20px;text-align:center;">
+              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:#16A34A;">Pro</span></span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:32px 32px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:17px;font-weight:600;color:#1a202c;margin:0 0 8px;">Hello ${assigneeUser.name || 'there'},</p>
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#4a5568;margin:0 0 20px;">
+                ${creatorName} has assigned you a task:
+              </p>
+              <div style="background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #16A34A;">
+                <h3 style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0F172A;">${args.title}</h3>
+                ${args.description ? `<p style="color:#64748b;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${args.description}</p>` : ''}
+                ${args.dueDate ? `<p style="color:#dc2626;margin:8px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><strong>Due: ${new Date(args.dueDate).toLocaleDateString('en-GB')}</strong></p>` : ''}
+              </div>
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#4a5568;margin:0 0 20px;">
+                Please log in to your portal to view and complete this task.
+              </p>
+              <div style="text-align:center;margin:28px 0 32px;">
+                <a href="https://practice-pro-vega.vercel.app" style="display:inline-block;background-color:#16A34A;color:#ffffff;padding:14px 28px;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Go to Portal</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <p style="text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#94a3b8;margin:0;">PracticePro Systems Limited &bull; Practice Management</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
               }).catch(() => {});
             }
 

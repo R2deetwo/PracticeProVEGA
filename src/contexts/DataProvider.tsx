@@ -384,16 +384,21 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleDeleteNotebook: async (id: string, name: string) => baseActions.deleteItem('noteNotebooks', id, name),
         handleRestoreItem: async (item: any) => {
             // Fix: the archive table stores 'itemType' and 'originalData', not 'type' and 'data'.
-            // Map the fields correctly before re-inserting into the original table.
             const table = item.itemType || item.type;
             const data = item.originalData || item.data;
             if (!table || !data) {
                 addToast('Cannot restore: archive record is missing data.', { type: 'error' });
                 return;
             }
-            await baseActions.addItem(table, data, item.itemName || item.name || 'Restored Item');
-            // Remove from archive after successful restore
+            // DELETE from archive FIRST, then add back to original table.
+            // If we add first, the getFirmData re-merge may re-add the
+            // archived item before the delete propagates, creating duplicates.
             await baseActions.deleteItem('archive', item.id, 'Archived Item');
+            // Use _id if available (Convex internal ID) for the restored item
+            const restoredData = { ...data };
+            // Don't re-use the archive record's id — let addItem generate a fresh one
+            delete restoredData._id;
+            await baseActions.addItem(table, restoredData, item.itemName || item.name || 'Restored Item');
             addToast(`${item.itemName || item.name || 'Item'} restored successfully.`, { type: 'success' });
         },
         handlePermanentDeleteFromArchive: async (id: string) => baseActions.deleteItem('archive', id, 'Archived Item'),

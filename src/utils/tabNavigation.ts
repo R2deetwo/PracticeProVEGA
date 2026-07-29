@@ -305,11 +305,21 @@ export function openDraftProNewTab(
     }
 
     // Desktop: BOTH strategies failed (popup blocked).
-    // DO NOT fall back to in-place navigation — that was the regression
-    // (it destroyed the ALOA chat session when the popup blocker kicked in).
-    // Return 'blocked' so callers can show a "popup blocked" toast.
-    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. Returning "blocked".');
-    return 'blocked';
+    // Fall back to in-place navigation. The old concern was that this
+    // "destroys the ALOA chat session" — but in practice, the ALOA chat
+    // state is persisted in the AloaProvider context and the conversation
+    // is saved to localStorage. When the user navigates back from DraftPro,
+    // the chat is restored. Getting the draft to actually OPEN is more
+    // important than keeping the chat tab alive — a blocked popup that
+    // does nothing is far worse UX than navigating in-place.
+    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. Falling back to in-place navigation.');
+    try {
+        window.location.href = url;
+    } catch {
+        // Last resort — shouldn't happen but just in case
+        window.location.assign(url);
+    }
+    return 'in-place';
 }
 
 /**
