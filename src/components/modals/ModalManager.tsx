@@ -1022,7 +1022,7 @@ const ModalManager: React.FC = () => {
     : 'md';
 
   return (
-    <Modal isOpen={!!modal} onClose={() => closeModal()} title={modalTitle} size={modalSize}>
+    <Modal isOpen={!!modal} onClose={() => closeModal()} title={modalTitle} size={modalSize} hideHeader={modal === 'deleteConfirmation'}>
       {content}
     </Modal>
   );
