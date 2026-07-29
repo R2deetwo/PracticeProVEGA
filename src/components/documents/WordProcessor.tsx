@@ -69,7 +69,13 @@ export const WordProcessor: React.FC = () => {
             setIsSaved(false);
         }
 
-        const shouldSuppress = ctx.disableAutoDraft || !!stored?.content;
+        // Auto-draft suppression logic:
+        // - If ctx explicitly says disableAutoDraft, suppress.
+        // - If stored session has non-empty content, suppress (don't re-draft over existing work).
+        // - Otherwise: ALLOW auto-drafting (this is the ALOA → DraftPro path where
+        //   ALOA saves an empty-content session with a draftPrompt, and DraftPro
+        //   should auto-generate the document on open).
+        const shouldSuppress = ctx.disableAutoDraft || (!!stored?.content && stored.content.trim().length > 0);
         setDisableAutoDraft(shouldSuppress);
 
         const resolvedPrompt = urlPrompt || ctx.draftPrompt || stored?.draftPrompt || undefined;

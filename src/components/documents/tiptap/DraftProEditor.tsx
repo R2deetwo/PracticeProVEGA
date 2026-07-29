@@ -583,10 +583,26 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // Sync prop → activeDraftPrompt, but only when auto-start is allowed.
     // This way reopening a persisted draft (autoStartDrafting=false) does NOT
     // re-trigger drafting, while Redraft can still set activeDraftPrompt itself.
+    //
+    // DELAY: We add a 500ms delay before syncing. The DraftProEditor mounts
+    // inside WordProcessor, which sets draftPrompt via useState. On the first
+    // render, draftPrompt may be undefined (state hasn't been set yet from
+    // the useEffect that reads URL params + localStorage). By the second
+    // render (after the useEffect runs), draftPrompt is set. The 500ms delay
+    // ensures the editor (TipTap) is fully initialized before we trigger
+    // the drafting engine — without it, the effect can fire before
+    // `editor` is ready, and the drafting silently never starts.
     useEffect(() => {
-        if (autoStartDrafting && draftPrompt && draftingPromptRef.current !== draftPrompt) {
-            setActiveDraftPrompt(draftPrompt);
-        }
+        if (!autoStartDrafting || !draftPrompt) return;
+        if (draftingPromptRef.current === draftPrompt) return;
+
+        const timer = setTimeout(() => {
+            if (autoStartDrafting && draftPrompt && draftingPromptRef.current !== draftPrompt) {
+                setActiveDraftPrompt(draftPrompt);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
     }, [draftPrompt, autoStartDrafting]);
 
     // Keep persistDraftRef updated with the latest onContentChange handler
