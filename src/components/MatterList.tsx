@@ -97,7 +97,7 @@ const MatterCardItem: React.FC<{
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
     const { coreState } = useCoreState();
-    const { handleDeleteMatter } = useDataActions();
+    const { handleDeleteMatter, archiveItem } = useDataActions();
     const { openModal, closeModal, navigateTo, addToast } = useUI();
 
     const client = matterState.contacts.find((c: any) => c.id === matter.clientId);
@@ -131,9 +131,13 @@ const MatterCardItem: React.FC<{
                 } catch (err: any) {
                     console.error('[MatterList] Delete failed:', err);
                     addToast('Could not delete this matter. Please try again.', { type: 'error' });
-                    // Keep modal open so user sees the error toast
                 }
             },
+            onConfirmArchive: () => {
+                archiveItem('matters', matter.id, matter.title, matter);
+                closeModal();
+            },
+            archiveText: 'Archive Instead',
             confirmText: 'Delete Everything'
         });
     };

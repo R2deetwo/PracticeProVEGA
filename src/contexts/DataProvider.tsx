@@ -272,10 +272,33 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const handleMarkNotificationsRead = React.useCallback(async (ids: string[]) => {
         if (!ids || ids.length === 0) return;
+        // Optimistic update — immediately mark as read in local state
+        // so the badge count drops instantly without waiting for Convex
+        // to push the update back.
+        const idSet = new Set(ids);
+        setAppState(prev => ({
+            ...prev,
+            notifications: (prev.notifications || []).map((n: any) => {
+                if (idSet.has(n.id) || idSet.has(n._id) || (n._id && idSet.has(String(n._id)))) {
+                    return { ...n, isRead: true };
+                }
+                return n;
+            }),
+        }));
         try {
             await markNotificationsMutation({ ids, userEmail: currentUser?.email });
         } catch (err: any) {
             console.warn('[handleMarkNotificationsRead] Failed:', err?.message);
+            // Revert on failure — set back to unread
+            setAppState(prev => ({
+                ...prev,
+                notifications: (prev.notifications || []).map((n: any) => {
+                    if (idSet.has(n.id) || idSet.has(n._id)) {
+                        return { ...n, isRead: false };
+                    }
+                    return n;
+                }),
+            }));
         }
     }, [markNotificationsMutation, currentUser?.email]);
 
