@@ -1,24 +1,38 @@
 
 import React, { useState } from 'react';
 import { CheckCircleIcon, ClipboardIcon } from '../../constants';
-import { Building as BuildingLibraryIcon } from 'lucide-react';
+import { Building as BuildingLibraryIcon, CreditCard as CreditCardIcon } from 'lucide-react';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useQuery, useAction } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PaymentGatewayModalProps {
   amount: number;
   email: string;
   title: string;
   description?: string;
+  invoiceId?: string;
   onSuccess: () => void;
   onClose: () => void;
 }
 
-const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email, title, description, onSuccess, onClose }) => {
-  const [step, setStep] = useState<'instructions' | 'confirming' | 'confirmed'>('instructions');
+const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email, title, description, invoiceId, onSuccess, onClose }) => {
+  const [step, setStep] = useState<'instructions' | 'confirming' | 'confirmed' | 'card_redirect'>('instructions');
   const [confirmChecked, setConfirmChecked] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+  const [isProcessingCard, setIsProcessingCard] = useState(false);
   const { coreState } = useCoreState();
+  const { currentUser } = useAuth();
+
+  // Check if Paystack (online card payments) is active
+  const paystackStatus = useQuery(api.paystack.isPaystackActive, {});
+  const isCardPaymentActive = paystackStatus?.active === true;
+
+  // Mutation to initiate Paystack payment
+  const initiatePayment = useAction(api.paystack.initiateClientPayment);
 
   // Get bank details from firm settings, with sensible defaults
   const bankAccounts = coreState.firmDetails?.bankAccounts;
@@ -34,6 +48,28 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
     setTimeout(() => {
       setStep('confirmed');
     }, 800);
+  };
+
+  const handlePayWithCard = async () => {
+    setCardError(null);
+    setIsProcessingCard(true);
+    try {
+      const result = await initiatePayment({
+        invoiceId: invoiceId || `manual-${Date.now()}`,
+        amount,
+        email,
+        userEmail: currentUser?.email,
+      });
+      // Redirect to Paystack's hosted checkout page
+      if (result.authorizationUrl) {
+        setStep('card_redirect');
+        window.location.href = result.authorizationUrl;
+      }
+    } catch (err: any) {
+      setCardError(err.message || 'Failed to initialize card payment. Please try bank transfer.');
+    } finally {
+      setIsProcessingCard(false);
+    }
   };
 
   const handleFinish = () => {
@@ -57,12 +93,43 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
           <div className="text-center mb-2">
             <div className="flex items-center justify-center gap-2 mb-2">
               <BuildingLibraryIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Bank Transfer</span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Payment</span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
             {description && <p className="text-sm text-slate-500 mt-1">{description}</p>}
             <p className="text-2xl font-bold text-slate-900 dark:text-white mt-4"><NairaSymbol />{formatNaira(amount)}</p>
           </div>
+
+          {/* Pay with Card (Paystack) — only shown if active */}
+          {isCardPaymentActive && (
+            <div className="space-y-3">
+              <button
+                onClick={handlePayWithCard}
+                disabled={isProcessingCard}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100 flex items-center justify-center gap-2"
+              >
+                {isProcessingCard ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Initializing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCardIcon className="w-5 h-5" />
+                    Pay with Card
+                  </>
+                )}
+              </button>
+              {cardError && (
+                <p className="text-xs text-red-600 dark:text-red-400 text-center">{cardError}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="flex-grow border-t border-slate-200 dark:border-zinc-700"></div>
+                <span className="text-2xs text-slate-400 uppercase font-bold">or</span>
+                <div className="flex-grow border-t border-slate-200 dark:border-zinc-700"></div>
+              </div>
+            </div>
+          )}
 
           {/* Bank Transfer Details */}
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-5 space-y-4">
@@ -159,7 +226,10 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
 
           {/* Honest Disclaimer */}
           <p className="text-2xs text-center text-slate-400 leading-relaxed">
-            Transfer to the account above, then confirm. Your plan activates after verification. Online card payments coming soon.
+            {isCardPaymentActive
+              ? 'Transfer to the account above and confirm, or pay instantly with your card. Your plan activates after verification.'
+              : 'Transfer to the account above, then confirm. Your plan activates after verification.'
+            }
           </p>
         </div>
       )}
@@ -169,6 +239,14 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
           <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-6"></div>
           <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Recording Confirmation...</h3>
           <p className="text-slate-500">Your payment will be verified by the firm.</p>
+        </div>
+      )}
+
+      {step === 'card_redirect' && (
+        <div className="text-center animate-fade-in">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Redirecting to Paystack...</h3>
+          <p className="text-slate-500">You'll be redirected to complete your card payment securely.</p>
         </div>
       )}
 

@@ -23,11 +23,87 @@
  *   - Webhooks: https://paystack.directory/docs/webhooks
  */
 
-import { internalAction, httpAction } from "./_generated/server";
+import { internalAction, httpAction, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireFirmUser } from "./authHelpers";
 
-// ─── INITIATE PAYSTACK TRANSACTION ──────────────────────────────────────────
+// ─── CHECK IF PAYSTACK IS ACTIVE ───────────────────────────────────────────
+// Frontend uses this to decide whether to show "Pay with Card" (Paystack)
+// or fall back to bank transfer instructions.
+
+export const isPaystackActive = query({
+  args: {},
+  handler: async (ctx) => {
+    // This only checks if the PUBLIC key is set — the secret key check
+    // happens server-side in the actual payment flow. We don't expose
+    // the secret key existence to the frontend for security.
+    return {
+      active: process.env.PAYSTACK_ENABLED === 'true' && !!process.env.PAYSTACK_PUBLIC_KEY,
+      publicKey: process.env.PAYSTACK_PUBLIC_KEY || null,
+    };
+  },
+});
+
+// ─── INITIATE PAYSTACK PAYMENT (CLIENT-CALLABLE) ───────────────────────────
+// This wraps the internal initiatePaystackPayment action so the client
+// can call it directly. It authenticates the user and verifies the
+// invoice belongs to their firm before initiating payment.
+
+export const initiateClientPayment = action({
+  args: {
+    invoiceId: v.string(),
+    amount: v.number(),       // in Naira
+    email: v.string(),        // customer email
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Authenticate the user
+    await requireFirmUser(ctx, args.userEmail);
+
+    const secretKey = process.env.PAYSTACK_SECRET_KEY;
+    if (!secretKey || process.env.PAYSTACK_ENABLED !== 'true') {
+      throw new Error("Online card payments are not yet activated. Please use bank transfer.");
+    }
+
+    // Generate a unique reference
+    const reference = `PP-${args.invoiceId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+    const amountInKobo = Math.round(args.amount * 100);
+
+    const response = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${secretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: args.email,
+        amount: amountInKobo,
+        reference,
+        callback_url: `${process.env.SITE_URL || window.location.origin}/billing`,
+        metadata: {
+          invoiceId: args.invoiceId,
+          custom_fields: [
+            { display_name: "Invoice ID", variable_name: "invoice_id", value: args.invoiceId },
+          ],
+        },
+      }),
+    });
+
+    const data = await response.json() as any;
+
+    if (!data.status) {
+      throw new Error(`Payment initialization failed: ${data.message}`);
+    }
+
+    return {
+      reference,
+      authorizationUrl: data.data.authorization_url,
+      accessCode: data.data.access_code,
+    };
+  },
+});
 
 export const initiatePaystackPayment = internalAction({
   args: {

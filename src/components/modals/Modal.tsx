@@ -122,6 +122,44 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   };
  }, [isOpen]);
 
+ // ─── Keyboard-aware resizing (APK / mobile web) ───────────────────────
+ // When the soft keyboard opens on Android/iOS, the visualViewport
+ // shrinks. We track its height and apply it as a max-height to the
+ // modal panel so the modal never gets clipped behind the keyboard.
+ // This is the most reliable cross-device approach — it works even when
+ // CSS dvh units don't update (a known Android WebView bug).
+ const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+ useEffect(() => {
+  if (!isOpen) {
+   setKeyboardHeight(0);
+   return;
+  }
+
+  const vv = window.visualViewport;
+  if (!vv) return;
+
+  const updateKeyboardHeight = () => {
+   // The keyboard height = layout viewport - visual viewport height
+   // (but only if the visual viewport is significantly smaller, indicating
+   // the keyboard is actually open, not just a URL bar resize)
+   const layoutHeight = window.innerHeight;
+   const visualHeight = vv.height;
+   const potentialKeyboard = layoutHeight - visualHeight;
+   // Only count as keyboard if >150px (avoids false positives from URL bar)
+   setKeyboardHeight(potentialKeyboard > 150 ? potentialKeyboard : 0);
+  };
+
+  updateKeyboardHeight();
+  vv.addEventListener('resize', updateKeyboardHeight);
+  vv.addEventListener('scroll', updateKeyboardHeight);
+
+  return () => {
+   vv.removeEventListener('resize', updateKeyboardHeight);
+   vv.removeEventListener('scroll', updateKeyboardHeight);
+  };
+ }, [isOpen]);
+
  if (!isMounted) return null;
 
  let sizeClass = 'sm:max-w-2xl'; // default md
@@ -130,7 +168,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
  if (size === 'lg') sizeClass = 'sm:max-w-4xl';
  if (size === 'xl') sizeClass = 'sm:max-w-5xl lg:max-w-6xl xl:max-w-7xl';
 
- const modalWidthClass = `w-full ${sizeClass} h-[100dvh] sm:h-auto sm:max-h-[90vh]`;
+ const modalWidthClass = `w-full ${sizeClass} h-full sm:h-auto sm:max-h-[90vh]`;
 
  const modalAnimation = isAnimatingIn
   ? 'opacity-100 translate-y-0 scale-100'
@@ -138,7 +176,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
 
  return (
   <div
-   className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 overflow-hidden"
+   className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto overscroll-contain"
    aria-labelledby="modal-title"
    role="dialog"
    aria-modal="true"
@@ -153,6 +191,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     ref={modalRef}
     className={`relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-slate-200 dark:border-zinc-700 ${modalWidthClass} ${modalAnimation}`}
     onClick={(e) => e.stopPropagation()}
+    style={keyboardHeight > 0 ? {
+     // When keyboard is open on mobile, cap the modal height so it stays
+     // visible above the keyboard. paddingBottom ensures the bottom of
+     // the modal (where inputs typically are) isn't hidden behind the
+     // keyboard.
+     maxHeight: `calc(100% - ${keyboardHeight}px)`,
+     paddingBottom: `${Math.min(keyboardHeight, 40)}px`,
+    } : undefined}
    >
     {/* Brand Accent Bar */}
     <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>

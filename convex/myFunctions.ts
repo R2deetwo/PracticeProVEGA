@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
+import { roundMoney, sanitizeMoney } from "./moneyUtils";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS } from "./tierLimits";
@@ -2180,20 +2181,34 @@ export const createItem = mutation({
 
       // 2. The 'Null' Sanitizer & 3. Financial Precision
       if (val !== null && val !== undefined) {
-        // Auto-convert amount-like strings to numbers
+        // Auto-convert amount-like strings to numbers AND round to prevent
+        // floating-point precision loss (Audit C11).
+        // e.g., "₦1,234.56" → 1234.56, 0.1+0.2 → 0.30 (not 0.30000000000000004)
         if (typeof val === "string" && (
-          key.toLowerCase().includes("amount") || 
-          key.toLowerCase().includes("rate") || 
-          key.toLowerCase().includes("price") || 
-          key.toLowerCase().includes("balance") || 
+          key.toLowerCase().includes("amount") ||
+          key.toLowerCase().includes("rate") ||
+          key.toLowerCase().includes("price") ||
+          key.toLowerCase().includes("balance") ||
           key.toLowerCase().includes("value") ||
           key.toLowerCase().includes("total")
         )) {
           const num = parseFloat(val.replace(/[^\d.-]/g, ''));
           if (!isNaN(num)) {
-            sanitizedData[key] = num;
+            sanitizedData[key] = roundMoney(num);
             continue;
           }
+        }
+        // Also round numeric values for currency fields
+        if (typeof val === "number" && (
+          key.toLowerCase().includes("amount") ||
+          key.toLowerCase().includes("rate") ||
+          key.toLowerCase().includes("price") ||
+          key.toLowerCase().includes("balance") ||
+          key.toLowerCase().includes("value") ||
+          key.toLowerCase().includes("total")
+        )) {
+          sanitizedData[key] = roundMoney(val);
+          continue;
         }
         sanitizedData[key] = val;
       }
@@ -2693,18 +2708,24 @@ export const updateItem = mutation({
         continue;
       }
 
-      // 2. Financial Precision
-      if (typeof val === "string" && (
-        key.toLowerCase().includes("amount") || 
-        key.toLowerCase().includes("rate") || 
-        key.toLowerCase().includes("price") || 
-        key.toLowerCase().includes("balance") || 
+      // 2. Financial Precision — round currency fields to 2 decimal places
+      // to prevent floating-point accumulation (Audit C11).
+      // Handles both string inputs ("₦1,234.56") and numeric inputs.
+      const isCurrencyField = typeof val === "string" || typeof val === "number" ? (
+        key.toLowerCase().includes("amount") ||
+        key.toLowerCase().includes("rate") ||
+        key.toLowerCase().includes("price") ||
+        key.toLowerCase().includes("balance") ||
         key.toLowerCase().includes("value") ||
         key.toLowerCase().includes("total")
-      )) {
-        const num = parseFloat(val.replace(/[^\d.-]/g, ''));
+      ) : false;
+
+      if (isCurrencyField) {
+        const num = typeof val === "string"
+          ? parseFloat(val.replace(/[^\d.-]/g, ''))
+          : typeof val === "number" ? val : NaN;
         if (!isNaN(num)) {
-          patchData[key] = num;
+          patchData[key] = roundMoney(num);
           continue;
         }
       }

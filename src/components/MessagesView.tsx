@@ -1334,7 +1334,7 @@ const MessagesView: React.FC = () => {
                         }`}
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                        Team
+                        <span className="hidden sm:inline">Team</span>
                     </button>
 
                     {/* Notice Board Tab — available for ALL firms (both Vega
@@ -1823,11 +1823,30 @@ const MessagesView: React.FC = () => {
                             {/* ── TEAM CHAT THREAD (rendered when a team conversation is selected from the unified inbox) ── */}
                             {selectedInboxType === 'team' && selectedInboxId && (() => {
                                 const tc = teamConversationsForInbox.find((t: any) => String(t.conversationId) === String(selectedInboxId));
-                                if (!tc) return (
-                                    <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-                                        Select a conversation
-                                    </div>
-                                );
+                                if (!tc) {
+                                    // Check if team conversations are still loading.
+                                    // coreState.chatConversations is hydrated in Phase B
+                                    // (getFirmData). If it's empty AND we have a selected
+                                    // conversation ID (e.g., from a notification deep-link),
+                                    // show a loading spinner instead of the misleading
+                                    // "Select a conversation" placeholder.
+                                    const teamConvsLoading = !(coreState.chatConversations && coreState.chatConversations.length > 0) && !isDataLoaded;
+                                    return (
+                                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 p-8 text-center">
+                                            {teamConvsLoading ? (
+                                                <>
+                                                    <div className="w-10 h-10 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+                                                    <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">Loading conversation…</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="text-sm text-slate-400">Conversation not found</p>
+                                                    <p className="text-xs text-slate-400 mt-1">It may have been deleted</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                }
                                 const convMessages = (messages as any[]).filter(
                                     (m: any) => (m.conversationId === selectedInboxId || m.conversationId === tc._id) && !m.isDeleted
                                 ).sort((a: any, b: any) => {
@@ -2452,6 +2471,27 @@ const MessagesView: React.FC = () => {
                                     </p>
                                     <p className="text-xs text-slate-400 mt-1">
                                         {isProperty ? 'WhatsApp, email, and portal messages from residents' : 'Messages from your clients on matters'}
+                                    </p>
+                                </div>
+                            ) : selectedInboxType !== 'team' && !selectedInboundMsg && selectedInboxId ? (
+                                /* ─── LOADING STATE ──────────────────────────────────────
+                                   When a conversation is selected (selectedInboxId is set)
+                                   but the message data hasn't arrived yet (selectedInboundMsg
+                                   is still undefined because portalConversations / atriumInbound
+                                   / portalMessages queries are in flight), show a loading
+                                   spinner instead of a blank pane.
+
+                                   Previously this fell through to `null` (blank screen), and the
+                                   user had to leave and come back to see the conversation. Now
+                                   we show a spinner that automatically disappears once the data
+                                   arrives and selectedInboundMsg resolves. */
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 p-8 text-center">
+                                    <div className="w-10 h-10 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+                                    <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
+                                        Loading conversation…
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        Fetching messages from the server
                                     </p>
                                 </div>
                             ) : null}
