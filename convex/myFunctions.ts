@@ -2657,7 +2657,9 @@ async function resolveRecordForUpdate(
     }
   } else {
     const sample = await ctx.db.query(table as any).take(500);
-    const item = sample.find((i: any) => i.id === id);
+    // Try matching by custom 'id' field first, then fall back to _id
+    const item = sample.find((i: any) => i.id === id) ||
+                 sample.find((i: any) => String(i._id) === String(id));
     if (item) {
       if (item.firmId && item.firmId !== firmId) {
         throw new Error("Unauthorized. This record belongs to another organization.");
