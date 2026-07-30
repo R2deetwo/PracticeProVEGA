@@ -2460,46 +2460,69 @@ export const createTask = mutation({
     const assigneeType = args.assigneeType || "team";
     const isExternal = assigneeType === "client" || assigneeType === "tenant";
 
+    // Use Promise.allSettled instead of Promise.all so that if ONE
+    // notification insert fails, it doesn't reject the entire mutation.
+    // Previously, Promise.all meant a single failed notification insert
+    // would throw from the handler, making the user think the task
+    // creation failed — even though the task was already inserted.
     const notificationPromises = args.assignedUsers.map(async (assigneeId) => {
-      const notificationId = crypto.randomUUID();
-      const link = {
-        view: "tasks",
-        id: taskId,
-        context: { taskId, taskTitle: args.title },
-      };
+      try {
+        const notificationId = crypto.randomUUID();
+        const link = {
+          view: "tasks",
+          id: taskId,
+          context: { taskId, taskTitle: args.title },
+        };
 
-      await ctx.db.insert("notifications", {
-        id: notificationId,
-        firmId,
-        userId: assigneeId,
-        title: "New Task Assigned",
-        message: `${creatorName} assigned you a task: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}`,
-        type: "task_assignment",
-        isRead: false,
-        link,
-        timestamp: now,
-        createdAt: now,
-        updatedAt: now,
-      });
+        await ctx.db.insert("notifications", {
+          id: notificationId,
+          firmId,
+          userId: assigneeId,
+          title: "New Task Assigned",
+          message: `${creatorName} assigned you a task: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}`,
+          type: "task_assignment",
+          isRead: false,
+          link,
+          timestamp: now,
+          createdAt: now,
+          updatedAt: now,
+        });
 
-      // For external assignees, schedule email + WhatsApp dispatch
-      // (non-blocking — the task is already created)
-      if (isExternal) {
-        try {
-          // Fetch the user to get their email and WhatsApp opt-in status
-          const assigneeUser = await ctx.db.get(assigneeId as any) as any;
-          if (assigneeUser) {
-            const email = assigneeUser.email || assigneeUser.tokenIdentifier;
-            const phone = assigneeUser.phone || assigneeUser.whatsappNumber;
-            const whatsappOptIn = assigneeUser.whatsappOptIn === true ||
-                                  assigneeUser.notificationSettings?.whatsapp === true;
+        // For external assignees, schedule email + WhatsApp dispatch
+        // (best-effort — failures here don't affect the task or notification)
+        if (isExternal) {
+          try {
+            // Look up the assignee user to get their email/phone.
+            // assigneeId might be a custom UUID (not a Convex _id), so
+            // ctx.db.get() may throw — use a query fallback instead.
+            let assigneeUser: any = null;
+            try {
+              assigneeUser = await ctx.db.get(assigneeId as any) as any;
+            } catch {
+              // assigneeId is not a valid Convex _id — try looking up
+              // by the custom 'id' field in the users table
+              assigneeUser = await ctx.db
+                .query("users")
+                .withIndex("by_custom_id", (q: any) => q.eq("id", assigneeId))
+                .first();
+            }
 
-            // Schedule email dispatch (primary external channel)
-            if (email) {
-              await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
-                to: email,
-                subject: `New Task Assigned: ${args.title}`,
-                html: `<!DOCTYPE html>
+            if (assigneeUser) {
+              const email = assigneeUser.email || assigneeUser.tokenIdentifier;
+              const phone = assigneeUser.phone || assigneeUser.whatsappNumber;
+              const whatsappOptIn = assigneeUser.whatsappOptIn === true ||
+                                    assigneeUser.notificationSettings?.whatsapp === true;
+
+              // Schedule email dispatch (primary external channel)
+              // NOTE: sendEmail expects `htmlContent` (not `html`) and
+              // requires `firmId`. Previously this passed `html` and omitted
+              // `firmId`, causing the scheduled action to fail.
+              if (email) {
+                try {
+                  await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+                    to: email,
+                    subject: `New Task Assigned: ${args.title}`,
+                    htmlContent: `<!DOCTYPE html>
 <html lang="en" style="margin:0;padding:0;">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f4f6f8;-webkit-text-size-adjust:100%;">
@@ -2542,35 +2565,39 @@ export const createTask = mutation({
   </table>
 </body>
 </html>`,
-              }).catch(() => {});
-            }
-
-            // Schedule WhatsApp dispatch (secondary, only if opted in)
-            if (phone && whatsappOptIn) {
-              await ctx.scheduler.runAfter(0, api.communications.sendWhatsApp as any, {
-                to: phone,
-                messageText: `New task assigned: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}. Log in to your portal to view and complete it.`,
-                firmId,
-              }).catch(async () => {
-                // FALLBACK: If WhatsApp fails, try email again (if not already sent)
-                if (!email && assigneeUser.email) {
-                  await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
-                    to: assigneeUser.email,
-                    subject: `New Task Assigned: ${args.title}`,
-                    html: `<p>${creatorName} assigned you: ${args.title}</p>`,
-                  }).catch(() => {});
+                    firmId,
+                  });
+                } catch (e) {
+                  console.warn("[createTask] Email scheduling failed:", e);
                 }
-              });
+              }
+
+              // Schedule WhatsApp dispatch (secondary, only if opted in)
+              if (phone && whatsappOptIn) {
+                try {
+                  await ctx.scheduler.runAfter(0, api.communications.sendWhatsApp as any, {
+                    to: phone,
+                    messageText: `New task assigned: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}. Log in to your portal to view and complete it.`,
+                    firmId,
+                  });
+                } catch (e) {
+                  console.warn("[createTask] WhatsApp scheduling failed:", e);
+                }
+              }
             }
+          } catch (e) {
+            // External notification dispatch is best-effort — don't fail
+            console.error("[createTask] External notification dispatch failed:", e);
           }
-        } catch (e) {
-          // External notification dispatch is best-effort — don't fail the task creation
-          console.error("[createTask] External notification dispatch failed:", e);
         }
+      } catch (e) {
+        // If the notification INSERT fails, log it but don't reject the
+        // entire mutation — the task was already created successfully.
+        console.error("[createTask] Notification insert failed for assignee:", assigneeId, e);
       }
     });
 
-    await Promise.all(notificationPromises);
+    await Promise.allSettled(notificationPromises);
 
     // 5. Return the task id
     return { taskId };

@@ -68,25 +68,34 @@ export const useTasks = (appState: AppState, actions: any) => {
         // Previously this called actions.addItem('tasks', t) which bypassed
         // all notification logic — assignees never got bell badges or emails.
         try {
-            await createTaskMutation({
+            // CRITICAL: Strip undefined values — the Convex client throws
+            // "undefined is not a valid Convex value" if any arg is undefined.
+            // This was the root cause of "Failed to save task" for client tasks:
+            // when dueDate or matterId was null/empty, `null || undefined` = undefined,
+            // and Convex rejected the entire mutation before it reached the server.
+            const args: Record<string, any> = {
                 title: t.title,
                 description: t.description || '',
                 status: t.status || 'todo',
-                dueDate: t.dueDate || undefined,
                 assignedUsers: t.assignedUsers || [],
                 assigneeType: t.assigneeType || 'team',
                 isSharedWithPortal: t.isSharedWithPortal || false,
-                matterId: t.matterId || undefined,
                 priority: t.priority || 'medium',
-                creatorId: currentUser?.id || undefined,
-                creatorName: currentUser?.name || undefined,
-                userEmail: currentUser?.email,
-            });
+            };
+            // Only include optional fields if they have actual values
+            if (t.dueDate) args.dueDate = t.dueDate;
+            if (t.matterId) args.matterId = t.matterId;
+            if (currentUser?.id) args.creatorId = currentUser.id;
+            if (currentUser?.name) args.creatorName = currentUser.name;
+            if (currentUser?.email) args.userEmail = currentUser.email;
+
+            await createTaskMutation(args);
             addToast('Task created.', { type: 'success' });
         } catch (e: any) {
             console.error('[handleAddTask] createTask failed:', e);
-            addToast(e?.message || 'Failed to save task.', { type: 'error' });
-            throw e; // re-throw so the form's catch can show it too
+            const errMsg = e?.message || e?.data?.message || 'Failed to save task.';
+            addToast(errMsg, { type: 'error' });
+            throw e;
         }
     }, [createTaskMutation, currentUser, addToast]);
 
