@@ -155,16 +155,37 @@ SOURCE DOCUMENTS:${sourceContext || '\n(No sources provided — answer based on 
             }
         } catch (err: any) {
             console.error('[Research] AI query failed:', err);
-            const errorContent = `I couldn't analyze the sources. ${err.message || 'Please check your API key in Settings → AI Settings and try again.'}`;
+            // Classify the error and show a friendly message instead of raw
+            // JSON. Google API errors (QuotaFailure, etc.) often include
+            // structured JSON in err.message, which looks like gibberish to
+            // users and overflows the chat bubble.
+            let friendlyError = 'I couldn\'t analyze the sources. Please try again.';
+            const errMsg = (err?.message || '').toString();
+            const errStr = (err?.toString() || '').toString();
+
+            if (errMsg.includes('QuotaFailure') || errMsg.includes('quota') || errStr.includes('RESOURCE_EXHAUSTED')) {
+                friendlyError = 'The AI service is temporarily over its request quota. Please wait a moment and try again, or check your API key usage in Settings → AI Settings.';
+            } else if (errMsg.includes('API key not valid') || errMsg.includes('API_KEY_INVALID') || errMsg.includes('PERMISSION_DENIED')) {
+                friendlyError = 'Your AI API key appears to be invalid or expired. Please check your API key in Settings → AI Settings.';
+            } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('Failed to fetch')) {
+                friendlyError = 'Network error — couldn\'t reach the AI service. Please check your internet connection and try again.';
+            } else if (errMsg.includes('Billing')) {
+                friendlyError = 'The AI service requires billing to be enabled on your Google Cloud account. Please enable billing or check your API key settings.';
+            } else if (errMsg.includes('safety') || errMsg.includes('SAFETY')) {
+                friendlyError = 'The AI service flagged this request as potentially unsafe. Try rephrasing your question or using different sources.';
+            } else if (errMsg.includes('rate limit') || errMsg.includes('RATE_LIMIT')) {
+                friendlyError = 'Too many requests to the AI service. Please wait a moment and try again.';
+            }
+
             try {
-                await actions.updateItem('researchMessages', { id: aiMsgId, content: errorContent, isThinking: false }, 'Message');
+                await actions.updateItem('researchMessages', { id: aiMsgId, content: friendlyError, isThinking: false }, 'Message');
             } catch (updateErr) {
                 actions.removeItemFromState('researchMessages', aiMsgId);
                 actions.addItem('researchMessages', {
                     id: aiMsgId,
                     firmId: currentUser?.firmId,
                     notebookId,
-                    content: errorContent,
+                    content: friendlyError,
                     role: 'model',
                     timestamp: new Date().toISOString(),
                     isThinking: false,

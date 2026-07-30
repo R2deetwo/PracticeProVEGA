@@ -87,7 +87,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                             </div>
                         ) : (
                             <div
-                                className="prose prose-sm dark:prose-invert max-w-none break-words
+                                className="prose prose-sm dark:prose-invert max-w-none break-words selectable overflow-x-auto
                                     prose-headings:font-bold prose-headings:tracking-tight
                                     prose-h2:text-base prose-h2:mt-5 prose-h2:mb-2 prose-h2:border-b prose-h2:border-slate-100 dark:prose-h2:border-zinc-700 prose-h2:pb-1.5
                                     prose-h3:text-sm prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:uppercase prose-h3:tracking-wider prose-h3:text-slate-700 dark:prose-h3:text-zinc-200
@@ -101,6 +101,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                                     prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:my-3 prose-pre:text-xs
                                     prose-ul:list-disc prose-ul:pl-5 prose-ol:list-decimal prose-ol:pl-5
                                     prose-hr:border-slate-200 dark:prose-hr:border-zinc-700 prose-hr:my-4"
+                                style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
                                 dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }}
                             />
                         )}
@@ -310,7 +311,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
             )}
 
             {/* Messages Area */}
-            <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 custom-scrollbar scroll-smooth">
+            <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6 custom-scrollbar scroll-smooth">
                 <div className="max-w-3xl mx-auto w-full">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-center">

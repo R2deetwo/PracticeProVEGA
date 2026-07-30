@@ -180,6 +180,12 @@ export interface ComposeModalPrefill {
   rentAmount?: number;
   propertyAddress?: string;
   channel?: AutomationChannel;
+  // Contact-initiated messaging — when a user clicks "Message" on a
+  // contact in ContactDetailView, these fields are set so the compose
+  // modal opens with the contact pre-selected.
+  contactId?: string;
+  contactName?: string;
+  recipientType?: RecipientType;
 }
 
 // ── Selectable Recipient type ────────────────────────────────────────────
@@ -225,7 +231,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     return (preferred === 'whatsapp' && !waAllowed) ? 'email' : preferred;
   });
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(() => {
+    // Preselect by unitId (tenant) OR contactId (client) from the prefill
     if (prefill?.unitId) return [prefill.unitId];
+    if (prefill?.contactId) return [prefill.contactId];
     return [];
   });
   const [showFinancials, setShowFinancials] = useState(false);
@@ -243,6 +251,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [recipientTab, setRecipientTab] = useState<RecipientType>(() => {
+    // If the prefill specifies a recipientType (e.g. 'client' from a
+    // contact-initiated message), use it directly.
+    if (prefill?.recipientType) return prefill.recipientType;
     // Product-aware default:
     // - Pure legal (Vega) → 'client' (lawyers message their clients)
     // - Pure property (Atrium) → 'tenant' (property managers message residents)

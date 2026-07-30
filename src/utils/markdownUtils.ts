@@ -18,14 +18,21 @@ export const parseAloaMarkdown = (text: string): string => {
     });
 
     // 1. Interactive Citations [Source Name]
-    // Transform [Source Name] into a pill (but skip if it looks like a URL link
-    // that was already converted above — those have href attributes)
+    // Transform [Source Name] into a pill — BUT skip if the content looks
+    // like JSON (starts with { or " or contains @type). This prevents the
+    // parser from mangling raw JSON error messages into citation pills,
+    // which made errors look like "gibberish" to users.
     html = html.replace(/\[([^\]]+)\]/g, (match, p1) => {
         // Skip if this is inside an <a> tag (the link regex already ran)
         if (/<a[^>]*>[^<]*$/.test(html.substring(0, html.indexOf(match)))) {
-            // Heuristic: if the previous content ends with an open <a> tag, skip
             return match;
         }
+        // Skip if the content looks like JSON (raw API errors)
+        if (p1.startsWith('{') || p1.startsWith('"') || p1.includes('@type') || p1.includes('google.rpc')) {
+            return match;
+        }
+        // Skip if the content is very long (likely not a citation)
+        if (p1.length > 80) return match;
         return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 mx-0.5 shadow-sm" title="Citation reference">${p1}</span>`;
     });
 

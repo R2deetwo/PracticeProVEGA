@@ -584,17 +584,26 @@ const MessagesView: React.FC = () => {
             }
         }
         // ─── Contact-initiated messaging ────────────────────────────────
-        // When navigated from ContactDetailView's "Message" button, show a
-        // toast indicating the preferred channel and recipient. The user
-        // can then use the compose box to send a message.
+        // When navigated from ContactDetailView's "Message" button, OPEN THE
+        // COMPOSE MODAL with the contact pre-selected and the preferred
+        // channel set. Previously this only showed a toast telling the user
+        // to "use the compose box below" — which was confusing because there
+        // was no compose box visible.
         const contactName = currentHistoryEntry.context?.contactName;
         const composeChannel = currentHistoryEntry.context?.composeChannel;
         const composeRecipient = currentHistoryEntry.context?.composeRecipient;
+        const contactId = currentHistoryEntry.context?.contactId;
         if (contactName && composeChannel) {
-            addToast(
-                `Compose a message to ${contactName} via ${composeChannel === 'whatsapp' ? 'WhatsApp' : 'Email'} (${composeRecipient || 'no address'}). Use the compose box below.`,
-                { type: 'info' }
-            );
+            setComposePrefill({
+                contactId,
+                contactName,
+                tenantName: contactName,
+                tenantPhone: composeChannel === 'whatsapp' ? composeRecipient : undefined,
+                tenantEmail: composeChannel === 'email' ? composeRecipient : undefined,
+                channel: composeChannel as any,
+                recipientType: 'client' as any,
+            } as any);
+            setShowCompose(true);
         }
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
