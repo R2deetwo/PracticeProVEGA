@@ -53,7 +53,7 @@ export const NotificationSettings: React.FC = () => {
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { isProperty, isLegal, hasPropertyFeatures } = useProduct();
-  const { onUpdateUser } = useDataActions();
+  const { handleUpdateUser } = useDataActions();
 
   const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
 
@@ -192,7 +192,7 @@ export const NotificationSettings: React.FC = () => {
                 <button
                   onClick={() => {
                     const current = currentUser?.notificationSettings || {};
-                    onUpdateUser({ notificationSettings: { ...current, [key]: !isChecked } });
+                    handleUpdateUser(currentUser.id, { notificationSettings: { ...current, [key]: !isChecked } });
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${isChecked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-600'}`}
                 >

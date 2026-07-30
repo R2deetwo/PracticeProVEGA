@@ -205,20 +205,16 @@ export const useMatters = (appState: any, actions: any) => {
      * Send intake link to a lead.
      */
     const handleSendIntakeLink = useCallback(async (leadId: string) => {
-        addToast("Sending intake link...", { type: 'info' });
-        setTimeout(() => {
-            addToast("Intake link sent successfully.", { type: 'success' });
-        }, 1000);
+        // HONESTY: This feature is not yet implemented. Showing a fake
+        // 'success' toast would mislead users into thinking the link was sent.
+        addToast("Intake link sending is not yet available. This feature is on our roadmap.", { type: 'info' });
     }, [addToast]);
 
     /**
      * Analyze intake data.
      */
     const handleAnalyzeIntake = useCallback(async (leadId: string) => {
-        addToast("Analyzing intake responses...", { type: 'info' });
-        setTimeout(() => {
-            addToast("Analysis complete. Ready for conversion.", { type: 'success' });
-        }, 2000);
+        addToast("AI intake analysis is not yet available. This feature is on our roadmap.", { type: 'info' });
     }, [addToast]);
 
     /**
@@ -249,14 +245,11 @@ export const useMatters = (appState: any, actions: any) => {
      * Determine jurisdiction for a matter (Mock).
      */
     const handleDetermineJurisdiction = useCallback(async (matterId: string) => {
-        addToast("Analyzing jurisdiction...", { type: 'info' });
-        setTimeout(() => {
-            addToast("Jurisdiction determined: Lagos State", { type: 'success' });
-        }, 1500);
+        addToast("Automatic jurisdiction detection is not yet available. Please set the jurisdiction manually in the matter details.", { type: 'info' });
     }, [addToast]);
 
     const handleClientSubmitIntakeAudio = useCallback(async (leadId: string, recordings: any[], transcription: string) => {
-        addToast("Recording submitted. Processing transcription...", { type: 'success' });
+        addToast("Audio transcription is not yet available. This feature is on our roadmap.", { type: 'info' });
     }, [addToast]);
 
     const handleCancelIntakeRequest = useCallback(async (leadId: string) => {

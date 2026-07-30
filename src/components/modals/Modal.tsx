@@ -218,7 +218,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     </div>
     )}
 
-    <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain ${size === 'xl' ? 'p-0' : 'px-3 py-3 sm:px-6 sm:py-5'}`}>
+    <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain no-nav-pad ${size === 'xl' ? 'p-0' : 'px-3 py-3 sm:px-6 sm:py-5'}`}>
      {children}
     </div>
    </div>

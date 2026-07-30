@@ -30,7 +30,7 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
     }
   }, [isEditing, notebookToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       addToast("Please provide a name for the notebook.", { type: 'info' });
@@ -38,9 +38,9 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
     }
 
     if (isEditing && notebookToEdit) {
-      onUpdate({ ...notebookToEdit, name, color, scope });
+      await onUpdate({ ...notebookToEdit, name, color, scope });
     } else {
-      onAdd({ name, color, scope: appMode === 'solo' ? NoteScope.Private : scope });
+      await onAdd({ name, color, scope: appMode === 'solo' ? NoteScope.Private : scope });
     }
     onClose();
   };

@@ -95,9 +95,13 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                         i.id === tempId ? { ...data, id: tempId, _id: convexId } : i)
                 }));
                 return { ...data, id: tempId, _id: convexId };
-            } catch (e) {
+            } catch (e: any) {
                 setAppState(prev => ({ ...prev, [table]: (prev[table as keyof AppState] as any[]).filter((i: any) => i.id !== tempId) }));
-                addToast(`Failed to save ${itemName || 'item'}.`, { type: 'error' });
+                // Surface the actual error message so users can see WHY it
+                // failed (e.g., "Unauthenticated", "At least one assignee is
+                // required") instead of a generic "Failed to save item".
+                const errMsg = e?.message || `Failed to save ${itemName || 'item'}.`;
+                addToast(errMsg, { type: 'error' });
                 throw e;
             }
         },

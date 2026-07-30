@@ -19,7 +19,7 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
     const { coreState, isDataLoaded } = useCoreState();
     const { currentUser } = useAuth();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return;
 
@@ -39,7 +39,7 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
             type: 'user' as const
         };
 
-        onAdd(newPage);
+        await onAdd(newPage);
         onClose();
     };
 

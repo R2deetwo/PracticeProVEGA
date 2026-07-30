@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Property, PropertyCategory, PropertyStatus } from '../../types';
 import { SaveIcon, XIcon, ShieldCheckIcon } from '../../constants';
-import { Modal } from './Modal';
+// Modal import removed — ModalManager wraps this content in its own Modal.
 
 interface BulkEditPropertyModalProps {
   propertyIds: string[];
@@ -27,7 +27,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Bulk Edit Properties">
+    <div>
       <div className="p-1 sm:p-4">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-primary-600 text-white rounded-2xl shadow-lg ring-4 ring-primary-500/10">
@@ -108,6 +108,6 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
           </div>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 };

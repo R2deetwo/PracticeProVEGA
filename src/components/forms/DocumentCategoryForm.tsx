@@ -31,7 +31,7 @@ const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCatego
     }
   }, [isEditing, categoryToEdit, context]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       addToast("Please provide a name for the document category.", { type: 'error' });
@@ -44,14 +44,14 @@ const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCatego
             name: name.trim(),
             parentId: parentId,
         };
-        onUpdateCategory(updatedDocCat);
+        await onUpdateCategory(updatedDocCat);
     } else if (!isEditing && onAddCategory) {
         const newDocCat: Omit<DocumentCategory, 'id' | 'isCore'> = {
             firmId: coreState.firmDetails.id,
             name: name.trim(),
             parentId: parentId,
         };
-        onAddCategory(newDocCat);
+        await onAddCategory(newDocCat);
     }
     onClose();
   };

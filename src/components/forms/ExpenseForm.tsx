@@ -63,9 +63,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
     setIsSubmitting(true);
     try {
       if (isEditing && expenseToEdit) {
-        onUpdateExpense({ ...expenseToEdit, ...expenseData });
+        await onUpdateExpense({ ...expenseToEdit, ...expenseData });
       } else {
-        onAddExpense(expenseData);
+        await onAddExpense(expenseData);
       }
       onClose();
     } finally {

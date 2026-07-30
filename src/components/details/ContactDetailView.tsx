@@ -52,7 +52,7 @@ const ContactMessagesTab: React.FC<{
     const handleMessageContact = () => {
         // Preferred channel resolution: WhatsApp if valid phone exists, otherwise Email
         const channel = contact.phone ? 'whatsapp' : 'email';
-        navigateTo('messages', null, {
+        navigateTo('messaging', null, {
             initialTab: 'inbox',
             contactId: contact.id,
             contactName: contact.name,
@@ -87,7 +87,7 @@ const ContactMessagesTab: React.FC<{
                             <div
                                 key={msg.id || msg._id}
                                 className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors cursor-pointer"
-                                onClick={() => navigateTo('messages', null, {
+                                onClick={() => navigateTo('messaging', null, {
                                     initialTab: 'inbox',
                                     selectedInboxId: msg.id || msg._id,
                                     selectedInboxType: 'portal',
@@ -112,7 +112,7 @@ const ContactMessagesTab: React.FC<{
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            navigateTo('messages', null, {
+                                            navigateTo('messaging', null, {
                                                 initialTab: 'inbox',
                                                 selectedInboxId: msg.id || msg._id,
                                                 selectedInboxType: 'portal',
@@ -381,7 +381,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                     // Channel resolution: WhatsApp if valid phone exists,
                     // otherwise Email.
                     const channel = contact.phone ? 'whatsapp' : 'email';
-                    navigateTo('messages', null, {
+                    navigateTo('messaging', null, {
                         initialTab: 'inbox',
                         contactId: contact.id,
                         contactName: contact.name,

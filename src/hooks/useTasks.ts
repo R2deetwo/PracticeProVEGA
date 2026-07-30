@@ -1,13 +1,18 @@
 
 import { useCallback } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { TaskStatus, AppState } from '../types';
 import { useUI } from '../contexts/UIContext';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Hook for managing tasks and checklists.
  */
 export const useTasks = (appState: AppState, actions: any) => {
     const { addToast } = useUI();
+    const { currentUser } = useAuth();
+    const createTaskMutation = useMutation(api.myFunctions.createTask);
 
     const handleUpdateTaskStatus = useCallback((id: string, status: any) => 
         actions.updateItem('tasks', { id, status }, 'Task Status'), [actions]);
@@ -56,13 +61,42 @@ export const useTasks = (appState: AppState, actions: any) => {
         await handleBulkDeleteTasks(doneTasks.map(t => t.id));
     }, [appState.tasks, handleBulkDeleteTasks]);
 
+    const handleAddTask = useCallback(async (t: any) => {
+        // Use the dedicated createTask mutation (not generic createItem) so
+        // that assignee validation runs AND notifications are dispatched to
+        // all assignees (in-app + email + WhatsApp for external stakeholders).
+        // Previously this called actions.addItem('tasks', t) which bypassed
+        // all notification logic — assignees never got bell badges or emails.
+        try {
+            await createTaskMutation({
+                title: t.title,
+                description: t.description || '',
+                status: t.status || 'todo',
+                dueDate: t.dueDate || undefined,
+                assignedUsers: t.assignedUsers || [],
+                assigneeType: t.assigneeType || 'team',
+                isSharedWithPortal: t.isSharedWithPortal || false,
+                matterId: t.matterId || undefined,
+                priority: t.priority || 'medium',
+                creatorId: currentUser?.id || undefined,
+                creatorName: currentUser?.name || undefined,
+                userEmail: currentUser?.email,
+            });
+            addToast('Task created.', { type: 'success' });
+        } catch (e: any) {
+            console.error('[handleAddTask] createTask failed:', e);
+            addToast(e?.message || 'Failed to save task.', { type: 'error' });
+            throw e; // re-throw so the form's catch can show it too
+        }
+    }, [createTaskMutation, currentUser, addToast]);
+
     return {
         handleUpdateTaskStatus,
         handleUpdateTaskPriority,
         handleBulkUpdateTaskStatus,
         handleBulkDeleteTasks,
         handleDeleteAllDoneTasks,
-        handleAddTask: (t: any) => actions.addItem('tasks', t, 'Task'),
+        handleAddTask,
         handleApplyStageChecklist,
         handleBulkArchiveTasks,
         handleArchiveAllDoneTasks,

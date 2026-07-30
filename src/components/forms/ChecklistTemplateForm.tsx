@@ -49,7 +49,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || items.some(i => !i.text.trim())) {
       addToast("Please provide a name and fill out all checklist items.", { type: 'info' });
@@ -63,9 +63,9 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
       relevantMatterTypes: Array.from(relevantMatterTypes),
     };
     if (isEditing && templateToEdit && onUpdateTemplate) {
-      onUpdateTemplate({ ...templateToEdit, ...templateData });
+      await onUpdateTemplate({ ...templateToEdit, ...templateData });
     } else if (onAddTemplate) {
-      onAddTemplate(templateData);
+      await onAddTemplate(templateData);
     }
     onClose();
   };

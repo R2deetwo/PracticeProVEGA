@@ -25,7 +25,7 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
     const [accessLevel, setAccessLevel] = useState<AccessLevel>('Standard');
     const [duration, setDuration] = useState('30'); // in days
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name || !email || !firmName || !roleInMatter) {
             addToast('Please fill all required fields.', { type: 'error' });
@@ -47,7 +47,7 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
             status: 'pending',
             invitedBy: currentUser!.id,
         };
-        onInvite(invite);
+        await onInvite(invite);
         addToast(`Invite sent to ${invite.email}`, { type: 'success' });
         onClose();
     };

@@ -141,6 +141,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
   const { coreState } = useCoreState();
   const { updateItem } = useDataActions();
   const { addToast } = useUI();
+  const isProperty = useIsProperty();
   const firmId = coreState.firmDetails?.id || '';
   const [amount, setAmount] = React.useState(modalContext?.rentAmount ? String(modalContext.rentAmount) : '');
   const [status, setStatus] = React.useState<'cleared' | 'pending' | 'defaulted'>('cleared');

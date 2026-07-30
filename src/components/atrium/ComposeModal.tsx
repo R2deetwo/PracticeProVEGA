@@ -4,6 +4,7 @@ import { useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useMatterState } from '../../contexts/MatterContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
@@ -202,6 +203,8 @@ interface SelectableRecipient {
 export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void; prefill?: ComposeModalPrefill }> = ({ firmId, onClose, onToast, prefill }) => {
   const actions = useDataActions();
   const { coreState } = useCoreState();
+  const { matterState } = useMatterState();
+  const contacts = (matterState as any).contacts || (coreState as any).contacts || [];
   const { currentUser } = useAuth();
   const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
   // Product-aware flags. Previously this modal had NO product awareness at all
@@ -281,7 +284,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   // Also include client contacts (for legal/unified firms) — allows
   // composing messages to clients, not just residents.
   const clientRecipients = useMemo(() =>
-    (coreState.contacts || [])
+    (contacts || [])
       .filter((c: any) => c.email || c.phone)
       .map((c: any) => ({
         id: c.id || c._id,
@@ -297,7 +300,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
         agencyFee: 0,
         cautionDeposit: 0,
       })),
-    [coreState.contacts]
+    [contacts]
   );
 
   // Team members as recipients (for internal communication)

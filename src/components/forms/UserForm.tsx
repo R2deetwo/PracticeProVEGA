@@ -60,9 +60,9 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
     setIsSubmitting(true);
     try {
       if (isEditing && userToEdit) {
-        onUpdateUser({ ...userToEdit, ...userData });
+        await onUpdateUser({ ...userToEdit, ...userData });
       } else {
-        onAddUser(userData as Omit<User, 'id'>);
+        await onAddUser(userData as Omit<User, 'id'>);
       }
       onClose();
     } finally {

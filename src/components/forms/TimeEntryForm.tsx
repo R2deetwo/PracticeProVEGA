@@ -65,9 +65,9 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
     setIsSubmitting(true);
     try {
       if (isEditing && timeEntryToEdit) {
-        onUpdateTimeEntry({ ...timeEntryToEdit, ...entryData });
+        await onUpdateTimeEntry({ ...timeEntryToEdit, ...entryData });
       } else {
-        onAddTimeEntry(entryData);
+        await onAddTimeEntry(entryData);
       }
       onClose();
     } finally {

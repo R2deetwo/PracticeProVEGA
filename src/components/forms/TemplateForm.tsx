@@ -44,7 +44,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim() || !categoryId) {
       addToast("Please provide a template name, content, and select a category.", { type: 'error' });
@@ -52,10 +52,10 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
     }
 
     if (isEditing && onUpdateTemplate && templateToEdit) {
-      onUpdateTemplate({ ...templateToEdit, name: name.trim(), content: content.trim(), categoryId });
+      await onUpdateTemplate({ ...templateToEdit, name: name.trim(), content: content.trim(), categoryId });
     } else if (onAddTemplate) {
       /* Added firmId to satisfy Omit<DocumentTemplate, "id"> interface */
-      onAddTemplate({ firmId: coreState.firmDetails.id, name: name.trim(), content: content.trim(), categoryId, createdAt: new Date().toISOString() });
+      await onAddTemplate({ firmId: coreState.firmDetails.id, name: name.trim(), content: content.trim(), categoryId, createdAt: new Date().toISOString() });
     }
     onClose();
   };

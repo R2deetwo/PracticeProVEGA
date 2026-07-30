@@ -93,7 +93,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const taxAmount = applyVat ? subTotal * vatRate : 0;
     const totalAmount = subTotal + taxAmount;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const timeLineItems: InvoiceLineItem[] = selectedTimeItems.map(entry => ({
             id: `li_te_${entry.id}`,
@@ -137,7 +137,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
         }
         const paymentDetails = selectedAccount;
 
-        onGenerateInvoice(matter, finalLineItems, { invoiceNumber, issueDate, dueDate }, Array.from(selectedTimeEntryIds), Array.from(selectedExpenseIds), paymentDetails, { subTotal, taxAmount });
+        await onGenerateInvoice(matter, finalLineItems, { invoiceNumber, issueDate, dueDate }, Array.from(selectedTimeEntryIds), Array.from(selectedExpenseIds), paymentDetails, { subTotal, taxAmount });
     };
 
     const commonInputClass = inputClassic;

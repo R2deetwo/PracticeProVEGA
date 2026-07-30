@@ -5,7 +5,8 @@ import { TasksIcon, CalendarIcon, OfficeBuildingIcon, PlusIcon, XIcon, SaveIcon,
 import { inputModern } from '../../utils/formStyles';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
-import { AloaTaskCoach } from './AloaTaskCoach';
+// AloaTaskCoach import removed — the ARIA Smart Assistant panel was removed
+// from the New Task modal per user request.
 import { useProduct } from '../../contexts/ProductContext';
 
 interface TaskFormProps {
@@ -146,11 +147,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
     setIsSubmitting(true);
     try {
       if (isEditing && onUpdateTask && taskToEdit) {
-        onUpdateTask({ ...taskToEdit, ...taskData });
+        await onUpdateTask({ ...taskToEdit, ...taskData });
       } else if (onAddTask) {
-        onAddTask(taskData);
+        await onAddTask(taskData);
       }
       onClose();
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to save task.', { type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -202,27 +205,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
     return `Notification will be sent to ${names} via ${channels.join(' & ')}`;
   })();
 
-  const handleCoachAction = (type: 'draft' | 'research' | 'template', context?: any) => {
-    if (type === 'draft') {
-      if (openModal) {
-        openModal('newDraft', null, { 
-          draftTitle: context?.title || title, 
-          matterId,
-          isCourtProcess: true,
-          openedFromTask: true
-        });
-      }
-    } else if (type === 'research') {
-      if (onNavigate) {
-        onNavigate('research', null, { query: context?.query || title });
-        onClose();
-      }
-    }
-  };
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
-      <div className="space-y-2 sm:space-y-3 pb-32">
+      <div className="space-y-2 sm:space-y-3 pb-4">
         {/* Task Objective Section */}
         <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
           <div className="flex items-center gap-4 mb-2 px-1">
@@ -241,16 +226,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <label htmlFor="taskDescription" className={labelClass}>Description</label>
             <textarea id="taskDescription" value={description} onChange={e => setDescription(e.target.value)} rows={4} className={`${commonInputClass} resize-none`} placeholder="Add task details here..." />
           </div>
-
-          {/* AI ASSISTANT PANEL */}
-          <AloaTaskCoach 
-            taskTitle={title} 
-            description={description} 
-            matter={matters.find(m => m.id === matterId)}
-            allTasks={tasks}
-            allDocuments={documents}
-            onAction={handleCoachAction}
-          />
         </div>
 
         {/* Priority & Matter association */}
@@ -325,7 +300,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                   onClick={() => { setAssigneeType('team'); setAssignedUsers(new Set()); }}
                   className={`flex-1 px-3 py-2 rounded-lg text-2xs font-bold uppercase tracking-wider transition-all ${assigneeType === 'team' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700'}`}
                 >
-                  Internal Team
+                  Team
                 </button>
                 <button
                   type="button"
@@ -342,6 +317,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
                   Resident
                 </button>
               </div>
+
+              {/* NOTIFICATION DISPATCH PREVIEW — shown when external stakeholder is selected.
+                  Placed ABOVE the chips so it's never cropped by the footer. */}
+              {notificationPreviewText && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg">
+                  <svg className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  <p className="text-2xs text-blue-700 dark:text-blue-300 font-medium">{notificationPreviewText}</p>
+                </div>
+              )}
 
               {/* Empty state messages per type */}
               {assignableUsers.length === 0 && (
@@ -368,16 +354,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 ))}
               </div>
 
-              {/* NOTIFICATION DISPATCH PREVIEW — shown when external stakeholder is selected */}
-              {notificationPreviewText && (
-                <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 dark:border-blue-800 rounded-lg">
-                  <svg className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  <p className="text-2xs text-blue-700 dark:text-blue-300 font-medium">{notificationPreviewText}</p>
-                </div>
-              )}
-
               <div className="relative group/delegate">
                 <select onChange={e => { handleUserToggle(e.target.value); e.target.value = ''; }} className="w-full pl-4 pr-12 py-4 text-2xs font-black uppercase tracking-[0.1em] bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
                   <option value="" disabled>+ Assign {assigneeType === 'team' ? 'Team Member' : assigneeType === 'client' ? 'Client' : 'Resident'}</option>
@@ -394,7 +370,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         )}
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20">
+      <div className="pt-4 sm:pt-6 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20">
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Cancel
           </button>

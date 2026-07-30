@@ -29,7 +29,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
     }
   }, [isEditing, eventTypeToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       addToast("Please provide a name for the event type.", { type: 'error' });
@@ -44,7 +44,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
           name: name.trim(),
           color,
       };
-      onUpdateEventType(eventTypeData);
+      await onUpdateEventType(eventTypeData);
     } else if (onAddEventType) {
       /* Added firmId to satisfy Omit<CustomEventType, "id"> interface */
       const eventTypeData: Omit<CustomEventType, 'id'> = {
@@ -52,7 +52,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
           name: name.trim(),
           color,
       };
-      onAddEventType(eventTypeData);
+      await onAddEventType(eventTypeData);
     }
     onClose();
   };

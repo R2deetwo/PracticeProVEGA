@@ -25,7 +25,7 @@ const ContactCategoryForm: React.FC<ContactCategoryFormProps> = ({ onAddCategory
     }
   }, [isEditing, categoryToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       addToast("Please provide a name for the category.", { type: 'error' });
@@ -39,14 +39,14 @@ const ContactCategoryForm: React.FC<ContactCategoryFormProps> = ({ onAddCategory
             firmId: coreState.firmDetails.id,
             name: name.trim(),
         };
-        onUpdateCategory(categoryData);
+        await onUpdateCategory(categoryData);
     } else if (onAddCategory) {
         /* Added firmId to satisfy Omit<ContactCategory, "id"> interface */
         const categoryData: Omit<ContactCategory, 'id'> = {
             firmId: coreState.firmDetails.id,
             name: name.trim(),
         };
-        onAddCategory(categoryData);
+        await onAddCategory(categoryData);
     }
     onClose();
   };

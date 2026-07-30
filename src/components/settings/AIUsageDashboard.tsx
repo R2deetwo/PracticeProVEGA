@@ -392,20 +392,17 @@ const AIUsageDashboard: React.FC = () => {
   const firmId = appState?.firmDetails?.id || currentUser?.firmId || '';
 
   // ── Convex Queries ──────────────────────────────────────────────────────
-  const usageData = useQuery(
-    api.ai.getAIUsageForFirm,
-    firmId ? { firmId } : 'skip'
-  );
-
-  const rateLimitData = useQuery(
-    api.ai.getRateLimitStatus,
-    firmId ? { firmId } : 'skip'
-  );
+  // NOTE: api.ai.getAIUsageForFirm and api.ai.getRateLimitStatus don't exist
+  // in convex/ai.ts yet. Rather than crashing with "function not found", we
+  // gracefully skip these queries and show a "no data" state. When the
+  // backend queries are implemented, re-enable them here.
+  const usageData: any = null; // useQuery(api.ai.getAIUsageForFirm, firmId ? { firmId } : 'skip');
+  const rateLimitData: any = null; // useQuery(api.ai.getRateLimitStatus, firmId ? { firmId } : 'skip');
 
   // ── Derived State ───────────────────────────────────────────────────────
-  const isLoading = usageData === undefined || rateLimitData === undefined;
-  const hasNoData = usageData !== undefined && usageData !== null && usageData.totalRequests === 0;
-  const hasData = usageData !== undefined && usageData !== null && usageData.totalRequests > 0;
+  const isLoading = false; // Not loading since queries are disabled
+  const hasNoData = true; // No usage tracking data available yet
+  const hasData = false;
 
   const successRate = hasData && usageData.totalRequests > 0
     ? Math.round(((usageData.totalRequests - usageData.errorCount) / usageData.totalRequests) * 100)

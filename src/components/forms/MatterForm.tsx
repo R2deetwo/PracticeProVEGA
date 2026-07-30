@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';

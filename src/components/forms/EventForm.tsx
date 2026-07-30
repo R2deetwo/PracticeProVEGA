@@ -228,7 +228,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
             if (isEditing && onUpdateEvent) {
                 onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
             } else {
-                onSave(eventData);
+                await onSave(eventData);
                 localStorage.removeItem('draft_newEvent');
             }
             onClose();

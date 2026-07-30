@@ -25,7 +25,7 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
     }
   }, [isEditing, categoryToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       addToast("Please provide a name for the category.", { type: 'error' });
@@ -34,10 +34,10 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
     
     if (isEditing && onUpdate && categoryToEdit) {
         /* Added firmId to satisfy DocumentTemplateCategory interface */
-        onUpdate({ id: categoryToEdit.id, firmId: coreState.firmDetails.id, name: name.trim() });
+        await onUpdate({ id: categoryToEdit.id, firmId: coreState.firmDetails.id, name: name.trim() });
     } else if (onAdd) {
         /* Added firmId to satisfy Omit<DocumentTemplateCategory, "id"> interface */
-        onAdd({ firmId: coreState.firmDetails.id, name: name.trim() });
+        await onAdd({ firmId: coreState.firmDetails.id, name: name.trim() });
     }
     onClose();
   };

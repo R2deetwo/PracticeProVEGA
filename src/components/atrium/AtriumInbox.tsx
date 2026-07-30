@@ -30,6 +30,7 @@ const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', 
   email: 'text-blue-400 bg-blue-900/30', 
   portal: 'text-emerald-400 bg-emerald-900/30',
+  'in-app': 'text-slate-400 bg-slate-700/30',
 };
 
 const CHANNEL_LABELS: Record<string, string> = {

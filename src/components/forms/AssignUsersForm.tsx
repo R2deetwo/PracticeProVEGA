@@ -27,9 +27,9 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
         });
     };
 
-    const handleSave = (e: React.FormEvent) => {
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        onUpdate(item.id, Array.from(assigned));
+        await onUpdate(item.id, Array.from(assigned));
         onClose();
     };
 

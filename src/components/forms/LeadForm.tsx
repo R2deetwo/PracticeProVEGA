@@ -36,7 +36,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
         }
         setIsSubmitting(true);
         try {
-            handleAddLead({ name, email }, isClientRequest);
+            await handleAddLead({ name, email }, isClientRequest);
             onClose();
         } finally {
             setIsSubmitting(false);

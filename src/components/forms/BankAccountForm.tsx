@@ -30,7 +30,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
     }
   }, [isEditing, accountToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankName.trim() || !accountNumber.trim()) {
       addToast("Bank Name and Account Number are required.", { type: 'error' });
@@ -42,9 +42,9 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
       accountNumber,
     };
     if (isEditing && accountToEdit) {
-      onUpdateAccount({ ...accountToEdit, ...accountData });
+      await onUpdateAccount({ ...accountToEdit, ...accountData });
     } else {
-      onAddAccount(accountData);
+      await onAddAccount(accountData);
     }
     onClose();
   };

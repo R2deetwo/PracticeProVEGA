@@ -32,7 +32,7 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
         }
         setIsSubmitting(true);
         try {
-            onSave(contact.id, selectedMatterId, asClient);
+            await onSave(contact.id, selectedMatterId, asClient);
             onClose();
         } finally {
             setIsSubmitting(false);

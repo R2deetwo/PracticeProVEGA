@@ -81,13 +81,15 @@ const StatusPill: React.FC<{
     onUpdate: (status: TaskStatus) => void;
 }> = ({ task, onUpdate }) => {
     const cfg: Record<TaskStatus, { label: string; cls: string }> = {
-        [TaskStatus.Done]:       { label: 'Done',        cls: 'bg-emerald-600 text-white border-emerald-700 shadow-sm' },
-        [TaskStatus.InProgress]: { label: 'In Progress', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25 hover:bg-blue-500/25' },
-        [TaskStatus.Todo]:       { label: 'To Do',       cls: 'bg-slate-100 dark:bg-zinc-700/50 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600 hover:bg-slate-200 dark:hover:bg-zinc-700' },
+        [TaskStatus.Done]:               { label: 'Done',               cls: 'bg-emerald-600 text-white border-emerald-700 shadow-sm' },
+        [TaskStatus.InProgress]:         { label: 'In Progress',         cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25 hover:bg-blue-500/25' },
+        [TaskStatus.PendingVerification]:{ label: 'Pending Review',      cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/25' },
+        [TaskStatus.Todo]:               { label: 'To Do',               cls: 'bg-slate-100 dark:bg-zinc-700/50 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600 hover:bg-slate-200 dark:hover:bg-zinc-700' },
     };
     const next: Record<TaskStatus, TaskStatus> = {
         [TaskStatus.Todo]: TaskStatus.InProgress,
-        [TaskStatus.InProgress]: TaskStatus.Done,
+        [TaskStatus.InProgress]: TaskStatus.PendingVerification,
+        [TaskStatus.PendingVerification]: TaskStatus.Done,
         [TaskStatus.Done]: TaskStatus.Todo,
     };
     const { label, cls } = cfg[task.status];

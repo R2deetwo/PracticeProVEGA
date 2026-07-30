@@ -53,21 +53,21 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
   
   const selectedTemplate = useMemo(() => checklistTemplates.find(t => t.id === templateId), [templateId, checklistTemplates]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (activeTab === 'template') {
         if (!templateId) {
             addToast("Please select a template to apply.", { type: 'error' });
             return;
         }
-        handleApplyStageChecklist(matter.id, stage, templateId, shareWithClient);
+        await handleApplyStageChecklist(matter.id, stage, templateId, shareWithClient);
     } else { // 'create' tab
         const finalItems = newChecklistItems.filter(i => i.text.trim());
         if (!newChecklistName.trim() || finalItems.length === 0) {
             addToast("Please provide a name and at least one item for the new checklist.", { type: 'error' });
             return;
         }
-        handleApplyCustomStageChecklist(matter.id, stage, newChecklistName, finalItems, saveAsTemplate, shareWithClient);
+        await handleApplyCustomStageChecklist(matter.id, stage, newChecklistName, finalItems, saveAsTemplate, shareWithClient);
     }
     onClose();
   };
