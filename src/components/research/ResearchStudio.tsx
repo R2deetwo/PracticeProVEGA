@@ -9,6 +9,7 @@ import { parseAloaMarkdown } from '../../utils/markdownUtils';
 interface ResearchStudioProps {
     notebook: ResearchNotebook;
     sources: ResearchSource[];
+    analysisResults?: StudioAnalysisResult[];
     openModal: (type: ModalType, id?: string | null, context?: any) => void;
     navigate: (view: any, id?: string | null, context?: any) => void;
     onSwitchToChat: () => void;
@@ -152,6 +153,7 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
 export const ResearchStudio: React.FC<ResearchStudioProps> = ({
     notebook,
     sources,
+    analysisResults,
     openModal,
     navigate,
     onSwitchToChat,
@@ -162,9 +164,15 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
     const [loadingType, setLoadingType] = useState<string | null>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
 
-    const generatedItems = coreState.researchAnalysisResults
-        .filter(r => r.notebookId === notebook.id)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    // Use the analysisResults prop (fetched via getResearchAnalysisResults query)
+    // if provided, otherwise fall back to coreState.researchAnalysisResults.
+    // Previously this ONLY used coreState.researchAnalysisResults, which
+    // getFirmData hardcodes to [] — so all previously generated analysis
+    // results disappeared on page refresh.
+    const allResults = analysisResults || coreState.researchAnalysisResults || [];
+    const generatedItems = allResults
+        .filter((r: any) => r.notebookId === notebook.id)
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     const handleGenerate = async (typeId: string) => {
         if (sources.length === 0) return;

@@ -342,8 +342,8 @@ export const BillingView: React.FC = () => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            <div className="sticky top-0 z-sticky glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
-                <div>
+            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
+                <div className="min-w-0">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
                     <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                         {productScope === 'legal' ? 'Legal billing & invoices'
@@ -353,7 +353,7 @@ export const BillingView: React.FC = () => {
                          : 'Legal billing & invoices'}
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     {isUnified && (
                         <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 border border-slate-200 dark:border-zinc-700">
                             {(['legal', 'property', 'combined'] as ProductScope[]).map((scope) => (

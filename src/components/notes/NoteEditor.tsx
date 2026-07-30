@@ -225,7 +225,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                 // ─── Bidirectional Link Autocomplete ────────────────────
                 // Check if the user just typed [[ and show autocomplete
                 const cursorPos = editor.state.selection.from;
-                const textBefore = editor.getText(0, cursorPos);
+                // TipTap v3: editor.getText() takes 0-1 args. Use the ProseMirror
+                // doc API directly to get text between two positions.
+                const textBefore = editor.state.doc.textBetween(0, cursorPos, '\n', '\n');
                 const lastOpen = textBefore.lastIndexOf('[[');
                 if (lastOpen !== -1) {
                     const textBetween = textBefore.substring(lastOpen + 2);
@@ -233,7 +235,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     if (!textBetween.includes(']]') && !textBetween.includes('\n') && textBetween.length < 50) {
                         setLinkQuery(textBetween);
                         setLinkVisible(true);
-                        setLinkStartPos.current = lastOpen;
+                        linkStartPos.current = lastOpen;
                         const results = searchEntities(textBetween, linkEntities, 8);
                         setLinkResults(results);
                         setLinkSelectedIndex(0);

@@ -583,7 +583,20 @@ const MessagesView: React.FC = () => {
                 setSelectedInboxType(inboxType);
             }
         }
-    }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType]);
+        // ─── Contact-initiated messaging ────────────────────────────────
+        // When navigated from ContactDetailView's "Message" button, show a
+        // toast indicating the preferred channel and recipient. The user
+        // can then use the compose box to send a message.
+        const contactName = currentHistoryEntry.context?.contactName;
+        const composeChannel = currentHistoryEntry.context?.composeChannel;
+        const composeRecipient = currentHistoryEntry.context?.composeRecipient;
+        if (contactName && composeChannel) {
+            addToast(
+                `Compose a message to ${contactName} via ${composeChannel === 'whatsapp' ? 'WhatsApp' : 'Email'} (${composeRecipient || 'no address'}). Use the compose box below.`,
+                { type: 'info' }
+            );
+        }
+    }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
     // ── Team Chat state (existing logic) ──
     const teamChatEndRef = useRef<HTMLDivElement>(null);
@@ -1298,14 +1311,14 @@ const MessagesView: React.FC = () => {
             </div>
             {/* ── Top Tab Bar ── */}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2 sm:px-4 pt-2">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap">
                     {/* Conversations Tab (was "Inbox") — live 2-way chat threads
                         with clients/residents via the portal. Renamed to avoid
                         conceptual overlap with "WhatsApp & Email" (which handles
                         external-channel communications). */}
                     <button
                         onClick={() => setActiveTab('inbox')}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
                             activeTab === 'inbox'
                                 ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
                                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -1327,7 +1340,7 @@ const MessagesView: React.FC = () => {
                         Uses chatConversations/chatMessages tables. */}
                     <button
                         onClick={() => setActiveTab('team')}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
                             activeTab === 'team'
                                 ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
                                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -1344,7 +1357,7 @@ const MessagesView: React.FC = () => {
                     {(
                     <button
                         onClick={() => setActiveTab('notices')}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
                             activeTab === 'notices'
                                 ? 'border-amber-600 text-amber-700 dark:text-amber-400 dark:border-amber-500'
                                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -1363,7 +1376,7 @@ const MessagesView: React.FC = () => {
                     {/* Scheduled Tab */}
                     <button
                         onClick={() => setActiveTab('scheduled')}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
                             activeTab === 'scheduled'
                                 ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
                                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -1404,9 +1417,9 @@ const MessagesView: React.FC = () => {
                                         {isUnified ? 'All Conversations' : 'Conversations'}
                                     </h3>
                                 </div>
-                                {/* Type filter checkboxes — inline below the title, compact */}
+                                {/* Type filter checkboxes — horizontal scroll on mobile, no wrapping */}
                                 {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
-                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap -mx-1 px-1">
                                         {([
                                             { key: 'team'    as const, label: 'Team',     style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
                                             { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
@@ -1416,7 +1429,7 @@ const MessagesView: React.FC = () => {
                                         ]).map(f => (
                                             <label
                                                 key={f.key}
-                                                className="inline-flex items-center gap-1 cursor-pointer select-none"
+                                                className="inline-flex items-center gap-1 cursor-pointer select-none flex-shrink-0"
                                             >
                                                 <input
                                                     type="checkbox"

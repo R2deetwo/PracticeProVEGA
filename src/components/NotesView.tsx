@@ -183,7 +183,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                                     key={`matters-list`}
                                     title="Browse by Matter" 
                                     level={1} 
-                                    items={matters.sort((a, b) => a.title.localeCompare(b.title))} 
+                                    items={[...matters].sort((a, b) => a.title.localeCompare(b.title))} 
                                     type="matter" 
                                     notebookId={selectedNotebookId} 
                                     selectionPath={selectionPath} 

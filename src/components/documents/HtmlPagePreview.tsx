@@ -573,9 +573,6 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-200' : 'text-slate-700 dark:text-zinc-200'}`}>
                             {title || 'Document'}
                         </p>
-                        <p className={`text-2xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                            Page {safeCurrentPage + 1} of {pageCount}
-                        </p>
                     </div>
                 </div>
 

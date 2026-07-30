@@ -501,9 +501,6 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                         >
                             {title || 'PDF Document'}
                         </p>
-                        <p className={`text-2xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                            Page {currentPage} of {numPages || '…'}
-                        </p>
                     </div>
                 </div>
 

@@ -1,11 +1,31 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { NoteNotebook, NotePage, Matter } from '../../types';
 import { MATTERS_NOTEBOOK_ID } from '../../constants';
 import { getEventTypeBadgeClass } from '../../utils/colorUtils';
 import Tooltip from '../Tooltip';
 import { ZapIcon, CogIcon, DocumentIcon, CheckCircleIcon, UserCircleIcon } from '../../constants';
+
+// StrictModeDroppable — react-beautiful-dnd breaks under React.StrictMode
+// (double-invoked effects cause Droppable to measure dimensions in the
+// wrong pass). This wrapper delays rendering until after the first
+// animation frame, which is the canonical fix. Without this, NotesView
+// either crashes silently or drag-and-drop does nothing.
+const StrictModeDroppable = ({ children, ...props }: any) => {
+    const [enabled, setEnabled] = useState(false);
+    useEffect(() => {
+        const animation = requestAnimationFrame(() => setEnabled(true));
+        return () => {
+            cancelAnimationFrame(animation);
+            setEnabled(false);
+        };
+    }, []);
+    if (!enabled) {
+        return null;
+    }
+    return <Droppable {...props}>{children}</Droppable>;
+};
 
 const BackIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -126,7 +146,7 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
         const isDraggableList = treeType === 'page';
         
         return (
-            <Droppable droppableId={droppableId} type="page" isDropDisabled={!isDraggableList}>
+            <StrictModeDroppable droppableId={droppableId} type="page" isDropDisabled={!isDraggableList}>
                 {(provided) => (
                     <ul {...provided.droppableProps} ref={provided.innerRef} className={`space-y-1 ${parentId ? 'pl-4' : 'p-2'}`}>
                         {treeItems.map((item, index) => {
@@ -201,7 +221,7 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
                         {provided.placeholder}
                     </ul>
                 )}
-            </Droppable>
+            </StrictModeDroppable>
         );
     };
 

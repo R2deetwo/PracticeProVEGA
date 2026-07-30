@@ -412,9 +412,15 @@ export const getFirmData = query({
     // Do NOT strip content from notePages as it's used directly in lists and inline editors
     const lightNotePages = notePages || [];
 
-    // Strip heavy file content from researchSources
+    // Research Sources: strip ONLY the heavy binary 'file' object, but KEEP
+    // the 'content' field (text). Previously both were stripped, which broke
+    // AI Notebook chat — the AI received zero source context because
+    // source.content was always undefined on the client. The content field
+    // is needed by useResearch.handleSendResearchMessage to build the AI
+    // prompt with source text. The 'file' field (binary PDF data) is still
+    // stripped for bandwidth and fetched on-demand via getResearchSourceContent.
     const lightResearchSources = (researchSources || []).map((src: any) => {
-      const { content, file, ...lightSrc } = src;
+      const { file, ...lightSrc } = src;
       return lightSrc;
     });
 

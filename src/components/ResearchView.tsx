@@ -350,7 +350,8 @@ const ResearchView: React.FC = () => {
                             messages={messagesForNotebook}
                             sources={sourcesForNotebook}
                             selectedSourceIds={selectedSourceIds}
-                            onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds)}
+                            onSendMessage={(notebookId, content, sIds) =>
+                                dataHandlers.handleSendResearchMessage(notebookId, content, sIds, sourcesForNotebook)}
                             prefillQuery={prefillState?.query}
                             prefillContext={prefillState?.context}
                             prefillDocumentTitle={prefillState?.documentTitle}
@@ -406,6 +407,7 @@ const ResearchView: React.FC = () => {
                                         <ResearchStudio
                                             notebook={selectedNotebook}
                                             sources={sourcesForNotebook.filter(s => selectedSourceIds.includes(s.id))}
+                                            analysisResults={analysisResultsForNotebook}
                                             openModal={openModal}
                                             navigate={navigateTo}
                                             onSwitchToChat={() => setMobileWorkspaceView('chat')}
