@@ -29,51 +29,69 @@ export const useMessaging = (appState: AppState, actions: any) => {
         // Server-side mutation: atomically creates the chat message AND
         // notifications for every other conversation member. If this call
         // succeeds, the recipient is GUARANTEED to get a notification.
-        await sendChatMessageMutation({
-            conversationId,
-            content,
-            authorId: senderId,
-            authorName: currentUser?.name || undefined,
-            userEmail: currentUser?.email,
-        });
+        try {
+            await sendChatMessageMutation({
+                conversationId,
+                content,
+                authorId: senderId,
+                authorName: currentUser?.name || undefined,
+                userEmail: currentUser?.email,
+            });
+        } catch (e: any) {
+            console.error('[handleSendMessage] Failed:', e);
+            addToast(e?.message || 'Failed to send message. Please try again.', { type: 'error' });
+            throw e;
+        }
 
         // Note: overrideMembers is no longer needed on the client side because
         // the server resolves the conversation's memberIds directly. Kept in
         // the signature for backwards-compat with existing callers.
         void overrideMembers;
-    }, [sendChatMessageMutation, currentUser]);
+    }, [sendChatMessageMutation, currentUser, addToast]);
 
     const handleCreateDirectMessage = useCallback(async (recipientId: string, firstMessage?: string, currentUserId?: string, matterId?: string) => {
         const cid = uuidv4();
-        await actions.addItem('chatConversations', {
-            id: cid,
-            type: 'direct',
-            memberIds: [currentUserId || currentUser?.id || '', recipientId],
-            name: 'Direct Message',
-            matterId: matterId || null,
-            createdAt: new Date().toISOString(),
-            hiddenForUserIds: []
-        }, 'Conversation');
-        if (firstMessage) {
-            await handleSendMessage(cid, firstMessage, currentUserId || currentUser?.id || '');
+        try {
+            await actions.addItem('chatConversations', {
+                id: cid,
+                type: 'direct',
+                memberIds: [currentUserId || currentUser?.id || '', recipientId],
+                name: 'Direct Message',
+                matterId: matterId || null,
+                createdAt: new Date().toISOString(),
+                hiddenForUserIds: []
+            }, 'Conversation');
+            if (firstMessage) {
+                await handleSendMessage(cid, firstMessage, currentUserId || currentUser?.id || '');
+            }
+            return cid;
+        } catch (e: any) {
+            console.error('[handleCreateDirectMessage] Failed:', e);
+            addToast(e?.message || 'Failed to create conversation.', { type: 'error' });
+            throw e;
         }
-        return cid;
-    }, [currentUser, actions, handleSendMessage]);
+    }, [currentUser, actions, handleSendMessage, addToast]);
 
     const handleCreateChannel = useCallback(async (name: string, memberIds: string[], creatorId: string, matterId?: string) => {
         const cid = uuidv4();
-        await actions.addItem('chatConversations', {
-            id: cid,
-            type: 'channel',
-            name,
-            memberIds,
-            creatorId,
-            matterId: matterId || null,
-            createdAt: new Date().toISOString(),
-            hiddenForUserIds: []
-        }, 'Channel');
-        return cid;
-    }, [actions]);
+        try {
+            await actions.addItem('chatConversations', {
+                id: cid,
+                type: 'channel',
+                name,
+                memberIds,
+                creatorId,
+                matterId: matterId || null,
+                createdAt: new Date().toISOString(),
+                hiddenForUserIds: []
+            }, 'Channel');
+            return cid;
+        } catch (e: any) {
+            console.error('[handleCreateChannel] Failed:', e);
+            addToast(e?.message || 'Failed to create channel.', { type: 'error' });
+            throw e;
+        }
+    }, [actions, addToast]);
 
     const handleDeleteChat = useCallback(async (conversationId: string, deleteForEveryone: boolean, userId: string) => {
         await actions.deleteItem('chatConversations', conversationId, 'Conversation');

@@ -26,7 +26,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-40 p-4">
+    <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-2xl z-[1100] p-4 pb-safe">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-3 flex items-center justify-between animate-fade-in-up border border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                 <span className="text-sm font-semibold text-gray-800 dark:text-white whitespace-nowrap px-2">{selectedCount} selected</span>

@@ -342,7 +342,7 @@ export const BillingView: React.FC = () => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
+            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
                 <div className="min-w-0">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
                     <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
@@ -409,7 +409,7 @@ export const BillingView: React.FC = () => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2 transition-colors ${
+                                className={`flex-shrink-0 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2 transition-colors ${
                                     activeTab === tab.id
                                         ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                                         : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'

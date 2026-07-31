@@ -380,7 +380,7 @@ const ChatWindow: React.FC<{
             >
                 {Object.keys(groupedMessages).map(dateStr => (
                     <div key={dateStr}>
-                        <div className="flex justify-center mb-4 sticky top-0 z-10">
+                        <div className="flex justify-center mb-4 sticky top-0 pt-safe z-10">
                             <span className="bg-slate-200/80 dark:bg-zinc-700/80 backdrop-blur-sm text-slate-600 dark:text-slate-300 text-2xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                                 {new Date(dateStr).toDateString() === new Date().toDateString() ? 'Today' : dateStr}
                             </span>
@@ -650,7 +650,7 @@ const CommsView: React.FC = () => {
         <div className="flex h-full w-full bg-white dark:bg-zinc-900 border-x border-slate-200 dark:border-zinc-800">
             <div className={`w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 ${selectedId ? 'hidden md:flex' : 'flex'}`}>
                 {/* Sidebar Header */}
-                <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 shadow-sm border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900">
+                <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 shadow-sm border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900">
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
                     <button onClick={() => openModal('newDirectMessage')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold">
                         <PlusIcon className="w-4 h-4" /> New

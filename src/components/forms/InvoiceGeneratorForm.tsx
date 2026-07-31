@@ -51,7 +51,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
         if (matter.billingModel === 'Fixed Fee' && matter.fixedFeeAmount) {
             const hasBeenInvoiced = financeState.invoices.some(inv =>
                 inv.matter.id === matter.id &&
-                inv.lineItems.some(li => li.description.startsWith('Fixed Fee for'))
+                (inv.lineItems || []).some(li => li.description.startsWith('Fixed Fee for'))
             );
             if (!hasBeenInvoiced) {
                 return {

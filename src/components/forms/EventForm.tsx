@@ -226,12 +226,14 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
         setIsSubmitting(true);
         try {
             if (isEditing && onUpdateEvent) {
-                onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
+                await onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
             } else {
                 await onSave(eventData);
                 localStorage.removeItem('draft_newEvent');
             }
             onClose();
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to save event.', { type: 'error' });
         } finally {
             setIsSubmitting(false);
         }
@@ -429,7 +431,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                 </div>
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20">
+            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20 pb-safe-extra">
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>

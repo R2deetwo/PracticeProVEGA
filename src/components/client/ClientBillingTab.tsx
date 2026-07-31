@@ -53,7 +53,7 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
                 {outstandingInvoices.length > 0 ? (
                     <ul className="space-y-3">
                         {outstandingInvoices.map(inv => {
-                            const total = inv.lineItems.reduce((s, li) => s + li.total, 0);
+                            const total = (inv.lineItems || []).reduce((s, li) => s + li.total, 0);
                             return (
                                 <li key={inv.id} className="p-3 bg-slate-50 dark:bg-zinc-700/50 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
                                     <div>

@@ -14,27 +14,48 @@ export const useCommunications = (actions: any) => {
     const convex = useConvex();
 
     const handleSendEmail = useCallback(async (data: any) => {
-        addToast(`Sending email to ${data.to[0]}...`, { type: 'info' });
+        // Guard against missing/empty recipients — previously `data.to[0]`
+        // would throw a TypeError if data.to was undefined or empty.
+        const recipients = Array.isArray(data?.to) ? data.to : (data?.to ? [data.to] : []);
+        if (recipients.length === 0) {
+            addToast('No recipient specified — cannot send email.', { type: 'error' });
+            return;
+        }
+        addToast(`Sending email to ${recipients[0]}...`, { type: 'info' });
         try {
-            const result = await convex.action(api.communications.sendEmail, {
-                to: data.to[0],
-                subject: data.subject,
-                htmlContent: data.body,
-                firmId: currentUser?.firmId || '',
-                recordLog: true,
-            });
-            
-            if (result.success) {
-                addToast(`Email sent successfully.`, { type: 'success' });
+            // Send to the first recipient (the backend sendEmail action
+            // accepts a single `to` address). If multiple recipients are
+            // provided, we loop through them.
+            const results: { email: string; success: boolean; error?: string }[] = [];
+            for (const recipient of recipients) {
+                const result = await convex.action(api.communications.sendEmail, {
+                    to: recipient,
+                    subject: data.subject,
+                    htmlContent: data.body,
+                    firmId: currentUser?.firmId || '',
+                    recordLog: true,
+                });
+                results.push({ email: recipient, success: result.success, error: result.error });
+            }
+
+            const allSucceeded = results.every(r => r.success);
+            const anySucceeded = results.some(r => r.success);
+
+            if (allSucceeded) {
+                addToast(`Email sent successfully to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}.`, { type: 'success' });
                 if (actions.logActivity) {
                     actions.logActivity('Sent Email', 'Contact', undefined, data.subject, data.matterId);
                 }
+            } else if (anySucceeded) {
+                const failed = results.filter(r => !r.success).map(r => r.email);
+                addToast(`Email sent to some recipients, but failed for: ${failed.join(', ')}`, { type: 'warning' });
             } else {
-                addToast(`Failed to send email: ${result.error}`, { type: 'error' });
+                const firstError = results[0]?.error || 'Unknown error';
+                addToast(`Failed to send email: ${firstError}`, { type: 'error' });
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('[useCommunications] Failed to send email:', e);
-            addToast(`Failed to send email.`, { type: 'error' });
+            addToast(e?.message || 'Failed to send email.', { type: 'error' });
         }
     }, [currentUser, convex, actions, addToast]);
 

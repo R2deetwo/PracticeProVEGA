@@ -310,7 +310,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
         <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950 border-r border-slate-200 dark:border-zinc-800">
 
             {/* ── Header ── */}
-            <div className="sticky top-0 z-30 flex-shrink-0 py-4 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
+            <div className="sticky top-0 pt-safe z-30 flex-shrink-0 py-4 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Matters</h2>
                     <div className="flex items-center gap-1.5">

@@ -29,6 +29,19 @@ const InvoiceDetailViewContent: React.FC = () => {
     const onGoBack = () => navigateTo(previousViewName as any);
     const onViewReceipt = (id: string) => navigateTo('receiptDetail', id);
 
+    // NOTE: All hooks must run BEFORE any conditional return (Rules of Hooks).
+    // Previously, `if (!invoice) return (...)` was placed BEFORE useState(zoom),
+    // causing a "Rendered fewer hooks than expected" crash when the invoice
+    // resolved from undefined to a value. Now the hook runs unconditionally.
+    const [zoom, setZoom] = useState(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 800) {
+            return Math.max(0.3, window.innerWidth / 850);
+        }
+        return 0.85;
+    });
+    const handleZoomIn = () => setZoom(z => Math.min(z + 0.05, 1.5));
+    const handleZoomOut = () => setZoom(z => Math.max(z - 0.05, 0.3));
+
     if (!invoice) return (
         <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
             <p className="text-lg font-medium">Invoice not found</p>
@@ -36,20 +49,11 @@ const InvoiceDetailViewContent: React.FC = () => {
     );
 
 
-    // Calculate totals if not present in old data
-    const calculatedSubTotal = invoice.lineItems.reduce((sum: number, item: any) => sum + item.total, 0);
+    // Calculate totals if not present in old data — guard against missing lineItems
+    const calculatedSubTotal = (invoice.lineItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
     const subTotal = invoice.subTotal !== undefined ? invoice.subTotal : calculatedSubTotal;
     const taxAmount = invoice.taxAmount !== undefined ? invoice.taxAmount : 0;
     const totalAmount = subTotal + taxAmount;
-
-    const [zoom, setZoom] = useState(() => {
-        if (typeof window !== 'undefined' && window.innerWidth < 800) {
-            return Math.max(0.3, window.innerWidth / 850);
-        }
-        return 0.85; 
-    }); // Start slightly zoomed out to fit most screens or scaled correctly on mobile
-    const handleZoomIn = () => setZoom(z => Math.min(z + 0.05, 1.5));
-    const handleZoomOut = () => setZoom(z => Math.max(z - 0.05, 0.3));
 
     const isLocked = invoice.status === InvoiceStatus.Paid || invoice.status === InvoiceStatus.Reversed;
 
@@ -225,7 +229,7 @@ const InvoiceDetailViewContent: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="text-sm text-gray-700">
-                                {invoice.lineItems.map((item: any, idx: number) => (
+                                {(invoice.lineItems || []).map((item: any, idx: number) => (
                                     <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                         <td className="py-3 px-3 border-b border-slate-100 whitespace-pre-wrap break-words">{item.description}</td>
                                         <td className="py-3 px-3 text-right border-b border-slate-100 whitespace-nowrap">{item.hours > 0 ? item.hours.toFixed(2) : '-'}</td>

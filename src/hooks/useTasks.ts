@@ -33,11 +33,22 @@ export const useTasks = (appState: AppState, actions: any) => {
     }, [actions, addToast]);
 
     const handleBulkArchiveTasks = useCallback(async (ids: string[]) => {
-        const promises = ids.map(id => actions.addItem('archive', { originalId: id, type: 'Task', archivedAt: new Date().toISOString() }, 'Task Archive'));
+        // Archive each task with the CORRECT field names so it can be restored.
+        // Previously this used { originalId, type, archivedAt } but the restore
+        // function in DataProvider reads { itemType, itemId, itemName, originalData }.
+        // Archived tasks were permanently lost — unrestorable.
+        const tasksToArchive = appState.tasks.filter(t => ids.includes(t.id));
+        const promises = tasksToArchive.map(task => actions.addItem('archive', {
+            itemType: 'tasks',
+            itemId: task.id,
+            itemName: task.title || 'Task',
+            archivedAt: new Date().toISOString(),
+            originalData: task,
+        }, 'Task Archive'));
         await Promise.all(promises);
         await handleBulkDeleteTasks(ids);
         addToast(`Archived ${ids.length} tasks`, { type: 'success' });
-    }, [actions, handleBulkDeleteTasks, addToast]);
+    }, [actions, handleBulkDeleteTasks, addToast, appState.tasks]);
 
     const handleArchiveAllDoneTasks = useCallback(async () => {
         const doneTasks = appState.tasks.filter(t => t.status === TaskStatus.Done);

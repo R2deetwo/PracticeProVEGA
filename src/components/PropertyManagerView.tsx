@@ -166,7 +166,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     if (!isDataLoaded) {
         return (
             <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
-                <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
+                <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                     <div className="h-8 w-32 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
                     <div className="h-9 w-20 bg-slate-200 dark:bg-zinc-700 rounded-lg animate-pulse" />
                 </header>
@@ -371,7 +371,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         return (
             <ErrorBoundary>
             <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900/30 border-r border-slate-200 dark:border-zinc-800">
-                <div className="flex-shrink-0 py-4 px-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-10 space-y-3">
+                <div className="flex-shrink-0 py-4 px-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 pt-safe z-10 space-y-3">
                     <div className="flex items-center justify-between">
                         <h3 className="font-bold text-xl text-slate-900 dark:text-white">Properties</h3>
                         <button
@@ -482,7 +482,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     return (
         <ErrorBoundary>
         <div className="h-full overflow-y-auto scroll-smooth-ios custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
-            <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
+            <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Properties</h2>
                 <button
                     onClick={() => openModal('newProperty')}

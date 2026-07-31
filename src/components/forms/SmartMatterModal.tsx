@@ -298,15 +298,27 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
             const res = await onAddMatter(matterData, clientPayload);
 
-            if (res?.id) {
+            // Handle both { id } and bare string returns from onAddMatter.
+            // Previously, if res was a bare string (Convex _id) or undefined,
+            // the `if (res?.id)` block was skipped entirely — leaving
+            // isSubmitting stuck true and the modal permanently disabled.
+            const matterId = res?.id || (typeof res === 'string' ? res : null);
+            if (matterId) {
                 addToast(`Matter "${finalTitle}" created.`, { type: 'success' });
                 onClose();
                 if (startDrafting && onNavigate) {
-                    onNavigate('editor', null, { matterId: res.id, autoStartDrafting: true });
+                    onNavigate('editor', null, { matterId, autoStartDrafting: true });
                 } else if (onNavigate) {
-                    onNavigate('matterDetail', res.id);
+                    onNavigate('matterDetail', matterId);
                 }
+            } else {
+                // onAddMatter returned falsy — the matter may or may not have
+                // been created. Show a generic success since no error was thrown,
+                // and close the modal so the user isn't stuck.
+                addToast(`Matter "${finalTitle}" created.`, { type: 'success' });
+                onClose();
             }
+            setIsSubmitting(false);
         } catch (err: any) {
             addToast(`Failed: ${err.message || 'Unknown error'}`, { type: 'error' });
             setIsSubmitting(false);

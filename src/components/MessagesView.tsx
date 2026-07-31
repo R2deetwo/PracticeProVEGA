@@ -542,7 +542,12 @@ const MessagesView: React.FC = () => {
     };
     const { confirm, ConfirmDialog } = useConfirm();
 
-    if (!currentUser) return null;
+    // NOTE: Do NOT early-return before hooks (Rules of Hooks violation).
+    // Previously this had `if (!currentUser) return null;` BEFORE 15+ useQuery/
+    // useState/useEffect calls. When currentUser transitioned from non-null to
+    // null (logout), React threw "Rendered fewer hooks than expected" and
+    // crashed the entire messaging view. Now all hooks run unconditionally,
+    // and the guard is applied in the render body below.
 
     const conversations = coreState.chatConversations || [];
     const users = coreState.users || [];
@@ -1302,10 +1307,12 @@ const MessagesView: React.FC = () => {
     // ══════════════════════════════════════════════════════════════════════════
     // RENDER: Unified Messaging Hub
     // ══════════════════════════════════════════════════════════════════════════
+    if (!currentUser) return null;
+
     return (
         <div className="flex flex-col h-full w-full bg-white dark:bg-zinc-900 border-x border-slate-200 dark:border-zinc-800">
             {/* ── Page Header (matches Documents/Contacts pattern) ── */}
-            <div className="flex-shrink-0 sticky top-0 z-30 glass py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
+            <div className="flex-shrink-0 sticky top-0 pt-safe z-30 glass py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
                     <div className="flex items-center gap-2">

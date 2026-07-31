@@ -38,6 +38,13 @@ const ReceiptDetailViewContent: React.FC = () => {
     return invClient;
   })() : null;
 
+  // NOTE: All hooks must run BEFORE any conditional return (Rules of Hooks).
+  // Previously, `if (!invoice) return (...)` was placed BEFORE useState(zoom),
+  // causing a "Rendered fewer hooks than expected" crash.
+  const [zoom, setZoom] = useState(0.85);
+  const handleZoomIn = () => setZoom(z => Math.min(z + 0.05, 1.5));
+  const handleZoomOut = () => setZoom(z => Math.max(z - 0.05, 0.5));
+
   if (!invoice) return (
     <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
       <p className="text-lg font-medium">Receipt not found</p>
@@ -45,14 +52,10 @@ const ReceiptDetailViewContent: React.FC = () => {
   );
 
   const onGoBack = () => navigateTo('invoiceDetail', invoice.id);
-  const totalAmount = invoice.lineItems.reduce((sum: number, item: any) => sum + item.total, 0);
-
+  // Guard against missing lineItems (legacy invoices, rent receipts)
+  const totalAmount = (invoice.lineItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
 
   const headerTextColor = firmDetails.headerTextColor || '#111827';
-
-  const [zoom, setZoom] = useState(0.85);
-  const handleZoomIn = () => setZoom(z => Math.min(z + 0.05, 1.5));
-  const handleZoomOut = () => setZoom(z => Math.max(z - 0.05, 0.5));
 
   const handleDownloadPdf = () => {
     if (client) {

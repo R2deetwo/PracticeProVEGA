@@ -80,7 +80,7 @@ const ClientReports: React.FC<ClientReportsProps> = () => {
         invoices.forEach(invoice => {
             const client = clientData.get(invoice.client.id);
             if(client) {
-                const invoiceTotal = invoice.lineItems.reduce((sum, li) => sum + li.total, 0);
+                const invoiceTotal = (invoice.lineItems || []).reduce((sum, li) => sum + li.total, 0);
                 client.totalBilled += invoiceTotal;
                 if(invoice.status !== InvoiceStatus.Paid) {
                     client.outstanding += invoiceTotal;

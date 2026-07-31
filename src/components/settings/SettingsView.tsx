@@ -540,7 +540,7 @@ export const SettingsView: React.FC = () => {
     return (
         <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-zinc-950 overflow-hidden">
             {/* ─── Header (sticky, consistent across breakpoints) ─────────────── */}
-            <header className="sticky top-0 z-30 flex-shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-zinc-800">
+            <header className="sticky top-0 pt-safe z-30 flex-shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-zinc-800">
                 <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
                     <div className="flex items-center justify-between gap-3">
                         {/* Mobile: hamburger + active tab name. Desktop: Settings title. */}

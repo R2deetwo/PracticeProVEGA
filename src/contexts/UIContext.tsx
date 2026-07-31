@@ -483,7 +483,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
 
     const currentHistoryEntry = history[historyIndex] || { view: 'dashboard', selectedId: null };
 
-    const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link'] }) => {
+    const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message, type: options?.type || 'info', link: options?.link }]);
         // Haptic feedback matching the toast type — gives the user a
@@ -499,9 +499,14 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 import('../utils/haptics').then(m => m.haptics.light());
             }
         } catch {}
+        // Respect the `duration` option if provided (in ms). Default 5000ms.
+        // Previously this was hardcoded to 5000ms and the `duration` option
+        // was silently ignored — callers thought they were showing 6-second
+        // toasts for important messages but they vanished in 5s.
+        const duration = options?.duration || 5000;
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
+        }, duration);
     }, []);
 
     React.useEffect(() => {

@@ -245,7 +245,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                 </div>
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap sm:justify-between items-center gap-2 sm:gap-4 z-50">
+            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap sm:justify-between items-center gap-2 sm:gap-4 z-50 pb-safe-extra">
                 <div>
                     {isEditing && onDelete && (
                         <button type="button" onClick={onDelete} className="text-2xs font-black text-rose-500 uppercase tracking-widest hover:underline px-2">Delete Workflow</button>

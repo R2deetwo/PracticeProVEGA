@@ -38,7 +38,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
 
     const unbilledTime = timeEntries.filter(te => te.billable && !te.billedInInvoiceId);
     const unbilledExpenses = expenses.filter(ex => ex.isBillable && !ex.billedInInvoiceId);
-    const canGenerateInvoice = unbilledTime.length > 0 || unbilledExpenses.length > 0 || (matter.billingModel === 'Fixed Fee' && !invoices.some(inv => inv.matter.id === matter.id && inv.lineItems.some(li => li.description.startsWith('Fixed Fee'))));
+    const canGenerateInvoice = unbilledTime.length > 0 || unbilledExpenses.length > 0 || (matter.billingModel === 'Fixed Fee' && !invoices.some(inv => inv.matter.id === matter.id && (inv.lineItems || []).some(li => li.description.startsWith('Fixed Fee'))));
 
     const totalUnbilledValue = unbilledTime.reduce((sum, te) => sum + (te.duration * te.rate), 0);
     const totalUnbilledExpenses = unbilledExpenses.reduce((sum, ex) => sum + ex.amount, 0);

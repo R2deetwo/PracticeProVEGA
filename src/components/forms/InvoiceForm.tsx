@@ -210,10 +210,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
     setIsSubmitting(true);
     try {
-      if (isEditing && invoiceToEdit) onUpdateInvoice({ ...invoiceToEdit, ...invoiceData });
-      else onAddInvoice(invoiceData);
+      if (isEditing && invoiceToEdit) await onUpdateInvoice({ ...invoiceToEdit, ...invoiceData });
+      else await onAddInvoice(invoiceData);
 
       onClose();
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to save invoice.', { type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -377,7 +379,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           </div>
         </div>
 
-        <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50">
+        <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50 pb-safe-extra">
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Cancel
           </button>

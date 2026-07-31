@@ -460,7 +460,7 @@ const ResearchView: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-900">
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
+            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
                 {/* Page header: same ResearchIcon as the sidebar nav, paired
                     with the "Research" title and "PracticePro Research" subtitle
                     so the page identity matches its navigation entry point. */}

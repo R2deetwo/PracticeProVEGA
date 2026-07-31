@@ -111,7 +111,7 @@ const ReportGenerator: React.FC = () => {
                     break;
                 }
                 case 'profit_loss': {
-                    const revenueItems = paidInvoicesInRange.map(i => ({ description: `Invoice ${i.invoiceNumber} - ${i.matter.title}`, amount: i.lineItems.reduce((s, li) => s + li.total, 0) }));
+                    const revenueItems = paidInvoicesInRange.map(i => ({ description: `Invoice ${i.invoiceNumber} - ${i.matter.title}`, amount: (i.lineItems || []).reduce((s, li) => s + li.total, 0) }));
                     const totalRevenue = revenueItems.reduce((sum, item) => sum + item.amount, 0);
                     const expenseItems = expensesInRange.map(e => ({ description: e.description, amount: e.amount }));
                     const totalExpenses = expenseItems.reduce((sum, item) => sum + item.amount, 0);
@@ -135,7 +135,7 @@ const ReportGenerator: React.FC = () => {
                         entries: outstandingInvoices.map(i => {
                             const dueDate = parseDateString(i.dueDate);
                             const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 3600 * 24));
-                            const amount = i.lineItems.reduce((s, li) => s + li.total, 0);
+                            const amount = (i.lineItems || []).reduce((s, li) => s + li.total, 0);
 
                             if (daysOverdue <= 30) data.buckets['0-30'] += amount;
                             else if (daysOverdue <= 60) data.buckets['31-60'] += amount;
@@ -267,7 +267,7 @@ const ReportingView: React.FC = () => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
+            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Analytics</h2>
                 <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex gap-1 border border-slate-200 dark:border-zinc-700">
                     <button

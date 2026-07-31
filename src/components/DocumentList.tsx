@@ -578,7 +578,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                 accept=".pdf,.docx,.doc,.txt"
             />
 
-            <div className="sticky top-0 z-30 flex-shrink-0 py-4 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
+            <div className="sticky top-0 pt-safe z-30 flex-shrink-0 py-4 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
                 {/* Title row — title on left, buttons on right, with flex-wrap to prevent cutoff */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Documents</h2>

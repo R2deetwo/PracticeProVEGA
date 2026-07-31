@@ -498,11 +498,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
                                 {renderView()}
                             </ErrorBoundary>
-                            {view === 'indexer' && (
-                                <ViewWrapper>
-                                    <React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense>
-                                </ViewWrapper>
-                            )}
+                            {/* NOTE: The duplicate AloaXView render was removed.
+                                Previously, when view==='indexer', AloaXView was
+                                rendered BOTH inside renderView() AND again here.
+                                This caused double Convex subscriptions, double
+                                state, and visually stacked content. */}
                         </div>
                     ) : <DashboardSkeleton />}
                 </main>

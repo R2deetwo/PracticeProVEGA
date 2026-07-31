@@ -9,7 +9,7 @@ interface ComplianceViewProps {}
 const ComplianceView: React.FC<ComplianceViewProps> = () => {
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
+            <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                         <ShieldCheckIcon className="w-6 h-6 text-green-600 dark:text-green-400" />

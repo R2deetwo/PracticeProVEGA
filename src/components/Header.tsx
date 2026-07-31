@@ -208,7 +208,7 @@ const Header: React.FC = React.memo(() => {
     if (!currentUser) return null;
 
     return (
-        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-14 flex items-center justify-between px-4 sticky top-0">
+        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-14 flex items-center justify-between px-4 sticky top-0 pt-safe">
             {/* Impersonation Banner — uses isImpersonating (synchronous) rather than
                 originalUser (async query) so the banner is always visible during
                 impersonation, even if the admin's DB record is still loading or
@@ -333,7 +333,7 @@ const Header: React.FC = React.memo(() => {
                         {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 animate-pulse"></span>}
                     </button>
                     {isNotificationsOpen && (
-                        <div className="fixed top-16 right-4 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[100] overflow-hidden animate-fade-in-up">
+                        <div className="fixed top-16 right-4 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[3000] overflow-hidden animate-fade-in-up">
                             <div className="p-4 border-b border-slate-100 dark:border-zinc-700 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-sm text-slate-800 dark:text-white">Notifications</h3>
