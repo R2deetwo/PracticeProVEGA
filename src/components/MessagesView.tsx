@@ -2045,16 +2045,17 @@ const MessagesView: React.FC = () => {
                                                     onChange={setTeamReplyText}
                                                     onSend={async () => {
                                                         if (!teamReplyText.trim() && teamAttachments.length === 0) return;
+                                                        if (!selectedInboxId) { addToast('No conversation selected. Please select a conversation first.', { type: 'info' }); return; }
                                                         const text = teamReplyText.trim();
                                                         const attachments = [...teamAttachments];
                                                         setTeamReplyText('');
                                                         setTeamAttachments([]);
                                                         try {
                                                             await sendChatMessageMutation({
-                                                                conversationId: selectedInboxId,
+                                                                conversationId: selectedInboxId || '',
                                                                 content: text || '(file attachment)',
-                                                                authorId: currentUser?._id || currentUser?.id || undefined,
-                                                                authorName: currentUser?.name || undefined,
+                                                                authorId: currentUser?._id || currentUser?.id || '',
+                                                                authorName: currentUser?.name || '',
                                                                 userEmail: currentUser?.email,
                                                             });
                                                             // Note: file attachments are uploaded to Convex storage but
@@ -2675,6 +2676,7 @@ const MessagesView: React.FC = () => {
 
                                 const sendTeamReply = async () => {
                                     if (!teamReplyText.trim()) return;
+                                    if (!selectedId) { addToast('No conversation selected.', { type: 'info' }); return; }
                                     const text = teamReplyText.trim();
                                     setTeamReplyText('');
                                     try {
@@ -2685,10 +2687,10 @@ const MessagesView: React.FC = () => {
                                         // notifications — fixing the "notifications stopped
                                         // working" bug where recipients never got a bell badge.
                                         await sendChatMessageMutation({
-                                            conversationId: selectedId,
+                                            conversationId: selectedId || '',
                                             content: text,
-                                            authorId: currentUser?._id || currentUser?.id || undefined,
-                                            authorName: currentUser?.name || undefined,
+                                            authorId: currentUser?._id || currentUser?.id || '',
+                                            authorName: currentUser?.name || '',
                                             userEmail: currentUser?.email,
                                         });
                                     } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
