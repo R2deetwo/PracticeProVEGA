@@ -1952,6 +1952,7 @@ const MessagesView: React.FC = () => {
                                                         content={msg.content}
                                                         timestamp={msg.timestamp || msg.createdAt}
                                                         isMe={isMe}
+                                                        isEdited={msg.isEdited}
                                                         isEditing={editingMessageId === msgId}
                                                         onCancelEdit={() => setEditingMessageId(null)}
                                                         onStartEdit={() => setEditingMessageId(msgId)}
@@ -2749,6 +2750,7 @@ const MessagesView: React.FC = () => {
                                                         content={msg.content}
                                                         timestamp={msg.timestamp || msg.createdAt}
                                                         isMe={isMe}
+                                                        isEdited={msg.isEdited}
                                                         isEditing={editingMessageId === msgId}
                                                         onCancelEdit={() => setEditingMessageId(null)}
                                                         onStartEdit={() => setEditingMessageId(msgId)}

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel } from '../../types';
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon, TrashIcon } from '../../constants';
 import { formatNaira, normalizeAddress } from '../../utils/formatting';
@@ -1372,10 +1373,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     <CogIcon className="w-3.5 h-3.5" />
                                                                 </button>
                                                                 
-                                                                {openUnitMenuPos && menuOpen && (
+                                                                {openUnitMenuPos && menuOpen && createPortal(
                                                                 <div
                                                                     ref={unitMenuInnerRef}
-                                                                    style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
+                                                                    style={{ position: 'fixed', top: openUnitMenuPos.top, right: openUnitMenuPos.right, zIndex: 99999 }}
                                                                     className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
                                                                 >
                                                                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
@@ -1499,8 +1500,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     >
                                                                         <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
                                                                     </button>
-                                                                </div>
-                                                                )}
+                                                                </div>,
+                                                                document.body)}
                                                             </div>
                                                         </div>
 

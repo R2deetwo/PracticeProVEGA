@@ -102,7 +102,12 @@ export const useMessaging = (appState: AppState, actions: any) => {
     }, [actions]);
 
     const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
-        await actions.updateItem('chatMessages', { id: messageId, content: newContent }, 'Message');
+        await actions.updateItem('chatMessages', {
+            id: messageId,
+            content: newContent,
+            isEdited: true,
+            editedAt: new Date().toISOString(),
+        }, 'Message');
     }, [actions]);
 
     const retryMessage = useCallback(async (messageId: string, isClientMessage: boolean) => {

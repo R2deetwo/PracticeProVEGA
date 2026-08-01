@@ -18,6 +18,8 @@ export interface ChatMessageBubbleProps {
     content: string;
     timestamp: string | number | Date;
     isMe: boolean;
+    isEdited?: boolean;
+    editedAt?: string;
     authorName?: string;
     onDelete?: () => void;
     onEdit?: (newContent: string) => void;
@@ -33,6 +35,8 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     content,
     timestamp,
     isMe,
+    isEdited,
+    editedAt,
     authorName,
     onDelete,
     onEdit,
@@ -159,6 +163,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm ${isMe ? 'bg-primary-600 text-white rounded-br-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-md'}`}>
                         <p className="leading-relaxed whitespace-pre-wrap break-words break-all">{content}</p>
                         <span className={`block text-2xs mt-1.5 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
+                            {isEdited && <span className="italic mr-1 opacity-80">edited</span>}
                             {timeStr}
                         </span>
                     </div>

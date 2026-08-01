@@ -417,6 +417,8 @@ export default defineSchema({
     timestamp: nullableString,
     deletedForUserIds: v.optional(v.array(v.string())),
     isDeleted: nullableBoolean,
+    isEdited: nullableBoolean,
+    editedAt: nullableString,
     status: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
