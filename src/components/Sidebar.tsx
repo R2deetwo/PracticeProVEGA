@@ -5,6 +5,7 @@ import { useExecutionState } from '../contexts/ExecutionContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types';
 import { useProduct } from '../contexts/ProductContext';
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -12,7 +13,7 @@ import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon, LockClosedIcon
+    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon
 } from '../constants';
 
 // ARIA-X inline icon
@@ -435,6 +436,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         item={{ view: 'settings', text: 'Settings', icon: <CogIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
+                    {/* Founder Dashboard — Admin only */}
+                    {currentUser?.role === UserRole.Admin && (
+                        <NavItemLink
+                            id="nav-founder-dashboard"
+                            item={{ view: 'founderDashboard', text: 'Founder Dashboard', icon: <DashboardChartIcon /> }}
+                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                        />
+                    )}
                 </NavSection>
 
             </div>

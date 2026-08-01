@@ -30,6 +30,113 @@ const DetailItem: React.FC<{ label: string, value: React.ReactNode }> = ({ label
   </div>
 );
 
+// ─── ActivityTimeline ──────────────────────────────────────────────────────
+// Surfaces recent interactions with this contact: matters created, tasks
+// assigned, documents shared, messages sent, and ALOA conversations — all
+// in a chronological timeline. This is the CRM activity feed.
+const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ contactId, matters }) => {
+    const { coreState } = useCoreState();
+    const { documentState } = useDocumentState();
+    const { executionState } = useExecutionState();
+
+    const events = React.useMemo(() => {
+        const items: Array<{ id: string; type: string; title: string; subtitle?: string; timestamp: string; icon: string }> = [];
+
+        // Matters linked to this contact
+        matters.forEach(m => {
+            items.push({
+                id: `matter-${m.id}`,
+                type: 'matter',
+                title: `Matter: ${m.title}`,
+                subtitle: `${m.type || 'General'} · ${m.stage || '—'}`,
+                timestamp: m.createdAt || new Date().toISOString(),
+                icon: '📋',
+            });
+        });
+
+        // Tasks for matters belonging to this contact
+        const contactMatterIds = new Set(matters.map(m => m.id));
+        (executionState.tasks || []).forEach((t: any) => {
+            if (t.matterId && contactMatterIds.has(t.matterId)) {
+                items.push({
+                    id: `task-${t.id}`,
+                    type: 'task',
+                    title: `Task: ${t.title}`,
+                    subtitle: t.status === 'done' ? 'Completed' : t.status === 'in_progress' ? 'In Progress' : 'To Do',
+                    timestamp: t.createdAt || new Date().toISOString(),
+                    icon: '✓',
+                });
+            }
+        });
+
+        // Documents for matters belonging to this contact
+        (documentState.documents || []).forEach((d: any) => {
+            if (d.matterId && contactMatterIds.has(d.matterId)) {
+                items.push({
+                    id: `doc-${d.id}`,
+                    type: 'document',
+                    title: `Document: ${d.title}`,
+                    subtitle: d.source === 'upload' ? 'Uploaded' : 'Generated',
+                    timestamp: d.dateFiled || d.createdAt || new Date().toISOString(),
+                    icon: '📄',
+                });
+            }
+        });
+
+        // Invoices for matters belonging to this contact
+        (coreState.invoices || []).forEach((inv: any) => {
+            if (inv.matter && contactMatterIds.has(inv.matter.id)) {
+                items.push({
+                    id: `invoice-${inv.id}`,
+                    type: 'invoice',
+                    title: `Invoice: ${inv.invoiceNumber || '—'}`,
+                    subtitle: `${inv.status} · ₦${(inv.total_amount || 0).toLocaleString()}`,
+                    timestamp: inv.issueDate || inv.createdAt || new Date().toISOString(),
+                    icon: '💰',
+                });
+            }
+        });
+
+        // Sort by timestamp descending (most recent first)
+        return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
+    }, [matters, executionState.tasks, documentState.documents, coreState.invoices]);
+
+    if (events.length === 0) {
+        return (
+            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-zinc-700">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wide mb-4 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Activity Timeline
+                </h4>
+                <p className="text-xs text-slate-400 italic">No activity recorded yet. As you create matters, tasks, and documents for this contact, they will appear here.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-zinc-700">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wide mb-4 flex items-center gap-2">
+                <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Activity Timeline
+            </h4>
+            <div className="space-y-2">
+                {events.map(event => (
+                    <div key={event.id} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center text-sm flex-shrink-0">
+                            {event.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 truncate">{event.title}</p>
+                            {event.subtitle && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">{event.subtitle}</p>}
+                        </div>
+                        <span className="text-2xs text-slate-400 flex-shrink-0 whitespace-nowrap">
+                            {(() => { try { return new Date(event.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }); } catch { return ''; } })()}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 type ContactTab = 'overview' | 'matters' | 'properties' | 'relationships' | 'messages';
 
 // ─── ContactMessagesTab ───────────────────────────────────────────────────
@@ -366,6 +473,9 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                             </div>
                         </div>
                     )}
+
+                    {/* Activity Timeline — surfaces recent interactions with this contact */}
+                    <ActivityTimeline contactId={contactId} matters={matters} />
                 </div>
             );
     }

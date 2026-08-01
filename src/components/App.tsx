@@ -25,6 +25,7 @@ import { DocumentList } from './DocumentList';
 import { CalendarView } from './CalendarView';
 import { BillingView } from './BillingView';
 import { BillingMonitorView } from './BillingMonitorView';
+import { FounderDashboard } from './FounderDashboard';
 // Lazy-loaded top-level views to keep the initial bundle small.
 // Each of these is a full screen (ReportingView, ResearchView, AloaXView,
 // TimelineView) or a heavy editor (WordProcessor pulls in TipTap + ProseMirror).
@@ -363,6 +364,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'timeline': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TimelineView /></React.Suspense></ViewWrapper>;
             case 'billing': return <ViewWrapper><BillingView /></ViewWrapper>;
             case 'billingMonitor': return <ViewWrapper><BillingMonitorView /></ViewWrapper>;
+            case 'founderDashboard': return <ViewWrapper><FounderDashboard /></ViewWrapper>;
             case 'reporting': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ReportingView /></React.Suspense></ViewWrapper>;
             case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
 
