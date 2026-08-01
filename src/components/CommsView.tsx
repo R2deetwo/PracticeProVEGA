@@ -515,7 +515,9 @@ const CommsView: React.FC = () => {
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry } = useUI();
 
-    if (!currentUser) return null;
+    // NOTE: Do NOT early-return before hooks (Rules of Hooks violation).
+    // Previously `if (!currentUser) return null;` was here, BEFORE useState/useQuery.
+    // Moving the guard to after all hooks (before the return at the bottom).
 
     const conversations = coreState.chatConversations || [];
     const messages = coreState.chatMessages || [];
@@ -645,6 +647,8 @@ const CommsView: React.FC = () => {
         }
         return <span className={msg.status === 'failed' ? 'text-red-500 italic' : ''}>{msg.authorId === currentUser.id ? 'You: ' : ''}{msg.content}</span>;
     }
+
+    if (!currentUser) return null;
 
     return (
         <div className="flex h-full w-full bg-white dark:bg-zinc-900 border-x border-slate-200 dark:border-zinc-800">

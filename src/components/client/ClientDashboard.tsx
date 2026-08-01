@@ -1896,7 +1896,7 @@ const ClientDashboard: React.FC = () => {
                                         {inv.status === 'Paid' && (
                                             <div className="px-4 pb-3">
                                                 <button
-                                                    onClick={() => addToast('Receipt download coming soon. Contact your legal team for a copy.', { type: 'info' })}
+                                                    onClick={() => navigateTo('invoiceDetail', inv.id)}
                                                     className="w-full px-3 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors inline-flex items-center justify-center gap-2"
                                                 >
                                                     <Receipt className="w-3.5 h-3.5" />

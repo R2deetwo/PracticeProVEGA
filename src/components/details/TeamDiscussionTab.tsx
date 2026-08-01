@@ -189,7 +189,7 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
                     <button
                         onClick={handlePost}
                         disabled={!content.trim()}
-                        className="bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                        className="bg-slate-900 dark:bg-zinc-800 text-white dark:text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                     >
                         Post Endorsement
                     </button>

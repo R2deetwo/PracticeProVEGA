@@ -135,6 +135,12 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [preset, setPreset] = useState<PropPreset>('all');
 
+    // NOTE: useCoreState must be called BEFORE any conditional return
+    // (Rules of Hooks). Previously this was AFTER the feature-gate early
+    // return, causing a "Rendered fewer hooks than expected" crash when
+    // canUsePropertyManager toggled (e.g., on plan change).
+    const { coreState, isDataLoaded } = useCoreState();
+
     // Feature Gating
     // Property firms (Atrium/Unified): any paid plan gets access.
     // Legal-only firms (Vega): still require Ultimate+.
@@ -159,8 +165,6 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
             </div>
         );
     }
-
-    const { coreState, isDataLoaded } = useCoreState();
 
     // Loading skeleton while data is being fetched
     if (!isDataLoaded) {

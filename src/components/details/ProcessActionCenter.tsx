@@ -22,6 +22,7 @@ interface ProcessActionCenterProps {
     matter: Matter;
     tasks: Task[];
     openModal: (type: string, id: string | null, context?: any) => void;
+    onUpdateStatus?: (taskId: string, status: TaskStatus) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -550,8 +551,12 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
     };
 
     const onUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
-        // This propagates via the existing onUpdateTaskStatus prop if wired
-        // For now trigger a modal-less optimistic: handled by parent
+        // Delegate to the parent's onUpdateStatus prop — previously this was
+        // a no-op stub, so clicking checkboxes in the Procedure Checklist
+        // did nothing.
+        if (onUpdateStatus) {
+            onUpdateStatus(taskId, newStatus);
+        }
     };
 
     if (!style) {

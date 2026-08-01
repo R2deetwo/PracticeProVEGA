@@ -186,7 +186,11 @@ const MatterBoardView: React.FC<MatterBoardViewProps> = ({ matters, workflows, c
         return grouped;
     }, [stages, matters]);
 
-    const displayStages = Object.keys(mattersByStage['Other']?.length ? { ...mattersByStage, 'Other': [] } : mattersByStage);
+    // Display ALL stages including 'Other' — previously the logic was:
+    //   Object.keys(mattersByStage['Other']?.length ? { ...mattersByStage, 'Other': [] } : mattersByStage)
+    // which CLEARED the 'Other' array if it had items, hiding matters with
+    // off-workflow stages. Now we just show all stages as-is.
+    const displayStages = Object.keys(mattersByStage);
 
     return (
         <div className="flex flex-col h-full p-4 sm:p-6 lg:p-8 pb-0">

@@ -4,11 +4,13 @@ import { ArchivedItem } from '../types';
 import { ArchiveIcon } from '../constants';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
+import { useUI } from '../contexts/UIContext';
 import Fuse from 'fuse.js';
 
 const ArchiveView: React.FC = () => {
   const { coreState } = useCoreState();
   const { handleRestoreItem, handlePermanentDeleteFromArchive } = useDataActions();
+  const { openModal, closeModal, addToast } = useUI();
   const archive = coreState.archive;
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,7 +18,27 @@ const ArchiveView: React.FC = () => {
 
   const onRestore = handleRestoreItem;
   const onPermanentDelete = handlePermanentDeleteFromArchive;
-  const onEmptyArchive = () => {}; // Not implemented in actions yet
+  const onEmptyArchive = async () => {
+    // Confirm before permanently deleting ALL archived items
+    openModal('deleteConfirmation', null, {
+      title: 'Empty Entire Archive?',
+      message: 'This will PERMANENTLY DELETE all archived items. This action cannot be undone. Are you absolutely sure?',
+      onConfirm: async () => {
+        try {
+          // Delete each archived item permanently
+          for (const item of filteredArchive) {
+            await handlePermanentDeleteFromArchive(item.id);
+          }
+          addToast(`Permanently deleted ${filteredArchive.length} archived items.`, { type: 'success' });
+        } catch (e: any) {
+          addToast(e?.message || 'Failed to empty archive.', { type: 'error' });
+        }
+        closeModal();
+      },
+      confirmText: 'Delete All',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+    });
+  };
 
 
     const filteredArchive = useMemo(() => {
@@ -111,7 +133,7 @@ const ArchiveView: React.FC = () => {
                     <div className="overflow-x-auto">
                         <table className="min-w-full">
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {items.map(item => <ArchiveRow key={item.id} item={item} onRestore={onRestore} onPermanentDelete={onPermanentDelete} />)}
+                                {items.map(item => <ArchiveRow key={item.id} item={item} onRestore={onRestore} onPermanentDelete={onPermanentDelete} openModal={openModal} />)}
                             </tbody>
                         </table>
                     </div>
@@ -123,7 +145,7 @@ const ArchiveView: React.FC = () => {
                     <div className="overflow-x-auto">
                         <table className="min-w-full">
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {groupedArchive.noMatterItems.map(item => <ArchiveRow key={item.id} item={item} onRestore={onRestore} onPermanentDelete={onPermanentDelete} />)}
+                                {groupedArchive.noMatterItems.map(item => <ArchiveRow key={item.id} item={item} onRestore={onRestore} onPermanentDelete={onPermanentDelete} openModal={openModal} />)}
                             </tbody>
                         </table>
                     </div>
@@ -147,9 +169,10 @@ interface ArchiveRowProps {
     item: ArchivedItem;
     onRestore: (item: ArchivedItem) => void;
     onPermanentDelete: (archiveId: string) => void;
+    openModal: (type: string, id: string | null, context?: any) => void;
 }
 
-const ArchiveRow: React.FC<ArchiveRowProps> = ({ item, onRestore, onPermanentDelete }) => (
+const ArchiveRow: React.FC<ArchiveRowProps> = ({ item, onRestore, onPermanentDelete, openModal }) => (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-transform duration-200 hover:-translate-y-px">
         <td className="px-6 py-4 whitespace-nowrap">
             <p className="text-sm font-medium text-gray-900 dark:text-white">{item.itemName}</p>
@@ -159,7 +182,13 @@ const ArchiveRow: React.FC<ArchiveRowProps> = ({ item, onRestore, onPermanentDel
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{new Date(item.archivedAt).toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
             <button onClick={() => onRestore(item)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-semibold">Restore</button>
-            <button onClick={() => onPermanentDelete(item.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-semibold">Delete</button>
+            <button onClick={() => openModal('deleteConfirmation', item.id, {
+                title: `Permanently delete "${item.itemName}"?`,
+                message: 'This action cannot be undone. The item will be permanently removed from the archive.',
+                onConfirm: () => { onPermanentDelete(item.id); },
+                confirmText: 'Delete Permanently',
+                confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+            })} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-semibold">Delete</button>
         </td>
     </tr>
 );

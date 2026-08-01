@@ -111,7 +111,7 @@ const ReportGenerator: React.FC = () => {
                     break;
                 }
                 case 'profit_loss': {
-                    const revenueItems = paidInvoicesInRange.map(i => ({ description: `Invoice ${i.invoiceNumber} - ${i.matter.title}`, amount: (i.lineItems || []).reduce((s, li) => s + li.total, 0) }));
+                    const revenueItems = paidInvoicesInRange.map(i => ({ description: `Invoice ${i.invoiceNumber} - ${i.matter?.title || 'No matter'}`, amount: (i.lineItems || []).reduce((s, li) => s + (li.total || 0), 0) }));
                     const totalRevenue = revenueItems.reduce((sum, item) => sum + item.amount, 0);
                     const expenseItems = expensesInRange.map(e => ({ description: e.description, amount: e.amount }));
                     const totalExpenses = expenseItems.reduce((sum, item) => sum + item.amount, 0);
@@ -144,7 +144,7 @@ const ReportGenerator: React.FC = () => {
                             data.total += amount;
 
                             return {
-                                clientName: i.client.name,
+                                clientName: i.client?.name || 'Unknown Client',
                                 invoiceNumber: i.invoiceNumber,
                                 dueDate: i.dueDate,
                                 daysOverdue: Math.max(0, daysOverdue),

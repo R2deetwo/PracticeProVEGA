@@ -142,6 +142,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                     matter={matter}
                     tasks={tasks}
                     openModal={openModal}
+                    onUpdateStatus={onUpdateTaskStatus}
                 />
             )}
 

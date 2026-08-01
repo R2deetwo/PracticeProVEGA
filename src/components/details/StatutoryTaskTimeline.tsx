@@ -92,10 +92,12 @@ const StatusPill: React.FC<{
         [TaskStatus.PendingVerification]: TaskStatus.Done,
         [TaskStatus.Done]: TaskStatus.Todo,
     };
-    const { label, cls } = cfg[task.status];
+    const statusCfg = cfg[task.status] || { label: task.status || 'Unknown', cls: 'bg-slate-100 text-slate-500 border-slate-200' };
+    const { label, cls } = statusCfg;
+    const nextStatus = next[task.status] || TaskStatus.Todo;
     return (
         <button
-            onClick={(e) => { e.stopPropagation(); onUpdate(next[task.status]); }}
+            onClick={(e) => { e.stopPropagation(); onUpdate(nextStatus); }}
             className={`px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider border transition-all ${cls}`}
         >
             {label}

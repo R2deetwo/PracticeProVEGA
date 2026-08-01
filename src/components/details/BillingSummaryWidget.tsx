@@ -38,12 +38,12 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
 
     const unbilledTime = timeEntries.filter(te => te.billable && !te.billedInInvoiceId);
     const unbilledExpenses = expenses.filter(ex => ex.isBillable && !ex.billedInInvoiceId);
-    const canGenerateInvoice = unbilledTime.length > 0 || unbilledExpenses.length > 0 || (matter.billingModel === 'Fixed Fee' && !invoices.some(inv => inv.matter.id === matter.id && (inv.lineItems || []).some(li => li.description.startsWith('Fixed Fee'))));
+    const canGenerateInvoice = unbilledTime.length > 0 || unbilledExpenses.length > 0 || (matter.billingModel === 'Fixed Fee' && !invoices.some(inv => inv.matter?.id === matter.id && (inv.lineItems || []).some(li => li?.description?.startsWith('Fixed Fee'))));
 
     const totalUnbilledValue = unbilledTime.reduce((sum, te) => sum + (te.duration * te.rate), 0);
     const totalUnbilledExpenses = unbilledExpenses.reduce((sum, ex) => sum + ex.amount, 0);
 
-    const matterInvoices = invoices.filter(inv => inv.matter.id === matter.id);
+    const matterInvoices = invoices.filter(inv => inv.matter?.id === matter.id);
     const totalBilled = matterInvoices.reduce((sum, inv) => sum + (inv.lineItems || []).reduce((s, li) => s + (li.total || 0), 0), 0);
     const totalPaid = matterInvoices.filter(inv => inv.status === InvoiceStatus.Paid).reduce((sum, inv) => sum + (inv.lineItems || []).reduce((s, li) => s + (li.total || 0), 0), 0);
     const outstanding = totalBilled - totalPaid;
@@ -101,7 +101,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
                     <Tooltip text={!canGenerateInvoice ? "No unbilled items to generate an invoice for." : "Generate a new invoice"}>
                         <button
                             onClick={() => openModal('generateInvoice', matter.id)}
-                            className="w-full px-4 py-3 bg-slate-800 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-bold hover:opacity-90 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center gap-2"
+                            className="w-full px-4 py-3 bg-slate-800 dark:bg-zinc-800 text-white dark:text-white rounded-lg font-bold hover:opacity-90 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center gap-2"
                             disabled={!canGenerateInvoice}
                         >
                             <span className="text-lg leading-none">+</span> Generate Invoice
@@ -219,7 +219,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
                                         <p className="text-xs text-slate-500 dark:text-zinc-400">Due: {new Date(invoice.dueDate).toLocaleDateString('en-GB')}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(invoice.lineItems.reduce((s, li) => s + li.total, 0))}</p>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira((invoice.lineItems || []).reduce((s, li) => s + (li.total || 0), 0))}</p>
                                         <span className="text-xs font-semibold text-primary-600 group-hover:underline">View Invoice</span>
                                     </div>
                                 </div>
