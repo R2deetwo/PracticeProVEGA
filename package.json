@@ -24,8 +24,8 @@
     "apk:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug",
     "apk:release": "npm run cap:sync && cd android && ./gradlew assembleRelease",
     "build:admin": "npx vite build --config vite.admin.config.ts",
-    "cap:sync:admin": "npm run build:admin && npx cap sync android --config=capacitor.admin.config.ts",
-    "cap:open:admin": "npx cap open android --config=capacitor.admin.config.ts",
+    "cap:sync:admin": "npm run build:admin && node scripts/sync-admin-config.cjs",
+    "cap:open:admin": "node scripts/sync-admin-config.cjs --open",
     "apk:admin:debug": "npm run cap:sync:admin && cd android && ./gradlew assembleDebug",
     "apk:admin:release": "npm run cap:sync:admin && cd android && ./gradlew assembleRelease"
   },
