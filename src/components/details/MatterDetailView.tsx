@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { MoreVertical, ListChecks } from 'lucide-react';
-import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType } from '../../types';
+import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType, AriaChatContext } from '../../types';
 import { ChevronRightIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon, EditIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { usePermissions } from '../../hooks/usePermissions';
@@ -67,6 +68,7 @@ type MatterTab = 'notes' | 'schedule_tasks' | 'billing' | 'documents';
 
 const MatterDetailViewContent: React.FC = () => {
     const { addToast, closeModal, openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
+    const { openWithContext } = useAloa();
     const { matterState, matterActions } = useMatterState();
     const { coreState, coreActions } = useCoreState();
     const { documentState, documentActions } = useDocumentState();
@@ -391,6 +393,33 @@ const MatterDetailViewContent: React.FC = () => {
                                 className={`p-1.5 rounded-lg transition-colors ${showWorkflow ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-zinc-800'}`}
                             >
                                 <ListChecks className="w-4 h-4" />
+                            </button>
+
+                            {/* Ask ALOA — opens AI assistant with this matter's context */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (matterData) {
+                                        openWithContext({
+                                            entityType: 'matter',
+                                            entityId: matterData.id,
+                                            entityName: matterData.title,
+                                            payload: {
+                                                title: matterData.title,
+                                                type: matterData.type,
+                                                stage: matterData.stage,
+                                                status: matterData.status,
+                                                court: matterData.court,
+                                                clientId: matterData.clientId,
+                                            },
+                                        });
+                                    }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-1"
+                                title="Ask ALOA about this matter"
+                                aria-label="Ask ALOA"
+                            >
+                                <ScalesIcon className="w-4 h-4" />
                             </button>
 
                             {/* ⋮ More menu */}

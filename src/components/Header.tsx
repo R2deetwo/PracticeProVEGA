@@ -133,6 +133,7 @@ const Header: React.FC = React.memo(() => {
                             showLocalNotification({
                                 title: n.title || 'PracticePro',
                                 body: n.message || 'You have a new notification',
+                                type: n.type,
                                 extraData: n.link,
                             });
                         });

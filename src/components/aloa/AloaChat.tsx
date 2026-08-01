@@ -26,7 +26,6 @@ import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
-import JurisdictionReasoning from './JurisdictionReasoning';
 import { JurisdictionCard } from './JurisdictionCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 

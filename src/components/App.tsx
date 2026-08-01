@@ -743,6 +743,23 @@ export const App: React.FC = () => {
                 }
             }
         }).catch(() => {/* non-blocking */});
+
+        // ─── Notification Tap Handler ──────────────────────────────────
+        // When the user taps a notification in the phone's notification
+        // shade, the registerForNotifications() function dispatches a
+        // 'practicepro-notification-tap' custom event. This listener
+        // catches it and navigates to the target view.
+        const handleNotificationTap = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail && detail.view) {
+                navigateTo(detail.view, detail.id, detail.context);
+            }
+        };
+        window.addEventListener('practicepro-notification-tap', handleNotificationTap);
+
+        return () => {
+            window.removeEventListener('practicepro-notification-tap', handleNotificationTap);
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser?.id, isLoadingSession, convex]);
 

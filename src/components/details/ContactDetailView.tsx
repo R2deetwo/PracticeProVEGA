@@ -7,6 +7,8 @@ import { PlusIcon, EditIcon, TrashIcon, LinkIcon, OfficeBuildingIcon, ChevronRig
 import { ExpandablePropertyGroup } from '../sentry/ExpandablePropertyGroup';
 import { Breadcrumbs } from '../Breadcrumbs';
 import { useUI } from '../../contexts/UIContext';
+import { useAloa } from '../../contexts/AloaProvider';
+import { AriaChatContext } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -154,6 +156,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   const containerRef = React.useRef<HTMLDivElement>(null);
   useHighlight(containerRef, 'contactDetail');
   const { navigateTo, addToast } = useUI();
+  const { openWithContext } = useAloa();
   const { matterState } = useMatterState();
   const { coreState } = useCoreState();
   const { documentState } = useDocumentState();
@@ -382,6 +385,23 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+            <button
+                onClick={() => {
+                    if (contact) {
+                        openWithContext({
+                            entityType: 'contact',
+                            entityId: contact.id,
+                            entityName: contact.name,
+                            payload: { name: contact.name, email: contact.email, phone: contact.phone, category: contact.category },
+                        });
+                    }
+                }}
+                className="px-3 py-1.5 bg-indigo-600 border border-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
+                title="Ask ALOA about this contact"
+            >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                Ask ALOA
+            </button>
             <button
                 onClick={() => {
                     // Navigate to Messages with this contact pre-selected.

@@ -3,36 +3,33 @@
  *
  * ARCHITECTURE:
  *   True push notifications (FCM/APNs) require a server-side push service
- *   + Firebase Cloud Messaging setup, which is a bigger project. For now,
- *   we use @capacitor/local-notifications which can display notifications
- *   in the phone's notification shade even when the app is backgrounded
- *   (as long as the app has been opened at least once).
+ *   + Firebase Cloud Messaging setup. For now, we use @capacitor/local-notifications
+ *   which can display notifications in the phone's notification shade.
  *
- *   When a portal user takes an action (submits a ticket, sends a message),
- *   the backend creates an in-app notification + schedules an email. On the
- *   FRONTEND, we poll for new notifications every 30 seconds. When a new
- *   notification arrives, we:
- *     1. Show a local notification (if the app is backgrounded)
+ *   When a new notification arrives via Convex real-time query, we:
+ *     1. Show a local notification (visible in notification shade)
  *     2. Play a sound (if enabled)
- *     3. Trigger haptic feedback
- *     4. Mark that the user was "notified via push" — the backend can then
- *        SKIP the email (smart delivery: push OR email, not both)
+ *     3. Trigger a DISTINCT haptic pattern for "new message" (not the
+ *        same as form-submission success)
+ *     4. Handle tap → navigate to the relevant page in the app
  *
- * SMART DELIVERY (push OR email):
- *   - If the user's app is installed AND they've enabled push notifications,
- *     we send a push notification and skip the email.
- *   - If the user doesn't have the app (web only), we send the email.
- *   - The backend checks a `pushNotificationEnabled` flag on the user record
- *     to decide. This flag is set by this module when the user grants
- *     notification permission.
+ * NOTIFICATION TAP HANDLING:
+ *   When the user taps a notification in the shade, the app opens and
+ *   fires a 'localNotificationReceived' event (if app was foreground)
+ *   or 'localNotificationActionPerformed' event (if app was backgrounded).
+ *   Both are handled to navigate to the notification's target view.
  *
- * SOUND:
- *   Local notifications can play a sound. We use the default notification
- *   sound. Users can toggle this in settings via 'practicepro_notification_sound'.
+ * VIBRATION PATTERNS (distinct from typing/error haptics):
+ *   - Notification arrival: Vibration pattern (long-short-long) via
+ *     Android channel importance + a dedicated Haptics.notification call
+ *   - Typing/UI taps: haptics.light() / haptics.medium() (short impact)
+ *   - Errors: haptics.error() (single strong buzz)
+ *   These are intentionally different so the user can distinguish
+ *   "new notification" from "I tapped a button".
  */
 
 import { Capacitor } from '@capacitor/core';
-import { LocalNotifications, LocalNotificationSchema, ActionType } from '@capacitor/local-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, NotificationType } from '@capacitor/haptics';
 import { haptics } from './haptics';
 
@@ -69,9 +66,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /**
  * isPushRegistered — Returns true if the user has granted notification
- * permission AND we've registered them for local notifications. Used by
- * the backend to decide whether to send push (and skip email) or send
- * email (and skip push).
+ * permission AND we've registered them for local notifications.
  */
 export function isPushRegistered(): boolean {
     try {
@@ -83,9 +78,15 @@ export function isPushRegistered(): boolean {
 
 /**
  * registerForNotifications — Should be called on app launch (in App.tsx).
- * Requests permission, creates the default notification channel (Android),
- * and marks the user as "push registered" so the backend knows to send
- * push instead of email.
+ * Requests permission, creates notification channels (Android), sets up
+ * tap handlers, and marks the user as "push registered".
+ *
+ * NOTIFICATION CHANNELS (Android):
+ *   We create THREE channels so users can customize vibration/sound per
+ *   category in their phone's notification settings:
+ *   1. 'practicepro-messages' — new messages (highest priority, sound+vibrate)
+ *   2. 'practicepro-tasks' — task assignments (high priority, sound+vibrate)
+ *   3. 'practicepro-general' — other notifications (default priority)
  */
 export async function registerForNotifications(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) return false;
@@ -94,16 +95,78 @@ export async function registerForNotifications(): Promise<boolean> {
     if (!granted) return false;
 
     try {
-        // Create a notification channel for Android (so notifications
-        // appear in the right category in the phone's settings)
+        // Create notification channels for Android — each with distinct
+        // vibration pattern and importance level so the user can tell
+        // what type of notification arrived without looking at the screen.
         await LocalNotifications.createChannel({
-            id: 'practicepro-notifications',
-            name: 'PracticePro Notifications',
-            description: 'Notifications from your PracticePro portal',
-            importance: 3, // HIGH
+            id: 'practicepro-messages',
+            name: 'Messages',
+            description: 'New messages from clients, residents, and team members',
+            importance: 5, // MAX — sound + heads-up + vibration
             visibility: 1, // PUBLIC
             sound: isSoundEnabled() ? 'notification.wav' : undefined,
+            vibration: true,
         });
+
+        await LocalNotifications.createChannel({
+            id: 'practicepro-tasks',
+            name: 'Tasks & Deadlines',
+            description: 'Task assignments, deadline reminders, and overdue alerts',
+            importance: 4, // HIGH — sound + heads-up + vibration
+            visibility: 1,
+            sound: isSoundEnabled() ? 'notification.wav' : undefined,
+            vibration: true,
+        });
+
+        await LocalNotifications.createChannel({
+            id: 'practicepro-general',
+            name: 'General Notifications',
+            description: 'Other PracticePro notifications',
+            importance: 3, // HIGH — default
+            visibility: 1,
+            sound: isSoundEnabled() ? 'notification.wav' : undefined,
+            vibration: true,
+        });
+
+        // Set up tap handlers — when user taps a notification in the shade,
+        // the app opens and we navigate to the target view.
+        await LocalNotifications.addListener(
+            'localNotificationActionPerformed',
+            (action) => {
+                const notification = action.notification;
+                const extra = notification.extra || notification.data;
+                if (extra && extra.view) {
+                    // Navigate to the target view
+                    // We use a custom event so App.tsx can pick it up
+                    // and call navigateTo()
+                    window.dispatchEvent(new CustomEvent('practicepro-notification-tap', {
+                        detail: {
+                            view: extra.view,
+                            id: extra.id || null,
+                            context: extra.context || {},
+                        },
+                    }));
+                }
+            }
+        );
+
+        // Also handle when a notification is received while app is in
+        // foreground — we need to explicitly show it (Android hides
+        // foreground local notifications by default).
+        await LocalNotifications.addListener(
+            'localNotificationReceived',
+            (notification) => {
+                // The notification was already scheduled. On Android, if the
+                // app is in the foreground, the notification shade doesn't
+                // show it. We trigger a distinct haptic so the user knows
+                // something arrived even if they're looking at the app.
+                try {
+                    Haptics.notification({ type: NotificationType.Warning });
+                } catch {
+                    haptics.medium();
+                }
+            }
+        );
 
         localStorage.setItem(PUSH_REGISTERED_KEY, '1');
         return true;
@@ -114,47 +177,72 @@ export async function registerForNotifications(): Promise<boolean> {
 }
 
 /**
+ * Determine which notification channel to use based on the notification type.
+ */
+function getChannelForType(type?: string): string {
+    if (type === 'message' || type === 'task_assignment') return 'practicepro-messages';
+    if (type === 'task' || type === 'deadline' || type === 'overdue') return 'practicepro-tasks';
+    return 'practicepro-general';
+}
+
+/**
  * showLocalNotification — Displays a local notification in the phone's
- * notification shade. If the app is in the foreground, also plays a sound
- * and triggers haptic feedback.
+ * notification shade. Works even when the app is backgrounded (as long
+ * as the app was opened at least once).
  *
- * Use this when a new notification arrives via Convex real-time query
- * (e.g., admin received a new portal message).
+ * The notification includes:
+ *   - Title + body text
+ *   - The correct channel (messages/tasks/general) for distinct vibration
+ *   - Extra data (view, id, context) so tapping opens the right page
+ *   - Sound (if enabled in settings)
+ *
+ * HAPTIC PATTERN:
+ *   Uses NotificationType.Warning (a medium-long buzz pattern) for
+ *   notifications — DISTINCT from:
+ *   - haptics.light() (tiny tap for UI interactions)
+ *   - haptics.success() (two rising taps for form submission)
+ *   - haptics.error() (single strong buzz for errors)
+ *   The user can feel the difference between "new message" and "I tapped
+ *   a button" without looking at the screen.
  */
 export async function showLocalNotification(opts: {
     title: string;
     body: string;
     id?: number;
+    type?: string;
     extraData?: Record<string, any>;
 }): Promise<void> {
     if (!Capacitor.isNativePlatform()) return;
 
     try {
         const id = opts.id || Date.now();
+        const channelId = getChannelForType(opts.type);
+
         await LocalNotifications.schedule({
             notifications: [
                 {
                     id,
                     title: opts.title,
                     body: opts.body,
-                    channelId: 'practicepro-notifications',
+                    channelId,
                     sound: isSoundEnabled() ? 'notification.wav' : undefined,
-                    smallIcon: 'ic_notification', // res/drawable
+                    smallIcon: 'ic_notification',
                     largeIcon: 'ic_launcher',
-                    extra: opts.extraData,
+                    // Store the navigation target so the tap handler
+                    // can open the right page when the user taps the
+                    // notification in the shade.
+                    extra: opts.extraData || {},
                 } as any,
             ],
         });
 
-        // If app is in foreground, the notification won't show in the
-        // shade (Android behavior). So we also trigger a proper notification
-        // vibration pattern + the in-app toast handles the visual.
-        // Using NotificationType (not ImpactStyle) for a proper vibration
-        // pattern that signals "new message" rather than just a tap.
+        // Trigger a DISTINCT haptic pattern for notifications.
+        // NotificationType.Warning gives a medium-long vibration pattern
+        // that feels different from the short taps used for UI interactions.
         try {
-            await Haptics.notification({ type: NotificationType.Success });
+            await Haptics.notification({ type: NotificationType.Warning });
         } catch {
-            haptics.medium(); // fallback
+            haptics.medium();
         }
     } catch (err) {
         console.warn('[NotificationManager] showLocalNotification failed:', err);
@@ -178,11 +266,23 @@ export async function cancelAllNotifications(): Promise<void> {
     } catch {}
 }
 
+/**
+ * removeAllListeners — Clean up notification listeners on unmount.
+ * Should be called when the app is closing.
+ */
+export async function removeAllNotificationListeners(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        await LocalNotifications.removeAllListeners();
+    } catch {}
+}
+
 export const notificationManager = {
     requestPermission: requestNotificationPermission,
     register: registerForNotifications,
     show: showLocalNotification,
     cancelAll: cancelAllNotifications,
+    removeAllListeners: removeAllNotificationListeners,
     isPushRegistered,
     isSoundEnabled,
     setSoundEnabled,

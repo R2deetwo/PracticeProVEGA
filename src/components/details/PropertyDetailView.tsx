@@ -7,6 +7,7 @@ import { formatNaira, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
+import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
@@ -99,6 +100,7 @@ const PropertyDetailViewContent: React.FC = () => {
     const { currentUser } = useAuth();
     const convex = useConvex();
     const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
+    const { openWithContext } = useAloa();
     const [activeTab, setActiveTab] = useState<PropertyTab>('summary');
     const [openUnitMenuId, setOpenUnitMenuId] = useState<string | null>(null);
     const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
