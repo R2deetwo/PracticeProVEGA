@@ -725,17 +725,26 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     </span>
   );
 
+  // ── Esc key handler ─────────────────────────────────────────────────
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   // ── Render ───────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4">
-      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92dvh] text-slate-900 dark:text-white">
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92dvh] text-slate-900 dark:text-white" onClick={(e) => e.stopPropagation()}>
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">Compose Message</h3>
             <p className="text-xs text-slate-500 dark:text-zinc-400">Preview before sending — all sends are logged</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none p-1">×</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none p-1" aria-label="Close">×</button>
         </div>
 
         {step === 'compose' ? (

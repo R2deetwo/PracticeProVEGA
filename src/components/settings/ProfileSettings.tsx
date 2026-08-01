@@ -120,13 +120,13 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
             <div className="flex gap-4 border-b border-slate-200 dark:border-zinc-700">
                 <button
                     onClick={() => setActiveSubTab('general')}
-                    className={`pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeSubTab === 'general' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                    className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeSubTab === 'general' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                 >
                     <UserCircleIcon className="w-4 h-4" /> General
                 </button>
                 <button
                     onClick={() => setActiveSubTab('appearance')}
-                    className={`pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeSubTab === 'appearance' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                    className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeSubTab === 'appearance' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                 >
                     <DesktopComputerIcon className="w-4 h-4" /> Appearance
                 </button>

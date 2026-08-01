@@ -243,20 +243,20 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                 {isLegal && (
                     <button
                         onClick={() => setTopLevelTab('workflows')}
-                        className={`pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${topLevelTab === 'workflows' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                        className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${topLevelTab === 'workflows' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                     >
                         <ClipboardListIcon className="w-4 h-4" /> Workflows
                     </button>
                 )}
                 <button
                     onClick={() => setTopLevelTab('categories')}
-                    className={`pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${topLevelTab === 'categories' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                    className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${topLevelTab === 'categories' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                 >
                     <TagIcon className="w-4 h-4" /> Categories
                 </button>
                 <button
                     onClick={() => setTopLevelTab('automations')}
-                    className={`pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${topLevelTab === 'automations' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                    className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${topLevelTab === 'automations' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                 >
                     <ZapIcon className="w-4 h-4" /> Automations
                 </button>

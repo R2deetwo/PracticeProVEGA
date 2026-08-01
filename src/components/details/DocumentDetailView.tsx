@@ -395,17 +395,17 @@ const DocumentDetailViewContent: React.FC = () => {
 
             <div className="flex-grow flex flex-col overflow-hidden">
                 {/* Tab bar */}
-                <div className="flex-shrink-0 flex gap-4 px-4 sm:px-8 pt-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800">
-                    <button onClick={() => setActiveTab('details')} className={`pb-3 border-b-2 font-bold text-sm ${activeTab === 'details' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>Preview</button>
+                <div className="flex-shrink-0 flex gap-4 px-4 sm:px-8 pt-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 overflow-x-auto no-scrollbar whitespace-nowrap">
+                    <button onClick={() => setActiveTab('details')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm ${activeTab === 'details' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>Preview</button>
                     {document.isCourtProcess && (
-                        <button onClick={() => setActiveTab('litigation')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'litigation' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                        <button onClick={() => setActiveTab('litigation')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'litigation' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
                             {isProperty ? 'Operational Pipeline' : 'Litigation Pipeline'}
                         </button>
                     )}
-                    <button onClick={() => setActiveTab('analysis')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'analysis' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                    <button onClick={() => setActiveTab('analysis')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'analysis' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
                         {isProperty ? 'Document' : 'ALDIA'} Analysis {document.analysisState === 'pending' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
                     </button>
-                    <button onClick={() => setActiveTab('mentions')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'mentions' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                    <button onClick={() => setActiveTab('mentions')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'mentions' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
                         Mentions
                     </button>
                 </div>

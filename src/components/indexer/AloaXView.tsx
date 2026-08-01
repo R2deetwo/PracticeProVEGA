@@ -771,28 +771,31 @@ export const AloaXView: React.FC = () => {
 
       {/* API Key Modal */}
       {showApiKeyPrompt && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowApiKeyPrompt(false)}>
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 dark:border-zinc-700" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl flex items-center justify-center text-xl"><Key className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /></div>
               <div>
                 <h2 className="font-black text-slate-900 dark:text-white">Gemini API Key Required</h2>
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Powers AI structure extraction</p>
               </div>
+              <button onClick={() => setShowApiKeyPrompt(false)} className="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700" aria-label="Close">
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <p className="text-sm text-slate-600 dark:text-zinc-300 mb-4">
               Your key is stored only on this device. Get one free at{' '}
               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">aistudio.google.com</a>
             </p>
             <input autoComplete="off" data-lpignore="true"  id="api-key-input" type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } }}
+              onKeyDown={e => { if (e.key === 'Enter' && apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } if (e.key === 'Escape') setShowApiKeyPrompt(false); }}
               placeholder="AIzaSy…" className="w-full px-4 py-2.5 border border-slate-200 dark:border-zinc-600 rounded-xl bg-slate-50 dark:bg-zinc-900 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
             <div className="flex gap-2">
               <button onClick={() => { if (apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } }} disabled={!apiKeyInput}
                 className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold rounded-xl text-sm transition-colors">
                 Save & Continue
               </button>
-              {getGeminiApiKey() && <button onClick={() => setShowApiKeyPrompt(false)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold rounded-xl text-sm">Cancel</button>}
+              <button onClick={() => setShowApiKeyPrompt(false)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold rounded-xl text-sm">Skip for Now</button>
             </div>
           </div>
         </div>

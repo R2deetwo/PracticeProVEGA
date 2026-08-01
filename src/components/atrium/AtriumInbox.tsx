@@ -269,7 +269,7 @@ export const AtriumInbox: React.FC = () => {
             <div className="flex-shrink-0 flex items-center gap-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 px-4 sm:px-6">
                 <button
                     onClick={() => setActiveTab('inbox')}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
                         activeTab === 'inbox'
                             ? 'border-primary-600 text-primary-700 dark:text-primary-400'
                             : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600'
@@ -285,9 +285,9 @@ export const AtriumInbox: React.FC = () => {
                 </button>
                 <button
                     onClick={() => setActiveTab('audit')}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
                         activeTab === 'audit'
-                            ? 'border-emerald-500 text-white'
+                            ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                             : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600'
                     }`}
                 >

@@ -131,7 +131,7 @@ const CategoriesSettings: React.FC<CategoriesSettingsProps> = (props) => {
                         <button
                             key={tab}
                             onClick={() => setLocalActiveTab(tab)}
-                            className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${localActiveTab === tab
+                            className={`flex-shrink-0 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${localActiveTab === tab
                                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
                                 }`}

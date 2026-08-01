@@ -41,7 +41,7 @@ const ChatBubble: React.FC<{ message: ClientMessage; author: User | undefined; i
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; hasNotification?: boolean }> = ({ label, isActive, onClick, hasNotification }) => (
     <button
         onClick={onClick}
-        className={`relative whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors ${isActive
+        className={`flex-shrink-0 relative whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors ${isActive
             ? 'border-primary-500 text-primary-600 dark:text-primary-400'
             : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
             }`}

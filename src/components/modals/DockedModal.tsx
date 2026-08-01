@@ -88,6 +88,17 @@ export const DockedModal: React.FC = () => {
     }
   }, [dockedModalType]);
 
+  // ─── Esc key handler ─────────────────────────────────────────────────
+  // Close the docked modal when Escape is pressed (matches Modal.tsx behavior)
+  useEffect(() => {
+    if (!dockedModalType) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [dockedModalType, closeModal]);
+
   if (!shouldRender) return null;
   
   let content: React.ReactNode = null;

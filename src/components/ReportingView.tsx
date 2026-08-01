@@ -299,7 +299,7 @@ const ReportingView: React.FC = () => {
                                         <button
                                             key={tab}
                                             onClick={() => setActiveDashboardTab(tab)}
-                                            className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2 ${activeDashboardTab === tab ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                            className={`flex-shrink-0 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2 ${activeDashboardTab === tab ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                                         >
                                             {label}
                                             {isLocked && <LockClosedIcon className="w-3 h-3 text-slate-400" />}
