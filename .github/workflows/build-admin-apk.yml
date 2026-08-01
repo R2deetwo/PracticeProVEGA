@@ -1,0 +1,84 @@
+name: Build Admin APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/admin/**'
+      - 'admin.html'
+      - 'vite.admin.config.ts'
+      - 'capacitor.admin.config.ts'
+      - '.github/workflows/build-admin-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-admin-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build admin frontend
+        run: npm run build:admin
+        env:
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+
+      - name: Sync to Android
+        run: npx cap sync android --config=capacitor.admin.config.ts
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Admin APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: practicepro-admin-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Build Release APK
+        if: github.ref == 'refs/heads/main'
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Upload Release APK
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: practicepro-admin-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 90
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: admin-build-${{ github.run_number }}
+          name: PracticePro Admin APK (Build ${{ github.run_number }})
+          files: |
+            android/app/build/outputs/apk/release/app-release.apk
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
