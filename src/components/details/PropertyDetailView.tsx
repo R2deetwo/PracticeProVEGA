@@ -28,9 +28,9 @@ import BacklinksPanel from '../BacklinksPanel';
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
-    <div className="w-full">
+    <div className="w-full min-w-0 overflow-hidden">
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
-        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
+        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words">
             {value}
         </div>
         {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight">{subText}</p>}
@@ -1209,8 +1209,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 return (
                                                     <div
                                                         key={unit.id}
-                                                        ref={isSelected ? (el: HTMLDivElement | null) => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 120); } : undefined}
-                                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
+                                                        ref={isSelected ? (el: HTMLDivElement | null) => { /* removed scrollIntoView — caused scroll bounce when expanding unit details */ } : undefined}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
                                                         className={`${typeBg} rounded-xl border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'}`}
                                                     >
@@ -1373,11 +1373,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     <CogIcon className="w-3.5 h-3.5" />
                                                                 </button>
                                                                 
-                                                                {openUnitMenuPos && menuOpen && createPortal(
+                                                                {openUnitMenuPos && menuOpen && (
                                                                 <div
                                                                     ref={unitMenuInnerRef}
                                                                     style={{ position: 'fixed', top: openUnitMenuPos.top, right: openUnitMenuPos.right, zIndex: 99999 }}
-                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[99999] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
                                                                 >
                                                                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
                                                                         <p className="text-3xs font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
@@ -1500,8 +1500,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     >
                                                                         <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
                                                                     </button>
-                                                                </div>,
-                                                                document.body)}
+                                                                </div>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -1611,7 +1611,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             )}
                                                                             {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
                                                                             {tenantPhone && <DetailItem label="Phone" value={tenantPhone} />}
-                                                                            {tenantEmail && <DetailItem label="Email" value={tenantEmail} />}
+                                                                            {tenantEmail && <DetailItem label="Email" value={<span className="truncate block">{tenantEmail}</span>} />}
                                                                             {((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0) > 0 && (
                                                                                 <DetailItem label="Service Charge" value={
                                                                                     <>
