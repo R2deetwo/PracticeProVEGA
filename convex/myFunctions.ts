@@ -2300,7 +2300,12 @@ export const sendChatMessage = mutation({
     }
 
     if (existingConv) {
-      conversationId = existingConv._id.toString();
+      // CRITICAL: Keep the client-supplied conversationId (the uuidv4 from
+      // c.id) so the client's filter (m.conversationId === c.id) matches.
+      // Previously this was rewritten to existingConv._id.toString(), which
+      // broke the client filter — messages were inserted but never appeared
+      // as bubbles because the filter compared UUID vs Convex _id string.
+      conversationId = args.conversationId;
       memberIds = (existingConv.memberIds as string[]) || [];
     } else if (args.createConversationIfMissing && args.conversationMembers?.length) {
       // Create the conversation inline

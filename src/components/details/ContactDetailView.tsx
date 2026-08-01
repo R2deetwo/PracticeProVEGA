@@ -172,7 +172,14 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   
   const hasRealEstateMatters = matters.some(m => m.type === MatterType.RealEstate);
   const [activeTab, setActiveTab] = useState<ContactTab>('overview');
-  
+
+  // Reset active tab if the current tab's render condition becomes false
+  useEffect(() => {
+      if (activeTab === 'properties' && !(hasRealEstateMatters || allProperties.length > 0)) {
+          setActiveTab('overview');
+      }
+  }, [activeTab, hasRealEstateMatters, allProperties.length]);
+
   if (!contact) {
       return <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8"><p className="text-lg font-medium">Contact not found</p></div>;
   }

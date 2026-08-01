@@ -1718,7 +1718,7 @@ const MessagesView: React.FC = () => {
                                                                 if (!ok) return;
                                                                 try {
                                                                     const convMessages = (messages as any[]).filter((m: any) =>
-                                                                        (m.conversationId === tc.conversationId || m.conversationId === tc._id) && !m.isDeleted
+                                                                        (String(m.conversationId) === String(tc.conversationId) || String(m.conversationId) === String(tc._id)) && !m.isDeleted
                                                                     );
                                                                     const messageIds = convMessages.map((m: any) => m.id || m._id);
                                                                     await Promise.all(messageIds.map((mid: string) =>
@@ -1877,7 +1877,7 @@ const MessagesView: React.FC = () => {
                                     );
                                 }
                                 const convMessages = (messages as any[]).filter(
-                                    (m: any) => (m.conversationId === selectedInboxId || m.conversationId === tc._id) && !m.isDeleted
+                                    (m: any) => (String(m.conversationId) === String(selectedInboxId) || String(m.conversationId) === String(tc._id)) && !m.isDeleted
                                 ).sort((a: any, b: any) => {
                                     const aTime = new Date(a.timestamp || a.createdAt || 0).getTime();
                                     const bTime = new Date(b.timestamp || b.createdAt || 0).getTime();
@@ -2064,7 +2064,7 @@ const MessagesView: React.FC = () => {
                                                             // storageId is available in teamAttachments — a future
                                                             // enhancement can pass these to the mutation.
                                                             void attachments;
-                                                        } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                                        } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
                                                     }}
                                                     placeholder="Type a message..."
                                                     sendDisabled={!teamReplyText.trim() && teamAttachments.length === 0}
@@ -2579,7 +2579,7 @@ const MessagesView: React.FC = () => {
                                                 const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
                                                 const otherIsOnline = isPeerOnline(otherMemberId);
                                                 const convMessages = messages.filter(
-                                                    (m: any) => (m.conversationId === conv.id || m.conversationId === conv._id) && !m.isDeleted
+                                                    (m: any) => (String(m.conversationId) === String(conv.id) || String(m.conversationId) === String(conv._id)) && !m.isDeleted
                                                 );
                                                 // messages array is DESC (newest first), so [0] is the latest
                                                 const lastMsg = convMessages[0];
@@ -2666,7 +2666,7 @@ const MessagesView: React.FC = () => {
                                 const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
                                 const otherIsOnline = activePeers?.includes(otherMemberId);
                                 const convMessages = messages.filter(
-                                    (m: any) => (m.conversationId === selectedId || m.conversationId === conv._id) && !m.isDeleted
+                                    (m: any) => (String(m.conversationId) === String(selectedId) || String(m.conversationId) === String(conv._id)) && !m.isDeleted
                                 ).sort((a: any, b: any) => {
                                     const aTime = new Date(a.timestamp || a.createdAt || 0).getTime();
                                     const bTime = new Date(b.timestamp || b.createdAt || 0).getTime();
@@ -2691,7 +2691,7 @@ const MessagesView: React.FC = () => {
                                             authorName: currentUser?.name || undefined,
                                             userEmail: currentUser?.email,
                                         });
-                                    } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                    } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
                                 };
 
                                 return (

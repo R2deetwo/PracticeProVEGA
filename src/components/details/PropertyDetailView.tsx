@@ -103,6 +103,14 @@ const PropertyDetailViewContent: React.FC = () => {
     const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
     const unitMenuRef = useRef<HTMLDivElement>(null);
     const [selectedUnit, setSelectedUnit] = useState<Property | null>(null);
+
+    // Reset active tab if the current tab's render condition becomes false
+    // (e.g., user was on 'units' tab but property lost its leased status)
+    useEffect(() => {
+        if ((activeTab === 'units' || activeTab === 'revenue') && !(isLeased || hasMultipleUnits)) {
+            setActiveTab('summary');
+        }
+    }, [activeTab, isLeased, hasMultipleUnits]);
     const [showAddUnitForm, setShowAddUnitForm] = useState(false);
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');

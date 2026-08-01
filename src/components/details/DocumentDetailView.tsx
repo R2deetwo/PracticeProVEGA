@@ -273,14 +273,15 @@ const DocumentDetailViewContent: React.FC = () => {
     // than during the previous render") when the document went from
     // undefined → defined. This crashed the /documents page on refresh
     // with a stale/deleted ID. Now all hooks run first, then the guard.
-    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'mentions'>(isProperty ? 'details' : 'details');
+    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'mentions'>('details');
     const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
 
-    // Close the full-screen preview whenever the selected document changes.
-    // Without this, navigating from one document to another while the modal
-    // is open would leave the modal showing the *previous* document's content.
+    // Reset tab to 'details' and close full-screen preview whenever the
+    // selected document changes. Also resets activeTab if the litigation
+    // tab is active but the new document isn't a court process.
     useEffect(() => {
         setShowFullScreenPreview(false);
+        setActiveTab('details');
     }, [selectedId]);
 
     // ─── Null-state guard ─────────────────────────────────────────────
