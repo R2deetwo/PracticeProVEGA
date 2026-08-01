@@ -74,7 +74,7 @@ const VersionRefreshBanner: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100vw-2rem)] max-w-md transition-all duration-300 ease-out ${animationClass}`}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100vw-2rem)] max-w-md transition-all duration-300 ease-out ${animationClass}`}
     >
       <div className="bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl shadow-2xl border border-emerald-500/30 overflow-hidden">
         <div className="px-4 py-3 flex items-center gap-3">

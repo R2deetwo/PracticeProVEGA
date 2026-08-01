@@ -1421,7 +1421,7 @@ const MessagesView: React.FC = () => {
                 {activeTab === 'inbox' && (
                     <div className="flex w-full h-full">
                         {/* Inbox Threads List */}
-                        <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
+                        <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden`}>
                             {/* ── Merged header: title + type filters in one row ──
                                 Saves vertical space by combining the "All Conversations" title
                                 bar with the type filter checkboxes into a single compact row.

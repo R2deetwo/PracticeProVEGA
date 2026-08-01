@@ -45,7 +45,9 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Close menu on outside click or scroll
+    // Close menu on outside click (NOT on scroll — scroll closing is too
+    // aggressive and closes the menu immediately because the chat container
+    // fires scroll events when new messages arrive or the input resizes)
     useEffect(() => {
         if (!showMenu) return;
         const handler = (e: MouseEvent) => {
@@ -54,12 +56,9 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 setShowMenu(false);
             }
         };
-        const scrollHandler = () => setShowMenu(false);
         document.addEventListener('mousedown', handler);
-        window.addEventListener('scroll', scrollHandler, true);
         return () => {
             document.removeEventListener('mousedown', handler);
-            window.removeEventListener('scroll', scrollHandler, true);
         };
     }, [showMenu]);
 
