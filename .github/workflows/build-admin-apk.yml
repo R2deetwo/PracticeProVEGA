@@ -45,8 +45,8 @@ jobs:
           VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
 
       - name: Sync to Android
-        run: npx cap sync android --config=capacitor.admin.config.ts
-
+        run: node scripts/sync-admin-config.cjs
+        
       - name: Build Debug APK
         working-directory: android
         run: ./gradlew assembleDebug
