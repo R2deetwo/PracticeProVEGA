@@ -13,6 +13,7 @@ import { useMatterState } from '../../contexts/MatterContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
+import { useExecutionState } from '../../contexts/ExecutionContext';
 import ErrorBoundary from '../ErrorBoundary';
 import BacklinksPanel from '../BacklinksPanel';
 
