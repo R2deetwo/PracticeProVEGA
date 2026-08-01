@@ -1,18 +1,25 @@
 /**
- * Capacitor config for the PracticePro Admin APK.
+ * Capacitor config for the PracticePro Founder APK.
  *
  * This is a SEPARATE APK from the main PracticePro app:
- *   - Main app: com.practicepro.vega (practicepro.vega)
- *   - Admin app: com.practicepro.admin (practicepro.admin)
+ *   - Main app: com.practicepro.app (PracticePro)
+ *   - Founder app: com.practicepro.admin (PracticePro Founder)
  *
- * Both apps share the same Convex backend and codebase, but the admin
- * app only renders admin/management views (Founder Dashboard, Firm
- * Management, User Management, Audit Logs).
+ * Both apps share the same Convex backend and codebase, but the founder
+ * app only renders admin/management views (Founder Dashboard, Founder
+ * Signals, Firm Management, User Management, Audit Logs).
+ *
+ * The swap script (scripts/sync-admin-config.cjs) patches:
+ *   - capacitor.config.ts → this file
+ *   - android/app/build.gradle → applicationId = com.practicepro.admin
+ *   - android/app/src/main/res/values/strings.xml → app_name = PracticePro Founder
+ *   - android/app/version.properties → MINOR=99 (separate versionCode range)
+ * And restores all files after cap sync completes.
  *
  * BUILD:
- *   npm run build:admin   — builds the admin frontend (Vite)
- *   npm run cap:sync:admin — syncs to the admin Android project
- *   npm run apk:admin:release — builds the admin release APK
+ *   npm run build:admin   — builds the founder frontend (Vite)
+ *   npm run cap:sync:admin — syncs to the founder Android project
+ *   npm run apk:admin:release — builds the founder release APK
  */
 
 import type { CapacitorConfig } from '@capacitor/cli';
