@@ -291,16 +291,376 @@ if (fs.existsSync(VERSION_PROPS)) {
     }
 }
 
-// ─── Step 3: run cap sync (or cap open) ─────────────────────────────
-const cmd = wantOpen ? 'npx cap open android' : 'npx cap sync android';
-log(`Running: ${cmd}`);
-try {
-    execSync(cmd, { stdio: 'inherit', cwd: ROOT });
-} catch (e) {
-    console.error(`[sync-admin] Command failed: ${cmd}`);
-    restore();
-    process.exit(e.status || 4);
+// ─── Step 3: sync to Android ────────────────────────────────────────
+//
+// Capacitor 8 CLI requires Node >= 22. If the CI runner has Node 20
+// (as the admin APK workflow currently does), `npx cap sync` fails
+// with: "The Capacitor CLI requires NodeJS >=22.0.0"
+//
+// Rather than forcing the user to update the workflow's Node version
+// (which requires `workflow` scope on the PAT), we detect the Node
+// version and fall back to a MANUAL sync if it's < 22.
+//
+// Manual sync does exactly what `cap sync android` does:
+//   1. Copies web assets from webDir → android/app/src/main/assets/public/
+//   2. Writes capacitor.config.json (parsed from the TS config)
+//   3. Generates capacitor.build.gradle (plugin gradle deps)
+//   4. Generates capacitor.settings.gradle (plugin include directives)
+//   5. Generates capacitor.plugins.json (plugin classpath list)
+//
+// Plugins are discovered by scanning node_modules for packages with
+// `capacitor.android.src` in their package.json.
+
+const NODE_MAJOR = parseInt(process.versions.node.split('.')[0], 10);
+const canUseCapSync = NODE_MAJOR >= 22;
+
+if (wantOpen) {
+    // `cap open` just opens Android Studio — only works if cap CLI works
+    const cmd = 'npx cap open android';
+    log(`Running: ${cmd}`);
+    try {
+        execSync(cmd, { stdio: 'inherit', cwd: ROOT });
+    } catch (e) {
+        console.error(`[sync-admin] Command failed: ${cmd}`);
+        restore();
+        process.exit(e.status || 4);
+    }
+} else if (canUseCapSync) {
+    const cmd = 'npx cap sync android';
+    log(`Running: ${cmd} (Node ${process.versions.node})`);
+    try {
+        execSync(cmd, { stdio: 'inherit', cwd: ROOT });
+    } catch (e) {
+        console.error(`[sync-admin] Command failed: ${cmd}`);
+        restore();
+        process.exit(e.status || 4);
+    }
+} else {
+    log(`Node ${process.versions.node} < 22 — Capacitor CLI unavailable. Doing MANUAL sync.`);
+    try {
+        manualSync();
+        log('Manual sync completed successfully.');
+    } catch (e) {
+        console.error(`[sync-admin] Manual sync failed: ${e.message}`);
+        console.error(e.stack);
+        restore();
+        process.exit(7);
+    }
 }
 
-log('cap command completed successfully.');
+log('Sync completed successfully.');
 // restore() will be called by the 'exit' handler.
+
+// =====================================================================
+// MANUAL SYNC — replaces `cap sync android` when Node < 22
+// =====================================================================
+//
+// This function does everything `cap sync android` does, but without
+// requiring the Capacitor CLI (which needs Node >= 22):
+//
+//   1. Copies web assets from the configured webDir to the Android
+//      assets/public directory.
+//   2. Writes capacitor.config.json (the runtime config that
+//      Capacitor's native code reads at app start).
+//   3. Discovers installed Capacitor plugins by scanning node_modules.
+//   4. Generates capacitor.build.gradle (the Gradle file that wires
+//      plugin projects as dependencies).
+//   5. Generates capacitor.settings.gradle (the Gradle file that
+//      includes plugin projects in the build).
+//   6. Generates capacitor.plugins.json (the JSON list of plugin
+//      classpaths, used by Capacitor's native plugin registry).
+//
+function manualSync() {
+    const androidAssetsPublic = path.join(ROOT, 'android', 'app', 'src', 'main', 'assets', 'public');
+    const androidAssets = path.join(ROOT, 'android', 'app', 'src', 'main', 'assets');
+    const androidAppDir = path.join(ROOT, 'android', 'app');
+    const androidDir = path.join(ROOT, 'android');
+
+    // ─── 1. Parse the admin config ──────────────────────────────────
+    // We already have it in MAIN_CONFIG (copied from ADMIN_CONFIG in
+    // step 2). Parse the key fields we need.
+    const configSrc = fs.readFileSync(MAIN_CONFIG, 'utf8');
+    const appId = (configSrc.match(/appId\s*:\s*['"]([^'"]+)['"]/) || [])[1] || 'com.practicepro.admin';
+    const appName = (configSrc.match(/appName\s*:\s*['"]([^'"]+)['"]/) || [])[1] || 'PracticePro Founder';
+    const webDir = (configSrc.match(/webDir\s*:\s*['"]([^'"]+)['"]/) || [])[1] || 'dist-admin';
+    const bgColor = (configSrc.match(/backgroundColor\s*:\s*['"]([^'"]+)['"]/) || [])[1] || '#000000';
+
+    // Parse the android + plugins blocks using a brace-matching parser
+    // (regex can't handle nested braces in TS object literals)
+    const androidConfig = extractObjectBlock(configSrc, 'android') || {};
+    const pluginsConfig = extractObjectBlock(configSrc, 'plugins') || {};
+
+    // ─── 2. Copy web assets ─────────────────────────────────────────
+    const webDirAbs = path.join(ROOT, webDir);
+    if (!fs.existsSync(webDirAbs)) {
+        throw new Error(`webDir not found: ${webDirAbs}`);
+    }
+    // Clean the target directory
+    fs.rmSync(androidAssetsPublic, { recursive: true, force: true });
+    fs.mkdirSync(androidAssetsPublic, { recursive: true });
+    // Copy all files from webDir to assets/public
+    copyDirRecursive(webDirAbs, androidAssetsPublic);
+    log(`Copied web assets: ${webDir} → android/app/src/main/assets/public/`);
+
+    // ─── 3. Write capacitor.config.json ─────────────────────────────
+    const configJson = {
+        appId,
+        appName,
+        webDir,
+        backgroundColor: bgColor,
+        android: androidConfig,
+        plugins: pluginsConfig,
+    };
+    fs.writeFileSync(
+        path.join(androidAssets, 'capacitor.config.json'),
+        JSON.stringify(configJson, null, '\t') + '\n'
+    );
+    log('Wrote capacitor.config.json');
+
+    // ─── 4. Discover plugins ────────────────────────────────────────
+    // Scan node_modules for packages with `capacitor.android.src` in
+    // their package.json. This is how Capacitor discovers plugins.
+    const plugins = discoverPlugins();
+    log(`Discovered ${plugins.length} Capacitor plugins: ${plugins.map(p => p.name).join(', ')}`);
+
+    // ─── 5. Generate capacitor.build.gradle ─────────────────────────
+    let buildGradle = '// DO NOT EDIT THIS FILE! IT IS GENERATED EACH TIME "capacitor update" IS RUN\n\n';
+    buildGradle += 'android {\n';
+    buildGradle += '  compileOptions {\n';
+    buildGradle += '      sourceCompatibility JavaVersion.VERSION_21\n';
+    buildGradle += '      targetCompatibility JavaVersion.VERSION_21\n';
+    buildGradle += '  }\n';
+    buildGradle += '}\n\n';
+    buildGradle += 'apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"\n';
+    buildGradle += 'dependencies {\n';
+    for (const p of plugins) {
+        buildGradle += `    implementation project(':${p.gradleName}')\n`;
+    }
+    buildGradle += '}\n\n\nif (hasProperty(\'postBuildExtras\')) {\n  postBuildExtras()\n}';
+    fs.writeFileSync(path.join(androidAppDir, 'capacitor.build.gradle'), buildGradle);
+    log('Generated capacitor.build.gradle');
+
+    // ─── 6. Generate capacitor.settings.gradle ──────────────────────
+    let settingsGradle = '// DO NOT EDIT THIS FILE! IT IS GENERATED EACH TIME "capacitor update" IS RUN\n';
+    settingsGradle += "include ':capacitor-android'\n";
+    settingsGradle += "project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')\n\n";
+    for (const p of plugins) {
+        settingsGradle += `include ':${p.gradleName}'\n`;
+        settingsGradle += `project(':${p.gradleName}').projectDir = new File('${p.androidPath}')\n\n`;
+    }
+    fs.writeFileSync(path.join(androidDir, 'capacitor.settings.gradle'), settingsGradle);
+    log('Generated capacitor.settings.gradle');
+
+    // ─── 7. Generate capacitor.plugins.json ─────────────────────────
+    const pluginsJson = plugins.map(p => ({
+        pkg: p.name,
+        classpath: p.classpath,
+    }));
+    fs.writeFileSync(
+        path.join(androidAssets, 'capacitor.plugins.json'),
+        JSON.stringify(pluginsJson, null, '\t') + '\n'
+    );
+    log('Generated capacitor.plugins.json');
+}
+
+function copyDirRecursive(src, dest) {
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+        if (entry.isDirectory()) {
+            fs.mkdirSync(destPath, { recursive: true });
+            copyDirRecursive(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
+
+function discoverPlugins() {
+    const nodeModules = path.join(ROOT, 'node_modules');
+    const plugins = [];
+    const scopes = ['@capacitor', '@aparajita', '@capgo', '@byteowls'];
+
+    for (const scope of scopes) {
+        const scopeDir = path.join(nodeModules, scope);
+        if (!fs.existsSync(scopeDir)) continue;
+        for (const pkgName of fs.readdirSync(scopeDir)) {
+            const pkgJsonPath = path.join(scopeDir, pkgName, 'package.json');
+            if (!fs.existsSync(pkgJsonPath)) continue;
+            try {
+                const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+                const androidSrc = pkg.capacitor?.android?.src;
+                if (!androidSrc) continue;
+                const fullPkgName = `${scope}/${pkgName}`;
+                const androidPath = path.join(scopeDir, pkgName, androidSrc);
+                if (!fs.existsSync(androidPath)) continue;
+
+                // Gradle project name: drop @, replace / with -
+                const gradleName = fullPkgName.replace(/^@/, '').replace(/\//g, '-');
+
+                // Discover the main plugin class by scanning for files
+                // ending in *Plugin.java or *Native.java
+                const classpath = discoverPluginClasspath(androidPath, fullPkgName);
+                if (!classpath) {
+                    warn(`Could not discover classpath for ${fullPkgName} — skipping`);
+                    continue;
+                }
+
+                plugins.push({
+                    name: fullPkgName,
+                    gradleName,
+                    androidPath: path.relative(path.join(ROOT, 'android'), androidPath),
+                    classpath,
+                });
+            } catch {}
+        }
+    }
+
+    // Also check non-scoped packages (rare but possible)
+    for (const pkgName of fs.readdirSync(nodeModules)) {
+        if (pkgName.startsWith('@') || pkgName.startsWith('.')) continue;
+        const pkgJsonPath = path.join(nodeModules, pkgName, 'package.json');
+        if (!fs.existsSync(pkgJsonPath)) continue;
+        try {
+            const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+            const androidSrc = pkg.capacitor?.android?.src;
+            if (!androidSrc) continue;
+            const androidPath = path.join(nodeModules, pkgName, androidSrc);
+            if (!fs.existsSync(androidPath)) continue;
+            const gradleName = pkgName.replace(/\//g, '-');
+            const classpath = discoverPluginClasspath(androidPath, pkgName);
+            if (!classpath) continue;
+            plugins.push({
+                name: pkgName,
+                gradleName,
+                androidPath: path.relative(path.join(ROOT, 'android'), androidPath),
+                classpath,
+            });
+        } catch {}
+    }
+
+    return plugins;
+}
+
+function discoverPluginClasspath(androidDir, pkgName) {
+    // Scan for *.java files ending in "Plugin.java" or "Native.java"
+    // that contain "@CapacitorPlugin" annotation
+    const javaFiles = findJavaFiles(androidDir);
+    for (const javaFile of javaFiles) {
+        const content = fs.readFileSync(javaFile, 'utf8');
+        if (!content.includes('@CapacitorPlugin')) continue;
+        // Extract package and class name
+        const pkgMatch = content.match(/^package\s+([\w.]+);/m);
+        const classMatch = content.match(/public\s+class\s+(\w+)/);
+        if (pkgMatch && classMatch) {
+            return `${pkgMatch[1]}.${classMatch[1]}`;
+        }
+    }
+    // Fallback: look for *Plugin.java or *Native.java
+    for (const javaFile of javaFiles) {
+        const base = path.basename(javaFile, '.java');
+        if (base.endsWith('Plugin') || base.endsWith('Native')) {
+            const content = fs.readFileSync(javaFile, 'utf8');
+            const pkgMatch = content.match(/^package\s+([\w.]+);/m);
+            if (pkgMatch) {
+                return `${pkgMatch[1]}.${base}`;
+            }
+        }
+    }
+    return null;
+}
+
+function findJavaFiles(dir) {
+    const results = [];
+    function walk(d) {
+        if (!fs.existsSync(d)) return;
+        for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+            const fullPath = path.join(d, entry.name);
+            if (entry.isDirectory()) {
+                walk(fullPath);
+            } else if (entry.name.endsWith('.java')) {
+                results.push(fullPath);
+            }
+        }
+    }
+    walk(dir);
+    return results;
+}
+
+/**
+ * extractObjectBlock — parse a top-level key from a TS/JS object literal
+ * source string and return the corresponding JS object.
+ *
+ * Uses a simple brace-matching parser to handle nested braces correctly
+ * (unlike regex, which can't count). The key must be at the top level
+ * of the object literal (not nested inside another object).
+ *
+ * Example:
+ *   extractObjectBlock('android: { allowMixedContent: true, ... }', 'android')
+ *   → { allowMixedContent: true, ... }
+ */
+function extractObjectBlock(src, key) {
+    // Find the key followed by ':' and '{'
+    const keyPattern = new RegExp(`\\b${key}\\s*:\\s*\\{`);
+    const startMatch = src.match(keyPattern);
+    if (!startMatch) return null;
+
+    // Find the opening brace position
+    const openBracePos = src.indexOf('{', startMatch.index + key.length);
+    if (openBracePos === -1) return null;
+
+    // Walk forward, counting braces (ignoring strings and comments)
+    let depth = 0;
+    let i = openBracePos;
+    let inString = false;
+    let stringChar = '';
+    let inLineComment = false;
+    let inBlockComment = false;
+
+    while (i < src.length) {
+        const ch = src[i];
+        const next = src[i + 1];
+
+        // Handle comment states
+        if (inLineComment) {
+            if (ch === '\n') inLineComment = false;
+            i++;
+            continue;
+        }
+        if (inBlockComment) {
+            if (ch === '*' && next === '/') { inBlockComment = false; i += 2; continue; }
+            i++;
+            continue;
+        }
+        if (inString) {
+            if (ch === '\\') { i += 2; continue; } // skip escaped char
+            if (ch === stringChar) { inString = false; }
+            i++;
+            continue;
+        }
+
+        // Not in string or comment
+        if (ch === '/' && next === '/') { inLineComment = true; i += 2; continue; }
+        if (ch === '/' && next === '*') { inBlockComment = true; i += 2; continue; }
+        if (ch === "'" || ch === '"' || ch === '`') { inString = true; stringChar = ch; i++; continue; }
+
+        if (ch === '{') depth++;
+        if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+                // Found the matching close brace
+                const blockSrc = src.substring(openBracePos, i + 1);
+                try {
+                    // Eval as a JS expression (the block is a valid object literal)
+                    return eval(`(${blockSrc})`);
+                } catch (e) {
+                    warn(`Failed to parse '${key}' block: ${e.message}`);
+                    return null;
+                }
+            }
+        }
+        i++;
+    }
+    return null;
+}
