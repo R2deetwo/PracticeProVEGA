@@ -104,13 +104,6 @@ const PropertyDetailViewContent: React.FC = () => {
     const unitMenuRef = useRef<HTMLDivElement>(null);
     const [selectedUnit, setSelectedUnit] = useState<Property | null>(null);
 
-    // Reset active tab if the current tab's render condition becomes false
-    // (e.g., user was on 'units' tab but property lost its leased status)
-    useEffect(() => {
-        if ((activeTab === 'units' || activeTab === 'revenue') && !(isLeased || hasMultipleUnits)) {
-            setActiveTab('summary');
-        }
-    }, [activeTab, isLeased, hasMultipleUnits]);
     const [showAddUnitForm, setShowAddUnitForm] = useState(false);
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
@@ -248,6 +241,14 @@ const PropertyDetailViewContent: React.FC = () => {
     const isSale = property?.category === 'Property For Sale';
     const hasMultipleUnits = allUnits.length > 1 || ((property as any)?.units?.length > 0);
     const isDisputed = property?.category === 'Disputed Property';
+
+    // Reset active tab if the current tab's render condition becomes false
+    // (e.g., user was on 'units' tab but property lost its leased status)
+    useEffect(() => {
+        if ((activeTab === 'units' || activeTab === 'revenue') && !(isLeased || hasMultipleUnits)) {
+            setActiveTab('summary');
+        }
+    }, [activeTab, isLeased, hasMultipleUnits]);
 
     // ── Maintenance tickets for this property ──────────────────────────
     // Fetches all maintenance tickets linked to this property (or its
