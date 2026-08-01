@@ -1433,9 +1433,9 @@ const MessagesView: React.FC = () => {
                                         {isUnified ? 'All Conversations' : 'Conversations'}
                                     </h3>
                                 </div>
-                                {/* Type filter checkboxes — horizontal scroll on mobile, no wrapping */}
+                                {/* Type filter checkboxes — compact pills that fit the panel width */}
                                 {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
-                                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap -mx-1 px-1">
+                                    <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar whitespace-nowrap">
                                         {([
                                             { key: 'team'    as const, label: 'Team',     style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
                                             { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
@@ -1445,7 +1445,7 @@ const MessagesView: React.FC = () => {
                                         ]).map(f => (
                                             <label
                                                 key={f.key}
-                                                className="inline-flex items-center gap-1 cursor-pointer select-none flex-shrink-0"
+                                                className="inline-flex items-center cursor-pointer select-none flex-shrink-0"
                                             >
                                                 <input
                                                     type="checkbox"
@@ -1453,18 +1453,8 @@ const MessagesView: React.FC = () => {
                                                     onChange={(e) => setTypeFilters(prev => ({ ...prev, [f.key]: e.target.checked }))}
                                                     className="sr-only"
                                                 />
-                                                <span className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-colors ${
-                                                    typeFilters[f.key]
-                                                        ? `${f.dot} border-transparent`
-                                                        : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900'
-                                                }`}>
-                                                    {typeFilters[f.key] && (
-                                                        <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </span>
-                                                <span className={`text-2xs font-bold px-1 py-0.5 rounded ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 line-through'}`}>
+                                                <span className={`text-2xs font-bold px-2 py-1 rounded-full flex items-center gap-1 ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800'}`}>
+                                                    <span className={`w-2 h-2 rounded-full ${typeFilters[f.key] ? f.dot : 'bg-slate-300 dark:bg-zinc-600'}`} />
                                                     {f.label}
                                                 </span>
                                             </label>
