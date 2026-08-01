@@ -739,7 +739,7 @@ const MessagesView: React.FC = () => {
                 const otherMemberId = (c.memberIds || []).find((id: string) => id !== myId && id !== currentUser?._id);
                 const otherMember = (users as any[]).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
                 const convMessages = (messages as any[]).filter((m: any) =>
-                    (m.conversationId === c.id || m.conversationId === c._id) && !m.isDeleted
+                    (String(m.conversationId) === String(c.id) || String(m.conversationId) === String(c._id)) && !m.isDeleted
                 );
                 // messages array comes from getChatMessages in DESC order (newest first).
                 // So convMessages[0] is the NEWEST message, not the last element.
@@ -1067,8 +1067,8 @@ const MessagesView: React.FC = () => {
         }
     }, [activeTab, selectedId, selectedInboxType, selectedInboxId, messages]);
 
-    const activeConversation = conversations?.filter(Boolean).find((c: any) => c && c.id === selectedId);
-    const activeMessages = Array.isArray(messages) ? messages.filter((m: any) => m && m.conversationId?.toString() === selectedId) : [];
+    const activeConversation = conversations?.filter(Boolean).find((c: any) => c && (c.id === selectedId || String(c._id) === String(selectedId)));
+    const activeMessages = Array.isArray(messages) ? messages.filter((m: any) => m && (String(m.conversationId) === String(selectedId))) : [];
 
     // Clear team chat notifications for active conversation
     useEffect(() => {
