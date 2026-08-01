@@ -1,9 +1,14 @@
 /**
- * Vite config for the PracticePro Admin APK build.
+ * Vite config for the PracticePro Founder APK build.
  *
  * Same as the main vite.config.ts but:
  *   - Entry: admin.html (not index.html)
  *   - Output: dist-admin/ (not dist/)
+ *
+ * The sync script (scripts/sync-admin-config.cjs) handles:
+ *   - Copying admin.html → index.html (Capacitor requires index.html)
+ *   - Patching applicationId, strings.xml, version.properties
+ *   - Manual sync fallback when Node < 22 (Capacitor 8 CLI requires >= 22)
  *
  * Usage: npx vite build --config vite.admin.config.ts
  */
