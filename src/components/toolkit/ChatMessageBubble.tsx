@@ -5,13 +5,14 @@
  * - Copy: available on ALL messages (own and others)
  * - Edit: available ONLY on own messages (isMe === true)
  * - Delete: available ONLY on own messages (isMe === true)
+ * - Three-dot menu ONLY on own messages (isMe === true)
  * - Right-aligned for own messages, left-aligned for others
  * - Timestamp right-aligned inside the bubble
- * - Context menu uses position:fixed to escape overflow-y-auto containers
- * - Three-dots button is always visible on touch, hover-only on desktop
+ * - Menu renders via React Portal to document.body (escapes all overflow/stacking)
  * - break-all for long strings without spaces (prevents layout overflow)
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ChatMessageBubbleProps {
     content: string;
@@ -45,29 +46,36 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Close menu on outside click (NOT on scroll — scroll closing is too
-    // aggressive and closes the menu immediately because the chat container
-    // fires scroll events when new messages arrive or the input resizes)
-    useEffect(() => {
-        if (!showMenu) return;
-        const handler = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
-                triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
-                setShowMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-        };
-    }, [showMenu]);
-
     // Reset edit text when entering edit mode
     useEffect(() => {
         if (isEditing) setEditText(content);
     }, [isEditing, content]);
 
-    // Compute menu position relative to viewport — uses position:fixed
+    // Close menu on outside click — uses mousedown with a small delay so the
+    // opening click doesn't immediately trigger a close.
+    useEffect(() => {
+        if (!showMenu) return;
+        // Use a tiny delay so the click that OPENED the menu doesn't
+        // immediately trigger the outside-click handler.
+        const timer = setTimeout(() => {
+            const handler = (e: MouseEvent) => {
+                if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+                    triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+                    setShowMenu(false);
+                }
+            };
+            document.addEventListener('mousedown', handler);
+            // Store cleanup on the timer's closure
+            (timer as any).__cleanup = () => document.removeEventListener('mousedown', handler);
+        }, 0);
+        return () => {
+            clearTimeout(timer);
+            if ((timer as any).__cleanup) (timer as any).__cleanup();
+        };
+    }, [showMenu]);
+
+    // Compute menu position relative to viewport — menu will be rendered
+    // via Portal to document.body so position:fixed works correctly.
     const openMenu = useCallback(() => {
         if (!triggerRef.current) return;
         const rect = triggerRef.current.getBoundingClientRect();
@@ -107,6 +115,10 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     };
 
     const timeStr = new Date(timestamp).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' });
+
+    // Only render the three-dot menu on OWN messages.
+    // Incoming messages (isMe === false) should NOT have edit/delete options.
+    const canShowMenu = isMe && !isEditing;
 
     return (
         <div className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -152,7 +164,12 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     </div>
                 )}
 
-                {!isEditing && (
+                {/* Three-dot menu — ONLY on own messages (isMe === true).
+                    Incoming messages have NO action menu (users should not
+                    be able to edit or delete another person's messages).
+                    Copy is handled via right-click or text selection for
+                    incoming messages. */}
+                {canShowMenu && (
                     <button
                         ref={triggerRef}
                         onClick={(e) => {
@@ -161,7 +178,8 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                             if (showMenu) setShowMenu(false);
                             else openMenu();
                         }}
-                        className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all ${isMe ? 'self-end' : 'self-start'} opacity-60 hover:opacity-100`}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all self-end opacity-60 hover:opacity-100`}
                         aria-label="Message actions"
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -171,11 +189,16 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 )}
             </div>
 
-            {showMenu && menuPos && (
+            {/* Menu rendered via React Portal to document.body.
+                This escapes ALL parent overflow-hidden / overflow-y-auto
+                containers and ALL stacking contexts. The menu will never
+                be clipped or hidden behind other elements. */}
+            {showMenu && menuPos && createPortal(
                 <div
                     ref={menuRef}
-                    style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
-                    className="py-1 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 min-w-[130px]"
+                    style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 99999 }}
+                    className="py-1 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 min-w-[130px] animate-in fade-in zoom-in-95 duration-100"
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <button
                         onClick={handleCopy}
@@ -186,7 +209,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                         </svg>
                         Copy
                     </button>
-                    {isMe && onStartEdit && (
+                    {onStartEdit && (
                         <button
                             onClick={handleEditClick}
                             className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 flex items-center gap-2"
@@ -197,7 +220,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                             Edit
                         </button>
                     )}
-                    {isMe && onDelete && (
+                    {onDelete && (
                         <button
                             onClick={() => { setShowMenu(false); onDelete(); }}
                             className="w-full text-left px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center gap-2"
@@ -208,7 +231,8 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                             Delete
                         </button>
                     )}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
