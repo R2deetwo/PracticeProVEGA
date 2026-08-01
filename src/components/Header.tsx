@@ -333,7 +333,7 @@ const Header: React.FC = React.memo(() => {
                         {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 animate-pulse"></span>}
                     </button>
                     {isNotificationsOpen && (
-                        <div className="fixed top-16 right-4 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[3000] overflow-hidden animate-fade-in-up">
+                        <div className="fixed top-16 right-4 w-96 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[3000] overflow-hidden animate-fade-in-up">
                             <div className="p-4 border-b border-slate-100 dark:border-zinc-700 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-sm text-slate-800 dark:text-white">Notifications</h3>
@@ -346,7 +346,7 @@ const Header: React.FC = React.memo(() => {
                                     </button>
                                 </div>
                             </div>
-                            <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {aggregatedNotifications.length > 0 ? (
                                     <div className="divide-y divide-slate-100 dark:divide-zinc-700">
                                         {aggregatedNotifications.map((notification: any) => {

@@ -300,7 +300,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 {/* Workspace Dropdown */}
                 {isWorkspaceOpen && !isSidebarRetracted && canUseMultiFirm && (
                     <div className="absolute top-full left-2 right-2 mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl rounded-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="p-1 space-y-0.5">
+                        <div className="p-1 space-y-0.5 max-h-[60vh] overflow-y-auto custom-scrollbar">
                             <p className="px-3 py-2 text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Switch Workspace</p>
 
                             {isLoadingWorkspaces ? (

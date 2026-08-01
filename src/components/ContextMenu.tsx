@@ -92,8 +92,19 @@ const ContextMenu: React.FC = () => {
         if (menuRef.current && contextMenu.isOpen) {
             const rect = menuRef.current.getBoundingClientRect();
             const adjustments = { x: 0, y: 0 };
+            // Flip left if going off right edge
             if (rect.right > window.innerWidth) adjustments.x = -rect.width;
+            // Flip up if going off bottom edge
             if (rect.bottom > window.innerHeight) adjustments.y = -rect.height;
+            // Clamp: if flipping up pushes menu above the top of the viewport,
+            // clamp it so the top is at least 8px from the top edge
+            if (rect.top + adjustments.y < 0) {
+                adjustments.y = -rect.top + 8;
+            }
+            // Clamp left edge too
+            if (rect.left + adjustments.x < 0) {
+                adjustments.x = -rect.left + 8;
+            }
             setPosAdjust(adjustments);
         } else {
             setPosAdjust({ x: 0, y: 0 });

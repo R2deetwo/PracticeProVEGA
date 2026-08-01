@@ -249,11 +249,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                         onClick={() => setIsMoreMenuOpen(false)} 
                     />
                     
-                    <div className="fixed bottom-24 left-4 right-4 z-[1002] md:hidden outline-none animate-slide-in-up origin-bottom">
+                    <div className="fixed bottom-24 left-4 right-4 z-[1002] md:hidden outline-none animate-slide-in-up origin-bottom max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar">
                         <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-zinc-700/50 p-4">
                             <div className="flex justify-between items-center mb-4 px-2">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">More Options</h3>
-                                <button onClick={() => setIsMoreMenuOpen(false)} className="p-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300">
+                                <button onClick={() => setIsMoreMenuOpen(false)} className="p-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300" aria-label="Close menu">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                     </svg>
