@@ -128,7 +128,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                                         onClick={() => openLegalDocument('privacy')}
                                         className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2"
                                     >Privacy Policy</button>
-                                    . Please review and accept to continue creating new entries.
+                                    . Accept to continue creating new entries. You can still view your existing data without accepting.
                                 </>
                             ) : (
                                 <>You can view your existing data, but{' '}
@@ -153,10 +153,10 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                             onClick={handleDecline}
-                            className="text-xs text-slate-400 hover:text-red-400 px-3 py-2 transition-colors font-semibold"
-                            title="Log out"
+                            className="text-xs text-slate-400 hover:text-slate-200 dark:hover:text-zinc-200 px-3 py-2 transition-colors font-semibold"
+                            title="Continue in read-only mode — you can view your data but won't be able to create new entries until you accept."
                         >
-                            Decline
+                            Not Now
                         </button>
                         <button
                             onClick={handleAccept}

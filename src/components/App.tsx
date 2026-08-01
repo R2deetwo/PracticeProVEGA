@@ -527,7 +527,7 @@ export const App: React.FC = () => {
     const location = useLocation();
     const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout } = useAuth();
     const convex = useConvex();
-    const { theme, fontSize, openModal, modal, view, closeModal, navigateTo } = useUI();
+    const { theme, fontSize, openModal, modal, view, closeModal, navigateTo, showTermsBar, setShowTermsBar } = useUI();
     const { light } = useHapticFeedback();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
@@ -1323,16 +1323,24 @@ export const App: React.FC = () => {
             <CookieConsent />
             {/* Terms & Conditions acceptance gate — shows on first access
                 or when the terms version changes. */}
-            {needsTermsAcceptance && (
+            {(needsTermsAcceptance || showTermsBar) && (
                 <TermsAcceptance
-                    onAccepted={() => setNeedsTermsAcceptance(false)}
-                    onDeclined={() => {
-                        // Log the user out if they decline
-                        try { localStorage.removeItem('practicepro_user_session'); } catch {}
-                        try { localStorage.removeItem('practicepro_portal_session'); } catch {}
-                        window.location.href = '/';
+                    onAccepted={() => {
+                        setNeedsTermsAcceptance(false);
+                        setShowTermsBar(false);
                     }}
-                    onClose={() => setNeedsTermsAcceptance(false)}
+                    onDeclined={() => {
+                        // Dismiss the bar WITHOUT logging out. The user
+                        // can still view and edit existing data, but the
+                        // openModal gate in UIContext will block creating
+                        // new entries (CREATE_MODAL_TYPES) until they accept.
+                        setNeedsTermsAcceptance(false);
+                        setShowTermsBar(false);
+                    }}
+                    onClose={() => {
+                        setNeedsTermsAcceptance(false);
+                        setShowTermsBar(false);
+                    }}
                 />
             )}
             {/* Detects new deploys and prompts the user to refresh — bypasses

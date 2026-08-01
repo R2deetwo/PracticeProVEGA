@@ -217,6 +217,12 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
     const [isSidebarRetracted, setIsSidebarRetracted] = React.useState(false);
 
+    // ─── Terms Bar Visibility ─────────────────────────────────────────────
+    // When a user dismisses the Terms bar with "Not Now" but later tries to
+    // create a new entry, we need to re-show the bar so they can accept.
+    // This state lets openModal trigger the bar re-display.
+    const [showTermsBar, setShowTermsBar] = React.useState(false);
+
     // ─── Mobile Landscape Auto-Collapse ──────────────────────────────────
     // On mobile devices in landscape orientation, the sidebar takes up too
     // much horizontal space, cramping the list + detail panes. We auto-
@@ -615,9 +621,12 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             try {
                 const termsAccepted = localStorage.getItem('practicepro_terms_accepted_version') === '2026-07-27-v4';
                 if (!termsAccepted) {
+                    // Re-show the Terms bar so the user can accept, and show
+                    // a toast explaining why their action was blocked.
+                    setShowTermsBar(true);
                     setToasts(prev => [...prev, {
                         id: Date.now(),
-                        message: 'Please accept the Terms of Service and Privacy Policy to create new entries. Scroll down to see the acceptance bar.',
+                        message: 'You need to accept the Terms of Service and Privacy Policy before creating new entries. The acceptance bar is shown below.',
                         type: 'warning' as const,
                         link: undefined,
                     }]);
@@ -683,6 +692,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         fontSize, setFontSize,
         isSidebarOpen, toggleSidebar, closeSidebar,
         isSidebarRetracted, toggleSidebarRetraction,
+        showTermsBar, setShowTermsBar,
         modal, modalContext, editingId, openModal, closeModal, getModalTitle, setModalContext,
         history, setHistory, historyIndex, setHistoryIndex, currentHistoryEntry,
         view, selectedId, canGoBack: historyIndex > 0, canGoForward: historyIndex < history.length - 1,
