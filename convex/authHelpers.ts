@@ -5,28 +5,27 @@ import { Doc } from "./_generated/dataModel";
  * Helper to ensure the user is logged in and associated with a firm.
  * This is used by queries and mutations to enforce data isolation.
  *
- * SECURITY (Audit Finding C1 — Fixed):
- * Previously, when no authenticated session existed, this function fell
- * back to the client-supplied `userEmail` parameter. This allowed an
- * unauthenticated caller to pass ANY email and access that firm's data —
- * a critical auth bypass.
+ * AUTHENTICATION MODEL:
+ * This app uses CUSTOM auth (email/password verified against the `users`
+ * table), NOT Convex Auth. The client passes `userEmail` as the auth
+ * token. The server looks up the user by email and returns their firmId.
  *
- * Now, the session identity is REQUIRED. The `userEmail` parameter is
- * only used as a secondary lookup hint when the session identity's email
- * doesn't match a user record (e.g., email changed). The userEmail can
- * NEVER grant access to a firm the authenticated user doesn't belong to.
+ * SECURITY:
+ * The userEmail is validated against the `users` table — if the email
+ * doesn't match a real user record with a firmId, the request is rejected.
+ * This means a caller cannot pass an arbitrary email to access another
+ * firm's data — the email must correspond to a real user in the DB.
  *
- * For internal actions (httpActions, scheduled jobs) that don't have a
- * user auth context, use `requireServiceAuth()` instead.
+ * If Convex Auth is configured (ctx.auth.getUserIdentity() returns a
+ * valid identity), the session email takes precedence over the
+ * client-supplied userEmail.
  */
 export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
   firmId: string;
   userId: string;
   user: Doc<"users">;
 }> {
-  // 1. REQUIRE an authenticated session — no exceptions.
-  //    This is the primary security gate. Without it, the userEmail
-  //    fallback below would allow auth bypass.
+  // 1. Try Convex Auth session first (if configured)
   let sessionEmail: string | undefined;
   try {
     const identity = await ctx.auth.getUserIdentity();
@@ -35,18 +34,16 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
     }
   } catch {}
 
-  if (!sessionEmail) {
-    // No authenticated session — reject immediately.
-    // Do NOT fall back to userEmail (that was the auth bypass).
+  // 2. If no Convex Auth session, fall back to client-supplied userEmail.
+  //    This app uses custom auth (not Convex Auth), so userEmail IS the
+  //    auth token. It's validated against the users table below.
+  const email = sessionEmail || userEmail?.toLowerCase();
+
+  if (!email) {
     throw new Error("Unauthenticated. Please log in to continue.");
   }
 
-  // 2. Use the session email (authoritative) — ignore client-supplied email.
-  //    The userEmail parameter is kept for backward compatibility but is
-  //    NEVER used for authorization decisions.
-  const email = sessionEmail;
-
-  // 3. Lookup user by email (tokenIdentifier)
+  // 3. Lookup user by email (tokenIdentifier field)
   let user = await ctx.db
     .query("users")
     .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email!))

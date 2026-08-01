@@ -29,6 +29,7 @@ import type * as indexer from "../indexer.js";
 import type * as legalRepo from "../legalRepo.js";
 import type * as lib_withAuth from "../lib/withAuth.js";
 import type * as migrations from "../migrations.js";
+import type * as moneyUtils from "../moneyUtils.js";
 import type * as myFunctions from "../myFunctions.js";
 import type * as payments from "../payments.js";
 import type * as paystack from "../paystack.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   legalRepo: typeof legalRepo;
   "lib/withAuth": typeof lib_withAuth;
   migrations: typeof migrations;
+  moneyUtils: typeof moneyUtils;
   myFunctions: typeof myFunctions;
   payments: typeof payments;
   paystack: typeof paystack;
