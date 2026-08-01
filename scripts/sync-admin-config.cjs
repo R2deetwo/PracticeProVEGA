@@ -34,6 +34,8 @@ const APP_GRADLE = path.join(ROOT, 'android', 'app', 'build.gradle');
 const APP_GRADLE_BACKUP = path.join(ROOT, 'android', 'app', 'build.gradle.admin-backup');
 const STRINGS_XML = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'strings.xml');
 const STRINGS_XML_BACKUP = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'strings.xml.admin-backup');
+const VERSION_PROPS = path.join(ROOT, 'android', 'app', 'version.properties');
+const VERSION_PROPS_BACKUP = path.join(ROOT, 'android', 'app', 'version.properties.admin-backup');
 
 const wantOpen = process.argv.includes('--open');
 
@@ -108,6 +110,17 @@ function restore() {
     } catch (e) {
         warn(`Failed to restore strings.xml: ${e.message}`);
         warn(`Manual restore needed. Backup file (if it exists): ${STRINGS_XML_BACKUP}`);
+    }
+    // Restore android/app/version.properties
+    try {
+        if (fs.existsSync(VERSION_PROPS_BACKUP)) {
+            fs.copyFileSync(VERSION_PROPS_BACKUP, VERSION_PROPS);
+            fs.rmSync(VERSION_PROPS_BACKUP, { force: true });
+            log('Restored original android/app/version.properties from backup.');
+        }
+    } catch (e) {
+        warn(`Failed to restore version.properties: ${e.message}`);
+        warn(`Manual restore needed. Backup file (if it exists): ${VERSION_PROPS_BACKUP}`);
     }
 }
 
@@ -235,6 +248,46 @@ if (fs.existsSync(STRINGS_XML)) {
         warn(`Failed to patch strings.xml: ${e.message}`);
         warn('The admin APK may show as "PracticePro" on the home screen.');
         try { fs.rmSync(STRINGS_XML_BACKUP, { force: true }); } catch {}
+    }
+}
+
+// ─── Step 2c-iii: patch version.properties ──────────────────────────
+// The founder APK and the consumer APK share the same Android project,
+// so they share android/app/version.properties. If we don't patch it,
+// both APKs end up with the SAME versionCode — which means:
+//   (a) Android's installer treats them as the same app, so installing
+//       the founder APK prompts "Update PracticePro?" instead of
+//       installing side-by-side.
+//   (b) The consumer useApkVersionCheck hook (which we don't import in
+//       the founder app, but Android's installer doesn't know that)
+//       would compare the founder APK's versionCode against the
+//       consumer version.json and prompt an update.
+//
+// We push the founder APK into a separate versionCode range:
+//   - Consumer: 1.0.x → versionCode 10000 + 0*100 + x = 10000..10099
+//   - Founder:  we bump MINOR to 99 and reset PATCH to 1, giving
+//               versionCode 10000 + 99*100 + 1 = 19901, which is
+//               permanently HIGHER than the consumer's range. This
+//               means the founder APK will never be prompted to
+//               "update" to a consumer APK (consumer versionCodes
+//               are always < 19900). And the consumer app, when it
+//               sees the founder APK's versionCode in version.json,
+//               will correctly see it as older-than-local (consumer
+//               app reads its OWN version.json, not the founder's).
+if (fs.existsSync(VERSION_PROPS)) {
+    try {
+        fs.copyFileSync(VERSION_PROPS, VERSION_PROPS_BACKUP);
+        let vp = fs.readFileSync(VERSION_PROPS, 'utf8');
+        // Bump MINOR to 99 and reset PATCH to 1 for the founder APK.
+        // This puts it in a separate versionCode range (19901+).
+        vp = vp.replace(/^MINOR=.*$/m, 'MINOR=99');
+        vp = vp.replace(/^PATCH=.*$/m, 'PATCH=1');
+        fs.writeFileSync(VERSION_PROPS, vp);
+        log('Patched version.properties → MINOR=99, PATCH=1 (founder versionCode range 19901+)');
+    } catch (e) {
+        warn(`Failed to patch version.properties: ${e.message}`);
+        warn('The founder APK may collide with the consumer app versionCode.');
+        try { fs.rmSync(VERSION_PROPS_BACKUP, { force: true }); } catch {}
     }
 }
 
