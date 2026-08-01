@@ -116,7 +116,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                 </div>
             </div>
         </form>
-        <div className="md:col-span-1 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+        <div className="md:col-span-1 p-4 bg-gray-50 dark:bg-zinc-800/50 dark:bg-gray-700/50 rounded-lg">
             <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Placeholders</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Click a placeholder to copy it.</p>
             <div className="space-y-2 max-h-[20rem] overflow-y-auto pr-2">
@@ -125,7 +125,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                         <button 
                             type="button" 
                             onClick={() => handleCopyPlaceholder(p.placeholder)}
-                            className="w-full text-left p-2 bg-white dark:bg-gray-700 rounded-md font-mono text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/40 transition-colors"
+                            className="w-full text-left p-2 bg-white dark:bg-zinc-900 dark:bg-gray-700 rounded-md font-mono text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/40 transition-colors"
                         >
                             {p.placeholder}
                         </button>

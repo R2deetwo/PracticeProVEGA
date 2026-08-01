@@ -218,7 +218,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             </div>
 
             <div className="max-w-md mx-auto space-y-6">
-              <div className="flex p-1.5 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+              <div className="flex p-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
                 <button onClick={() => { setMode('create'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'create' ? 'bg-white dark:bg-zinc-900 shadow-lg shadow-slate-200 text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Create New</button>
                 <button onClick={() => { setMode('join'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'join' ? 'bg-white dark:bg-zinc-900 shadow-lg shadow-slate-200 text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Join Existing</button>
               </div>
@@ -386,7 +386,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto pt-2">
-              <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all" disabled={isSubmitting}>Back</button>
+              <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all" disabled={isSubmitting}>Back</button>
               <button onClick={handleCreate} disabled={isSubmitting || !hasAgreed} className={`flex-[2] py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 dark:bg-zinc-700 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}>
                 {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {isSubmitting ? 'Creating...' : 'Create Workspace'}

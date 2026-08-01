@@ -67,7 +67,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ document
 
     return (
         <div 
-            className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 relative"
+            className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 relative"
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
             onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
             onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}

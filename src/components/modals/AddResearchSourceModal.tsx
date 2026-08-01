@@ -208,7 +208,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
           {files.length > 0 && (
             <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
               {files.map((file, idx) => (
-                <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-700">
+                <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-700">
                   <div className="flex items-center gap-2 overflow-hidden">
                     <DocumentLinkIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                     <span className="text-sm truncate font-medium">{file.name}</span>

@@ -592,7 +592,42 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         });
     }, [historyIndex]);
 
+    // Modals that CREATE new entries — blocked when terms aren't accepted.
+    // Users can still VIEW and EDIT existing data, but can't create new
+    // entries until they accept the Terms of Service and Privacy Policy.
+    const CREATE_MODAL_TYPES: string[] = [
+        'newTask', 'newMatter', 'newContact', 'newProperty', 'newDocument',
+        'newInvoice', 'newEvent', 'newNotebook', 'newResearchNotebook',
+        'newDraft', 'newChannel', 'newDirectMessage', 'addResearchSource',
+        'newEventType', 'newContactCategory', 'newDocumentCategory',
+        'newChecklistTemplate', 'newWorkflow', 'addProperty', 'addContact',
+        'addUnit', 'addBankAccount', 'newLead', 'newExpenseCategory',
+        'newDocumentTemplate', 'newDocumentTemplateCategory',
+        'sendIntakeLink', 'sendPostActivationEmail',
+    ];
+
     const openModal = React.useCallback((modalType: ModalType, id: string | null = null, context: any = null) => {
+        // ─── Terms Gate ────────────────────────────────────────────────
+        // Block creating new entries if the user hasn't accepted the Terms
+        // of Service and Privacy Policy. Users can still VIEW and EDIT
+        // existing data — this gate only blocks CREATION.
+        if (CREATE_MODAL_TYPES.includes(modalType as string)) {
+            try {
+                const termsAccepted = localStorage.getItem('practicepro_terms_accepted_version') === '2026-07-27-v4';
+                if (!termsAccepted) {
+                    setToasts(prev => [...prev, {
+                        id: Date.now(),
+                        message: 'Please accept the Terms of Service and Privacy Policy to create new entries. Scroll down to see the acceptance bar.',
+                        type: 'warning' as const,
+                        link: undefined,
+                    }]);
+                    return; // Block the modal from opening
+                }
+            } catch {
+                // localStorage might be blocked — allow the modal
+            }
+        }
+
         const isAloaTriggered = context?.openedByAloa === true;
 
         if (isAloaTriggered) {

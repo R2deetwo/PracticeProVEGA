@@ -242,7 +242,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-20">
                 {/* Entity definition header */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-3 sm:gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <UserCircleIcon className="w-3.5 h-3.5" />
@@ -264,9 +264,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div className="space-y-2 group">
                             <label className={labelClass}>Type</label>
-                            <div className="inline-flex gap-1 bg-slate-50 dark:bg-zinc-900/50 p-0.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700">
-                                <button type="button" onClick={() => setContactType(ContactType.Individual)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Individual ? 'bg-white dark:bg-zinc-800 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}>Individual</button>
-                                <button type="button" onClick={() => setContactType(ContactType.Company)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Company ? 'bg-white dark:bg-zinc-800 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}>Corporate</button>
+                            <div className="inline-flex gap-1 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 p-0.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700">
+                                <button type="button" onClick={() => setContactType(ContactType.Individual)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Individual ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}>Individual</button>
+                                <button type="button" onClick={() => setContactType(ContactType.Company)} className={`px-2.5 py-1 text-3xs font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Company ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-primary-600 dark:text-primary-300 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}>Corporate</button>
                             </div>
                         </div>
                         <div className="space-y-2 group">
@@ -488,7 +488,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                                 {(contactToEdit.properties || []).map((prop) => (
                                                     <div key={prop.id} onClick={() => { onClose(); navigateTo('propertyDetail', prop.id); }} className="group p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm hover:border-primary-300 dark:hover:border-primary-800 transition-all cursor-pointer flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-xl text-slate-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:group-hover:bg-primary-900/20 transition-colors">
+                                                            <div className="p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 rounded-xl text-slate-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:group-hover:bg-primary-900/20 transition-colors">
                                                                 <OfficeBuildingIcon className="w-5 h-5" />
                                                             </div>
                                                             <div>

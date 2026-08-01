@@ -12,7 +12,7 @@ import { DownloadIcon, TrashIcon, SearchIcon, ShieldCheckIcon, ComputerDesktopIc
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; className?: string; onTitleClick?: () => void }> = ({ title, children, className, onTitleClick }) => (
-    <div className={`relative overflow-hidden bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3
                 className={`text-xl font-bold text-gray-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
@@ -293,7 +293,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {joinedFirms ? (
                         joinedFirms.map((f: any) => (
-                            <div key={f.id} className={`p-4 rounded-xl border transition-all ${f.id === currentUser?.firmId ? 'bg-primary-50 dark:bg-primary-900/10 border-primary-300 dark:border-primary-800 ring-1 ring-primary-500' : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'}`}>
+                            <div key={f.id} className={`p-4 rounded-xl border transition-all ${f.id === currentUser?.firmId ? 'bg-primary-50 dark:bg-primary-900/10 border-primary-300 dark:border-primary-800 ring-1 ring-primary-500' : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'}`}>
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <p className="font-bold text-slate-900 dark:text-white">{f.name}</p>
@@ -346,7 +346,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                     <p>Items deleted from your practice are kept here for 30 days before being permanently purged.</p>
                 </div>
 
-                <div className="max-h-80 overflow-y-auto border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 custom-scrollbar">
+                <div className="max-h-80 overflow-y-auto border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 custom-scrollbar">
                     {archiveItems.length > 0 ? (
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-100 dark:bg-zinc-800 text-xs text-slate-500 uppercase sticky top-0 z-10 border-b border-slate-200 dark:border-zinc-700">
@@ -375,7 +375,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                                                 </button>
                                                 <button
                                                     onClick={() => handlePermanentDeleteFromArchive(item.id)}
-                                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-red-500 rounded text-xs font-bold hover:bg-red-50 transition-colors"
+                                                    className="px-3 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-red-500 rounded text-xs font-bold hover:bg-red-50 transition-colors"
                                                 >
                                                     Purge
                                                 </button>
@@ -403,7 +403,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                     </div>
                     <button
                         onClick={handleExportData}
-                        className="flex-shrink-0 flex items-center gap-2 px-6 py-3 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm"
+                        className="flex-shrink-0 flex items-center gap-2 px-6 py-3 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm"
                     >
                         <DownloadIcon className="w-5 h-5 text-primary-600" /> Download Archive
                     </button>
@@ -487,7 +487,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                         <button
                             key={tab}
                             onClick={() => { setActiveRepairTab(tab); setSearchTerm(''); }}
-                            className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors capitalize ${activeRepairTab === tab ? 'bg-slate-100 dark:bg-zinc-700 text-primary-600 dark:text-primary-400 border-b-2 border-primary-500' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}
+                            className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors capitalize ${activeRepairTab === tab ? 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-primary-600 dark:text-primary-400 border-b-2 border-primary-500' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}
                         >
                             {tab} ({tab === 'matters' ? matterState.matters?.length || 0 : tab === 'contacts' ? matterState.contacts?.length || 0 : tab === 'documents' ? documentState.documents?.length || 0 : coreState.properties?.length || 0})
                         </button>
@@ -505,7 +505,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                     />
                 </div>
 
-                <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 custom-scrollbar">
+                <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 custom-scrollbar">
                     {itemsToDisplay.length > 0 ? (
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-100 dark:bg-zinc-800 text-xs text-slate-500 uppercase sticky top-0 z-10">
@@ -651,7 +651,7 @@ const ContentProtectionToggle: React.FC = () => {
                 role="switch"
                 aria-checked={enabled}
             >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
         </div>
     );

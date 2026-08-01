@@ -13,9 +13,34 @@ export const useTasks = (appState: AppState, actions: any) => {
     const { addToast } = useUI();
     const { currentUser } = useAuth();
     const createTaskMutation = useMutation(api.myFunctions.createTask);
+    const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
 
-    const handleUpdateTaskStatus = useCallback((id: string, status: any) => 
-        actions.updateItem('tasks', { id, status }, 'Task Status'), [actions]);
+    const handleUpdateTaskStatus = useCallback(async (id: string, status: any) => {
+        // Use the dedicated updateTaskStatus mutation instead of the generic
+        // updateItem. This is the PERMANENT FIX for the persistent drag-drop
+        // bug where tasks couldn't be moved between Kanban columns.
+        //
+        // The generic updateItem was failing because:
+        // 1. It passed { id, status } as data — the `id` field got patched
+        //    onto the document (should only be used for lookup)
+        // 2. resolveRecordForUpdate couldn't find tasks without a custom `id`
+        //    field (tasks created via createTask don't have one)
+        // 3. The error was swallowed by a generic toast
+        //
+        // The dedicated mutation tries 3 lookup strategies and patches ONLY
+        // the status field.
+        try {
+            await updateTaskStatusMutation({
+                taskId: id,
+                status,
+                userEmail: currentUser?.email,
+            });
+        } catch (e: any) {
+            console.error('[handleUpdateTaskStatus] Failed:', e);
+            addToast(e?.message || 'Failed to update task status.', { type: 'error' });
+            throw e;
+        }
+    }, [updateTaskStatusMutation, currentUser, addToast]);
 
     const handleUpdateTaskPriority = useCallback((id: string, priority: any) => 
         actions.updateItem('tasks', { id, priority }, 'Task Priority'), [actions]);

@@ -68,7 +68,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
-        <div className="flex flex-wrap gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <div className="flex flex-wrap gap-2 p-2 bg-gray-100 dark:bg-zinc-800 dark:bg-gray-700 rounded-lg">
             {PALETTE_COLORS.map(c => (
                 <button
                     type="button"

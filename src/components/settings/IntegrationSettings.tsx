@@ -60,7 +60,7 @@ const IntegrationSettings: React.FC = () => {
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2">
+            <div className="w-12 h-12 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center p-2">
               <img src="https://chakrahq.com/favicon.ico" alt="ChakraHQ" className="w-full h-full object-contain" />
             </div>
             <div>
@@ -93,7 +93,7 @@ const IntegrationSettings: React.FC = () => {
                   onClick={() => setEditingConfig({ ...editingConfig, isActive: !editingConfig.isActive })}
                   className={`w-10 h-6 rounded-full transition-colors relative ${editingConfig.isActive ? 'bg-emerald-600' : 'bg-slate-700'}`}
                 >
-                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${editingConfig.isActive ? 'translate-x-4' : ''}`} />
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white dark:bg-zinc-900 rounded-full transition-transform ${editingConfig.isActive ? 'translate-x-4' : ''}`} />
                 </button>
               </div>
 

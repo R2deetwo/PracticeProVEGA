@@ -34,7 +34,7 @@ import { ChevronUp as ChevronUpIcon, Plus as PlusIcon } from 'lucide-react';
 type PortalType = 'resident' | 'client';
 
 const PRIORITY_OPTIONS: Array<{ value: 'low' | 'medium' | 'high' | 'urgent'; label: string; color: string }> = [
-  { value: 'low',    label: 'Low',    color: 'bg-slate-100 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300' },
+  { value: 'low',    label: 'Low',    color: 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300' },
   { value: 'medium', label: 'Medium', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   { value: 'high',   label: 'High',   color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   { value: 'urgent', label: 'Urgent', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
@@ -130,7 +130,7 @@ const TypeRow: React.FC<{
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{label}</p>
             {isDefault && (
-              <span className="px-1.5 py-0.5 rounded-full text-3xs font-bold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">
+              <span className="px-1.5 py-0.5 rounded-full text-3xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">
                 Default
               </span>
             )}
@@ -154,7 +154,7 @@ const TypeRow: React.FC<{
           title={isActive ? 'Hide from portal' : 'Show in portal'}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${isActive ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'} ${isDefault ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
         >
-          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-5' : 'translate-x-1'}`} />
+          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${isActive ? 'translate-x-5' : 'translate-x-1'}`} />
         </button>
 
         {/* Expand / collapse */}

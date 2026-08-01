@@ -176,7 +176,7 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
       {attachments.length > 0 && (
         <div className="py-2 flex flex-wrap gap-2 flex-shrink-0 border-t border-slate-100 dark:border-zinc-800">
           {attachments.map(doc => (
-            <div key={doc.id} className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs group">
+            <div key={doc.id} className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs group">
               <DocumentIcon className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
               <span className="truncate max-w-[160px] font-medium text-slate-700 dark:text-zinc-300">{doc.title}</span>
               <button type="button" onClick={() => toggleAttachment(doc)} className="text-slate-400 hover:text-red-500 transition-colors ml-1">
@@ -201,7 +201,7 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
 
           {isAttaching && (
             <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden z-50 animate-fade-in">
-              <div className="px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
+              <div className="px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
                 Attach from Matter
               </div>
               <div className="max-h-56 overflow-y-auto custom-scrollbar">

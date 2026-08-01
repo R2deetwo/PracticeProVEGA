@@ -358,7 +358,7 @@ const MatterDetailViewContent: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
             <header className="sticky top-0 z-10 glass flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 shadow-sm">
                 <div className="px-4 pt-3 sm:px-6">
                     <div className="flex items-center justify-between mb-2">
@@ -397,7 +397,7 @@ const MatterDetailViewContent: React.FC = () => {
                                 {showMoreMenu && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
+                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); openModal('editMatter', matterData.id); }}
                                                 className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
@@ -469,7 +469,7 @@ const MatterDetailViewContent: React.FC = () => {
                 </nav>
             </header>
 
-            <main className="flex-grow overflow-y-auto custom-scrollbar p-4 bg-slate-50 dark:bg-zinc-900">
+            <main className="flex-grow overflow-y-auto custom-scrollbar p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
                 <div className="max-w-5xl mx-auto">
 
                     {activeTab === 'notes' ? (

@@ -78,7 +78,7 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
                 {files.length > 0 && (
                     <div className="mt-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                         {files.map((file, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm">
+                            <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm">
                                 <div className="flex items-center gap-2 overflow-hidden">
                                     <DocumentIcon className="w-4 h-4 text-primary-500 flex-shrink-0" />
                                     <span className="truncate text-slate-700 dark:text-zinc-300">{file.name}</span>

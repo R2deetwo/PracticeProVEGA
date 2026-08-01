@@ -100,7 +100,7 @@ const GhostReassignPanel: React.FC<GhostReassignPanelProps> = ({ ghost, existing
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-lg mx-4 overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-lg mx-4 overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-6 py-4 flex items-start gap-3 shrink-0">
                     <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -408,16 +408,16 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
                 <StatCard title="Total Documents" value={reportData.totalDocuments} icon={<DocumentsIcon />} colorClass="text-teal-500" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+                <div className="lg:col-span-1 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                     <h3 className="text-lg font-bold mb-4">Matters by Status</h3>
                     <DoughnutChart data={reportData.mattersByStatus} />
                 </div>
-                <div className="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+                <div className="lg:col-span-2 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                     <h3 className="text-lg font-bold mb-4">{isProperty ? 'Properties by Category' : 'Caseload by Practice Area'}</h3>
                     <CaseloadBarChart data={reportData.caseloadByPracticeArea} color="bg-primary-500" />
                 </div>
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                 {appMode === 'multi' ? (
                     <>
                         <div className="flex items-center justify-between mb-4">
@@ -450,7 +450,7 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
             {/* ─── STALE MATTERS TABLE WITH FILE REVIEW REMINDERS ─── */}
             <div 
                 id="stale-matters-section"
-                className={`bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border transition-all duration-1000 ${currentHistoryEntry?.context?.highlight ? 'ring-4 ring-primary-500/30 border-primary-500 shadow-2xl scale-[1.01]' : 'border-black/5 dark:border-white/5'}`}
+                className={`bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border transition-all duration-1000 ${currentHistoryEntry?.context?.highlight ? 'ring-4 ring-primary-500/30 border-primary-500 shadow-2xl scale-[1.01]' : 'border-black/5 dark:border-white/5'}`}
             >
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold">{isProperty ? 'Stale Records' : 'Stale Matters'} <span className="text-slate-400 dark:text-zinc-500 font-normal text-sm">(No activity in 30+ days)</span></h3>

@@ -73,7 +73,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                             }`}>
                                 <div className="flex items-start justify-between gap-3">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs shrink-0 font-black shadow-sm ${
-                                        w.severity === 'DONE' ? 'bg-white text-emerald-600' :
+                                        w.severity === 'DONE' ? 'bg-white dark:bg-zinc-900 text-emerald-600' :
                                         w.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
                                     }`}>
                                         {w.severity === 'DONE' ? <ShieldCheckIcon className="w-4 h-4" /> : i + 1}

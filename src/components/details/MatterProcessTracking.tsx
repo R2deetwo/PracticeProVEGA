@@ -174,7 +174,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
                         {suggestions.map(suggestion => (
-                            <div key={suggestion.id} className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-indigo-100 dark:border-zinc-700 shadow-sm flex items-start justify-between group">
+                            <div key={suggestion.id} className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-4 rounded-xl border border-indigo-100 dark:border-zinc-700 shadow-sm flex items-start justify-between group">
                                 <div className="flex items-start gap-3">
                                     <div className={`mt-1 p-1.5 rounded-full flex-shrink-0 ${suggestion.type === 'deadline' ? 'bg-red-100 text-red-600' :
                                         suggestion.type === 'event' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
@@ -211,7 +211,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
             )}
 
             {/* Processes List */}
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
                 <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-zinc-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <h3 className="font-bold text-lg text-slate-900 dark:text-white">{isProperty ? 'Tracked Processes & Responses' : 'Filed Processes & Responses'}</h3>
                     <div className="flex flex-wrap items-center gap-3">
@@ -232,7 +232,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
 
                 {activeProcesses.length === 0 ? (
                     <div className="p-12 text-center">
-                        <div className="w-16 h-16 bg-slate-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-16 h-16 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
                             <DocumentTextIcon className="w-8 h-8 text-slate-400" />
                         </div>
                         <h4 className="text-slate-900 dark:text-white font-bold mb-2">No processes tracked yet</h4>
@@ -297,7 +297,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                                 <div className="flex flex-wrap gap-2 mt-2">
                                                     <button
                                                         onClick={() => handleMarkResponseReceived(process.id, 'sufficient')}
-                                                        className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-lg text-xs font-bold text-slate-700 dark:text-zinc-300 hover:border-primary-500 hover:text-primary-600 transition-colors"
+                                                        className="px-3 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-lg text-xs font-bold text-slate-700 dark:text-zinc-300 hover:border-primary-500 hover:text-primary-600 transition-colors"
                                                     >
                                                         Mark Response Received
                                                     </button>
@@ -314,9 +314,9 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                                         return (
                                                             <div 
                                                                 onClick={() => onViewDocumentDetails && onViewDocumentDetails(doc.id)}
-                                                                className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-primary-400 cursor-pointer w-max transition-colors"
+                                                                className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 hover:border-primary-400 cursor-pointer w-max transition-colors"
                                                             >
-                                                                <div className="p-1.5 bg-slate-50 dark:bg-zinc-700 rounded text-slate-500">
+                                                                <div className="p-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 rounded text-slate-500">
                                                                     <DocumentTextIcon className="w-4 h-4" />
                                                                 </div>
                                                                 <div>
@@ -357,7 +357,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                     value={newProcess.processName}
                                     onChange={e => setNewProcess({ ...newProcess, processName: e.target.value })}
                                     placeholder={isProperty ? 'e.g. Lease Renewal, Tenant Notice' : 'e.g. Motion to Dismiss, Statement of Defence'}
-                                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                 />
                             </div>
 
@@ -367,7 +367,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                     type="date"
                                     value={newProcess.filedDate}
                                     onChange={e => setNewProcess({ ...newProcess, filedDate: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                 />
                             </div>
 
@@ -377,7 +377,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                     type="date"
                                     value={newProcess.responseExpectedBy}
                                     onChange={e => setNewProcess({ ...newProcess, responseExpectedBy: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                 />
                                 <p className="text-xs text-slate-500 mt-1">Leave blank if no response is required or deadline is unknown.</p>
                             </div>
@@ -388,7 +388,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                     <select
                                         value={newProcess.relatedDocumentId || ''}
                                         onChange={e => setNewProcess({ ...newProcess, relatedDocumentId: e.target.value })}
-                                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                     >
                                         <option value="">-- No Document --</option>
                                         {documents.map(doc => (

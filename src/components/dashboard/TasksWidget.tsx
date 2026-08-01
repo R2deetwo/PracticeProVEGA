@@ -108,13 +108,13 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
           <div className="flex bg-slate-200/50 dark:bg-zinc-800/50 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700">
             <button 
                 onClick={() => setViewType('due')}
-                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
             >
                 Due
             </button>
             <button 
                 onClick={() => setViewType('matter')}
-                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
             >
                 Matter
             </button>
@@ -125,7 +125,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-950/20">
+      <div className="flex-grow overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-900 dark:bg-zinc-950/20">
         {isLoading ? (
           <div className="p-4 space-y-3">
             <Skeleton height={20} width="60%" />

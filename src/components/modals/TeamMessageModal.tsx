@@ -148,7 +148,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                         <select
                             value={recipientId}
                             onChange={e => setRecipientId(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                            className="w-full bg-gray-50 dark:bg-zinc-800/50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
                         >
                             <option value="">Select a team member...</option>
                             {teamMembers.map((u: any) => (
@@ -167,16 +167,16 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                             onChange={e => setMessage(e.target.value)}
                             rows={5}
                             placeholder="Type your message..."
-                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
+                            className="w-full bg-gray-50 dark:bg-zinc-800/50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
                         />
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 flex justify-end gap-2">
+                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+                        className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
                     >
                         Cancel
                     </button>

@@ -85,7 +85,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
+      <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
         <div className="p-2 bg-white dark:bg-zinc-900 rounded shadow-sm">
           <PaperClipIcon className="w-6 h-6 text-primary-600 dark:text-primary-300" />
         </div>

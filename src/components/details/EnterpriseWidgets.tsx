@@ -221,7 +221,7 @@ const RealEstateTitleMatrix: React.FC<{ data?: any }> = ({ data }) => {
                         <p className={`text-2xs font-bold mt-2 uppercase tracking-wide ${data.stampDutyStatus === 'Paid' ? 'text-amber-400' : 'text-zinc-500'}`}>Stamping</p>
                     </div>
                     <div className="flex flex-col items-center">
-                        <div className={`w-4 h-4 rounded-full border-4 ring-2 ring-zinc-900 z-10 ${data.governorConsentStatus === 'Approved' ? 'bg-amber-400 border-amber-400' : (data.governorConsentStatus?.includes('Applied') ? 'bg-white border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)] animate-pulse' : 'bg-zinc-800 border-zinc-700')}`} />
+                        <div className={`w-4 h-4 rounded-full border-4 ring-2 ring-zinc-900 z-10 ${data.governorConsentStatus === 'Approved' ? 'bg-amber-400 border-amber-400' : (data.governorConsentStatus?.includes('Applied') ? 'bg-white dark:bg-zinc-900 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)] animate-pulse' : 'bg-zinc-800 border-zinc-700')}`} />
                         <p className={`text-2xs font-bold mt-2 uppercase tracking-wide ${data.governorConsentStatus === 'Approved' ? 'text-amber-400' : (data.governorConsentStatus?.includes('Applied') ? 'text-white' : 'text-zinc-500')}`}>Gov. Consent</p>
                     </div>
                     <div className="flex flex-col items-center">

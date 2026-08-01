@@ -146,7 +146,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
         <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matter</label>
-                <p className="p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{matter.title}</p>
+                <p className="p-2 bg-gray-100 dark:bg-zinc-800 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{matter.title}</p>
             </div>
 
             <div>

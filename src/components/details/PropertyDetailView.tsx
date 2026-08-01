@@ -658,9 +658,9 @@ const PropertyDetailViewContent: React.FC = () => {
 
 
     return (
-        <div className="flex flex-col bg-slate-50 dark:bg-zinc-900 h-full overflow-hidden">
+        <div className="flex flex-col bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 h-full overflow-hidden">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 z-20 shadow-sm">
+            <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 z-20 shadow-sm">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                     <button onClick={onGoBack} className="text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors text-xs font-bold uppercase flex items-center gap-1 flex-shrink-0">
@@ -684,7 +684,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                     <button
                         onClick={() => openModal('editProperty', property.id, { contactId: owner?.id })}
-                        className="px-2 sm:px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center gap-1 sm:gap-2"
+                        className="px-2 sm:px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center gap-1 sm:gap-2"
                     >
                         <EditIcon className="w-4 h-4" /><span className="hidden sm:inline">Edit</span>
                     </button>
@@ -694,7 +694,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
 
             {/* Tabs — horizontally scrollable on mobile */}
-            <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+            <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6">
                     <nav className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap scrollbar-none">
                         {([
@@ -730,7 +730,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {/* 1. Core Information & Quick Actions Row */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Identity Card */}
-                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700`}>
+                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700`}>
                                 <div className="flex justify-between items-start border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
                                     <div className="flex items-center gap-3">
                                         <h3 className="text-sm font-bold text-slate-800 dark:text-white">Property Information</h3>
@@ -743,7 +743,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             </button>
                                         )}
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${property.status === 'Occupied' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${property.status === 'Occupied' ? 'bg-green-100 text-green-800' : 'bg-slate-100 dark:bg-zinc-800 text-slate-800'}`}>
                                         {property.status}
                                     </span>
                                 </div>
@@ -820,7 +820,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                             {/* Quick Actions (Right Side) - ONLY for properties WITHOUT a Units tab */}
                             {!(isLeased || hasMultipleUnits) && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700 flex flex-col">
+                                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700 flex flex-col">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Quick Actions</h3>
                                     <div className="space-y-2 flex-grow">
                                         {isLeased ? (
@@ -874,7 +874,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {/* 2. Linked Matters & Automation Status */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Automation Status — compact summary */}
-                            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
+                            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
                                 <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
                                     <ZapIcon className="w-4 h-4 text-amber-500" /> Automation Status
                                 </h3>
@@ -904,11 +904,11 @@ const PropertyDetailViewContent: React.FC = () => {
                             </div>
 
                             {linkedMatters.length > 0 && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
+                                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
                                     <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3">{isProperty ? 'Linked Files' : 'Linked Matters'}</h3>
                                     <div className="space-y-2">
                                         {linkedMatters.map(m => (
-                                            <div key={m.id} className="p-2.5 bg-slate-50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between" onClick={() => navigateTo('matterDetail', m.id)}>
+                                            <div key={m.id} className="p-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between" onClick={() => navigateTo('matterDetail', m.id)}>
                                                 <div>
                                                     <p className="text-xs font-bold text-primary-600">{m.title}</p>
                                                     <p className="text-2xs text-slate-500">{m.stage} • {m.type}</p>
@@ -940,7 +940,7 @@ const PropertyDetailViewContent: React.FC = () => {
                     const isEmbeddedUnit = (unit: any) => legacyUnits.some((lu: any) => lu.id === unit.id);
                     const statusColors: Record<string, string> = {
                         'Occupied': 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
-                        'Vacant': 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-600',
+                        'Vacant': 'bg-slate-50 dark:bg-zinc-800/50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-600',
                         'Maintenance': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
                         'Listed': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
                     };
@@ -1016,7 +1016,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                             {/* Add Unit inline form */}
                             {showAddUnitForm && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-sm p-5">
+                                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-sm p-5">
                                     <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                                         <Plus className="w-4 h-4 text-primary-500" /> Add New Unit
                                     </h4>
@@ -1028,7 +1028,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 value={newUnitName}
                                                 onChange={e => setNewUnitName(e.target.value)}
                                                 placeholder="e.g. Unit 1A, Flat 3, Shop 2"
-                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                                 onKeyDown={e => { if (e.key === 'Enter') handleAddUnitSubmit(); if (e.key === 'Escape') setShowAddUnitForm(false); }}
                                                 autoFocus
                                             />
@@ -1038,7 +1038,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             <select
                                                 value={newUnitType}
                                                 onChange={e => setNewUnitType(e.target.value as 'Residential' | 'Commercial')}
-                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             >
                                                 <option value="Residential">Residential</option>
                                                 <option value="Commercial">Commercial</option>
@@ -1047,7 +1047,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-3 mt-4">
                                         <button onClick={handleAddUnitSubmit} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors">Add Unit</button>
-                                        <button onClick={() => { setShowAddUnitForm(false); setNewUnitName(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-sm font-bold rounded-lg transition-colors">Cancel</button>
+                                        <button onClick={() => { setShowAddUnitForm(false); setNewUnitName(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-sm font-bold rounded-lg transition-colors">Cancel</button>
                                     </div>
                                 </div>
                             )}
@@ -1210,7 +1210,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
                                                                 {d.floor && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
                                                             </div>
-                                                            <span className={`px-2 py-0.5 rounded-md text-2xs font-bold uppercase tracking-wide flex-shrink-0 border ${statusColors[uStatus] || 'bg-slate-50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}>
+                                                            <span className={`px-2 py-0.5 rounded-md text-2xs font-bold uppercase tracking-wide flex-shrink-0 border ${statusColors[uStatus] || 'bg-slate-50 dark:bg-zinc-800/50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}>
                                                                 {uStatus}
                                                             </span>
                                                         </div>
@@ -1338,7 +1338,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     </span>
                                                                 </Tooltip>
                                                             ) : (
-                                                                <span className="text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+                                                                <span className="text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/40">
                                                                     Vacant
                                                                 </span>
                                                             )}
@@ -1367,7 +1367,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 <div
                                                                     ref={unitMenuInnerRef}
                                                                     style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
-                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
                                                                 >
                                                                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
                                                                         <p className="text-3xs font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
@@ -1518,10 +1518,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             <Megaphone className="w-3 h-3" /> Demand
                                                                         </button>
                                                                     )}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} title="Message Tenant">
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} title="Message Tenant">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" title="Edit Unit">
+                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" title="Edit Unit">
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
                                                                     {/* More button — reveals full detail card */}
@@ -1561,7 +1561,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             <button onClick={handleSendPortalMessage} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-2xs font-bold rounded-lg transition-colors">
                                                                                 <Eye className="w-3.5 h-3.5" /> Portal
                                                                             </button>
-                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-2xs font-bold rounded-lg transition-colors">
+                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-2xs font-bold rounded-lg transition-colors">
                                                                                 <MessageSquare className="w-3.5 h-3.5 text-emerald-500" /> Compose
                                                                             </button>
                                                                         </div>
@@ -1587,7 +1587,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                         Paused
                                                                                     </span>
                                                                                 )}
-                                                                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+                                                                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 dark:bg-zinc-800 text-slate-600'}`}>
                                                                                     {String(unit.status || 'Vacant')}
                                                                                 </span>
                                                                             </div>
@@ -1692,7 +1692,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 <Wrench className="w-3 h-3" /> Maintenance
                                                                             </button>
                                                                             {uStatus !== 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Mark as Vacant">
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Mark as Vacant">
                                                                                     <Eye className="w-3 h-3" /> Vacant
                                                                                 </button>
                                                                             )}
@@ -1781,7 +1781,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
 
                         {/* Revenue Breakdown by Unit */}
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center justify-between">
                                 <h3 className="text-sm font-bold text-slate-800 dark:text-white">Revenue Breakdown by Unit</h3>
                                 <button onClick={() => navigateTo('atriumEngine')} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
@@ -1790,7 +1790,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
-                                    <thead className="bg-slate-50 dark:bg-zinc-900/50">
+                                    <thead className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50">
                                         <tr>
                                             <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Unit</th>
                                             <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Tenant</th>
@@ -1946,7 +1946,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
 
                         {/* Invoices */}
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
                                 <h4 className="font-bold text-sm text-slate-800 dark:text-white">Related Invoices</h4>
                             </div>
@@ -1958,7 +1958,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm">
-                                        <thead className="bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold uppercase text-xs">
+                                        <thead className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold uppercase text-xs">
                                             <tr>
                                                 <th className="px-4 py-3">Invoice #</th>
                                                 <th className="px-4 py-3">Date</th>
@@ -2007,8 +2007,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                     variant="embedded"
                                 />
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-12 bg-white dark:bg-zinc-800 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700">
-                                    <div className="p-3 bg-slate-100 dark:bg-zinc-900 rounded-full mb-3">
+                                <div className="flex flex-col items-center justify-center py-12 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700">
+                                    <div className="p-3 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-900 rounded-full mb-3">
                                         <MattersIcon className="w-8 h-8 text-slate-400" />
                                     </div>
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Linked Matter</h3>
@@ -2045,7 +2045,7 @@ const PropertyDetailViewContent: React.FC = () => {
 const ActionButton: React.FC<{ onClick: () => void; label: string }> = ({ onClick, label }) => (
     <button
         onClick={onClick}
-        className="w-full text-left px-3 py-2 bg-slate-50 dark:bg-zinc-700/50 rounded-lg border border-slate-100 dark:border-zinc-600 hover:border-primary-400 dark:hover:border-primary-500 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 flex justify-between items-center group hover:bg-white dark:hover:bg-zinc-700 hover:text-primary-600"
+        className="w-full text-left px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/50 rounded-lg border border-slate-100 dark:border-zinc-600 hover:border-primary-400 dark:hover:border-primary-500 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 flex justify-between items-center group hover:bg-white dark:hover:bg-zinc-700 hover:text-primary-600"
     >
         {label}
         <span className="text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
@@ -2130,7 +2130,7 @@ const PropertyNoticeBoard: React.FC<{
     const priorityConfig: Record<string, { bg: string; text: string; label: string; dot: string; border: string }> = {
         urgent: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-300', label: 'Urgent', dot: 'bg-rose-500', border: 'border-rose-200 dark:border-rose-800/50' },
         important: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', label: 'Important', dot: 'bg-amber-500', border: 'border-amber-200 dark:border-amber-800/50' },
-        normal: { bg: 'bg-slate-50 dark:bg-zinc-800', text: 'text-slate-600 dark:text-zinc-400', label: 'General', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-zinc-700' },
+        normal: { bg: 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800', text: 'text-slate-600 dark:text-zinc-400', label: 'General', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-zinc-700' },
     };
 
     const isLoading = notices === undefined;
@@ -2154,7 +2154,7 @@ const PropertyNoticeBoard: React.FC<{
 
             {/* Create Form */}
             {showForm && (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 space-y-4">
+                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 space-y-4">
                     <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">New Notice</h4>
                     <div className="space-y-3">
                         <input
@@ -2162,14 +2162,14 @@ const PropertyNoticeBoard: React.FC<{
                             value={newTitle}
                             onChange={e => setNewTitle(e.target.value)}
                             placeholder="Notice title (e.g., Water maintenance scheduled)"
-                            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
                         />
                         <textarea
                             value={newBody}
                             onChange={e => setNewBody(e.target.value)}
                             placeholder="Notice details... This will be visible to all residents on their portal."
                             rows={4}
-                            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
+                            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
                         />
                         <div className="flex flex-wrap items-center gap-4">
                             <div className="flex items-center gap-2">
@@ -2183,7 +2183,7 @@ const PropertyNoticeBoard: React.FC<{
                                             className={`px-2.5 py-1 rounded-lg text-2xs font-bold transition-all ${
                                                 newPriority === p
                                                     ? `${cfg.bg} ${cfg.text} ring-2 ring-offset-1 ring-current`
-                                                    : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                                                    : 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-600'
                                             }`}
                                         >
                                             {cfg.label}
@@ -2228,7 +2228,7 @@ const PropertyNoticeBoard: React.FC<{
             {isLoading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                        <div key={i} className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
                             <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
                             <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
                             <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
@@ -2243,7 +2243,7 @@ const PropertyNoticeBoard: React.FC<{
                         return (
                             <div
                                 key={notice._id}
-                                className={`bg-white dark:bg-zinc-800 rounded-xl border overflow-hidden transition-colors ${pri.border}`}
+                                className={`bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border overflow-hidden transition-colors ${pri.border}`}
                             >
                                 {notice.isPinned && (
                                     <div className="px-5 pt-3 flex items-center gap-1.5">

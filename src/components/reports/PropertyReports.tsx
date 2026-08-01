@@ -116,11 +116,11 @@ const PropertyReports: React.FC = () => {
                 <StatCard title="Rent Collected (YTD)" value={<><NairaSymbol/>{formatNaira(kpis.totalRentCollectedYTD)}</>} icon={<Receipt />} colorClass="text-blue-500" />
                 <StatCard title="Total Expected Rent" value={<><NairaSymbol/>{formatNaira(kpis.totalExpectedRent)}</>} icon={<Receipt />} colorClass="text-purple-500" />
             </div>
-             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+             <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">Rent Collection by Property (Top 10)</h3>
                 <BarChart data={chartData.revenueByProperty} color="bg-indigo-500" />
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">All Properties</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
@@ -138,7 +138,7 @@ const PropertyReports: React.FC = () => {
                                 <tr key={p.id}>
                                     <td className="py-3 px-4 font-medium truncate max-w-[200px]" title={p.address}>{p.address}</td>
                                     <td className="py-3 px-4 text-center">
-                                        <span className={`px-2 py-0.5 rounded-full text-2xs font-bold ${p.status === 'Occupied' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-2xs font-bold ${p.status === 'Occupied' ? 'bg-green-100 text-green-700' : 'bg-slate-100 dark:bg-zinc-800 text-slate-700'}`}>
                                             {p.status || 'Vacant'}
                                         </span>
                                     </td>

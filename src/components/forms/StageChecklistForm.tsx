@@ -96,8 +96,8 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
         <div className="flex p-1 bg-gray-200 dark:bg-zinc-800 dark:bg-zinc-900 rounded-lg">
-            <button type="button" onClick={() => setActiveTab('template')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'template' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}>Use Template</button>
-            <button type="button" onClick={() => setActiveTab('create')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'create' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}>Create New</button>
+            <button type="button" onClick={() => setActiveTab('template')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'template' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow' : ''}`}>Use Template</button>
+            <button type="button" onClick={() => setActiveTab('create')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'create' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow' : ''}`}>Create New</button>
         </div>
 
         {activeTab === 'template' ? (
@@ -113,7 +113,7 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
                 {selectedTemplate && (
                     <div>
                         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Template Preview</h4>
-                        <ul className="text-sm list-disc list-inside p-3 border rounded-md border-gray-200 dark:border-zinc-700 dark:border-gray-700 bg-gray-50 dark:bg-zinc-900/50 max-h-40 overflow-y-auto">
+                        <ul className="text-sm list-disc list-inside p-3 border rounded-md border-gray-200 dark:border-zinc-700 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 max-h-40 overflow-y-auto">
                             {selectedTemplate.items.map(item => <li key={item.id}>{item.text}</li>)}
                         </ul>
                     </div>
@@ -136,7 +136,7 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
                                     value={item.text}
                                     onChange={e => handleItemChange(index, e.target.value)}
                                     onKeyDown={handleItemKeyDown}
-                                    className="text-sm w-full bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-600 rounded p-1"
+                                    className="text-sm w-full bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-gray-300 dark:border-zinc-600 rounded p-1"
                                     placeholder="Enter checklist item..."
                                 />
                                 <button type="button" onClick={() => removeItem(index)} className="text-red-500 dark:text-red-400 hover:text-red-700"><TrashIcon className="w-4 h-4" /></button>

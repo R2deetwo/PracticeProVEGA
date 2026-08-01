@@ -107,7 +107,7 @@ const RECIPES: Recipe[] = [
 ];
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, headerColor?: string }> = ({ title, children, id, className, headerColor }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md ${className || ''}`}>
         {headerColor && <div className={`absolute top-0 left-0 right-0 h-1.5 ${headerColor}`}></div>}
         <div className="p-6 relative z-10">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
@@ -167,10 +167,10 @@ const RuleBuilder: React.FC<{
         return Array.from(allStages);
     }, [workflows]);
 
-    const inputClass = "w-full p-2 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-md text-sm";
+    const inputClass = "w-full p-2 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-md text-sm";
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 bg-slate-50 dark:bg-zinc-900/50 p-6 rounded-lg border border-slate-200 dark:border-zinc-700">
+        <form onSubmit={handleSubmit} className="space-y-6 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 p-6 rounded-lg border border-slate-200 dark:border-zinc-700">
             <div>
                 <label className="block text-sm font-bold mb-1">Rule Name</label>
                 <input autoComplete="off" data-lpignore="true"  type="text" value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="e.g. Discovery Task on Stage Change" required />
@@ -271,7 +271,7 @@ const RuleBuilder: React.FC<{
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-700">
-                <button type="button" onClick={onCancel} className="px-4 py-2 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md text-sm font-semibold">Cancel</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md text-sm font-semibold">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-bold shadow-sm">Save Rule</button>
             </div>
         </form>
@@ -331,7 +331,7 @@ const AutomationSettings: React.FC<AutomationSettingsProps> = ({ rules, workflow
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-zinc-800 rounded-xl p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
                         <ZapIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
@@ -348,7 +348,7 @@ const AutomationSettings: React.FC<AutomationSettingsProps> = ({ rules, workflow
                             <button
                                 key={recipe.id}
                                 onClick={() => handleApplyRecipe(recipe)}
-                                className="flex flex-col items-start p-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl hover:border-primary-500 hover:shadow-md transition-all text-left"
+                                className="flex flex-col items-start p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl hover:border-primary-500 hover:shadow-md transition-all text-left"
                             >
                                 <div className={`p-2 rounded-lg ${recipe.color} text-white mb-3 shadow-sm`}>
                                     {recipe.icon}
@@ -367,7 +367,7 @@ const AutomationSettings: React.FC<AutomationSettingsProps> = ({ rules, workflow
                         <div className="flex justify-end">
                             <button
                                 onClick={() => setView('builder')}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-sm shadow-sm hover:opacity-90"
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-bold text-sm shadow-sm hover:opacity-90"
                             >
                                 <PlusIcon className="w-4 h-4" /> Create Custom Rule
                             </button>
@@ -380,20 +380,20 @@ const AutomationSettings: React.FC<AutomationSettingsProps> = ({ rules, workflow
                         ) : (
                             <div className="space-y-3">
                                 {rules.map(rule => (
-                                    <div key={rule.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm">
+                                    <div key={rule.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm">
                                         <div className="flex items-center gap-4">
                                             <div
                                                 onClick={() => handleToggleAutomationRule(rule.id)}
                                                 className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${rule.isEnabled ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}
                                             >
-                                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${rule.isEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                <div className={`w-4 h-4 bg-white dark:bg-zinc-900 rounded-full shadow-sm transform transition-transform ${rule.isEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
                                             </div>
                                             <div>
                                                 <h4 className="font-bold text-slate-800 dark:text-white">{rule.name}</h4>
                                                 <p className="text-xs text-slate-500 dark:text-zinc-400">
-                                                    Trigger: <span className="font-mono bg-slate-100 dark:bg-zinc-700 px-1 rounded">{rule.triggerType}</span>
+                                                    Trigger: <span className="font-mono bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 px-1 rounded">{rule.triggerType}</span>
                                                     &rarr;
-                                                    Action: <span className="font-mono bg-slate-100 dark:bg-zinc-700 px-1 rounded">{rule.actions[0].type}</span>
+                                                    Action: <span className="font-mono bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 px-1 rounded">{rule.actions[0].type}</span>
                                                 </p>
                                             </div>
                                         </div>

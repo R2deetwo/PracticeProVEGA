@@ -50,7 +50,7 @@ const LinkContactModal: React.FC<LinkContactModalProps> = ({ matter, allContacts
           placeholder="Search contacts..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-md focus:ring-primary-500 focus:border-primary-500"
+          className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-md focus:ring-primary-500 focus:border-primary-500"
         />
       </div>
       <div className="max-h-60 overflow-y-auto pr-2 space-y-2 border-t border-b border-slate-200 dark:border-zinc-700 py-2">

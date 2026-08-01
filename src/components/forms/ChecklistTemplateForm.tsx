@@ -72,7 +72,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
 
     // inputClassic is now imported at top level
   const commonInputClass = "text-sm " + inputClassic;
-  const itemInputClass = "text-sm text-gray-900 dark:text-gray-300 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-1 focus:ring-primary-500 focus:border-primary-500";
+  const itemInputClass = "text-sm text-gray-900 dark:text-gray-300 w-full bg-white dark:bg-zinc-900 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-1 focus:ring-primary-500 focus:border-primary-500";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">

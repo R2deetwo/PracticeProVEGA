@@ -286,7 +286,7 @@ export const DockedModal: React.FC = () => {
                     <svg className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                   </button>
                 )) : (
-                  <div className="text-center py-12 bg-slate-50 dark:bg-zinc-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+                  <div className="text-center py-12 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
                     <p className="text-slate-500 font-medium text-sm mb-4">No contacts found.</p>
                     <button 
                       onClick={() => {
@@ -683,7 +683,7 @@ export const DockedModal: React.FC = () => {
             ${isVisible ? 'translate-x-0' : 'translate-x-full'}
           `}
         >
-          <header className="flex-shrink-0 flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 border-b border-slate-200 dark:border-zinc-700/50 bg-slate-50 dark:bg-zinc-900/80">
+          <header className="flex-shrink-0 flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 border-b border-slate-200 dark:border-zinc-700/50 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/80">
             <div className="text-base font-bold text-slate-800 dark:text-zinc-100 truncate max-w-xs min-w-0">{title}</div>
             <button onClick={() => closeModal()} className="active-press touch-target p-2 rounded-full text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
               <DismissIcon className="w-5 h-5" />

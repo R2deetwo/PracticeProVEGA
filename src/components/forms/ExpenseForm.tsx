@@ -88,7 +88,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Financial Disbursement Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <Receipt className="w-3.5 h-3.5" />
@@ -103,7 +103,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                         <label className={labelClass}>{hasPropertyFeatures ? 'Property' : 'Case'} Association</label>
                         <div className="relative">
                             <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <div className={`${commonInputClass} pl-11 bg-slate-50 dark:bg-zinc-900/50 flex items-center`}>
+                            <div className={`${commonInputClass} pl-11 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 flex items-center`}>
                                 {matter.title}
                             </div>
                         </div>
@@ -144,7 +144,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                         </div>
                     </div>                    <div className="flex flex-wrap justify-between items-center gap-4 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
                          <label htmlFor="isBillable" className="flex items-center gap-4 cursor-pointer">
-                            <div className={`p-1.5 rounded-lg transition-colors ${isBillable ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
+                            <div className={`p-1.5 rounded-lg transition-colors ${isBillable ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-900/30' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
                                 <Receipt className="w-3.5 h-3.5" />
                             </div>
                             <div>

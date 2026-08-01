@@ -160,7 +160,7 @@ export const NotificationSettings: React.FC = () => {
           Per-user in-app notification preferences (moved from Profile Settings).
           These control which in-app notifications YOU receive — distinct from
           the firm-wide email notifications below. */}
-      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5">
+      <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
             <BellIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -196,7 +196,7 @@ export const NotificationSettings: React.FC = () => {
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${isChecked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-600'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isChecked ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${isChecked ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
             );
@@ -309,7 +309,7 @@ export const NotificationSettings: React.FC = () => {
                       title={isAlwaysOn ? 'This notification type cannot be disabled' : isEnabled ? 'Click to disable' : 'Click to enable'}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform duration-200 ${
                           isEnabled ? 'translate-x-6' : 'translate-x-1'
                         }`}
                       />

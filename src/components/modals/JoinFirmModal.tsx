@@ -88,7 +88,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
 
   return (
     <div className="space-y-6">
-      <div className="text-center p-4 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
+      <div className="text-center p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-3">
           <OfficeBuildingIcon className="w-6 h-6 text-primary-600 dark:text-primary-300" />
         </div>

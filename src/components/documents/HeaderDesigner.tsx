@@ -474,7 +474,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                     >
                         <div
                             ref={canvasRef}
-                            className="bg-white shadow-2xl relative transition-transform duration-75 ease-out origin-top-left"
+                            className="bg-white dark:bg-zinc-900 shadow-2xl relative transition-transform duration-75 ease-out origin-top-left"
                             style={{
                                 width: '210mm', // A4 Width
                                 height: '297mm', // A4 Height (though we only care about top part usually)

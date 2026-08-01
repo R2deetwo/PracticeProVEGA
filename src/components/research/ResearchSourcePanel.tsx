@@ -51,20 +51,20 @@ export const ResearchSourcePanel: React.FC<ResearchSourcePanelProps> = ({
     const allSelected = sources.length > 0 && selectedSourceIds.length === sources.length;
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800">
             <div className="p-4 border-b border-slate-200 dark:border-zinc-800">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-sm text-slate-800 dark:text-white uppercase tracking-wider">Case Record</h3>
                     <button
                         onClick={onAddSource}
-                        className="p-1.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-sm"
+                        className="p-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-sm"
                         title="Add Source"
                     >
                         <PlusIcon className="w-4 h-4 text-primary-600" />
                     </button>
                 </div>
 
-                <div className="flex items-center justify-between px-2 py-1.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                <div className="flex items-center justify-between px-2 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg">
                     <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">{sources.length} Sources</span>
                     <button
                         onClick={onToggleSelectAll}

@@ -70,7 +70,7 @@ export const HeaderRenderer: React.FC<HeaderRendererProps> = ({ config, classNam
             </div>
 
             {/* Bottom Border/Line if desired (optional) */}
-            <div className="absolute bottom-4 left-4 right-4 h-px bg-slate-100" />
+            <div className="absolute bottom-4 left-4 right-4 h-px bg-slate-100 dark:bg-zinc-800" />
         </div>
     );
 };

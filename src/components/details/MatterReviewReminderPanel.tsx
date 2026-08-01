@@ -121,7 +121,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
                         {isDue && (
                             <button
                                 onClick={dismissReminder}
-                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
                             >
                                 <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" /> Done
                             </button>
@@ -153,7 +153,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
                     {reminder?.dismissed ? 'Set new review reminder' : 'Set review reminder'}
                 </button>
             ) : (
-                <div className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
                     <div className="flex items-center justify-between">
                         <h4 className="text-xs font-bold text-slate-700 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
                             <ClockIcon className="w-3.5 h-3.5" /> Review Reminder
@@ -167,7 +167,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
                             <button
                                 key={opt.days}
                                 onClick={() => setReminder(opt.days)}
-                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 text-slate-600 dark:text-zinc-200 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 text-slate-600 dark:text-zinc-200 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
                             >
                                 {opt.label}
                             </button>
@@ -181,7 +181,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
                             value={customDate}
                             min={new Date().toISOString().split('T')[0]}
                             onChange={e => setCustomDate(e.target.value)}
-                            className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                            className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-400"
                         />
                         <button
                             onClick={setCustomReminder}
@@ -198,7 +198,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
                         value={noteText}
                         onChange={e => setNoteText(e.target.value)}
                         placeholder="Add a note (optional)…"
-                        className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                        className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-primary-400"
                     />
                 </div>
             )}

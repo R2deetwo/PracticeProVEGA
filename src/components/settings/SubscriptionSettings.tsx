@@ -121,7 +121,7 @@ const PlanCard: React.FC<{
         buttonClass = 'bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 cursor-default';
     } else if (isDowngrade) {
         buttonText = 'Downgrade';
-        buttonClass = 'bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-600';
+        buttonClass = 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-600';
     } else {
         buttonText = 'Upgrade';
         if (isKomplete) {
@@ -134,7 +134,7 @@ const PlanCard: React.FC<{
     }
 
     return (
-        <div className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-300 ${isCurrent ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-lg ring-1 ring-primary-500' : isKomplete ? 'border-indigo-500/50 bg-indigo-50/10 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-primary-300 hover:shadow-md'}`}>
+        <div className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-300 ${isCurrent ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-lg ring-1 ring-primary-500' : isKomplete ? 'border-indigo-500/50 bg-indigo-50/10 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 hover:border-primary-300 hover:shadow-md'}`}>
             {isPopular && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-primary-600 text-white text-xs font-bold uppercase tracking-wide rounded-full shadow-sm">
                     Most Popular
@@ -158,7 +158,7 @@ const PlanCard: React.FC<{
             </div>
 
             {userLimit && (
-                <div className="mb-6 inline-block bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-2xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                <div className="mb-6 inline-block bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 px-2 py-0.5 rounded text-2xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     {userLimit}
                 </div>
             )}
@@ -277,7 +277,7 @@ const BillingCalculator: React.FC<{
     const addOnDisplay = addOnCost * multiplier;
 
     return (
-        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-6 shadow-sm mb-8">
+        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-6 shadow-sm mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${isSimulating ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
@@ -292,18 +292,18 @@ const BillingCalculator: React.FC<{
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-700/30 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700">
+                <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700">
                     <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
+                        <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
                         <span className={`w-8 text-center font-mono font-bold text-sm ${isSimulating ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>+{simulationCount}</span>
-                        <button onClick={() => setSimulationCount(Math.min(50, simulationCount + 1))} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 transition-all font-bold">+</button>
+                        <button onClick={() => setSimulationCount(Math.min(50, simulationCount + 1))} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 transition-all font-bold">+</button>
                     </div>
                     {isSimulating && <button onClick={() => setSimulationCount(0)} className="text-2xs font-bold text-primary-600 hover:underline ml-1">Reset</button>}
                 </div>
             </div>
             <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg">
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 rounded-lg">
                     <div className="flex items-center gap-3">
                         <div className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 p-1.5 rounded-full"><UserCircleIcon className="w-4 h-4" /></div>
                         <div><p className="font-bold text-sm text-slate-800 dark:text-white">{baseSeatLabel}</p><p className="text-xs text-slate-500">{currentPlan} Rate</p></div>
@@ -311,7 +311,7 @@ const BillingCalculator: React.FC<{
                     <p className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(baseDisplay)}</p>
                 </div>
                 {additionalSeats > 0 && (
-                    <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg">
+                    <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 rounded-lg">
                         <div className="flex items-center gap-3">
                             <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 p-1.5 rounded-full"><span className="font-bold text-xs">+{additionalSeats}</span></div>
                             <div><p className="font-bold text-sm text-slate-800 dark:text-white">Team Members</p><p className="text-xs text-slate-500">{addOnLabel}</p></div>
@@ -643,14 +643,14 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                 )}
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
-                        <button onClick={() => setIsAnnual(false)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${!isAnnual ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Monthly</button>
-                        <button onClick={() => setIsAnnual(true)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${isAnnual ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Yearly <span className="text-xs text-green-600 ml-1">-20%</span></button>
+                        <button onClick={() => setIsAnnual(false)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${!isAnnual ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Monthly</button>
+                        <button onClick={() => setIsAnnual(true)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${isAnnual ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Yearly <span className="text-xs text-green-600 ml-1">-20%</span></button>
                     </div>
                     <span className="text-2xs text-slate-500 max-w-[250px] text-right mt-1 leading-tight">Billing is processed annually. Contact us to arrange monthly payments.</span>
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 mt-2">
                         <span className={viewAsMonthlyCost ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Monthly Avg</span>
                         <div onClick={() => setViewAsMonthlyCost(!viewAsMonthlyCost)} className={`relative w-8 h-4 bg-slate-300 dark:bg-zinc-600 rounded-full cursor-pointer transition-colors ${!viewAsMonthlyCost ? 'bg-primary-500' : ''}`}>
-                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200 ${!viewAsMonthlyCost ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white dark:bg-zinc-900 rounded-full shadow-sm transition-transform duration-200 ${!viewAsMonthlyCost ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
                         </div>
                         <span className={!viewAsMonthlyCost ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Total Billed</span>
                     </div>

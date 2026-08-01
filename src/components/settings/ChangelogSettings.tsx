@@ -15,7 +15,7 @@ const EntryCard: React.FC<{ entry: ChangelogEntry; isLatest: boolean }> = ({ ent
     return (
         <div className={`rounded-xl border transition-all duration-200 ${isLatest
                 ? 'border-indigo-300 dark:border-indigo-600/50 bg-indigo-50/50 dark:bg-indigo-900/10'
-                : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50'
+                : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800/50'
             }`}>
             <button
                 onClick={() => setExpanded(p => !p)}
@@ -24,7 +24,7 @@ const EntryCard: React.FC<{ entry: ChangelogEntry; isLatest: boolean }> = ({ ent
                 <div className="flex items-center gap-3">
                     <div className={`px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide ${isLatest
                             ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
-                            : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'
+                            : 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'
                         }`}>
                         v{entry.version}
                     </div>
@@ -80,7 +80,7 @@ const ChangelogSettings: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-zinc-800 rounded-xl p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">What's New</h2>

@@ -33,7 +33,7 @@ const SendIntakeLinkModal: React.FC = () => {
         This simulates the email a prospective client would receive. Click the button below to view the intake portal from the client's perspective.
       </p>
 
-      <div className="border border-slate-200 dark:border-zinc-700 rounded-lg p-4 bg-slate-50 dark:bg-zinc-900">
+      <div className="border border-slate-200 dark:border-zinc-700 rounded-lg p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <p><span className="font-semibold">From:</span> {coreState.firmDetails.name}</p>
           <p><span className="font-semibold">To:</span> {lead.email}</p>

@@ -66,7 +66,7 @@ const CompactAudioPlayer: React.FC<{ items: StudioAnalysisResult[]; sourceCount:
         <div className="flex items-center gap-3 p-3 bg-zinc-900 dark:bg-black rounded-lg border border-zinc-700 dark:border-zinc-800">
             <button
                 onClick={handlePlay}
-                className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-white text-zinc-900 rounded-full hover:scale-105 transition-transform shadow"
+                className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-white dark:bg-zinc-900 text-zinc-900 rounded-full hover:scale-105 transition-transform shadow"
             >
                 {isPlaying ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4 ml-0.5" />}
             </button>
@@ -113,9 +113,9 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
     const contentHtml = parseAloaMarkdown(item.content);
 
     return (
-        <div className="bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
                 <button
                     onClick={() => setExpanded(e => !e)}
                     className="flex items-center gap-2 text-left flex-1 min-w-0"
@@ -129,7 +129,7 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
                     <button onClick={onSendToDraft} title="Send to DraftPro" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded hover:bg-indigo-100 transition-colors">
                         DraftPro (Beta)
                     </button>
-                    <button onClick={onSave} title="Save as document" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded hover:bg-slate-50 transition-colors">
+                    <button onClick={onSave} title="Save as document" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded hover:bg-slate-50 transition-colors">
                         <DownloadIcon className="w-3 h-3" /> Save
                     </button>
                     <button onClick={onDelete} title="Dismiss" className="p-1 text-slate-400 hover:text-red-500 transition-colors rounded">
@@ -218,7 +218,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
     if (sources.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-10 text-center bg-slate-50/50 dark:bg-zinc-900/50">
-                <div className="p-5 bg-white dark:bg-zinc-800 rounded-2xl mb-5 shadow-sm border border-slate-100 dark:border-zinc-700 relative">
+                <div className="p-5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl mb-5 shadow-sm border border-slate-100 dark:border-zinc-700 relative">
                     <DocumentsIcon className="w-12 h-12 text-slate-300 dark:text-zinc-600" />
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-800">
                         <PauseIcon className="w-2.5 h-2.5 text-white fill-current" />

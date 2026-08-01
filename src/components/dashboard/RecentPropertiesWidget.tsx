@@ -90,7 +90,7 @@ const RecentPropertiesWidget: React.FC<RecentPropertiesWidgetProps> = ({ propert
                     </div>
                 ) : recentProperties.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-2">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 flex items-center justify-center mb-2">
                             <OfficeBuildingIcon className="h-5 w-5 text-slate-400" />
                         </div>
                         <h3 className="text-xs font-medium text-slate-500 dark:text-zinc-400">No {activeCategory} Properties</h3>
@@ -121,7 +121,7 @@ const RecentPropertiesWidget: React.FC<RecentPropertiesWidgetProps> = ({ propert
                                     <div className={`px-2 py-0.5 rounded text-3xs font-black uppercase tracking-wider ${
                                         property.status === 'Occupied' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                         property.status === 'Vacant' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
-                                        'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
+                                        'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
                                     }`}>
                                         {property.status}
                                     </div>

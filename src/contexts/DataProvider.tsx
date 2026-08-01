@@ -139,14 +139,18 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }));
             try {
                 await updateItemMutation({ table, id: mutationId, data: item, userEmail: currentUser?.email });
-            } catch (e) {
+            } catch (e: any) {
                 if (previousItem) {
-                    setAppState(prev => ({ 
-                        ...prev, 
-                        [table]: (prev[tableKey] as any[]).map((i: any) => (matchesItem(i) ? previousItem : i)) 
+                    setAppState(prev => ({
+                        ...prev,
+                        [table]: (prev[tableKey] as any[]).map((i: any) => (matchesItem(i) ? previousItem : i))
                     }));
                 }
-                addToast(`Failed to update ${itemName || 'item'}. Reverting changes.`, { type: 'error' });
+                // Surface the actual error message so users can see WHY it
+                // failed (e.g., "Record not found", "Unauthenticated") instead
+                // of a generic "Failed to update item. Reverting changes."
+                const errMsg = e?.message || `Failed to update ${itemName || 'item'}.`;
+                addToast(errMsg, { type: 'error' });
                 throw e;
             }
         },

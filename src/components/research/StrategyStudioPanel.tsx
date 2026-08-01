@@ -25,7 +25,7 @@ export const StrategyStudioPanel: React.FC<StrategyStudioPanelProps> = ({
     onSaveToCase
 }) => {
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800">
             <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900 shadow-sm z-10">
                 <h3 className="font-bold text-sm text-slate-800 dark:text-white uppercase tracking-wider">Strategy Studio</h3>
                 <div className="w-5 h-5 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
@@ -48,7 +48,7 @@ export const StrategyStudioPanel: React.FC<StrategyStudioPanelProps> = ({
                     results.map(result => (
                         <div
                             key={result.id}
-                            className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                            className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm hover:shadow-md transition-all group overflow-hidden"
                         >
                             <div className="p-3 border-b border-slate-100 dark:border-zinc-700/50 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
                                 <div className="flex items-center gap-2">

@@ -88,7 +88,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
               </p>
             </div>
             
-            <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2">
+            <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2">
               <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Invite Code</p>
               <div className="text-3xl font-black tracking-[0.3em] text-primary-600 dark:text-primary-300 font-mono">
                 {inviteCode || 'CODE_PENDING'}
@@ -105,7 +105,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
             </div>
           </div>
 
-          <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+          <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="space-y-2 group">
                 <label htmlFor="name" className={labelClass}>Name</label>
@@ -134,7 +134,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
       <div className="space-y-2 sm:space-y-3 pb-6">
-        <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+        <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
           <div className="space-y-3">
             <div className="space-y-2 group">
               <label htmlFor="name" className={labelClass}>Name</label>

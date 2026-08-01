@@ -62,7 +62,7 @@ const ContactMessagesTab: React.FC<{
     };
 
     return (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-white">Messages & Communication History</h3>
@@ -97,7 +97,7 @@ const ContactMessagesTab: React.FC<{
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${msg.isRead ? 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
+                                            <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${msg.isRead ? 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
                                                 {msg.isRead ? 'Read' : 'New'}
                                             </span>
                                             {matter && (
@@ -130,7 +130,7 @@ const ContactMessagesTab: React.FC<{
                 </div>
             ) : (
                 <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                     </div>
                     <p className="text-sm font-medium text-slate-600 dark:text-zinc-300">No messages yet</p>
@@ -197,12 +197,12 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
     switch (activeTab) {
         case 'matters':
             return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Associated Matters</h3>
                         <button 
                             onClick={() => openModal('linkMatterToContact', contact.id)}
-                            className="px-3 py-1.5 bg-white dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-lg font-semibold text-xs border border-slate-200 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-600 flex items-center gap-2 shadow-sm"
+                            className="px-3 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-lg font-semibold text-xs border border-slate-200 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-600 flex items-center gap-2 shadow-sm"
                         >
                             <LinkIcon className="w-3.5 h-3.5"/> Link Existing
                         </button>
@@ -210,7 +210,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                     {matters.length > 0 ? (
                         <ul className="space-y-3">
                             {matters.map(matter => (
-                                <li key={matter.id} onClick={() => onViewMatterDetails(matter.id)} className="p-4 bg-slate-50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-100 dark:border-zinc-700 transition-all group">
+                                <li key={matter.id} onClick={() => onViewMatterDetails(matter.id)} className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-100 dark:border-zinc-700 transition-all group">
                                     <div className="flex justify-between items-center">
                                         <div>
                                             <p className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{matter.title}</p>
@@ -232,7 +232,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             );
         case 'properties':
             return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Property Portfolio</h3>
                         <button onClick={() => openModal('newProperty', contact.id)} className="px-3 py-1.5 bg-primary-600 text-white rounded-lg font-bold text-xs hover:bg-primary-700 flex items-center gap-2 shadow-sm transition-colors">
@@ -271,7 +271,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             );
         case 'relationships':
             return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Relationship Map</h3>
                     </div>
@@ -291,7 +291,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                     {matters.map(m => (
                                         <div key={m.id} className="flex flex-col items-center">
                                             <div className="w-0.5 h-6 bg-slate-300 dark:bg-zinc-600 z-0"></div>
-                                            <div onClick={() => onViewMatterDetails(m.id)} className="bg-slate-50 dark:bg-zinc-700/50 border border-slate-200 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 font-bold py-2 px-4 rounded-xl shadow-sm text-xs text-center cursor-pointer hover:border-primary-400 hover:shadow-md transition-all max-w-[120px]">
+                                            <div onClick={() => onViewMatterDetails(m.id)} className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/50 border border-slate-200 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 font-bold py-2 px-4 rounded-xl shadow-sm text-xs text-center cursor-pointer hover:border-primary-400 hover:shadow-md transition-all max-w-[120px]">
                                                 {m.title}
                                             </div>
                                         </div>
@@ -310,11 +310,11 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
         case 'overview':
         default:
              return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8">
                         <DetailItem label="Email" value={<a href={`mailto:${contact.email}`} className="text-primary-600 hover:underline">{contact.email}</a>} />
                         <DetailItem label="Phone" value={contact.phone || 'N/A'} />
-                        <DetailItem label="Category" value={<span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-700 rounded text-xs font-semibold">{contact.category}</span>} />
+                        <DetailItem label="Category" value={<span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 rounded text-xs font-semibold">{contact.category}</span>} />
                         <div className="col-span-full">
                              <DetailItem label="Address" value={<div className="whitespace-pre-wrap">{contact.address || 'N/A'}</div>} />
                         </div>
@@ -352,7 +352,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                 {contact.jobTitle && <DetailItem label="Job Title" value={contact.jobTitle} />}
                                 {contact.companyName && <DetailItem label="Company" value={contact.companyName} />}
                                 {contact.website && <DetailItem label="Website" value={<a href={contact.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline truncate block">{contact.website}</a>} />}
-                                {contact.notes && <div className="md:col-span-2"><DetailItem label="Notes" value={<div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap bg-slate-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-slate-100 dark:border-zinc-700/50 text-slate-600">{contact.notes}</div>} /></div>}
+                                {contact.notes && <div className="md:col-span-2"><DetailItem label="Notes" value={<div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 p-3 rounded-lg border border-slate-100 dark:border-zinc-700/50 text-slate-600">{contact.notes}</div>} /></div>}
                             </div>
                         </div>
                     )}
@@ -364,7 +364,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   return (
     <div data-item-id={contact.id} ref={containerRef} className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center">
+      <div className="flex-shrink-0 px-6 py-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center">
         <div className="flex items-center gap-4">
             <button onClick={onGoBack} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
                  <ChevronRightIcon className="w-5 h-5 rotate-180" />
@@ -405,13 +405,13 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                         }
                     });
                 }} 
-                className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors shadow-sm flex items-center gap-2"
+                className="px-3 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors shadow-sm flex items-center gap-2"
             >
                 <TrashIcon className="w-3.5 h-3.5" /> Delete
             </button>
             <button 
                 onClick={() => openModal('mergeContact', contact.id)} 
-                className="px-3 py-1.5 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shadow-sm"
+                className="px-3 py-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shadow-sm"
             >
                 Merge Contact
             </button>
@@ -422,7 +422,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
       </div>
       
       {/* Tabs */}
-      <div className="flex-shrink-0 px-6 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+      <div className="flex-shrink-0 px-6 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800">
             <nav className="-mb-px flex space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap">
                 <button onClick={() => setActiveTab('overview')} className={`flex-shrink-0 py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'overview' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>Overview</button>
                 <button onClick={() => setActiveTab('matters')} className={`flex-shrink-0 py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'matters' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>Matters ({matters.length})</button>
@@ -436,7 +436,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             </nav>
         </div>
 
-        <div className="flex-grow overflow-y-auto p-6 custom-scrollbar bg-slate-50 dark:bg-zinc-900">
+        <div className="flex-grow overflow-y-auto p-6 custom-scrollbar bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
              <div className="max-w-5xl mx-auto">
                 {renderTabContent()}
                 {/* Bidirectional linking — notes that mention this contact */}

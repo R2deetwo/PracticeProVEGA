@@ -27,7 +27,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ matterId, hideHeader })
     if (activities.length === 0 && hideHeader) return null;
 
     return (
-        <div className={`bg-white dark:bg-zinc-800 p-4 ${hideHeader ? 'rounded-none shadow-none border-none' : 'rounded-xl shadow-md border border-black/5 dark:border-white/5'} overflow-hidden`}>
+        <div className={`bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-4 ${hideHeader ? 'rounded-none shadow-none border-none' : 'rounded-xl shadow-md border border-black/5 dark:border-white/5'} overflow-hidden`}>
             {!hideHeader && <h4 className="font-bold text-slate-500 text-xs uppercase mb-3 tracking-wider">Activity History</h4>}
             
             {/* Horizontal Timeline Container */}
@@ -51,7 +51,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ matterId, hideHeader })
                                     </span>
                                 </div>
                                 
-                                <div className="bg-slate-50 dark:bg-zinc-700/30 p-3 rounded-lg border border-slate-100 dark:border-zinc-700/50 text-xs">
+                                <div className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 p-3 rounded-lg border border-slate-100 dark:border-zinc-700/50 text-xs">
                                      <p className="font-semibold text-slate-800 dark:text-zinc-200 truncate">{activity.userName}</p>
                                      <p className="text-slate-600 dark:text-zinc-400 mt-0.5 leading-snug line-clamp-2">
                                         {activity.action} <strong className="text-slate-800 dark:text-white font-medium">{activity.targetName}</strong>

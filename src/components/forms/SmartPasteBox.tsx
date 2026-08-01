@@ -46,7 +46,7 @@ const SmartPasteBox: React.FC<SmartPasteBoxProps> = ({ onExtract }) => {
                         value={pastedText}
                         onChange={(e) => setPastedText(e.target.value)}
                         rows={4}
-                        className="w-full p-4 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none"
+                        className="w-full p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none"
                     />
                     <button
                         type="button"

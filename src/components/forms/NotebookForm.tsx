@@ -56,11 +56,11 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
       {appMode === 'multi' && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visibility</label>
-          <div className="flex space-x-4 rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
-            <button type="button" onClick={() => setScope(NoteScope.Firm)} className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors ${scope === NoteScope.Firm ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+          <div className="flex space-x-4 rounded-lg bg-gray-100 dark:bg-zinc-800 dark:bg-gray-700 p-1">
+            <button type="button" onClick={() => setScope(NoteScope.Firm)} className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors ${scope === NoteScope.Firm ? 'bg-white dark:bg-zinc-900 dark:bg-gray-800 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
               Firm
             </button>
-            <button type="button" onClick={() => setScope(NoteScope.Private)} className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors ${scope === NoteScope.Private ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+            <button type="button" onClick={() => setScope(NoteScope.Private)} className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors ${scope === NoteScope.Private ? 'bg-white dark:bg-zinc-900 dark:bg-gray-800 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
               Private
             </button>
           </div>
@@ -71,7 +71,7 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
       )}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
-        <div className="flex flex-wrap gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <div className="flex flex-wrap gap-2 p-2 bg-gray-100 dark:bg-zinc-800 dark:bg-gray-700 rounded-lg">
           {PALETTE_COLORS.map(c => (
             <button
               type="button"

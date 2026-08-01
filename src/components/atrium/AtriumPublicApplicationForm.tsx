@@ -34,7 +34,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
 
     if (submitted) {
         return (
-            <div className="max-w-md mx-auto mt-10 p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 text-center">
+            <div className="max-w-md mx-auto mt-10 p-8 bg-white dark:bg-zinc-900 dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 text-center">
                 <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircleIcon className="w-8 h-8" />
                 </div>
@@ -47,7 +47,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
     }
 
     return (
-        <div className="max-w-xl mx-auto mt-10 p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
+        <div className="max-w-xl mx-auto mt-10 p-8 bg-white dark:bg-zinc-900 dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 rounded-xl">
                     <BuildingOfficeIcon className="w-6 h-6" />
@@ -70,7 +70,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                             type="text"
                             value={applicantName}
                             onChange={e => setApplicantName(e.target.value)}
-                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="John Doe"
                         />
                     </div>
@@ -84,7 +84,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                             type="text"
                             value={contactInfo}
                             onChange={e => setContactInfo(e.target.value)}
-                            className="block w-full pl-3 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            className="block w-full pl-3 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="john@example.com or +234..."
                         />
                     </div>
@@ -101,7 +101,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                             type="number"
                             value={proposedRent}
                             onChange={e => setProposedRent(e.target.value)}
-                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="e.g. 2500000"
                         />
                     </div>
@@ -117,7 +117,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                             value={notes}
                             onChange={e => setNotes(e.target.value)}
                             rows={3}
-                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="Briefly describe your employment status and intended use of the property..."
                         />
                     </div>

@@ -51,7 +51,7 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white"
+                    className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-white"
                     placeholder="Enter page title..."
                     autoFocus
                     required

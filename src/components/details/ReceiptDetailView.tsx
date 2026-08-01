@@ -71,9 +71,9 @@ const ReceiptDetailViewContent: React.FC = () => {
   const formattedIssueDate = new Date(invoice.issueDate).toLocaleDateString('en-GB', dateOptions);
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 dark:bg-zinc-900 relative overflow-hidden">
+    <div className="h-full flex flex-col bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-900 relative overflow-hidden">
       {/* Top Bar */}
-      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 z-20">
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 z-20">
         <Breadcrumbs items={[
           { label: 'Billing', onClick: () => navigateTo('billing') },
           { label: invoice.invoiceNumber, onClick: onGoBack },
@@ -84,7 +84,7 @@ const ReceiptDetailViewContent: React.FC = () => {
           <span className="text-xs font-mono text-slate-400 w-12 text-center">{Math.round(zoom * 100)}%</span>
           <Tooltip text="Zoom In"><button onClick={handleZoomIn} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"><ZoomInIcon className="w-5 h-5" /></button></Tooltip>
           <div className="h-6 w-px bg-slate-200 dark:border-zinc-700 mx-2"></div>
-          <button onClick={handleDownloadPdf} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-sm transition-colors shadow-sm">
+          <button onClick={handleDownloadPdf} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-sm transition-colors shadow-sm">
             <PrinterIcon className="w-4 h-4" />
             PDF
           </button>
@@ -98,7 +98,7 @@ const ReceiptDetailViewContent: React.FC = () => {
       {/* Preview Area */}
       <div className="flex-grow overflow-auto bg-slate-200/50 dark:bg-zinc-900 flex justify-center p-8">
         <div
-          className="bg-white text-black shadow-2xl transition-transform duration-200 origin-top relative"
+          className="bg-white dark:bg-zinc-900 text-black shadow-2xl transition-transform duration-200 origin-top relative"
           style={{
             width: '210mm',
             minHeight: '297mm',
@@ -162,7 +162,7 @@ const ReceiptDetailViewContent: React.FC = () => {
               </table>
             </div>
 
-            <div className="bg-slate-50 p-8 rounded-lg text-center border border-slate-100 my-8">
+            <div className="bg-slate-50 dark:bg-zinc-800/50 p-8 rounded-lg text-center border border-slate-100 my-8">
               <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Total Amount Paid</p>
               <p className="text-4xl font-bold text-slate-900"><NairaSymbol />{formatNaira(totalAmount)}</p>
             </div>

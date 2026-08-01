@@ -86,6 +86,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
     const recordAcceptance = useMutation(api.myFunctions.recordTermsAcceptance);
     const previousVersion = getPreviousVersion();
     const isUpdate = previousVersion !== null && previousVersion !== TERMS_VERSION;
+    const isFirstTime = previousVersion === null;
 
     if (dismissed) return null;
 
@@ -93,9 +94,6 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
         // 1. localStorage — for fast UI gating (bar doesn't reappear)
         markTermsAccepted();
         // 2. Database — for NDPA §25 demonstrable consent (durable, server-side)
-        // This is fire-and-forget — if it fails, the user still gets to use
-        // the app (localStorage is the gate). But we log the error so we
-        // can investigate missing consent records.
         try {
             await recordAcceptance({
                 termsVersion: TERMS_VERSION,
@@ -107,9 +105,9 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
         onAccepted();
     };
 
-    const handleDismiss = () => {
+    const handleDecline = () => {
         setDismissed(true);
-        onClose?.();
+        onDeclined();
     };
 
     return (
@@ -130,20 +128,22 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                                         onClick={() => openLegalDocument('privacy')}
                                         className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2"
                                     >Privacy Policy</button>
-                                    . Please review and accept to continue.
+                                    . Please review and accept to continue creating new entries.
                                 </>
                             ) : (
-                                <>By continuing, you agree to our{' '}
-                                    <button
-                                        onClick={() => openLegalDocument('terms')}
-                                        className="text-primary-400 hover:text-primary-300 font-semibold underline underline-offset-2"
-                                    >Terms of Service</button>
-                                    {' '}and{' '}
-                                    <button
-                                        onClick={() => openLegalDocument('privacy')}
-                                        className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2"
-                                    >Privacy Policy</button>
-                                    .
+                                <>You can view your existing data, but{' '}
+                                    <strong className="text-white">you must accept our{' '}
+                                        <button
+                                            onClick={() => openLegalDocument('terms')}
+                                            className="text-primary-400 hover:text-primary-300 font-semibold underline underline-offset-2"
+                                        >Terms of Service</button>
+                                        {' '}and{' '}
+                                        <button
+                                            onClick={() => openLegalDocument('privacy')}
+                                            className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2"
+                                        >Privacy Policy</button>
+                                    </strong>{' '}
+                                    to create new entries.
                                 </>
                             )}
                         </p>
@@ -152,11 +152,11 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                     {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <button
-                            onClick={handleDismiss}
-                            className="text-xs text-slate-400 hover:text-slate-200 dark:hover:text-zinc-200 px-2 py-2 transition-colors"
-                            title="Review later"
+                            onClick={handleDecline}
+                            className="text-xs text-slate-400 hover:text-red-400 px-3 py-2 transition-colors font-semibold"
+                            title="Log out"
                         >
-                            Later
+                            Decline
                         </button>
                         <button
                             onClick={handleAccept}

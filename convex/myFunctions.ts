@@ -2843,6 +2843,84 @@ export const clearAllNotifications = mutation({
 });
 
 /**
+ * updateTaskStatus — Dedicated mutation for updating a task's status.
+ *
+ * WHY THIS EXISTS:
+ * The generic updateItem mutation was failing for task status updates
+ * (drag-and-drop in the Kanban board) because:
+ * 1. The `id` field was included in the patch data and got patched onto
+ *    the document (it should only be used for lookup, not patching)
+ * 2. resolveRecordForUpdate couldn't find tasks created via createTask
+ *    (which don't have a custom `id` field) when the frontend passed
+ *    a UUID instead of the Convex _id
+ * 3. The error message was swallowed by the generic "Failed to update"
+ *    toast, making debugging impossible
+ *
+ * This dedicated mutation:
+ * - Tries ctx.db.get(taskId) first (works for Convex _id strings)
+ * - Falls back to scanning by the custom `id` field (for legacy tasks)
+ * - Patches ONLY the `status` field (never touches `id`)
+ * - Returns a clear error if the task isn't found
+ */
+export const updateTaskStatus = mutation({
+  args: {
+    taskId: v.string(),
+    status: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+
+    // Try to find the task by Convex _id first, then by custom id field
+    let task: any = null;
+
+    // Strategy 1: Try as Convex _id
+    try {
+      task = await ctx.db.get(args.taskId as any);
+    } catch {
+      // taskId is not a valid Convex _id — fall through to Strategy 2
+    }
+
+    // Strategy 2: Look up by custom `id` field (legacy tasks)
+    if (!task) {
+      task = await ctx.db
+        .query("tasks")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .filter((q: any) => q.eq(q.field("id"), args.taskId))
+        .first();
+    }
+
+    // Strategy 3: Scan all firm tasks and match by id or _id
+    if (!task) {
+      const allTasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .take(1000);
+      task = allTasks.find((t: any) =>
+        t.id === args.taskId ||
+        String(t._id) === String(args.taskId)
+      );
+    }
+
+    if (!task) {
+      throw new Error(`Task not found (looked for id: ${args.taskId}). The task may have been deleted or you may not have access.`);
+    }
+
+    if (task.firmId && task.firmId !== firmId) {
+      throw new Error("Unauthorized. This task belongs to another organization.");
+    }
+
+    // Patch ONLY the status field — never touch `id` or other fields
+    await ctx.db.patch(task._id, {
+      status: args.status,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true, taskId: task._id, status: args.status };
+  },
+});
+
+/**
  * recordTermsAcceptance — Stores a durable, server-side record of a user
  * accepting the Terms of Service / Privacy Policy.
  *

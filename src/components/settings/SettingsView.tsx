@@ -159,7 +159,7 @@ const SectionHeading: React.FC<{ label: string }> = ({ label }) => (
 
 // ─── Locked Demo Panel (unchanged) ───────────────────────────────────────
 const LockedDemoPanel: React.FC<{ title: string, description: string, onSignup: () => void }> = ({ title, description, onSignup }) => (
-    <div className="flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-zinc-800 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-700 h-full">
+    <div className="flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-700 h-full">
         <div className="p-4 bg-primary-50 dark:bg-zinc-700 rounded-2xl mb-6">
             <LockClosedIcon className="w-12 h-12 text-primary-500" />
         </div>
@@ -538,7 +538,7 @@ export const SettingsView: React.FC = () => {
     };
 
     return (
-        <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-zinc-950 overflow-hidden">
+        <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-950 overflow-hidden">
             {/* ─── Header (sticky, consistent across breakpoints) ─────────────── */}
             <header className="sticky top-0 pt-safe z-30 flex-shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-zinc-800">
                 <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">

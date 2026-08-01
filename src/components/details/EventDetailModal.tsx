@@ -101,7 +101,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/50 dark:bg-zinc-800/20 p-4 rounded-2xl border border-slate-100 dark:border-zinc-700/30">
              <div className="flex items-start gap-3">
-                <div className="p-2 bg-white dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
+                <div className="p-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
                     <CalendarIcon className="w-5 h-5" />
                 </div>
                 <div>
@@ -112,7 +112,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                 </div>
              </div>
              <div className="flex items-start gap-3">
-                <div className="p-2 bg-white dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
+                <div className="p-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
                     <ClockIcon className="w-5 h-5" />
                 </div>
                 <div>
@@ -200,7 +200,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
             <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-black text-2xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
             <div className="flex flex-1 justify-end items-center gap-2 w-full sm:w-auto">
                 {event.date && openedFrom !== 'calendar' && onNavigateToCalendar && (
-                    <button type="button" onClick={() => onNavigateToCalendar(new Date(event.date).toISOString().split('T')[0], event.id)} className="px-4 py-2.5 bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-black text-2xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm whitespace-nowrap">
+                    <button type="button" onClick={() => onNavigateToCalendar(new Date(event.date).toISOString().split('T')[0], event.id)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-black text-2xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm whitespace-nowrap">
                         View in Calendar
                     </button>
                 )}

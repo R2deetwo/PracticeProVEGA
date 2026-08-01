@@ -588,7 +588,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Core Profile Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <OfficeBuildingIcon className="w-3.5 h-3.5" />
@@ -713,7 +713,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Amenities Section --- */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <SparklesIcon className="w-3.5 h-3.5" />
@@ -865,7 +865,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         <div className="pt-4 border-t border-rose-200 dark:border-rose-800 mt-2 space-y-2 sm:space-y-3">
                             <label className={labelClass}>Linked Matter (Dispute)</label>
                             {linkedMatterId ? (
-                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
+                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
                                             <BriefcaseIcon className="w-4 h-4" />
@@ -1123,7 +1123,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                                 setLegalPctStr(String(parsed));
                                                 updateUnit(activeUnitIndex, 'legalFeePercentage', parsed);
                                             }}
-                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
+                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
                                             placeholder="10"
                                         />
                                         {!unitsData[activeUnitIndex].isLegalNA && (
@@ -1161,7 +1161,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                                 setAgencyPctStr(String(parsed));
                                                 updateUnit(activeUnitIndex, 'agencyFeePercentage', parsed);
                                             }}
-                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
+                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
                                             placeholder="10"
                                         />
                                         {!unitsData[activeUnitIndex].isAgencyNA && (
@@ -1184,7 +1184,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         disabled={unitsData[activeUnitIndex].isCautionNA}
                                         value={unitsData[activeUnitIndex].isCautionNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].cautionDeposit || 0)}
                                         onChange={e => updateUnit(activeUnitIndex, 'cautionDeposit', parseFormattedNumber(e.target.value))}
-                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isCautionNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
+                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isCautionNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''}`}
                                         placeholder="0.00"
                                     />
                                 </div>
@@ -1305,7 +1305,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 {activeUnitIndex === 0 && ownershipType !== 'owned' && ( // Management fee is property-level, only show it once
                                     <div className="space-y-2 group">
                                         <label className={labelClass}>Management Fee (%)</label>
-                                        <div className="flex bg-white dark:bg-zinc-800 p-1.5 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
+                                        <div className="flex bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-1.5 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
                                             <input autoComplete="off" data-lpignore="true" 
                                                 type="number"
                                                 value={managementFee}
@@ -1341,7 +1341,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex justify-between items-center px-1">
                         <div className="flex items-center gap-4">
                             <div className="p-1.5 bg-slate-600 text-white rounded-lg shadow-sm ring-2 ring-slate-500/10">
@@ -1370,7 +1370,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
                         {images.length > 0 ? images.map((img, idx) => (
-                            <div key={idx} className="relative group aspect-square rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden bg-slate-50 dark:bg-zinc-900 shadow-sm">
+                            <div key={idx} className="relative group aspect-square rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 shadow-sm">
                                 {img.type.startsWith('image/') ? (
                                     <img src={img.dataUrl} alt="Prop" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                 ) : (

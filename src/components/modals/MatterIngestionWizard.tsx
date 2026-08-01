@@ -283,7 +283,7 @@ export const MatterIngestionWizard: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(95vh-60px)] w-full bg-white dark:bg-zinc-900 overflow-hidden">
       {/* Context Info (Replaced original header) */}
-      <div className="px-8 py-4 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-3">
+      <div className="px-8 py-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-3">
         <div className="p-1.5 bg-primary-600 rounded-lg text-white">
           <SparklesIcon className="w-5 h-5" />
         </div>
@@ -361,7 +361,7 @@ export const MatterIngestionWizard: React.FC = () => {
 
         {/* STEP 2: SCANNING / MAPPING */}
         {step === 'scanning' && (
-          <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-slate-50 dark:bg-zinc-900/50">
+          <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50">
             <div className="relative w-32 h-32 mb-8">
               <div className="absolute inset-0 border-4 border-primary-100 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
@@ -418,7 +418,7 @@ export const MatterIngestionWizard: React.FC = () => {
                 </thead>
                 <tbody>
                   {draftMatters.map(draft => (
-                    <tr key={draft.id} className="bg-slate-50 hover:bg-white dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-all rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800">
+                    <tr key={draft.id} className="bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-all rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800">
                       <td className="p-4 rounded-l-xl">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-blue-100 text-blue-600 dark:text-blue-400 rounded flex items-center justify-center">
@@ -456,7 +456,7 @@ export const MatterIngestionWizard: React.FC = () => {
               </table>
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50 dark:bg-zinc-900/50">
+            <div className="p-6 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50">
               <div>
                 {ingestionError && (
                   <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-1">⚠ Last attempt failed: {ingestionError}</p>
@@ -513,11 +513,11 @@ export const MatterIngestionWizard: React.FC = () => {
             </p>
 
             <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-12">
-              <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+              <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
                 <p className="text-2xl font-bold text-slate-900 dark:text-white">{draftMatters.length}</p>
                 <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Matters Created</p>
               </div>
-              <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+              <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
                 <p className="text-2xl font-bold text-slate-900 dark:text-white">{importDocuments ? files.length : 0}</p>
                 <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Documents Synced</p>
               </div>

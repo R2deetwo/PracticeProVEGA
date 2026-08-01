@@ -90,7 +90,7 @@ const AccountRecoverySettings: React.FC = () => {
                 </div>
             </div>
 
-            <div className="p-5 bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-5">
+            <div className="p-5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-5">
                 <div className="relative">
                     <SearchIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input autoComplete="off" data-lpignore="true" 
@@ -98,7 +98,7 @@ const AccountRecoverySettings: React.FC = () => {
                         placeholder="Search user by email address..."
                         value={searchEmail}
                         onChange={(e) => setSearchEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm dark:text-white transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm dark:text-white transition-all"
                     />
                 </div>
 
@@ -118,7 +118,7 @@ const AccountRecoverySettings: React.FC = () => {
                 {users !== undefined && users.length > 0 && (
                     <div className="space-y-3">
                         {users.map((user: any) => (
-                            <div key={user._id} className="flex flex-col sm:flex-row gap-4 p-4 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-900/50 hover:border-indigo-300 transition-colors">
+                            <div key={user._id} className="flex flex-col sm:flex-row gap-4 p-4 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 hover:border-indigo-300 transition-colors">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                         <h4 className="font-bold text-slate-900 dark:text-white">{user.name}</h4>
