@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Matter, User, UserRole, CalendarEvent } from '../../types';
 import { useProduct } from '../../contexts/ProductContext';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
+import { useUI } from '../../contexts/UIContext';
 
 interface AssignUsersFormProps {
     item: { id: string; assignedUsers?: string[] };
@@ -16,6 +17,7 @@ interface AssignUsersFormProps {
 
 const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemTitle, users, onUpdate, onClose }) => {
     const { isProperty } = useProduct();
+    const { addToast } = useUI();
     const [assigned, setAssigned] = useState(() => new Set(item.assignedUsers || []));
 
     const handleToggle = (userId: string) => {
@@ -29,6 +31,10 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (assigned.size === 0) {
+            addToast('At least one user must be assigned.', { type: 'info' });
+            return;
+        }
         await onUpdate(item.id, Array.from(assigned));
         onClose();
     };

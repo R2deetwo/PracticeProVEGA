@@ -4,6 +4,7 @@ import { UploadIcon, TrashIcon } from '../../constants';
 import { inputClassic } from '../../utils/formStyles';
 import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
+import { useUI } from '../../contexts/UIContext';
 
 interface FirmDetailsFormProps {
   firmDetails: FirmDetails;
@@ -12,6 +13,7 @@ interface FirmDetailsFormProps {
 }
 
 const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdateFirmDetails, onClose }) => {
+  const { addToast } = useUI();
   const [name, setName] = useState(firmDetails.name);
   const [address, setAddress] = useState(firmDetails.address);
   const [logoUrl, setLogoUrl] = useState(firmDetails.logoUrl || '');
@@ -38,7 +40,8 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!name.trim()) { addToast('Firm name is required.', { type: 'error' }); return; }
+
     // Parse VAT rate
     let newVatRate = parseFloat(vatRateInput) / 100;
     if (isNaN(newVatRate)) newVatRate = 0.075;

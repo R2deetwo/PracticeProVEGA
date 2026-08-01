@@ -242,6 +242,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
     const handleSubmit = async () => {
         if (!title && !autoTitle) { addToast('Please enter a matter title.', { type: 'error' }); return; }
         if (!isNewClient && !clientId) { addToast('Please select or create a client.', { type: 'error' }); return; }
+        // Validate new client name when "New Client" toggle is on
+        if (isNewClient && !newClientName.trim()) { addToast('Please enter the new client name.', { type: 'error' }); return; }
 
         setIsSubmitting(true);
         try {

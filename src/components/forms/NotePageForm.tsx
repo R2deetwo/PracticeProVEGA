@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUI } from '../../contexts/UIContext';
 
 interface NotePageFormProps {
     onAdd: (page: any) => void;
@@ -18,10 +19,11 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
     const [title, setTitle] = useState('');
     const { coreState, isDataLoaded } = useCoreState();
     const { currentUser } = useAuth();
+    const { addToast } = useUI();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!title.trim()) { addToast('Please enter a page title.', { type: 'info' }); return; }
 
         const now = new Date().toISOString();
         const newPage = {

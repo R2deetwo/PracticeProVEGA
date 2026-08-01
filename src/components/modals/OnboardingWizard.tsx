@@ -4,6 +4,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { SubscriptionPlan } from '../../types';
 import { translateError } from '../../utils/errorTranslator';
+import { openLegalDocument } from '../../utils/legalLinks';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogoutIcon, CheckIcon, LockClosedIcon, RevertIcon } from '../../constants';
 import { useMutation } from "convex/react";
@@ -381,7 +382,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             <div className="max-w-md mx-auto pt-2 flex items-start gap-3">
               <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 text-primary-600 dark:text-primary-300 border-slate-200 dark:border-zinc-700 rounded focus:ring-primary-500 cursor-pointer transition-all" />
               <label htmlFor="agree-dpa" className="text-2xs text-slate-400 font-medium leading-relaxed cursor-pointer select-none">
-                I agree to the <button type="button" onClick={() => navigateTo('dataProcessingAgreement')} className="text-primary-600 dark:text-primary-300 hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => navigateTo('termsOfService')} className="text-primary-600 dark:text-primary-300 hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
+                I agree to the <button type="button" onClick={() => openLegalDocument('dpa')} className="text-primary-600 dark:text-primary-300 hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => openLegalDocument('terms')} className="text-primary-600 dark:text-primary-300 hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
               </label>
             </div>
 

@@ -13,6 +13,7 @@ import {
     ChevronRightIcon
 } from '../../constants';
 import { ProcessActionCenter } from './ProcessActionCenter';
+import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 
 interface MatterProcessTrackingProps {
@@ -28,6 +29,7 @@ interface MatterProcessTrackingProps {
 
 const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, onUpdate, hideSuggestions = false, documents = [], onViewDocumentDetails, tasks = [], onUpdateTaskStatus, openModal }) => {
     const { isProperty, terminology } = useProduct();
+    const { addToast } = useUI();
     // Enterprise detection: has any specialtyData subkey populated
     const isEnterpriseMatter = !!(matter.specialtyData && (
         matter.specialtyData.maritime || matter.specialtyData.oilGas ||
@@ -65,7 +67,10 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
     const activeProcesses = matter.processTracking?.activeProcesses || [];
 
     const handleAddProcess = () => {
-        if (!newProcess.processName || !newProcess.filedDate) return;
+        if (!newProcess.processName || !newProcess.filedDate) {
+            addToast('Please enter both a process name and date filed.', { type: 'info' });
+            return;
+        }
 
         const process: MatterProcess = {
             id: crypto.randomUUID(),

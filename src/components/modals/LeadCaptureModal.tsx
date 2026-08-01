@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { SparklesIcon, MailIcon } from '../../constants';
+import { openLegalDocument } from '../../utils/legalLinks';
 
 const LeadCaptureModal: React.FC = () => {
   const { loginAsDemoUser } = useAuth();
@@ -114,7 +115,7 @@ const LeadCaptureModal: React.FC = () => {
         </button>
         
         <p className="text-center text-xs text-slate-400">
-          By continuing, you agree to our <button type="button" onClick={() => { closeModal(); setTimeout(() => navigateTo('privacyPolicy'), 100); }} className="underline hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400">Privacy Policy</button>.
+          By continuing, you agree to our <button type="button" onClick={() => openLegalDocument('privacy')} className="underline hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400">Privacy Policy</button> and <button type="button" onClick={() => openLegalDocument('terms')} className="underline hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400">Terms of Service</button>.
         </p>
       </form>
     </div>

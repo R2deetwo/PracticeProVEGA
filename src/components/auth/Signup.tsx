@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { inputLarge } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
+import { openLegalDocument } from '../../utils/legalLinks';
 import { isNativePlatform } from '../../utils/capacitor';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -513,7 +514,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
        />
        <label htmlFor="terms" className="text-xs text-slate-600 ">
-        I agree to the <button type="button" onClick={() => navigateTo('termsOfService')} className="text-primary-600 font-bold hover:underline">Terms of Service</button>.
+        I agree to the <button type="button" onClick={() => openLegalDocument('terms')} className="text-primary-600 font-bold hover:underline">Terms of Service</button>.
        </label>
       </div>
       <div className="flex items-center gap-3">
@@ -525,7 +526,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
        />
        <label htmlFor="privacy" className="text-xs text-slate-600 ">
-        I have read and agree to the <button type="button" onClick={() => navigateTo('privacyPolicy')} className="text-primary-600 font-bold hover:underline">Privacy Policy</button>.
+        I have read and agree to the <button type="button" onClick={() => openLegalDocument('privacy')} className="text-primary-600 font-bold hover:underline">Privacy Policy</button>.
        </label>
       </div>
      </div>

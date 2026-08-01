@@ -170,6 +170,14 @@ const MatterDetailViewContent: React.FC = () => {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [updatingStage, setUpdatingStage] = useState<string | null>(null);
 
+    // Reset active tab if the current tab's render condition becomes false
+    // (e.g., user was on the 'billing' tab but lost billing permission)
+    useEffect(() => {
+        if (activeTab === 'billing' && !canViewBilling) {
+            setActiveTab('notes');
+        }
+    }, [activeTab, canViewBilling]);
+
     // Robust persistent baseline logic per tab
     const getTabBaseline = (tab: MatterTab) => {
         const matterId = matterData?.id || selectedId || '';

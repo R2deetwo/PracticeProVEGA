@@ -53,6 +53,10 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
       addToast('Please add at least one recipient.', { type: 'info' });
       return;
     }
+    if (!body.trim()) {
+      addToast('Please write a message body.', { type: 'info' });
+      return;
+    }
 
     // If no subject, ask once inline (instead of opening a separate deleteConfirmation modal)
     if (!subject.trim() && !confirmNoSubject) {
