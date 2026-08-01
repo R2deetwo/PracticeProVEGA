@@ -19,9 +19,9 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.practicepro.admin',
-  appName: 'PracticePro Admin',
+  appName: 'PracticePro Founder',
   webDir: 'dist-admin',
-  backgroundColor: '#0f172a',
+  backgroundColor: '#000000',
   android: {
     allowMixedContent: true,
     captureInput: false,
@@ -29,18 +29,22 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1000,
-      backgroundColor: '#0f172a',
+      // Native splash is the FINAL phase of the founder loading
+      // sequence (Green → Orange → Black). Black background matches
+      // the founder brand standard. The HTML overlay in admin.html
+      // then plays the full color transition on top of this black.
+      launchShowDuration: 800,
+      backgroundColor: '#000000',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       androidSpinnerStyle: 'large',
-      spinnerColor: '#16A34A',
+      spinnerColor: '#FFFFFF',
       splashFullScreen: true,
       splashImmersive: true,
     },
     LocalNotifications: {
       smallIcon: 'ic_notification',
-      iconColor: '#16A34A',
+      iconColor: '#000000',
       sound: 'notification.wav',
     },
   },

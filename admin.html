@@ -3,15 +3,154 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-content" />
-    <title>PracticePro Admin — Platform Control Center</title>
-    <meta name="description" content="PracticePro Admin — Platform management, firm monitoring, and user account control." />
-    <meta name="theme-color" content="#0F172A" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 8 36 28'%3E%3Cpath d='M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z' fill='%230F172A'/%3E%3Cpath d='M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z' fill='white'/%3E%3Cpath d='M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z' fill='%230F172A'/%3E%3C/svg%3E" type="image/svg+xml" />
+    <title>PracticePro Founder — Platform Control Center</title>
+    <meta name="description" content="PracticePro Founder — Platform management, firm monitoring, scaling signals, and founder-grade metrics." />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 8 36 28'%3E%3Cpath d='M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z' fill='%23000000'/%3E%3Cpath d='M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z' fill='white'/%3E%3Cpath d='M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z' fill='%23000000'/%3E%3C/svg%3E" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      /* ============================================================
+         FOUNDER LOADING SCREEN — green → orange → black
+         This is the standard splash for the Founder APK only.
+         The consumer app (index.html) is completely untouched.
+         ============================================================ */
+      #founder-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #16A34A; /* GREEN — phase 1 */
+        color: #000;
+        font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+        animation: founderSplashBg 3.6s ease-in-out forwards;
+        transition: opacity 420ms ease;
+        overflow: hidden;
+      }
+      @keyframes founderSplashBg {
+        0%   { background: #16A34A; }   /* GREEN  */
+        45%  { background: #16A34A; }   /* hold green */
+        55%  { background: #F97316; }   /* ORANGE — phase 2 */
+        85%  { background: #F97316; }   /* hold orange */
+        100% { background: #000000; }   /* BLACK — phase 3, founder brand */
+      }
+      /* Black logo mark — same proportions as the consumer icon, but
+         rendered in BLACK as the standard for the Founder App. */
+      #founder-splash .logo-mark {
+        width: 84px;
+        height: 84px;
+        border-radius: 22px;
+        background: #000;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        animation: founderLogoPulse 1.8s ease-in-out infinite;
+      }
+      /* On the green phase, the black logo has a subtle white outline;
+         on the black phase the outline fades so the logo blends with the
+         black background (pure black-on-black with white "P"). */
+      @keyframes founderLogoPulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.0); }
+        50%      { transform: scale(1.04); box-shadow: 0 0 0 6px rgba(255,255,255,0.06); }
+      }
+      #founder-splash .logo-mark svg {
+        width: 56px;
+        height: 56px;
+      }
+      #founder-splash .brand {
+        margin-top: 24px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        font-size: 22px;
+        color: #000;
+        opacity: 0.92;
+        animation: founderBrandShift 3.6s ease-in-out forwards;
+      }
+      /* Brand text is black on green/orange, then flips to white on black
+         so it stays legible in the final phase. */
+      @keyframes founderBrandShift {
+        0%, 85%  { color: #000000; }
+        100%     { color: #FFFFFF; }
+      }
+      #founder-splash .ready-tag {
+        margin-top: 10px;
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
+        font-weight: 900;
+        font-size: 28px;
+        letter-spacing: 0.18em;
+        color: #000;
+        opacity: 0;
+        transform: translateY(8px);
+        animation: founderReadyReveal 3.6s ease-in-out forwards;
+      }
+      /* "FOUNDER" in BLACK — revealed in the final (black) phase.
+         On the black background, "FOUNDER" sits inside a small white
+         chip so the black text stays readable. */
+      @keyframes founderReadyReveal {
+        0%, 80% { opacity: 0; transform: translateY(8px); }
+        100%    { opacity: 1; transform: translateY(0); }
+      }
+      #founder-splash .ready-tag .chip {
+        display: inline-block;
+        background: #FFFFFF;
+        color: #000000;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 22px;
+        letter-spacing: 0.22em;
+      }
+      #founder-splash .progress {
+        position: absolute;
+        bottom: 64px;
+        width: 180px;
+        height: 3px;
+        background: rgba(0,0,0,0.18);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      #founder-splash .progress::after {
+        content: "";
+        display: block;
+        height: 100%;
+        width: 0%;
+        background: #000;
+        animation: founderProgress 3.6s ease-in-out forwards;
+      }
+      @keyframes founderProgress {
+        0%   { width: 0%;   background: #000; }
+        55%  { width: 55%;  background: #000; }
+        85%  { width: 85%;  background: #000; }
+        100% { width: 100%; background: #FFFFFF; }
+      }
+      /* When the React app mounts, it adds the .hidden class to fade out. */
+      #founder-splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body>
+    <!-- Founder loading screen (admin APK only) -->
+    <div id="founder-splash" aria-hidden="true">
+      <div class="logo-mark" aria-label="PracticePro Founder logo">
+        <!-- Same icon shape as the consumer app, but BLACK — standard for the Founder App -->
+        <svg viewBox="14 8 36 28" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z" fill="#000000" stroke="#FFFFFF" stroke-width="1.5"/>
+          <path d="M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z" fill="#FFFFFF"/>
+          <path d="M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z" fill="#000000"/>
+        </svg>
+      </div>
+      <div class="brand">PracticePro</div>
+      <div class="ready-tag"><span class="chip">FOUNDER</span></div>
+      <div class="progress" aria-hidden="true"></div>
+    </div>
+
     <div id="admin-root"></div>
     <script type="module" src="/src/admin/main.tsx"></script>
   </body>

@@ -202,3 +202,242 @@ export const updateFirmAdminSettings = mutation({
     return { success: true };
   },
 });
+
+/**
+ * query: getFounderAlerts
+ * Returns founder-grade signals the Founder APK surfaces both as a
+ * "Signals" tab and as LOCAL notifications on the device:
+ *
+ *   - newUsers24h / newUsers7d  : signups worth celebrating
+ *   - churnRisks                 : users who haven't been seen in 14+ days
+ *   - newFirms24h                : new firm sign-ups
+ *   - scalingSignals             : computed health-of-platform flags
+ *                                  (active ratio, matter velocity,
+ *                                   revenue per firm, plan concentration)
+ *   - productBreakdown           : per-product metrics for legal / property
+ *                                  / unified — firms, users, matters, and
+ *                                  7-day matter velocity, so the founder
+ *                                  can decide which product to push.
+ *   - lastUpdated                 : ISO timestamp
+ *
+ * All thresholds are intentionally conservative — we'd rather surface a
+ * signal late than cry wolf.
+ */
+export const getFounderAlerts = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+    const churnThreshold = now - (14 * DAY);
+    const inactiveThreshold = now - (30 * DAY);
+
+    const [firms, users, matters, invoices, presence] = await Promise.all([
+      ctx.db.query("firms").collect(),
+      ctx.db.query("users").collect(),
+      ctx.db.query("matters").collect(),
+      ctx.db.query("invoices").collect(),
+      ctx.db.query("presence").collect(),
+    ]);
+
+    // ─── New users / firms ────────────────────────────────────────────
+    const newUsers24h = users.filter((u: any) => (u._creationTime || 0) > now - DAY);
+    const newUsers7d  = users.filter((u: any) => (u._creationTime || 0) > now - (7 * DAY));
+    const newFirms24h = firms.filter((f: any) => (f._creationTime || 0) > now - DAY);
+
+    // ─── Churn signals ────────────────────────────────────────────────
+    // A user is a churn risk if:
+    //   - they've existed for >14 days AND
+    //   - they have no presence record in the last 14 days AND
+    //   - they have no presence record at all OR lastSeen < churnThreshold
+    const presenceByUser = new Map<string, number>();
+    presence.forEach((p: any) => {
+      const ts = p.updatedAt || p._creationTime || 0;
+      const cur = presenceByUser.get(p.userId) || 0;
+      if (ts > cur) presenceByUser.set(p.userId, ts);
+    });
+
+    const churnRisks = users
+      .filter((u: any) => {
+        const created = u._creationTime || 0;
+        if (created > churnThreshold) return false; // too new
+        const lastSeen = presenceByUser.get(u._id) || 0;
+        // If we have presence data and they're active, not a risk.
+        if (lastSeen > churnThreshold) return false;
+        // If we have no presence data, only flag if user is older than 30d
+        if (lastSeen === 0 && created > inactiveThreshold) return false;
+        return true;
+      })
+      .map((u: any) => ({
+        name: u.name || u.email || 'Unknown',
+        email: u.email || '',
+        firmId: u.firmId || null,
+        daysSinceSeen: Math.floor((now - (presenceByUser.get(u._id) || u._creationTime || now)) / DAY),
+      }))
+      .sort((a, b) => b.daysSinceSeen - a.daysSinceSeen)
+      .slice(0, 25);
+
+    // ─── Active users (last 24h) ──────────────────────────────────────
+    const activeUserIds = new Set(
+      presence.filter((p: any) => (p.updatedAt || p._creationTime || 0) > now - DAY).map((p: any) => p.userId)
+    );
+    const activeCount = users.filter((u: any) => activeUserIds.has(u._id)).length;
+
+    // ─── Matter velocity (7-day vs prior 7-day) ───────────────────────
+    const mattersLast7d = matters.filter((m: any) => (m._creationTime || 0) > now - (7 * DAY)).length;
+    const mattersPrior7d = matters.filter((m: any) => {
+      const t = m._creationTime || 0;
+      return t > now - (14 * DAY) && t <= now - (7 * DAY);
+    }).length;
+    const matterVelocityDelta = mattersLast7d - mattersPrior7d;
+
+    // ─── Revenue (paid invoices) ──────────────────────────────────────
+    const totalRevenue = invoices
+      .filter((i: any) => i.status === "Paid")
+      .reduce((sum: number, i: any) => sum + (i.total_amount || 0), 0);
+    const revenuePerFirm = firms.length > 0 ? totalRevenue / firms.length : 0;
+
+    // ─── Plan concentration (top plan share) ──────────────────────────
+    const planMap: Record<string, number> = {};
+    firms.forEach((f: any) => {
+      const p = f.subscriptionPlan || "Core";
+      planMap[p] = (planMap[p] || 0) + 1;
+    });
+    const planEntries = Object.entries(planMap).sort((a, b) => b[1] - a[1]);
+    const topPlan = planEntries[0]?.[0] || "Core";
+    const topPlanShare = firms.length > 0 ? ((planEntries[0]?.[1] || 0) / firms.length) : 0;
+
+    // ─── Per-product breakdown (legal / property / unified) ───────────
+    // `product` field on firms/users holds one of these values; missing
+    // or null defaults to "unified" (the broad SaaS tier).
+    const PRODUCTS = ["legal", "property", "unified"] as const;
+    const productBreakdown = PRODUCTS.map(product => {
+      const productFirms = firms.filter((f: any) => (f.product || "unified") === product);
+      const productFirmIds = new Set(productFirms.map((f: any) => f._id));
+      const productUsers = users.filter((u: any) => (u.product || "unified") === product || productFirmIds.has(u.firmId));
+      const productMatters = matters.filter((m: any) => productFirmIds.has(m.firmId));
+      const productMatters7d = productMatters.filter((m: any) => (m._creationTime || 0) > now - (7 * DAY)).length;
+      const productRevenue = invoices
+        .filter((i: any) => i.status === "Paid" && productFirmIds.has(i.firmId))
+        .reduce((sum: number, i: any) => sum + (i.total_amount || 0), 0);
+      return {
+        product,
+        firms: productFirms.length,
+        users: productUsers.length,
+        matters: productMatters.length,
+        matters7d: productMatters7d,
+        revenue: productRevenue,
+      };
+    });
+
+    // ─── Scaling signals (computed flags) ─────────────────────────────
+    const activeRatio = users.length > 0 ? activeCount / users.length : 0;
+    const scalingSignals: { id: string; severity: "info" | "warning" | "critical"; title: string; detail: string; }[] = [];
+
+    if (activeRatio < 0.20 && users.length >= 10) {
+      scalingSignals.push({
+        id: "low-active-ratio",
+        severity: activeRatio < 0.10 ? "critical" : "warning",
+        title: "Low active-user ratio",
+        detail: `${Math.round(activeRatio * 100)}% of users active in the last 24h (${activeCount}/${users.length}). Consider a re-engagement push.`,
+      });
+    }
+    if (matterVelocityDelta < 0 && (mattersLast7d + mattersPrior7d) >= 10) {
+      scalingSignals.push({
+        id: "matter-velocity-down",
+        severity: "warning",
+        title: "Matter creation slowing down",
+        detail: `${mattersLast7d} matters in the last 7 days vs ${mattersPrior7d} the week before (${Math.abs(matterVelocityDelta)} drop).`,
+      });
+    } else if (matterVelocityDelta > 0 && mattersLast7d >= 5) {
+      scalingSignals.push({
+        id: "matter-velocity-up",
+        severity: "info",
+        title: "Matter creation accelerating",
+        detail: `${mattersLast7d} matters in the last 7 days vs ${mattersPrior7d} the week before (+${matterVelocityDelta}). Scaling well — ensure capacity.`,
+      });
+    }
+    if (topPlanShare > 0.7 && firms.length >= 10) {
+      scalingSignals.push({
+        id: "plan-concentration",
+        severity: "warning",
+        title: `Plan concentration: ${topPlan}`,
+        detail: `${Math.round(topPlanShare * 100)}% of firms are on the "${topPlan}" plan. Diversify by upselling or launching adjacent products.`,
+      });
+    }
+    if (churnRisks.length >= 5) {
+      scalingSignals.push({
+        id: "churn-pool-growing",
+        severity: churnRisks.length >= 10 ? "critical" : "warning",
+        title: "Churn risk pool growing",
+        detail: `${churnRisks.length} users haven't been seen in 14+ days. Reach out before they fully churn.`,
+      });
+    }
+    if (newFirms24h.length > 0) {
+      scalingSignals.push({
+        id: "new-firms",
+        severity: "info",
+        title: `${newFirms24h.length} new firm${newFirms24h.length !== 1 ? "s" : ""} in 24h`,
+        detail: newFirms24h.map((f: any) => f.name || "Unnamed").slice(0, 3).join(", "),
+      });
+    }
+    // Push-product recommendation: surface the product with the highest
+    // 7-day velocity / firm ratio (i.e., the one growing fastest per
+    // customer) — that's the product most worth pushing.
+    const pushCandidates = productBreakdown
+      .filter(p => p.firms > 0)
+      .map(p => ({
+        product: p.product,
+        velocityPerFirm: p.matters7d / p.firms,
+        firms: p.firms,
+        matters7d: p.matters7d,
+      }))
+      .sort((a, b) => b.velocityPerFirm - a.velocityPerFirm);
+    const pushProduct = pushCandidates[0] || null;
+
+    return {
+      newUsers24h: newUsers24h.map((u: any) => ({ name: u.name || u.email || "Unknown", email: u.email || "", product: u.product || "unified" })),
+      newUsers24hCount: newUsers24h.length,
+      newUsers7dCount: newUsers7d.length,
+      newFirms24h: newFirms24h.map((f: any) => ({ name: f.name || "Unnamed Firm", product: f.product || "unified" })),
+      newFirms24hCount: newFirms24h.length,
+      churnRisks,
+      churnRiskCount: churnRisks.length,
+      activeCount,
+      totalUsers: users.length,
+      totalFirms: firms.length,
+      mattersLast7d,
+      mattersPrior7d,
+      matterVelocityDelta,
+      totalRevenue,
+      revenuePerFirm,
+      topPlan,
+      topPlanShare,
+      productBreakdown,
+      pushProduct,
+      scalingSignals,
+      lastUpdated: new Date().toISOString(),
+    };
+  },
+});
+
+/**
+ * mutation: recordFounderSignalSeen
+ * Lightweight marker so the founder's device can dedupe notifications
+ * (we store a tiny "lastSeenSignalsAt" per admin in localStorage as well,
+ * but this server-side record makes it work across reinstalls).
+ */
+export const recordFounderSignalSeen = mutation({
+  args: {
+    signalIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("analytics_events", {
+      firmId: "system",
+      userId: "founder",
+      event: "Founder signals acknowledged",
+      properties: { signalIds: args.signalIds, ts: Date.now() },
+      timestamp: Date.now(),
+    });
+    return { success: true };
+  },
+});

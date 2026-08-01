@@ -35,40 +35,40 @@ export const AdminLogin: React.FC = () => {
     };
 
     return (
-        <div className="h-[100dvh] flex items-center justify-center bg-slate-900 p-4">
+        <div className="h-[100dvh] flex items-center justify-center bg-black p-4">
             <div className="w-full max-w-sm">
-                {/* Logo */}
+                {/* Logo — black mark, standard for the Founder App */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-black text-2xl shadow-xl mb-3">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-black border border-zinc-700 flex items-center justify-center text-white font-black text-2xl shadow-xl mb-3">
                         P
                     </div>
-                    <h1 className="text-2xl font-black text-white tracking-tight">PracticePro Admin</h1>
-                    <p className="text-sm text-slate-500 mt-1">Platform Control Center</p>
+                    <h1 className="text-2xl font-black text-white tracking-tight">PracticePro Founder</h1>
+                    <p className="text-sm text-zinc-500 mt-1">Platform Control Center</p>
                 </div>
 
                 {/* Login form */}
-                <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 space-y-4">
                     <div>
-                        <label className="text-2xs font-bold text-slate-400 uppercase tracking-widest">Email</label>
+                        <label className="text-2xs font-bold text-zinc-400 uppercase tracking-widest">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            placeholder="admin@practicepro.ng"
+                            placeholder="founder@practicepro.ng"
                             required
                             autoFocus
-                            className="w-full mt-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            className="w-full mt-1 px-3 py-2.5 bg-black border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white"
                         />
                     </div>
                     <div>
-                        <label className="text-2xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
+                        <label className="text-2xs font-bold text-zinc-400 uppercase tracking-widest">Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             placeholder="••••••••"
                             required
-                            className="w-full mt-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            className="w-full mt-1 px-3 py-2.5 bg-black border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white"
                         />
                     </div>
 
@@ -81,18 +81,18 @@ export const AdminLogin: React.FC = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-2.5 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-2.5 bg-white text-black rounded-lg font-bold text-sm hover:bg-zinc-200 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isLoading ? (
                             <span className="flex items-center justify-center gap-2">
-                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                                 Signing in...
                             </span>
                         ) : 'Sign In'}
                     </button>
                 </form>
 
-                <p className="text-center text-2xs text-slate-600 mt-4">
+                <p className="text-center text-2xs text-zinc-600 mt-4">
                     Authorized personnel only. All actions are logged.
                 </p>
             </div>
