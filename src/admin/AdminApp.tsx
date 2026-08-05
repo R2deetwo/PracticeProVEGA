@@ -1,31 +1,28 @@
 /**
  * AdminApp — the shell for the PracticePro Founder APK.
  *
- * NEVER RETURNS NULL — always renders something:
- *   1. While session is loading → show FounderSplashScreen (stays visible)
- *   2. After splash completes + session resolves:
+ * MOBILE-OPTIMIZED LAYOUT:
+ *   The founder APK uses a BOTTOM NAV (like the consumer app) instead of
+ *   a sidebar. This is optimized for portrait mode on phones.
+ *
+ *   - No sidebar (saves screen space)
+ *   - Bottom nav with 6 items: Dashboard, Signals, Firms, Users, Audit, Settings
+ *   - Main content fills the full screen with bottom padding for the nav
+ *
+ * AUTH FLOW:
+ *   1. If session is loading → show splash (stays visible)
+ *   2. After splash + session resolves:
  *      a. Not authenticated → show AdminLogin
  *      b. Authenticated but role ≠ 'Founder' → show Access Denied
- *      c. Authenticated as Founder → show dashboard
- *
- * SPLASH FLOW:
- *   The splash is a React component (FounderSplashScreen), NOT an HTML
- *   overlay. It plays the green → orange → black → "FOUNDER" animation
- *   using the same timing as the consumer app's SplashScreen (1.9s total).
- *   The splash stays visible until BOTH:
- *     - The splash animation has completed (splashDone = true)
- *     - The auth session has resolved (isLoadingSession = false)
- *   This guarantees there's never a white screen gap.
+ *      c. Authenticated as Founder → show dashboard with bottom nav
  *
  * ROLE SEPARATION:
  *   - role='Admin'  = firm-level admin (lawyer). Uses the consumer app.
  *   - role='Founder' = platform-level founder. Uses this APK.
- *   A firm admin who downloads this APK gets "Access Denied".
  */
 
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { AdminSidebar } from './AdminSidebar';
 import { FounderDashboard } from '../components/FounderDashboard';
 import { FirmManagement } from './views/FirmManagement';
 import { UserManagement } from './views/UserManagement';
@@ -34,6 +31,7 @@ import { FounderSignals } from './views/FounderSignals';
 import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
+import { FounderBottomNav } from './FounderBottomNav';
 import { Settings } from './views/Settings';
 import { UserRole } from '../types';
 
@@ -51,8 +49,6 @@ export const AdminApp: React.FC = () => {
     // The splash stays visible until BOTH:
     //   1. The splash animation has finished playing (splashDone)
     //   2. The auth session has resolved (!isLoadingSession)
-    // This prevents the white-screen gap that occurs when the splash
-    // dismisses but auth hasn't resolved yet.
     const showSplash = !splashDone || isLoadingSession;
 
     if (showSplash) {
@@ -63,9 +59,6 @@ export const AdminApp: React.FC = () => {
             />
         );
     }
-
-    // Splash is done and session has resolved.
-    // Now show the appropriate screen based on auth state.
 
     // Not authenticated → show login/signup
     if (!isAuthenticated || !currentUser) {
@@ -104,11 +97,12 @@ export const AdminApp: React.FC = () => {
         );
     }
 
-    // Authenticated as Founder → show the dashboard
+    // Authenticated as Founder → show dashboard with bottom nav
     return (
-        <div className="h-[100dvh] flex bg-slate-50 dark:bg-zinc-900 overflow-hidden">
-            <AdminSidebar activeView={activeView} setActiveView={setActiveView} />
-            <main className="flex-1 overflow-hidden min-w-0">
+        <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+            {/* Main content — fills the screen. Views have their own pb-20
+                to clear the fixed bottom nav (56px + safe area). */}
+            <main className="flex-1 overflow-hidden">
                 {activeView === 'dashboard' && <FounderDashboard />}
                 {activeView === 'signals' && <FounderSignals />}
                 {activeView === 'firms' && <FirmManagement />}
@@ -116,6 +110,9 @@ export const AdminApp: React.FC = () => {
                 {activeView === 'audit' && <AuditLogs />}
                 {activeView === 'settings' && <Settings />}
             </main>
+
+            {/* Bottom navigation — fixed at the bottom */}
+            <FounderBottomNav activeView={activeView} setActiveView={setActiveView} />
         </div>
     );
 };

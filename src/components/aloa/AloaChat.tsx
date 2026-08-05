@@ -22,7 +22,7 @@ import { handleCleanCopy } from '../../utils/copyUtils';
 import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
 import { CitationRegistry } from '../../utils/citationRegistry';
 import { parseAIResponseForCitations } from '../../utils/citationParser';
-import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
+import { draftSessionKey, loadDraftSession, saveDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
@@ -1944,35 +1944,35 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // ALOA markdown to HTML and opens the editor with the content pre-loaded
     // and auto-draft DISABLED (so the user keeps the exact content).
     const handleDraftInDraftPro = (content: string, msgCitations?: any) => {
-        const title = extractDocumentTitle(content);
-        const html = aloaContentToDraftHtml(content);
+        try {
+            const title = extractDocumentTitle(content);
+            const html = aloaContentToDraftHtml(content);
 
-        // Build the draft config — pass the content as draftContent so
-        // DraftPro loads it directly. disableAutoDraft=true so it doesn't
-        // re-generate (the AI already wrote the content).
-        const draftConfig: any = {
-            openedByAloa: true,
-            draftTitle: title,
-            draftContent: html,
-            disableAutoDraft: true,
-            draftPrompt: undefined,
-        };
+            // Build the draft config — pass the content as draftContent so
+            // DraftPro loads it directly. disableAutoDraft=true so it doesn't
+            // re-generate (the AI already wrote the content).
+            const draftConfig: any = {
+                openedByAloa: true,
+                draftTitle: title,
+                draftContent: html,
+                disableAutoDraft: true,
+                draftPrompt: undefined,
+            };
 
-        // Attach citations if available (from the message or the registry)
-        const citationsToAttach = msgCitations || citationRegistryRef.current.toJSON();
-        if (citationsToAttach && citationsToAttach.citations && citationsToAttach.citations.length > 0) {
-            draftConfig.citations = citationsToAttach;
-        }
+            // Attach citations if available (from the message or the registry)
+            const citationsToAttach = msgCitations || citationRegistryRef.current.toJSON();
+            if (citationsToAttach && citationsToAttach.citations && citationsToAttach.citations.length > 0) {
+                draftConfig.citations = citationsToAttach;
+            }
 
-        // Save to localStorage first so the draft persists
-        const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
-        if (fid) {
-            const key = draftSessionKey({
-                matterId: undefined,
-                title: title,
-            });
-            try {
-                import('../../utils/draftSession').then(({ saveDraftSession }) => {
+            // Save to localStorage first so the draft persists (best-effort)
+            const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
+            if (fid) {
+                const key = draftSessionKey({
+                    matterId: undefined,
+                    title: title,
+                });
+                try {
                     saveDraftSession(fid, key, {
                         title,
                         content: html,
@@ -1981,34 +1981,39 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         updatedAt: new Date().toISOString(),
                         savedAt: Date.now(),
                     });
-                });
-            } catch (e) {
-                console.warn('[handleDraftInDraftPro] save failed', e);
+                } catch (e) {
+                    console.warn('[handleDraftInDraftPro] localStorage save failed:', e);
+                }
+
+                // On desktop, try to open in a new tab
+                if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                    try {
+                        const url = `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(title)}`;
+                        const armed = navigateArmedDraftTab(url);
+                        if (armed) {
+                            openDraftInTab({ key, url, title });
+                            addToast(`Opened "${title}" in DraftPro (new tab).`, { type: 'success' });
+                            return;
+                        }
+                        const result = openDraftInTab({ key, url, title });
+                        if (result !== 'in-place') {
+                            addToast(`Opened "${title}" in DraftPro (new tab).`, { type: 'success' });
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('[handleDraftInDraftPro] new tab failed, falling back to in-place:', e);
+                    }
+                }
             }
 
-            // On desktop, try to open in a new tab
-            if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-                // Try the armed tab first (if one was pre-opened)
-                const url = `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(title)}`;
-                const armed = navigateArmedDraftTab(url);
-                if (armed) {
-                    openDraftInTab({ key, url, title });
-                    addToast(`Opened "${title}" in DraftPro (new tab).`, { type: 'success' });
-                    return;
-                }
-                // Fall back to opening a new tab via openDraftInTab
-                const result = openDraftInTab({ key, url, title });
-                if (result !== 'in-place') {
-                    addToast(`Opened "${title}" in DraftPro (new tab).`, { type: 'success' });
-                    return;
-                }
-            }
+            // Mobile or popup blocked — open in-place
+            // This is the reliable path: just navigate to the editor with the content
+            openEditorRef.current(null, draftConfig);
+            addToast(`Opened "${title}" in DraftPro.`, { type: 'success' });
+        } catch (e: any) {
+            console.error('[handleDraftInDraftPro] Failed:', e);
+            addToast(`Failed to open DraftPro: ${e?.message || 'Unknown error'}`, { type: 'error' });
         }
-
-        // Mobile or popup blocked — open in-place
-        // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
-        openEditorRef.current(null, draftConfig);
-        addToast(`Opened "${title}" in DraftPro.`, { type: 'success' });
     };
 
     // ─── Send to Research Studio ──────────────────────────────────────────
@@ -2840,18 +2845,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         )}
 
                                         {/* ─── Draft in DraftPro ──────────────────────────
-                                            Shows ONLY when:
+                                            Shows when:
                                             1. The message is from the AI (role === 'model')
                                             2. The message has NO toolAction (not already a draft)
                                             3. The message is NOT an error
-                                            4. The content is detected as a formal document
-                                               (letter, agreement, affidavit, etc.)
+                                            4. The message has content (any non-empty content)
 
-                                            When clicked, converts the ALOA markdown to HTML and
-                                            opens DraftPro with the content pre-loaded. The user
-                                            gets a proper editor with formatting, placeholders,
-                                            and all DraftPro features — without re-generating. */}
-                                        {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && isFormalDocument(msg.content) && (
+                                            Previously this was gated by isFormalDocument() which
+                                            hid the button for most responses. Now it shows for
+                                            ALL AI responses so the user can always send content
+                                            to DraftPro for editing. */}
+                                        {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && msg.content.trim().length > 20 && (
                                             <button
                                                 onClick={() => handleDraftInDraftPro(msg.content || '', (msg as any).citations)}
                                                 className="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md px-2 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5 border border-primary-300 dark:border-primary-700"
