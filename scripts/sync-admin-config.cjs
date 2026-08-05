@@ -39,6 +39,17 @@ const VERSION_PROPS_BACKUP = path.join(ROOT, 'android', 'app', 'version.properti
 
 const wantOpen = process.argv.includes('--open');
 
+// CRITICAL: In CI, we must NOT restore the patched files after cap sync.
+// The Gradle build runs in the NEXT workflow step and needs the patched
+// applicationId, app_name, and versionCode to produce a separate APK.
+// If we restore them, Gradle builds with the consumer app's values and
+// the resulting APK installs OVER the consumer app instead of side-by-side.
+//
+// We detect CI via the CI env var (set by GitHub Actions, GitLab CI, etc.).
+// Locally, we always restore so the developer's consumer app config is
+// preserved after running `npm run cap:sync:admin`.
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
 // Read the appId and appName out of capacitor.admin.config.ts so we can
 // patch android/app/build.gradle and strings.xml to match. Capacitor's
 // `cap sync` step does NOT update applicationId, app_name, package_name,
@@ -67,6 +78,16 @@ let restored = false;
 function restore() {
     if (restored) return;
     restored = true;
+
+    // In CI, do NOT restore the patched files. Gradle runs in the next
+    // workflow step and needs the patched applicationId, app_name, and
+    // versionCode to build a separate founder APK. The CI runner is
+    // ephemeral, so leaving files patched has no side effects.
+    if (isCI) {
+        log('Running in CI — leaving patched files in place for Gradle build.');
+        return;
+    }
+
     try {
         if (fs.existsSync(BACKUP)) {
             // Restore the original consumer config
