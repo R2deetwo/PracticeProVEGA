@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Building2 as BuildingOfficeIcon, User as UserIcon, DollarSign as CurrencyDollarIcon, FileText as DocumentTextIcon, CheckCircle as CheckCircleIcon } from 'lucide-react';
 
 /**
  * Public facing component for prospective tenants to apply for vacant units.
- * This should ideally be hosted on a public route like /apply/:propertyId
+ * Wired to the addLeadToPipeline mutation in convex/sentry.ts.
+ *
+ * When a lead is submitted:
+ *   1. A new row is inserted into the `leads_pipeline` table with stage "Inquiry"
+ *   2. The property manager sees the lead in the VacancyPipeline Kanban board
+ *   3. They can advance the lead through: Inquiry → Vetted → Lease_Generated → Closed
  */
 export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propertyName: string }> = ({ propertyId, propertyName }) => {
     const [applicantName, setApplicantName] = useState('');
@@ -13,23 +18,47 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
     const [proposedRent, setProposedRent] = useState('');
     const [notes, setNotes] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
 
-    // const submitLead = useMutation(api.sentry.submitLeadApplication);
+    const addLead = useMutation(api.sentry.addLeadToPipeline);
+
+    // Fetch the property to get its firmId (required for the lead pipeline)
+    const property = useQuery(api.myFunctions.getPropertyById, { propertyId });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        // Mock submission
-        console.log("Submitting lead for property:", propertyId, {
-            applicantName,
-            contactInfo,
-            proposedRent,
-            notes
-        });
+        setError('');
 
-        // await submitLead({ ... })
-        
-        setSubmitted(true);
+        if (!applicantName.trim() || !contactInfo.trim()) {
+            setError('Please enter your name and contact information.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const firmId = (property as any)?.firmId || '';
+            if (!firmId) {
+                setError('Unable to determine the property manager. Please try again later.');
+                setIsSubmitting(false);
+                return;
+            }
+
+            await addLead({
+                firmId,
+                unitId: propertyId,
+                applicantName: applicantName.trim(),
+                contactInfo: contactInfo.trim(),
+                stage: 'Inquiry',
+                proposedRent: proposedRent ? parseFloat(proposedRent) : undefined,
+                notes: notes.trim() || undefined,
+            });
+            setSubmitted(true);
+        } catch (err: any) {
+            setError(err?.message || 'Failed to submit application. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -123,12 +152,19 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                     </div>
                 </div>
 
+                {error && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400">
+                        {error}
+                    </div>
+                )}
+
                 <div className="pt-2">
                     <button
                         type="submit"
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                        disabled={isSubmitting}
+                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Submit Application
+                        {isSubmitting ? 'Submitting...' : 'Submit Application'}
                     </button>
                     <p className="mt-3 text-xs text-center text-slate-500">
                         By submitting, your data flows securely into the property manager's CRM for review.

@@ -16,6 +16,7 @@ interface StatsWidgetProps {
     propertyCount?: number;
     propertyRevenue?: number;
     activeLeasesCount?: number;
+    occupancyRate?: number;
     navigateTo: (view: View) => void;
     isCompact?: boolean;
     isLoading?: boolean;
@@ -111,7 +112,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     );
 };
 
-const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, propertyRevenue = 0, activeLeasesCount = 0, navigateTo, isCompact, isLoading = false, currentUser }) => {
+const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, propertyRevenue = 0, activeLeasesCount = 0, occupancyRate = 0, navigateTo, isCompact, isLoading = false, currentUser }) => {
     const isAdmin = currentUser.role === UserRole.Admin;
     // Use hasPropertyFeatures (not isProperty) so Komplete (unified) mode
     // shows the Managed Units card. isProperty only controls the assistant
@@ -153,6 +154,7 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
                     <StatCard
                         title="Managed Units"
                         value={isLoading ? <Skeleton width={40} height={28} /> : propertyCount}
+                        subtitle={occupancyRate > 0 ? `${occupancyRate}% occupied` : undefined}
                         icon={<Building2 className="w-full h-full" />}
                         colorClass="bg-indigo-500"
                         onClick={() => navigateTo('properties')}

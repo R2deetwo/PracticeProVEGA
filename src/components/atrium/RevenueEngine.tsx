@@ -61,12 +61,15 @@ const RevenueEngine: React.FC = () => {
   const { coreState } = useCoreState();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
-  const { ledgerEntries, serviceCharges, leadsPipeline, automationLogs } = coreState;
+  const { ledgerEntries, serviceCharges, leadsPipeline, automationLogs, properties } = coreState;
 
   const criticalCount = (serviceCharges || []).filter(d => d.isDefaulter && (d.daysOverdue ?? 0) > 14).length;
   const pendingLedger = (ledgerEntries || []).filter(e => e.status === 'defaulted').length;
   const todayLogs = (automationLogs || []).filter(l => l.sentAt > Date.now() - 86400000).length;
   const activePipeline = (leadsPipeline || []).filter(l => l.stage !== 'Closed').length;
+  // Fix: count actual vacant units (properties with status 'Vacant' or 'Listed'),
+  // not pipeline leads which are prospective tenants in the application funnel.
+  const vacantCount = (properties || []).filter((p: any) => p.status === 'Vacant' || p.status === 'Listed').length;
 
   const tabs: Tab[] = [
     { id: 'defaulters', label: 'Service Charges', shortLabel: 'Charges', icon: <ShieldIcon />, badge: criticalCount || undefined },
@@ -128,7 +131,7 @@ const RevenueEngine: React.FC = () => {
           </div>
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Vacant</p>
-            <p className="text-sm sm:text-base font-black text-slate-300">{activePipeline}</p>
+            <p className="text-sm sm:text-base font-black text-slate-300">{vacantCount}</p>
           </div>
         </div>
       </div>

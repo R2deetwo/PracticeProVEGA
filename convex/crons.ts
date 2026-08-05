@@ -185,3 +185,14 @@ crons.interval(
 );
 
 export default crons;
+
+// ─── LEASE EXPIRY ALERTS (ATRIUM) ────────────────────────────────────────────
+// Daily at 7:00 AM UTC (8:00 AM WAT). Scans all properties for leases expiring
+// within 30, 60, or 90 days. Creates a notification for the firm admin so they
+// can initiate renewal proceedings before the lease lapses.
+crons.daily(
+  "leaseExpiryAlerts",
+  { hourUTC: 7, minuteUTC: 0 },
+  internal.myFunctions.scanLeaseExpiries,
+  {}
+);

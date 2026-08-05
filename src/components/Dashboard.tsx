@@ -103,6 +103,10 @@ const Dashboard: React.FC = () => {
         return total + rentDue;
     }, 0);
     const activeLeasesCount = safeProperties.filter(p => p.status === 'Occupied').length;
+    // Occupancy rate: percentage of properties that are occupied
+    const occupancyRate = safeProperties.length > 0
+        ? Math.round((activeLeasesCount / safeProperties.length) * 100)
+        : 0;
 
     const handleUpgrade = () => {
         navigateTo('settings', null, { settingsTargetId: 'subscription-management' });
@@ -147,6 +151,7 @@ const Dashboard: React.FC = () => {
                         propertyCount={isDowngradedState ? 0 : propertyCount}
                         propertyRevenue={isDowngradedState ? 0 : outstandingRentLedger}
                         activeLeasesCount={isDowngradedState ? 0 : activeLeasesCount}
+                        occupancyRate={isDowngradedState ? 0 : occupancyRate}
                         navigateTo={navigateTo}
                         isLoading={isLoading}
                         currentUser={currentUser}

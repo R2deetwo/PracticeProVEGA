@@ -4581,3 +4581,152 @@ export const sendBroadcastEmail = internalAction({
     return { success: true };
   },
 });
+
+/**
+ * internal mutation: scanLeaseExpiries
+ *
+ * Daily cron job that scans all properties for leases expiring within
+ * 30, 60, or 90 days. Creates a notification for the firm admin so
+ * they can initiate renewal proceedings before the lease lapses.
+ *
+ * The notification includes the property name, tenant name, and days
+ * remaining so the admin can prioritize which leases to renew first.
+ *
+ * This closes the gap where lease expiry tracking was display-only
+ * (PropertyDetailView showed "⚠ NN days" badges) but no proactive
+ * alert was sent to the admin.
+ */
+export const scanLeaseExpiries = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+    const thresholds = [30, 60, 90]; // days
+
+    // Fetch all properties that have rental details
+    const allProperties = await ctx.db.query("properties").take(2000);
+
+    for (const property of allProperties as any[]) {
+      const rentalDetails = property.rentalDetails;
+      if (!rentalDetails || !rentalDetails.leaseEnd) continue;
+
+      const leaseEnd = new Date(rentalDetails.leaseEnd).getTime();
+      if (isNaN(leaseEnd)) continue;
+
+      const daysRemaining = Math.ceil((leaseEnd - now) / DAY);
+
+      // Check if this lease is within one of our alert thresholds
+      for (const threshold of thresholds) {
+        if (daysRemaining > 0 && daysRemaining <= threshold) {
+          // Check if we already sent a notification for this threshold
+          // (avoid duplicate alerts — only alert once per threshold)
+          const alertKey = `lease_expiry_${threshold}_${property._id}`;
+          const existing = await ctx.db
+            .query("analytics_events")
+            .filter((q: any) => q.eq(q.field("event"), alertKey))
+            .take(1);
+
+          if (existing.length > 0) continue; // Already alerted for this threshold
+
+          // Log the alert so we don't duplicate
+          await ctx.db.insert("analytics_events", {
+            firmId: property.firmId || "system",
+            userId: "lease_cron",
+            event: alertKey,
+            properties: {
+              propertyId: property._id,
+              propertyName: property.name || property.address || "Unknown",
+              tenantName: rentalDetails.tenantName || "Unknown",
+              leaseEnd: rentalDetails.leaseEnd,
+              daysRemaining,
+            },
+            timestamp: now,
+          } as any);
+
+          // Create a notification for the firm admin
+          const firmAdmins = await ctx.db
+            .query("users")
+            .withIndex("by_firm", (q: any) => q.eq("firmId", property.firmId))
+            .collect();
+
+          const admins = firmAdmins.filter((u: any) => u.role === 'Admin');
+
+          for (const admin of admins) {
+            await ctx.db.insert("notifications", {
+              firmId: property.firmId,
+              userId: admin._id,
+              title: `Lease Expiring in ${daysRemaining} days`,
+              message: `${property.name || property.address || 'Property'} — Tenant: ${rentalDetails.tenantName || 'Unknown'}. Lease ends ${new Date(leaseEnd).toLocaleDateString('en-GB')}.`,
+              type: 'lease_expiry',
+              link: { view: 'propertyDetail', id: property._id, context: {} },
+              timestamp: new Date().toISOString(),
+              isRead: false,
+            } as any);
+          }
+          break; // Only alert once (at the closest threshold)
+        }
+      }
+
+      // Also check for already-expired leases (daysRemaining < 0)
+      if (daysRemaining < 0 && daysRemaining > -7) {
+        // Just expired within the last week — alert once
+        const expiredKey = `lease_expired_${property._id}`;
+        const existingExpired = await ctx.db
+          .query("analytics_events")
+          .filter((q: any) => q.eq(q.field("event"), expiredKey))
+          .take(1);
+
+        if (existingExpired.length > 0) continue;
+
+        await ctx.db.insert("analytics_events", {
+          firmId: property.firmId || "system",
+          userId: "lease_cron",
+          event: expiredKey,
+          properties: {
+            propertyId: property._id,
+            propertyName: property.name || property.address || "Unknown",
+            tenantName: rentalDetails.tenantName || "Unknown",
+            leaseEnd: rentalDetails.leaseEnd,
+            daysExpired: Math.abs(daysRemaining),
+          },
+          timestamp: now,
+        } as any);
+
+        const firmAdmins = await ctx.db
+          .query("users")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", property.firmId))
+          .collect();
+
+        const admins = firmAdmins.filter((u: any) => u.role === 'Admin');
+        for (const admin of admins) {
+          await ctx.db.insert("notifications", {
+            firmId: property.firmId,
+            userId: admin._id,
+            title: 'Lease Has Expired',
+            message: `${property.name || property.address || 'Property'} — Tenant: ${rentalDetails.tenantName || 'Unknown'}. Lease expired ${Math.abs(daysRemaining)} day(s) ago. Action required.`,
+            type: 'lease_expired',
+            link: { view: 'propertyDetail', id: property._id, context: {} },
+            timestamp: new Date().toISOString(),
+            isRead: false,
+          } as any);
+        }
+      }
+    }
+  },
+});
+
+/**
+ * query: getPropertyById
+ * Returns a single property by its ID. Used by the public application form
+ * to resolve the firmId from the property so leads can be submitted.
+ */
+export const getPropertyById = query({
+  args: { propertyId: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      return await ctx.db.get(args.propertyId as any);
+    } catch {
+      return null;
+    }
+  },
+});
