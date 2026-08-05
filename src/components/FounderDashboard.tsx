@@ -74,7 +74,10 @@ export const FounderDashboard: React.FC = () => {
 
     const maxGrowth = Math.max(...(metrics.dailyGrowth?.map((d: any) => d.count) || [1]), 1);
     const maxArea = Math.max(...(metrics.practiceAreaStats?.map((a: any) => a.count) || [1]), 1);
-    const totalRevenue = metrics.totalRevenue || 0;
+    // PRIVACY: Platform subscription revenue (what firms pay PracticePro),
+    // NOT client invoice totals. Client financials are never exposed.
+    const platformRevenue = metrics.platformRevenue || 0;
+    const monthlyRecurringRevenue = metrics.monthlyRecurringRevenue || 0;
     const activeCount = metrics.activeUserList?.length || 0;
 
     return (
@@ -105,8 +108,9 @@ export const FounderDashboard: React.FC = () => {
                         <p className={KPI_VALUE}>{metrics.totalMatters}</p>
                     </div>
                     <div className={KPI_CARD}>
-                        <p className={KPI_LABEL}>Revenue (Paid)</p>
-                        <p className={KPI_VALUE}><NairaSymbol />{formatNaira(totalRevenue)}</p>
+                        <p className={KPI_LABEL}>Platform MRR</p>
+                        <p className={KPI_VALUE}><NairaSymbol />{formatNaira(monthlyRecurringRevenue)}</p>
+                        <p className="text-3xs text-slate-400 mt-1">Annual: <NairaSymbol />{formatNaira(platformRevenue)}</p>
                     </div>
                 </div>
 

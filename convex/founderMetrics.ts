@@ -3,6 +3,59 @@ import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
+// ─── Platform Subscription Pricing ───────────────────────────────────
+// PRIVACY: The founder dashboard ONLY tracks platform subscription
+// revenue (what firms pay PracticePro). It does NOT track client-level
+// invoices, accounts receivable, or any firm-internal financial data.
+// That data belongs exclusively to the firm and is never exposed to
+// the platform founder.
+//
+// These prices mirror src/constants/tiers.ts. If those change, update
+// here too.
+const PLAN_MONTHLY_PRICE: Record<string, number> = {
+  Core: 0,
+  Growth: 45000,
+  Pro: 80000,
+  Enterprise: 0, // Enterprise is custom-priced, not tracked here
+  Komplete: 130000,
+};
+
+const PLAN_ANNUAL_PRICE: Record<string, number> = {
+  Core: 0,
+  Growth: 432000,
+  Pro: 768000,
+  Enterprise: 0,
+  Komplete: 1248000,
+};
+
+/**
+ * Calculate the platform subscription revenue for a single firm.
+ * Returns the annualized revenue based on the firm's plan and billing interval.
+ * Returns 0 for Core (free) or unknown plans.
+ */
+function calcPlatformRevenue(firm: any): number {
+  const plan = firm.subscriptionPlan || 'Core';
+  const interval = firm.billingInterval || 'monthly';
+  if (interval === 'annual') {
+    return PLAN_ANNUAL_PRICE[plan] || 0;
+  }
+  // Monthly — annualize for comparison
+  return (PLAN_MONTHLY_PRICE[plan] || 0) * 12;
+}
+
+/**
+ * Calculate the monthly platform subscription amount for a firm.
+ * This is what the firm pays PracticePro per month.
+ */
+function calcMonthlySubscription(firm: any): number {
+  const plan = firm.subscriptionPlan || 'Core';
+  const interval = firm.billingInterval || 'monthly';
+  if (interval === 'annual') {
+    return Math.round((PLAN_ANNUAL_PRICE[plan] || 0) / 12);
+  }
+  return PLAN_MONTHLY_PRICE[plan] || 0;
+}
+
 /**
  * requireFounder — server-side access control for founder-only data.
  *
@@ -78,25 +131,29 @@ export const getFounderMetrics = query({
   handler: async (ctx, args) => {
     await requireFounder(ctx, args.tokenIdentifier);
     // 1. Fetch data
-    const [events, firms, users, matters, invoices] = await Promise.all([
+    // PRIVACY: We do NOT fetch the invoices table. Client invoices are
+    // private firm data and must never be exposed to the platform founder.
+    // Platform revenue is calculated from subscription plans, not from
+    // client billing.
+    const [events, firms, users, matters] = await Promise.all([
       ctx.db.query("analytics_events").collect(),
       ctx.db.query("firms").collect(),
       ctx.db.query("users").collect(),
-      ctx.db.query("matters").collect(),
-      ctx.db.query("invoices").collect()
+      ctx.db.query("matters").collect()
     ]);
 
     // 2. Core KPIs
     // Filter out Founder role users — they're platform staff, not customers.
-    // Without this, the founder's own signup shows up as a "new user" in
-    // the dashboard, which is confusing.
     const customerUsers = users.filter((u: any) => u.role !== 'Founder');
     const totalMatters = matters.length;
     const totalFirms = firms.length;
     const totalUsers = customerUsers.length;
-    const totalRevenue = invoices
-      .filter((i: any) => i.status === "Paid")
-      .reduce((sum, i: any) => sum + (i.total_amount || 0), 0);
+
+    // PRIVACY: Platform subscription revenue — calculated from each firm's
+    // subscription plan, NOT from client invoices. This is the only
+    // financial data the founder should see: what firms pay PracticePro.
+    const platformRevenue = firms.reduce((sum, f) => sum + calcPlatformRevenue(f), 0);
+    const monthlyRecurringRevenue = firms.reduce((sum, f) => sum + calcMonthlySubscription(f), 0);
 
     // 3. Practice Area Heatmap
     const areaMap: Record<string, number> = {};
@@ -160,7 +217,9 @@ export const getFounderMetrics = query({
       totalMatters,
       totalFirms,
       totalUsers,
-      totalRevenue,
+      // PRIVACY: Platform subscription revenue, NOT client invoice totals.
+      platformRevenue,           // Annualized platform revenue
+      monthlyRecurringRevenue,   // MRR — what firms pay PracticePro per month
       practiceAreaStats,
       dailyGrowth,
       topFirms,
@@ -191,8 +250,14 @@ export const triggerManualRefresh = mutation({
 
 /**
  * query: getAllFirmsForAdmin
- * Returns all firms enriched with their users, matter counts, and admin-facing billing fields.
- * Used exclusively by the PracticePro Index (admin dashboard) SaaS Control Center.
+ * Returns all firms enriched with their users, matter counts, and
+ * PLATFORM-ONLY subscription billing fields.
+ *
+ * PRIVACY: This query does NOT fetch or return client-level invoices,
+ * accounts receivable, or any firm-internal financial data. The only
+ * financial data returned is the firm's platform subscription status
+ * (what they pay PracticePro). Client financials are private to each
+ * firm and are never exposed to the platform founder.
  */
 export const getAllFirmsForAdmin = query({
   args: { tokenIdentifier: v.string() },
@@ -208,20 +273,23 @@ export const getAllFirmsForAdmin = query({
         }
       };
 
-      const [firms, users, matters, invoices] = await Promise.all([
+      // PRIVACY: We do NOT fetch the invoices table. Client invoices are
+      // private firm data. Platform billing is calculated from the firm's
+      // subscription plan, not from client billing records.
+      const [firms, users, matters] = await Promise.all([
         fetchTable("firms"),
         fetchTable("users"),
         fetchTable("matters"),
-        fetchTable("invoices"),
       ]);
 
       return firms.map((firm: any) => {
         const firmUsers = users.filter((u: any) => u.firmId === firm._id || (u.joinedFirmIds && Array.isArray(u.joinedFirmIds) && u.joinedFirmIds.includes(firm._id)));
         const firmMatters = matters.filter((m: any) => m.firmId === firm._id);
-        const firmInvoices = invoices.filter((inv: any) => inv.firmId === firm._id);
-        const unpaidInvoices = firmInvoices.filter((inv: any) => inv.status === 'Sent' || inv.status === 'Overdue');
-        const totalDue = unpaidInvoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
         const adminUser = firmUsers.find((u: any) => u.role === 'Admin');
+
+        // Platform subscription data (what the firm pays PracticePro)
+        const monthlySubscription = calcMonthlySubscription(firm);
+        const annualSubscription = calcPlatformRevenue(firm);
 
         return {
           id: firm._id,
@@ -230,13 +298,16 @@ export const getAllFirmsForAdmin = query({
           plan: firm.subscriptionPlan || 'Core',
           status: firm.adminStatus || 'active',
           userCount: firmUsers.length,
+          // PRIVACY: Platform subscription billing — NOT client invoices
           billingInterval: firm.billingInterval || 'monthly',
           nextBillingDate: firm.nextBillingDate || '—',
-          amountDue: totalDue,
+          monthlySubscription,       // What they pay PracticePro per month
+          annualSubscription,        // Annualized platform revenue from this firm
+          setupFeePaid: firm.setupFeePaid || false,
+          subscriptionStatus: firm.setupFeePaid ? 'active' : 'pending',
           joinedAt: new Date(firm._creationTime).toISOString().split('T')[0],
           lastActive: firm.lastActive || new Date(firm._creationTime).toISOString().split('T')[0],
-          hasUnpaidInvoice: unpaidInvoices.length > 0,
-          ingestionAccess: firm.ingestionAccess !== false, // default true
+          ingestionAccess: firm.ingestionAccess !== false,
           matterCount: firmMatters.length,
           notes: firm.adminNotes || '',
           firmSpecialties: firm.firmSpecialties || [],
@@ -308,11 +379,12 @@ export const getFounderAlerts = query({
     const churnThreshold = now - (14 * DAY);
     const inactiveThreshold = now - (30 * DAY);
 
-    const [firms, users, matters, invoices, presence] = await Promise.all([
+    // PRIVACY: We do NOT fetch the invoices table. Platform revenue is
+    // calculated from subscription plans, not from client billing.
+    const [firms, users, matters, presence] = await Promise.all([
       ctx.db.query("firms").collect(),
       ctx.db.query("users").collect(),
       ctx.db.query("matters").collect(),
-      ctx.db.query("invoices").collect(),
       ctx.db.query("presence").collect(),
     ]);
 
@@ -369,11 +441,12 @@ export const getFounderAlerts = query({
     }).length;
     const matterVelocityDelta = mattersLast7d - mattersPrior7d;
 
-    // ─── Revenue (paid invoices) ──────────────────────────────────────
-    const totalRevenue = invoices
-      .filter((i: any) => i.status === "Paid")
-      .reduce((sum: number, i: any) => sum + (i.total_amount || 0), 0);
-    const revenuePerFirm = firms.length > 0 ? totalRevenue / firms.length : 0;
+    // ─── Platform Revenue (subscription-based, NOT client invoices) ───
+    // PRIVACY: This is what firms pay PracticePro, calculated from their
+    // subscription plan. NOT the sum of client invoices.
+    const platformRevenue = firms.reduce((sum, f) => sum + calcPlatformRevenue(f), 0);
+    const monthlyRecurringRevenue = firms.reduce((sum, f) => sum + calcMonthlySubscription(f), 0);
+    const revenuePerFirm = firms.length > 0 ? monthlyRecurringRevenue / firms.length : 0;
 
     // ─── Plan concentration (top plan share) ──────────────────────────
     const planMap: Record<string, number> = {};
@@ -395,9 +468,8 @@ export const getFounderAlerts = query({
       const productUsers = users.filter((u: any) => (u.product || "unified") === product || productFirmIds.has(u.firmId));
       const productMatters = matters.filter((m: any) => productFirmIds.has(m.firmId));
       const productMatters7d = productMatters.filter((m: any) => (m._creationTime || 0) > now - (7 * DAY)).length;
-      const productRevenue = invoices
-        .filter((i: any) => i.status === "Paid" && productFirmIds.has(i.firmId))
-        .reduce((sum: number, i: any) => sum + (i.total_amount || 0), 0);
+      // PRIVACY: Platform subscription revenue per product, NOT client invoices
+      const productRevenue = productFirms.reduce((sum, f) => sum + calcPlatformRevenue(f), 0);
       return {
         product,
         firms: productFirms.length,
@@ -487,7 +559,9 @@ export const getFounderAlerts = query({
       mattersLast7d,
       mattersPrior7d,
       matterVelocityDelta,
-      totalRevenue,
+      // PRIVACY: Platform subscription revenue, NOT client invoices
+      platformRevenue,
+      monthlyRecurringRevenue,
       revenuePerFirm,
       topPlan,
       topPlanShare,

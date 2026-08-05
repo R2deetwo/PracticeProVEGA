@@ -101,7 +101,8 @@ export const FirmManagement: React.FC = () => {
                                         <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Plan</th>
                                         <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Users</th>
                                         <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Matters</th>
-                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Amount Due</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Monthly Sub.</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Sub. Status</th>
                                         <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
                                         <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Joined</th>
                                         <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
@@ -128,7 +129,14 @@ export const FirmManagement: React.FC = () => {
                                             </td>
                                             <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{firm.userCount}</td>
                                             <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{firm.matterCount}</td>
-                                            <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300">{firm.amountDue > 0 ? <><NairaSymbol />{formatNaira(firm.amountDue)}</> : '—'}</td>
+                                            <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">
+                                                {firm.monthlySubscription > 0 ? <><NairaSymbol />{formatNaira(firm.monthlySubscription)}</> : <span className="text-slate-400">Free</span>}
+                                            </td>
+                                            <td className="py-2.5 px-3">
+                                                <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${firm.subscriptionStatus === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                                                    {firm.subscriptionStatus || 'pending'}
+                                                </span>
+                                            </td>
                                             <td className="py-2.5 px-3">
                                                 {editingId === firm.id ? (
                                                     <select value={editStatus} onChange={e => setEditStatus(e.target.value)} className="bg-slate-50 dark:bg-zinc-700 text-xs rounded px-1 py-0.5 border border-slate-200 dark:border-zinc-600">

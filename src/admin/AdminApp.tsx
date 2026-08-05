@@ -24,8 +24,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { FounderDashboard } from '../components/FounderDashboard';
-import { FirmManagement } from './views/FirmManagement';
-import { UserManagement } from './views/UserManagement';
+import { OrganizationsCenter } from './views/OrganizationsCenter';
 import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
 import { AdminLogin } from './AdminLogin';
@@ -35,7 +34,7 @@ import { FounderBottomNav } from './FounderBottomNav';
 import { Settings } from './views/Settings';
 import { UserRole } from '../types';
 
-export type AdminView = 'dashboard' | 'signals' | 'firms' | 'users' | 'audit' | 'settings';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'audit' | 'settings';
 
 export const AdminApp: React.FC = () => {
     const { currentUser, isAuthenticated, isLoadingSession } = useAuth();
@@ -105,8 +104,7 @@ export const AdminApp: React.FC = () => {
             <main className="flex-1 overflow-hidden">
                 {activeView === 'dashboard' && <FounderDashboard />}
                 {activeView === 'signals' && <FounderSignals />}
-                {activeView === 'firms' && <FirmManagement />}
-                {activeView === 'users' && <UserManagement />}
+                {activeView === 'organizations' && <OrganizationsCenter />}
                 {activeView === 'audit' && <AuditLogs />}
                 {activeView === 'settings' && <Settings />}
             </main>

@@ -159,7 +159,7 @@ export const FounderSignals: React.FC = () => {
                         </p>
                     </div>
                     <div className={CARD}>
-                        <p className={LABEL}>Revenue per Firm</p>
+                        <p className={LABEL}>Platform MRR/Firm</p>
                         <p className="text-2xl font-black text-slate-900 dark:text-white mt-1"><NairaSymbol />{formatNaira(alerts.revenuePerFirm)}</p>
                         <p className="text-3xs text-slate-400 mt-1">across {alerts.totalFirms} firms</p>
                     </div>
@@ -188,7 +188,7 @@ export const FounderSignals: React.FC = () => {
                                     <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Matters</th>
                                     <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">7d Velocity</th>
                                     <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Per-Firm</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Revenue</th>
+                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Platform Rev.</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">

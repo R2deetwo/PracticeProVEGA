@@ -35,9 +35,9 @@ const FounderSplashScreen: React.FC<FounderSplashScreenProps> = ({
     onComplete
 }) => {
     // Phase 1: green (brand) — the starting color
-    // Phase 2: orange — the transition color
+    // Phase 2: amber — the transition color (SAME as consumer app)
     // Phase 3: black — the founder brand standard
-    const [phase, setPhase] = useState<'green' | 'orange' | 'black'>('green');
+    const [phase, setPhase] = useState<'green' | 'amber' | 'black'>('green');
     const [isActuallyMounted, setIsActuallyMounted] = useState(isVisible);
     const [isExiting, setIsExiting] = useState(false);
     const hasStarted = useRef(false);
@@ -62,9 +62,9 @@ const FounderSplashScreen: React.FC<FounderSplashScreenProps> = ({
             // ── PHASE 1: GREEN (0ms) — logo visible in brand green ────
             setPhase('green');
 
-            // ── PHASE 2: ORANGE (after 750ms) ──────────────────────────
+            // ── PHASE 2: AMBER (after 750ms) — same color as consumer app ─
             addTimer(() => {
-                setPhase('orange');
+                setPhase('amber');
             }, 750);
 
             // ── PHASE 3: BLACK (after 1350ms) ─────────────────────────
@@ -98,14 +98,15 @@ const FounderSplashScreen: React.FC<FounderSplashScreenProps> = ({
     const showBottomStatus = isVisible && phase !== 'black' && !isExiting;
 
     // Color for the logo based on phase (REVERSED from consumer)
-    // Consumer: emergence(black) → amber → green
-    // Founder:  green → orange → black
+    // Consumer: emergence(black #000) → amber (#EAB308) → green (rgb(22,163,74))
+    // Founder:  green (rgb(22,163,74)) → amber (#EAB308) → black (#000)
+    // The middle color is the EXACT SAME amber as the consumer app.
     const logoColor = phase === 'green' ? 'rgb(22, 163, 74)'   // emerald-600 — brand green
-        : phase === 'orange' ? '#F97316'                        // orange-500
+        : phase === 'amber' ? '#EAB308'                        // amber — same as consumer app
         : '#000000';                                            // black — founder brand
 
     const logoGlow = phase === 'green' ? 'drop-shadow(0 0 35px rgba(22,163,74,0.4))'
-        : phase === 'orange' ? 'drop-shadow(0 0 25px rgba(249,115,22,0.35))'
+        : phase === 'amber' ? 'drop-shadow(0 0 25px rgba(234,179,8,0.25))'
         : 'drop-shadow(0 0 15px rgba(255,255,255,0.05))';
 
     return (
