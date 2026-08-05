@@ -33,7 +33,13 @@ const BACKUP = path.join(ROOT, 'capacitor.config.ts.admin-backup');
 const APP_GRADLE = path.join(ROOT, 'android', 'app', 'build.gradle');
 const APP_GRADLE_BACKUP = path.join(ROOT, 'android', 'app', 'build.gradle.admin-backup');
 const STRINGS_XML = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'strings.xml');
-const STRINGS_XML_BACKUP = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'strings.xml.admin-backup');
+// NOTE: Backup files for files inside android/app/src/main/res/ MUST be
+// stored OUTSIDE the res/ directory. Android's resource merger (AAPT)
+// scans all files under res/ and rejects any file that doesn't end with
+// .xml, .png, .jpg, etc. A .admin-backup file in res/values/ causes:
+//   "Error: The file name must end with .xml"
+// and fails the Gradle build. We store backups in android/app/ instead.
+const STRINGS_XML_BACKUP = path.join(ROOT, 'android', 'app', 'strings.xml.admin-backup');
 const VERSION_PROPS = path.join(ROOT, 'android', 'app', 'version.properties');
 const VERSION_PROPS_BACKUP = path.join(ROOT, 'android', 'app', 'version.properties.admin-backup');
 
