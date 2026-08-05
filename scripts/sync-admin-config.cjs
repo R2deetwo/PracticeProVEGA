@@ -43,6 +43,14 @@ const STRINGS_XML_BACKUP = path.join(ROOT, 'android', 'app', 'strings.xml.admin-
 const VERSION_PROPS = path.join(ROOT, 'android', 'app', 'version.properties');
 const VERSION_PROPS_BACKUP = path.join(ROOT, 'android', 'app', 'version.properties.admin-backup');
 
+// ─── Founder icon paths ─────────────────────────────────────────────
+// The founder APK uses a BLACK icon (where the consumer app uses green).
+// The black icon files live in resources/founder-icons/ and are copied
+// over the green icons before the build, then restored after.
+const FOUNDER_ICONS_SRC = path.join(ROOT, 'resources', 'founder-icons');
+const ANDROID_RES = path.join(ROOT, 'android', 'app', 'src', 'main', 'res');
+const ICON_BACKUP_DIR = path.join(ROOT, 'android', 'app', 'icon-backup');
+
 const wantOpen = process.argv.includes('--open');
 
 // CRITICAL: In CI, we must NOT restore the patched files after cap sync.
@@ -148,6 +156,15 @@ function restore() {
     } catch (e) {
         warn(`Failed to restore version.properties: ${e.message}`);
         warn(`Manual restore needed. Backup file (if it exists): ${VERSION_PROPS_BACKUP}`);
+    }
+    // Restore green icons from backup
+    try {
+        if (fs.existsSync(ICON_BACKUP_DIR)) {
+            restoreIcons();
+        }
+    } catch (e) {
+        warn(`Failed to restore icons: ${e.message}`);
+        warn(`Manual restore needed. Backup directory: ${ICON_BACKUP_DIR}`);
     }
 }
 
@@ -316,6 +333,29 @@ if (fs.existsSync(VERSION_PROPS)) {
         warn('The founder APK may collide with the consumer app versionCode.');
         try { fs.rmSync(VERSION_PROPS_BACKUP, { force: true }); } catch {}
     }
+}
+
+// ─── Step 2d: swap green icons → black founder icons ────────────────
+// The founder APK uses a BLACK app icon (where the consumer app uses
+// green). The black icon files are pre-generated in
+// resources/founder-icons/ by scripts/generate-founder-icon.py.
+//
+// We back up the existing green icons to android/app/icon-backup/,
+// then copy the black icons over them. After the build (or on error),
+// restoreIcons() copies the green icons back.
+//
+// The consumer app's icons are NEVER permanently modified — the backup
+// is always restored, even on Ctrl-C or uncaught errors.
+if (fs.existsSync(FOUNDER_ICONS_SRC)) {
+    try {
+        swapIconsToFounder();
+    } catch (e) {
+        warn(`Failed to swap founder icons: ${e.message}`);
+        warn('The founder APK may show the green consumer app icon.');
+    }
+} else {
+    warn(`Founder icons not found at ${FOUNDER_ICONS_SRC} — skipping icon swap.`);
+    warn('Run: python3 scripts/generate-founder-icon.py');
 }
 
 // ─── Step 3: sync to Android ────────────────────────────────────────
@@ -817,4 +857,83 @@ function extractObjectBlock(src, key) {
         i++;
     }
     return null;
+}
+
+// =====================================================================
+// ICON SWAPPING — green consumer icons ↔ black founder icons
+// =====================================================================
+
+/**
+ * swapIconsToFounder — back up the green icons, then copy the black
+ * founder icons over them.
+ *
+ * The green icons are backed up to android/app/icon-backup/ (outside
+ * the res/ directory, so AAPT doesn't complain about non-.xml files).
+ * Each file is stored with its relative path mirrored inside icon-backup/.
+ *
+ * The black icons live in resources/founder-icons/ and were pre-generated
+ * by scripts/generate-founder-icon.py.
+ */
+function swapIconsToFounder() {
+    // Clean any stale backup
+    fs.rmSync(ICON_BACKUP_DIR, { recursive: true, force: true });
+    fs.mkdirSync(ICON_BACKUP_DIR, { recursive: true });
+
+    // Walk the founder-icons directory and for each file:
+    //   1. Compute the relative path (e.g. mipmap-mdpi/ic_launcher.png)
+    //   2. Back up the existing file at ANDROID_RES/<rel> → ICON_BACKUP_DIR/<rel>
+    //   3. Copy the founder icon from FOUNDER_ICONS_SRC/<rel> → ANDROID_RES/<rel>
+    function walkDir(srcDir, relPath = '') {
+        const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullSrc = path.join(srcDir, entry.name);
+            const fullRel = relPath ? path.join(relPath, entry.name) : entry.name;
+            if (entry.isDirectory()) {
+                walkDir(fullSrc, fullRel);
+            } else {
+                const destFile = path.join(ANDROID_RES, fullRel);
+                const backupFile = path.join(ICON_BACKUP_DIR, fullRel);
+
+                // Back up the existing file (if it exists)
+                if (fs.existsSync(destFile)) {
+                    fs.mkdirSync(path.dirname(backupFile), { recursive: true });
+                    fs.copyFileSync(destFile, backupFile);
+                }
+
+                // Copy the founder icon over the existing file
+                fs.mkdirSync(path.dirname(destFile), { recursive: true });
+                fs.copyFileSync(fullSrc, destFile);
+            }
+        }
+    }
+
+    walkDir(FOUNDER_ICONS_SRC);
+    log('Swapped green icons → black founder icons.');
+}
+
+/**
+ * restoreIcons — copy the green icons back from the backup directory.
+ * Called by restore() after the build completes (or on error).
+ */
+function restoreIcons() {
+    if (!fs.existsSync(ICON_BACKUP_DIR)) return;
+
+    function walkBackup(backupDir, relPath = '') {
+        const entries = fs.readdirSync(backupDir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullBackup = path.join(backupDir, entry.name);
+            const fullRel = relPath ? path.join(relPath, entry.name) : entry.name;
+            if (entry.isDirectory()) {
+                walkBackup(fullBackup, fullRel);
+            } else {
+                const destFile = path.join(ANDROID_RES, fullRel);
+                fs.mkdirSync(path.dirname(destFile), { recursive: true });
+                fs.copyFileSync(fullBackup, destFile);
+            }
+        }
+    }
+
+    walkBackup(ICON_BACKUP_DIR);
+    fs.rmSync(ICON_BACKUP_DIR, { recursive: true, force: true });
+    log('Restored original green icons from backup.');
 }
