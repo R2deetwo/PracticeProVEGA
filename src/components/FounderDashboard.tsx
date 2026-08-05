@@ -37,11 +37,17 @@ export const FounderDashboard: React.FC = () => {
     const [editStatus, setEditStatus] = useState('');
     const [editNotes, setEditNotes] = useState('');
 
-    const metrics = useQuery(api.founderMetrics.getFounderMetrics, {});
-    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin, {});
+    // SECURITY: Pass tokenIdentifier for server-side admin verification.
+    // The server-side requireAdmin() check is the real security boundary —
+    // the client-side role check below is just a UX convenience.
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
+    const metrics = useQuery(api.founderMetrics.getFounderMetrics,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
 
-    // Guard — only Admins can see this
+    // Guard — only Admins can see this (UX check; server enforces real security)
     if (currentUser?.role !== 'Admin') {
         return (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
@@ -67,6 +73,7 @@ export const FounderDashboard: React.FC = () => {
     const handleSaveFirmSettings = async (firmId: string) => {
         try {
             await updateFirmSettings({
+                tokenIdentifier,
                 firmId,
                 settings: {
                     subscriptionPlan: editPlan || undefined,

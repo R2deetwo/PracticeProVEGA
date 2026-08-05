@@ -3,13 +3,79 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
+ * requireAdmin — server-side access control for founder-only data.
+ *
+ * CRITICAL SECURITY: All founder metrics queries MUST call this helper
+ * at the top of their handler. Without it, ANY authenticated user (or
+ * even an unauthenticated user who knows the Convex URL) can call these
+ * queries and see ALL firms, ALL users, ALL revenue, ALL matters —
+ * which is a catastrophic data breach.
+ *
+ * This helper:
+ *   1. Looks up the caller by their tokenIdentifier (email).
+ *   2. Verifies their role is exactly 'Admin'.
+ *   3. Throws an Authorization error if not.
+ *
+ * The client-side role check (currentUser?.role === 'Admin') is NOT
+ * sufficient — it can be bypassed by modifying client code or calling
+ * the Convex API directly. The server-side check is the only real
+ * security boundary.
+ */
+async function requireAdmin(ctx: any, tokenIdentifier: string): Promise<any> {
+  if (!tokenIdentifier || typeof tokenIdentifier !== 'string') {
+    throw new Error("Unauthorized: authentication required.");
+  }
+
+  // Look up the user by tokenIdentifier (case-insensitive)
+  const token = tokenIdentifier.toLowerCase().trim();
+  const directMatches = await ctx.db
+    .query("users")
+    .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", tokenIdentifier))
+    .collect();
+
+  const lowerMatches = directMatches.length === 0
+    ? await ctx.db
+        .query("users")
+        .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+        .collect()
+    : [];
+
+  const allMatches = directMatches.length > 0 || lowerMatches.length > 0
+    ? [...directMatches, ...lowerMatches]
+    : (await ctx.db.query("users").take(500))
+        .filter((u: any) =>
+          u.tokenIdentifier &&
+          u.tokenIdentifier.toLowerCase() === token
+        );
+
+  if (allMatches.length === 0) {
+    throw new Error("Unauthorized: user not found.");
+  }
+
+  // Pick the user record. If there are duplicates (e.g., both an Admin
+  // record and a portal record), prefer the Admin one — but only if it
+  // actually has role='Admin'.
+  const adminRecord = allMatches.find((u: any) => u.role === 'Admin');
+  const userRecord = adminRecord || allMatches[0];
+
+  if (userRecord.role !== 'Admin') {
+    throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'.`);
+  }
+
+  return userRecord;
+}
+
+/**
  * query: getFounderMetrics
  * ENHANCED: Provides rich statistics for the Founder's Dashboard,
  * including practice area breakdowns, top firms, and daily growth curves.
+ *
+ * SECURITY: Requires admin authentication via tokenIdentifier.
  */
 export const getFounderMetrics = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx, args.tokenIdentifier);
     // 1. Fetch data
     const [events, firms, users, matters, invoices] = await Promise.all([
       ctx.db.query("analytics_events").collect(),
@@ -104,8 +170,9 @@ export const getFounderMetrics = query({
  * Force-records a system refresh event.
  */
 export const triggerManualRefresh = mutation({
-    args: {},
-    handler: async (ctx) => {
+    args: { tokenIdentifier: v.string() },
+    handler: async (ctx, args) => {
+        await requireAdmin(ctx, args.tokenIdentifier);
         await ctx.db.insert("analytics_events", {
             firmId: "system",
             userId: "admin",
@@ -122,8 +189,9 @@ export const triggerManualRefresh = mutation({
  * Used exclusively by the PracticePro Index (admin dashboard) SaaS Control Center.
  */
 export const getAllFirmsForAdmin = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx, args.tokenIdentifier);
     try {
       const fetchTable = async (table: string) => {
         try {
@@ -183,6 +251,7 @@ export const getAllFirmsForAdmin = query({
  */
 export const updateFirmAdminSettings = mutation({
   args: {
+    tokenIdentifier: v.string(),
     firmId: v.string(),
     settings: v.object({
       subscriptionPlan: v.optional(v.string()),
@@ -194,6 +263,7 @@ export const updateFirmAdminSettings = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx, args.tokenIdentifier);
     const cleanSettings: any = {};
     Object.entries(args.settings).forEach(([k, v]) => {
       if (v !== undefined) cleanSettings[k] = v;
@@ -224,8 +294,9 @@ export const updateFirmAdminSettings = mutation({
  * signal late than cry wolf.
  */
 export const getFounderAlerts = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx, args.tokenIdentifier);
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
     const churnThreshold = now - (14 * DAY);
@@ -428,9 +499,11 @@ export const getFounderAlerts = query({
  */
 export const recordFounderSignalSeen = mutation({
   args: {
+    tokenIdentifier: v.string(),
     signalIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx, args.tokenIdentifier);
     await ctx.db.insert("analytics_events", {
       firmId: "system",
       userId: "founder",

@@ -436,14 +436,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         item={{ view: 'settings', text: 'Settings', icon: <CogIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
-                    {/* Founder Dashboard — Admin only */}
-                    {currentUser?.role === UserRole.Admin && (
-                        <NavItemLink
-                            id="nav-founder-dashboard"
-                            item={{ view: 'founderDashboard', text: 'Founder Dashboard', icon: <DashboardChartIcon /> }}
-                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                        />
-                    )}
+                    {/* Founder Dashboard has been REMOVED from the consumer app.
+                        It is ONLY accessible via the separate Founder APK
+                        (com.practicepro.admin). This prevents consumer app
+                        users from seeing the founder's private platform
+                        metrics (revenue, firms, users, etc.). */}
                 </NavSection>
 
             </div>
