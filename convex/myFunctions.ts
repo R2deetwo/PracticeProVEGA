@@ -3229,14 +3229,59 @@ export const forceDeleteItem = mutation({
 // Migrated from Resend to Brevo (April 2026) for improved deliverability.
 // Sender: practiceprovega@gmail.com (verified individual sender on Brevo)
 
-const BREVO_SENDER = { name: "PracticePro", email: "practiceprovega@gmail.com" };
+const BREVO_SENDER = { name: "PracticePro", email: process.env.BREVO_SENDER_EMAIL || "practiceprovega@gmail.com" };
 
-// Product-specific branding for emails
-const PRODUCT_BRANDING: Record<string, { name: string; accent: string; tagline: string }> = {
-  legal: { name: "VEGA", accent: "#4cc9f0", tagline: "Nigerian Legal Practice System" },
-  property: { name: "ATRIUM", accent: "#34d399", tagline: "Nigerian Property Management System" },
-  unified: { name: "KOMPLETE", accent: "#a78bfa", tagline: "Nigerian Legal & Property Platform" },
+// Product-specific branding for emails — ALL products use the brand green
+// (#16A34A) as the primary color, with product-specific accent colors
+// for secondary elements. This ensures consistent brand identity across
+// all emails regardless of which product triggered them.
+const BRAND_GREEN = "#16A34A";
+const BRAND_GREEN_DARK = "#15803D";
+const BRAND_GREEN_LIGHT = "#DCFCE7";
+
+const PRODUCT_BRANDING: Record<string, { name: string; accent: string; tagline: string; productColor: string }> = {
+  legal: { name: "Vega", accent: BRAND_GREEN, tagline: "Legal Practice System", productColor: BRAND_GREEN },
+  property: { name: "Atrium", accent: "#0EA5E9", tagline: "Property Management OS", productColor: "#0EA5E9" },
+  unified: { name: "Komplete", accent: "#7C3AED", tagline: "Legal & Property Platform", productColor: "#7C3AED" },
 };
+
+/**
+ * Branded email template wrapper — wraps any email content in the
+ * PracticePro brand design system with brand green header, mobile-
+ * responsive HTML table layout, and proper footer.
+ */
+function brandedEmailWrapper(opts: {
+  productName?: string;
+  productColor?: string;
+  tagline?: string;
+  bodyHtml: string;
+}): string {
+  const year = new Date().getFullYear();
+  const pName = opts.productName || '';
+  const pColor = opts.productColor || BRAND_GREEN;
+  const tagline = opts.tagline || 'PracticePro';
+  const productBadge = pName ? `<span style="color: ${pColor}; font-weight: 800;">${pName}</span>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f5f7;">
+<tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+<tr><td style="background:linear-gradient(135deg,${BRAND_GREEN} 0%,${BRAND_GREEN_DARK} 100%);padding:32px 24px;text-align:center;">
+<h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:800;letter-spacing:-0.5px;">PracticePro ${productBadge}</h1>
+<p style="color:rgba(255,255,255,0.85);margin:6px 0 0 0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;">${tagline}</p>
+</td></tr>
+<tr><td style="padding:40px 32px;">${opts.bodyHtml}</td></tr>
+<tr><td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 32px;text-align:center;">
+<p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0;">&copy; ${year} PracticePro Systems Limited. All rights reserved.<br/>No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.<br/><a href="mailto:support@practicepro.ng" style="color:#64748b;text-decoration:none;">support@practicepro.ng</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
 
 function getProductBranding(product?: string) {
   const key = product || 'legal';
@@ -3288,44 +3333,25 @@ export const sendVerificationEmail = internalAction({
   handler: async (ctx, args) => {
     const brand = getProductBranding(args.product);
 
-    const html = `
-      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-        
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%); padding: 32px 24px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">
-            PracticePro <span style="color: ${brand.accent};">${brand.name}</span>
-          </h1>
-          <p style="color: #8ab4cc; margin: 6px 0 0 0; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;">${brand.tagline}</p>
-        </div>
-        
-        <!-- Body -->
-        <div style="padding: 40px 32px;">
-          <p style="color: #1a202c; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">Verify Your Account</p>
-          <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 32px 0;">
-            Use the verification code below to confirm your email address and activate your account. This code is valid for 10 minutes.
-          </p>
-          
-          <!-- Code Box -->
-          <div style="background: #f7fafc; border: 2px dashed #cbd5e0; border-radius: 10px; padding: 24px; text-align: center; margin-bottom: 32px;">
-            <p style="color: #718096; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 12px 0;">Your Verification Code</p>
-            <span style="display: inline-block; font-size: 38px; font-weight: 800; color: #0d1b2a; letter-spacing: 8px;">${args.code}</span>
-          </div>
-          
-          <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0;">
-            If you did not request this verification, please disregard this email. Your account will remain secure. Do not share this code with anyone — PracticePro staff will never ask for it.
-          </p>
-        </div>
-        
-        <!-- Footer -->
-        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; text-align: center;">
-          <p style="color: #a0aec0; font-size: 12px; margin: 0;">
-            &copy; ${new Date().getFullYear()} PracticePro Legal Technologies Limited. All rights reserved.<br/>
-            No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.
-          </p>
-        </div>
+    const bodyHtml = `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Verify Your Account</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 32px 0;">
+        Use the verification code below to confirm your email address and activate your account. This code is valid for 10 minutes.
+      </p>
+      <div style="background:${BRAND_GREEN_LIGHT};border:2px solid ${BRAND_GREEN};border-radius:12px;padding:28px;text-align:center;margin-bottom:32px;">
+        <p style="color:${BRAND_GREEN_DARK};font-size:12px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px 0;font-weight:700;">Your Verification Code</p>
+        <span style="display:inline-block;font-size:38px;font-weight:800;color:${BRAND_GREEN_DARK};letter-spacing:8px;">${args.code}</span>
       </div>
-    `;
+      <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
+        If you did not request this verification, please disregard this email. Your account will remain secure. Do not share this code with anyone — PracticePro staff will never ask for it.
+      </p>`;
+
+    const html = brandedEmailWrapper({
+      productName: brand.name,
+      productColor: brand.productColor,
+      tagline: brand.tagline,
+      bodyHtml,
+    });
 
     await sendBrevoEmail({
       to: args.email,
@@ -3341,36 +3367,30 @@ export const sendRecoveryEmail = internalAction({
   handler: async (ctx, args) => {
     const brand = getProductBranding(args.product);
 
-    const html = `
-      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-        
-        <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%); padding: 32px 24px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">PracticePro <span style="color: ${brand.accent};">${brand.name}</span></h1>
-        </div>
-        
-        <div style="padding: 40px 32px;">
-          <p style="color: #1a202c; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">Reset Your Security Key</p>
-          <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 32px 0;">
-            We received a request to reset the password for your account. Click the secure link below to instantly enter a new password.
-          </p>
-          
-          <div style="text-align: center; margin-bottom: 32px;">
-            <a href="${args.recoveryLink}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 8px;">Reset Password</a>
-          </div>
-
-          <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
-            If the button doesn't work, you can also enter this recovery code manually in the app:
-          </p>
-          <div style="background: #f7fafc; border: 2px dashed #cbd5e0; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 32px;">
-            <span style="display: inline-block; font-size: 24px; font-weight: 800; color: #0d1b2a; letter-spacing: 4px;">${args.code}</span>
-          </div>
-          
-          <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0;">
-            If you did not request a password reset, please ignore this email. Your account is safe.
-          </p>
-        </div>
+    const bodyHtml = `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Reset Your Security Key</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 32px 0;">
+        We received a request to reset the password for your account. Click the secure link below to instantly enter a new password.
+      </p>
+      <div style="text-align:center;margin-bottom:32px;">
+        <a href="${args.recoveryLink}" style="display:inline-block;background-color:${BRAND_GREEN};color:#ffffff;padding:14px 28px;font-size:16px;font-weight:bold;text-decoration:none;border-radius:8px;">Reset Password</a>
       </div>
-    `;
+      <p style="color:#718096;font-size:14px;line-height:1.6;margin:0 0 16px 0;">
+        If the button doesn't work, you can also enter this recovery code manually in the app:
+      </p>
+      <div style="background:${BRAND_GREEN_LIGHT};border:2px solid ${BRAND_GREEN};border-radius:12px;padding:16px;text-align:center;margin-bottom:32px;">
+        <span style="display:inline-block;font-size:24px;font-weight:800;color:${BRAND_GREEN_DARK};letter-spacing:4px;">${args.code}</span>
+      </div>
+      <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
+        If you did not request a password reset, please ignore this email. Your account is safe.
+      </p>`;
+
+    const html = brandedEmailWrapper({
+      productName: brand.name,
+      productColor: brand.productColor,
+      tagline: brand.tagline,
+      bodyHtml,
+    });
 
     await sendBrevoEmail({
       to: args.email,
@@ -3430,68 +3450,36 @@ export const sendWelcomeEmail = internalAction({
 
     const links = gettingStartedLinks[args.product || 'legal'] || gettingStartedLinks.legal;
     const linksHtml = links.map(l =>
-      `<a href="${l.url}" style="display: block; padding: 12px 16px; margin-bottom: 8px; background: #f7fafc; border-radius: 8px; color: #2d3748; text-decoration: none; font-size: 15px; font-weight: 500; border-left: 3px solid ${brand.accent};">${l.label} →</a>`
+      `<a href="${l.url}" style="display:block;padding:12px 16px;margin-bottom:8px;background:${BRAND_GREEN_LIGHT};border-radius:8px;color:#2d3748;text-decoration:none;font-size:15px;font-weight:500;border-left:3px solid ${BRAND_GREEN};">${l.label} →</a>`
     ).join('');
 
-    const html = `
-      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%); padding: 40px 24px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800;">
-            Welcome to PracticePro <span style="color: ${brand.accent};">${brand.name}</span>
-          </h1>
-          <p style="color: #a0aec0; margin: 8px 0 0 0; font-size: 15px;">${brand.tagline}</p>
-        </div>
-
-        <!-- Body -->
-        <div style="padding: 40px 32px;">
-          <p style="color: #1a202c; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">
-            Hi ${userName},
-          </p>
-          <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">
-            Welcome to PracticePro ${brand.name}! Your email has been verified and your account is ready.
-            We're excited to have you on board.
-          </p>
-
-          <p style="color: #1a202c; font-size: 16px; font-weight: 600; margin: 0 0 16px 0;">
-            Get Started in 3 Steps:
-          </p>
-
-          <div style="margin-bottom: 32px;">
-            ${linksHtml}
-          </div>
-
-          <div style="background: #f7fafc; border-radius: 10px; padding: 20px; margin-bottom: 32px;">
-            <p style="color: #1a202c; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">
-              📚 Learning Resources
-            </p>
-            <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 0;">
-              Visit our <a href="https://practicepro.ng/help" style="color: #4f46e5; text-decoration: none; font-weight: 600;">Help Center</a>
-              for tutorials, video guides, and best practices. You can also access help anytime
-              from within the app by clicking the "?" icon.
-            </p>
-          </div>
-
-          <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 0;">
-            If you have any questions, just ask ALOA (or ARIA) — your built-in AI assistant
-            can help you navigate the app, draft documents, and manage your practice.
-          </p>
-        </div>
-
-        <!-- Footer -->
-        <div style="background: #0d1b2a; padding: 24px 32px; text-align: center;">
-          <p style="color: #718096; font-size: 13px; margin: 0;">
-            PracticePro — Legal & Property Practice Management<br>
-            <a href="https://practicepro.ng" style="color: #4a5568; text-decoration: none;">practicepro.ng</a>
-          </p>
-        </div>
+    const bodyHtml = `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Hi ${userName},</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+        Welcome to PracticePro ${brand.name}! Your email has been verified and your account is ready. We're excited to have you on board.
+      </p>
+      <p style="color:#1a202c;font-size:16px;font-weight:600;margin:0 0 16px 0;">Get Started in 3 Steps:</p>
+      <div style="margin-bottom:32px;">${linksHtml}</div>
+      <div style="background:${BRAND_GREEN_LIGHT};border-radius:10px;padding:20px;margin-bottom:32px;">
+        <p style="color:${BRAND_GREEN_DARK};font-size:15px;font-weight:600;margin:0 0 8px 0;">Learning Resources</p>
+        <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">
+          Visit our <a href="https://practicepro.ng/help" style="color:${BRAND_GREEN};text-decoration:none;font-weight:600;">Help Center</a> for tutorials, video guides, and best practices. You can also access help anytime from within the app by clicking the "?" icon.
+        </p>
       </div>
-    `;
+      <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">
+        If you have any questions, just ask ALOA (or ARIA) — your built-in AI assistant can help you navigate the app, draft documents, and manage your practice.
+      </p>`;
+
+    const html = brandedEmailWrapper({
+      productName: brand.name,
+      productColor: brand.productColor,
+      tagline: brand.tagline,
+      bodyHtml,
+    });
 
     await sendBrevoEmail({
       to: args.email,
-      subject: `Welcome to PracticePro ${brand.name}! 🎉`,
+      subject: `Welcome to PracticePro ${brand.name}!`,
       html,
       productName: brand.name,
     });
