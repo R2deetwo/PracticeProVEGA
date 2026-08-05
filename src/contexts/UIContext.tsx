@@ -330,6 +330,11 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     }, [currentUser?.id, currentUser?.firmId, currentUser?.name, currentUser?.email]);
 
     // Theme Effect - Applies class to HTML root
+    // IMPORTANT: The user's saved theme (which may override brand colors)
+    // is ONLY applied after login. On the landing page, login screen, and
+    // signup screen, we always use the default brand green (#16A34A) so
+    // the landing page looks consistent regardless of what theme the user
+    // previously chose.
     React.useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove(
@@ -337,6 +342,14 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             'theme-midnight', 'theme-oled', 'theme-neon-cyber', 'theme-sunlight-soft', 'theme-city-lights',
             'theme-city-emerald', 'theme-midnight-emerald', 'theme-army-dark', 'theme-army-light'
         );
+
+        // Only apply the user's custom theme when they're logged in.
+        // On the landing page / login / signup (no currentUser), use the
+        // default light theme with brand green.
+        if (!currentUser) {
+            root.classList.add('light');
+            return;
+        }
 
         let activeTheme = theme;
         if (theme === 'system') {
@@ -368,7 +381,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         }
 
         localStorage.setItem('practicepro_theme', theme);
-    }, [theme]);
+    }, [theme, currentUser]);
     // Font Size Effect - Applies class to HTML root for global scaling
     React.useEffect(() => {
         const root = window.document.documentElement;

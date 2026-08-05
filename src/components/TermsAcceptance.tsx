@@ -38,9 +38,37 @@ const TERMS_VERSION = '2026-07-27-v4';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
 const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 
+/**
+ * Check if the user has accepted the CURRENT terms version (localStorage only).
+ * This is the fast synchronous check used for initial UI gating.
+ *
+ * NOTE: This only checks localStorage. For the full check that includes
+ * the server-side record (which survives APK reinstalls), use the
+ * useTermsAcceptance hook below.
+ */
 export function hasAcceptedCurrentTerms(): boolean {
     try {
         return localStorage.getItem(TERMS_KEY) === TERMS_VERSION;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Check if the user has accepted ANY version of the terms (localStorage).
+ * This is used to avoid re-prompting users who already accepted a previous
+ * version but whose localStorage was cleared (e.g., APK reinstall).
+ *
+ * If they accepted a PREVIOUS version, we check the server-side record
+ * (via useTermsAcceptance hook) to confirm. If the server says they
+ * accepted any version, we don't prompt again unless the version changes.
+ */
+export function hasAcceptedAnyTermsVersion(): boolean {
+    try {
+        const stored = localStorage.getItem(TERMS_KEY);
+        // Also check the legacy 'accepted' flag
+        const acceptedFlag = localStorage.getItem('practicepro_terms_accepted');
+        return !!stored || acceptedFlag === 'true';
     } catch {
         return false;
     }

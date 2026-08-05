@@ -9,7 +9,7 @@ import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useConvex } from 'convex/react';
+import { useConvex, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useIdleTimer } from '../hooks/useIdleTimer';
@@ -585,7 +585,32 @@ export const App: React.FC = () => {
     // ─── Terms & Conditions acceptance gate ──────────────────────────────
     // Shows on first app access. Once accepted, the user isn't prompted again
     // unless the terms version changes (bump TERMS_VERSION in TermsAcceptance.tsx).
+    //
+    // TWO-LAYER CHECK:
+    //   1. localStorage (fast, synchronous) — checks if the user accepted the
+    //      CURRENT version on this device.
+    //   2. Server-side record (durable, survives APK reinstalls) — checks if
+    //      the user accepted ANY version. If they did, we don't prompt again
+    //      unless the version actually changes.
+    //
+    // This prevents the terms bar from reappearing after every APK reinstall
+    // (which clears localStorage). The server record is the source of truth.
     const [needsTermsAcceptance, setNeedsTermsAcceptance] = useState(false);
+
+    // Query the server-side terms acceptance record for the current user.
+    // Returns the most recent acceptance record, or null if none exists.
+    const serverTermsRecord = useQuery(api.myFunctions.getTermsAcceptance,
+        currentUser?.email ? { userEmail: currentUser.email } : "skip");
+
+    // The user has accepted if EITHER:
+    //   - localStorage has the current version (fast path), OR
+    //   - The server has ANY acceptance record for this user (durable path).
+    //     This handles the case where localStorage was cleared (APK reinstall)
+    //     but the user already accepted in a previous session.
+    const hasAcceptedTerms =
+        hasAcceptedCurrentTerms() ||
+        (serverTermsRecord !== undefined && serverTermsRecord !== null);
+
     const isEditorMode = view === 'editor';
 
     // #3 — Auto-open login modal when arriving via a password-reset magic link
@@ -1299,18 +1324,19 @@ export const App: React.FC = () => {
             // After splash + data load, check if the user needs to accept
             // the Terms & Conditions. Only show for authenticated users
             // (not on the landing page or login screen).
-            if (currentUser && !hasAcceptedCurrentTerms()) {
+            // Uses the two-layer check: localStorage OR server-side record.
+            if (currentUser && !hasAcceptedTerms && serverTermsRecord !== undefined) {
                 setNeedsTermsAcceptance(true);
             }
         }
-    }, [splashAnimationComplete, isDataLoaded, currentUser]);
+    }, [splashAnimationComplete, isDataLoaded, currentUser, hasAcceptedTerms, serverTermsRecord]);
 
     // Also check on login (when currentUser changes from null to a value)
     useEffect(() => {
-        if (currentUser && hasInitialSplashFinished && !hasAcceptedCurrentTerms()) {
+        if (currentUser && hasInitialSplashFinished && !hasAcceptedTerms && serverTermsRecord !== undefined) {
             setNeedsTermsAcceptance(true);
         }
-    }, [currentUser, hasInitialSplashFinished]);
+    }, [currentUser, hasInitialSplashFinished, hasAcceptedTerms, serverTermsRecord]);
 
     return (
         <div className={`app-container font-sans text-base ${theme} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
