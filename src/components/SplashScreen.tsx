@@ -1,24 +1,48 @@
 /**
  * SplashScreen — cinematic brand reveal.
  *
- * THREE-PHASE ANIMATION:
- *   1. EMERGENCE (600ms) — black logo fades in on dark background
- *   2. AMBER     (600ms) — logo morphs to amber (loading signal)
- *   3. GREEN     (500ms) — logo morphs to brand green + "Ready" text appears
- *   4. EXIT      (400ms) — clean fade-out
+ * CINEMATIC ANIMATION SEQUENCE (~3 seconds total):
  *
- * ROBUSTNESS NOTE:
- *   Previously this used Framer Motion's `useAnimation` + `logoControls.start()`.
- *   If the animation controller failed to start (which happened when React
- *   StrictMode double-mounted the component, or when the `isVisible` prop
- *   changed in certain orders), the logo stayed at `opacity: 0` forever —
- *   the user saw a blank screen with only the bottom status text.
+ *   1. AMBIENT REVEAL (0ms → 1200ms)
+ *      Background fades from pure black to dark zinc (#0e0e11) via CSS
+ *      ::after animation. Ambient shimmer (::before) begins breathing.
  *
- *   NOW we use CSS transitions + direct state management. The logo is
- *   ALWAYS visible (opacity: 1 by default), and we just change the color
- *   via a CSS class. No animation controller, no race conditions.
+ *   2. LOGO ENTRY (0ms → 1200ms, staggered)
+ *      Logo fades in with micro-scale expansion (92% → 100%) using
+ *      cubic-bezier(0.16, 1, 0.3, 1) — a smooth, decelerating curve.
+ *
+ *   3. COLOR PHASE 1 — BLACK (0ms → 800ms)
+ *      Logo starts in black (#000000) on the dark background.
+ *
+ *   4. COLOR PHASE 2 — AMBER (800ms → 1600ms)
+ *      Logo morphs to amber (#EAB308) — the loading signal.
+ *      Haptic: soft impact when color settles.
+ *
+ *   5. COLOR PHASE 3 — GREEN (1600ms → 2400ms)
+ *      Logo morphs to brand green (rgb(22, 163, 74)).
+ *      "Ready" text fades in with vertical slide-up.
+ *      Haptic: soft impact when color settles.
+ *
+ *   6. SETTLE (2400ms → 2800ms)
+ *      Brief hold on the final frame to let the branding sink in.
+ *
+ *   7. CINEMATIC EXIT (2800ms → 3400ms)
+ *      Splash scales outward (1 → 1.08) while cross-fading to the
+ *      main app. This creates a smooth scene transition.
+ *
+ * EASING:
+ *   All transitions use cubic-bezier(0.16, 1, 0.3, 1) — a smooth,
+ *   decelerating curve that feels intentional and elegant.
+ *
+ * ROBUSTNESS:
+ *   CSS transitions + direct state management. The logo is ALWAYS
+ *   visible once mounted (opacity is controlled by CSS animation, not
+ *   React state). No Framer Motion, no race conditions.
  */
+
 import React, { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Logo } from '../constants';
 import './SplashScreen.css';
 
@@ -33,6 +57,17 @@ interface SplashScreenProps {
     onComplete?: () => void;
 }
 
+// Cinematic easing curve — smooth deceleration
+const EASE_CINEMATIC = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
+// Haptic feedback helper — only fires on native platforms
+const hapticImpact = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        await Haptics.impact({ style: ImpactStyle.Light });
+    } catch {}
+};
+
 const SplashScreen: React.FC<SplashScreenProps> = ({
     isVisible,
     statusMessage = "Initializing System...",
@@ -46,7 +81,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     const hasStarted = useRef(false);
     const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-    // Clear all timers on unmount
     const clearAllTimers = () => {
         timersRef.current.forEach(t => clearTimeout(t));
         timersRef.current = [];
@@ -63,30 +97,35 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             setIsActuallyMounted(true);
             setIsExiting(false);
 
-            // ── PHASE 1: EMERGENCE — logo visible in black ──────────
+            // ── PHASE 1: EMERGENCE — logo in black ────────────────────
             setPhase('emergence');
 
-            // ── PHASE 2: AMBER (after 750ms) ────────────────────────
+            // ── PHASE 2: AMBER (after 800ms) ───────────────────────────
             addTimer(() => {
                 setPhase('amber');
-            }, 750);
+                hapticImpact(); // Soft haptic when color transitions
+            }, 800);
 
-            // ── PHASE 3: GREEN (after 1350ms) ───────────────────────
+            // ── PHASE 3: GREEN (after 1600ms) ──────────────────────────
             addTimer(() => {
                 setPhase('green');
-            }, 1350);
+                hapticImpact(); // Soft haptic when color settles
+            }, 1600);
 
-            // ── Call onComplete (after 1900ms) ──────────────────────
+            // ── SETTLE + COMPLETE (after 2800ms) ───────────────────────
+            // Hold the final frame for ~1.2s after green appears so the
+            // branding feels intentional and credible.
             addTimer(() => {
                 if (onComplete) onComplete();
-            }, 1900);
+            }, 2800);
         } else if (!isVisible && isActuallyMounted && !isExiting) {
-            // Exit sequence
+            // ── CINEMATIC EXIT ────────────────────────────────────────
+            // Scale outward + cross-fade instead of a simple opacity fade.
             setIsExiting(true);
             addTimer(() => {
                 setIsActuallyMounted(false);
                 setIsExiting(false);
-            }, 400);
+            }, 600);
         }
     }, [isVisible]);
 
@@ -112,30 +151,30 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
     return (
         <div
-            className="splash-screen"
+            className={`splash-screen ${isExiting ? 'splash-exiting' : ''}`}
             style={{
                 backgroundColor: '#0e0e11',
-                opacity: isExiting ? 0 : 1,
-                transition: 'opacity 0.4s ease',
                 pointerEvents: isVisible ? 'auto' : 'none',
-                zIndex: 9999
+                zIndex: 9999,
             }}
         >
             {/* Branding Core */}
             <div className="relative z-10 flex flex-col items-center">
-                {/* Logo — ALWAYS visible (opacity 1). Color changes via CSS transition. */}
+                {/* Logo — entry animation handled by CSS .splash-logo class.
+                    Color and glow change via inline style transitions. */}
                 <div
                     className="splash-logo"
                     style={{
                         color: logoColor,
                         filter: logoGlow,
-                        transition: 'color 0.6s ease, filter 0.6s ease',
-                        opacity: 1, // ALWAYS visible — no animation controller dependency
+                        transition: `color 0.8s ${EASE_CINEMATIC}, filter 0.8s ${EASE_CINEMATIC}`,
                     }}
                 >
                     <Logo className="w-32 h-32" />
                 </div>
 
+                {/* Text — entry animation handled by CSS .splash-text-container.
+                    Visibility controlled by phase (appears in green phase). */}
                 <div className="splash-text-container">
                     <span
                         className="splash-text"
@@ -143,7 +182,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
                             color: 'rgb(22, 163, 74)',
                             opacity: phase === 'green' ? 1 : 0,
                             transform: phase === 'green' ? 'translateY(0)' : 'translateY(8px)',
-                            transition: 'opacity 0.3s ease, transform 0.3s ease',
+                            transition: `opacity 0.5s ${EASE_CINEMATIC}, transform 0.5s ${EASE_CINEMATIC}`,
                         }}
                     >
                         Ready
@@ -157,21 +196,13 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
                     <p
                         className="text-2xs font-black uppercase tracking-[0.4em] text-slate-700"
                         style={{
-                            animation: 'pulse 2s ease-in-out infinite',
+                            animation: 'pulse 2.5s ease-in-out infinite',
                         }}
                     >
                         {statusMessage}
                     </p>
                 </div>
             )}
-
-            {/* Hidden style tag for the pulse animation */}
-            <style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 0.4; }
-                    50% { opacity: 0.7; }
-                }
-            `}</style>
         </div>
     );
 };

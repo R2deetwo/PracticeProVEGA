@@ -11,7 +11,9 @@
     overflow: hidden;
 }
 
-/* Subtle Atmospheric Pulse */
+/* ─── Cinematic Ambient Shimmer ──────────────────────────────────── */
+/* A slow, breathing radial gradient that creates depth and atmosphere.
+   Animates continuously throughout the splash sequence. */
 .splash-screen::before {
     content: '';
     position: absolute;
@@ -19,10 +21,34 @@
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+    background: radial-gradient(circle at center, rgba(22, 163, 74, 0.04) 0%, transparent 50%);
     pointer-events: none;
+    animation: splashAmbientBreath 4s cubic-bezier(0.4, 0, 0.2, 1) ease-in-out infinite;
 }
 
+@keyframes splashAmbientBreath {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.15); opacity: 1; }
+}
+
+/* ─── Layered Background Reveal ──────────────────────────────────── */
+/* On mount, the background fades in from pure black to the dark zinc
+   base. This creates a smooth transition from the native OS splash. */
+.splash-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: #0e0e11;
+    pointer-events: none;
+    animation: splashBgReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes splashBgReveal {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ─── Logo Mark ──────────────────────────────────────────────────── */
 .splash-logo {
     position: relative;
     z-index: 10;
@@ -31,8 +57,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Staggered entry: scale from 95% with fade-in */
+    animation: splashLogoEntry 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: scale(0.92);
 }
 
+@keyframes splashLogoEntry {
+    0% { opacity: 0; transform: scale(0.92); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Text Container ─────────────────────────────────────────────── */
 .splash-text-container {
     margin-top: 24px;
     height: 24px;
@@ -40,6 +77,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    /* Staggered entry: slides up after the logo settles */
+    animation: splashTextEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+@keyframes splashTextEntry {
+    0% { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
 .splash-text {
@@ -48,17 +94,35 @@
     text-transform: uppercase;
     letter-spacing: 0.6em;
     padding-left: 0.6em;
-    /* Color is managed by Framer Motion in component */
 }
 
-/* Background Image Layer */
+/* ─── Background Image Layer (unused but kept for compat) ────────── */
 .splash-bg-image {
     position: absolute;
     inset: 0;
     background-image: url("/atrium-splash.jpg");
     background-size: cover;
     background-position: center;
-    opacity: 0; /* Managed by Framer Motion */
+    opacity: 0;
     mix-blend-mode: overlay;
     pointer-events: none;
+}
+
+/* ─── Cinematic Exit Transition ──────────────────────────────────── */
+/* When the splash exits, it scales outward slightly while cross-fading
+   into the main app. This creates a smooth "scene transition" rather
+   than an abrupt jump. */
+.splash-screen.splash-exiting {
+    animation: splashExit 0.6s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes splashExit {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.08); }
+}
+
+/* ─── Status Text Pulse ──────────────────────────────────────────── */
+@keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
 }
