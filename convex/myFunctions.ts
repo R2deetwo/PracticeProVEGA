@@ -1584,6 +1584,16 @@ export const verifyCode = mutation({
         product: user.product || undefined,
         name: user.name || undefined,
       });
+
+      // ─── Notify the founder of a new user signup ──────────────────
+      // Sends an email to the founder's notification address so they
+      // know when someone new joins the platform. Also CCs any
+      // additional notification recipients (e.g., marketing team).
+      await ctx.scheduler.runAfter(0, internal.myFunctions.sendFounderSignupNotification, {
+        newUserEmail: user.email || args.email,
+        newUserName: user.name || '',
+        product: user.product || 'legal',
+      });
     } else {
       await ctx.db.patch(user._id, { isVerified: true, verificationCode: null });
     }
@@ -3229,7 +3239,7 @@ export const forceDeleteItem = mutation({
 // Migrated from Resend to Brevo (April 2026) for improved deliverability.
 // Sender: practiceprovega@gmail.com (verified individual sender on Brevo)
 
-const BREVO_SENDER = { name: "PracticePro", email: process.env.BREVO_SENDER_EMAIL || "practiceprovega@gmail.com" };
+const BREVO_SENDER = { name: "PracticePro Systems", email: process.env.BREVO_SENDER_EMAIL || "practiceprosystems@gmail.com" };
 
 // Product-specific branding for emails — ALL products use the brand green
 // (#16A34A) as the primary color, with product-specific accent colors
@@ -3275,7 +3285,7 @@ function brandedEmailWrapper(opts: {
 </td></tr>
 <tr><td style="padding:40px 32px;">${opts.bodyHtml}</td></tr>
 <tr><td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 32px;text-align:center;">
-<p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0;">&copy; ${year} PracticePro Systems Limited. All rights reserved.<br/>No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.<br/><a href="mailto:support@practicepro.ng" style="color:#64748b;text-decoration:none;">support@practicepro.ng</a></p>
+<p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0;">&copy; ${year} PracticePro Systems Limited. All rights reserved.<br/>No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.<br/><a href="mailto:practiceprosystems@gmail.com" style="color:#64748b;text-decoration:none;">practiceprosystems@gmail.com</a></p>
 </td></tr>
 </table>
 </td></tr>
@@ -3294,7 +3304,7 @@ async function sendBrevoEmail(args: {
   html: string;
   productName?: string;
 }) {
-  const apiKey = process.env.PracticePro_Vega_Mailer;
+  const apiKey = process.env.PracticePro_Vega_Mailer || process.env.BREVO_API_KEY;
   if (!apiKey) {
     console.warn("[Brevo] CRITICAL: BREVO_API_KEY environment variable is missing. Email not sent.");
     return { success: false, error: "API key missing" };
@@ -4371,3 +4381,77 @@ async function sendTaskReminder(ctx: any, task: any, type: 'halfway' | 'final') 
     }
   }
 }
+
+/**
+ * sendFounderSignupNotification — Notifies the founder when a new user
+ * verifies their email and joins the platform.
+ *
+ * Sends to:
+ *   - practiceprosystems@gmail.com (primary founder email)
+ *   - Any additional notification recipients stored in the
+ *     FOUNDER_NOTIFICATION_EMAILS env var (comma-separated)
+ *
+ * This is triggered from the verifyCode mutation when welcomeEmailSent
+ * is set to true for the first time.
+ */
+export const sendFounderSignupNotification = internalAction({
+  args: {
+    newUserEmail: v.string(),
+    newUserName: v.string(),
+    product: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const brand = getProductBranding(args.product);
+    const productName = args.product === 'property' ? 'Atrium' :
+                         args.product === 'unified' ? 'Komplete' : 'Vega';
+
+    const bodyHtml = `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">New User Signup</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+        A new user has just verified their email and joined PracticePro ${productName}!
+      </p>
+      <div style="background:${BRAND_GREEN_LIGHT};border-radius:12px;padding:20px;margin-bottom:24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr><td style="padding:4px 0;color:#64748b;font-size:13px;">Name:</td><td style="padding:4px 0;color:#1a202c;font-size:15px;font-weight:600;">${args.newUserName || 'Not provided'}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;font-size:13px;">Email:</td><td style="padding:4px 0;color:#1a202c;font-size:15px;font-weight:600;">${args.newUserEmail}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;font-size:13px;">Product:</td><td style="padding:4px 0;color:#1a202c;font-size:15px;font-weight:600;">${productName}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;font-size:13px;">Joined:</td><td style="padding:4px 0;color:#1a202c;font-size:15px;font-weight:600;">${new Date().toLocaleString('en-GB')}</td></tr>
+        </table>
+      </div>
+      <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
+        View more details in the Founder Dashboard → Organizations.
+      </p>`;
+
+    const html = brandedEmailWrapper({
+      productName: 'Founder Alert',
+      productColor: BRAND_GREEN,
+      tagline: 'Platform Notification',
+      bodyHtml,
+    });
+
+    // Primary founder email
+    await sendBrevoEmail({
+      to: "practiceprosystems@gmail.com",
+      subject: `New ${productName} Signup: ${args.newUserName || args.newUserEmail}`,
+      html,
+      productName: 'Founder Alert',
+    });
+
+    // Additional notification recipients (e.g., marketing team)
+    // Set FOUNDER_NOTIFICATION_EMAILS env var to a comma-separated list
+    const additionalEmails = process.env.FOUNDER_NOTIFICATION_EMAILS;
+    if (additionalEmails) {
+      const emails = additionalEmails.split(',').map((e: string) => e.trim()).filter(Boolean);
+      for (const email of emails) {
+        await sendBrevoEmail({
+          to: email,
+          subject: `New ${productName} Signup: ${args.newUserName || args.newUserEmail}`,
+          html,
+          productName: 'Founder Alert',
+        });
+      }
+    }
+
+    return { success: true };
+  },
+});

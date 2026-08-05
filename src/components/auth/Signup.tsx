@@ -200,7 +200,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    setRestoreSubmitted(true);
    addToast('Restoration request sent! We will reach out within 24 hours.', { type: 'success' });
   } catch (err) {
-   addToast('Could not submit. Please email practiceprovega@gmail.com directly.', { type: 'error' });
+   addToast('Could not submit. Please email practiceprosystems@gmail.com directly.', { type: 'error' });
   } finally {
    setIsSubmittingRestore(false);
   }

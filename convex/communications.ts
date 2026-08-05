@@ -31,7 +31,7 @@ export const sendEmail = action({
           "api-key": BREVO_API_KEY,
         },
         body: JSON.stringify({
-          sender: { name: "PracticePro Legal Technologies", email: process.env.BREVO_SENDER_EMAIL || "practiceprovega@gmail.com" },
+          sender: { name: "PracticePro Systems", email: process.env.BREVO_SENDER_EMAIL || "practiceprosystems@gmail.com" },
           to: [{ email: args.to, name: args.toName || args.to }],
           subject: args.subject,
           htmlContent: args.htmlContent,

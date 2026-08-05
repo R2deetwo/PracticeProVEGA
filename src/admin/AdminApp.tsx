@@ -27,6 +27,7 @@ import { FounderDashboard } from '../components/FounderDashboard';
 import { OrganizationsCenter } from './views/OrganizationsCenter';
 import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
+import { FeedbackInbox } from './views/FeedbackInbox';
 import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
@@ -34,7 +35,7 @@ import { FounderBottomNav } from './FounderBottomNav';
 import { Settings } from './views/Settings';
 import { UserRole } from '../types';
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'audit' | 'settings';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'audit' | 'settings';
 
 export const AdminApp: React.FC = () => {
     const { currentUser, isAuthenticated, isLoadingSession } = useAuth();
@@ -105,6 +106,7 @@ export const AdminApp: React.FC = () => {
                 {activeView === 'dashboard' && <FounderDashboard />}
                 {activeView === 'signals' && <FounderSignals />}
                 {activeView === 'organizations' && <OrganizationsCenter />}
+                {activeView === 'feedback' && <FeedbackInbox />}
                 {activeView === 'audit' && <AuditLogs />}
                 {activeView === 'settings' && <Settings />}
             </main>

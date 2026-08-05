@@ -224,7 +224,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>9.3 Support</h3>
                     <p>
-                        PracticePro provides support via email at practiceprovega@gmail.com. Response times depend on your subscription tier and the severity of the issue. Critical issues affecting platform access are prioritized.
+                        PracticePro provides support via email at practiceprosystems@gmail.com. Response times depend on your subscription tier and the severity of the issue. Critical issues affecting platform access are prioritized.
                     </p>
 
                     <h2>10. Termination and Suspension</h2>
@@ -275,7 +275,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>12.3 Reporting Violations</h3>
                     <p>
-                        To report violations of this Usage Policy, security vulnerabilities, or suspected unauthorized access, contact us at practiceprovega@gmail.com. We investigate all reports and take appropriate action, including account suspension and legal action where warranted.
+                        To report violations of this Usage Policy, security vulnerabilities, or suspected unauthorized access, contact us at practiceprosystems@gmail.com. We investigate all reports and take appropriate action, including account suspension and legal action where warranted.
                     </p>
 
                     <h2>13. Modifications to This Policy</h2>
@@ -295,7 +295,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <p>
                         <strong>PracticePro Systems Limited</strong><br />
                         No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria<br />
-                        Email: <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 dark:text-primary-400 underline">practiceprovega@gmail.com</a><br />
+                        Email: <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 dark:text-primary-400 underline">practiceprosystems@gmail.com</a><br />
                         Data Protection Officer: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 dark:text-primary-400 underline">dpo@practicepro.ng</a>
                     </p>
 

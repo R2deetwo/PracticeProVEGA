@@ -81,7 +81,7 @@ const ContactSalesDrawer: React.FC<{
             setIsSubmitted(true);
         } catch (err) {
             console.error('[ContactSales] Submission failed:', err);
-            setErrors({ submit: 'Something went wrong. Please try again or email us directly at practiceprovega@gmail.com' });
+            setErrors({ submit: 'Something went wrong. Please try again or email us directly at practiceprosystems@gmail.com' });
         } finally {
             setIsSubmitting(false);
         }

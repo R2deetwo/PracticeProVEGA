@@ -412,7 +412,7 @@ export const HelpSettings: React.FC = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <a
-                            href="mailto:practiceprovega@gmail.com?subject=PracticePro%20Support%20Request"
+                            href="mailto:practiceprosystems@gmail.com?subject=PracticePro%20Support%20Request"
                             className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-all shadow-sm"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

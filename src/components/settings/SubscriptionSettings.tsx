@@ -711,7 +711,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             {firmDetails.subscriptionPlan === SubscriptionPlan.Enterprise && (
                 <p className="text-center text-sm text-slate-500 dark:text-zinc-400 py-4 border-t border-slate-200 dark:border-zinc-700">
                     Your firm is on a custom Enterprise plan. Contact{' '}
-                    <a href="mailto:support@practicepro.ng" className="text-primary-600 font-semibold hover:underline">support@practicepro.ng</a>
+                    <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 font-semibold hover:underline">practiceprosystems@gmail.com</a>
                     {' '}to change billing or modalities.
                 </p>
             )}

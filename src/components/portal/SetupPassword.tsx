@@ -611,7 +611,7 @@ const SetupPassword: React.FC = () => {
                                     <p>These Portal Terms are governed by the laws of the Federal Republic of Nigeria. Any dispute shall be subject to the exclusive jurisdiction of the courts of Lagos State, Nigeria.</p>
 
                                     <h4 className="text-sm font-bold text-slate-200">11. Contact Information</h4>
-                                    <p>PracticePro Systems Limited, No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria. Email: <a href="mailto:practiceprovega@gmail.com" className="text-amber-400 underline">practiceprovega@gmail.com</a></p>
+                                    <p>PracticePro Systems Limited, No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria. Email: <a href="mailto:practiceprosystems@gmail.com" className="text-amber-400 underline">practiceprosystems@gmail.com</a></p>
 
                                     <div className="mt-4 pt-4 border-t border-white/[0.08]">
                                         <p className="text-xs text-slate-500">For full details, see the PracticePro <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Terms and Conditions of Service</a>, <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Privacy Policy</a>, and <a href="/data-processing-agreement" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Data Processing Agreement</a>.</p>

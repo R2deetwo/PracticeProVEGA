@@ -49,7 +49,7 @@ const FeedbackForm: React.FC = () => {
                 closeModal();
             } catch (error) {
                 console.error('Restore request failed:', error);
-                addToast('Failed to submit. Please email practiceprovega@gmail.com directly.', { type: 'error' });
+                addToast('Failed to submit. Please email practiceprosystems@gmail.com directly.', { type: 'error' });
             } finally {
                 setIsSubmitting(false);
             }
@@ -170,7 +170,7 @@ const FeedbackForm: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-blue-600/80 dark:text-blue-400/80 border-t border-blue-200 dark:border-blue-900/50 dark:border-blue-800 pt-3">
-                        Alternatively, email us directly at <strong>practiceprovega@gmail.com</strong> with "Workspace Restore" in the subject line.
+                        Alternatively, email us directly at <strong>practiceprosystems@gmail.com</strong> with "Workspace Restore" in the subject line.
                     </p>
                 </div>
             ) : (

@@ -13,6 +13,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { Capacitor } from '@capacitor/core';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
@@ -27,6 +29,9 @@ export const Settings: React.FC = () => {
     const [showPasswordForm, setShowPasswordForm] = useState(false);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    // Real environment status from Convex
+    const envStatus = useQuery(api.debug.checkEnv, {});
 
     // Security settings (persisted to localStorage)
     const [screenCapture, setScreenCapture] = useState(() => {
@@ -73,18 +78,33 @@ export const Settings: React.FC = () => {
         }
     };
 
-    const toggleScreenCapture = (allow: boolean) => {
-        // On native Android, FLAG_SECURE prevents screenshots/screen recording.
-        // We'd need a Capacitor plugin to call setFlags on the Window.
-        // For now, we add a CSS-based screenshot overlay that hides content
-        // when the app goes to background (which is when screenshots are
-        // typically taken on Android).
-        if (Capacitor.isNativePlatform() && !allow) {
-            // Add a class to the body that triggers the screenshot overlay
-            document.body.classList.add('screen-capture-protected');
-            addToast('Screen capture blocked (FLAG_SECURE)', { type: 'success' });
+    const toggleScreenCapture = async (allow: boolean) => {
+        // Use the native ContentProtectionPlugin (already built in the Android app)
+        // which calls FLAG_SECURE on the Window — the same mechanism banking apps use.
+        if (Capacitor.isNativePlatform()) {
+            try {
+                // The plugin is registered as 'ContentProtectionPlugin'
+                // Call setFlagSecure(!allow) — when allow=false, secure=true (blocks screenshots)
+                await (Capacitor as any).Plugins?.ContentProtectionPlugin?.setFlagSecure?.(!allow);
+                addToast(allow ? 'Screen capture allowed' : 'Screen capture blocked (FLAG_SECURE)', { type: 'success' });
+            } catch (e) {
+                console.warn('[Settings] Native content protection plugin not available:', e);
+                // Fallback: CSS-based protection
+                if (!allow) {
+                    document.body.classList.add('screen-capture-protected');
+                    addToast('Screen capture blocked (CSS fallback)', { type: 'success' });
+                } else {
+                    document.body.classList.remove('screen-capture-protected');
+                }
+            }
         } else {
-            document.body.classList.remove('screen-capture-protected');
+            // Web fallback — CSS only
+            if (!allow) {
+                document.body.classList.add('screen-capture-protected');
+                addToast('Screen capture blocked (CSS fallback)', { type: 'success' });
+            } else {
+                document.body.classList.remove('screen-capture-protected');
+            }
         }
     };
 
@@ -334,8 +354,23 @@ export const Settings: React.FC = () => {
                             <p className={SECTION_TITLE}>API Integrations</p>
                             <div className="space-y-2">
                                 <SystemStatusRow label="Convex Backend" status="connected" detail="gregarious-malamute-537" />
-                                <SystemStatusRow label="Email Service" status="pending" detail="Not configured" />
+                                <SystemStatusRow
+                                    label="Email Service (Brevo)"
+                                    status={envStatus?.hasPracticeProMailer || envStatus?.hasBrevoApiKey ? 'connected' : 'pending'}
+                                    detail={envStatus?.hasPracticeProMailer ? `Key: ${envStatus.mailerPrefix}...` :
+                                            envStatus?.hasBrevoApiKey ? 'BREVO_API_KEY set' : 'No API key configured'}
+                                />
+                                <SystemStatusRow
+                                    label="Sender Email"
+                                    status={envStatus?.hasBrevoSenderEmail ? 'connected' : 'pending'}
+                                    detail={envStatus?.hasBrevoSenderEmail ? 'Custom domain' : 'Using default (practiceprosystems@gmail.com)'}
+                                />
                                 <SystemStatusRow label="Push Notifications" status={Capacitor.isNativePlatform() ? 'connected' : 'pending'} detail={Capacitor.isNativePlatform() ? 'Native (Capacitor)' : 'Web only'} />
+                                <SystemStatusRow
+                                    label="WhatsApp (Chakra)"
+                                    status={envStatus?.hasChakraToken ? 'connected' : 'pending'}
+                                    detail={envStatus?.hasChakraToken ? 'Connected' : 'Not configured'}
+                                />
                             </div>
                         </div>
 

@@ -210,7 +210,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                                 <div className="pl-4 border-l-2 border-slate-100 dark:border-zinc-800 space-y-3">
                                     <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
-                                    <p><strong>General Enquiries:</strong> <a href="mailto:hello@practicepro.ng">hello@practicepro.ng</a></p>
+                                    <p><strong>General Enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com">practiceprosystems@gmail.com</a></p>
                                     <p><strong>Data Protection / Privacy:</strong> <a href="mailto:dpo@practicepro.ng">dpo@practicepro.ng</a></p>
                                 </div>
                                 <p>We aim to respond to all formal notices and complaints within five (5) business days.</p>
