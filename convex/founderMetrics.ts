@@ -666,3 +666,90 @@ export const createFounderAccount = action({
     return { success: true };
   },
 });
+
+/**
+ * action: broadcastNotification
+ *
+ * Sends a platform-wide announcement to all users matching the target
+ * product. Supports in-app notifications, email, or both.
+ *
+ * This is the founder's broadcast console — used for announcements like
+ * "New Feature Available", "Scheduled Maintenance", "Milestone Celebration".
+ *
+ * Target products:
+ *   - 'all'      → All users regardless of product
+ *   - 'legal'    → Vega users only
+ *   - 'property' → Atrium users only
+ *   - 'unified'  → Komplete users only
+ *
+ * Channels:
+ *   - 'inapp' → Creates a notification row for each user
+ *   - 'email' → Sends an email via Brevo
+ *   - 'both'  → Does both
+ */
+export const broadcastNotification = action({
+  args: {
+    tokenIdentifier: v.string(),
+    targetProduct: v.string(),
+    channel: v.string(),
+    theme: v.string(),
+    title: v.string(),
+    message: v.string(),
+    deepLink: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    // 1. Fetch all users matching the target product
+    const allUsers = await ctx.runQuery(api.myFunctions.getAllUsersForBroadcast, {
+      targetProduct: args.targetProduct,
+    });
+
+    let recipientCount = 0;
+
+    // 2. Create in-app notifications
+    if (args.channel === 'inapp' || args.channel === 'both') {
+      for (const user of allUsers) {
+        await ctx.runMutation(internal.myFunctions.createBroadcastNotification, {
+          userId: user._id,
+          firmId: user.firmId || 'system',
+          title: args.title,
+          message: args.message,
+          theme: args.theme,
+          deepLink: args.deepLink || undefined,
+        });
+        recipientCount++;
+      }
+    }
+
+    // 3. Send emails
+    if (args.channel === 'email' || args.channel === 'both') {
+      for (const user of allUsers) {
+        if (user.email) {
+          try {
+            await ctx.runAction(internal.myFunctions.sendBroadcastEmail, {
+              to: user.email,
+              title: args.title,
+              message: args.message,
+              theme: args.theme,
+            });
+            if (args.channel === 'email') recipientCount++;
+          } catch (e) {
+            console.warn('[broadcast] Email failed for', user.email, e);
+          }
+        }
+      }
+    }
+
+    // 4. Log the broadcast
+    await ctx.runMutation(internal.myFunctions.logBroadcastEvent, {
+      targetProduct: args.targetProduct,
+      channel: args.channel,
+      theme: args.theme,
+      title: args.title,
+      recipientCount,
+    });
+
+    return { success: true, recipientCount };
+  },
+});

@@ -4455,3 +4455,129 @@ export const sendFounderSignupNotification = internalAction({
     return { success: true };
   },
 });
+
+/**
+ * query: getAllUsersForBroadcast
+ * Returns all users matching the target product for broadcast notifications.
+ * Filters out Founder role users (they don't receive client broadcasts).
+ */
+export const getAllUsersForBroadcast = query({
+  args: { targetProduct: v.string() },
+  handler: async (ctx, args) => {
+    const allUsers = await ctx.db.query("users").take(2000);
+    const target = args.targetProduct;
+
+    return allUsers.filter((u: any) => {
+      // Exclude Founder role — they don't receive client broadcasts
+      if (u.role === 'Founder') return false;
+      // 'all' = everyone
+      if (target === 'all') return true;
+      // Match by product field
+      const userProduct = u.product || 'legal';
+      return userProduct === target;
+    });
+  },
+});
+
+/**
+ * internal mutation: createBroadcastNotification
+ * Creates a notification row for a single user (used by broadcast action).
+ */
+export const createBroadcastNotification = internalMutation({
+  args: {
+    userId: v.string(),
+    firmId: v.string(),
+    title: v.string(),
+    message: v.string(),
+    theme: v.string(),
+    deepLink: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("notifications", {
+      firmId: args.firmId,
+      userId: args.userId,
+      title: args.title,
+      message: args.message,
+      type: `broadcast_${args.theme}`,
+      link: args.deepLink ? { view: 'dashboard', id: null, context: { deepLink: args.deepLink } } : null,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+    } as any);
+  },
+});
+
+/**
+ * internal mutation: logBroadcastEvent
+ * Logs a broadcast event in analytics_events for audit trail.
+ */
+export const logBroadcastEvent = internalMutation({
+  args: {
+    targetProduct: v.string(),
+    channel: v.string(),
+    theme: v.string(),
+    title: v.string(),
+    recipientCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("analytics_events", {
+      firmId: "system",
+      userId: "founder",
+      event: `Broadcast sent: ${args.title}`,
+      properties: {
+        targetProduct: args.targetProduct,
+        channel: args.channel,
+        theme: args.theme,
+        recipientCount: args.recipientCount,
+      },
+      timestamp: Date.now(),
+    } as any);
+  },
+});
+
+/**
+ * internal action: sendBroadcastEmail
+ * Sends a broadcast email via Brevo to a single recipient.
+ */
+export const sendBroadcastEmail = internalAction({
+  args: {
+    to: v.string(),
+    title: v.string(),
+    message: v.string(),
+    theme: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const themeColors: Record<string, string> = {
+      info: '#3B82F6',
+      success: '#16A34A',
+      warning: '#F59E0B',
+      urgent: '#EF4444',
+    };
+    const color = themeColors[args.theme] || themeColors.info;
+
+    const bodyHtml = `
+      <div style="background:${color};border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;">
+        <p style="color:#ffffff;font-size:14px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:1px;">${args.theme === 'urgent' ? 'URGENT ALERT' : args.theme === 'warning' ? 'WARNING' : args.theme === 'success' ? 'ANNOUNCEMENT' : 'NOTIFICATION'}</p>
+      </div>
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">${args.title}</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">${args.message}</p>
+      <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
+        This is a platform-wide announcement from PracticePro. Open the app for more details.
+      </p>`;
+
+    const html = brandedEmailWrapper({
+      productName: 'Announcement',
+      productColor: color,
+      tagline: 'Platform Notification',
+      bodyHtml,
+    });
+
+    await sendBrevoEmail({
+      to: args.to,
+      subject: args.title,
+      html,
+      productName: 'Announcement',
+    });
+
+    return { success: true };
+  },
+});

@@ -26,7 +26,7 @@ const ContactCard: React.FC<{ contact: Contact, onViewDetails: (id: string) => v
             data-item-id={contact.id}
             onClick={() => onViewDetails(contact.id)}
             className={`
-            flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 group border-b border-slate-50 dark:border-zinc-800 last:border-0
+            flex items-center justify-between p-3.5 rounded-xl cursor-pointer transition-all duration-200 group border-b border-slate-50 dark:border-zinc-800 last:border-0 min-h-[48px]
             ${isActive ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-slate-50 dark:hover:bg-zinc-800/50'}
             ${isSelected ? 'ring-2 ring-inset ring-primary-500 bg-primary-50/50' : ''}
         `}

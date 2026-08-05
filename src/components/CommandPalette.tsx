@@ -4,11 +4,12 @@ import { useUI } from '../contexts/UIContext';
 import { useMatterState } from '../contexts/MatterContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
-import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon } from '../constants';
+import { useCoreState } from '../contexts/CoreContext';
+import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon, OfficeBuildingIcon } from '../constants';
 import Fuse from 'fuse.js';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task';
+type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task' | 'Property';
 
 interface SearchResult {
     id: string;
@@ -25,6 +26,7 @@ const CommandPalette: React.FC = () => {
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
+    const { coreState } = useCoreState();
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +42,7 @@ const CommandPalette: React.FC = () => {
         // Navigation
         { id: 'nav-dashboard', title: 'Go to Dashboard', type: 'Navigation', icon: <DashboardIcon />, action: () => navigateTo('dashboard') },
         { id: 'nav-matters', title: 'Go to Matters', type: 'Navigation', icon: <MattersIcon />, action: () => navigateTo('matters') },
+        { id: 'nav-properties', title: 'Go to Properties', type: 'Navigation', icon: <OfficeBuildingIcon />, action: () => navigateTo('properties') },
         { id: 'nav-contacts', title: 'Go to Contacts', type: 'Navigation', icon: <ContactsIcon />, action: () => navigateTo('contacts') },
         { id: 'nav-tasks', title: 'Go to Tasks', type: 'Navigation', icon: <TasksIcon />, action: () => navigateTo('tasks') },
         { id: 'nav-calendar', title: 'Go to Calendar', type: 'Navigation', icon: <CalendarIcon />, action: () => navigateTo('calendar') },
@@ -112,8 +115,20 @@ const CommandPalette: React.FC = () => {
             });
         });
 
+        // Properties (Atrium / Komplete)
+        (coreState.properties || []).forEach(p => {
+            dataItems.push({
+                id: `property-${p.id}`,
+                title: p.name || p.address || 'Unnamed Property',
+                subtitle: p.address || p.type || '',
+                type: 'Property',
+                icon: <OfficeBuildingIcon />,
+                action: () => navigateTo('propertyDetail', p.id)
+            });
+        });
+
         return dataItems;
-    }, [matterState, executionState, documentState, navigateTo, openModal]);
+    }, [matterState, executionState, documentState, coreState.properties, navigateTo, openModal]);
 
     // 3. Fuse Configuration
     const fuse = useMemo(() => {

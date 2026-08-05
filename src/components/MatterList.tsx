@@ -145,7 +145,7 @@ const MatterCardItem: React.FC<{
     return (
         <div
             onClick={() => selectionMode && onSelect ? onSelect(matter.id, !isSelected) : navigateTo('matterDetail', matter.id)}
-            className={`group relative p-3 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
+            className={`group relative p-3.5 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 min-h-[48px] ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
             <div className="flex items-start gap-2">
                 {/* Checkbox — visible on hover or when selection mode active */}

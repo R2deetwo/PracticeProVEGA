@@ -1,19 +1,12 @@
 /**
  * FounderBottomNav — mobile-optimized bottom navigation for the Founder APK.
  *
- * Mirrors the consumer app's BottomNav pattern:
- *   - Fixed at the bottom of the screen
- *   - Icon + label for each nav item
- *   - Backdrop blur + safe area padding
- *   - Active item highlighted in brand color
- *   - Haptic feedback on tap (if available)
- *
- * This replaces the sidebar (which took up too much screen space on mobile).
- * The founder APK is designed for portrait mode on phones, just like the
- * consumer app.
+ * 5 primary items shown in the bottom bar. The remaining items (Audit,
+ * Broadcast) are accessible via the "More" button which opens a grid
+ * sheet — mirrors the consumer app's BottomNav pattern.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { AdminView } from './AdminApp';
 
 interface NavItem {
@@ -70,37 +63,125 @@ const NAV_ITEMS: NavItem[] = [
     },
 ];
 
+const MORE_ITEMS: NavItem[] = [
+    {
+        view: 'broadcast',
+        label: 'Broadcast',
+        icon: (
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84a3 3 0 100-5.68 3 3 0 000 5.68zM7.51 7.34a6 6 0 018.98 0M4.66 4.49a10 10 0 0114.69 0M2.81 1.64a15 15 0 0118.38 0" />
+            </svg>
+        ),
+    },
+    {
+        view: 'audit',
+        label: 'Audit Logs',
+        icon: (
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+        ),
+    },
+];
+
+const MoreIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+        <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+    </svg>
+);
+
 interface FounderBottomNavProps {
     activeView: AdminView;
     setActiveView: (v: AdminView) => void;
 }
 
 export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, setActiveView }) => {
+    const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+    const isMoreActive = MORE_ITEMS.some(item => item.view === activeView);
+
     return (
-        <nav
-            className="fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 pb-safe pt-1"
-        >
-            <div className="flex items-start">
-                {NAV_ITEMS.map(item => {
-                    const isActive = activeView === item.view;
-                    return (
-                        <button
-                            key={item.view}
-                            onClick={() => setActiveView(item.view)}
-                            className={`active-press touch-target relative flex flex-col items-center justify-center flex-1 pt-1.5 pb-1 h-14 transition-colors duration-200 ${
-                                isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400'
-                            }`}
-                            aria-current={isActive ? 'page' : undefined}
-                            aria-label={item.label}
-                        >
-                            <div className="relative">
-                                {React.cloneElement(item.icon, { className: 'w-5 h-5 mb-0.5' })}
+        <>
+            <nav
+                className="fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 pb-safe pt-1"
+            >
+                <div className="flex items-start">
+                    {NAV_ITEMS.map(item => {
+                        const isActive = activeView === item.view;
+                        return (
+                            <button
+                                key={item.view}
+                                onClick={() => { setActiveView(item.view); setIsMoreOpen(false); }}
+                                className={`active-press touch-target relative flex flex-col items-center justify-center flex-1 pt-1.5 pb-1 h-14 transition-colors duration-200 ${
+                                    isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400'
+                                }`}
+                                aria-current={isActive ? 'page' : undefined}
+                                aria-label={item.label}
+                            >
+                                <div className="relative">
+                                    {React.cloneElement(item.icon, { className: 'w-5 h-5 mb-0.5' })}
+                                </div>
+                                <span className="text-2xs font-medium">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                    <button
+                        onClick={() => setIsMoreOpen(prev => !prev)}
+                        className={`active-press touch-target relative flex flex-col items-center justify-center flex-1 pt-1.5 pb-1 h-14 transition-colors duration-200 ${
+                            isMoreActive || isMoreOpen ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400'
+                        }`}
+                        aria-label="More"
+                    >
+                        <div className="relative">
+                            <MoreIcon className="w-5 h-5 mb-0.5" />
+                        </div>
+                        <span className="text-2xs font-medium">More</span>
+                    </button>
+                </div>
+            </nav>
+
+            {/* More menu — mirrors consumer app's BottomNav "More" sheet */}
+            {isMoreOpen && (
+                <>
+                    <div
+                        className="fixed inset-0 z-[1001] bg-black/40 backdrop-blur-[2px]"
+                        onClick={() => setIsMoreOpen(false)}
+                    />
+                    <div className="fixed bottom-20 left-4 right-4 z-[1002] animate-slide-in-up origin-bottom max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar">
+                        <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-zinc-700/50 p-4">
+                            <div className="flex justify-between items-center mb-4 px-2">
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white">More Options</h3>
+                                <button onClick={() => setIsMoreOpen(false)} className="p-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300" aria-label="Close menu">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
                             </div>
-                            <span className="text-2xs font-medium">{item.label}</span>
-                        </button>
-                    );
-                })}
-            </div>
-        </nav>
+                            <div className="grid grid-cols-2 gap-4">
+                                {MORE_ITEMS.map(item => {
+                                    const isActive = activeView === item.view;
+                                    return (
+                                        <button
+                                            key={item.view}
+                                            onClick={() => { setActiveView(item.view); setIsMoreOpen(false); }}
+                                            className="active-press flex flex-col items-center gap-2 group relative"
+                                        >
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
+                                                isActive ? 'bg-primary-600 text-white shadow-primary-500/30' : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 group-active:scale-95'
+                                            }`}>
+                                                {React.cloneElement(item.icon, { className: "w-6 h-6" })}
+                                            </div>
+                                            <span className={`text-2xs font-medium text-center leading-tight line-clamp-1 ${
+                                                isActive ? 'text-primary-700 dark:text-primary-400' : 'text-slate-600 dark:text-zinc-400'
+                                            }`}>{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+        </>
     );
 };

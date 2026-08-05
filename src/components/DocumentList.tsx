@@ -76,7 +76,7 @@ const DocumentRow: React.FC<{
                         onViewDetails(doc.id);
                     }
                 }}
-                className={`flex items-start gap-2 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
+                className={`flex items-start gap-2 p-3.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border min-h-[48px] ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
             >
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                     {/* Checkbox — visible in selection mode */}
