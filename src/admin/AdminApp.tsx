@@ -1,13 +1,21 @@
 /**
  * AdminApp — the shell for the PracticePro Founder APK.
  *
- * AUTH FLOW:
- *   1. If session is loading → render nothing (splash is still visible,
- *      driven by plain <script> in admin.html)
- *   2. If not authenticated → show AdminLogin (login/signup)
- *   3. If authenticated but role !== 'Founder' → show "Access Denied"
- *      (prevents firm-level Admins from seeing platform data)
- *   4. If authenticated and role === 'Founder' → show dashboard
+ * NEVER RETURNS NULL — always renders something:
+ *   1. While session is loading → show FounderSplashScreen (stays visible)
+ *   2. After splash completes + session resolves:
+ *      a. Not authenticated → show AdminLogin
+ *      b. Authenticated but role ≠ 'Founder' → show Access Denied
+ *      c. Authenticated as Founder → show dashboard
+ *
+ * SPLASH FLOW:
+ *   The splash is a React component (FounderSplashScreen), NOT an HTML
+ *   overlay. It plays the green → orange → black → "FOUNDER" animation
+ *   using the same timing as the consumer app's SplashScreen (1.9s total).
+ *   The splash stays visible until BOTH:
+ *     - The splash animation has completed (splashDone = true)
+ *     - The auth session has resolved (isLoadingSession = false)
+ *   This guarantees there's never a white screen gap.
  *
  * ROLE SEPARATION:
  *   - role='Admin'  = firm-level admin (lawyer). Uses the consumer app.
@@ -24,6 +32,8 @@ import { UserManagement } from './views/UserManagement';
 import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
 import { AdminLogin } from './AdminLogin';
+import { useFounderSignals } from './useFounderSignals';
+import FounderSplashScreen from './FounderSplashScreen';
 import { UserRole } from '../types';
 
 export type AdminView = 'dashboard' | 'signals' | 'firms' | 'users' | 'audit' | 'settings';
@@ -31,12 +41,30 @@ export type AdminView = 'dashboard' | 'signals' | 'firms' | 'users' | 'audit' | 
 export const AdminApp: React.FC = () => {
     const { currentUser, isAuthenticated, isLoadingSession } = useAuth();
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
+    const [splashDone, setSplashDone] = useState(false);
 
-    // While session is loading, render nothing — the HTML splash is
-    // still visible (driven by plain <script> in admin.html).
-    if (isLoadingSession) {
-        return null;
+    // Founder signals (notifications) — only for authenticated Founders
+    const isFounder = currentUser?.role === UserRole.Founder;
+    useFounderSignals({ enabled: isFounder });
+
+    // The splash stays visible until BOTH:
+    //   1. The splash animation has finished playing (splashDone)
+    //   2. The auth session has resolved (!isLoadingSession)
+    // This prevents the white-screen gap that occurs when the splash
+    // dismisses but auth hasn't resolved yet.
+    const showSplash = !splashDone || isLoadingSession;
+
+    if (showSplash) {
+        return (
+            <FounderSplashScreen
+                isVisible={true}
+                onComplete={() => setSplashDone(true)}
+            />
+        );
     }
+
+    // Splash is done and session has resolved.
+    // Now show the appropriate screen based on auth state.
 
     // Not authenticated → show login/signup
     if (!isAuthenticated || !currentUser) {
@@ -44,7 +72,6 @@ export const AdminApp: React.FC = () => {
     }
 
     // Authenticated but NOT a Founder → Access Denied
-    // This prevents firm-level Admins (lawyers) from accessing platform data
     if (currentUser.role !== UserRole.Founder) {
         return (
             <div className="h-[100dvh] flex flex-col items-center justify-center bg-black text-white p-8 text-center">

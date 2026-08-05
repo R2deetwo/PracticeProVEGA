@@ -4,183 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>PracticePro Founder — Platform Control Center</title>
-    <meta name="description" content="PracticePro Founder — Platform management, firm monitoring, scaling signals, and founder-grade metrics. Separate APK (com.practicepro.admin) with black app icon." />
-    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="PracticePro Founder — Platform management, firm monitoring, scaling signals, and founder-grade metrics." />
+    <meta name="theme-color" content="#0e0e11" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 8 36 28'%3E%3Cpath d='M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z' fill='%23000000'/%3E%3Cpath d='M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z' fill='white'/%3E%3Cpath d='M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z' fill='%23000000'/%3E%3C/svg%3E" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      /* ============================================================
-         FOUNDER LOADING SCREEN
-         Mirrors the consumer app's SplashScreen.tsx but in REVERSE:
-           Consumer:  black → amber → green → "Ready"
-           Founder:   green → orange → black → "FOUNDER"
-         The black logo + "FOUNDER" text is the standard for the
-         Founder App. The consumer app (index.html) is untouched.
-         ============================================================ */
-      #founder-splash {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: #0e0e11;
-        font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-        overflow: hidden;
-        transition: opacity 0.4s ease;
-      }
-      #founder-splash.hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      /* Branding Core — mirrors SplashScreen.tsx layout */
-      #founder-splash .branding-core {
-        position: relative;
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-
-      /* Logo — same PracticePro "P" mark as the consumer app,
-         but color transitions green → orange → black (reverse of consumer). */
-      #founder-splash .logo-mark {
-        width: 128px;
-        height: 128px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: rgb(22, 163, 74); /* PHASE 1: green (brand) */
-        filter: drop-shadow(0 0 35px rgba(22,163,74,0.4));
-        transition: color 0.6s ease, filter 0.6s ease;
-        opacity: 1; /* ALWAYS visible — no animation controller dependency */
-      }
-      #founder-splash.phase-orange .logo-mark {
-        color: #F97316; /* PHASE 2: orange */
-        filter: drop-shadow(0 0 25px rgba(249,115,22,0.35));
-      }
-      #founder-splash.phase-black .logo-mark {
-        color: #000000; /* PHASE 3: black — founder brand standard */
-        filter: drop-shadow(0 0 15px rgba(255,255,255,0.05));
-      }
-      #founder-splash .logo-mark svg {
-        width: 100%;
-        height: 100%;
-      }
-
-      /* "FOUNDER" text — revealed in the final (black) phase,
-         mirroring how "Ready" appears in the consumer splash. */
-      #founder-splash .splash-text-container {
-        margin-top: 24px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-      }
-      #founder-splash .splash-text {
-        font-weight: 900;
-        font-size: 28px;
-        letter-spacing: 0.22em;
-        color: #FFFFFF; /* white text on black background */
-        opacity: 0;
-        transform: translateY(8px);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-      }
-      #founder-splash.phase-black .splash-text {
-        opacity: 1;
-        transform: translateY(0);
-      }
-
-      /* Status feedback — hidden once "FOUNDER" appears (mirrors consumer) */
-      #founder-splash .status-feedback {
-        position: absolute;
-        bottom: 80px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        padding: 0 40px;
-      }
-      #founder-splash .status-text {
-        font-size: 10px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 0.4em;
-        color: #64748b; /* slate-700, same as consumer */
-        animation: founderPulse 2s ease-in-out infinite;
-      }
-      #founder-splash.phase-black .status-feedback {
-        display: none; /* hide bottom status once FOUNDER appears */
-      }
-      @keyframes founderPulse {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.7; }
+      /* Black background to prevent white flash before React mounts.
+         The actual splash screen is a React component (FounderSplashScreen)
+         that renders inside #admin-root. */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #0e0e11;
+        overscroll-behavior: none;
       }
     </style>
-    <script type="module" crossorigin src="/assets/admin-CNtzp9MF.js"></script>
+    <script type="module" crossorigin src="/assets/admin-D0YUA2k0.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-HlP5wPsc.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-convex-CnHEerQN.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-icons-0ClK7D19.js">
-    <link rel="stylesheet" crossorigin href="/assets/admin-BFXkc8j5.css">
+    <link rel="stylesheet" crossorigin href="/assets/admin-woY_3qu_.css">
   </head>
   <body>
-    <!-- Founder loading screen (admin APK only) -->
-    <!-- Mirrors consumer SplashScreen.tsx but reversed: green → orange → black → FOUNDER -->
-    <div id="founder-splash" aria-hidden="true">
-      <div class="branding-core">
-        <div class="logo-mark" aria-label="PracticePro Founder logo">
-          <!-- Same PracticePro "P" icon as the consumer app -->
-          <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-            <path d="M8 40C8 42.2091 9.79086 44 12 44H52C54.2091 44 56 42.2091 56 40V8C56 5.79086 54.2091 4 52 4H12C9.79086 4 8 5.79086 8 8V40Z"/>
-            <path d="M16 12V40H24V30H40C46 30 50 26 50 18C50 10 46 6 40 6H16Z" fill="#0e0e11"/>
-            <path d="M24 16H40C42 16 43 18 43 18C43 18 42 20 40 20H24V16Z" fill="currentColor"/>
-          </svg>
-        </div>
-        <div class="splash-text-container">
-          <span class="splash-text">FOUNDER</span>
-        </div>
-      </div>
-      <div class="status-feedback">
-        <p class="status-text">Initializing Founder Console...</p>
-      </div>
-    </div>
-
     <div id="admin-root"></div>
-
-    <!--
-      SPLASH TIMELINE — plain JS, NOT React.
-      This guarantees the splash ALWAYS plays and dismisses itself,
-      even if React completely fails to mount (which would otherwise
-      leave the user staring at "Initializing Founder Console..."
-      forever).
-
-      Timeline (mirrors consumer SplashScreen.tsx but reversed):
-        0ms:     green (default)
-        750ms:   orange
-        1350ms:  black + "FOUNDER" text
-        1900ms:  fade out
-        2400ms:  remove from DOM
-    -->
-    <script>
-      (function() {
-        var splash = document.getElementById('founder-splash');
-        if (!splash) return;
-        setTimeout(function() { splash.classList.add('phase-orange'); }, 750);
-        setTimeout(function() { splash.classList.add('phase-black'); }, 1350);
-        setTimeout(function() {
-          splash.classList.add('hidden');
-          setTimeout(function() { try { splash.remove(); } catch(e) {} }, 500);
-        }, 1900);
-        // Safety net: if anything goes wrong, force-remove after 5s
-        setTimeout(function() {
-          if (splash && splash.parentNode) {
-            try { splash.remove(); } catch(e) {}
-          }
-        }, 5000);
-      })();
-    </script>
   </body>
 </html>
