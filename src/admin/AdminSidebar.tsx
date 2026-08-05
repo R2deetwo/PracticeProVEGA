@@ -2,23 +2,17 @@
  * AdminSidebar — navigation for the PracticePro Founder APK.
  * Dark-themed, compact sidebar with founder-only navigation items.
  *
- * Uses a hardcoded founder user — does NOT depend on AuthContext.
- * This ensures the sidebar always renders, even if Convex is unreachable.
+ * Uses currentUser from AuthContext (the logged-in founder).
  */
 
 import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import type { AdminView } from './AdminApp';
 
 interface AdminSidebarProps {
     activeView: AdminView;
     setActiveView: (v: AdminView) => void;
 }
-
-// Hardcoded founder user — no AuthContext dependency
-const FOUNDER_USER = {
-    name: 'Founder',
-    email: 'founder@practicepro.ng',
-};
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -30,10 +24,7 @@ const NAV_ITEMS: { id: AdminView; label: string; icon: string }[] = [
 ];
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeView, setActiveView }) => {
-    const handleLogout = () => {
-        try { localStorage.removeItem('practicepro_user_session'); } catch {}
-        window.location.reload();
-    };
+    const { currentUser, logout } = useAuth();
 
     return (
         <aside className="w-16 sm:w-60 flex-shrink-0 bg-slate-900 dark:bg-black flex flex-col h-full border-r border-slate-800">
@@ -74,14 +65,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeView, setActiv
             <div className="flex-shrink-0 p-3 border-t border-slate-800">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {FOUNDER_USER.name?.charAt(0) || 'F'}
+                        {currentUser?.name?.charAt(0) || 'F'}
                     </div>
                     <div className="hidden sm:block min-w-0 flex-1">
-                        <p className="text-xs font-bold text-white truncate">{FOUNDER_USER.name}</p>
-                        <p className="text-2xs text-slate-500 truncate">{FOUNDER_USER.email}</p>
+                        <p className="text-xs font-bold text-white truncate">{currentUser?.name || 'Founder'}</p>
+                        <p className="text-2xs text-slate-500 truncate">{currentUser?.email}</p>
                     </div>
                     <button
-                        onClick={handleLogout}
+                        onClick={() => logout()}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors flex-shrink-0"
                         title="Log out"
                         aria-label="Log out"

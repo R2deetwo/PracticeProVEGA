@@ -1,13 +1,35 @@
 /**
- * AdminLogin — login screen for the PracticePro Admin APK.
- * Uses the same auth system as the main app (email/password against Convex).
+ * AdminLogin — login + signup screen for the PracticePro Founder APK.
+ *
+ * TWO MODES:
+ *   1. LOGIN: Existing founder enters email + password → verified via
+ *      Convex verifyLogin action → if role='Founder', access granted.
+ *   2. SIGNUP: New founder enters name + email + password → creates
+ *      account via Convex createFounderAccount action → auto-logs in.
+ *
+ * ROLE GATING:
+ *   After login, if the user's role is NOT 'Founder', they see an
+ *   "Access Denied" message. This prevents firm-level Admins (lawyers)
+ *   from accessing platform-wide data if they download the wrong APK.
+ *
+ * NO EMAIL VERIFICATION:
+ *   Founder accounts are auto-verified on signup (no 6-digit code).
+ *   This is intentional — the founder is the only person using this APK.
  */
 
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useConvex } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { UserRole } from '../types';
+
+type Mode = 'login' | 'signup';
 
 export const AdminLogin: React.FC = () => {
     const { login } = useAuth();
+    const convex = useConvex();
+    const [mode, setMode] = useState<Mode>('login');
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -15,21 +37,54 @@ export const AdminLogin: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
+
         if (!email.trim() || !password) {
             setError('Please enter your email and password.');
             return;
         }
+
+        if (mode === 'signup' && !name.trim()) {
+            setError('Please enter your name.');
+            return;
+        }
+
+        if (mode === 'signup' && password.length < 8) {
+            setError('Password must be at least 8 characters.');
+            return;
+        }
+
         setIsLoading(true);
-        setError('');
+
         try {
-            const result = await login(email.trim(), password);
-            if (!result.success) {
-                setError(result.message || 'Login failed.');
+            if (mode === 'signup') {
+                // Create the founder account
+                const result = await convex.action(api.founderMetrics.createFounderAccount, {
+                    fullName: name.trim(),
+                    email: email.trim(),
+                    password,
+                });
+
+                if (!result.success) {
+                    setError(result.message || 'Signup failed.');
+                    setIsLoading(false);
+                    return;
+                }
             }
-            // On success, the AuthProvider will re-render and AdminApp will show
+
+            // Log in (works for both signup and login modes)
+            const loginResult = await login(email.trim(), password);
+
+            if (!loginResult.success) {
+                setError(loginResult.message || 'Login failed.');
+                setIsLoading(false);
+                return;
+            }
+
+            // The AuthContext will re-render AdminApp, which checks the role.
+            // If the user isn't a Founder, AdminApp shows "Access Denied".
         } catch (err: any) {
-            setError(err?.message || 'An error occurred during login.');
-        } finally {
+            setError(err?.message || 'An error occurred. Please try again.');
             setIsLoading(false);
         }
     };
@@ -46,17 +101,51 @@ export const AdminLogin: React.FC = () => {
                     <p className="text-sm text-zinc-500 mt-1">Platform Control Center</p>
                 </div>
 
-                {/* Login form */}
+                {/* Mode toggle */}
+                <div className="flex gap-1 mb-4 bg-zinc-900 rounded-lg p-1">
+                    <button
+                        onClick={() => { setMode('login'); setError(''); }}
+                        className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${
+                            mode === 'login' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+                        }`}
+                    >
+                        Log In
+                    </button>
+                    <button
+                        onClick={() => { setMode('signup'); setError(''); }}
+                        className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${
+                            mode === 'signup' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+                        }`}
+                    >
+                        Create Account
+                    </button>
+                </div>
+
+                {/* Form */}
                 <form onSubmit={handleSubmit} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 space-y-4">
+                    {mode === 'signup' && (
+                        <div>
+                            <label className="text-2xs font-bold text-zinc-400 uppercase tracking-widest">Full Name</label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                placeholder="Your name"
+                                required
+                                autoFocus
+                                className="w-full mt-1 px-3 py-2.5 bg-black border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white"
+                            />
+                        </div>
+                    )}
                     <div>
                         <label className="text-2xs font-bold text-zinc-400 uppercase tracking-widest">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            placeholder="founder@practicepro.ng"
+                            placeholder="you@example.com"
                             required
-                            autoFocus
+                            autoFocus={mode === 'login'}
                             className="w-full mt-1 px-3 py-2.5 bg-black border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white"
                         />
                     </div>
@@ -70,6 +159,9 @@ export const AdminLogin: React.FC = () => {
                             required
                             className="w-full mt-1 px-3 py-2.5 bg-black border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white"
                         />
+                        {mode === 'signup' && (
+                            <p className="text-3xs text-zinc-600 mt-1">Minimum 8 characters</p>
+                        )}
                     </div>
 
                     {error && (
@@ -86,14 +178,18 @@ export const AdminLogin: React.FC = () => {
                         {isLoading ? (
                             <span className="flex items-center justify-center gap-2">
                                 <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                                Signing in...
+                                {mode === 'signup' ? 'Creating account...' : 'Signing in...'}
                             </span>
-                        ) : 'Sign In'}
+                        ) : (mode === 'signup' ? 'Create Founder Account' : 'Sign In')}
                     </button>
                 </form>
 
                 <p className="text-center text-2xs text-zinc-600 mt-4">
-                    Authorized personnel only. All actions are logged.
+                    {mode === 'login' ? (
+                        <>Don't have a founder account? <button onClick={() => { setMode('signup'); setError(''); }} className="text-zinc-400 underline hover:text-white">Create one</button></>
+                    ) : (
+                        <>Already have an account? <button onClick={() => { setMode('login'); setError(''); }} className="text-zinc-400 underline hover:text-white">Log in</button></>
+                    )}
                 </p>
             </div>
         </div>

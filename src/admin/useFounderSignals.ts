@@ -30,6 +30,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { useAuth } from '../contexts/AuthContext';
 import { registerForNotifications, showLocalNotification } from '../utils/notifications';
 import { Capacitor } from '@capacitor/core';
 
@@ -69,12 +70,13 @@ function severityRank(s: Severity): number {
 }
 
 export function useFounderSignals({ enabled }: { enabled: boolean }) {
-    // Founder APK uses a hardcoded founder email — no AuthContext dependency.
-    const tokenIdentifier = 'founder@practicepro.ng';
+    // Use the logged-in founder's email for server-side verification.
+    const { currentUser } = useAuth();
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     // useQuery gives us live updates from Convex. We don't need to poll
     // Convex itself — we poll for LOCAL NOTIFICATION dispatch only.
     const alerts = useQuery(api.founderMetrics.getFounderAlerts,
-        enabled ? { tokenIdentifier } : "skip");
+        enabled && tokenIdentifier ? { tokenIdentifier } : "skip");
     const lastNotifiedRef = useRef<number>(0);
 
     // Register for local notifications on mount (founder app only).

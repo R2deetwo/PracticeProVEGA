@@ -1,22 +1,28 @@
 /**
  * PracticePro Founder — Platform Control Center
  *
- * Separate entry point for the Founder APK. Does NOT use AuthContext
- * — the founder APK has no auth. It renders the admin shell immediately
- * with a hardcoded founder user.
+ * Separate entry point for the Founder APK. Uses the same Convex backend
+ * and auth system as the consumer app, but only renders founder/management
+ * views.
  *
- * The splash screen is driven by a plain <script> in admin.html, so it
+ * AUTH FLOW:
+ *   1. User opens the founder APK
+ *   2. Splash plays (green → orange → black → FOUNDER) — driven by plain
+ *      <script> in admin.html, always dismisses
+ *   3. If not logged in → show login/signup screen
+ *   4. User logs in (or signs up) → AuthContext resolves their role
+ *   5. If role='Founder' → show dashboard with real data
+ *   6. If role !== 'Founder' → show "Access Denied" (firm admins can't
+ *      access platform data)
+ *
+ * The splash timeline is driven by a plain <script> in admin.html, so it
  * ALWAYS dismisses (even if React fails to mount).
- *
- * The Convex queries in FounderDashboard etc. use a hardcoded
- * tokenIdentifier. To get real data, change that email to your actual
- * admin email and ensure the user exists in the Convex users table
- * with role='Admin'.
  */
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { AuthProvider } from '../contexts/AuthContext';
 import { UIProvider } from '../contexts/UIContext';
 import { AppProvider } from '../contexts/AppProvider';
 import { AdminApp } from './AdminApp';
@@ -31,11 +37,13 @@ const root = createRoot(container!);
 root.render(
   <React.StrictMode>
     <ConvexProvider client={convex}>
-      <UIProvider>
-        <AppProvider>
-          <AdminApp />
-        </AppProvider>
-      </UIProvider>
+      <AuthProvider>
+        <UIProvider>
+          <AppProvider>
+            <AdminApp />
+          </AppProvider>
+        </UIProvider>
+      </AuthProvider>
     </ConvexProvider>
   </React.StrictMode>
 );

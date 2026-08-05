@@ -18,6 +18,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
 import { formatNaira } from '../utils/formatting';
 import NairaSymbol from './NairaSymbol';
@@ -28,6 +29,7 @@ const KPI_VALUE = 'text-2xl sm:text-3xl font-black text-slate-900 dark:text-whit
 const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3';
 
 export const FounderDashboard: React.FC = () => {
+    const { currentUser } = useAuth();
     const { addToast } = useUI();
     const [showFirmsTable, setShowFirmsTable] = useState(false);
     const [editingFirm, setEditingFirm] = useState<string | null>(null);
@@ -35,11 +37,13 @@ export const FounderDashboard: React.FC = () => {
     const [editStatus, setEditStatus] = useState('');
     const [editNotes, setEditNotes] = useState('');
 
-    // Founder APK uses a hardcoded founder email — no AuthContext dependency.
-    // Change this to your real admin email to get actual data from Convex.
-    const tokenIdentifier = 'founder@practicepro.ng';
-    const metrics = useQuery(api.founderMetrics.getFounderMetrics, { tokenIdentifier });
-    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin, { tokenIdentifier });
+    // Use the logged-in founder's email as the tokenIdentifier for
+    // server-side requireFounder() verification.
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
+    const metrics = useQuery(api.founderMetrics.getFounderMetrics,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
 
     // If the query errored (e.g., demo user isn't an admin in the DB),

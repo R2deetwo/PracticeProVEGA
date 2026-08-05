@@ -1,7 +1,10 @@
 import * as React from 'react';
 
 // Enums
-export enum UserRole { Admin = 'Admin', Lawyer = 'Lawyer', Paralegal = 'Paralegal', Client = 'Client', Tenant = 'Tenant', ExternalCounsel = 'External Counsel', Pending = 'Pending' }
+// Founder = platform-level founder (PracticePro owner). Distinct from
+// firm-level Admin (a law firm administrator). Only Founder role users
+// can access the Founder APK's platform dashboard.
+export enum UserRole { Founder = 'Founder', Admin = 'Admin', Lawyer = 'Lawyer', Paralegal = 'Paralegal', Client = 'Client', Tenant = 'Tenant', ExternalCounsel = 'External Counsel', Pending = 'Pending' }
 export enum AppMode { Solo = 'solo', Multi = 'multi' }
 export enum TaskStatus { Todo = 'todo', InProgress = 'in_progress', PendingVerification = 'pending_verification', Done = 'done' }
 export const TaskStatusValues = [TaskStatus.Todo, TaskStatus.InProgress, TaskStatus.PendingVerification, TaskStatus.Done];

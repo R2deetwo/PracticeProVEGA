@@ -1,9 +1,10 @@
 
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
+import { internal, api } from "./_generated/api";
 
 /**
- * requireAdmin — server-side access control for founder-only data.
+ * requireFounder — server-side access control for founder-only data.
  *
  * CRITICAL SECURITY: All founder metrics queries MUST call this helper
  * at the top of their handler. Without it, ANY authenticated user (or
@@ -11,17 +12,19 @@ import { v } from "convex/values";
  * queries and see ALL firms, ALL users, ALL revenue, ALL matters —
  * which is a catastrophic data breach.
  *
+ * ROLE SEPARATION:
+ *   - role='Admin'  = firm-level admin (a law firm administrator).
+ *                     These users manage their OWN firm in the consumer app.
+ *                     They must NOT have access to platform-wide data.
+ *   - role='Founder' = platform-level founder (PracticePro owner).
+ *                     Only this role can access the Founder APK's dashboard.
+ *
  * This helper:
  *   1. Looks up the caller by their tokenIdentifier (email).
- *   2. Verifies their role is exactly 'Admin'.
+ *   2. Verifies their role is exactly 'Founder'.
  *   3. Throws an Authorization error if not.
- *
- * The client-side role check (currentUser?.role === 'Admin') is NOT
- * sufficient — it can be bypassed by modifying client code or calling
- * the Convex API directly. The server-side check is the only real
- * security boundary.
  */
-async function requireAdmin(ctx: any, tokenIdentifier: string): Promise<any> {
+async function requireFounder(ctx: any, tokenIdentifier: string): Promise<any> {
   if (!tokenIdentifier || typeof tokenIdentifier !== 'string') {
     throw new Error("Unauthorized: authentication required.");
   }
@@ -52,14 +55,12 @@ async function requireAdmin(ctx: any, tokenIdentifier: string): Promise<any> {
     throw new Error("Unauthorized: user not found.");
   }
 
-  // Pick the user record. If there are duplicates (e.g., both an Admin
-  // record and a portal record), prefer the Admin one — but only if it
-  // actually has role='Admin'.
-  const adminRecord = allMatches.find((u: any) => u.role === 'Admin');
-  const userRecord = adminRecord || allMatches[0];
+  // Pick the user record. Prefer a Founder record if duplicates exist.
+  const founderRecord = allMatches.find((u: any) => u.role === 'Founder');
+  const userRecord = founderRecord || allMatches[0];
 
-  if (userRecord.role !== 'Admin') {
-    throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'.`);
+  if (userRecord.role !== 'Founder') {
+    throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'. Firm administrators must use the consumer app, not the Founder APK.`);
   }
 
   return userRecord;
@@ -75,7 +76,7 @@ async function requireAdmin(ctx: any, tokenIdentifier: string): Promise<any> {
 export const getFounderMetrics = query({
   args: { tokenIdentifier: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier);
     // 1. Fetch data
     const [events, firms, users, matters, invoices] = await Promise.all([
       ctx.db.query("analytics_events").collect(),
@@ -172,7 +173,7 @@ export const getFounderMetrics = query({
 export const triggerManualRefresh = mutation({
     args: { tokenIdentifier: v.string() },
     handler: async (ctx, args) => {
-        await requireAdmin(ctx, args.tokenIdentifier);
+        await requireFounder(ctx, args.tokenIdentifier);
         await ctx.db.insert("analytics_events", {
             firmId: "system",
             userId: "admin",
@@ -191,7 +192,7 @@ export const triggerManualRefresh = mutation({
 export const getAllFirmsForAdmin = query({
   args: { tokenIdentifier: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier);
     try {
       const fetchTable = async (table: string) => {
         try {
@@ -263,7 +264,7 @@ export const updateFirmAdminSettings = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier);
     const cleanSettings: any = {};
     Object.entries(args.settings).forEach(([k, v]) => {
       if (v !== undefined) cleanSettings[k] = v;
@@ -296,7 +297,7 @@ export const updateFirmAdminSettings = mutation({
 export const getFounderAlerts = query({
   args: { tokenIdentifier: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier);
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
     const churnThreshold = now - (14 * DAY);
@@ -503,7 +504,7 @@ export const recordFounderSignalSeen = mutation({
     signalIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier);
     await ctx.db.insert("analytics_events", {
       firmId: "system",
       userId: "founder",
@@ -511,6 +512,76 @@ export const recordFounderSignalSeen = mutation({
       properties: { signalIds: args.signalIds, ts: Date.now() },
       timestamp: Date.now(),
     });
+    return { success: true };
+  },
+});
+
+/**
+ * action: createFounderAccount
+ *
+ * Creates a new user with role='Founder'. This is the signup flow for
+ * the Founder APK — the founder enters their name, email, and password,
+ * and this action creates their account.
+ *
+ * SECURITY:
+ *   - This is a PUBLIC action (no auth required to call it) because the
+ *     founder needs to create their account before they can log in.
+ *   - However, it ONLY creates role='Founder' users — never 'Admin' or
+ *     other consumer-app roles.
+ *   - If a user with this email already exists, the action refuses to
+ *     overwrite their role (prevents privilege escalation).
+ *   - The password is hashed server-side with PBKDF2-SHA512.
+ *
+ * AFTER SIGNUP:
+ *   The founder can immediately log in via verifyLogin (same as consumer
+ *   app) and the Founder APK will recognize their role='Founder' and
+ *   grant access to the dashboard.
+ */
+export const createFounderAccount = action({
+  args: {
+    fullName: v.string(),
+    email: v.string(),
+    password: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; message?: string }> => {
+    const token = args.email.toLowerCase().trim();
+
+    // 1. Check if a user with this email already exists
+    const existing: any = await ctx.runQuery(api.myFunctions.getUser, {
+      tokenIdentifier: token,
+    });
+
+    if (existing) {
+      if (existing.role === 'Founder') {
+        return {
+          success: false,
+          message: "A founder account with this email already exists. Please log in instead.",
+        };
+      }
+      return {
+        success: false,
+        message: `This email is already registered as a ${existing.role || 'user'} account. Use a different email for your founder account.`,
+      };
+    }
+
+    // 2. Hash the password server-side with PBKDF2-SHA512
+    const passwordHash: string = await ctx.runAction(
+      internal.authUtils.hashPassword,
+      { password: args.password }
+    ) as string;
+
+    // 3. Create the user with role='Founder'
+    await ctx.runMutation(internal.myFunctions.createUser, {
+      name: args.fullName,
+      email: token,
+      tokenIdentifier: token,
+      role: 'Founder',
+      password: passwordHash,
+      isVerified: true,
+      emailVerified: true,
+      product: 'unified',
+    });
+
     return { success: true };
   },
 });

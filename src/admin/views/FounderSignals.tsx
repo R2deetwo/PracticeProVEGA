@@ -16,6 +16,7 @@
 import React from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
@@ -36,9 +37,11 @@ const SEVERITY_STYLE: Record<string, string> = {
 };
 
 export const FounderSignals: React.FC = () => {
-    // Founder APK uses a hardcoded founder email — no AuthContext dependency.
-    const tokenIdentifier = 'founder@practicepro.ng';
-    const alerts = useQuery(api.founderMetrics.getFounderAlerts, { tokenIdentifier });
+    // Use the logged-in founder's email for server-side verification.
+    const { currentUser } = useAuth();
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
+    const alerts = useQuery(api.founderMetrics.getFounderAlerts,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
 
     if (!alerts) {
         return (
