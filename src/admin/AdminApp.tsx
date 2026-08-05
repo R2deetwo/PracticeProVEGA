@@ -34,6 +34,7 @@ import { FounderSignals } from './views/FounderSignals';
 import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
+import { Settings } from './views/Settings';
 import { UserRole } from '../types';
 
 export type AdminView = 'dashboard' | 'signals' | 'firms' | 'users' | 'audit' | 'settings';
@@ -113,11 +114,7 @@ export const AdminApp: React.FC = () => {
                 {activeView === 'firms' && <FirmManagement />}
                 {activeView === 'users' && <UserManagement />}
                 {activeView === 'audit' && <AuditLogs />}
-                {activeView === 'settings' && (
-                    <div className="h-full flex items-center justify-center text-slate-400 p-8">
-                        <p className="text-sm">Platform settings coming soon.</p>
-                    </div>
-                )}
+                {activeView === 'settings' && <Settings />}
             </main>
         </div>
     );

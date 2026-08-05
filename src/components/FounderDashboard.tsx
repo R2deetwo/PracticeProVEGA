@@ -15,8 +15,8 @@
  *   move to a separate "PracticePro Admin" APK.
  */
 
-import React, { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import React from 'react';
+import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
@@ -31,20 +31,12 @@ const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppe
 export const FounderDashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { addToast } = useUI();
-    const [showFirmsTable, setShowFirmsTable] = useState(false);
-    const [editingFirm, setEditingFirm] = useState<string | null>(null);
-    const [editPlan, setEditPlan] = useState('');
-    const [editStatus, setEditStatus] = useState('');
-    const [editNotes, setEditNotes] = useState('');
 
     // Use the logged-in founder's email as the tokenIdentifier for
     // server-side requireFounder() verification.
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const metrics = useQuery(api.founderMetrics.getFounderMetrics,
         tokenIdentifier ? { tokenIdentifier } : "skip");
-    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
-    const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
 
     // If the query errored (e.g., demo user isn't an admin in the DB),
     // show a friendly message instead of crashing.
@@ -85,41 +77,15 @@ export const FounderDashboard: React.FC = () => {
     const totalRevenue = metrics.totalRevenue || 0;
     const activeCount = metrics.activeUserList?.length || 0;
 
-    const handleSaveFirmSettings = async (firmId: string) => {
-        try {
-            await updateFirmSettings({
-                tokenIdentifier,
-                firmId,
-                settings: {
-                    subscriptionPlan: editPlan || undefined,
-                    adminStatus: editStatus || undefined,
-                    adminNotes: editNotes || undefined,
-                },
-            });
-            addToast('Firm settings updated.', { type: 'success' });
-            setEditingFirm(null);
-        } catch (e: any) {
-            addToast(e?.message || 'Failed to update firm.', { type: 'error' });
-        }
-    };
-
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20">
             {/* Header */}
             <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Founder Dashboard</h2>
-                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                            Platform-wide metrics · Last updated: {metrics.lastUpdated ? new Date(metrics.lastUpdated).toLocaleString('en-GB') : '—'}
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowFirmsTable(v => !v)}
-                        className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold text-xs hover:bg-primary-700 transition-colors shadow-sm"
-                    >
-                        {showFirmsTable ? 'Show Metrics' : 'Manage Firms'}
-                    </button>
+                <div>
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Founder Dashboard</h2>
+                    <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                        Platform-wide metrics · Last updated: {metrics.lastUpdated ? new Date(metrics.lastUpdated).toLocaleString('en-GB') : '—'}
+                    </p>
                 </div>
             </div>
 
@@ -248,73 +214,8 @@ export const FounderDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* All Firms Table (toggled) */}
-                {showFirmsTable && allFirms && (
-                    <div className={KPI_CARD}>
-                        <p className={SECTION_TITLE}>All Firms ({allFirms.length})</p>
-                        <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full text-xs">
-                                <thead>
-                                    <tr className="border-b border-slate-200 dark:border-zinc-700 text-left">
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Firm</th>
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Admin</th>
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Plan</th>
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Users</th>
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Matters</th>
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Status</th>
-                                        <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
-                                    {allFirms.map((firm: any) => (
-                                        <tr key={firm.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30">
-                                            <td className="py-2 px-2 font-semibold text-slate-700 dark:text-zinc-200 truncate max-w-[160px]">{firm.firmName}</td>
-                                            <td className="py-2 px-2 text-slate-500 dark:text-zinc-400 truncate max-w-[140px]">{firm.adminEmail}</td>
-                                            <td className="py-2 px-2">
-                                                {editingFirm === firm.id ? (
-                                                    <select value={editPlan} onChange={e => setEditPlan(e.target.value)} className="bg-slate-50 dark:bg-zinc-700 text-xs rounded px-1 py-0.5 border border-slate-200 dark:border-zinc-600">
-                                                        <option value="">Keep</option>
-                                                        <option value="Core">Core</option>
-                                                        <option value="Growth">Growth</option>
-                                                        <option value="Pro">Pro</option>
-                                                        <option value="Enterprise">Enterprise</option>
-                                                        <option value="Komplete">Komplete</option>
-                                                    </select>
-                                                ) : (
-                                                    <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${firm.plan === 'Enterprise' || firm.plan === 'Komplete' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}>{firm.plan}</span>
-                                                )}
-                                            </td>
-                                            <td className="py-2 px-2 text-slate-600 dark:text-zinc-300">{firm.userCount}</td>
-                                            <td className="py-2 px-2 text-slate-600 dark:text-zinc-300">{firm.matterCount}</td>
-                                            <td className="py-2 px-2">
-                                                {editingFirm === firm.id ? (
-                                                    <select value={editStatus} onChange={e => setEditStatus(e.target.value)} className="bg-slate-50 dark:bg-zinc-700 text-xs rounded px-1 py-0.5 border border-slate-200 dark:border-zinc-600">
-                                                        <option value="">Keep</option>
-                                                        <option value="active">Active</option>
-                                                        <option value="suspended">Suspended</option>
-                                                        <option value="trial">Trial</option>
-                                                    </select>
-                                                ) : (
-                                                    <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${firm.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : firm.status === 'suspended' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{firm.status}</span>
-                                                )}
-                                            </td>
-                                            <td className="py-2 px-2">
-                                                {editingFirm === firm.id ? (
-                                                    <div className="flex gap-1">
-                                                        <button onClick={() => handleSaveFirmSettings(firm.id)} className="px-2 py-0.5 bg-emerald-600 text-white rounded text-3xs font-bold hover:bg-emerald-700">Save</button>
-                                                        <button onClick={() => setEditingFirm(null)} className="px-2 py-0.5 bg-slate-200 dark:bg-zinc-600 text-slate-600 dark:text-zinc-300 rounded text-3xs font-bold">Cancel</button>
-                                                    </div>
-                                                ) : (
-                                                    <button onClick={() => { setEditingFirm(firm.id); setEditPlan(''); setEditStatus(''); setEditNotes(firm.notes || ''); }} className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded text-3xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600">Edit</button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                {/* Firm management has its own dedicated page in the sidebar.
+                    Use the 'Firms' tab to view and edit all firms. */}
             </div>
         </div>
     );

@@ -87,9 +87,13 @@ export const getFounderMetrics = query({
     ]);
 
     // 2. Core KPIs
+    // Filter out Founder role users — they're platform staff, not customers.
+    // Without this, the founder's own signup shows up as a "new user" in
+    // the dashboard, which is confusing.
+    const customerUsers = users.filter((u: any) => u.role !== 'Founder');
     const totalMatters = matters.length;
     const totalFirms = firms.length;
-    const totalUsers = users.length;
+    const totalUsers = customerUsers.length;
     const totalRevenue = invoices
       .filter((i: any) => i.status === "Paid")
       .reduce((sum, i: any) => sum + (i.total_amount || 0), 0);
@@ -142,12 +146,13 @@ export const getFounderMetrics = query({
         .slice(0, 5);
 
     // 6. Active User Tracking (Last 24h)
+    // Filter out Founder users — they're platform staff, not customers.
     const activeThreshold = Date.now() - (24 * 60 * 60 * 1000);
     const presenceData = await ctx.db.query("presence").collect();
     const activeUserIds = new Set(presenceData.filter((p: any) => p.updatedAt > activeThreshold).map(p => p.userId));
     
     // Fallback: If no presence, show recent signups as active
-    const activeUserList = users
+    const activeUserList = customerUsers
         .filter((u: any) => activeUserIds.has(u._id) || (u._creationTime || 0) > activeThreshold)
         .map((u: any) => ({ name: u.email }));
 
@@ -312,8 +317,10 @@ export const getFounderAlerts = query({
     ]);
 
     // ─── New users / firms ────────────────────────────────────────────
-    const newUsers24h = users.filter((u: any) => (u._creationTime || 0) > now - DAY);
-    const newUsers7d  = users.filter((u: any) => (u._creationTime || 0) > now - (7 * DAY));
+    // Filter out Founder users — they're platform staff, not customers.
+    const customerUsersAlerts = users.filter((u: any) => u.role !== 'Founder');
+    const newUsers24h = customerUsersAlerts.filter((u: any) => (u._creationTime || 0) > now - DAY);
+    const newUsers7d  = customerUsersAlerts.filter((u: any) => (u._creationTime || 0) > now - (7 * DAY));
     const newFirms24h = firms.filter((f: any) => (f._creationTime || 0) > now - DAY);
 
     // ─── Churn signals ────────────────────────────────────────────────
@@ -328,7 +335,7 @@ export const getFounderAlerts = query({
       if (ts > cur) presenceByUser.set(p.userId, ts);
     });
 
-    const churnRisks = users
+    const churnRisks = customerUsersAlerts
       .filter((u: any) => {
         const created = u._creationTime || 0;
         if (created > churnThreshold) return false; // too new
@@ -352,7 +359,7 @@ export const getFounderAlerts = query({
     const activeUserIds = new Set(
       presence.filter((p: any) => (p.updatedAt || p._creationTime || 0) > now - DAY).map((p: any) => p.userId)
     );
-    const activeCount = users.filter((u: any) => activeUserIds.has(u._id)).length;
+    const activeCount = customerUsersAlerts.filter((u: any) => activeUserIds.has(u._id)).length;
 
     // ─── Matter velocity (7-day vs prior 7-day) ───────────────────────
     const mattersLast7d = matters.filter((m: any) => (m._creationTime || 0) > now - (7 * DAY)).length;
@@ -402,15 +409,15 @@ export const getFounderAlerts = query({
     });
 
     // ─── Scaling signals (computed flags) ─────────────────────────────
-    const activeRatio = users.length > 0 ? activeCount / users.length : 0;
+    const activeRatio = customerUsersAlerts.length > 0 ? activeCount / customerUsersAlerts.length : 0;
     const scalingSignals: { id: string; severity: "info" | "warning" | "critical"; title: string; detail: string; }[] = [];
 
-    if (activeRatio < 0.20 && users.length >= 10) {
+    if (activeRatio < 0.20 && customerUsersAlerts.length >= 10) {
       scalingSignals.push({
         id: "low-active-ratio",
         severity: activeRatio < 0.10 ? "critical" : "warning",
         title: "Low active-user ratio",
-        detail: `${Math.round(activeRatio * 100)}% of users active in the last 24h (${activeCount}/${users.length}). Consider a re-engagement push.`,
+        detail: `${Math.round(activeRatio * 100)}% of users active in the last 24h (${activeCount}/${customerUsersAlerts.length}). Consider a re-engagement push.`,
       });
     }
     if (matterVelocityDelta < 0 && (mattersLast7d + mattersPrior7d) >= 10) {
@@ -475,7 +482,7 @@ export const getFounderAlerts = query({
       churnRisks,
       churnRiskCount: churnRisks.length,
       activeCount,
-      totalUsers: users.length,
+      totalUsers: customerUsersAlerts.length,
       totalFirms: firms.length,
       mattersLast7d,
       mattersPrior7d,

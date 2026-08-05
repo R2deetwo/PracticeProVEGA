@@ -1,44 +1,52 @@
 /**
  * UserManagement — all users across all firms on the platform.
- * Shows user name, email, role, firm, and last active status.
+ * Shows firm name, admin email, plan, team size, matters, status.
+ *
+ * Passes tokenIdentifier for server-side requireFounder() verification.
+ * Handles loading and error states gracefully.
  */
 
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const UserManagement: React.FC = () => {
+    const { currentUser } = useAuth();
     const [search, setSearch] = useState('');
-    // Use getAllFirmsForAdmin to get firms with their users embedded
-    const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin, {});
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
+    const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
 
-    if (!firms) {
+    if (firms === undefined) {
         return (
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-zinc-900">
                 <div className="w-8 h-8 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
             </div>
         );
     }
 
-    // Flatten all users from all firms
-    const allUsers: any[] = [];
-    firms.forEach((firm: any) => {
-        // We don't have the full user list in getAllFirmsForAdmin,
-        // but we have the admin email + user count per firm.
-        // For a full user list, we'd need a dedicated query.
-        // For now, show the firm-level data.
-        allUsers.push({
-            id: firm.id,
-            name: firm.firmName,
-            email: firm.adminEmail,
-            role: 'Admin',
-            firm: firm.firmName,
-            plan: firm.plan,
-            status: firm.status,
-            userCount: firm.userCount,
-            matterCount: firm.matterCount,
-        });
-    });
+    if (firms === null || (firms as any)?.error) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                <p className="text-sm">Unable to load users. You may not have founder permissions.</p>
+            </div>
+        );
+    }
+
+    // Flatten all firms into a user-like view (firm admin level)
+    const allUsers: any[] = (firms as any[]).map((firm: any) => ({
+        id: firm.id,
+        name: firm.firmName,
+        email: firm.adminEmail,
+        role: 'Admin',
+        firm: firm.firmName,
+        plan: firm.plan,
+        status: firm.status,
+        userCount: firm.userCount,
+        matterCount: firm.matterCount,
+        firmSpecialties: firm.firmSpecialties || [],
+    }));
 
     const filtered = allUsers.filter(u =>
         !search || u.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -65,42 +73,48 @@ export const UserManagement: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
-                <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="border-b border-slate-200 dark:border-zinc-700 text-left bg-slate-50 dark:bg-zinc-900/50">
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Firm</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Admin Email</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Plan</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Team Size</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Matters</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Specialties</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
-                                {filtered.map((user: any) => (
-                                    <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
-                                        <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-zinc-200 truncate max-w-[160px]" title={user.firm}>{user.firm}</td>
-                                        <td className="py-2.5 px-3 text-slate-500 dark:text-zinc-400 truncate max-w-[180px]" title={user.email}>{user.email}</td>
-                                        <td className="py-2.5 px-3">
-                                            <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${user.plan === 'Enterprise' || user.plan === 'Komplete' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}>{user.plan}</span>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{user.userCount}</td>
-                                        <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{user.matterCount}</td>
-                                        <td className="py-2.5 px-3">
-                                            <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${user.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : user.status === 'suspended' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{user.status}</span>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-slate-500 dark:text-zinc-400 text-2xs truncate max-w-[120px]">
-                                            {(user.firmSpecialties || []).join(', ') || '—'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                {filtered.length === 0 ? (
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
+                        <p className="text-sm text-slate-400">No firm administrators found.</p>
                     </div>
-                </div>
+                ) : (
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-200 dark:border-zinc-700 text-left bg-slate-50 dark:bg-zinc-900/50">
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Firm</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Admin Email</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Plan</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Team Size</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Matters</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
+                                        <th className="py-3 px-3 font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Specialties</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
+                                    {filtered.map((user: any) => (
+                                        <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                            <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-zinc-200 truncate max-w-[160px]" title={user.firm}>{user.firm}</td>
+                                            <td className="py-2.5 px-3 text-slate-500 dark:text-zinc-400 truncate max-w-[180px]" title={user.email}>{user.email}</td>
+                                            <td className="py-2.5 px-3">
+                                                <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${user.plan === 'Enterprise' || user.plan === 'Komplete' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}>{user.plan}</span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{user.userCount}</td>
+                                            <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{user.matterCount}</td>
+                                            <td className="py-2.5 px-3">
+                                                <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${user.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : user.status === 'suspended' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{user.status}</span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-500 dark:text-zinc-400 text-2xs truncate max-w-[120px]">
+                                                {(user.firmSpecialties || []).join(', ') || '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,20 +1,35 @@
 /**
- * AuditLogs — platform-wide audit trail viewer for the Admin APK.
+ * AuditLogs — platform-wide audit trail viewer for the Founder APK.
  * Shows recent analytics events (signups, plan changes, etc.)
+ *
+ * Passes tokenIdentifier for server-side requireFounder() verification.
+ * Handles loading and error states gracefully.
  */
 
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const AuditLogs: React.FC = () => {
+    const { currentUser } = useAuth();
     const [search, setSearch] = useState('');
-    const metrics = useQuery(api.founderMetrics.getFounderMetrics, {});
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
+    const metrics = useQuery(api.founderMetrics.getFounderMetrics,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
 
-    if (!metrics) {
+    if (metrics === undefined) {
         return (
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-zinc-900">
                 <div className="w-8 h-8 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (metrics === null || (metrics as any)?.error) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                <p className="text-sm">Unable to load audit logs. You may not have founder permissions.</p>
             </div>
         );
     }

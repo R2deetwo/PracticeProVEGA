@@ -27,14 +27,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeView, setActiv
     const { currentUser, logout } = useAuth();
 
     return (
-        <aside className="w-16 sm:w-60 flex-shrink-0 bg-slate-900 dark:bg-black flex flex-col h-full border-r border-slate-800">
+        <aside className="w-60 flex-shrink-0 bg-slate-900 dark:bg-black flex flex-col h-full border-r border-slate-800">
             {/* Logo — black mark is the standard for the Founder App */}
             <div className="flex-shrink-0 p-4 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-black text-sm flex-shrink-0 border border-zinc-700">
                         P
                     </div>
-                    <div className="hidden sm:block min-w-0">
+                    <div className="min-w-0">
                         <p className="text-sm font-black text-white tracking-tight">PracticePro</p>
                         <p className="text-2xs text-zinc-500 font-bold uppercase tracking-widest">Founder</p>
                     </div>
@@ -56,7 +56,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeView, setActiv
                         <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
                         </svg>
-                        <span className="hidden sm:block truncate">{item.label}</span>
+                        <span className="truncate">{item.label}</span>
                     </button>
                 ))}
             </nav>
@@ -67,7 +67,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeView, setActiv
                     <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                         {currentUser?.name?.charAt(0) || 'F'}
                     </div>
-                    <div className="hidden sm:block min-w-0 flex-1">
+                    <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-white truncate">{currentUser?.name || 'Founder'}</p>
                         <p className="text-2xs text-slate-500 truncate">{currentUser?.email}</p>
                     </div>
