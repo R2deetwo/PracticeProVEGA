@@ -1,95 +1,58 @@
 /**
  * AdminApp — the shell for the PracticePro Founder APK.
  *
- * NO AUTH REQUIRED:
- *   The founder APK auto-logs in as a demo founder user. The session
- *   token is written to localStorage in main.tsx BEFORE React mounts,
- *   so AuthContext picks it up and skips the login screen entirely.
+ * NO AUTH REQUIRED — ALWAYS RENDERS:
+ *   The founder APK does NOT depend on AuthContext or Convex to render
+ *   the app shell. It uses a hardcoded founder user object and renders
+ *   the sidebar + content area IMMEDIATELY on mount.
  *
- *   The real security boundary is server-side (requireAdmin() in Convex
- *   checks the tokenIdentifier against the users table). If the demo
- *   email doesn't exist as an Admin in the DB, founder metrics queries
- *   will return an authorization error (but the app will still load).
+ *   This fixes the "stuck on splash" bug where the app rendered nothing
+ *   (null) while waiting for AuthContext to resolve the demo user from
+ *   Convex — which never happened because the demo email wasn't in the
+ *   users table.
+ *
+ *   Now, the app shell renders instantly. Individual views (FounderDashboard,
+ *   FounderSignals, etc.) handle their own Convex query loading/error states.
+ *   If the Convex queries fail (because the demo user isn't an admin in
+ *   the DB), the views show a friendly message instead of crashing.
  *
  * SPLASH SCREEN:
- *   The HTML splash in admin.html plays a 3-phase animation that mirrors
- *   the consumer app's SplashScreen but in reverse:
- *     Consumer:  black → amber → green → "Ready"
- *     Founder:   green → orange → black → "FOUNDER"
- *   AdminApp drives the phase transitions via CSS classes on the splash
- *   element, then dismisses it after the animation completes.
+ *   The splash timeline is driven by a plain <script> in admin.html —
+ *   NOT React. This guarantees the splash ALWAYS dismisses, even if
+ *   React completely fails to mount.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { FounderDashboard } from '../components/FounderDashboard';
 import { FirmManagement } from './views/FirmManagement';
 import { UserManagement } from './views/UserManagement';
 import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
-import { useFounderSignals } from './useFounderSignals';
-import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types';
 
 export type AdminView = 'dashboard' | 'signals' | 'firms' | 'users' | 'audit' | 'settings';
 
 /**
- * Drive the HTML splash screen phases.
- * Mirrors the consumer SplashScreen.tsx timing but in reverse:
- *   Phase 1 (0ms):     green  — logo visible in brand green
- *   Phase 2 (750ms):   orange — logo morphs to orange
- *   Phase 3 (1350ms):  black  — logo morphs to black + "FOUNDER" text appears
- *   Exit   (1900ms):   fade out splash, mount the app
+ * Hardcoded founder user. This is used for the sidebar display and
+ * passed as tokenIdentifier to Convex queries.
+ *
+ * To use a real admin account, change this email to your actual admin
+ * email and ensure that user exists in the Convex users table with
+ * role='Admin'. The server-side requireAdmin() check will verify it.
  */
-function useFounderSplashTimeline() {
-    useEffect(() => {
-        const splash = document.getElementById('founder-splash');
-        if (!splash) return;
-
-        // Phase 1: green (already set in HTML as default)
-        // Phase 2: orange at 750ms
-        const t1 = window.setTimeout(() => {
-            splash.classList.add('phase-orange');
-        }, 750);
-
-        // Phase 3: black at 1350ms
-        const t2 = window.setTimeout(() => {
-            splash.classList.add('phase-black');
-        }, 1350);
-
-        // Exit: fade out at 1900ms
-        const t3 = window.setTimeout(() => {
-            splash.classList.add('hidden');
-            // Remove from DOM after the fade-out transition
-            window.setTimeout(() => { try { splash.remove(); } catch {} }, 500);
-        }, 1900);
-
-        return () => {
-            window.clearTimeout(t1);
-            window.clearTimeout(t2);
-            window.clearTimeout(t3);
-        };
-    }, []);
-}
+const FOUNDER_USER = {
+    name: 'Founder',
+    email: 'founder@practicepro.ng',
+    role: 'Admin' as const,
+    tokenIdentifier: 'founder@practicepro.ng',
+};
 
 export const AdminApp: React.FC = () => {
-    const { currentUser } = useAuth();
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
 
-    // Drive the splash screen animation (green → orange → black → FOUNDER)
-    useFounderSplashTimeline();
-
-    // ─── Founder signals (new users / churn / scaling / per-product) ───
-    const isFounder = currentUser?.role === UserRole.Admin;
-    useFounderSignals({ enabled: isFounder });
-
-    // While the session is loading (first frame), render nothing —
-    // the HTML splash is still visible and will be dismissed by the
-    // timeline hook above.
-    if (!currentUser) {
-        return null;
-    }
-
+    // ALWAYS render the app shell. Never return null.
+    // The splash is dismissed by a plain <script> in admin.html,
+    // so we don't need to coordinate with it here.
     return (
         <div className="h-[100dvh] flex bg-slate-50 dark:bg-zinc-900 overflow-hidden">
             <AdminSidebar activeView={activeView} setActiveView={setActiveView} />

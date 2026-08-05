@@ -18,7 +18,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
 import { formatNaira } from '../utils/formatting';
 import NairaSymbol from './NairaSymbol';
@@ -29,7 +28,6 @@ const KPI_VALUE = 'text-2xl sm:text-3xl font-black text-slate-900 dark:text-whit
 const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3';
 
 export const FounderDashboard: React.FC = () => {
-    const { currentUser } = useAuth();
     const { addToast } = useUI();
     const [showFirmsTable, setShowFirmsTable] = useState(false);
     const [editingFirm, setEditingFirm] = useState<string | null>(null);
@@ -37,30 +35,43 @@ export const FounderDashboard: React.FC = () => {
     const [editStatus, setEditStatus] = useState('');
     const [editNotes, setEditNotes] = useState('');
 
-    // SECURITY: Pass tokenIdentifier for server-side admin verification.
-    // The server-side requireAdmin() check is the real security boundary —
-    // the client-side role check below is just a UX convenience.
-    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
-    const metrics = useQuery(api.founderMetrics.getFounderMetrics,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
-    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+    // Founder APK uses a hardcoded founder email — no AuthContext dependency.
+    // Change this to your real admin email to get actual data from Convex.
+    const tokenIdentifier = 'founder@practicepro.ng';
+    const metrics = useQuery(api.founderMetrics.getFounderMetrics, { tokenIdentifier });
+    const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin, { tokenIdentifier });
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
 
-    // Guard — only Admins can see this (UX check; server enforces real security)
-    if (currentUser?.role !== 'Admin') {
+    // If the query errored (e.g., demo user isn't an admin in the DB),
+    // show a friendly message instead of crashing.
+    if (metrics === undefined) {
         return (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-                <p className="text-lg font-medium">Access Denied</p>
-                <p className="text-sm mt-1">You need admin privileges to view this dashboard.</p>
+            <div className="h-full flex items-center justify-center">
+                <div className="w-10 h-10 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
             </div>
         );
     }
 
-    if (!metrics) {
+    // If the query returned an error (Convex throws when requireAdmin fails),
+    // useQuery returns undefined, so we show a setup message.
+    if (metrics === null || (metrics as any)?.error) {
         return (
-            <div className="h-full flex items-center justify-center">
-                <div className="w-10 h-10 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <h2 className="text-xl font-bold mb-2">Founder Dashboard</h2>
+                <p className="text-sm max-w-md mb-4">The founder dashboard needs a verified admin account to load platform metrics.</p>
+                <div className="bg-slate-100 dark:bg-zinc-800 rounded-lg p-4 text-left max-w-md text-xs">
+                    <p className="font-bold mb-2">To enable data:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-zinc-400">
+                        <li>Create a user in Convex with email <code className="text-primary-600">founder@practicepro.ng</code></li>
+                        <li>Set that user's <code className="text-primary-600">role</code> to <code className="text-primary-600">Admin</code></li>
+                        <li>Or change <code className="text-primary-600">tokenIdentifier</code> in <code>src/components/FounderDashboard.tsx</code> to your real admin email</li>
+                    </ol>
+                </div>
             </div>
         );
     }

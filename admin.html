@@ -145,5 +145,38 @@
 
     <div id="admin-root"></div>
     <script type="module" src="/src/admin/main.tsx"></script>
+
+    <!--
+      SPLASH TIMELINE — plain JS, NOT React.
+      This guarantees the splash ALWAYS plays and dismisses itself,
+      even if React completely fails to mount (which would otherwise
+      leave the user staring at "Initializing Founder Console..."
+      forever).
+
+      Timeline (mirrors consumer SplashScreen.tsx but reversed):
+        0ms:     green (default)
+        750ms:   orange
+        1350ms:  black + "FOUNDER" text
+        1900ms:  fade out
+        2400ms:  remove from DOM
+    -->
+    <script>
+      (function() {
+        var splash = document.getElementById('founder-splash');
+        if (!splash) return;
+        setTimeout(function() { splash.classList.add('phase-orange'); }, 750);
+        setTimeout(function() { splash.classList.add('phase-black'); }, 1350);
+        setTimeout(function() {
+          splash.classList.add('hidden');
+          setTimeout(function() { try { splash.remove(); } catch(e) {} }, 500);
+        }, 1900);
+        // Safety net: if anything goes wrong, force-remove after 5s
+        setTimeout(function() {
+          if (splash && splash.parentNode) {
+            try { splash.remove(); } catch(e) {}
+          }
+        }, 5000);
+      })();
+    </script>
   </body>
 </html>
