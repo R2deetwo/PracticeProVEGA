@@ -1517,6 +1517,46 @@ export const updateUserSecurity = mutation({
   }
 });
 
+/**
+ * mutation: saveUserApiKey
+ * Saves the user's Gemini API key to their user record so it syncs
+ * across devices. The key is stored server-side and synced to
+ * localStorage on login — preventing the "API key disappears on
+ * refresh" bug.
+ */
+export const saveUserApiKey = mutation({
+  args: { tokenIdentifier: v.string(), apiKey: v.string() },
+  handler: async (ctx, args) => {
+    const token = args.tokenIdentifier.toLowerCase().trim();
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+      .collect();
+    const user = users[0];
+    if (!user) return { success: false, message: "User not found." };
+    await ctx.db.patch(user._id, { geminiApiKey: args.apiKey });
+    return { success: true };
+  },
+});
+
+/**
+ * query: getUserApiKey
+ * Retrieves the user's stored Gemini API key from their user record.
+ * Used on login to sync the key to localStorage.
+ */
+export const getUserApiKey = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    const token = args.tokenIdentifier.toLowerCase().trim();
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+      .collect();
+    const user = users[0];
+    return user?.geminiApiKey || null;
+  },
+});
+
 export const verifyCode = mutation({
   args: { email: v.string(), code: v.string() },
   handler: async (ctx, args) => {

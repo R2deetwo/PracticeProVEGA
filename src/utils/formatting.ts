@@ -11,17 +11,48 @@ export const normalizeAddress = (address: string): string => {
 /**
  * Formats a number as a Naira currency string, without the symbol.
  * Use this with the <NairaSymbol /> component for display.
- * @param amount The number to format.
- * @returns A string representing the formatted amount, e.g., "1,000.00".
+ * @param amount The number to format (also accepts string representations).
+ * @returns A string representing the formatted amount, e.g., "1,000,000.00".
  */
-export const formatNaira = (amount: number): string => {
-  if (typeof amount !== 'number' || isNaN(amount)) {
+export const formatNaira = (amount: number | string): string => {
+  // Handle string inputs by converting to number
+  const num = typeof amount === 'string' ? parseFloat(amount.replace(/[^0-9.-]/g, '')) : amount;
+  if (typeof num !== 'number' || isNaN(num)) {
     return '0.00';
   }
-  return amount.toLocaleString('en-NG', {
+  return num.toLocaleString('en-NG', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+};
+
+/**
+ * Formats naira amounts in arbitrary text (e.g., AI chat responses).
+ * Finds patterns like "₦1000000" or "N1000000" or "1000000 naira" and
+ * adds commas for readability: "₦1,000,000.00".
+ *
+ * This is used to post-process ALOA chat responses so that monetary
+ * amounts always have proper comma formatting.
+ */
+export const formatNairaInText = (text: string): string => {
+  if (!text) return text;
+  // Match ₦ or N or NGN followed by digits (with optional decimal)
+  // Also match bare large numbers (5+ digits) that are likely naira amounts
+  return text
+    // Format ₦1000000 → ₦1,000,000.00
+    .replace(/₦\s?(\d{1,3}(?:,\d{3})*|\d+)(?:\.(\d+))?/g, (match, intPart, decPart) => {
+      const num = parseInt(String(intPart).replace(/,/g, ''), 10);
+      if (isNaN(num)) return match;
+      const formatted = num.toLocaleString('en-NG');
+      return `₦${formatted}${decPart ? '.' + decPart : '.00'}`;
+    })
+    // Format N1000000 (but not "N" in words like "Not") → ₦1,000,000.00
+    .replace(/\bN(\d{4,})(?:\.(\d+))?/g, (match, intPart, decPart) => {
+      const num = parseInt(String(intPart), 10);
+      if (isNaN(num)) return match;
+      const formatted = num.toLocaleString('en-NG');
+      return `₦${formatted}${decPart ? '.' + decPart : '.00'}`;
+    });
 };
 
 /**

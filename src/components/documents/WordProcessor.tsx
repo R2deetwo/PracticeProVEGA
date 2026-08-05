@@ -7,6 +7,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { draftSessionKey, loadDraftSession, saveDraftSession, clearDraftSession } from '../../utils/draftSession';
 import { registerDraftTab } from '../../utils/draftTabs';
 import { readHashContext } from '../../utils/tabNavigation';
+import { getAndClearPendingDraft } from '../../utils/draftContentStore';
 
 /** Helper: extract context from ContextResult */
 function extractCtx(result: ReturnType<typeof readHashContext>): Record<string, any> {
@@ -48,7 +49,12 @@ export const WordProcessor: React.FC = () => {
         const hashCtx = extractCtx(readHashContext());
 
         // 3. In-memory context (in-place path)
-        const memCtx = (location.state as any) || currentHistoryEntry?.context || {};
+        // In Capacitor's webview, location.state can be null even when
+        // navigate() was called with state. As a fallback, check the
+        // module-level pending draft store (set by ALOA's "Draft in
+        // DraftPro" handler before navigating).
+        const pendingDraft = getAndClearPendingDraft();
+        const memCtx = (location.state as any) || currentHistoryEntry?.context || pendingDraft || {};
 
         // Merge: URL params > hash > memory (memory is fallback for same-tab)
         const ctx = { ...memCtx, ...hashCtx };

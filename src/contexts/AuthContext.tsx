@@ -178,6 +178,26 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setIsStorageLoaded(true);
     }, []);
 
+    // ─── API Key Sync (server → localStorage) ──────────────────────────
+    // When the user logs in, fetch their stored Gemini API key from the
+    // server and sync it to localStorage. This prevents the "API key
+    // disappears on refresh" bug — the key is stored server-side and
+    // restored on every login, even if localStorage was cleared.
+    const serverApiKey = useQuery(api.myFunctions.getUserApiKey,
+        sessionToken ? { tokenIdentifier: sessionToken } : "skip");
+
+    React.useEffect(() => {
+        if (serverApiKey && typeof serverApiKey === 'string' && serverApiKey.length > 0) {
+            try {
+                const localKey = localStorage.getItem('practicepro_custom_gemini_key');
+                if (localKey !== serverApiKey) {
+                    localStorage.setItem('practicepro_custom_gemini_key', serverApiKey);
+                    console.log('[Auth] Synced API key from server to localStorage');
+                }
+            } catch {}
+        }
+    }, [serverApiKey]);
+
     const currentUser: User | null = React.useMemo(() => {
         // DEMO MODE BYPASS — development builds only
         if (import.meta.env.DEV && sessionToken === 'demo@practicepro.ng') {

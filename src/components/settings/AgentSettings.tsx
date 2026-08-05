@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { FirmDetails, User, UserRole } from '../../types';
-import { useConvex } from 'convex/react';
+import { useConvex, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeIcon, EyeOffIcon, BrainIcon, SearchIcon, ScalesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { setCustomApiKey, getCustomApiKey } from '../../utils/aiUtils';
 import { getAssistantName } from '../../utils/assistantIdentity';
 import { useProduct } from '../../contexts/ProductContext';
@@ -108,6 +110,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
     const { addToast } = useUI();
     const { isProperty } = useProduct();
     const convex = useConvex();
+    const saveApiKeyMutation = useMutation(api.myFunctions.saveUserApiKey);
     const [customKey, setCustomKey] = useState('');
     const [hasKey, setHasKey] = useState(false);
     const [showKey, setShowKey] = useState(false);
@@ -133,7 +136,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         }
     };
 
-    const handleSaveKey = () => {
+    const handleSaveKey = async () => {
         // Strip any mask characters that might have been appended
         const cleanKey = customKey.replace(/•/g, '').trim();
         if (!cleanKey) {
@@ -147,6 +150,19 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         try {
             setCustomApiKey(cleanKey);
             setHasKey(true);
+            // Also save to server so it syncs across devices and survives
+            // localStorage clearing (refresh, APK reinstall, new device)
+            if (currentUser?.email) {
+                try {
+                    await saveApiKeyMutation({
+                        tokenIdentifier: currentUser.email,
+                        apiKey: cleanKey,
+                    });
+                } catch (serverErr) {
+                    console.warn('[AgentSettings] Failed to save API key to server:', serverErr);
+                    // Still succeed — the key is saved locally
+                }
+            }
             addToast("Gemini Key saved successfully.", { type: 'success' });
             setCustomKey('••••••••••••••••');
         } catch (err: any) {
@@ -158,6 +174,13 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         setCustomApiKey(null);
         setHasKey(false);
         setCustomKey('');
+        // Also clear from server (save empty string)
+        if (currentUser?.email) {
+            saveApiKeyMutation({
+                tokenIdentifier: currentUser.email,
+                apiKey: '',
+            }).catch(() => {});
+        }
         addToast("Key removed.", { type: 'info' });
     };
 

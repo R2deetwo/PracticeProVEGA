@@ -84,6 +84,11 @@ export default defineSchema({
     recoveryCode: nullableString,
     emailVerified: nullableBoolean,
     externalCounselId: nullableString,
+    // ─── AI API Key (stored server-side so it syncs across devices) ───
+    // When a user sets their Gemini API key in Settings, it's saved both
+    // to localStorage (for fast access) AND to this field (for durability
+    // across devices/reinstalls). On login, the app syncs this to localStorage.
+    geminiApiKey: nullableString,
     // Portal access token — unique, random-looking identifier used in portal URLs
     // (e.g. /portal/tenant/2e71135d-003e-42dd-83ff-9f7988e7c6ac)
     // NOT used for authentication — just for routing/identification/bookmarkability.

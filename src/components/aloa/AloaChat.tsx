@@ -19,10 +19,12 @@ import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { handleCleanCopy } from '../../utils/copyUtils';
+import { formatNairaInText } from '../../utils/formatting';
 import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
 import { CitationRegistry } from '../../utils/citationRegistry';
 import { parseAIResponseForCitations } from '../../utils/citationParser';
 import { draftSessionKey, loadDraftSession, saveDraftSession } from '../../utils/draftSession';
+import { setPendingDraft } from '../../utils/draftContentStore';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
@@ -2007,7 +2009,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             }
 
             // Mobile or popup blocked — open in-place
-            // This is the reliable path: just navigate to the editor with the content
+            // This is the reliable path: just navigate to the editor with the content.
+            // Save to module-level store FIRST so WordProcessor can read it even if
+            // React Router's location.state doesn't persist (common in Capacitor).
+            setPendingDraft(draftConfig);
             openEditorRef.current(null, draftConfig);
             addToast(`Opened "${title}" in DraftPro.`, { type: 'success' });
         } catch (e: any) {
@@ -2741,7 +2746,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {msg.content && (
                                         <div
                                             className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2"
-                                            dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content) }}
+                                            dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(formatNairaInText(msg.content)) }}
                                             onCopy={handleCleanCopy}
                                         />
                                     )}
