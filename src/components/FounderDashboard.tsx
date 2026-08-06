@@ -47,7 +47,7 @@ interface FounderDashboardProps {
     onNavigateToSignals?: (product?: string) => void;
 }
 
-export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals }) => {
+export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals: _onNavigateToSignals }) => {
     const { currentUser } = useFounderAuth();
     const [productFilter, setProductFilter] = useState<ProductFilter>('all');
     const [entityToggle, setEntityToggle] = useState<'properties' | 'matters'>('properties');
@@ -129,7 +129,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                     <div className="grid grid-cols-3 gap-3">
                         {/* Atrium */}
                         <button
-                            onClick={() => onNavigateToSignals?.('property')}
+                            onClick={() => setProductFilter('property')}
                             className="text-center p-3 bg-sky-50 dark:bg-sky-900/20 rounded-xl min-w-0 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors"
                         >
                             <p className="text-2xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest mb-1">Atrium</p>
@@ -138,7 +138,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         </button>
                         {/* Vega */}
                         <button
-                            onClick={() => onNavigateToSignals?.('legal')}
+                            onClick={() => setProductFilter('legal')}
                             className="text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl min-w-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                         >
                             <p className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Vega</p>
@@ -147,7 +147,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         </button>
                         {/* Komplete */}
                         <button
-                            onClick={() => onNavigateToSignals?.('unified')}
+                            onClick={() => setProductFilter('unified')}
                             className="text-center p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl min-w-0 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
                         >
                             <p className="text-2xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-1">Komplete</p>
@@ -159,15 +159,15 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
 
                 {/* ─── KPI Strip ─────────────────────────────────────────── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className={KPI_CARD} onClick={() => onNavigateToSignals?.()}>
+                    <div className={KPI_CARD} onClick={() => setProductFilter('all')}>
                         <p className={KPI_LABEL}>Total Orgs</p>
                         <p className={KPI_VALUE}>{metrics.totalFirms}</p>
                     </div>
-                    <div className={KPI_CARD} onClick={() => onNavigateToSignals?.()}>
+                    <div className={KPI_CARD} onClick={() => setProductFilter('all')}>
                         <p className={KPI_LABEL}>Total Users</p>
                         <p className={KPI_VALUE}>{metrics.totalUsers}</p>
                     </div>
-                    <div className={KPI_CARD} onClick={() => onNavigateToSignals?.()}>
+                    <div className={KPI_CARD} onClick={() => setProductFilter('all')}>
                         <p className={KPI_LABEL}>{productFilter === 'property' ? 'Properties' : productFilter === 'legal' ? 'Matters' : 'Matters + Properties'}</p>
                         <p className={KPI_VALUE}>{metrics.totalMatters}</p>
                     </div>

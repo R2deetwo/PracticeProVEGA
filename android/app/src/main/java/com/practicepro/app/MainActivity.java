@@ -33,7 +33,7 @@ import com.practicepro.app.plugins.ContentProtectionPlugin;
  */
 public class MainActivity extends BridgeActivity {
 
-    private boolean flagSecureEnabled = true;
+    private boolean flagSecureEnabled = false;
     private static final int MIC_PERMISSION_REQUEST_CODE = 4242;
     private PermissionRequest pendingWebPermissionRequest = null;
 

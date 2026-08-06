@@ -1,5 +1,5 @@
 
-import { query, mutation, action } from "./_generated/server";
+import { query, mutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
@@ -723,9 +723,10 @@ export const broadcastNotification = action({
     deepLink: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
-
-    // 1. Fetch all users matching the target product
+    // Actions can't use ctx.db directly — use internal query for auth check
+    await ctx.runQuery(internal.founderMetrics.checkFounderRole, {
+      tokenIdentifier: args.tokenIdentifier,
+    });
     const allUsers = await ctx.runQuery(internal.myFunctions.getAllUsersForBroadcast, {
       targetProduct: args.targetProduct,
     });
@@ -1145,5 +1146,43 @@ export const getFeatureFlags = query({
       .query("feature_flags")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
       .collect();
+  },
+});
+
+/**
+ * internal query: checkFounderRole
+ * Used by actions (which can't access ctx.db directly) to verify
+ * that the caller has Founder role. Returns the user record or throws.
+ */
+export const checkFounderRole = internalQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    if (!args.tokenIdentifier) {
+      throw new Error("Unauthorized: authentication required.");
+    }
+    const token = args.tokenIdentifier.toLowerCase().trim();
+    const directMatches = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .collect();
+    const lowerMatches = directMatches.length === 0
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+          .collect()
+      : [];
+    const allMatches = directMatches.length > 0 || lowerMatches.length > 0
+      ? [...directMatches, ...lowerMatches]
+      : (await ctx.db.query("users").take(500))
+          .filter((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+    if (allMatches.length === 0) {
+      throw new Error("Unauthorized: user not found.");
+    }
+    const founderRecord = allMatches.find((u: any) => u.role === 'Founder');
+    const userRecord = founderRecord || allMatches[0];
+    if (userRecord.role !== 'Founder') {
+      throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'.`);
+    }
+    return userRecord;
   },
 });
