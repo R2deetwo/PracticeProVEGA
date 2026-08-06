@@ -30,7 +30,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useFounderAuth } from './AdminApp';
 import { registerForNotifications, showLocalNotification } from '../utils/notifications';
 import { Capacitor } from '@capacitor/core';
 

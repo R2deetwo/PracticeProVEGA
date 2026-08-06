@@ -18,10 +18,9 @@
  */
 
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { UserRole } from '../types';
+import { useFounderAuth } from './AdminApp';
 
 type Mode = 'login' | 'signup';
 
