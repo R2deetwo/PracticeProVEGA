@@ -27,6 +27,9 @@ const PRODUCT_LABEL: Record<string, string> = {
     legal: 'Vega (Legal)',
     property: 'Atrium (Property)',
     unified: 'Komplete',
+    vega: 'Vega (Legal)',
+    atrium: 'Atrium (Property)',
+    komplete: 'Komplete',
 };
 
 export const OrganizationsCenter: React.FC = () => {

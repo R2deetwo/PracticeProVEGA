@@ -63,9 +63,15 @@ const Header: React.FC = React.memo(() => {
     const aggregatedNotifications = useMemo(() => {
         if (!currentUser) return [];
 
-        const systemNotes = notifications.filter(n => n.userId === currentUser.id || n.userId === currentUser._id).map(n => ({
+        const systemNotes = notifications.filter(n =>
+            n.userId === currentUser.id ||
+            n.userId === currentUser._id ||
+            n.userId === String(currentUser._id || '')
+        ).map(n => ({
             ...n,
-            type: n.message.includes('joined') ? 'success' : (n.message.toLowerCase().includes('message') ? 'message' : 'info'),
+            type: (n.type || '').includes('broadcast') ? 'info' :
+                  n.message.includes('joined') ? 'success' :
+                  (n.message.toLowerCase().includes('message') ? 'message' : 'info'),
             timestampStr: n.timestamp
         }));
 
@@ -368,7 +374,9 @@ const Header: React.FC = React.memo(() => {
                                                             if (!notification.isRead) handleMarkNotificationsRead([notification.id]);
                                                         }}
                                                     >
-                                                        <p className={`text-sm leading-snug mb-1 ${!notification.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>{notification.message}</p>
+                                                        <p className={`text-sm leading-snug mb-1 ${!notification.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>
+                                                            {notification.title ? `${notification.title}: ` : ''}{notification.message}
+                                                        </p>
                                                         <p className="text-2xs font-medium text-slate-400">{timeAgo(notification.timestampStr)}</p>
                                                     </div>
                                                     <button

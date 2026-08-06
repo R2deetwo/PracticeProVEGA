@@ -213,6 +213,30 @@ export const getFounderMetrics = query({
         .filter((u: any) => activeUserIds.has(u._id) || (u._creationTime || 0) > activeThreshold)
         .map((u: any) => ({ name: u.email }));
 
+    // ─── Recent Activity (filtered — no noise, no client data) ──────
+    // Filter out:
+    //   - Low-value events (logouts, page views, etc.)
+    //   - Client-specific events (ALOA searches, chat messages, etc.)
+    //     These are private to each firm and must NOT appear in the
+    //     founder's audit log.
+    const NOISE_PATTERNS = [
+      'user_logout', 'page_view', 'sidebar_toggle', 'modal_open',
+      'modal_close', 'notification_read', 'toast_dismissed',
+      'Demo Signup', 'sendHeartbeat',
+      // Client-specific events — must not appear in admin app
+      'aloa', 'search', 'chat_message', 'draft_generated',
+      'ai_request', 'gemini', 'citation', 'research_',
+      'document_generated', 'form_submit',
+    ];
+    const isNoise = (eventStr: string) => {
+      const lower = (eventStr || '').toLowerCase();
+      return NOISE_PATTERNS.some(n => lower.includes(n.toLowerCase()));
+    };
+    const meaningfulEvents = events
+      .filter((e: any) => !isNoise(e.event || ''))
+      .sort((a: any, b: any) => (b.timestamp || b._creationTime || 0) - (a.timestamp || a._creationTime || 0))
+      .slice(0, 50);
+
     return {
       totalMatters,
       totalFirms,
@@ -224,7 +248,7 @@ export const getFounderMetrics = query({
       dailyGrowth,
       topFirms,
       activeUserList,
-      recentActivity: events.slice(-15).reverse(),
+      recentActivity: meaningfulEvents,
       lastUpdated: new Date().toISOString()
     };
   },
@@ -297,6 +321,7 @@ export const getAllFirmsForAdmin = query({
           adminEmail: adminUser?.email || adminUser?.tokenIdentifier || firm.createdBy || 'unknown',
           plan: firm.subscriptionPlan || 'Core',
           status: firm.adminStatus || 'active',
+          product: firm.product || 'legal', // actual product: 'legal' | 'property' | 'unified'
           userCount: firmUsers.length,
           // PRIVACY: Platform subscription billing — NOT client invoices
           billingInterval: firm.billingInterval || 'monthly',
