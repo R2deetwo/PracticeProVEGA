@@ -766,8 +766,24 @@ export const broadcastNotification = action({
     await ctx.runQuery(internal.founderMetrics.checkFounderRole, {
       tokenIdentifier: args.tokenIdentifier,
     });
-    const allUsers = await ctx.runQuery(internal.myFunctions.getAllUsersForBroadcast, {
+    const rawUsers = await ctx.runQuery(internal.myFunctions.getAllUsersForBroadcast, {
       targetProduct: args.targetProduct,
+    });
+
+    // SECOND-LAYER DEDUP: The query already deduplicates by email, but
+    // we add a second check here by _id as well — defense in depth.
+    // This ensures we NEVER create duplicate notifications for the same
+    // user, even if the query returns duplicates for any reason.
+    const seenIds = new Set<string>();
+    const seenEmails = new Set<string>();
+    const allUsers = (rawUsers as any[]).filter((u: any) => {
+      const id = String(u._id || '');
+      const email = (u.email || '').toLowerCase().trim();
+      if (id && seenIds.has(id)) return false;
+      if (email && seenEmails.has(email)) return false;
+      if (id) seenIds.add(id);
+      if (email) seenEmails.add(email);
+      return true;
     });
 
     let recipientCount = 0;
@@ -787,10 +803,12 @@ export const broadcastNotification = action({
       }
     }
 
-    // 3. Send emails
+    // 3. Send emails (deduplicated — one per unique email)
     if (args.channel === 'email' || args.channel === 'both') {
+      const emailedSet = new Set<string>();
       for (const user of allUsers) {
-        if (user.email) {
+        if (user.email && !emailedSet.has(user.email)) {
+          emailedSet.add(user.email);
           try {
             await ctx.runAction(internal.myFunctions.sendBroadcastEmail, {
               to: user.email,
@@ -816,6 +834,48 @@ export const broadcastNotification = action({
     });
 
     return { success: true, recipientCount };
+  },
+});
+
+/**
+ * mutation: cleanupDuplicateBroadcastNotifications
+ * Removes duplicate broadcast notifications from the DB.
+ *
+ * When a user has multiple records in the users table (e.g., from
+ * joining multiple firms), the old broadcast code created one
+ * notification per record — so a user with 6 records saw the same
+ * broadcast 6 times. This mutation cleans up those duplicates by
+ * keeping only ONE notification per (userId, title, message) combo.
+ *
+ * SAFE TO RUN: This only affects notifications with type starting
+ * 'broadcast_'. Non-broadcast notifications are untouched.
+ */
+export const cleanupDuplicateBroadcastNotifications = mutation({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    // Fetch all broadcast notifications
+    const allNotes = await ctx.db.query("notifications").collect();
+    const broadcastNotes = allNotes.filter((n: any) =>
+      (n.type || '').startsWith('broadcast_')
+    );
+
+    // Group by (userId, title, message) — keep the first, delete the rest
+    const seen = new Set<string>();
+    let deleted = 0;
+    for (const note of broadcastNotes) {
+      const key = `${note.userId}|||${note.title || ''}|||${note.message || ''}`;
+      if (seen.has(key)) {
+        // Duplicate — delete it
+        await ctx.db.delete(note._id);
+        deleted++;
+      } else {
+        seen.add(key);
+      }
+    }
+
+    return { success: true, deleted, totalChecked: broadcastNotes.length };
   },
 });
 

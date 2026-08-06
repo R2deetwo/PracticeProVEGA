@@ -65,6 +65,20 @@ export const BroadcastConsole: React.FC = () => {
         tokenIdentifier ? { tokenIdentifier } : "skip");
     const recipientCount = (allFirms as any[])?.reduce((sum, f) => sum + (f.userCount || 0), 0) || 0;
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
+    const cleanupDuplicates = useMutation(api.founderMetrics.cleanupDuplicateBroadcastNotifications);
+
+    const handleCleanupDuplicates = async () => {
+        try {
+            const result = await cleanupDuplicates({ tokenIdentifier });
+            if (result.deleted > 0) {
+                addToast(`Cleaned up ${result.deleted} duplicate notification(s). Users will no longer see duplicates.`, { type: 'success' });
+            } else {
+                addToast('No duplicate notifications found. DB is clean.', { type: 'info' });
+            }
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to clean up duplicates.', { type: 'error' });
+        }
+    };
 
     const handleSend = async () => {
         if (!title.trim() || !message.trim()) {
@@ -239,6 +253,18 @@ export const BroadcastConsole: React.FC = () => {
                 >
                     {isSending ? 'Sending broadcast...' : `Send Broadcast to ${TARGET_LABELS[target]}`}
                 </button>
+
+                {/* Cleanup Duplicates — removes duplicate broadcast notifications
+                    from the DB (from before the dedup fix was deployed) */}
+                <button
+                    onClick={handleCleanupDuplicates}
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                >
+                    Clean Up Duplicate Notifications
+                </button>
+                <p className="text-2xs text-slate-400 text-center -mt-2">
+                    Removes duplicate broadcast notifications from the DB. Run once to fix existing duplicates.
+                </p>
             </div>
         </div>
     );

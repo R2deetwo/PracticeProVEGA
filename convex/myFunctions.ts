@@ -4457,7 +4457,7 @@ export const getAllUsersForBroadcast = internalQuery({
     const allUsers = await ctx.db.query("users").take(2000);
     const target = args.targetProduct;
 
-    return allUsers.filter((u: any) => {
+    const filtered = allUsers.filter((u: any) => {
       // Exclude Founder role — they don't receive client broadcasts
       if (u.role === 'Founder') return false;
       // 'all' = everyone
@@ -4466,6 +4466,22 @@ export const getAllUsersForBroadcast = internalQuery({
       const userProduct = u.product || 'legal';
       return userProduct === target;
     });
+
+    // DEDUPLICATE by email — a user may have multiple records in the
+    // users table (e.g., they belong to multiple firms, or have
+    // duplicate records from migrations). Without this dedup, each
+    // record gets a separate notification and the user sees the same
+    // broadcast N times. We keep only the first record per email.
+    const seenEmails = new Set<string>();
+    const deduped = filtered.filter((u: any) => {
+      const email = (u.email || '').toLowerCase().trim();
+      if (!email) return true; // keep records without email (rare)
+      if (seenEmails.has(email)) return false;
+      seenEmails.add(email);
+      return true;
+    });
+
+    return deduped;
   },
 });
 

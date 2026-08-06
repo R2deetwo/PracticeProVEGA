@@ -63,17 +63,41 @@ const Header: React.FC = React.memo(() => {
     const aggregatedNotifications = useMemo(() => {
         if (!currentUser) return [];
 
-        const systemNotes = notifications.filter(n =>
-            n.userId === currentUser.id ||
-            n.userId === currentUser._id ||
-            n.userId === String(currentUser._id || '') ||
-            // Broadcast notifications are for ALL users in the firm
-            (n.type || '').startsWith('broadcast_')
+        // Cast notifications to any[] — the Notification type doesn't
+        // declare `type` and `title` fields, but the backend includes them.
+        const rawNotes = notifications as any[];
+
+        // Split notifications into broadcasts and non-broadcasts.
+        // Broadcasts are deduplicated by title+message so a user never
+        // sees the same announcement multiple times (e.g., if they had
+        // duplicate user records and received N copies of the same broadcast).
+        const broadcastNotes = rawNotes
+            .filter(n => (n.type || '').startsWith('broadcast_'))
+            .map(n => ({
+                ...n,
+                type: 'info' as const,
+                timestampStr: n.timestamp,
+            }));
+
+        const seenBroadcast = new Set<string>();
+        const uniqueBroadcasts = broadcastNotes.filter(n => {
+            const key = `${n.title || ''}|||${n.message || ''}`;
+            if (seenBroadcast.has(key)) return false;
+            seenBroadcast.add(key);
+            return true;
+        });
+
+        // Non-broadcast system notes (keep original behavior)
+        const nonBroadcastNotes = rawNotes.filter(n =>
+            !(n.type || '').startsWith('broadcast_') && (
+                n.userId === currentUser.id ||
+                n.userId === currentUser._id ||
+                n.userId === String(currentUser._id || '')
+            )
         ).map(n => ({
             ...n,
-            type: (n.type || '').includes('broadcast') ? 'info' :
-                  n.message.includes('joined') ? 'success' :
-                  (n.message.toLowerCase().includes('message') ? 'message' : 'info'),
+            type: n.message.includes('joined') ? 'success' as const :
+                  (n.message.toLowerCase().includes('message') ? 'message' as const : 'info' as const),
             timestampStr: n.timestamp
         }));
 
@@ -105,7 +129,7 @@ const Header: React.FC = React.memo(() => {
             }));
 
         // Combine and Sort
-        return [...systemNotes, ...unreadClientMessages, ...unreadTenantMessages].sort((a, b) => new Date(b.timestampStr).getTime() - new Date(a.timestampStr).getTime());
+        return [...uniqueBroadcasts, ...nonBroadcastNotes, ...unreadClientMessages, ...unreadTenantMessages].sort((a, b) => new Date(b.timestampStr).getTime() - new Date(a.timestampStr).getTime());
 
     }, [notifications, clientMessages, currentUser, inboundTenantMessages]);
 
