@@ -20,7 +20,7 @@
 import React, { useState } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useFounderAuth } from './AdminApp';
+import { useFounderAuth } from './FounderContexts';
 
 type Mode = 'login' | 'signup';
 

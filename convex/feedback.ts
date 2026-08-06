@@ -44,9 +44,24 @@ export const getFeedbackList = query({
     } else {
       results = await ctx.db.query("user_feedback").order("desc").take(500);
     }
-    // STRICT ISOLATION: Only return actual user feedback, not ALOA echoes
-    // or any other telemetry/search logs that may have been stored here.
-    return results.filter((item: any) => item.source !== "aloa_echo" && item.type !== "Search Log" && item.type !== "ALOA Search");
+    // STRICT ISOLATION: Only return actual user-submitted feedback.
+    // Exclude ALL telemetry, ALOA echoes, search logs, and any other
+    // non-feedback data that may have been stored in this table.
+    const EXCLUDED_SOURCES = ["aloa_echo", "search_log", "telemetry", "system"];
+    const EXCLUDED_TYPES = ["Search Log", "ALOA Search", "Telemetry", "System Event"];
+    return results.filter((item: any) => {
+      // Must NOT have an excluded source
+      if (EXCLUDED_SOURCES.includes(item.source)) return false;
+      // Must NOT have an excluded type
+      if (EXCLUDED_TYPES.includes(item.type)) return false;
+      // Must NOT have source containing 'aloa' (case-insensitive)
+      if ((item.source || '').toLowerCase().includes('aloa')) return false;
+      // Must NOT have type containing 'search' (case-insensitive)
+      if ((item.type || '').toLowerCase().includes('search')) return false;
+      // Must have a message (not empty)
+      if (!item.message || item.message.trim().length === 0) return false;
+      return true;
+    });
   },
 });
 

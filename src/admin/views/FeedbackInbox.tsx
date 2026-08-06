@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderToast } from '../AdminApp';
+import { useFounderToast } from '../FounderContexts';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
@@ -43,21 +43,22 @@ export const FeedbackInbox: React.FC = () => {
     };
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20">
+        <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20 overflow-x-hidden">
             {/* Header */}
             <div style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
-            className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
-                <div className="flex items-center justify-between gap-4">
+            className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
+                <div className="flex flex-col gap-3">
                     <div>
-                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
-                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{filtered.length} feedback items</p>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">{filtered.length} feedback items</p>
                     </div>
-                    <div className="flex gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1">
+                    {/* Filter tabs — scrollable horizontally on mobile */}
+                    <div className="flex gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 overflow-x-auto no-scrollbar">
                         {(['all', 'New', 'Replied', 'Resolved', 'Archived'] as const).map(f => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
-                                className={`px-3 py-1 rounded-md text-2xs font-bold transition-colors ${
+                                className={`px-3 py-1.5 rounded-md text-2xs font-bold transition-colors whitespace-nowrap flex-shrink-0 ${
                                     filter === f ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400'
                                 }`}
                             >
@@ -68,7 +69,7 @@ export const FeedbackInbox: React.FC = () => {
                 </div>
             </div>
 
-            <div className="px-4 sm:px-6 lg:px-8">
+            <div className="px-4">
                 {filtered.length === 0 ? (
                     <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
                         <p className="text-sm text-slate-400">No feedback yet. When users submit feedback from the client apps, it will appear here.</p>

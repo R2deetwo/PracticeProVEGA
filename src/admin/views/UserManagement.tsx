@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../AdminApp';
+import { useFounderAuth } from '../FounderContexts';
 
 export const UserManagement: React.FC = () => {
     const { currentUser } = useFounderAuth();

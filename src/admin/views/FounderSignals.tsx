@@ -16,7 +16,7 @@
 import React from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../AdminApp';
+import { useFounderAuth } from '../FounderContexts';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 

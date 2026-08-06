@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { useFounderAuth } from '../AdminApp';
-import { useFounderToast } from '../AdminApp';
+import { useFounderAuth } from '../FounderContexts';
+import { useFounderToast } from '../FounderContexts';
 import { Capacitor } from '@capacitor/core';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -38,7 +38,7 @@ export const Settings: React.FC = () => {
 
     const envStatus = useQuery(api.debug.checkEnv, {});
 
-    const [screenCapture, setScreenCapture] = useState(() => safeGetBool('founder_screen_capture', false));
+    const [screenCapture, setScreenCapture] = useState(() => safeGetBool('founder_screen_capture', true));
     const [biometric, setBiometric] = useState(() => safeGetBool('founder_biometric', false));
     const [sessionTimeout, setSessionTimeout] = useState(() => safeGet('founder_session_timeout', '15'));
 

@@ -12,7 +12,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../AdminApp';
+import { useFounderAuth } from '../FounderContexts';
 
 // Events that are low-value noise — filtered out of the feed
 const NOISE_EVENTS = [

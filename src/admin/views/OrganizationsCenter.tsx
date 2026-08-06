@@ -15,8 +15,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../AdminApp';
-import { useFounderToast } from '../AdminApp';
+import { useFounderAuth } from '../FounderContexts';
+import { useFounderToast } from '../FounderContexts';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 

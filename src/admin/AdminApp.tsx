@@ -10,9 +10,11 @@
  * that works independently.
  */
 
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { FounderAuthContext, ToastContext, useFounderAuth } from './FounderContexts';
+import type { FounderUser, Toast } from './FounderContexts';
 import { FounderDashboard } from '../components/FounderDashboard';
 import { OrganizationsCenter } from './views/OrganizationsCenter';
 import { AuditLogs } from './views/AuditLogs';
@@ -27,47 +29,6 @@ import { Settings } from './views/Settings';
 import { FirmHealth } from './views/FirmHealth';
 import { SystemStatus } from './views/SystemStatus';
 import { ExportCenter } from './views/ExportCenter';
-
-// ─── Lightweight Auth Context (no firmId dependency) ─────────────────
-interface FounderUser {
-    id: string;
-    _id?: string;
-    email: string;
-    name: string;
-    role: string;
-    tokenIdentifier: string;
-}
-
-interface FounderAuthContextType {
-    currentUser: FounderUser | null;
-    isAuthenticated: boolean;
-    isLoadingSession: boolean;
-    login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-    logout: () => void;
-}
-
-const FounderAuthContext = createContext<FounderAuthContextType>({
-    currentUser: null,
-    isAuthenticated: false,
-    isLoadingSession: true,
-    login: async () => ({ success: false }),
-    logout: () => {},
-});
-
-export const useFounderAuth = () => useContext(FounderAuthContext);
-
-// ─── Lightweight Toast Context ──────────────────────────────────────
-interface Toast {
-    id: number;
-    message: string;
-    type: 'success' | 'error' | 'info';
-}
-
-const ToastContext = createContext<{ addToast: (msg: string, opts?: { type?: Toast['type'] }) => void }>({
-    addToast: () => {},
-});
-
-export const useFounderToast = () => useContext(ToastContext);
 
 // ─── View Error Boundary ────────────────────────────────────────────
 class ViewErrorBoundary extends React.Component<
@@ -148,7 +109,7 @@ const FounderApp: React.FC = () => {
 
     const renderView = () => {
         switch (activeView) {
-            case 'dashboard': return <ViewErrorBoundary viewName="Dashboard"><FounderDashboard /></ViewErrorBoundary>;
+            case 'dashboard': return <ViewErrorBoundary viewName="Dashboard"><FounderDashboard onNavigateToSignals={() => setActiveView('signals')} /></ViewErrorBoundary>;
             case 'signals': return <ViewErrorBoundary viewName="Signals"><FounderSignals /></ViewErrorBoundary>;
             case 'organizations': return <ViewErrorBoundary viewName="Organizations"><OrganizationsCenter /></ViewErrorBoundary>;
             case 'feedback': return <ViewErrorBoundary viewName="Feedback"><FeedbackInbox /></ViewErrorBoundary>;
@@ -261,10 +222,10 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return (
         <ToastContext.Provider value={{ addToast }}>
             {children}
-            {/* Toast container */}
-            <div className="fixed top-4 right-4 z-[9999] space-y-2" style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
+            {/* Toast container — bottom of screen */}
+            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] space-y-2 w-full max-w-sm px-4" style={{ bottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom)))' }}>
                 {toasts.map(t => (
-                    <div key={t.id} className={`px-4 py-3 rounded-xl shadow-lg text-sm font-bold animate-slide-in-up ${
+                    <div key={t.id} className={`px-4 py-3 rounded-xl shadow-lg text-sm font-bold text-center animate-slide-in-up ${
                         t.type === 'success' ? 'bg-emerald-600 text-white' :
                         t.type === 'error' ? 'bg-red-600 text-white' :
                         'bg-slate-800 text-white'

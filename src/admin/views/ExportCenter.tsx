@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth, useFounderToast } from '../AdminApp';
+import { useFounderAuth, useFounderToast } from '../FounderContexts';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden';
 
