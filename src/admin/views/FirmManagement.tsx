@@ -9,8 +9,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../FounderContexts';
-import { useFounderToast } from '../FounderContexts';
+import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
@@ -21,6 +20,7 @@ export const FirmManagement: React.FC = () => {
     const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
         tokenIdentifier ? { tokenIdentifier } : "skip");
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
+    const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editPlan, setEditPlan] = useState('');
     const [editStatus, setEditStatus] = useState('');
@@ -60,6 +60,15 @@ export const FirmManagement: React.FC = () => {
                     adminNotes: editNotes || undefined,
                 },
             });
+            // Log the admin action so it appears in the audit trail
+            try {
+                await logAdminAction({
+                    tokenIdentifier,
+                    action: 'ADMIN ACTION: Updated firm settings',
+                    targetFirmId: firmId,
+                    details: `Plan: ${editPlan || 'unchanged'}, Status: ${editStatus || 'unchanged'}, Notes: ${editNotes ? 'updated' : 'unchanged'}`,
+                });
+            } catch {}
             addToast('Firm updated successfully.', { type: 'success' });
             setEditingId(null);
         } catch (e: any) {
@@ -110,7 +119,8 @@ export const FirmManagement: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
                                     {filtered.map((firm: any) => (
-                                        <tr key={firm.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                        <React.Fragment key={firm.id}>
+                                        <tr className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
                                             <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-zinc-200 truncate max-w-[160px]" title={firm.firmName}>{firm.firmName}</td>
                                             <td className="py-2.5 px-3 text-slate-500 dark:text-zinc-400 truncate max-w-[140px]" title={firm.adminEmail}>{firm.adminEmail}</td>
                                             <td className="py-2.5 px-3">
@@ -161,6 +171,27 @@ export const FirmManagement: React.FC = () => {
                                                 )}
                                             </td>
                                         </tr>
+                                        {editingId === firm.id && (
+                                            <tr className="bg-slate-50 dark:bg-zinc-800/50">
+                                                <td colSpan={10} className="py-3 px-3">
+                                                    <div className="flex flex-col gap-2">
+                                                        <label className="text-2xs font-bold text-slate-500 uppercase tracking-widest">Admin Notes (internal — not visible to the firm)</label>
+                                                        <textarea
+                                                            value={editNotes}
+                                                            onChange={e => setEditNotes(e.target.value)}
+                                                            placeholder="Add internal notes about this firm..."
+                                                            rows={2}
+                                                            className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 resize-none"
+                                                        />
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => handleSave(firm.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700">Save Changes</button>
+                                                            <button onClick={() => setEditingId(null)} className="px-3 py-1.5 bg-slate-200 dark:bg-zinc-600 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        </React.Fragment>
                                     ))}
                                 </tbody>
                             </table>

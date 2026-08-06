@@ -256,8 +256,22 @@ export const getFounderMetrics = query({
       const lower = (eventStr || '').toLowerCase();
       return NOISE_PATTERNS.some(n => lower.includes(n.toLowerCase()));
     };
+
+    // ─── Resolve user IDs to emails for readability ───────────────────
+    // Build a lookup map from userId → email so the audit log shows
+    // "john@example.com" instead of raw Convex IDs like "k7m2n3...".
+    const userEmailMap = new Map<string, string>();
+    users.forEach((u: any) => {
+      const id = String(u._id || u.id || '');
+      if (id && u.email) userEmailMap.set(id, u.email);
+    });
+
     const meaningfulEvents = events
       .filter((e: any) => !isNoise(e.event || ''))
+      .map((e: any) => ({
+        ...e,
+        actorEmail: userEmailMap.get(String(e.userId || '')) || null,
+      }))
       .sort((a: any, b: any) => (b.timestamp || b._creationTime || 0) - (a.timestamp || a._creationTime || 0))
       .slice(0, 50);
 

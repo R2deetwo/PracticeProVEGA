@@ -74,9 +74,13 @@ function formatActor(event: any): { name: string; email: string; isSystem: boole
     if (event.userId === 'founder' || event.userId === 'admin' || event.firmId === 'system') {
         return { name: 'System Founder', email: 'system@practicepro', isSystem: true };
     }
+    // Use the resolved email from the backend if available;
+    // fall back to the raw userId only if no email was resolved.
+    const email = event.actorEmail || '';
+    const name = email ? email.split('@')[0] : (event.userId || 'Unknown');
     return {
-        name: event.userId || 'Unknown',
-        email: event.userId || '',
+        name,
+        email,
         isSystem: false,
     };
 }
@@ -111,6 +115,7 @@ export const AuditLogs: React.FC = () => {
             const q = search.toLowerCase();
             events = events.filter((e: any) =>
                 (e.event || '').toLowerCase().includes(q) ||
+                (e.actorEmail || '').toLowerCase().includes(q) ||
                 (e.userId || '').toLowerCase().includes(q) ||
                 (e.firmId || '').toLowerCase().includes(q)
             );
@@ -196,8 +201,9 @@ export const AuditLogs: React.FC = () => {
                                         const actor = formatActor(event);
                                         const category = categorizeEvent(event.event || '');
                                         const isHigh = isHighValue(event.event || '');
+                                        const eventKey = event._id || event.id || `event-${i}`;
                                         return (
-                                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                            <tr key={eventKey} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
                                                 <td className="py-2.5 px-3 text-slate-400 text-2xs whitespace-nowrap">
                                                     {event.timestamp ? new Date(event.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                                                 </td>

@@ -4,11 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { useFounderAuth } from '../FounderContexts';
-import { useFounderToast } from '../FounderContexts';
+import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { Capacitor } from '@capacitor/core';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+
+// Build-time constants — sourced from package.json / Vite env, not hardcoded.
+const APP_VERSION = (import.meta as any).env?.VITE_APP_VERSION || '2.0.0';
+const PACKAGE_NAME = 'com.practicepro.admin';
+const CONVEX_DEPLOYMENT = (import.meta as any).env?.VITE_CONVEX_DEPLOYMENT || 'Convex Cloud';
+const APP_MODE = (import.meta as any).env?.MODE || 'production';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
@@ -36,7 +41,7 @@ export const Settings: React.FC = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    const envStatus = useQuery(api.debug.checkEnv, {});
+    const envStatus = useQuery(api.debug_env.checkEnv, {});
 
     const [screenCapture, setScreenCapture] = useState(() => safeGetBool('founder_screen_capture', true));
     const [biometric, setBiometric] = useState(() => safeGetBool('founder_biometric', false));
@@ -78,6 +83,9 @@ export const Settings: React.FC = () => {
     };
 
     const handleLogout = () => {
+        // Use the context's logout (clears React state cleanly) then reload
+        // to ensure all cached Convex query results are purged.
+        logout();
         try { localStorage.removeItem('practicepro_user_session'); } catch {}
         try { sessionStorage.removeItem('practicepro_user_session'); } catch {}
         window.location.reload();
@@ -179,8 +187,8 @@ export const Settings: React.FC = () => {
                         <div className={CARD}>
                             <p className={SECTION_TITLE}>Security & Data Isolation</p>
                             <div className="space-y-3">
-                                <ToggleRow label="Allow Screen Capture / Screenshots" description="When OFF, screenshots and screen recording are blocked (FLAG_SECURE on Android). Default: OFF for security." checked={screenCapture} onChange={() => toggleSetting('founder_screen_capture', setScreenCapture, screenCapture, 'Screen capture')} />
-                                <ToggleRow label="Biometric Authentication" description="Require Face ID / Fingerprint on app launch" checked={biometric} onChange={() => toggleSetting('founder_biometric', setBiometric, biometric, 'Biometric auth')} />
+                                <ToggleRow label="Allow Screen Capture / Screenshots" description="When OFF, screenshots and screen recording are blocked (FLAG_SECURE on Android). Default: ON (allowed)." checked={screenCapture} onChange={() => toggleSetting('founder_screen_capture', setScreenCapture, screenCapture, 'Screen capture')} />
+                                <ToggleRow label="Biometric Authentication (Coming Soon)" description="Require Face ID / Fingerprint on app launch — not yet enforced" checked={biometric} onChange={() => toggleSetting('founder_biometric', setBiometric, biometric, 'Biometric auth')} />
                                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg min-w-0">
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-bold text-slate-700 dark:text-zinc-200">Session Timeout</p>
@@ -233,7 +241,7 @@ export const Settings: React.FC = () => {
                         <div className={CARD}>
                             <p className={SECTION_TITLE}>API Integrations</p>
                             <div className="space-y-2">
-                                <SystemStatusRow label="Convex Backend" status="connected" detail="gregarious-malamute-537" />
+                                <SystemStatusRow label="Convex Backend" status="connected" detail={CONVEX_DEPLOYMENT} />
                                 <SystemStatusRow label="Email Service (Brevo)" status={envStatus?.hasPracticeProMailer || envStatus?.hasBrevoApiKey ? 'connected' : 'pending'} detail={envStatus?.hasPracticeProMailer ? `Key: ${envStatus.mailerPrefix || '...'}...` : envStatus?.hasBrevoApiKey ? 'BREVO_API_KEY set' : 'No API key configured'} />
                                 <SystemStatusRow label="Sender Email" status={envStatus?.hasBrevoSenderEmail ? 'connected' : 'pending'} detail={envStatus?.hasBrevoSenderEmail ? 'Custom domain' : 'Using default (practiceprosystems@gmail.com)'} />
                                 <SystemStatusRow label="Push Notifications" status={Capacitor.isNativePlatform() ? 'connected' : 'pending'} detail={Capacitor.isNativePlatform() ? 'Native (Capacitor)' : 'Web only'} />
@@ -243,7 +251,7 @@ export const Settings: React.FC = () => {
                         <div className={CARD}>
                             <p className={SECTION_TITLE}>Environment</p>
                             <div className="space-y-2 text-xs">
-                                <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Mode</span><span className="font-bold text-emerald-600">Production</span></div>
+                                <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Mode</span><span className="font-bold text-emerald-600">{APP_MODE === 'production' ? 'Production' : APP_MODE}</span></div>
                                 <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Platform</span><span className="font-bold text-slate-700 dark:text-zinc-200">{Capacitor.isNativePlatform() ? 'Native APK' : 'Web'}</span></div>
                                 <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Push Token</span><span className="font-bold text-slate-700 dark:text-zinc-200">{Capacitor.isNativePlatform() ? 'Registered' : 'N/A'}</span></div>
                             </div>
@@ -256,8 +264,8 @@ export const Settings: React.FC = () => {
                         <p className={SECTION_TITLE}>About</p>
                         <div className="space-y-2 text-xs">
                             <div className="flex justify-between"><span className="text-slate-500 dark:text-zinc-400">App</span><span className="font-bold text-slate-700 dark:text-zinc-200">PracticePro Founder</span></div>
-                            <div className="flex justify-between"><span className="text-slate-500 dark:text-zinc-400">Version</span><span className="font-bold text-slate-700 dark:text-zinc-200">2.0.0</span></div>
-                            <div className="flex justify-between"><span className="text-slate-500 dark:text-zinc-400">Package</span><span className="font-bold text-slate-700 dark:text-zinc-200">com.practicepro.admin</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500 dark:text-zinc-400">Version</span><span className="font-bold text-slate-700 dark:text-zinc-200">{APP_VERSION}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500 dark:text-zinc-400">Package</span><span className="font-bold text-slate-700 dark:text-zinc-200">{PACKAGE_NAME}</span></div>
                             <div className="flex justify-between"><span className="text-slate-500 dark:text-zinc-400">Backend</span><span className="font-bold text-slate-700 dark:text-zinc-200">Convex</span></div>
                             <div className="pt-3 mt-3 border-t border-slate-100 dark:border-zinc-700">
                                 <p className="text-2xs text-slate-400">PracticePro Founder is the platform control center for managing organizations, subscription billing, and platform-wide metrics. It is a separate APK from the consumer PracticePro app and should only be used by the platform founder. Client financial data is never exposed — only platform subscription billing is tracked.</p>

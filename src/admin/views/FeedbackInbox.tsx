@@ -9,12 +9,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderToast } from '../FounderContexts';
+import { useFounderAuth, useFounderToast } from '../FounderContexts';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
 export const FeedbackInbox: React.FC = () => {
     const { addToast } = useFounderToast();
+    const { currentUser } = useFounderAuth();
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const [filter, setFilter] = useState<'all' | 'New' | 'Replied' | 'Resolved' | 'Archived'>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
@@ -23,7 +25,9 @@ export const FeedbackInbox: React.FC = () => {
         filter === 'all' ? {} : { status: filter });
 
     const adminReply = useMutation(api.feedback.adminReplyToFeedback);
+    const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
+    const isLoading = feedback === undefined;
     const filtered = feedback || [];
     const selected = selectedId ? filtered.find((f: any) => f._id === selectedId) : null;
 
@@ -32,9 +36,18 @@ export const FeedbackInbox: React.FC = () => {
         try {
             await adminReply({
                 feedbackId: selected._id,
-                adminId: 'founder',
+                adminId: currentUser?.email || 'founder',
                 message: replyText.trim(),
             });
+            // Log the admin action so it appears in the audit trail
+            try {
+                await logAdminAction({
+                    tokenIdentifier,
+                    action: 'ADMIN ACTION: Replied to feedback',
+                    targetFirmId: selected.firmId || undefined,
+                    details: `Reply to "${selected.title || 'Untitled'}" from ${selected.userName || selected.userEmail || 'unknown'}`,
+                });
+            } catch {}
             addToast('Reply sent. User will see it in their inbox.', { type: 'success' });
             setReplyText('');
         } catch (e: any) {
@@ -46,11 +59,11 @@ export const FeedbackInbox: React.FC = () => {
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20 overflow-x-hidden">
             {/* Header */}
             <div style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
-            className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
+            className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
                 <div className="flex flex-col gap-3">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
-                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">{filtered.length} feedback items</p>
+                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
+                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{isLoading ? 'Loading...' : `${filtered.length} feedback items`}</p>
                     </div>
                     {/* Filter tabs — scrollable horizontally on mobile */}
                     <div className="flex gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 overflow-x-auto no-scrollbar">
@@ -69,8 +82,13 @@ export const FeedbackInbox: React.FC = () => {
                 </div>
             </div>
 
-            <div className="px-4">
-                {filtered.length === 0 ? (
+            <div className="px-4 sm:px-6 lg:px-8">
+                {isLoading ? (
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
+                        <div className="w-8 h-8 mx-auto border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+                        <p className="text-sm text-slate-400 mt-3">Loading feedback...</p>
+                    </div>
+                ) : filtered.length === 0 ? (
                     <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
                         <p className="text-sm text-slate-400">No feedback yet. When users submit feedback from the client apps, it will appear here.</p>
                     </div>

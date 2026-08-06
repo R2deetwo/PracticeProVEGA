@@ -22,8 +22,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../FounderContexts';
-import { useFounderToast } from '../FounderContexts';
+import { useFounderAuth, useFounderToast } from '../FounderContexts';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
@@ -65,6 +64,7 @@ export const BroadcastConsole: React.FC = () => {
     const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
         tokenIdentifier ? { tokenIdentifier } : "skip");
     const recipientCount = (allFirms as any[])?.reduce((sum, f) => sum + (f.userCount || 0), 0) || 0;
+    const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
     const handleSend = async () => {
         if (!title.trim() || !message.trim()) {
@@ -84,6 +84,14 @@ export const BroadcastConsole: React.FC = () => {
                 message: message.trim(),
                 deepLink: deepLink.trim() || undefined,
             });
+            // Log the admin action so it appears in the audit trail
+            try {
+                await logAdminAction({
+                    tokenIdentifier,
+                    action: 'Broadcast sent',
+                    details: `Title: "${title.trim()}", Recipients: ${result.recipientCount}, Channel: ${channel}, Theme: ${theme}, Target: ${target}`,
+                });
+            } catch {}
             addToast(`Broadcast sent to ${result.recipientCount} users.`, { type: 'success' });
             setTitle('');
             setMessage('');
