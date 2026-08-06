@@ -726,7 +726,7 @@ export const broadcastNotification = action({
     await requireFounder(ctx, args.tokenIdentifier);
 
     // 1. Fetch all users matching the target product
-    const allUsers = await ctx.runQuery(api.myFunctions.getAllUsersForBroadcast, {
+    const allUsers = await ctx.runQuery(internal.myFunctions.getAllUsersForBroadcast, {
       targetProduct: args.targetProduct,
     });
 

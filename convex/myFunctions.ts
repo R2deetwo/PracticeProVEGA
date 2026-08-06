@@ -1,5 +1,5 @@
 
-import { query, mutation, action, internalAction, internalMutation } from "./_generated/server";
+import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -4442,11 +4442,16 @@ export const sendFounderSignupNotification = internalAction({
 });
 
 /**
- * query: getAllUsersForBroadcast
+ * internal query: getAllUsersForBroadcast
  * Returns all users matching the target product for broadcast notifications.
  * Filters out Founder role users (they don't receive client broadcasts).
+ *
+ * SECURITY: This is an INTERNAL query — it can only be called from
+ * server-side actions (via ctx.runQuery), NOT from client code. This
+ * prevents any user from downloading the full user list by calling
+ * this query directly.
  */
-export const getAllUsersForBroadcast = query({
+export const getAllUsersForBroadcast = internalQuery({
   args: { targetProduct: v.string() },
   handler: async (ctx, args) => {
     const allUsers = await ctx.db.query("users").take(2000);
