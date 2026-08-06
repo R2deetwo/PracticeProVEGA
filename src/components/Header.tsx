@@ -66,7 +66,9 @@ const Header: React.FC = React.memo(() => {
         const systemNotes = notifications.filter(n =>
             n.userId === currentUser.id ||
             n.userId === currentUser._id ||
-            n.userId === String(currentUser._id || '')
+            n.userId === String(currentUser._id || '') ||
+            // Broadcast notifications are for ALL users in the firm
+            (n.type || '').startsWith('broadcast_')
         ).map(n => ({
             ...n,
             type: (n.type || '').includes('broadcast') ? 'info' :

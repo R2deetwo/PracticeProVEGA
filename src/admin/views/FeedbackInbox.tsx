@@ -9,12 +9,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useUI } from '../../contexts/UIContext';
+import { useFounderToast } from '../AdminApp';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
 export const FeedbackInbox: React.FC = () => {
-    const { addToast } = useUI();
+    const { addToast } = useFounderToast();
     const [filter, setFilter] = useState<'all' | 'New' | 'Replied' | 'Resolved' | 'Archived'>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');

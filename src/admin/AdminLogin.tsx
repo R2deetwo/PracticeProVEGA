@@ -26,7 +26,7 @@ import { UserRole } from '../types';
 type Mode = 'login' | 'signup';
 
 export const AdminLogin: React.FC = () => {
-    const { login } = useAuth();
+    const { login } = useFounderAuth();
     const convex = useConvex();
     const [mode, setMode] = useState<Mode>('login');
     const [name, setName] = useState('');

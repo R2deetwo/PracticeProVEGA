@@ -15,8 +15,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '../../contexts/AuthContext';
-import { useUI } from '../../contexts/UIContext';
+import { useFounderAuth } from '../AdminApp';
+import { useFounderToast } from '../AdminApp';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
@@ -33,8 +33,8 @@ const PRODUCT_LABEL: Record<string, string> = {
 };
 
 export const OrganizationsCenter: React.FC = () => {
-    const { currentUser } = useAuth();
-    const { addToast } = useUI();
+    const { currentUser } = useFounderAuth();
+    const { addToast } = useFounderToast();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
         tokenIdentifier ? { tokenIdentifier } : "skip");

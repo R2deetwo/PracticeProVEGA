@@ -41,7 +41,7 @@ const PRODUCT_LABEL: Record<string, string> = {
 };
 
 export const FounderDashboard: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser } = useFounderAuth();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const metrics = useQuery(api.founderMetrics.getFounderMetrics,
         tokenIdentifier ? { tokenIdentifier } : "skip");

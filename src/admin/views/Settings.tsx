@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useUI } from '../../contexts/UIContext';
+import { useFounderAuth } from '../AdminApp';
+import { useFounderToast } from '../AdminApp';
 import { Capacitor } from '@capacitor/core';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -29,8 +29,8 @@ function safeGetBool(key: string, fallback: boolean): boolean {
 }
 
 export const Settings: React.FC = () => {
-    const { currentUser, logout } = useAuth();
-    const { addToast } = useUI();
+    const { currentUser, logout } = useFounderAuth();
+    const { addToast } = useFounderToast();
     const [tab, setTab] = useState<Tab>('account');
     const [showPasswordForm, setShowPasswordForm] = useState(false);
     const [newPassword, setNewPassword] = useState('');

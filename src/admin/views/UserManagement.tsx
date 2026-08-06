@@ -9,10 +9,10 @@
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useFounderAuth } from '../AdminApp';
 
 export const UserManagement: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser } = useFounderAuth();
     const [search, setSearch] = useState('');
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,

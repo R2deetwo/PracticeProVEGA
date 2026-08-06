@@ -3766,25 +3766,10 @@ export const saveAloaMessage = mutation({
     // Update conversation updatedAt
     await ctx.db.patch(conversationId as any, { updatedAt: Date.now() });
 
-    // Reactive Trigger: Echo user message to feedback table (for founder BI visibility)
-    if (message.role === "user") {
-        const uId = args.userId || message.userId || message.authorId;
-        const user = uId ? await ctx.db.get(uId as any) : null;
-        const msgContent = message.content || message.text || "";
-        
-        if (user && msgContent) {
-            await ctx.db.insert("user_feedback", {
-                firmId: (user as any).firmId || firmId,
-                userId: (user as any)._id,
-                userName: (user as any).name || "User",
-                userEmail: (user as any).tokenIdentifier || (user as any).email || "",
-                message: msgContent,
-                status: "New",
-                source: "aloa_echo",  // Tag so we can filter out from System Inbox
-                timestamp: Date.now()
-            });
-        }
-    }
+    // PRIVACY: ALOA user messages are NO LONGER echoed to user_feedback.
+    // This was causing client chat content to appear in the admin app's
+    // feedback inbox — a privacy violation. ALOA messages belong only
+    // in the aloaMessages table, visible to the firm that owns them.
 
     return msgId;
   },

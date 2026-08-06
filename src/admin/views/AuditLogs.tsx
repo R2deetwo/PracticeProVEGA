@@ -12,7 +12,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useFounderAuth } from '../AdminApp';
 
 // Events that are low-value noise — filtered out of the feed
 const NOISE_EVENTS = [
@@ -82,7 +82,7 @@ function formatActor(event: any): { name: string; email: string; isSystem: boole
 }
 
 export const AuditLogs: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser } = useFounderAuth();
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'high-value' | 'system'>('all');
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';

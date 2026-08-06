@@ -22,8 +22,8 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '../../contexts/AuthContext';
-import { useUI } from '../../contexts/UIContext';
+import { useFounderAuth } from '../AdminApp';
+import { useFounderToast } from '../AdminApp';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
@@ -47,8 +47,8 @@ const TARGET_LABELS: Record<Target, string> = {
 };
 
 export const BroadcastConsole: React.FC = () => {
-    const { currentUser } = useAuth();
-    const { addToast } = useUI();
+    const { currentUser } = useFounderAuth();
+    const { addToast } = useFounderToast();
     const convex = useConvex();
 
     const [target, setTarget] = useState<Target>('all');
