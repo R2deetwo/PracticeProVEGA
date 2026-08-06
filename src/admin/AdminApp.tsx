@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useConvex } from 'convex/react';
+import { Capacitor } from '@capacitor/core';
 import { api } from '../../convex/_generated/api';
 import { FounderAuthContext, ToastContext, useFounderAuth } from './FounderContexts';
 import type { FounderUser, Toast } from './FounderContexts';
@@ -29,6 +30,30 @@ import { Settings } from './views/Settings';
 import { FirmHealth } from './views/FirmHealth';
 import { SystemStatus } from './views/SystemStatus';
 import { ExportCenter } from './views/ExportCenter';
+
+// ─── Early-init: apply persisted screen capture preference ──────────
+// The Java default for FLAG_SECURE is now OFF (screenshots allowed).
+// If a user previously toggled screen capture OFF in Settings, we must
+// re-apply FLAG_SECURE ON at app startup — otherwise their saved
+// preference is violated until they navigate to Settings.
+function applyPersistedScreenCapturePref() {
+    let allowCapture = true; // default: allowed (matches Java default)
+    try {
+        const v = localStorage.getItem('founder_screen_capture');
+        if (v !== null) allowCapture = v !== '0';
+    } catch { /* ignore */ }
+
+    if (allowCapture) return; // Java default already OFF, nothing to do
+
+    // User wants screen capture BLOCKED — apply FLAG_SECURE ON now
+    if (Capacitor.isNativePlatform()) {
+        try {
+            (Capacitor as any).Plugins?.ContentProtectionPlugin?.setFlagSecure?.(true);
+        } catch { /* ignore — Settings page will retry on open */ }
+    } else {
+        try { document.body.classList.add('screen-capture-protected'); } catch {}
+    }
+}
 
 // ─── View Error Boundary ────────────────────────────────────────────
 class ViewErrorBoundary extends React.Component<
@@ -240,6 +265,13 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
 // ─── Main Export ────────────────────────────────────────────────────
 export const AdminApp: React.FC = () => {
+    // Apply persisted screen capture preference once on app startup.
+    // This ensures FLAG_SECURE is re-applied if the user previously
+    // toggled it OFF in Settings, before the Settings page ever mounts.
+    useEffect(() => {
+        applyPersistedScreenCapturePref();
+    }, []);
+
     return (
         <FounderAuthProvider>
             <ToastProvider>
