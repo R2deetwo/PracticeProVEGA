@@ -9,11 +9,15 @@ import { Capacitor } from '@capacitor/core';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
-// Build-time constants — sourced from package.json / Vite env, not hardcoded.
-const APP_VERSION = (import.meta as any).env?.VITE_APP_VERSION || '2.0.0';
+// Build-time constants — injected by vite.admin.config.ts at build time
+// via Vite's `define` option. __APP_VERSION__ and __APP_MODE__ are
+// replaced at build time with literal string values.
+declare const __APP_VERSION__: string;
+declare const __APP_MODE__: string;
+const APP_VERSION = __APP_VERSION__;
 const PACKAGE_NAME = 'com.practicepro.admin';
-const CONVEX_DEPLOYMENT = (import.meta as any).env?.VITE_CONVEX_DEPLOYMENT || 'Convex Cloud';
-const APP_MODE = (import.meta as any).env?.MODE || 'production';
+const CONVEX_DEPLOYMENT = 'Convex Cloud';
+const APP_MODE = __APP_MODE__;
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';

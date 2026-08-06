@@ -16,6 +16,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 
@@ -28,6 +29,25 @@ function gitSha(fallback = 'unknown') {
   } catch {
     return fallback;
   }
+}
+
+// Read the app version from android/app/version.properties so the
+// Settings page can display the real version (e.g., "1.0.403") instead
+// of a hardcoded fallback.
+function getAppVersion(): string {
+  try {
+    const versionFile = path.join(__dirname, 'android', 'app', 'version.properties');
+    if (fs.existsSync(versionFile)) {
+      const content = fs.readFileSync(versionFile, 'utf8');
+      const major = (content.match(/^MAJOR=(\d+)/m) || [])[1] || '1';
+      const minor = (content.match(/^MINOR=(\d+)/m) || [])[1] || '0';
+      const patch = (content.match(/^PATCH=(\d+)/m) || [])[1] || '0';
+      return `${major}.${minor}.${patch}`;
+    }
+  } catch (e) {
+    console.warn('[vite.admin.config] Failed to read app version:', e);
+  }
+  return '2.0.0';
 }
 
 function generateVersionManifest() {
@@ -95,6 +115,11 @@ export default defineConfig(({ mode }) => {
       },
       'process.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL || ''),
       'import.meta.env.VITE_BUILD_SHA': JSON.stringify(gitSha()),
+      // Use __APP_VERSION__ (not import.meta.env.VITE_APP_VERSION) because
+      // Vite's built-in env handling can interfere with define replacements
+      // for import.meta.env.* keys.
+      '__APP_VERSION__': JSON.stringify(getAppVersion()),
+      '__APP_MODE__': JSON.stringify(mode),
     }
   };
 });
