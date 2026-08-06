@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { FounderDashboard } from '../components/FounderDashboard';
 import { OrganizationsCenter } from './views/OrganizationsCenter';
@@ -174,6 +174,7 @@ const FounderApp: React.FC = () => {
 
 // ─── Auth Provider (lightweight, no firmId) ─────────────────────────
 const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const convexClient = useConvex();
     const [sessionToken, setSessionToken] = useState<string | null>(() => {
         try {
             const stored = localStorage.getItem('practicepro_user_session');
@@ -204,11 +205,8 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const login = useCallback(async (email: string, password: string) => {
         try {
-            // Verify credentials via Convex action
-            const convex = new (await import('convex')).ConvexReactClient(
-                import.meta.env.VITE_CONVEX_URL || "https://gregarious-malamute-537.convex.cloud"
-            );
-            const result: any = await convex.action(api.myFunctions.verifyLogin, {
+            // Use the existing Convex client from the provider
+            const result: any = await convexClient.action(api.myFunctions.verifyLogin, {
                 email: email.toLowerCase().trim(),
                 passwordHash: "",
                 rawPassword: password,
@@ -228,7 +226,7 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e: any) {
             return { success: false, message: e?.message || 'Login failed. Please try again.' };
         }
-    }, []);
+    }, [convexClient]);
 
     const logout = useCallback(() => {
         try { localStorage.removeItem('practicepro_user_session'); } catch {}
