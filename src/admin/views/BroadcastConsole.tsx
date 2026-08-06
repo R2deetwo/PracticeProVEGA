@@ -263,7 +263,7 @@ export const BroadcastConsole: React.FC = () => {
                     Clean Up Duplicate Notifications
                 </button>
                 <p className="text-2xs text-slate-400 text-center -mt-2">
-                    Removes duplicate broadcast notifications from the DB. Run once to fix existing duplicates.
+                    Removes duplicate broadcast notifications from the DB. Run once to fix existing duplicates from before the dedup fix.
                 </p>
             </div>
         </div>
