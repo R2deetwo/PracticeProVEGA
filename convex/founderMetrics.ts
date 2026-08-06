@@ -188,7 +188,7 @@ export const getFounderMetrics = query({
         count: dailyGrowthMap[date]
     }));
 
-    // 5. Top 5 Firms by Volume
+    // 5. Top 5 Firms by Volume (includes product for filter)
     const firmMatters: Record<string, number> = {};
     matters.forEach(m => {
         if (m.firmId) firmMatters[m.firmId] = (firmMatters[m.firmId] || 0) + 1;
@@ -197,10 +197,34 @@ export const getFounderMetrics = query({
     const topFirms = firms
         .map(f => ({
             name: f.name,
-            matters: firmMatters[f._id] || 0
+            matters: firmMatters[f._id] || 0,
+            product: (f as any).product || 'unified',
         }))
         .sort((a, b) => b.matters - a.matters)
-        .slice(0, 5);
+        .slice(0, 10);
+
+    // ─── Per-product breakdown (legal / property / unified) ───────────
+    // Includes per-product MRR and revenue so the dashboard can show
+    // product-specific KPIs when the founder taps Atrium/Vega/Komplete.
+    const PRODUCTS = ["legal", "property", "unified"] as const;
+    const productBreakdown = PRODUCTS.map(product => {
+      const productFirms = firms.filter((f: any) => (f.product || "unified") === product);
+      const productFirmIds = new Set(productFirms.map((f: any) => f._id));
+      const productUsers = users.filter((u: any) =>
+        (u.product || "unified") === product || productFirmIds.has(u.firmId)
+      );
+      const productMatters = matters.filter((m: any) => productFirmIds.has(m.firmId));
+      const productMRR = productFirms.reduce((sum, f) => sum + calcMonthlySubscription(f), 0);
+      const productRevenue = productFirms.reduce((sum, f) => sum + calcPlatformRevenue(f), 0);
+      return {
+        product,
+        firms: productFirms.length,
+        users: productUsers.length,
+        matters: productMatters.length,
+        mrr: productMRR,
+        revenue: productRevenue,
+      };
+    });
 
     // 6. Active User Tracking (Last 24h)
     // Filter out Founder users — they're platform staff, not customers.
@@ -244,6 +268,7 @@ export const getFounderMetrics = query({
       // PRIVACY: Platform subscription revenue, NOT client invoice totals.
       platformRevenue,           // Annualized platform revenue
       monthlyRecurringRevenue,   // MRR — what firms pay PracticePro per month
+      productBreakdown,          // Per-product metrics including MRR
       practiceAreaStats,
       dailyGrowth,
       topFirms,

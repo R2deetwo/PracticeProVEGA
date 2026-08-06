@@ -58,6 +58,27 @@ export const useAuth = () => {
 
 const getInitialToken = () => {
     try {
+        // FOUNDER IMPERSONATION: Check URL for ?impersonate=email param.
+        // This is set by the Founder APK's "Login As This Firm" button.
+        // Checking here (in getInitialToken) ensures the session is set
+        // synchronously on mount, avoiding a flash of the landing page.
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const impersonateEmail = urlParams.get('impersonate');
+            if (impersonateEmail) {
+                const token = impersonateEmail.toLowerCase().trim();
+                const sessionData = JSON.stringify({ token });
+                try { sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
+                try { localStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
+                // Clean the URL immediately (before App.tsx reads it)
+                urlParams.delete('impersonate');
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+                window.history.replaceState({}, '', newUrl);
+                console.log('[Auth] Founder impersonation: initial token set for', token);
+                return token;
+            }
+        } catch { /* URL parsing failed — fall through to normal session check */ }
+
         // If on a portal route, prioritize portal session
         if (isPortalRoute()) {
             const portalSession = sessionStorage.getItem(PORTAL_SESSION_KEY) || localStorage.getItem(PORTAL_SESSION_KEY);
@@ -141,6 +162,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     // Local overrides for UI responsiveness (e.g. defaultViewModes)
     const [localUserOverrides, setLocalUserOverrides] = React.useState<Partial<User> | null>(null);
+
+    // Note: Founder impersonation via ?impersonate=email URL param is
+    // handled synchronously in getInitialToken() above — no useEffect
+    // needed. The token is set as the initial useState value, so the
+    // getUser query fires immediately on mount without a landing page flash.
 
     const startSignupAction = useAction(api.myFunctions.startSignup);
     const verifyCodeMutation = useMutation(api.myFunctions.verifyCode);

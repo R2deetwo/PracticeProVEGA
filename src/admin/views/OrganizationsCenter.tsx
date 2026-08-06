@@ -290,15 +290,20 @@ export const OrganizationsCenter: React.FC = () => {
                                     <p className={LABEL}>Support Actions</p>
                                     <button
                                         onClick={() => {
-                                            // Open the consumer web app with the firm admin's email as session
-                                            // This sets the session token to the admin's email, allowing the
-                                            // founder to view the firm's dashboard as that admin.
+                                            // Open the consumer web app with the firm admin's email
+                                            // as a URL query parameter. The consumer app reads this
+                                            // on load and auto-logs in as that admin.
+                                            //
+                                            // WHY URL PARAM (not localStorage):
+                                            //   The admin APK runs on capacitor://localhost while
+                                            //   the consumer web app is at vercel.app — different
+                                            //   origins. localStorage is NOT shared across origins,
+                                            //   so setting it here does nothing for the web app.
+                                            //   URL params ARE visible to the target page.
                                             const adminEmail = selectedFirm.adminEmail;
                                             if (adminEmail && adminEmail !== 'unknown') {
-                                                const sessionData = JSON.stringify({ token: adminEmail.toLowerCase() });
-                                                try { localStorage.setItem('practicepro_user_session', sessionData); } catch {}
-                                                try { sessionStorage.setItem('practicepro_user_session', sessionData); } catch {}
-                                                window.open('https://practice-pro-vega.vercel.app/', '_blank');
+                                                const url = `https://practice-pro-vega.vercel.app/?impersonate=${encodeURIComponent(adminEmail.toLowerCase())}`;
+                                                window.open(url, '_blank');
                                                 addToast(`Opening firm dashboard as ${adminEmail}...`, { type: 'success' });
                                             } else {
                                                 addToast('No admin email found for this firm.', { type: 'error' });
@@ -311,7 +316,7 @@ export const OrganizationsCenter: React.FC = () => {
                                         </svg>
                                         Login As This Firm
                                     </button>
-                                    <p className="text-2xs text-slate-400 mt-1">Opens the consumer app in a new tab as this firm's admin. Clear your session after.</p>
+                                    <p className="text-2xs text-slate-400 mt-1">Opens the consumer app in a new tab as this firm's admin.</p>
                                 </div>
                             </div>
                         </div>

@@ -86,10 +86,25 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
     const vega = productBreakdown.find((p: any) => p.product === 'legal');
     const komplete = productBreakdown.find((p: any) => p.product === 'unified');
 
+    // ─── Per-product KPI recalculation ──────────────────────────────────
+    // When a specific product filter is selected, the KPI strip shows
+    // that product's metrics (firms, users, matters, MRR) instead of
+    // the global totals. This is what makes tapping Atrium/Vega/Komplete
+    // actually change the numbers on the dashboard.
+    const selectedProductData = productFilter === 'all'
+        ? null
+        : productBreakdown.find((p: any) => p.product === productFilter);
+
+    const displayFirms = selectedProductData ? selectedProductData.firms : metrics.totalFirms;
+    const displayUsers = selectedProductData ? selectedProductData.users : metrics.totalUsers;
+    const displayMatters = selectedProductData ? selectedProductData.matters : metrics.totalMatters;
+    const displayMRR = selectedProductData ? (selectedProductData.mrr || 0) : monthlyRecurringRevenue;
+    const displayRevenue = selectedProductData ? (selectedProductData.revenue || 0) : platformRevenue;
+
     // Filter top firms by product if a specific product is selected
     const topFirms = (metrics.topFirms || []).filter((f: any) => {
         if (productFilter === 'all') return true;
-        return (f.product || 'legal') === productFilter;
+        return (f.product || 'unified') === productFilter;
     });
 
     return (
@@ -98,9 +113,12 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
                 <div className="flex flex-col gap-3">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Founder Dashboard</h2>
-                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                            Last updated: {metrics.lastUpdated ? new Date(metrics.lastUpdated).toLocaleString('en-GB') : '—'}
+                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Founder Dashboard</h2>
+                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                            {productFilter !== 'all'
+                                ? `Showing ${PRODUCT_LABEL[productFilter] || 'product'} metrics • Last updated: ${metrics.lastUpdated ? new Date(metrics.lastUpdated).toLocaleString('en-GB') : '—'}`
+                                : `Last updated: ${metrics.lastUpdated ? new Date(metrics.lastUpdated).toLocaleString('en-GB') : '—'}`
+                            }
                         </p>
                     </div>
                     {/* Product filter toggle */}
@@ -123,36 +141,39 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
             </div>
 
             <div className="px-4 space-y-6">
-                {/* ─── PRODUCT BREAKDOWN (clickable → Signals) ──────────── */}
+                {/* ─── PRODUCT BREAKDOWN (clickable → filter dashboard) ──── */}
                 <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden">
-                    <p className={SECTION_TITLE}>Product Breakdown — Tap to view details</p>
+                    <p className={SECTION_TITLE}>Product Breakdown — Tap to filter dashboard</p>
                     <div className="grid grid-cols-3 gap-3">
                         {/* Atrium */}
                         <button
                             onClick={() => setProductFilter('property')}
-                            className="text-center p-3 bg-sky-50 dark:bg-sky-900/20 rounded-xl min-w-0 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors"
+                            className={`text-center p-3 bg-sky-50 dark:bg-sky-900/20 rounded-xl min-w-0 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors ${productFilter === 'property' ? 'ring-2 ring-sky-500' : ''}`}
                         >
                             <p className="text-2xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest mb-1">Atrium</p>
                             <p className="text-xl font-black text-slate-900 dark:text-white">{atrium?.firms || 0}</p>
                             <p className="text-2xs text-slate-400">{atrium?.users || 0} users</p>
+                            <p className="text-3xs text-slate-500 dark:text-zinc-500 mt-1"><NairaSymbol />{formatCompact(atrium?.mrr || 0)}/mo</p>
                         </button>
                         {/* Vega */}
                         <button
                             onClick={() => setProductFilter('legal')}
-                            className="text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl min-w-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                            className={`text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl min-w-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors ${productFilter === 'legal' ? 'ring-2 ring-emerald-500' : ''}`}
                         >
                             <p className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Vega</p>
                             <p className="text-xl font-black text-slate-900 dark:text-white">{vega?.firms || 0}</p>
                             <p className="text-2xs text-slate-400">{vega?.users || 0} users</p>
+                            <p className="text-3xs text-slate-500 dark:text-zinc-500 mt-1"><NairaSymbol />{formatCompact(vega?.mrr || 0)}/mo</p>
                         </button>
                         {/* Komplete */}
                         <button
                             onClick={() => setProductFilter('unified')}
-                            className="text-center p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl min-w-0 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                            className={`text-center p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl min-w-0 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors ${productFilter === 'unified' ? 'ring-2 ring-violet-500' : ''}`}
                         >
                             <p className="text-2xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-1">Komplete</p>
                             <p className="text-xl font-black text-slate-900 dark:text-white">{komplete?.firms || 0}</p>
                             <p className="text-2xs text-slate-400">{komplete?.users || 0} users</p>
+                            <p className="text-3xs text-slate-500 dark:text-zinc-500 mt-1"><NairaSymbol />{formatCompact(komplete?.mrr || 0)}/mo</p>
                         </button>
                     </div>
                 </div>
@@ -160,21 +181,21 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                 {/* ─── KPI Strip ─────────────────────────────────────────── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className={KPI_CARD} onClick={() => setProductFilter('all')}>
-                        <p className={KPI_LABEL}>Total Orgs</p>
-                        <p className={KPI_VALUE}>{metrics.totalFirms}</p>
+                        <p className={KPI_LABEL}>{productFilter === 'all' ? 'Total Orgs' : `${PRODUCT_LABEL[productFilter] || ''} Orgs`}</p>
+                        <p className={KPI_VALUE}>{displayFirms}</p>
                     </div>
                     <div className={KPI_CARD} onClick={() => setProductFilter('all')}>
-                        <p className={KPI_LABEL}>Total Users</p>
-                        <p className={KPI_VALUE}>{metrics.totalUsers}</p>
+                        <p className={KPI_LABEL}>{productFilter === 'all' ? 'Total Users' : `${PRODUCT_LABEL[productFilter] || ''} Users`}</p>
+                        <p className={KPI_VALUE}>{displayUsers}</p>
                     </div>
                     <div className={KPI_CARD} onClick={() => setProductFilter('all')}>
                         <p className={KPI_LABEL}>{productFilter === 'property' ? 'Properties' : productFilter === 'legal' ? 'Matters' : 'Matters + Properties'}</p>
-                        <p className={KPI_VALUE}>{metrics.totalMatters}</p>
+                        <p className={KPI_VALUE}>{displayMatters}</p>
                     </div>
-                    <div className={KPI_CARD} title={`Full: ₦${(monthlyRecurringRevenue || 0).toLocaleString('en-NG')}/mo`}>
-                        <p className={KPI_LABEL}>Platform MRR</p>
-                        <p className={KPI_VALUE}><NairaSymbol />{formatCompact(monthlyRecurringRevenue)}</p>
-                        <p className="text-3xs text-slate-400 mt-1 truncate">Annual: <NairaSymbol />{formatCompact(platformRevenue)}</p>
+                    <div className={KPI_CARD} title={`Full: ₦${(displayMRR || 0).toLocaleString('en-NG')}/mo`}>
+                        <p className={KPI_LABEL}>{productFilter === 'all' ? 'Platform MRR' : `${PRODUCT_LABEL[productFilter] || ''} MRR`}</p>
+                        <p className={KPI_VALUE}><NairaSymbol />{formatCompact(displayMRR)}</p>
+                        <p className="text-3xs text-slate-400 mt-1 truncate">Annual: <NairaSymbol />{formatCompact(displayRevenue)}</p>
                     </div>
                 </div>
 
