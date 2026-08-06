@@ -47,8 +47,15 @@ export const OrganizationsCenter: React.FC = () => {
 
     if (firms === undefined) {
         return (
-            <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-zinc-900">
-                <div className="w-8 h-8 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+            <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20">
+                <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Organizations</h2>
+                </div>
+                <div className="px-4 sm:px-6 lg:px-8 space-y-3">
+                    <div className="h-20 bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 animate-pulse" />
+                    <div className="h-20 bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 animate-pulse" />
+                    <div className="h-20 bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 animate-pulse" />
+                </div>
             </div>
         );
     }
@@ -88,7 +95,7 @@ export const OrganizationsCenter: React.FC = () => {
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20">
             {/* Header */}
-            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
+            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
                 <div className="flex items-center justify-between gap-4">
                     <div>
                         <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Organizations</h2>

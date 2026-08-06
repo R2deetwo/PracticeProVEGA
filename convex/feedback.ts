@@ -34,14 +34,19 @@ export const submitFeedback = mutation({
 export const getFeedbackList = query({
   args: { status: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    let results;
     if (args.status) {
-      return await ctx.db
+      results = await ctx.db
         .query("user_feedback")
         .withIndex("by_status", (s) => s.eq("status", args.status as any))
         .order("desc")
         .take(500);
+    } else {
+      results = await ctx.db.query("user_feedback").order("desc").take(500);
     }
-    return await ctx.db.query("user_feedback").order("desc").take(500);
+    // STRICT ISOLATION: Only return actual user feedback, not ALOA echoes
+    // or any other telemetry/search logs that may have been stored here.
+    return results.filter((item: any) => item.source !== "aloa_echo" && item.type !== "Search Log" && item.type !== "ALOA Search");
   },
 });
 
