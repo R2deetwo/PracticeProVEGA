@@ -778,3 +778,372 @@ export const broadcastNotification = action({
     return { success: true, recipientCount };
   },
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// FOUNDER APP FEATURES — Impersonation, Health, Export, Audit, Search
+// ═════════════════════════════════════════════════════════════════════
+
+/**
+ * query: getFirmHealthDetails
+ * Returns detailed health metrics for a single firm — used by the
+ * firm health dashboard in the founder app.
+ *
+ * Returns:
+ *   - daysSinceLastLogin (per user)
+ *   - seatsUsed vs maxSeats
+ *   - feature adoption flags (hasUsedEsign, hasUsedVoiceDictation, etc.)
+ *   - recent activity count (last 7 days)
+ *   - churn risk score
+ */
+export const getFirmHealthDetails = query({
+  args: { tokenIdentifier: v.string(), firmId: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const [firm, users, matters, presence, events] = await Promise.all([
+      ctx.db.get(args.firmId as any),
+      ctx.db.query("users").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).collect(),
+      ctx.db.query("matters").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(500),
+      ctx.db.query("presence").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).collect(),
+      ctx.db.query("analytics_events").filter((q: any) => q.eq(q.field("firmId"), args.firmId)).take(200),
+    ]);
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // Per-user activity
+    const userHealth = users.map((u: any) => {
+      const userPresence = presence.find((p: any) => p.userId === u._id);
+      const lastSeen = userPresence?.updatedAt || u._creationTime || 0;
+      const daysSinceLogin = Math.floor((now - lastSeen) / DAY);
+      return {
+        userId: u._id,
+        name: u.name || u.email || 'Unknown',
+        email: u.email || '',
+        role: u.role || 'Unknown',
+        daysSinceLogin,
+        lastSeen: lastSeen ? new Date(lastSeen).toISOString() : null,
+      };
+    });
+
+    // Feature adoption (check if any user has used these features)
+    const recentEvents = events.filter((e: any) => (e.timestamp || 0) > now - 7 * DAY);
+    const hasUsedEsign = events.some((e: any) => (e.event || '').toLowerCase().includes('esign') || (e.event || '').toLowerCase().includes('signature'));
+    const hasUsedVoiceDictation = events.some((e: any) => (e.event || '').toLowerCase().includes('voice') || (e.event || '').toLowerCase().includes('dictation'));
+    const hasUsedDraftPro = events.some((e: any) => (e.event || '').toLowerCase().includes('draft'));
+    const hasUsedResearch = events.some((e: any) => (e.event || '').toLowerCase().includes('research'));
+
+    // Seats
+    const seatsUsed = users.length;
+    const maxSeats = (firm as any)?.maxUnits || 0; // if 0 = unlimited
+
+    // Churn risk score (0-100, higher = more risk)
+    const activeUsers = userHealth.filter((u: any) => u.daysSinceLogin < 7).length;
+    const activeRatio = users.length > 0 ? activeUsers / users.length : 0;
+    const churnRiskScore = Math.round(
+      (1 - activeRatio) * 50 + // 50% weight: active ratio
+      (userHealth.every((u: any) => u.daysSinceLogin > 14) ? 30 : 0) + // 30%: all inactive
+      (recentEvents.length < 5 ? 20 : 0) // 20%: low activity
+    );
+
+    return {
+      firmId: args.firmId,
+      firmName: (firm as any)?.name || 'Unknown',
+      plan: (firm as any)?.subscriptionPlan || 'Core',
+      product: (firm as any)?.product || 'legal',
+      seatsUsed,
+      maxSeats,
+      userHealth,
+      featureAdoption: {
+        hasUsedEsign,
+        hasUsedVoiceDictation,
+        hasUsedDraftPro,
+        hasUsedResearch,
+      },
+      recentActivityCount: recentEvents.length,
+      churnRiskScore,
+      totalMatters: matters.length,
+      joinedAt: new Date((firm as any)?._creationTime || 0).toISOString(),
+    };
+  },
+});
+
+/**
+ * mutation: logAdminAction
+ * Logs an admin action for audit trail — separate from analytics_events.
+ * Used for: firm suspension, plan changes, impersonation, broadcasts.
+ */
+export const logAdminAction = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    action: v.string(),
+    targetFirmId: v.optional(v.string()),
+    targetUserId: v.optional(v.string()),
+    details: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    await ctx.db.insert("analytics_events", {
+      firmId: "system",
+      userId: args.tokenIdentifier,
+      event: `ADMIN ACTION: ${args.action}`,
+      properties: {
+        targetFirmId: args.targetFirmId,
+        targetUserId: args.targetUserId,
+        details: args.details,
+        adminEmail: args.tokenIdentifier,
+        timestamp: Date.now(),
+      },
+      timestamp: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * query: getAdminActionLog
+ * Returns admin actions for the audit log — separate from user activity.
+ */
+export const getAdminActionLog = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const events = await ctx.db
+      .query("analytics_events")
+      .filter((q: any) => q.eq(q.field("firmId"), "system"))
+      .take(500);
+
+    return events
+      .filter((e: any) => (e.event || '').startsWith("ADMIN ACTION:") || (e.event || '').startsWith("Broadcast sent:"))
+      .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, 100);
+  },
+});
+
+/**
+ * query: globalSearch
+ * Global search across firms, users, and properties by email, name, or phone.
+ * Returns matching entities with type labels.
+ */
+export const globalSearch = query({
+  args: { tokenIdentifier: v.string(), query: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const q = args.query.toLowerCase().trim();
+    if (!q || q.length < 2) return [];
+
+    const [firms, users] = await Promise.all([
+      ctx.db.query("firms").take(500),
+      ctx.db.query("users").take(1000),
+    ]);
+
+    const results: any[] = [];
+
+    // Search firms
+    firms.forEach((f: any) => {
+      const name = (f.name || '').toLowerCase();
+      const inviteCode = (f.inviteCode || '').toLowerCase();
+      if (name.includes(q) || inviteCode.includes(q)) {
+        results.push({
+          type: 'Firm',
+          id: f._id,
+          name: f.name || 'Unnamed',
+          subtitle: `Plan: ${f.subscriptionPlan || 'Core'} · Product: ${f.product || 'legal'}`,
+          firmId: f._id,
+        });
+      }
+    });
+
+    // Search users
+    users.forEach((u: any) => {
+      const email = (u.email || '').toLowerCase();
+      const name = (u.name || '').toLowerCase();
+      const phone = (u.phone || '').toLowerCase();
+      if (email.includes(q) || name.includes(q) || phone.includes(q)) {
+        results.push({
+          type: 'User',
+          id: u._id,
+          name: u.name || u.email || 'Unknown',
+          subtitle: `${u.email || ''} · Role: ${u.role || 'Unknown'}`,
+          firmId: u.firmId,
+        });
+      }
+    });
+
+    return results.slice(0, 50);
+  },
+});
+
+/**
+ * query: getSystemErrors
+ * Returns recent system errors from analytics_events — Gemini failures,
+ * PDF generation failures, Convex errors.
+ */
+export const getSystemErrors = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const events = await ctx.db
+      .query("analytics_events")
+      .take(1000);
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    return events
+      .filter((e: any) => {
+        const evt = (e.event || '').toLowerCase();
+        return (evt.includes('error') || evt.includes('fail') || evt.includes('exception')) &&
+               (e.timestamp || 0) > now - 7 * DAY;
+      })
+      .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, 50)
+      .map((e: any) => ({
+        event: e.event,
+        firmId: e.firmId,
+        properties: e.properties,
+        timestamp: e.timestamp,
+        timeAgo: Math.floor((now - (e.timestamp || 0)) / DAY),
+      }));
+  },
+});
+
+/**
+ * query: getExportData
+ * Returns data formatted for CSV export — firm list with all billing details.
+ */
+export const getExportData = query({
+  args: {
+    tokenIdentifier: v.string(),
+    exportType: v.union(v.literal("firms"), v.literal("mrr"), v.literal("churn")),
+  },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const [firms, users, matters] = await Promise.all([
+      ctx.db.query("firms").collect(),
+      ctx.db.query("users").collect(),
+      ctx.db.query("matters").collect(),
+    ]);
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    if (args.exportType === "firms") {
+      return firms.map((f: any) => ({
+        firmName: f.name || 'Unnamed',
+        adminEmail: users.find((u: any) => u.firmId === f._id && u.role === 'Admin')?.email || '',
+        product: f.product || 'legal',
+        plan: f.subscriptionPlan || 'Core',
+        status: f.adminStatus || 'active',
+        userCount: users.filter((u: any) => u.firmId === f._id).length,
+        matterCount: matters.filter((m: any) => m.firmId === f._id).length,
+        monthlySubscription: calcMonthlySubscription(f),
+        annualSubscription: calcPlatformRevenue(f),
+        joinedAt: new Date(f._creationTime).toISOString().split('T')[0],
+      }));
+    }
+
+    if (args.exportType === "mrr") {
+      return firms.map((f: any) => ({
+        firmName: f.name || 'Unnamed',
+        product: f.product || 'legal',
+        plan: f.subscriptionPlan || 'Core',
+        billingInterval: f.billingInterval || 'monthly',
+        monthlySubscription: calcMonthlySubscription(f),
+        annualSubscription: calcPlatformRevenue(f),
+        setupFeePaid: f.setupFeePaid ? 'Yes' : 'No',
+      }));
+    }
+
+    // churn
+    const presence = await ctx.db.query("presence").collect();
+    return firms.map((f: any) => {
+      const firmUsers = users.filter((u: any) => u.firmId === f._id);
+      const firmPresence = presence.filter((p: any) => p.firmId === f._id);
+      const lastActivity = Math.max(
+        ...firmPresence.map((p: any) => p.updatedAt || 0),
+        ...firmUsers.map((u: any) => u._creationTime || 0),
+        f._creationTime || 0
+      );
+      const daysSinceActive = Math.floor((now - lastActivity) / DAY);
+      return {
+        firmName: f.name || 'Unnamed',
+        plan: f.subscriptionPlan || 'Core',
+        userCount: firmUsers.length,
+        daysSinceActive,
+        churnRisk: daysSinceActive > 30 ? 'HIGH' : daysSinceActive > 14 ? 'MEDIUM' : 'LOW',
+        lastActive: new Date(lastActivity).toISOString().split('T')[0],
+      };
+    }).sort((a: any, b: any) => b.daysSinceActive - a.daysSinceActive);
+  },
+});
+
+/**
+ * mutation: setFeatureFlag
+ * Sets a per-firm feature flag (enable/disable a feature for one firm).
+ */
+export const setFeatureFlag = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    firmId: v.string(),
+    flagKey: v.string(),
+    enabled: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    // Check if flag already exists
+    const existing = await ctx.db
+      .query("feature_flags")
+      .withIndex("by_firm_flag", (q: any) => q.eq("firmId", args.firmId).eq("flagKey", args.flagKey))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        enabled: args.enabled,
+        setBy: args.tokenIdentifier,
+        setAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("feature_flags", {
+        firmId: args.firmId,
+        flagKey: args.flagKey,
+        enabled: args.enabled,
+        setBy: args.tokenIdentifier,
+        setAt: Date.now(),
+      });
+    }
+
+    // Log the action
+    await ctx.db.insert("analytics_events", {
+      firmId: "system",
+      userId: args.tokenIdentifier,
+      event: `ADMIN ACTION: Feature flag '${args.flagKey}' ${args.enabled ? 'enabled' : 'disabled'} for firm ${args.firmId}`,
+      properties: { firmId: args.firmId, flagKey: args.flagKey, enabled: args.enabled },
+      timestamp: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * query: getFeatureFlags
+ * Returns all feature flags for a firm.
+ */
+export const getFeatureFlags = query({
+  args: { tokenIdentifier: v.string(), firmId: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+    return await ctx.db
+      .query("feature_flags")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+      .collect();
+  },
+});

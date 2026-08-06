@@ -871,6 +871,16 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_timestamp", ["timestamp"]),
 
+  // Feature flags — per-firm gating of features without a full deploy
+  feature_flags: defineTable({
+    firmId: v.string(),
+    flagKey: v.string(),        // e.g. 'beta_ai_features', 'new_pricing_tier'
+    enabled: v.boolean(),
+    setBy: v.optional(v.string()), // founder email who set it
+    setAt: v.optional(v.number()),
+  }).index("by_firm", ["firmId"])
+    .index("by_firm_flag", ["firmId", "flagKey"]),
+
   legal_modules: defineTable({
     moduleKey: v.string(),
     name: v.string(),

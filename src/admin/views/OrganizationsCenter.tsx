@@ -284,6 +284,35 @@ export const OrganizationsCenter: React.FC = () => {
                                         </button>
                                     )}
                                 </div>
+
+                                {/* Impersonation / Login As */}
+                                <div className={CARD}>
+                                    <p className={LABEL}>Support Actions</p>
+                                    <button
+                                        onClick={() => {
+                                            // Open the consumer web app with the firm admin's email as session
+                                            // This sets the session token to the admin's email, allowing the
+                                            // founder to view the firm's dashboard as that admin.
+                                            const adminEmail = selectedFirm.adminEmail;
+                                            if (adminEmail && adminEmail !== 'unknown') {
+                                                const sessionData = JSON.stringify({ token: adminEmail.toLowerCase() });
+                                                try { localStorage.setItem('practicepro_user_session', sessionData); } catch {}
+                                                try { sessionStorage.setItem('practicepro_user_session', sessionData); } catch {}
+                                                window.open('https://practice-pro-vega.vercel.app/', '_blank');
+                                                addToast(`Opening firm dashboard as ${adminEmail}...`, { type: 'success' });
+                                            } else {
+                                                addToast('No admin email found for this firm.', { type: 'error' });
+                                            }
+                                        }}
+                                        className="mt-2 w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                        </svg>
+                                        Login As This Firm
+                                    </button>
+                                    <p className="text-2xs text-slate-400 mt-1">Opens the consumer app in a new tab as this firm's admin. Clear your session after.</p>
+                                </div>
                             </div>
                         </div>
                     </div>

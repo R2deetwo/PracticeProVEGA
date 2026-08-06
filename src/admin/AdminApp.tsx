@@ -24,6 +24,9 @@ import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
 import { FounderBottomNav } from './FounderBottomNav';
 import { Settings } from './views/Settings';
+import { FirmHealth } from './views/FirmHealth';
+import { SystemStatus } from './views/SystemStatus';
+import { ExportCenter } from './views/ExportCenter';
 
 // ─── Lightweight Auth Context (no firmId dependency) ─────────────────
 interface FounderUser {
@@ -95,7 +98,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -152,6 +155,9 @@ const FounderApp: React.FC = () => {
             case 'broadcast': return <ViewErrorBoundary viewName="Broadcast"><BroadcastConsole /></ViewErrorBoundary>;
             case 'audit': return <ViewErrorBoundary viewName="Audit"><AuditLogs /></ViewErrorBoundary>;
             case 'settings': return <ViewErrorBoundary viewName="Settings"><Settings /></ViewErrorBoundary>;
+            case 'health': return <ViewErrorBoundary viewName="Health"><FirmHealth /></ViewErrorBoundary>;
+            case 'system': return <ViewErrorBoundary viewName="System"><SystemStatus /></ViewErrorBoundary>;
+            case 'export': return <ViewErrorBoundary viewName="Export"><ExportCenter /></ViewErrorBoundary>;
             default: return null;
         }
     };
