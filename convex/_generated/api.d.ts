@@ -10,7 +10,6 @@
 
 import type * as ai from "../ai.js";
 import type * as analytics from "../analytics.js";
-import type * as auditLog from "../auditLog.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
 import type * as backups from "../backups.js";
@@ -28,7 +27,6 @@ import type * as founderMetrics from "../founderMetrics.js";
 import type * as http from "../http.js";
 import type * as indexer from "../indexer.js";
 import type * as legalRepo from "../legalRepo.js";
-import type * as lib_withAuth from "../lib/withAuth.js";
 import type * as migrations from "../migrations.js";
 import type * as moneyUtils from "../moneyUtils.js";
 import type * as myFunctions from "../myFunctions.js";
@@ -44,10 +42,8 @@ import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
 import type * as sentry from "../sentry.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
-import type * as test from "../test.js";
 import type * as tierLimits from "../tierLimits.js";
 import type * as trustAccount from "../trustAccount.js";
-import type * as validation from "../validation.js";
 import type * as visitorManagement from "../visitorManagement.js";
 import type * as webFetch from "../webFetch.js";
 
@@ -60,7 +56,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   analytics: typeof analytics;
-  auditLog: typeof auditLog;
   authHelpers: typeof authHelpers;
   authUtils: typeof authUtils;
   backups: typeof backups;
@@ -78,7 +73,6 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   indexer: typeof indexer;
   legalRepo: typeof legalRepo;
-  "lib/withAuth": typeof lib_withAuth;
   migrations: typeof migrations;
   moneyUtils: typeof moneyUtils;
   myFunctions: typeof myFunctions;
@@ -94,10 +88,8 @@ declare const fullApi: ApiFromModules<{
   seedSentry: typeof seedSentry;
   sentry: typeof sentry;
   sentryWebhook: typeof sentryWebhook;
-  test: typeof test;
   tierLimits: typeof tierLimits;
   trustAccount: typeof trustAccount;
-  validation: typeof validation;
   visitorManagement: typeof visitorManagement;
   webFetch: typeof webFetch;
 }>;

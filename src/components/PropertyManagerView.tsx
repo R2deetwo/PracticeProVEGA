@@ -141,6 +141,80 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     // canUsePropertyManager toggled (e.g., on plan change).
     const { coreState, isDataLoaded } = useCoreState();
 
+    // CRITICAL FIX: All useMemo hooks must also be called BEFORE any
+    // conditional return (Rules of Hooks). Previously these were AFTER
+    // the early returns, causing a crash when isDataLoaded toggled from
+    // false to true (React registered fewer hooks on the first render
+    // when the skeleton was shown, then more hooks when data loaded).
+    // Moving them here ensures the hook count is always consistent.
+    const allProperties = useMemo(() => {
+        const rawProps: { property: Property, ownerName: string, ownerId: string }[] = [];
+        
+        // 1. Standalone Properties (New Schema)
+        (coreState.properties || []).forEach(p => {
+            const owner = (contacts || []).find(c => c.id === p.contactId);
+            rawProps.push({ 
+                property: p, 
+                ownerName: owner ? owner.name : 'Unknown Owner', 
+                ownerId: p.contactId || '' 
+            });
+        });
+
+        // 2. Legacy Contact Properties (avoid duplicates)
+        const existingIds = new Set((coreState.properties || []).map(p => p.id));
+        (contacts || []).forEach(c => {
+            if (c.properties && Array.isArray(c.properties)) {
+                c.properties.forEach(p => {
+                    if (p && p.id && p.address && !existingIds.has(p.id)) {
+                        rawProps.push({ property: p, ownerName: c.name, ownerId: c.id });
+                    }
+                });
+            }
+        });
+
+        // Group by address (using normalizeAddress for consistent grouping)
+        const grouped: { property: Property, ownerName: string, ownerId: string, unitCount: number }[] = [];
+        const addressMap = new Map<string, number>();
+
+        rawProps.forEach(item => {
+            const addr = normalizeAddress(item.property.address || 'Unknown Address');
+            if (addressMap.has(addr)) {
+                const index = addressMap.get(addr)!;
+                grouped[index].unitCount++;
+            } else {
+                addressMap.set(addr, grouped.length);
+                grouped.push({ ...item, unitCount: 1 });
+            }
+        });
+
+        return grouped;
+    }, [contacts, coreState.properties]); // This dependency ensures list rebuilds on any contact or property update
+
+    const filteredProperties = useMemo(() => {
+        // First apply preset filter
+        const now = new Date();
+        let presetFiltered = allProperties;
+        if (preset === 'occupied') {
+            presetFiltered = allProperties.filter(p => p.property.status === 'Occupied');
+        } else if (preset === 'vacant') {
+            presetFiltered = allProperties.filter(p => p.property.status === 'Vacant' || p.property.status === 'Listed');
+        } else if (preset === 'expiring') {
+            presetFiltered = allProperties.filter(p => {
+                if (!p.property.rentalDetails?.leaseEnd) return false;
+                const end = new Date(p.property.rentalDetails.leaseEnd);
+                const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                return diff > 0 && diff <= 90;
+            });
+        }
+        // Then apply search
+        if (!searchTerm) return presetFiltered;
+        const lower = searchTerm.toLowerCase();
+        return presetFiltered.filter(p =>
+            p.property.address.toLowerCase().includes(lower) ||
+            p.ownerName.toLowerCase().includes(lower)
+        );
+    }, [allProperties, searchTerm, preset]);
+
     // Feature Gating
     // Property firms (Atrium/Unified): any paid plan gets access.
     // Legal-only firms (Vega): still require Ultimate+.
@@ -200,75 +274,6 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
             </div>
         );
     }
-
-    // Group properties by address to avoid clutter in the sidebar
-    const allProperties = useMemo(() => {
-        const rawProps: { property: Property, ownerName: string, ownerId: string }[] = [];
-        
-        // 1. Standalone Properties (New Schema)
-        (coreState.properties || []).forEach(p => {
-            const owner = (contacts || []).find(c => c.id === p.contactId);
-            rawProps.push({ 
-                property: p, 
-                ownerName: owner ? owner.name : 'Unknown Owner', 
-                ownerId: p.contactId || '' 
-            });
-        });
-
-        // 2. Legacy Contact Properties (avoid duplicates)
-        const existingIds = new Set((coreState.properties || []).map(p => p.id));
-        (contacts || []).forEach(c => {
-            if (c.properties && Array.isArray(c.properties)) {
-                c.properties.forEach(p => {
-                    if (p && p.id && p.address && !existingIds.has(p.id)) {
-                        rawProps.push({ property: p, ownerName: c.name, ownerId: c.id });
-                    }
-                });
-            }
-        });
-
-        // Group by address
-        const grouped: { property: Property, ownerName: string, ownerId: string, unitCount: number }[] = [];
-        const addressMap = new Map<string, number>();
-
-        rawProps.forEach(item => {
-            const addr = normalizeAddress(item.property.address || 'Unknown Address');
-            if (addressMap.has(addr)) {
-                const index = addressMap.get(addr)!;
-                grouped[index].unitCount++;
-            } else {
-                addressMap.set(addr, grouped.length);
-                grouped.push({ ...item, unitCount: 1 });
-            }
-        });
-
-        return grouped;
-    }, [contacts, coreState.properties]); // This dependency ensures list rebuilds on any contact or property update
-
-    const filteredProperties = useMemo(() => {
-        // First apply preset filter
-        const now = new Date();
-        let presetFiltered = allProperties;
-        if (preset === 'occupied') {
-            presetFiltered = allProperties.filter(p => p.property.status === 'Occupied');
-        } else if (preset === 'vacant') {
-            presetFiltered = allProperties.filter(p => p.property.status === 'Vacant' || p.property.status === 'Listed');
-        } else if (preset === 'expiring') {
-            presetFiltered = allProperties.filter(p => {
-                if (!p.property.rentalDetails?.leaseEnd) return false;
-                const end = new Date(p.property.rentalDetails.leaseEnd);
-                const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                return diff > 0 && diff <= 90;
-            });
-        }
-        // Then apply search
-        if (!searchTerm) return presetFiltered;
-        const lower = searchTerm.toLowerCase();
-        return presetFiltered.filter(p =>
-            p.property.address.toLowerCase().includes(lower) ||
-            p.ownerName.toLowerCase().includes(lower)
-        );
-    }, [allProperties, searchTerm, preset]);
 
     // Unified helper: delete all units at an address from Convex + local state + legacy contact array
     const deletePropertyGroup = async (ownerId: string, propertyAddress: string): Promise<number> => {

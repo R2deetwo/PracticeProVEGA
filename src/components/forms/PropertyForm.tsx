@@ -467,8 +467,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             const currentUnits = unitsData.slice(0, numberOfUnits);
             
             // 1. Process all units in the current form state
-            for (let i = 0; i < currentUnits.length; i++) {
-                const unit = currentUnits[i];
+            // FIX: Parallelize unit saves with Promise.all instead of sequential
+            // awaits. Previously, a 20-unit property took 6-12 seconds because each
+            // unit waited for the previous to finish. Now all units save concurrently.
+            await Promise.all(currentUnits.map(async (unit) => {
                 const unitId = unit.id || `prop_${uuidv4()}`;
                 const pd = buildPropertyRecord(unit, propertyData, unitId);
 
@@ -499,9 +501,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         console.warn('Failed to route caution deposit to ledger:', e);
                     }
                 }
-            }
+            }));
 
             // 2. Handle unit deletions (if numberOfUnits was decreased)
+            // FIX: Also parallelize deletions
             if (isEditing && propertyToEdit) {
                 const keptIds = new Set([
                     ...currentUnits.map(u => u.id).filter(Boolean),
@@ -515,9 +518,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             !keptIds.has(convexId);
                     });
                 
-                for (const p of siblingsToRemove) {
-                    await deleteItem('properties', p.id, 'Property');
-                }
+                await Promise.all(siblingsToRemove.map(p =>
+                    deleteItem('properties', p.id, 'Property')
+                ));
             }
 
             // Note: We no longer pass empty [] to onSave — that wipes the contact's property references.
@@ -547,7 +550,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 status: 'Active',
                 stage: 'Intake',
                 description: `Matter created from property portfolio: ${address}\n\nNotes: ${description}`,
-                firmId: coreState.firmDetails.id,
+                firmId: coreState?.firmDetails?.id || currentUser?.firmId,
                 clientId: contact.id,
                 specialtyData: {
                     realEstate: {

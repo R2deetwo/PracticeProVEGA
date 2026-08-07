@@ -28,7 +28,10 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
         : undefined;
 
     const totalStages = matterWorkflow?.stages.length || 1;
-    const currentStageIndex = matterWorkflow?.stages.indexOf(matter.stage) ?? 0;
+    const rawStageIndex = matterWorkflow?.stages.indexOf(matter.stage) ?? -1;
+    // FIX: indexOf returns -1 when stage not found — clamp to 0 to prevent
+    // negative progress bar widths for matters in "Other" (off-workflow) column
+    const currentStageIndex = rawStageIndex < 0 ? 0 : rawStageIndex;
     const progressPercent = totalStages > 1 ? (currentStageIndex / (totalStages - 1)) * 100 : 100;
 
     // Determine visual urgency based on deadline if it exists, otherwise default border

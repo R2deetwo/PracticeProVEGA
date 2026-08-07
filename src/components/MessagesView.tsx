@@ -2044,18 +2044,17 @@ const MessagesView: React.FC = () => {
                                                         try {
                                                             await sendChatMessageMutation({
                                                                 conversationId: selectedInboxId || '',
-                                                                content: text || '(file attachment)',
+                                                                content: text || (attachments.length > 0 ? '(file attachment)' : ''),
                                                                 authorId: currentUser?._id || currentUser?.id || '',
                                                                 authorName: currentUser?.name || '',
                                                                 userEmail: currentUser?.email,
+                                                                // FIX: Pass attachment storage IDs and names so recipients
+                                                                // can see and download the files. Previously attachments were
+                                                                // uploaded to Convex storage but the storageId was discarded
+                                                                // — files were silently lost.
+                                                                attachments: attachments.map(a => a.storageId),
+                                                                attachmentNames: attachments.map(a => a.name),
                                                             });
-                                                            // Note: file attachments are uploaded to Convex storage but
-                                                            // not yet linked to the message via the mutation. The
-                                                            // sendChatMessage mutation would need to accept attachments
-                                                            // as a parameter. For now, the file is stored and the
-                                                            // storageId is available in teamAttachments — a future
-                                                            // enhancement can pass these to the mutation.
-                                                            void attachments;
                                                         } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
                                                     }}
                                                     placeholder="Type a message..."
@@ -2683,6 +2682,8 @@ const MessagesView: React.FC = () => {
                                             authorId: currentUser?._id || currentUser?.id || '',
                                             authorName: currentUser?.name || '',
                                             userEmail: currentUser?.email,
+                                            attachments: (pendingAttachments || []).map(a => a.storageId),
+                                            attachmentNames: (pendingAttachments || []).map(a => a.name),
                                         });
                                     } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
                                 };

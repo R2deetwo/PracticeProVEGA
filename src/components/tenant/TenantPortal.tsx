@@ -128,7 +128,7 @@ const TenantPortal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '');
-    if (['dashboard', 'notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents'].includes(hash)) return hash as TabId;
+    if (['dashboard', 'notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents', 'visitors'].includes(hash)) return hash as TabId;
     return 'dashboard';
   });
 
