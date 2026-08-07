@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { User } from '../../types';
+import { User, UserRole } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
@@ -17,10 +17,10 @@ type PresenceState = 'online' | 'inactive' | 'offline';
 interface DisplayItem {
     id: string;
     name: string;
+    role: string;
     isOnline: boolean;
     lastSeen: number;
     state: PresenceState;
-    // Timestamp when the user went offline (for 10s grace period)
     wentOfflineAt: number | null;
 }
 
@@ -34,22 +34,37 @@ function formatLastSeen(ts: number): string {
     return new Date(ts).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
 }
 
-// Offline grace period in ms — after this, the avatar fades out and unmounts
 const OFFLINE_GRACE_MS = 10_000;
+const MAX_AVATARS = 4;
 
 export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, currentUser, className = '' }) => {
     const { coreState } = useCoreState();
     const { isOnline: deviceOnline } = useUI();
-    const [tick, setTick] = useState(0); // forces re-render every 2s for grace period logic
-    const [fadedOut, setFadedOut] = useState<Set<string>>(new Set()); // IDs that have faded out
+    const [tick, setTick] = useState(0);
+    const [fadedOut, setFadedOut] = useState<Set<string>>(new Set());
+    const [showOverflowList, setShowOverflowList] = useState(false);
+    const overflowRef = useRef<HTMLDivElement>(null);
 
-    // Tick every 2s to re-evaluate grace periods and fade-outs
+    // Tick every 2s for grace period logic
     useEffect(() => {
         const interval = setInterval(() => setTick(t => t + 1), 2000);
         return () => clearInterval(interval);
     }, []);
 
-    // Build the list of team members
+    // Close overflow dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+                setShowOverflowList(false);
+            }
+        };
+        if (showOverflowList) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showOverflowList]);
+
+    // Build the list of team members (exclude self, clients, tenants, pending, external)
     const teamMembers = useMemo(() => (coreState.users || []).filter((u: any) => {
         if (!u) return false;
         if (u.id === currentUser?.id || u._id === currentUser?.id ||
@@ -59,7 +74,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         return true;
     }), [coreState.users, currentUser?.id, currentUser?._id]);
 
-    // Build peer map from activePeers data
     const peerMap = useMemo(() => {
         const map = new Map<string, { isOnline: boolean; lastSeen: number }>();
         if (activePeers && Array.isArray(activePeers)) {
@@ -76,8 +90,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
 
     const getUser = (id: string) => coreState.users.find(u => u.id === id || u._id === id || String(u._id) === String(id));
 
-    // Build display items with presence state + grace period tracking
-    // We use a ref to track when users went offline (persists across renders)
     const offlineSinceRef = useRef<Map<string, number>>(new Map());
 
     const displayItems: DisplayItem[] = useMemo(() => {
@@ -88,7 +100,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
             const isOnline = peerData?.isOnline ?? false;
             const lastSeen = peerData?.lastSeen ?? 0;
 
-            // Track when the user went offline
             if (isOnline) {
                 offlineSinceRef.current.delete(memberId);
             } else {
@@ -99,12 +110,11 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
 
             const wentOfflineAt = offlineSinceRef.current.get(memberId) || null;
 
-            // Determine presence state
             let state: PresenceState;
             if (isOnline && deviceOnline) {
                 state = 'online';
             } else if (lastSeen > 0 && (now - lastSeen) < 60_000) {
-                state = 'inactive'; // heartbeat within 60s but isOnline=false (transition)
+                state = 'inactive';
             } else {
                 state = 'offline';
             }
@@ -112,15 +122,15 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
             return {
                 id: memberId,
                 name: member.name || 'User',
+                role: member.role || 'Team Member',
                 isOnline,
                 lastSeen,
                 state,
                 wentOfflineAt,
             };
         });
-    }, [teamMembers, peerMap, deviceOnline, tick]); // tick forces re-eval
+    }, [teamMembers, peerMap, deviceOnline, tick]);
 
-    // Handle fade-out: if a user has been offline for >10s, add to fadedOut set
     useEffect(() => {
         const now = Date.now();
         const newFaded = new Set(fadedOut);
@@ -134,7 +144,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                     }
                 }
             } else {
-                // User came back online — remove from faded set
                 if (newFaded.has(item.id)) {
                     newFaded.delete(item.id);
                     changed = true;
@@ -144,7 +153,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         if (changed) setFadedOut(newFaded);
     }, [displayItems, tick, fadedOut]);
 
-    // Filter out faded-out items, then sort: online first, then inactive, then offline
+    // Sort: online first, then inactive, then offline
     const visibleItems = displayItems
         .filter(item => !fadedOut.has(item.id))
         .sort((a, b) => {
@@ -154,9 +163,9 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
 
     if (teamMembers.length === 0 || visibleItems.length === 0) return null;
 
-    const MAX_AVATARS = 5;
     const visibleList = visibleItems.slice(0, MAX_AVATARS);
-    const overflowCount = visibleItems.length - MAX_AVATARS;
+    const overflowItems = visibleItems.slice(MAX_AVATARS);
+    const overflowCount = overflowItems.length;
 
     return (
         <div className={`flex items-center -space-x-2 ${className}`}>
@@ -167,9 +176,8 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                 const showOnline = item.state === 'online';
                 const showInactive = item.state === 'inactive';
                 const isFading = item.state === 'offline' && item.wentOfflineAt &&
-                    (Date.now() - item.wentOfflineAt > OFFLINE_GRACE_MS * 0.5); // start fading at 5s
+                    (Date.now() - item.wentOfflineAt > OFFLINE_GRACE_MS * 0.5);
 
-                // Tooltip text
                 const statusText = showOnline
                     ? '(Active now)'
                     : item.lastSeen > 0
@@ -177,8 +185,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                         : '(Offline)';
                 const tooltipText = `${user.name} ${statusText}`;
 
-                // Z-index: online = highest, inactive = medium, offline = lowest
-                // Reversed because the stack overlaps left-to-right (first = front)
                 const zIndex = 100 - index;
 
                 return (
@@ -198,7 +204,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                             style={{ zIndex, transition: 'all 0.7s ease-in-out' }}
                         >
                             {getInitials(user.name)}
-                            {/* Status dot */}
                             {showOnline && (
                                 <span
                                     className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500 z-20"
@@ -222,11 +227,50 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                 );
             })}
             {overflowCount > 0 && (
-                <Tooltip text={`${overflowCount} more team member${overflowCount > 1 ? 's' : ''}`}>
-                    <div className="relative w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-2xs z-10 cursor-default">
+                <div className="relative" ref={overflowRef}>
+                    <button
+                        onClick={() => setShowOverflowList(!showOverflowList)}
+                        className="relative w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-2xs z-10 cursor-pointer hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
+                        aria-label={`Show ${overflowCount} more team members`}
+                    >
                         +{overflowCount}
-                    </div>
-                </Tooltip>
+                    </button>
+                    {showOverflowList && (
+                        <div className="absolute right-0 top-full mt-2 w-64 max-h-80 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 z-[100] animate-fade-in-up">
+                            <div className="p-3 border-b border-slate-100 dark:border-zinc-700">
+                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Team Members ({visibleItems.length})</p>
+                                <p className="text-2xs text-slate-400">
+                                    {visibleItems.filter(i => i.state === 'online').length} online · {' '}
+                                    {visibleItems.filter(i => i.state !== 'online').length} offline
+                                </p>
+                            </div>
+                            <div className="divide-y divide-slate-50 dark:divide-zinc-700/50">
+                                {visibleItems.map((item) => {
+                                    const user = getUser(item.id);
+                                    if (!user) return null;
+                                    const isOnline = item.state === 'online';
+                                    const isInactive = item.state === 'inactive';
+                                    return (
+                                        <div key={item.id} className="flex items-center gap-2.5 p-2.5 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                            <div className={`relative w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-2xs flex-shrink-0 ${getUserColor(user.name)}`}>
+                                                {getInitials(user.name)}
+                                                <span className={`absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-zinc-800 ${
+                                                    isOnline ? 'bg-green-500' : isInactive ? 'bg-amber-400' : 'bg-slate-400'
+                                                }`} style={{ transform: 'translate(25%, 25%)' }} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{user.name}</p>
+                                                <p className="text-2xs text-slate-400 truncate">
+                                                    {item.role} · {isOnline ? 'Active now' : item.lastSeen > 0 ? `Last seen ${formatLastSeen(item.lastSeen)}` : 'Offline'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
         </div>
     );
