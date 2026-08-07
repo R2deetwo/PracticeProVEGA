@@ -8,6 +8,7 @@ import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { Capacitor } from '@capacitor/core';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useFounderTheme, THEME_OPTIONS } from '../useFounderTheme';
 
 // Build-time constants — injected by vite.admin.config.ts at build time
 // via Vite's `define` option. __APP_VERSION__ and __APP_MODE__ are
@@ -23,7 +24,7 @@ const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
 const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3';
 
-type Tab = 'account' | 'security' | 'notifications' | 'system' | 'about';
+type Tab = 'account' | 'security' | 'appearance' | 'notifications' | 'system' | 'about';
 
 // Safe localStorage getter
 function safeGet(key: string, fallback: string): string {
@@ -40,6 +41,7 @@ function safeGetBool(key: string, fallback: boolean): boolean {
 export const Settings: React.FC = () => {
     const { currentUser, logout } = useFounderAuth();
     const { addToast } = useFounderToast();
+    const { theme, setTheme } = useFounderTheme();
     const [tab, setTab] = useState<Tab>('account');
     const [showPasswordForm, setShowPasswordForm] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -100,6 +102,7 @@ export const Settings: React.FC = () => {
 
     const TABS: { id: Tab; label: string; icon: string }[] = [
         { id: 'account', label: 'Account', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+        { id: 'appearance', label: 'Theme', icon: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
         { id: 'security', label: 'Security', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
         { id: 'notifications', label: 'Alerts', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
         { id: 'system', label: 'System', icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01' },
@@ -181,6 +184,45 @@ export const Settings: React.FC = () => {
                             </div>
                             <div className="pt-3 border-t border-slate-100 dark:border-zinc-700">
                                 <button onClick={handleLogout} className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">Log Out</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'appearance' && (
+                    <div className="space-y-4">
+                        <div className={CARD}>
+                            <p className={SECTION_TITLE}>Theme</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">Choose how the Founder App looks. All themes from the main PracticePro app are available here.</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {THEME_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => {
+                                            setTheme(opt.id);
+                                            addToast(`Theme: ${opt.label}`, { type: 'success' });
+                                        }}
+                                        className={`relative p-3 rounded-xl border-2 transition-all text-left ${
+                                            theme === opt.id
+                                                ? 'border-primary-500 shadow-md'
+                                                : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'
+                                        }`}
+                                    >
+                                        {/* Preview swatch */}
+                                        <div className={`h-12 rounded-lg ${opt.preview.bg} flex items-center justify-center mb-2`}>
+                                            <div className={`w-6 h-6 rounded-full ${opt.preview.accent}`} />
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">{opt.label}</p>
+                                        <p className="text-2xs text-slate-400 mt-0.5 line-clamp-1">{opt.description}</p>
+                                        {theme === opt.id && (
+                                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center">
+                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>

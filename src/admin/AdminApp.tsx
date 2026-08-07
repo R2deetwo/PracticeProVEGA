@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import { api } from '../../convex/_generated/api';
 import { FounderAuthContext, ToastContext, useFounderAuth } from './FounderContexts';
 import type { FounderUser, Toast } from './FounderContexts';
+import { useFounderTheme } from './useFounderTheme';
 import { FounderDashboard } from '../components/FounderDashboard';
 import { OrganizationsCenter } from './views/OrganizationsCenter';
 import { AuditLogs } from './views/AuditLogs';
@@ -271,6 +272,11 @@ export const AdminApp: React.FC = () => {
     useEffect(() => {
         applyPersistedScreenCapturePref();
     }, []);
+
+    // Apply the founder's saved theme globally. This runs at the top
+    // level so the theme is applied even before authentication completes
+    // (on the login screen and splash screen).
+    useFounderTheme();
 
     return (
         <FounderAuthProvider>

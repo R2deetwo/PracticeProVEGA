@@ -42,6 +42,7 @@ const Header: React.FC = React.memo(() => {
     const { isProperty, hasPropertyFeatures } = useProduct();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
+    const [notifTab, setNotifTab] = useState<'platform' | 'firm'>('platform');
     const notificationsRef = useRef<HTMLDivElement>(null);
     const [isUserMenuOpen, setUserMenuOpen] = React.useState(false);
     const userMenuRef = React.useRef<HTMLDivElement>(null);
@@ -383,56 +384,126 @@ const Header: React.FC = React.memo(() => {
                                     {unreadCount > 0 && <span className="bg-red-100 text-red-600 text-2xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount} new</span>}
                                 </div>
                                 <div className="flex gap-3 items-center">
-                                    <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !n.isRead).map(n => n.id))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
+                                    {notifTab === 'platform' && aggregatedNotifications.filter(n => (n as any)._isBroadcast).length > 0 && (
+                                        <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).map(n => n.id))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
+                                    )}
+                                    {notifTab === 'firm' && aggregatedNotifications.filter(n => !(n as any)._isBroadcast).length > 0 && (
+                                        <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => n.id))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
+                                    )}
                                     <button onClick={() => setNotificationsOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Tab switcher — Platform Notices vs Firm Notices */}
+                            <div className="flex border-b border-slate-100 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900">
+                                <button
+                                    onClick={() => setNotifTab('platform')}
+                                    className={`flex-1 py-2.5 text-xs font-bold transition-colors relative ${
+                                        notifTab === 'platform'
+                                            ? 'text-primary-600 dark:text-primary-400'
+                                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                                    }`}
+                                >
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84a3 3 0 100-5.68 3 3 0 000 5.68zM7.51 7.34a6 6 0 018.98 0M4.66 4.49a10 10 0 0114.69 0M2.81 1.64a15 15 0 0118.38 0" />
+                                        </svg>
+                                        Platform Notices
+                                    </span>
+                                    {aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).length > 0 && (
+                                        <span className="absolute top-1.5 right-3 w-2 h-2 rounded-full bg-red-500" />
+                                    )}
+                                    {notifTab === 'platform' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />}
+                                </button>
+                                <button
+                                    onClick={() => setNotifTab('firm')}
+                                    className={`flex-1 py-2.5 text-xs font-bold transition-colors relative ${
+                                        notifTab === 'firm'
+                                            ? 'text-primary-600 dark:text-primary-400'
+                                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                                    }`}
+                                >
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                        </svg>
+                                        Firm Notices
+                                    </span>
+                                    {aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).length > 0 && (
+                                        <span className="absolute top-1.5 right-3 w-2 h-2 rounded-full bg-red-500" />
+                                    )}
+                                    {notifTab === 'firm' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />}
+                                </button>
+                            </div>
+
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                {aggregatedNotifications.length > 0 ? (
-                                    <div className="divide-y divide-slate-100 dark:divide-zinc-700">
-                                        {aggregatedNotifications.map((notification: any) => {
-                                            const style = getNotificationStyle(notification.type);
-                                            return (
-                                                <div
-                                                    key={notification.id}
-                                                    className={`group relative p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/50 flex gap-4 transition-colors ${!notification.isRead ? 'bg-primary-50/30 dark:bg-primary-900/10' : ''}`}
-                                                >
-                                                    <div className="mt-1 flex-shrink-0">{style.icon}</div>
+                                {(() => {
+                                    // Filter notifications by the selected tab
+                                    const tabNotifications = notifTab === 'platform'
+                                        ? aggregatedNotifications.filter(n => (n as any)._isBroadcast)
+                                        : aggregatedNotifications.filter(n => !(n as any)._isBroadcast);
+
+                                    if (tabNotifications.length === 0) {
+                                        return (
+                                            <div className="py-12 flex flex-col items-center justify-center text-slate-400">
+                                                <BellIcon className="w-12 h-12 mb-3 opacity-20" />
+                                                <p className="text-sm">
+                                                    {notifTab === 'platform'
+                                                        ? 'No platform notices yet'
+                                                        : 'No firm notices yet'}
+                                                </p>
+                                                <p className="text-2xs mt-1 text-slate-400">
+                                                    {notifTab === 'platform'
+                                                        ? 'Announcements from PracticePro appear here'
+                                                        : 'Client/tenant messages appear here'}
+                                                </p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="divide-y divide-slate-100 dark:divide-zinc-700">
+                                            {tabNotifications.map((notification: any) => {
+                                                const style = getNotificationStyle(notification.type);
+                                                return (
                                                     <div
-                                                        className="flex-grow cursor-pointer"
-                                                        onClick={() => {
-                                                            if (notification.link) {
-                                                                navigateTo(notification.link.view, notification.link.id, notification.link.context);
-                                                            }
-                                                            setNotificationsOpen(false);
-                                                            if (!notification.isRead) handleMarkNotificationsRead([notification.id]);
-                                                        }}
+                                                        key={notification.id}
+                                                        className={`group relative p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/50 flex gap-4 transition-colors ${!notification.isRead ? 'bg-primary-50/30 dark:bg-primary-900/10' : ''}`}
                                                     >
-                                                        <p className={`text-sm leading-snug mb-1 ${!notification.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>
-                                                            {notification.title ? `${notification.title}: ` : ''}{notification.message}
-                                                        </p>
-                                                        <p className="text-2xs font-medium text-slate-400">{timeAgo(notification.timestampStr)}</p>
+                                                        <div className="mt-1 flex-shrink-0">{style.icon}</div>
+                                                        <div
+                                                            className="flex-grow cursor-pointer"
+                                                            onClick={() => {
+                                                                if (notification.link) {
+                                                                    navigateTo(notification.link.view, notification.link.id, notification.link.context);
+                                                                }
+                                                                setNotificationsOpen(false);
+                                                                if (!notification.isRead) handleMarkNotificationsRead([notification.id]);
+                                                            }}
+                                                        >
+                                                            <p className={`text-sm leading-snug mb-1 ${!notification.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>
+                                                                {notification.title ? `${notification.title}: ` : ''}{notification.message}
+                                                            </p>
+                                                            <p className="text-2xs font-medium text-slate-400">{timeAgo(notification.timestampStr)}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                actions.handleDismissNotification(notification.id);
+                                                            }}
+                                                            className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-all"
+                                                            title="Delete"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            actions.handleDismissNotification(notification.id);
-                                                        }}
-                                                        className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-all"
-                                                        title="Dismiss"
-                                                    >
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : <div className="py-12 flex flex-col items-center justify-center text-slate-400">
-                                    <BellIcon className="w-12 h-12 mb-3 opacity-20" />
-                                    <p className="text-sm">No notifications yet</p>
-                                </div>}
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             {aggregatedNotifications.length > 0 && (
                                 <div className="p-2 border-t border-slate-100 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 text-center">

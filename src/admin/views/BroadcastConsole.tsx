@@ -67,6 +67,10 @@ export const BroadcastConsole: React.FC = () => {
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
     const cleanupDuplicates = useMutation(api.founderMetrics.cleanupDuplicateBroadcastNotifications);
 
+    // Fetch broadcast history (admin action log filtered to broadcasts)
+    const broadcastHistory = useQuery(api.founderMetrics.getAdminActionLog,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+
     const handleCleanupDuplicates = async () => {
         try {
             const result = await cleanupDuplicates({ tokenIdentifier });
@@ -265,6 +269,65 @@ export const BroadcastConsole: React.FC = () => {
                 <p className="text-2xs text-slate-400 text-center -mt-2">
                     Removes duplicate broadcast notifications from the DB. Run once to fix existing duplicates from before the dedup fix.
                 </p>
+
+                {/* Broadcast History — shows past broadcasts sent from this console */}
+                <div className={CARD}>
+                    <p className={LABEL}>Broadcast History</p>
+                    <div className="mt-3 space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                        {broadcastHistory === undefined ? (
+                            <div className="flex justify-center py-4">
+                                <div className="w-6 h-6 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+                            </div>
+                        ) : broadcastHistory.length === 0 ? (
+                            <p className="text-xs text-slate-400 text-center py-4">No broadcasts sent yet.</p>
+                        ) : (
+                            broadcastHistory
+                                .filter((e: any) => (e.event || '').startsWith('Broadcast sent:'))
+                                .slice(0, 20)
+                                .map((event: any, i: number) => (
+                                    <div key={event._id || i} className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg">
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">
+                                                {(event.event || '').replace('Broadcast sent: ', '')}
+                                            </p>
+                                            <span className="text-2xs text-slate-400 flex-shrink-0 whitespace-nowrap">
+                                                {event.timestamp ? new Date(event.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                                            </span>
+                                        </div>
+                                        {event.properties && (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {event.properties.targetProduct && (
+                                                    <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                                                        {event.properties.targetProduct === 'all' ? 'All Apps' :
+                                                         event.properties.targetProduct === 'unified' ? 'Komplete' :
+                                                         event.properties.targetProduct === 'legal' ? 'Vega' :
+                                                         event.properties.targetProduct === 'property' ? 'Atrium' :
+                                                         event.properties.targetProduct}
+                                                    </span>
+                                                )}
+                                                {event.properties.recipientCount !== undefined && (
+                                                    <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                        {event.properties.recipientCount} recipients
+                                                    </span>
+                                                )}
+                                                {event.properties.channel && (
+                                                    <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                                        {event.properties.channel === 'inapp' ? 'In-App' :
+                                                         event.properties.channel === 'email' ? 'Email' : 'Both'}
+                                                    </span>
+                                                )}
+                                                {event.properties.theme && (
+                                                    <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                        {event.properties.theme}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

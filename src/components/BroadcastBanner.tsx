@@ -99,12 +99,16 @@ export const BroadcastBanner: React.FC = () => {
 
     const userId = currentUser?._id || (currentUser as any)?.id || '';
     const userIdStr = String(userId);
+    const userEmail = currentUser?.email || '';
 
     // REAL-TIME SUBSCRIPTION: Fetch active broadcasts for this user.
     // This query updates instantly when a new broadcast is created or
     // when an existing one is marked as read (dismissed).
+    // Pass both userId and email for multi-signal matching.
     const broadcasts = useQuery(api.broadcasts.getActiveBroadcasts,
-        isAuthenticated && userIdStr ? { userId: userIdStr } : "skip");
+        isAuthenticated && (userIdStr || userEmail)
+            ? { userId: userIdStr, email: userEmail }
+            : "skip");
 
     const userProduct = getUserProduct(currentUser);
 
