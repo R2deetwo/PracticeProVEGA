@@ -4454,17 +4454,81 @@ export const sendFounderSignupNotification = internalAction({
 export const getAllUsersForBroadcast = internalQuery({
   args: { targetProduct: v.string() },
   handler: async (ctx, args) => {
-    const allUsers = await ctx.db.query("users").take(2000);
+    // Remove the .take(2000) cap — use .collect() to get ALL users.
+    // The 2000 cap was causing undercounting for large platforms.
+    const allUsers = await ctx.db.query("users").collect();
+    const allFirms = await ctx.db.query("firms").collect();
+    const firmMap = new Map<string, any>();
+    allFirms.forEach((f: any) => firmMap.set(f._id, f));
+
     const target = args.targetProduct;
+
+    // PRODUCT RESOLUTION:
+    // The `product` field on users/firms is inconsistent — it can be
+    // 'legal', 'property', 'unified', 'vega', 'atrium', 'komplete', or
+    // missing. To correctly resolve the audience for each product target,
+    // we check MULTIPLE signals:
+    //
+    //   1. The user's `product` field
+    //   2. The user's firm's `product` field (often more reliable)
+    //   3. The firm's `subscriptionPlan` (Komplete plan = unified product)
+    //
+    // This handles the known data issue where Komplete-plan firms have
+    // stale `product: 'vega'` from before their plan was upgraded.
+
+    const isProductMatch = (user: any, firm: any, target: string): boolean => {
+      if (target === 'all') return true;
+
+      // Collect all product signals for this user
+      const userProduct = (user.product || '').toLowerCase();
+      const firmProduct = (firm?.product || '').toLowerCase();
+      const firmPlan = (firm?.subscriptionPlan || '').toLowerCase();
+
+      // Normalize: 'komplete' plan → 'unified' product
+      // (Komplete is the plan name; 'unified' is the product tag)
+      const normalizedUserProduct =
+        userProduct === 'komplete' ? 'unified' :
+        userProduct === 'vega' ? 'legal' :
+        userProduct === 'atrium' ? 'property' :
+        userProduct;
+      const normalizedFirmProduct =
+        firmProduct === 'komplete' ? 'unified' :
+        firmProduct === 'vega' ? 'legal' :
+        firmProduct === 'atrium' ? 'property' :
+        firmProduct;
+
+      // For 'unified' (Komplete) target: match if user/firm is unified
+      // OR if the firm's plan is 'Komplete' (handles stale product field)
+      if (target === 'unified') {
+        return normalizedUserProduct === 'unified' ||
+               normalizedFirmProduct === 'unified' ||
+               firmPlan === 'komplete';
+      }
+
+      // For 'legal' (Vega) target: match if user/firm is legal
+      // BUT exclude users whose firm is on Komplete plan (they get
+      // Komplete broadcasts, not Vega broadcasts)
+      if (target === 'legal') {
+        if (firmPlan === 'komplete') return false;
+        return normalizedUserProduct === 'legal' ||
+               normalizedFirmProduct === 'legal' ||
+               (!normalizedUserProduct && !normalizedFirmProduct); // default to legal
+      }
+
+      // For 'property' (Atrium) target: match if user/firm is property
+      if (target === 'property') {
+        return normalizedUserProduct === 'property' ||
+               normalizedFirmProduct === 'property';
+      }
+
+      return false;
+    };
 
     const filtered = allUsers.filter((u: any) => {
       // Exclude Founder role — they don't receive client broadcasts
       if (u.role === 'Founder') return false;
-      // 'all' = everyone
-      if (target === 'all') return true;
-      // Match by product field
-      const userProduct = u.product || 'legal';
-      return userProduct === target;
+      const firm = u.firmId ? firmMap.get(u.firmId) : null;
+      return isProductMatch(u, firm, target);
     });
 
     // DEDUPLICATE by email — a user may have multiple records in the
@@ -4488,6 +4552,10 @@ export const getAllUsersForBroadcast = internalQuery({
 /**
  * internal mutation: createBroadcastNotification
  * Creates a notification row for a single user (used by broadcast action).
+ *
+ * Stores the targetProduct in the notification's link context so client
+ * apps can evaluate whether the broadcast applies to their product:
+ *   targetProduct === 'all' || targetProduct === userProduct
  */
 export const createBroadcastNotification = internalMutation({
   args: {
@@ -4497,6 +4565,7 @@ export const createBroadcastNotification = internalMutation({
     message: v.string(),
     theme: v.string(),
     deepLink: v.optional(v.string()),
+    targetProduct: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("notifications", {
@@ -4505,7 +4574,15 @@ export const createBroadcastNotification = internalMutation({
       title: args.title,
       message: args.message,
       type: `broadcast_${args.theme}`,
-      link: args.deepLink ? { view: 'dashboard', id: null, context: { deepLink: args.deepLink } } : null,
+      link: {
+        view: 'dashboard',
+        id: null,
+        context: {
+          deepLink: args.deepLink || undefined,
+          targetProduct: args.targetProduct || 'all',
+          isBroadcast: true,
+        }
+      },
       timestamp: new Date().toISOString(),
       isRead: false,
     } as any);

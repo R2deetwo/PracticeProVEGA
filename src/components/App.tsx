@@ -72,7 +72,6 @@ import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import ApkUpdateBanner from './ApkUpdateBanner';
-import BroadcastBanner from './BroadcastBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
 
 import { LandingPage } from './LandingPage';
@@ -1402,9 +1401,6 @@ export const App: React.FC = () => {
             {/* APK update banner — native only. No-op on web. Shows update
                 prompt when a new APK build is available and verified healthy. */}
             <ApkUpdateBanner />
-            {/* Persistent broadcast banner — shows platform-wide announcements
-                from the founder admin APK. Stays until dismissed by the user. */}
-            <BroadcastBanner />
             {/* In-app confirmation dialog — replaces browser window.confirm() */}
             {confirmDialogNode}
         </div>

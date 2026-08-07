@@ -17,6 +17,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
 import { Skeleton } from './toolkit/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
+import BroadcastBanner from './BroadcastBanner';
 
 
 
@@ -128,6 +129,11 @@ const Dashboard: React.FC = () => {
             <div className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 animate-fade-in pb-24 md:pb-8">
                 {/* Downgrade Banner */}
                 {isDowngradedState && <TierAccessBanner plan={plan} onUpgrade={handleUpgrade} />}
+
+                {/* Broadcast Banner — glassmorphic, in-content placement.
+                    Sits below Overview header, above the operational grid.
+                    Never overlaps the left sidebar or top navigation. */}
+                <BroadcastBanner />
 
                 <div className="grid grid-cols-1 gap-4 sm:gap-8">
                     {isLoading ? (

@@ -798,6 +798,7 @@ export const broadcastNotification = action({
           message: args.message,
           theme: args.theme,
           deepLink: args.deepLink || undefined,
+          targetProduct: args.targetProduct,
         });
         recipientCount++;
       }
