@@ -18,7 +18,7 @@ import { FounderAuthContext, ToastContext, useFounderAuth } from './FounderConte
 import type { FounderUser, Toast } from './FounderContexts';
 import { useFounderTheme } from './useFounderTheme';
 import { FounderDashboard } from '../components/FounderDashboard';
-import { OrganizationsCenter } from './views/OrganizationsCenter';
+import { OrganizationsHub } from './views/OrganizationsHub';
 import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
 import { FeedbackInbox } from './views/FeedbackInbox';
@@ -28,7 +28,6 @@ import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
 import { FounderBottomNav } from './FounderBottomNav';
 import { Settings } from './views/Settings';
-import { FirmHealth } from './views/FirmHealth';
 import { SystemStatus } from './views/SystemStatus';
 import { ExportCenter } from './views/ExportCenter';
 
@@ -137,12 +136,12 @@ const FounderApp: React.FC = () => {
         switch (activeView) {
             case 'dashboard': return <ViewErrorBoundary viewName="Dashboard"><FounderDashboard onNavigateToSignals={() => setActiveView('signals')} /></ViewErrorBoundary>;
             case 'signals': return <ViewErrorBoundary viewName="Signals"><FounderSignals /></ViewErrorBoundary>;
-            case 'organizations': return <ViewErrorBoundary viewName="Organizations"><OrganizationsCenter /></ViewErrorBoundary>;
+            case 'organizations': return <ViewErrorBoundary viewName="Organizations"><OrganizationsHub /></ViewErrorBoundary>;
             case 'feedback': return <ViewErrorBoundary viewName="Feedback"><FeedbackInbox /></ViewErrorBoundary>;
             case 'broadcast': return <ViewErrorBoundary viewName="Broadcast"><BroadcastConsole /></ViewErrorBoundary>;
             case 'audit': return <ViewErrorBoundary viewName="Audit"><AuditLogs /></ViewErrorBoundary>;
             case 'settings': return <ViewErrorBoundary viewName="Settings"><Settings /></ViewErrorBoundary>;
-            case 'health': return <ViewErrorBoundary viewName="Health"><FirmHealth /></ViewErrorBoundary>;
+            case 'health': return <ViewErrorBoundary viewName="Organizations"><OrganizationsHub /></ViewErrorBoundary>;
             case 'system': return <ViewErrorBoundary viewName="System"><SystemStatus /></ViewErrorBoundary>;
             case 'export': return <ViewErrorBoundary viewName="Export"><ExportCenter /></ViewErrorBoundary>;
             default: return null;
