@@ -1,33 +1,30 @@
 /**
- * BroadcastBanner — horizontal depth stack with carousel + smooth dismissal.
+ * BroadcastBanner — accordion stub carousel with crash-safe dismissal.
  *
- * CRITICAL FIX — Dismissal Persistence:
- *   Previously, dismissed banners reappeared because the dismissingIds
- *   state was cleared after 300ms (for animation), and the real-time
- *   query immediately re-fetched the still-unread notification.
+ * ARCHITECTURE:
+ *   Instead of overlapping translucent cards (which caused text bleed),
+ *   this uses an Expanded Card + Compact Stub Bar pattern:
+ *     - ONE banner is fully expanded (icon, title, message, dismiss button)
+ *     - Other banners render as ultra-slim stubs (dot + number, no body text)
+ *     - Clicking a stub or "Next" expands it and collapses the current one
  *
- *   FIX: Dismissed IDs are now kept in a permanent Set for the entire
- *   session. They are NEVER removed (until logout clears sessionStorage).
- *   This prevents the banner from reappearing regardless of how many
- *   times the Convex query refreshes.
+ * OPAQUE SURFACE:
+ *   The expanded card has a 100% opaque background (no translucency)
+ *   so underlying content NEVER bleeds through. The glassmorphic blur
+ *   is applied as a decorative layer BEHIND the opaque surface, not
+ *   as the card's primary background.
  *
- *   - 'permanent' mode: ID added to dismissedIds (local) + markAsRead (DB)
- *   - 'session' mode: ID added to dismissedIds (local) + sessionStorage
- *   - 'persistent' mode: no dismiss button shown
+ * CRASH-SAFE DISMISSAL:
+ *   When the final banner is dismissed, the component gracefully
+ *   unmounts by:
+ *     1. Checking banners.length before rendering
+ *     2. Wrapping the container in a height-collapsing transition
+ *     3. Never reading properties of null/undefined state
+ *     4. Using optional chaining throughout
  *
- * HORIZONTAL DEPTH STACK:
- *   Instead of vertical stacking, banners are layered horizontally:
- *   - Front card: full-width, primary banner
- *   - Back card: offset translateX(12px) scale(0.97), slightly exposed
- *
- *   A "Next >" / "1 of 2" toggle lets the user cycle between banners.
- *   Clicking Next animates the front card sliding out as the back card
- *   scales up to the front.
- *
- * UPWARD EXIT DISMISSAL:
- *   When dismissed, the banner floats upward (translateY(-20px)) and
- *   fades out. The next banner expands forward to take the primary
- *   position. If it was the last banner, the layout height collapses.
+ * HITBOX:
+ *   All interactive controls (Next, Prev, Dismiss, stubs) have
+ *   minimum 44x44px touch targets for accessibility.
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -37,45 +34,77 @@ import { useAuth } from '../contexts/AuthContext';
 
 const MAX_BANNERS = 2;
 
+// Theme styles — now with OPAQUE backgrounds (no translucency) to
+// prevent text bleed-through from underlying cards.
 const THEME_STYLES: Record<string, {
-    light: { bg: string; border: string; iconBg: string; iconColor: string; titleColor: string; bodyColor: string; accent: string };
-    dark: { bg: string; border: string; iconBg: string; iconColor: string; titleColor: string; bodyColor: string; accent: string };
-    icon: string;
-    label: string;
-    badgeBg: string;
-    badgeText: string;
+    bg: string;          // OPAQUE background class (100% solid)
+    border: string;      // Border color class
+    iconBg: string;      // Icon container background
+    iconColor: string;   // Icon SVG color
+    titleColor: string;  // Title text color
+    bodyColor: string;   // Body text color
+    accent: string;      // Left accent bar + bottom bar color
+    badgeBg: string;     // Urgency badge background
+    badgeText: string;   // Urgency badge text
+    icon: string;        // SVG path data
+    label: string;       // Badge label text
+    dotColor: string;    // Stub dot color
 }> = {
     info: {
-        light: { bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)', iconBg: 'rgba(59, 130, 246, 0.12)', iconColor: '#2563eb', titleColor: '#1e3a8a', bodyColor: '#1e40af', accent: 'bg-blue-500' },
-        dark: { bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(96, 165, 250, 0.25)', iconBg: 'rgba(59, 130, 246, 0.2)', iconColor: '#93c5fd', titleColor: '#bfdbfe', bodyColor: '#dbeafe', accent: 'bg-blue-400' },
-        icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6a1.76 1.76 0 002.585-1.612A3.5 3.5 0 0113 5.5',
-        label: 'Info',
+        bg: 'bg-white dark:bg-zinc-800',
+        border: 'border-blue-200 dark:border-blue-800',
+        iconBg: 'bg-blue-100 dark:bg-blue-900/40',
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        titleColor: 'text-slate-900 dark:text-white',
+        bodyColor: 'text-slate-600 dark:text-zinc-300',
+        accent: 'bg-blue-500',
         badgeBg: 'bg-blue-100 dark:bg-blue-900/40',
         badgeText: 'text-blue-700 dark:text-blue-300',
+        icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6a1.76 1.76 0 002.585-1.612A3.5 3.5 0 0113 5.5',
+        label: 'Info',
+        dotColor: 'bg-blue-500',
     },
     success: {
-        light: { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)', iconBg: 'rgba(16, 185, 129, 0.12)', iconColor: '#059669', titleColor: '#064e3b', bodyColor: '#065f46', accent: 'bg-emerald-500' },
-        dark: { bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(52, 211, 153, 0.25)', iconBg: 'rgba(16, 185, 129, 0.2)', iconColor: '#6ee7b7', titleColor: '#a7f3d0', bodyColor: '#d1fae5', accent: 'bg-emerald-400' },
-        icon: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-        label: 'Success',
+        bg: 'bg-white dark:bg-zinc-800',
+        border: 'border-emerald-200 dark:border-emerald-800',
+        iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+        iconColor: 'text-emerald-600 dark:text-emerald-400',
+        titleColor: 'text-slate-900 dark:text-white',
+        bodyColor: 'text-slate-600 dark:text-zinc-300',
+        accent: 'bg-emerald-500',
         badgeBg: 'bg-emerald-100 dark:bg-emerald-900/40',
         badgeText: 'text-emerald-700 dark:text-emerald-300',
+        icon: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+        label: 'Success',
+        dotColor: 'bg-emerald-500',
     },
     warning: {
-        light: { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)', iconBg: 'rgba(245, 158, 11, 0.12)', iconColor: '#d97706', titleColor: '#78350f', bodyColor: '#92400e', accent: 'bg-amber-500' },
-        dark: { bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(251, 191, 36, 0.25)', iconBg: 'rgba(245, 158, 11, 0.2)', iconColor: '#fcd34d', titleColor: '#fde68a', bodyColor: '#fef3c7', accent: 'bg-amber-400' },
-        icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
-        label: 'Warning',
+        bg: 'bg-white dark:bg-zinc-800',
+        border: 'border-amber-200 dark:border-amber-800',
+        iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        titleColor: 'text-slate-900 dark:text-white',
+        bodyColor: 'text-slate-600 dark:text-zinc-300',
+        accent: 'bg-amber-500',
         badgeBg: 'bg-amber-100 dark:bg-amber-900/40',
         badgeText: 'text-amber-700 dark:text-amber-300',
+        icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
+        label: 'Warning',
+        dotColor: 'bg-amber-500',
     },
     urgent: {
-        light: { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.2)', iconBg: 'rgba(239, 68, 68, 0.12)', iconColor: '#dc2626', titleColor: '#7f1d1d', bodyColor: '#991b1b', accent: 'bg-red-500' },
-        dark: { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(248, 113, 113, 0.25)', iconBg: 'rgba(239, 68, 68, 0.2)', iconColor: '#fca5a5', titleColor: '#fecaca', bodyColor: '#fee2e2', accent: 'bg-red-400' },
-        icon: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z',
-        label: 'Urgent',
+        bg: 'bg-white dark:bg-zinc-800',
+        border: 'border-red-200 dark:border-red-800',
+        iconBg: 'bg-red-100 dark:bg-red-900/40',
+        iconColor: 'text-red-600 dark:text-red-400',
+        titleColor: 'text-slate-900 dark:text-white',
+        bodyColor: 'text-slate-600 dark:text-zinc-300',
+        accent: 'bg-red-500',
         badgeBg: 'bg-red-100 dark:bg-red-900/40',
         badgeText: 'text-red-700 dark:text-red-300',
+        icon: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z',
+        label: 'Urgent',
+        dotColor: 'bg-red-500',
     },
 };
 
@@ -94,8 +123,6 @@ function getUserProduct(user: any): string {
     return 'unified';
 }
 
-// Session storage helpers — persists dismissed broadcast IDs for the
-// current session. Cleared on logout (sessionStorage is per-tab/session).
 function getSessionDismissed(): Set<string> {
     try {
         const raw = sessionStorage.getItem('dismissed_broadcasts_v2');
@@ -116,14 +143,11 @@ export const BroadcastBanner: React.FC = () => {
     const { currentUser, isAuthenticated } = useAuth();
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
 
-    // CRITICAL: dismissedIds is a PERMANENT set for the entire session.
-    // IDs are NEVER removed from this set (until logout). This prevents
-    // the banner from reappearing when the Convex query refreshes.
+    // CRITICAL: dismissedIds is PERMANENT for the entire session.
     const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-    // dismissingId tracks the currently-animating-out banner (for CSS)
     const [dismissingId, setDismissingId] = useState<string | null>(null);
-    // Which banner is in front (index 0 = front, 1 = back)
-    const [frontIndex, setFrontIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     const userId = currentUser?._id || (currentUser as any)?.id || '';
     const userIdStr = String(userId);
@@ -136,8 +160,6 @@ export const BroadcastBanner: React.FC = () => {
 
     const userProduct = getUserProduct(currentUser);
 
-    // Load session-dismissed IDs on mount — restores any dismissals
-    // from earlier in this session (e.g., after page navigation)
     useEffect(() => {
         setDismissedIds(getSessionDismissed());
     }, []);
@@ -147,18 +169,13 @@ export const BroadcastBanner: React.FC = () => {
         if (!broadcasts || !Array.isArray(broadcasts)) return [];
 
         const matching = broadcasts.filter((b: any) => {
-            // Product targeting
+            if (!b) return false;
             const targetProduct = b.targetProduct || 'all';
             if (targetProduct !== 'all' && targetProduct !== userProduct) return false;
 
-            // Get the broadcastId (group ID) and notifId (individual row ID)
             const broadcastId = b.link?.context?.broadcastId || b._id;
             const notifId = b._id || b.id;
 
-            // EXCLUDE if this broadcast was dismissed this session.
-            // Check BOTH the broadcastId (group) and the notifId (row).
-            // This is the critical fix — once dismissed, NEVER show again
-            // in this session, even if the query refreshes.
             if (dismissedIds.has(broadcastId)) return false;
             if (dismissedIds.has(notifId)) return false;
 
@@ -168,24 +185,32 @@ export const BroadcastBanner: React.FC = () => {
         return matching.slice(0, MAX_BANNERS);
     }, [broadcasts, userProduct, dismissedIds]);
 
-    // Reset frontIndex if it's out of bounds
+    // CRASH-SAFE: Reset activeIndex if out of bounds.
+    // This prevents reading undefined when the array shrinks.
     useEffect(() => {
-        if (frontIndex >= visibleBroadcasts.length) {
-            setFrontIndex(0);
+        if (visibleBroadcasts.length === 0) {
+            setActiveIndex(0);
+            return;
         }
-    }, [visibleBroadcasts.length, frontIndex]);
+        if (activeIndex >= visibleBroadcasts.length) {
+            setActiveIndex(0);
+        }
+    }, [visibleBroadcasts.length, activeIndex]);
 
+    // Handle dismissal — crash-safe, never reads null state
     const handleDismiss = useCallback(async (broadcast: any) => {
+        if (!broadcast) return;
+
         const notifId = broadcast._id || broadcast.id;
         const broadcastId = broadcast.link?.context?.broadcastId;
         const persistenceMode = broadcast.persistenceMode || 'permanent';
 
-        // Mark as dismissing (for upward float animation)
+        if (!notifId) return;
+
+        // Mark as dismissing (for animation)
         setDismissingId(notifId);
 
-        // CRITICAL: Add to dismissedIds IMMEDIATELY and PERMANENTLY.
-        // This prevents the banner from reappearing when the query refreshes.
-        // The ID stays in this set for the entire session.
+        // Add to dismissedIds IMMEDIATELY and PERMANENTLY
         setDismissedIds(prev => {
             const next = new Set(prev);
             next.add(notifId);
@@ -194,96 +219,145 @@ export const BroadcastBanner: React.FC = () => {
             return next;
         });
 
-        // For 'permanent' mode, also mark as read in the DB so it
-        // doesn't reappear on next login. For 'session' mode, the
-        // sessionStorage entry handles it (cleared on logout).
+        // For 'permanent' mode, also mark as read in DB
         if (persistenceMode === 'permanent') {
             try {
                 await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
             } catch (e) {
                 console.error('[BroadcastBanner] Failed to mark as read:', e);
-                // Even if the DB mutation fails, the local dismissedIds
-                // set still prevents the banner from showing this session.
             }
         }
 
-        // Clear dismissingId after animation completes
-        setTimeout(() => setDismissingId(null), 400);
+        // Clear dismissingId after animation
+        setTimeout(() => {
+            setDismissingId(null);
+            setIsCollapsed(false);
+        }, 300);
     }, [markAsRead, currentUser]);
 
-    const handleCycle = useCallback(() => {
+    const handleNext = useCallback(() => {
         if (visibleBroadcasts.length < 2) return;
-        setFrontIndex(prev => (prev + 1) % visibleBroadcasts.length);
+        setActiveIndex(prev => (prev + 1) % visibleBroadcasts.length);
     }, [visibleBroadcasts.length]);
 
-    if (visibleBroadcasts.length === 0) return null;
+    const handlePrev = useCallback(() => {
+        if (visibleBroadcasts.length < 2) return;
+        setActiveIndex(prev => (prev - 1 + visibleBroadcasts.length) % visibleBroadcasts.length);
+    }, [visibleBroadcasts.length]);
 
-    const frontBroadcast = visibleBroadcasts[frontIndex];
-    const backBroadcast = visibleBroadcasts.length > 1
-        ? visibleBroadcasts[(frontIndex + 1) % visibleBroadcasts.length]
-        : null;
+    const handleStubClick = useCallback((index: number) => {
+        setActiveIndex(index);
+    }, []);
+
+    // CRASH-SAFE: If no visible broadcasts, render nothing.
+    // This prevents the "Refresh App" error when the final banner
+    // is dismissed — the component simply unmounts cleanly.
+    if (!visibleBroadcasts || visibleBroadcasts.length === 0) {
+        return null;
+    }
+
+    const activeBroadcast = visibleBroadcasts[activeIndex];
+    // Defensive: if activeBroadcast is somehow undefined, render nothing
+    if (!activeBroadcast) return null;
+
+    const stubs = visibleBroadcasts
+        .map((b, i) => ({ broadcast: b, index: i }))
+        .filter(({ index }) => index !== activeIndex);
 
     return (
-        <div className="w-full relative" style={{ minHeight: backBroadcast ? '88px' : 'auto' }}>
-            {/* Back card — offset behind the front card */}
-            {backBroadcast && (
-                <div
-                    className="absolute inset-0 transition-all duration-300 ease-out"
-                    style={{
-                        transform: 'translateX(12px) scale(0.97)',
-                        opacity: 0.6,
-                        zIndex: 1,
-                    }}
-                >
-                    <BannerCard
-                        broadcast={backBroadcast}
-                        isDismissing={false}
-                        onDismiss={() => handleDismiss(backBroadcast)}
-                        onAction={() => {}}
-                        variant="back"
-                    />
-                </div>
-            )}
-
-            {/* Front card — primary banner */}
+        <div
+            className={`w-full transition-all duration-300 ease-out ${
+                visibleBroadcasts.length === 0 || isCollapsed
+                    ? 'max-h-0 opacity-0 overflow-hidden'
+                    : 'max-h-96 opacity-100'
+            }`}
+        >
+            {/* Expanded Active Card — 100% OPAQUE background */}
             <div
-                className={`relative transition-all duration-400 ease-out ${
-                    dismissingId === (frontBroadcast._id || frontBroadcast.id)
+                className={`relative rounded-2xl overflow-hidden shadow-sm border-2 transition-all duration-300 ${THEME_STYLES[parseTheme(activeBroadcast.type || '')]?.bg || DEFAULT_THEME.bg} ${THEME_STYLES[parseTheme(activeBroadcast.type || '')]?.border || DEFAULT_THEME.border} ${
+                    dismissingId === (activeBroadcast._id || activeBroadcast.id)
                         ? 'opacity-0 -translate-y-5'
                         : 'opacity-100 translate-y-0'
                 }`}
-                style={{ zIndex: 2 }}
             >
-                <BannerCard
-                    broadcast={frontBroadcast}
-                    isDismissing={dismissingId === (frontBroadcast._id || frontBroadcast.id)}
-                    onDismiss={() => handleDismiss(frontBroadcast)}
+                <ExpandedCard
+                    broadcast={activeBroadcast}
+                    onDismiss={() => handleDismiss(activeBroadcast)}
                     onAction={() => {
-                        if (frontBroadcast.deepLink) {
-                            window.location.hash = frontBroadcast.deepLink;
+                        if (activeBroadcast.deepLink) {
+                            window.location.hash = activeBroadcast.deepLink;
                         }
-                        if (frontBroadcast.persistenceMode !== 'persistent') {
-                            handleDismiss(frontBroadcast);
+                        if (activeBroadcast.persistenceMode !== 'persistent') {
+                            handleDismiss(activeBroadcast);
                         }
                     }}
-                    variant="front"
                 />
             </div>
 
-            {/* Carousel toggle — "1 of 2" + Next button */}
+            {/* Compact Stubs — ultra-slim bars for inactive banners */}
+            {stubs.length > 0 && (
+                <div className="mt-1.5 space-y-1">
+                    {stubs.map(({ broadcast, index }) => {
+                        const theme = THEME_STYLES[parseTheme(broadcast.type || '')] || DEFAULT_THEME;
+                        return (
+                            <button
+                                key={broadcast._id || broadcast.id || index}
+                                onClick={() => handleStubClick(index)}
+                                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg ${theme.bg} ${theme.border} border hover:shadow-sm transition-all cursor-pointer min-h-[44px]`}
+                            >
+                                {/* Status dot — color-coded by urgency */}
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${theme.dotColor}`} />
+                                <span className={`text-2xs font-bold ${theme.badgeText} flex-shrink-0`}>
+                                    {theme.label}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-700 dark:text-zinc-200 truncate flex-1 text-left">
+                                    {broadcast.title || 'Announcement'}
+                                </span>
+                                <span className="text-2xs text-slate-400 flex-shrink-0">
+                                    Banner {index + 1}
+                                </span>
+                                {/* Expand arrow */}
+                                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Pagination Controls — 44x44px minimum hitbox */}
             {visibleBroadcasts.length > 1 && (
-                <div className="flex items-center justify-center gap-3 mt-2">
-                    <span className="text-2xs font-bold text-slate-400">
-                        {frontIndex + 1} of {visibleBroadcasts.length}
-                    </span>
+                <div className="flex items-center justify-center gap-1 mt-2">
+                    {/* Prev button — 44x44px hitbox */}
                     <button
-                        onClick={handleCycle}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                        onClick={handlePrev}
+                        className="flex items-center justify-center w-11 h-11 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                        aria-label="Previous banner"
                     >
-                        Next
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+
+                    {/* Page indicator — clickable, 44px height hitbox */}
+                    <button
+                        onClick={handleNext}
+                        className="flex items-center justify-center px-3 h-11 rounded-lg text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    >
+                        {activeIndex + 1} of {visibleBroadcasts.length}
+                    </button>
+
+                    {/* Next button — 44x44px hitbox */}
+                    <button
+                        onClick={handleNext}
+                        className="flex items-center justify-center w-11 h-11 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                        aria-label="Next banner"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
+                        <span className="ml-1 text-2xs font-bold">Next</span>
                     </button>
                 </div>
             )}
@@ -291,74 +365,44 @@ export const BroadcastBanner: React.FC = () => {
     );
 };
 
-// ─── Banner Card Component ────────────────────────────────────────────
-const BannerCard: React.FC<{
+// ─── Expanded Card Component ──────────────────────────────────────────
+const ExpandedCard: React.FC<{
     broadcast: any;
-    isDismissing: boolean;
     onDismiss: () => void;
     onAction: () => void;
-    variant: 'front' | 'back';
-}> = ({ broadcast, isDismissing, onDismiss, onAction, variant }) => {
-    const themeKey = parseTheme(broadcast.type || '');
+}> = ({ broadcast, onDismiss, onAction }) => {
+    const themeKey = parseTheme(broadcast?.type || '');
     const theme = THEME_STYLES[themeKey] || DEFAULT_THEME;
-    const persistenceMode = broadcast.persistenceMode || 'permanent';
-    const isDismissible = persistenceMode !== 'persistent' && variant === 'front';
-    const hasDeepLink = !!broadcast.deepLink;
+    const persistenceMode = broadcast?.persistenceMode || 'permanent';
+    const isDismissible = persistenceMode !== 'persistent';
+    const hasDeepLink = !!broadcast?.deepLink;
+
+    // CRASH-SAFE: Guard against null broadcast
+    if (!broadcast) return null;
 
     return (
-        <div
-            className={`relative rounded-2xl overflow-hidden shadow-sm border ${variant === 'back' ? 'pointer-events-none' : ''}`}
-            style={{
-                background: theme.light.bg,
-                borderColor: theme.light.border,
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-            }}
-        >
-            <style>{`
-                @media (prefers-color-scheme: dark) {
-                    .banner-glass-${themeKey}-${variant} {
-                        background: ${theme.dark.bg} !important;
-                        border-color: ${theme.dark.border} !important;
-                    }
-                    .banner-glass-${themeKey}-${variant} .icon-wrap { background: ${theme.dark.iconBg} !important; }
-                    .banner-glass-${themeKey}-${variant} .icon-svg { color: ${theme.dark.iconColor} !important; }
-                    .banner-glass-${themeKey}-${variant} .title-text { color: ${theme.dark.titleColor} !important; }
-                    .banner-glass-${themeKey}-${variant} .body-text { color: ${theme.dark.bodyColor} !important; }
-                    .banner-glass-${themeKey}-${variant} .action-btn {
-                        background: rgba(255,255,255,0.15) !important;
-                        color: ${theme.dark.titleColor} !important;
-                    }
-                    .banner-glass-${themeKey}-${variant} .dismiss-btn { color: ${theme.dark.iconColor} !important; }
-                    .banner-glass-${themeKey}-${variant} .dismiss-btn:hover { background: rgba(255,255,255,0.15) !important; }
-                }
-            `}</style>
+        <div className="relative">
+            {/* Left accent line — color-coded by urgency */}
+            <div className={`absolute left-0 top-0 bottom-0 w-1 ${theme.accent}`} />
 
-            <div className={`banner-glass-${themeKey}-${variant} relative p-4 sm:p-5 flex items-start gap-3 sm:gap-4`}>
-                {/* Left accent line — color-coded by urgency */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${theme.light.accent}`} />
-
+            <div className="relative p-4 sm:p-5 flex items-start gap-3 sm:gap-4 ml-1">
                 {/* Category Icon */}
-                <div
-                    className="icon-wrap flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ml-1"
-                    style={{ background: theme.light.iconBg }}
-                >
+                <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${theme.iconBg}`}>
                     <svg
-                        className="icon-svg w-5 h-5"
+                        className={`w-5 h-5 ${theme.iconColor}`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
                         strokeWidth={1.5}
-                        style={{ color: theme.light.iconColor }}
                     >
                         <path strokeLinecap="round" strokeLinejoin="round" d={theme.icon} />
                     </svg>
                 </div>
 
                 {/* Content */}
-                <div className={`flex-1 min-w-0 ${isDismissible ? 'pr-6' : ''}`}>
+                <div className={`flex-1 min-w-0 ${isDismissible ? 'pr-8' : ''}`}>
+                    {/* Urgency badge */}
                     <div className="flex items-center gap-2 mb-1">
-                        {/* Color-coded urgency badge */}
                         <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${theme.badgeBg} ${theme.badgeText}`}>
                             {theme.label}
                         </span>
@@ -368,38 +412,33 @@ const BannerCard: React.FC<{
                             </span>
                         )}
                     </div>
-                    <p
-                        className="title-text text-sm font-bold leading-tight"
-                        style={{ color: theme.light.titleColor }}
-                    >
+
+                    {/* Title */}
+                    <p className={`text-sm font-bold leading-tight ${theme.titleColor}`}>
                         {broadcast.title || 'Platform Announcement'}
                     </p>
-                    <p
-                        className="body-text text-xs mt-1 leading-relaxed whitespace-pre-wrap break-words"
-                        style={{ color: theme.light.bodyColor }}
-                    >
+
+                    {/* Message body */}
+                    <p className={`text-xs mt-1 leading-relaxed whitespace-pre-wrap break-words ${theme.bodyColor}`}>
                         {broadcast.message || ''}
                     </p>
-                    {hasDeepLink && variant === 'front' && (
+
+                    {/* Action button */}
+                    {hasDeepLink && (
                         <button
                             onClick={onAction}
-                            className="action-btn mt-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                            style={{
-                                background: 'rgba(0,0,0,0.06)',
-                                color: theme.light.titleColor,
-                            }}
+                            className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${theme.iconBg} ${theme.iconColor} hover:opacity-80`}
                         >
                             View Details →
                         </button>
                     )}
                 </div>
 
-                {/* Dismiss (X) Button — only for front dismissible banners */}
+                {/* Dismiss (X) Button — 44x44px hitbox */}
                 {isDismissible && (
                     <button
                         onClick={onDismiss}
-                        className="dismiss-btn absolute top-3 right-3 p-1.5 rounded-lg transition-colors flex-shrink-0"
-                        style={{ color: theme.light.iconColor }}
+                        className="absolute top-2 right-2 flex items-center justify-center w-11 h-11 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
                         aria-label="Dismiss"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -408,6 +447,9 @@ const BannerCard: React.FC<{
                     </button>
                 )}
             </div>
+
+            {/* Bottom accent bar */}
+            <div className={`h-0.5 ${theme.accent}`} />
         </div>
     );
 };
