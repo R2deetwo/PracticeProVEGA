@@ -1,40 +1,48 @@
 /**
  * BroadcastBanner — glassmorphic in-content banner for platform broadcasts.
  *
+ * DUAL-DELIVERY ARCHITECTURE:
+ *   Broadcasts appear in BOTH:
+ *     1. The notification bell (via getFirmData → coreState.notifications)
+ *     2. This banner component (via getActiveBroadcasts real-time query)
+ *
+ *   The bell shows ALL notifications (including broadcasts) for history.
+ *   This banner shows ONLY active unread broadcasts, prominently on the
+ *   dashboard canvas. Dismissing the banner marks the notification as
+ *   read (so it disappears from the banner) but it remains in the bell's
+ *   history list.
+ *
+ * REAL-TIME SUBSCRIPTION:
+ *   This component subscribes to api.broadcasts.getActiveBroadcasts via
+ *   useQuery. The moment a broadcast is created (from the admin app),
+ *   Convex's real-time sync pushes it to all connected clients, and the
+ *   banner mounts automatically — no polling, no refresh needed.
+ *
+ * PER-BROADCAST DISMISSAL:
+ *   When the user clicks Dismiss (X), we call markNotificationsAsRead
+ *   which sets isRead=true on that specific notification. The real-time
+ *   query immediately excludes it (because it filters by !isRead), so
+ *   the banner disappears. The notification remains in the bell's history
+ *   (where isRead items are still shown).
+ *
  * PLACEMENT:
- *   This banner is rendered INSIDE the main content canvas (not fixed
- *   at the top of the viewport). It sits below the Overview header
- *   and above the operational grid (Active Matters, Managed Units, etc).
- *   It NEVER overlaps the left sidebar or top navigation.
- *
- * VISUAL STYLE:
- *   Modern glassmorphic design — translucent backdrop with subtle tint
- *   matching the message urgency level, backdrop-blur, ultra-thin border,
- *   and soft ambient shadow. Styled like a refined contextual tip card.
- *
- * BEHAVIOR:
- *   - Stays visible until the user dismisses it (marks as read)
- *   - Color-coded by theme (info=blue, success=green, warning=amber, urgent=red)
- *   - Shows title + message + optional deep-link button
- *   - Dismiss (X) button in top-right corner
- *   - Fades out smoothly on dismiss; lower content shifts up naturally
- *   - Dynamic height — multi-line text pushes down content below
+ *   Rendered inside the Dashboard's main content container, below the
+ *   Overview header, above the stats grid. Never overlaps the left
+ *   sidebar or top navigation. Same width as the Overview section.
  *
  * PRODUCT TARGETING:
- *   The banner checks the notification's link.context.targetProduct
- *   against the current user's product. A broadcast sent to 'all' shows
- *   for everyone; a broadcast sent to 'unified' (Komplete) shows only
- *   for Komplete users.
+ *   The query returns all broadcasts for the user. The component then
+ *   filters by targetProduct — a broadcast sent to 'all' shows for
+ *   everyone; a broadcast sent to 'unified' (Komplete) shows only for
+ *   Komplete users.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMutation } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
-import { useCoreState } from '../contexts/CoreContext';
 
 // Glassmorphic theme styles — translucent tints with backdrop blur.
-// Each theme has a light-mode and dark-mode tint.
 const THEME_STYLES: Record<string, {
     light: { bg: string; border: string; iconBg: string; iconColor: string; titleColor: string; bodyColor: string; accent: string };
     dark: { bg: string; border: string; iconBg: string; iconColor: string; titleColor: string; bodyColor: string; accent: string };
@@ -83,104 +91,93 @@ function getUserProduct(user: any): string {
 
 export const BroadcastBanner: React.FC = () => {
     const { currentUser, isAuthenticated } = useAuth();
-    const { coreState } = useCoreState();
     const [isVisible, setIsVisible] = useState(false);
-    const [isDismissing, setIsDismissing] = useState(false);
-    const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+    const [dismissingId, setDismissingId] = useState<string | null>(null);
 
+    // Mutation to mark notification as read (dismiss)
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
 
-    const notifications: any[] = (coreState?.notifications as any[]) || [];
+    const userId = currentUser?._id || (currentUser as any)?.id || '';
+    const userIdStr = String(userId);
+
+    // REAL-TIME SUBSCRIPTION: Fetch active broadcasts for this user.
+    // This query updates instantly when a new broadcast is created or
+    // when an existing one is marked as read (dismissed).
+    const broadcasts = useQuery(api.broadcasts.getActiveBroadcasts,
+        isAuthenticated && userIdStr ? { userId: userIdStr } : "skip");
 
     const userProduct = getUserProduct(currentUser);
 
-    // Find the most recent unread broadcast notification for this user
-    // that matches their product (or was sent to 'all')
-    const broadcastNotif = useMemo((): any | null => {
-        if (!isAuthenticated || !currentUser) return null;
-        const userId = currentUser._id || (currentUser as any).id || '';
-        const userIdStr = String(userId);
+    // Find the most recent unread broadcast matching the user's product.
+    // PER-BROADCAST DISMISSAL: Each broadcast is evaluated independently.
+    // Dismissing one only hides that specific broadcast — new broadcasts
+    // still appear. There's no global "dismiss all" that would suppress
+    // future broadcasts.
+    const activeBroadcast = useMemo((): any | null => {
+        if (!broadcasts || !Array.isArray(broadcasts)) return null;
 
-        const broadcasts = notifications.filter((n: any) => {
-            const isBroadcast = (n.type || '').startsWith('broadcast_');
-            if (!isBroadcast) return false;
-            if (n.isRead) return false;
-            if (dismissedIds.has(n._id || n.id)) return false;
-
-            // Match by userId OR include if it has no specific userId
-            const nUserId = String(n.userId || '');
-            if (nUserId !== userIdStr && nUserId !== '' && nUserId !== 'undefined') {
-                return false;
-            }
-
-            // PRODUCT TARGETING: Check if this broadcast applies to the
-            // current user's product. The targetProduct is stored in
-            // link.context.targetProduct. If it's 'all', show to everyone.
-            // If it matches the user's product, show it. Otherwise, hide.
-            const targetProduct = n.link?.context?.targetProduct || 'all';
+        // Filter by product targeting
+        const matching = broadcasts.filter((b: any) => {
+            const targetProduct = b.targetProduct || 'all';
             if (targetProduct === 'all') return true;
             return targetProduct === userProduct;
         });
 
-        if (broadcasts.length === 0) return null;
+        if (matching.length === 0) return null;
 
-        // Sort by timestamp descending (most recent first)
-        broadcasts.sort((a: any, b: any) => {
-            const tsA = new Date(a.timestamp || a._creationTime || 0).getTime();
-            const tsB = new Date(b.timestamp || b._creationTime || 0).getTime();
-            return tsB - tsA;
-        });
-        return broadcasts[0];
-    }, [notifications, isAuthenticated, currentUser, dismissedIds, userProduct]);
+        // Already sorted by timestamp desc in the query — take the first
+        return matching[0];
+    }, [broadcasts, userProduct]);
 
     // Animate in when a broadcast appears
     useEffect(() => {
-        if (broadcastNotif && !isDismissing) {
+        if (activeBroadcast && dismissingId !== (activeBroadcast._id || activeBroadcast.id)) {
             const timer = setTimeout(() => setIsVisible(true), 50);
             return () => clearTimeout(timer);
         } else {
             setIsVisible(false);
         }
-    }, [broadcastNotif, isDismissing]);
+    }, [activeBroadcast, dismissingId]);
 
-    if (!broadcastNotif) return null;
+    if (!activeBroadcast) return null;
 
-    const themeKey = parseTheme(broadcastNotif.type || '');
+    const themeKey = parseTheme(activeBroadcast.type || '');
     const theme = THEME_STYLES[themeKey] || DEFAULT_THEME;
-    const notifId = broadcastNotif._id || broadcastNotif.id;
+    const notifId = activeBroadcast._id || activeBroadcast.id;
 
     const handleDismiss = async () => {
-        // Smooth fade-out animation
-        setIsDismissing(true);
+        // Mark this specific broadcast as dismissing (for animation)
+        setDismissingId(notifId);
         setIsVisible(false);
-        // Wait for animation to complete before removing
-        setTimeout(() => {
-            setDismissedIds(prev => new Set(prev).add(notifId));
-            setIsDismissing(false);
-        }, 300);
 
-        // Mark as read in the backend
+        // Mark as read in the backend — this removes it from the
+        // getActiveBroadcasts query result (which filters by !isRead),
+        // so the banner disappears. The notification remains in the
+        // bell's history list (which shows all notifications including
+        // read ones).
         try {
             await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
         } catch (e) {
             console.error('[BroadcastBanner] Failed to mark as read:', e);
+            // Reset dismissing state on error so the user can retry
+            setDismissingId(null);
         }
     };
 
     const handleAction = () => {
-        const link = (broadcastNotif as any).link;
-        if (link?.context?.deepLink) {
-            window.location.hash = link.context.deepLink;
+        if (activeBroadcast.deepLink) {
+            window.location.hash = activeBroadcast.deepLink;
         }
         handleDismiss();
     };
 
-    const hasDeepLink = !!(broadcastNotif as any).link?.context?.deepLink;
+    const hasDeepLink = !!activeBroadcast.deepLink;
+    const isThisDismissing = dismissingId === notifId;
 
     return (
         <div
             className={`w-full transition-all duration-300 ease-out ${
-                isVisible && !isDismissing
+                isVisible && !isThisDismissing
                     ? 'opacity-100 translate-y-0'
                     : 'opacity-0 -translate-y-2 pointer-events-none'
             }`}
@@ -247,13 +244,13 @@ export const BroadcastBanner: React.FC = () => {
                             className="broadcast-title text-sm font-bold leading-tight"
                             style={{ color: theme.light.titleColor }}
                         >
-                            {broadcastNotif.title || 'Platform Announcement'}
+                            {activeBroadcast.title || 'Platform Announcement'}
                         </p>
                         <p
                             className="broadcast-body text-xs mt-1 leading-relaxed whitespace-pre-wrap break-words"
                             style={{ color: theme.light.bodyColor }}
                         >
-                            {broadcastNotif.message || ''}
+                            {activeBroadcast.message || ''}
                         </p>
                         {hasDeepLink && (
                             <button

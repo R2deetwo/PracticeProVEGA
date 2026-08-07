@@ -15,6 +15,7 @@ import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
 import type * as backups from "../backups.js";
 import type * as brainIngestion from "../brainIngestion.js";
+import type * as broadcasts from "../broadcasts.js";
 import type * as communications from "../communications.js";
 import type * as conversationMemory from "../conversationMemory.js";
 import type * as crons from "../crons.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   authUtils: typeof authUtils;
   backups: typeof backups;
   brainIngestion: typeof brainIngestion;
+  broadcasts: typeof broadcasts;
   communications: typeof communications;
   conversationMemory: typeof conversationMemory;
   crons: typeof crons;
