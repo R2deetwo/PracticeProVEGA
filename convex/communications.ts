@@ -141,7 +141,6 @@ export const sendWhatsApp = action({
         return { success: false, simulated: false, error: data?.error?.message || "Unknown error" };
       }
 
-      console.log("[WhatsApp] Sent OK →", data?.messages?.[0]?.id);
       return { success: true, simulated: false, messageId: data?.messages?.[0]?.id };
     } catch (error: any) {
       console.error("[WhatsApp] Send failed:", error);

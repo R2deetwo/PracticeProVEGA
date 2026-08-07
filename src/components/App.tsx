@@ -155,7 +155,6 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const isTenant = currentUser?.role === UserRole.Tenant;
     const isPortalUser = isClient || isTenant;
 
-    if (import.meta.env.DEV) console.log("[App/MainContent] Rendering...", { flowState, isDataLoaded, hasData, showSkeleton, isClient, view });
 
 
     const onUpdateUser = React.useCallback((data: Partial<User>) => {
@@ -680,7 +679,6 @@ export const App: React.FC = () => {
     }, idleTimeout);
     const [isToolkitOpen, setIsToolkitOpen] = useState(false);
 
-    if (import.meta.env.DEV) console.log("[App] Rendering App...", { flowState, isSessionLocked, currentUser: currentUser?.email });
 
     // Safety valve: if the session has been loading for 6 seconds and the user has no
     // stored session, abandon the splash and show the landing page immediately.
@@ -708,7 +706,6 @@ export const App: React.FC = () => {
             // If user has a remembered portal but no currentUser, they might be in a
             // loading state — don't redirect them away from their portal
             if (hasRememberedPortal) return;
-            if (import.meta.env.DEV) console.log("[App] Redirecting unauthenticated user from protected path:", location.pathname);
             navigate('/', { replace: true });
         }
     }, [isLoadingSession, currentUser, location.pathname, navigate]);
@@ -771,7 +768,6 @@ export const App: React.FC = () => {
                     await convex.mutation(api.portals.registerForPushNotifications, {
                         userId: currentUser.id,
                     });
-                    console.log('[App] Push notifications registered for user', currentUser.id);
                 } catch (err) {
                     console.warn('[App] Push registration backend call failed:', err);
                 }

@@ -268,7 +268,6 @@ export const getFirmData = query({
     let firmDetails = null;
     try { 
         firmDetails = await ctx.db.get(targetFirmId as any); 
-        console.log(`[getFirmData] Loading data for firm.`);
     } catch (e) { 
         console.error(`[getFirmData] Failed to fetch firmDetails for ${targetFirmId}:`, e);
     }
@@ -282,7 +281,6 @@ export const getFirmData = query({
                 product: targetFirmId === 'atrium-demo-firm-id' ? "atrium" : "vega",
                 aiSettings: { enableAllAiFeatures: true, enableJurisdictionalAnalysis: true }
             } as any;
-            console.log(`[getFirmData] Using mock firm details for demo mode.`);
         } else {
             console.warn(`[getFirmData] Firm record missing for ID: ${targetFirmId}.`);
             return null;
@@ -307,7 +305,6 @@ export const getFirmData = query({
         // 3. RECOVERY LOGIC: For specific tables, perform a scan to catch legacy/untagged data.
         const RECOVERY_TABLES = ["eventTypes", "contactCategories", "documentCategories", "checklistTemplates", "notePages", "researchSources", "properties"];
         if (RECOVERY_TABLES.includes(tableName)) {
-          console.log(`[getFirmData] Safety scan for ${tableName}...`);
           const all = await ctx.db.query(tableName as any).take(1000);
           const matches = all.filter((i: any) => {
             const iFirmId = i.firmId?.toString();
@@ -319,7 +316,6 @@ export const getFirmData = query({
 
         const uniqueResults = Array.from(new Map(combined.map(item => [item._id, item])).values());
         if (tableName === "properties") {
-            console.log(`[getFirmData] Found ${uniqueResults.length} properties`);
         }
         return uniqueResults;
       } catch (e) {
@@ -1820,7 +1816,6 @@ export const validateInviteCode = query({
 export const regenerateInviteCode = mutation({
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
-    console.log(`[RotateCode] Attempting rotation for firm`);
     
     let firm: any = null;
     
@@ -1828,7 +1823,6 @@ export const regenerateInviteCode = mutation({
     if (args.firmId) {
       try {
         firm = await ctx.db.get(args.firmId as any);
-        if (firm) console.log(`[RotateCode] Found firm by direct ID lookup`);
       } catch (e) {
         // Not a valid ID string, ignore
       }
@@ -1842,7 +1836,6 @@ export const regenerateInviteCode = mutation({
         (f.id === args.firmId) || 
         (f.name && f.name === args.firmId)
       );
-      if (firm) console.log(`[RotateCode] Found firm by scan`);
     }
 
     if (!firm) {
@@ -3380,7 +3373,6 @@ async function sendBrevoEmail(args: {
     return { success: false, error: errorBody };
   }
 
-  console.log(`[Brevo] Email sent successfully.`);
   return { success: true };
 }
 
@@ -3764,7 +3756,6 @@ export const purgeOldArchiveData = internalMutation({
         count++;
       }
     }
-    console.log(`[Data Retention] Purged ${count} archived records exceeding 30-day retention.`);
   }
 });
 
@@ -3872,7 +3863,6 @@ export const deleteMatterCascade = mutation({
     const { matterId, firmId } = args;
     const results: Record<string, number> = {};
 
-    console.log(`[Cascade] Starting wipe for Matter: ${matterId} in Firm: ${firmId}`);
 
     // 0. Fetch the matter itself
     const matter = await ctx.db.get(matterId as Id<"matters">);
@@ -3907,7 +3897,6 @@ export const deleteMatterCascade = mutation({
     ];
 
     for (const table of tablesToClean) {
-      console.log(`[Cascade] Cleaning table: ${table}`);
       const allFirmItems = await ctx.db
         .query(table as any)
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
@@ -3931,7 +3920,6 @@ export const deleteMatterCascade = mutation({
       results["matter"] = 1;
     }
 
-    console.log(`[Cascade Delete] Matter ${matterId} wiped. Summary:`, results);
     return { success: true, summary: results };
   },
 });
@@ -4024,7 +4012,6 @@ export const deleteContactCascade = mutation({
     for (const matter of matters) {
         // Wipe operational data for this matter
         for (const table of tablesToCascade) {
-            console.log(`[Contact Cascade] Cleaning operational data: ${table} for matter: ${matter._id}`);
             const items = await ctx.db
                 .query(table as any)
                 .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
@@ -4049,7 +4036,6 @@ export const deleteContactCascade = mutation({
     // 3. Delete the contact itself
     await ctx.db.delete(contactId as any);
 
-    console.log(`[Cascade Delete] Contact ${contactId} wiped. Summary:`, results);
     return { success: true, summary: results };
   },
 });
@@ -4143,7 +4129,6 @@ export const resetWhatsAppQuotaMonthly = internalMutation({
         reset++;
       }
     }
-    console.log(`[resetWhatsAppQuotaMonthly] Reset WhatsApp quota for ${reset} firm(s).`);
     return { reset };
   },
 });

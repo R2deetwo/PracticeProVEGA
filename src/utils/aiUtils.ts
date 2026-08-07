@@ -111,7 +111,6 @@ export const streamGemini = async (
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90_000);
         try {
-            console.log(`[AI] Attempting Gemini: ${modelName}`);
             const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
             const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
 

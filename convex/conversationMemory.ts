@@ -308,7 +308,6 @@ export const batchSummarize = internalAction({
       }
     }
 
-    console.log(
       `[Memory] Batch summarization complete: ${summarized} summarized, ${errors} errors, ${unsummarized.length - summarized - errors} skipped.`
     );
     return { summarized, errors };

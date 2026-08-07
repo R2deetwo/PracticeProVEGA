@@ -689,7 +689,6 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 if (cached) {
                     const parsed = JSON.parse(cached);
                     if (parsed && parsed.firmId === currentUser.firmId) {
-                        console.log('[DataProvider] Offline mode — using cached app data');
                         setAppState(parsed.state);
                         setIsDataLoaded(true);
                         setIsFullyLoaded(true);

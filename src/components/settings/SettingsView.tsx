@@ -405,7 +405,6 @@ export const SettingsView: React.FC = () => {
         appMode: currentUser?.id ? 'app' : 'setup',
         onNavigate: navigateTo,
         currentHistoryEntry,
-        onEnableDevMode: () => console.log("Dev mode not supported here.")
     };
 
     // ── Deep-link target handling (e.g. "open Portal Access" from elsewhere) ──

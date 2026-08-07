@@ -289,7 +289,6 @@ ${firstChunkText.slice(0, 200000)}`;
     try {
       const result = await this.callGemini([{ text: prompt }], 8000);
       if (result && (result.content_tree || result.orders || result.chapters || result.suitNumber)) {
-        console.log('ARIA-X: TOC Blueprint extracted successfully.');
         this.tocBlueprint = result;
         return result;
       }
@@ -339,7 +338,6 @@ ${firstChunkText.slice(0, 200000)}`;
     // Gemini failed — use regex
     const regexResult = regexExtract(text, docType);
     if (regexResult && this.hasContent(regexResult)) {
-      console.log(`ARIA-X: Using regex fallback for pages ${startPage}-${endPage}`);
       return regexResult;
     }
 
@@ -487,7 +485,6 @@ RETURN ONLY VALID JSON IN THIS FORMAT:
 
     // PHASE 4: Dedicated Mandatory Recovery Call
     if (missingNodes.length > 0 && rawTextSample.length > 0) {
-      console.log(`[ARIA-X] Triggering Mandatory Recovery for ${missingNodes.length} empty parents...`);
       const recoveryPrompt = `${SYSTEM_CONTEXT}
       
 TASK: Recover missing rules.
@@ -678,7 +675,6 @@ Output ONLY the cleaned JSON. Ensure all "children" arrays are populated.`;
 
         const parsed = this.parseJSON(rawText);
         if (parsed) {
-          console.log(`ARIA-X ✓ ${modelName}`);
           return parsed;
         }
 

@@ -242,7 +242,6 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
     try {
 
-      if (!isSilent) console.log("[CollectRentModal] Generating tenant receipt...");
       
       // Receipt ALWAYS reflects the FULL amount paid — no deductions
       const receiptAmount = payment ? payment.amount : amountValue;

@@ -1199,8 +1199,10 @@ const MessagesView: React.FC = () => {
     const hasAutoMarkedRead = useRef(false);
     useEffect(() => {
         if (hasAutoMarkedRead.current) return;
-        // Wait until both queries have loaded
-        if (!atriumInbound && !portalMessages) return;
+        // FIX: Previously checked `!atriumInbound && !portalMessages` which was
+        // always falsy because both are `result || []` (always truthy arrays).
+        // Now we check the RAW query results for undefined (loading state).
+        if (atriumInboundResult === undefined || portalMessagesResult === undefined) return;
         hasAutoMarkedRead.current = true;
 
         // Mark all unread atrium_inbound_messages as read

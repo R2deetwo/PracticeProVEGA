@@ -75,7 +75,6 @@ export function useApkVersionCheck(): ApkVersionCheckState {
         const build = parseInt(info.version.build || '0');
         localBuildRef.current = build;
         setLocalVersionCode(build);
-        console.log(`[useApkVersionCheck] Local versionCode: ${build}`);
       } catch (e) {
         console.warn('[useApkVersionCheck] Could not get app info:', e);
       }
@@ -125,7 +124,6 @@ export function useApkVersionCheck(): ApkVersionCheckState {
         setUpdateAvailable(true);
         setDismissed(false);
 
-        console.log(`[useApkVersionCheck] Update available: ${data.apkVersion} (code ${data.apkVersionCode}) > local ${local}`);
       } catch {
         // Network error — silently ignore, retry on next interval
       }

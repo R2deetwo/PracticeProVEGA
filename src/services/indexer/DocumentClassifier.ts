@@ -29,13 +29,11 @@ export class DocumentClassifier {
     const heuristicResult = this.scoreAndClassify(combinedText);
 
     if (isScanned && apiKey) {
-      console.log('DocumentClassifier: Scanned PDF detected, using Vision for classification...');
       const imageBase64 = await extractor.renderPageToImage(pdfDoc, 1, 1.5);
       if (imageBase64) {
         metadata = await this.extractMetadataMultimodal(imageBase64, apiKey);
       }
     } else {
-      console.log('DocumentClassifier: Digital PDF detected, using Text for classification...');
       try {
         metadata = await this.extractMetadata(combinedText.slice(0, 4000), apiKey);
       } catch (err) {
@@ -45,7 +43,6 @@ export class DocumentClassifier {
       // VITAL FIX: If text extraction failed or returned no title, fallback to VISION
       // This solves the issue where Gazettes have a heavily watermarked/garbled cover page
       if ((!metadata || !metadata.title || metadata.title === 'Unknown Document') && apiKey) {
-        console.log('DocumentClassifier: Text metadata bad/empty, falling back to Vision for cover page...');
         const imageBase64 = await extractor.renderPageToImage(pdfDoc, 1, 1.5);
         if (imageBase64) {
           const visionMeta = await this.extractMetadataMultimodal(imageBase64, apiKey);

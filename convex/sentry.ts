@@ -665,7 +665,6 @@ export const processInboundMessage = internalMutation({
 export const sendServiceChargeReminders = internalMutation({
   args: {},
   handler: async (ctx) => {
-    console.log("Running Service Charge WhatsApp Reminder scan...");
     const now = Date.now();
     let remindersSent = 0;
     let remindersSkipped = 0;
@@ -835,7 +834,6 @@ export const sendServiceChargeReminders = internalMutation({
       remindersSent++;
     }
 
-    console.log(`Service Charge Reminders: ${remindersSent} sent, ${remindersSkipped} skipped, ${remindersPausedCount} auto-paused.`);
     return { remindersSent, remindersSkipped, remindersPausedCount };
   },
 });
@@ -843,7 +841,6 @@ export const sendServiceChargeReminders = internalMutation({
 export const runDailyAutomation = internalMutation({
   args: {},
   handler: async (ctx) => {
-    console.log("Running Daily Sentry Automation Scans...");
     
     // In a full implementation, we would:
     // 1. Scan properties for automationSettings.remindRentDue === true
@@ -908,7 +905,6 @@ export const deleteInboundMessage = mutation({
 export const resetMonthlyServiceCharges = internalMutation({
   args: {},
   handler: async (ctx) => {
-    console.log("Running Monthly Service Charge Reset...");
     const now = Date.now();
     let resetCount = 0;
     let skippedCount = 0;
@@ -993,7 +989,6 @@ export const resetMonthlyServiceCharges = internalMutation({
       }
     }
 
-    console.log(`Monthly SC Reset: ${resetCount} reset, ${skippedCount} skipped.`);
     return { resetCount, skippedCount };
   },
 });

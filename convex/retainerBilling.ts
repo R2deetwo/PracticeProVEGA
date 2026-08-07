@@ -565,7 +565,6 @@ export const scanMattersForRetainerCycle = internalMutation({
       stagedCount++;
     }
 
-    console.log(
       `[retainerBilling.scanMattersForRetainerCycle] staged=${stagedCount} skipped=${skippedCount}`,
     );
     return { stagedCount, skippedCount };
@@ -606,7 +605,6 @@ export const advanceStagedOutbox = internalMutation({
       advancedCount++;
     }
 
-    console.log(`[retainerBilling.advanceStagedOutbox] advanced=${advancedCount}`);
     return { advancedCount };
   },
 });

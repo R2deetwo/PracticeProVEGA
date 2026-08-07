@@ -123,7 +123,6 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    // preserves the correct product. This is the BULLETPROOF fix for
    // the "vega email from atrium signup" bug.
    const productToSend = productRef.current;
-   console.log('[Signup] Submitting with product:', productToSend, '(ref:', productRef.current, ', state:', selectedProduct, ', modalContext:', modalContext?.selectedProduct, ')');
 
    const result = await signup(
     '',

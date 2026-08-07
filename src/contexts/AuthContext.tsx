@@ -74,7 +74,6 @@ const getInitialToken = () => {
                 urlParams.delete('impersonate');
                 const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
                 window.history.replaceState({}, '', newUrl);
-                console.log('[Auth] Founder impersonation: initial token set for', token);
                 return token;
             }
         } catch { /* URL parsing failed — fall through to normal session check */ }
@@ -218,7 +217,6 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 const localKey = localStorage.getItem('practicepro_custom_gemini_key');
                 if (localKey !== serverApiKey) {
                     localStorage.setItem('practicepro_custom_gemini_key', serverApiKey);
-                    console.log('[Auth] Synced API key from server to localStorage');
                 }
             } catch {}
         }
@@ -259,7 +257,6 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     if (cached) {
                         const parsed = JSON.parse(cached);
                         if (parsed && parsed.token === sessionToken) {
-                            console.log('[Auth] Offline mode — using cached user data');
                             return parsed.user;
                         }
                     }

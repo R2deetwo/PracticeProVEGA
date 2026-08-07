@@ -43,7 +43,6 @@ export const useBrainAutoIndex = () => {
             const needsIndex = !lastIndexTime || (now - parseInt(lastIndexTime)) > (24 * 60 * 60 * 1000);
 
             if (needsIndex) {
-                if (import.meta.env.DEV) console.log('[Brain] Starting silent background index');
                 isRunning.current = true;
 
                 try {
@@ -56,7 +55,6 @@ export const useBrainAutoIndex = () => {
                     });
 
                     localStorage.setItem(STORAGE_KEY, now.toString());
-                    if (import.meta.env.DEV) console.log(`[Brain] Silent index complete: ${result.indexed} chunks stored.`);
                 } catch (e) {
                     if (import.meta.env.DEV) console.error('[Brain] Silent index failed:', e);
                 } finally {

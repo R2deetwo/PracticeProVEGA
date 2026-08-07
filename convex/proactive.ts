@@ -307,7 +307,6 @@ export const scanDeadlines = internalMutation({
       }
     }
 
-    console.log(`[Proactive] Deadline scan complete: ${created} new insights created.`);
     return { created };
   },
 });
@@ -483,7 +482,6 @@ export const detectAnomalies = internalMutation({
       }
     }
 
-    console.log(`[Proactive] Anomaly scan complete: ${created} new insights created.`);
     return { created };
   },
 });
@@ -575,7 +573,6 @@ export const generateMorningBriefing = internalAction({
       }
     }
 
-    console.log(`[Proactive] Morning briefing complete: ${briefingsCreated} briefings generated.`);
     return { briefingsCreated };
   },
 });
@@ -916,7 +913,6 @@ export const sendCourtReminders = internalMutation({
       }
     }
 
-    console.log(`[sendCourtReminders] Created ${created} court reminder(s).`);
     return { created };
   },
 });

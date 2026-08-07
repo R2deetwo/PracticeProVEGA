@@ -549,7 +549,6 @@ export const cleanupExpiredTokens = internalMutation({
       }
     }
 
-    console.log(`[VMS] Cleanup: ${expiredCount} token(s) marked as expired`);
     return { expiredCount };
   },
 });

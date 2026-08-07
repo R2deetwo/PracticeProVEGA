@@ -911,7 +911,6 @@ export const PortalAccessSettings: React.FC = () => {
 
   // Delete with confirmation — shows dialog, then calls cleanup mutation
   const handleDeleteRequest = (invite: any) => {
-    console.log('[PortalAccessSettings] Delete requested for invite:', invite?._id, invite?.inviteeEmail);
     setDeleteTarget(invite);
   };
 
@@ -920,7 +919,6 @@ export const PortalAccessSettings: React.FC = () => {
     const inviteId = deleteTarget._id;
     const inviteEmail = (deleteTarget.inviteeEmail || '').toLowerCase().trim();
     const invitePhone = deleteTarget.inviteePhone || '';
-    console.log('[PortalAccessSettings] Confirming delete:', { inviteId, inviteEmail, invitePhone, inviteIdType: typeof inviteId });
     setIsDeleting(true);
     try {
       // ── Step 1: Run the cleanup mutation ──
@@ -986,7 +984,6 @@ export const PortalAccessSettings: React.FC = () => {
           // Already deleted by Step 1 (new backend), or already gone — non-fatal
         }
       }
-      console.log(`[PortalAccessSettings] Hard-deleted ${hardDeletedCount} invite record(s) for ${inviteEmail}`);
 
       addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
       setDeleteTarget(null);

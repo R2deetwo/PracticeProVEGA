@@ -2715,7 +2715,6 @@ export const repairPortalUserFirmId = mutation({
 
       // firmId is set but user has NO properties in that firm — it's stale/wrong.
       // Continue below to find the correct firmId from invite/property records.
-      console.log(`[repairPortalUserFirmId] User firmId "${user.firmId}" is stale — no properties found. Searching for correct firmId...`);
     }
 
     // 2. Try to find firmId from invite records
@@ -3058,7 +3057,6 @@ export const processScheduledMessages = internalAction({
       }
     }
 
-    console.log(`[processScheduledMessages] Processed: ${processed}, Sent: ${sent}, Failed: ${failed}`);
     return { processed, sent, failed };
   },
 });
@@ -5516,7 +5514,6 @@ export const sendNoticeEmails = internalAction({
   },
   handler: async (ctx, args): Promise<{ sent: number; total: number }> => {
     if (args.recipients.length === 0) {
-      console.log("[sendNoticeEmails] No recipients provided");
       return { sent: 0, total: 0 };
     }
 
@@ -5526,7 +5523,6 @@ export const sendNoticeEmails = internalAction({
       : args.recipients;
 
     if (targetedResidents.length === 0) {
-      console.log("[sendNoticeEmails] No targeted residents after property filter");
       return { sent: 0, total: args.recipients.length };
     }
 
@@ -5588,7 +5584,6 @@ export const sendNoticeEmailsForFirm = internalAction({
     const emailsEnabled = meta && (saved["notice_board_post"] ?? meta.defaultEnabled);
 
     if (!emailsEnabled) {
-      console.log("[sendNoticeEmailsForFirm] Notice board emails disabled for firm", args.firmId);
       return { sent: 0, total: 0, skipped: true };
     }
 
@@ -5606,7 +5601,6 @@ export const sendNoticeEmailsForFirm = internalAction({
       }));
 
     if (residents.length === 0) {
-      console.log("[sendNoticeEmailsForFirm] No resident recipients found");
       return { sent: 0, total: 0, skipped: false };
     }
 
@@ -5616,7 +5610,6 @@ export const sendNoticeEmailsForFirm = internalAction({
       : residents;
 
     if (targetedResidents.length === 0) {
-      console.log("[sendNoticeEmailsForFirm] No targeted residents after property filter");
       return { sent: 0, total: residents.length, skipped: false };
     }
 
@@ -5841,7 +5834,6 @@ export const sendAdminNotificationEmail = internalAction({
         subject: args.title,
         htmlContent: htmlBody,
       });
-      console.log(`[sendAdminNotificationEmail] Sent to ${args.toEmail} (${args.notificationType})`);
     } catch (err: any) {
       console.error(`[sendAdminNotificationEmail] Failed for ${args.toEmail}:`, err?.message);
     }

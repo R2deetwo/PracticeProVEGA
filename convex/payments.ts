@@ -164,7 +164,6 @@ export const completePaystackPayment = internalMutation({
       updatedAt: new Date().toISOString(),
     } as any);
 
-    console.log(`[completePaystackPayment] Invoice ${invoice._id} marked Paid via Paystack (ref: ${args.reference})`);
     return { success: true, invoiceId: invoice._id };
   },
 });

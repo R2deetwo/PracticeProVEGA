@@ -159,7 +159,6 @@ async function cleanupOldGitHubBackups(
   const oldEntries: any[] = await ctx.runQuery(internal.backups.getOldBackupLogs, { target: "github", cutoff });
 
   if (oldEntries.length === 0) return;
-  console.log(`[Backup] GitHub cleanup: deleting ${oldEntries.length} old backup(s)...`);
 
   for (const entry of oldEntries) {
     try {
@@ -180,7 +179,6 @@ async function cleanupOldGitHubBackups(
       });
       // Delete the log entry
       await ctx.runMutation(internal.backups.deleteBackupLog, { id: entry._id });
-      console.log(`[Backup] GitHub deleted: ${entry.backupKey}`);
     } catch (err: any) {
       console.warn(`[Backup] Failed to delete GitHub backup ${entry.backupKey}:`, err.message);
     }
@@ -230,7 +228,6 @@ async function cleanupOldTelegramBackups(
   const oldEntries: any[] = await ctx.runQuery(internal.backups.getOldBackupLogs, { target: "telegram", cutoff });
 
   if (oldEntries.length === 0) return;
-  console.log(`[Backup] Telegram cleanup: deleting ${oldEntries.length} old message(s)...`);
 
   for (const entry of oldEntries) {
     try {
@@ -243,7 +240,6 @@ async function cleanupOldTelegramBackups(
         }),
       });
       await ctx.runMutation(internal.backups.deleteBackupLog, { id: entry._id });
-      console.log(`[Backup] Telegram deleted message ${entry.externalId}`);
     } catch (err: any) {
       console.warn(`[Backup] Failed to delete Telegram message ${entry.externalId}:`, err.message);
     }
@@ -261,7 +257,6 @@ export const runBackup = internalAction({
     const telegramConfig = getTelegramConfig();
 
     if (!githubConfig && !telegramConfig) {
-      console.log("[Backup] No backup targets configured. Set GITHUB_BACKUP_* and/or TELEGRAM_* env vars in Convex dashboard.");
       return { success: false, reason: "NO_TARGETS_CONFIGURED" };
     }
 
@@ -270,7 +265,6 @@ export const runBackup = internalAction({
     const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/[:]/g, ""); // HHMMSS
     const backupKey = `${dateStr}/convex-backup-${timeStr}.json.gz`;
 
-    console.log(`[Backup] Starting export for ${dateStr} at ${now.toISOString()}...`);
 
     // ─── Export each table ──────────────────────────────────────────────
     const exportData: Record<string, any> = {
@@ -292,7 +286,6 @@ export const runBackup = internalAction({
         totalDocs += docs.length;
         const tableBytes = JSON.stringify(docs).length;
         totalBytes += tableBytes;
-        console.log(`[Backup] ${tableName}: ${docs.length} docs (${(tableBytes / 1024).toFixed(1)} KB)`);
       } catch (err: any) {
         console.error(`[Backup] Failed to export ${tableName}:`, err.message);
         exportData[tableName] = { _error: err.message, _exported: false };
@@ -304,14 +297,12 @@ export const runBackup = internalAction({
     const compressed = await gzip(jsonStr);
     const compressedSize = compressed.byteLength;
 
-    console.log(`[Backup] Total: ${totalDocs} docs, ${(totalBytes / 1024 / 1024).toFixed(2)} MB raw → ${(compressedSize / 1024 / 1024).toFixed(2)} MB compressed`);
 
     const results: any = { backupKey, totalDocs, rawBytes: totalBytes, compressedBytes: compressedSize, targets: {} };
 
     // ─── Upload to GitHub ──────────────────────────────────────────────
     if (githubConfig) {
       try {
-        console.log("[Backup] Uploading to GitHub...");
         const ghResult = await uploadToGitHub(githubConfig, compressed, backupKey);
         await ctx.runMutation(internal.backups.logBackup, {
           target: "github",
@@ -322,7 +313,6 @@ export const runBackup = internalAction({
           success: true,
         });
         results.targets.github = { success: true, url: ghResult.url };
-        console.log(`[Backup] ✓ GitHub: ${ghResult.url}`);
 
         // Cleanup old backups
         try {
@@ -348,7 +338,6 @@ export const runBackup = internalAction({
     // ─── Upload to Telegram ────────────────────────────────────────────
     if (telegramConfig) {
       try {
-        console.log("[Backup] Uploading to Telegram...");
         const tgResult = await uploadToTelegram(telegramConfig, compressed, backupKey);
         await ctx.runMutation(internal.backups.logBackup, {
           target: "telegram",
@@ -359,7 +348,6 @@ export const runBackup = internalAction({
           success: true,
         });
         results.targets.telegram = { success: true, messageId: tgResult.messageId };
-        console.log(`[Backup] ✓ Telegram: message ${tgResult.messageId}`);
 
         // Cleanup old messages
         try {
@@ -382,7 +370,6 @@ export const runBackup = internalAction({
       }
     }
 
-    console.log("[Backup] Done.");
     return { success: true, ...results };
   },
 });

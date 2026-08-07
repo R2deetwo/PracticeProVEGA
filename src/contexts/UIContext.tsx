@@ -291,7 +291,6 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         const prevId = prevUserIdRef.current;
         const nextId = currentUser?.id;
         if (prevId && nextId && prevId !== nextId) {
-            if (import.meta.env.DEV) console.log(`[UIProvider] User changed. Resetting history.`);
             setHistory([{ view: 'dashboard', selectedId: null }]);
             setHistoryIndex(0);
             setModal(null);

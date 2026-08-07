@@ -54,7 +54,6 @@ export class DocumentMerger {
 
     // ── FALLBACK: if ALL chunks failed AI parsing, do a combined raw-text extraction ──
     if (completedChunks.length === 0 && chunks.length > 0) {
-      console.log('ARIA-X: All chunks failed AI parsing. Running combined fallback extraction…');
       const rawTextSample = chunks
         .filter(c => c.rawText && c.rawText.length > 50)
         .sort((a, b) => a.chunkId - b.chunkId)

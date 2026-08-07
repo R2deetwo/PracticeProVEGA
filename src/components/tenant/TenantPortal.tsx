@@ -180,12 +180,10 @@ const TenantPortal: React.FC = () => {
     if (firmResolution === undefined) return; // Still loading
 
     // Both firmId and firmResolution are empty/null — need repair
-    console.log('[TenantPortal] No firmId and no invite resolution. Attempting auto-repair...');
     setHasAttemptedFirmRepair(true);
     repairFirmId({ email })
       .then((result: any) => {
         if (result.success) {
-          console.log('[TenantPortal] Auto-repair successful. firmId restored:', result.firmId);
         } else {
           console.warn('[TenantPortal] Auto-repair failed:', result.message);
         }
@@ -209,12 +207,10 @@ const TenantPortal: React.FC = () => {
                       (!tenantInfo.units || tenantInfo.units.length === 0);
 
     if (hasNoData) {
-      console.log('[TenantPortal] Tenant not found in any property. Attempting auto-relink...');
       setHasAttemptedRelink(true);
       relinkToProperty({ email, firmId: effectiveFirmId })
         .then((result: any) => {
           if (result.success && result.linked) {
-            console.log('[TenantPortal] Auto-relink successful. Data will refresh.');
           } else {
             console.warn('[TenantPortal] Auto-relink could not find matching property:', result.message);
           }

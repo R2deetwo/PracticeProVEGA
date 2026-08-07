@@ -1101,7 +1101,6 @@ ${sourceList}
                             const { parseAIResponseForCitations } = await import('../../../utils/citationParser');
                             const parsed = parseAIResponseForCitations(draftBuffer, citationRegistry);
                             if (parsed.hasSources && parsed.citations.length > 0) {
-                                console.log(`[DraftPro] Parsed ${parsed.citations.length} citations from draft output`);
                                 // Bump the version counter to trigger a re-render
                                 // so the Sources floater appears.
                                 setCitationVersion(v => v + 1);
@@ -1519,10 +1518,7 @@ ${allCites.map((c: any) => {
 
             // ─── DIAGNOSTIC LOG ──────────────────────────────────────
             // Logs the payload size and format so we can diagnose failures.
-            console.log(`[saveAsFile] Starting ${format.toUpperCase()} export`, {
-                htmlLength: html.length,
-                htmlSizeKB: Math.round(html.length / 1024),
-            });
+            // (console.log removed in production cleanup)
 
             addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
 
@@ -1567,10 +1563,7 @@ ${allCites.map((c: any) => {
                 return;
             }
 
-            console.log(`[saveAsFile] ${format.toUpperCase()} blob generated`, {
-                blobSizeKB: Math.round(blob.size / 1024),
-                generateTimeMs: Date.now() - startTime,
-            });
+            // (diagnostic console.log removed in production cleanup)
 
             // Upload to Convex storage with a timeout
             addToast(`Uploading ${format.toUpperCase()} to documents…`, { type: 'info' });
@@ -1585,10 +1578,7 @@ ${allCites.map((c: any) => {
                     }),
                 ]);
 
-                console.log(`[saveAsFile] Upload complete`, {
-                    storageId,
-                    uploadTimeMs: Date.now() - uploadStartTime,
-                });
+                // (diagnostic console.log removed in production cleanup)
 
                 // Create a Document record so it appears in the Documents section
                 await handleAddDocumentAndAnalyze({
