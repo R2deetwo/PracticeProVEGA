@@ -2616,10 +2616,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                                 if (isDraftingAction) {
                                     // Draft/Prepare → open DraftPro
-                                    // DRAFTPRO-NEW-TAB — mobile fallback (allowed)
+                                    // FIX: Pass draftPrompt so the editor actually triggers AI drafting.
+                                    // Previously, draftPrompt was missing — the editor opened empty.
+                                    const draftPrompt = `Draft a ${taskTitle}. Follow Nigerian law and applicable state civil procedure rules. Format as a professional legal document with proper headings, recitals, operative clauses, and signature blocks. Use placeholders in [SQUARE BRACKETS] for case-specific details like names, dates, addresses, and amounts that need to be filled in.`;
                                     openEditorRef.current(null, {
                                         draftTitle: taskTitle,
-                                        isCourtProcess: true,
+                                        draftPrompt,
+                                        isCourtProcess: /quit|evict|notice|court|summons|claim|motion|petition/i.test(taskTitle),
                                         openedByAloa: true
                                     });
                                 } else if (isTaskCreation) {

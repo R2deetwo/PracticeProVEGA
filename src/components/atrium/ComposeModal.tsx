@@ -556,6 +556,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             : (r.tenantPhone || r.phone || '');
 
           if (!recipient) {
+            // FIX: Show a toast for empty recipient instead of silently skipping.
+            // Previously, the send silently failed with no user feedback.
+            showToast(`No ${channel === 'email' ? 'email' : 'phone number'} for ${r.tenantName || r.name || 'recipient'}. Skipped.`, 'error');
             failCount++;
             continue;
           }

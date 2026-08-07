@@ -412,6 +412,12 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     early-return, so users in DraftPro never saw the prompt. */}
                 <VersionRefreshBanner />
                 <ApkUpdateBanner />
+                {/* FIX: Render AloaFAB and AloaPanel in editor mode so users
+                    can return to their Aloa conversation after drafting.
+                    Previously these were unmounted in editor mode, leaving
+                    users stranded in DraftPro with no way back to Aloa. */}
+                <AloaFAB />
+                <AloaPanel />
             </main>
         );
     }

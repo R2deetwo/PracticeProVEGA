@@ -486,7 +486,11 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 }
 
                 // Route Caution Deposit to Ledger if applicable
-                if (!unit.isCautionNA && unit.cautionDeposit && unit.cautionDeposit > 0) {
+                // FIX: Only add deposit on NEW property creation, not on edits.
+                // Previously, editing a property re-created the deposit entry
+                // every time, producing duplicate ledger entries.
+                const isExistingUnit = isEditing && existsInDb;
+                if (!isExistingUnit && !unit.isCautionNA && unit.cautionDeposit && unit.cautionDeposit > 0) {
                     try {
                         await addLedgerEntry({
                             firmId,
