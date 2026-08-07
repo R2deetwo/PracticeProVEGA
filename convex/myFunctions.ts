@@ -2204,15 +2204,25 @@ export const recordConsent = mutation({
       [timestampField]: Date.now(),
     });
 
-    // Also write an immutable consent log entry for full audit trail
-    await ctx.db.insert("consentLogs" as any, {
-      userId: user._id,
-      firmId: user.firmId,
-      email: args.email,
-      consentType: args.consentType,
-      granted: args.granted,
+    // Also write an immutable consent log entry for full audit trail.
+    // FIX: Previously wrote to non-existent 'consentLogs' table. Now writes
+    // to the existing 'audit_logs' table with consent details in metadata.
+    await ctx.db.insert("audit_logs", {
+      firmId: user.firmId || 'system',
+      actorId: String(user._id),
+      actorName: user.name || args.email,
+      actorRole: user.role || 'Unknown',
+      action: args.granted ? 'consent_granted' : 'consent_revoked',
+      resource: 'consent',
+      resourceId: String(user._id),
+      resourceName: args.consentType,
+      metadata: {
+        consentType: args.consentType,
+        granted: args.granted,
+        email: args.email,
+        ipHint: args.ipHint,
+      },
       timestamp: Date.now(),
-      ipHint: args.ipHint,
     });
 
     return { success: true };
@@ -3708,15 +3718,25 @@ export const triggerBreachNotification = mutation({
       }
     }
 
-    // Log the incident
-    await ctx.db.insert("consentLogs" as any, {
-      userId: admin._id,
-      firmId: args.firmId || "ALL",
-      email: args.adminEmail,
-      consentType: "breach_notification_sent",
-      granted: true,
+    // Log the incident.
+    // FIX: Previously wrote to non-existent 'consentLogs' table. Now writes
+    // to the existing 'audit_logs' table.
+    await ctx.db.insert("audit_logs", {
+      firmId: args.firmId || 'system',
+      actorId: String(admin._id),
+      actorName: admin.name || args.adminEmail,
+      actorRole: admin.role || 'Admin',
+      action: 'breach_notification_sent',
+      resource: 'security',
+      resourceId: args.adminEmail,
+      resourceName: args.incidentTitle,
+      metadata: {
+        consentType: 'breach_notification_sent',
+        granted: true,
+        email: args.adminEmail,
+        ipHint: `Notified ${scheduled} users — Incident: ${args.incidentTitle}`,
+      },
       timestamp: Date.now(),
-      ipHint: `Notified ${scheduled} users — Incident: ${args.incidentTitle}`,
     });
 
     return { success: true, notified: scheduled };

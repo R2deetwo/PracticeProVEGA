@@ -60,6 +60,7 @@ import { useProduct, useSignerContext } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
 import { useDataState, useDataActions } from '../../../contexts/DataContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../ui/ConfirmDialog';
 import { useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useAloa } from '../../../contexts/AloaProvider';
@@ -441,6 +442,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     citations,
 }) => {
     const { addToast, navigateTo } = useUI();
+    const { confirm: confirmDialog, ConfirmDialog: ConfirmDialogEl } = useConfirm();
     const { appState } = useDataState();
     const { handleUpdateFirmDetails, addItem, handleAddDocumentAndAnalyze } = useDataActions();
     const { currentUser } = useAuth();
@@ -1637,12 +1639,18 @@ ${allCites.map((c: any) => {
     }, [editor, title, currentUser, appState, addToast, generateUploadUrl, handleAddDocumentAndAnalyze]);
 
     // Clears the editor and resets the title for a fresh start.
-    const handleNewDocument = useCallback(() => {
+    const handleNewDocument = useCallback(async () => {
         if (!editor) return;
         // Confirm if there's unsaved content
         const hasContent = editor.getHTML().replace(/<[^>]*>/g, '').trim().length > 0;
         if (hasContent && !isSaved) {
-            if (!window.confirm('Start a new document? Unsaved changes will be lost.')) return;
+            const ok = await confirmDialog({
+                title: 'Start New Document',
+                message: 'Start a new document? Unsaved changes will be lost.',
+                confirmLabel: 'Start New',
+                danger: true,
+            });
+            if (!ok) return;
         }
         editor.commands.clearContent();
         editor.commands.setContent('<p></p>');
@@ -3549,6 +3557,7 @@ ${allCites.map((c: any) => {
           ul, ol { break-inside: avoid !important; page-break-inside: avoid !important; }
         }
       `}</style>
+        {ConfirmDialogEl}
         </div >
     );
 };

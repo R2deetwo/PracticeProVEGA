@@ -20,6 +20,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { PlusIcon, TrashIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
+import { useConfirm } from '../ui/ConfirmDialog';
 import NairaSymbol from '../NairaSymbol';
 
 // Inline arrow icons (not all available in constants)
@@ -43,6 +44,7 @@ const TrustAccountTab: React.FC = () => {
     const { currentUser } = useAuth();
     const { coreState } = useCoreState();
     const { addToast } = useUI();
+    const { confirm, ConfirmDialog } = useConfirm();
     const { matterState } = useMatterState();
     const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
@@ -60,6 +62,7 @@ const TrustAccountTab: React.FC = () => {
     const matters = matterState.matters || [];
 
     return (
+        <>
         <div className="space-y-5">
             {/* Balance Hero Card */}
             <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
@@ -185,7 +188,13 @@ const TrustAccountTab: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={async () => {
-                                        if (!confirm('Delete this transaction? Running balances will be recalculated.')) return;
+                                        const ok = await confirm({
+                                            title: 'Delete Transaction',
+                                            message: 'Delete this transaction? Running balances will be recalculated.',
+                                            confirmLabel: 'Delete',
+                                            danger: true,
+                                        });
+                                        if (!ok) return;
                                         try {
                                             await deleteTransaction({ transactionId: tx._id, firmId });
                                             addToast('Transaction deleted.', { type: 'success' });
@@ -214,6 +223,8 @@ const TrustAccountTab: React.FC = () => {
                 </p>
             </div>
         </div>
+        {ConfirmDialog}
+        </>
     );
 };
 

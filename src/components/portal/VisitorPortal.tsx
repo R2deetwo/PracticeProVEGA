@@ -21,6 +21,7 @@ import { api } from '../../../convex/_generated/api';
 import { VisitorIcon, CheckIcon, ClockIcon, XCircleIcon, SendIcon, ShareIcon, MapPinIcon } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface VisitorPortalProps {
     firmId: string;
@@ -49,6 +50,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     residentName,
 }) => {
     const { addToast } = useUI();
+    const { confirm, ConfirmDialog } = useConfirm();
     const { currentUser } = useAuth();
     const residentId = currentUser?.id || '';
 
@@ -124,7 +126,13 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     };
 
     const handleRevoke = async (tokenId: string, name: string) => {
-        if (!confirm(`Revoke visitor code for ${name}? They will not be able to enter.`)) return;
+        const ok = await confirm({
+            title: 'Revoke Visitor Code',
+            message: `Revoke visitor code for ${name}? They will not be able to enter.`,
+            confirmLabel: 'Revoke',
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await revokeToken({ tokenId: tokenId as any, reason: 'Revoked by resident', residentId });
             addToast('Code revoked.', { type: 'success' });
@@ -135,6 +143,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
 
     // ─── Render ─────────────────────────────────────────────────────────
     return (
+        <>
         <div className="space-y-5">
             {/* Hero header */}
             <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-premium shadow-premium p-6 text-white">
@@ -370,5 +379,8 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                 </div>
             )}
         </div>
+        {ConfirmDialog}
+        </>
     );
 };
+
