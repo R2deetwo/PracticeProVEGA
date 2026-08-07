@@ -1151,7 +1151,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     if (!tenantPhone) return;
                                                     const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
                                                     const num = clean.startsWith('234') ? clean : `234${clean}`;
-                                                    const msg = encodeURIComponent(`Hello ${d.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${d.name} at ${property.address}.`);
+                                                    // GRAMMAR FIX: If d.name already starts with "Unit" (e.g., "Unit 2"),
+                                                    // don't prepend another "Unit" — that would create "regarding Unit Unit 2".
+                                                    const unitName = d.name || '';
+                                                    const unitRef = unitName.toLowerCase().startsWith('unit') ? unitName : `Unit ${unitName}`;
+                                                    const msg = encodeURIComponent(`Hello ${d.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding ${unitRef} at ${property.address}.`);
                                                     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
                                                 };
 
@@ -1186,7 +1190,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             senderName: currentUser?.name || 'Property Manager',
                                                             senderRole: 'admin',
                                                             subject: `Message for ${d.tenantName || 'Tenant'}`,
-                                                            content: `Hello ${d.tenantName || 'Tenant'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding Unit ${d.name} at ${property.address}.`,
+                                                            content: `Hello ${d.tenantName || 'Tenant'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding ${(d.name || '').toLowerCase().startsWith('unit') ? d.name : `Unit ${d.name}`} at ${property.address}.`,
                                                             unitId: unit.id,
                                                         });
                                                         addToast('Portal message sent!', { type: 'success' });

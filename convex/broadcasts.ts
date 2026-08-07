@@ -293,6 +293,13 @@ export const getActiveBroadcastsForAdmin = query({
  * Used by the Founder Admin Dashboard's "Active Banners Control Center"
  * when the founder clicks "Kill / Archive Banner".
  *
+ * MATCHING LOGIC:
+ *   The broadcastId passed from the admin UI may be either:
+ *     1. A real broadcastId stored in link.context.broadcastId (new broadcasts)
+ *     2. A notification _id fallback (legacy broadcasts without broadcastId)
+ *
+ *   We match BOTH so that legacy broadcasts are correctly archived.
+ *
  * SECURITY: Requires founder auth.
  */
 export const archiveBroadcast = mutation({
@@ -301,22 +308,24 @@ export const archiveBroadcast = mutation({
     broadcastId: v.string(),
   },
   handler: async (ctx, args) => {
-    // Auth check
     const users = await ctx.db.query("users").take(500);
     const founder = users.find((u: any) =>
       u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    // Find all notifications with this broadcastId
     const allNotes = await ctx.db.query("notifications").collect();
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
       const type = n.type || '';
       if (!type.startsWith('broadcast_')) return false;
-      return (n.link as any)?.context?.broadcastId === args.broadcastId;
+      // Match by link.context.broadcastId OR by the notification's own _id
+      // (for legacy broadcasts where broadcastId falls back to _id)
+      const bid = (n.link as any)?.context?.broadcastId;
+      if (bid === args.broadcastId) return true;
+      if (String(n._id) === args.broadcastId) return true;
+      return false;
     });
 
-    // Delete them all
     for (const n of toDelete) {
       await ctx.db.delete(n._id);
     }
@@ -331,6 +340,15 @@ export const archiveBroadcast = mutation({
  * Archives (deletes) ALL notification rows for MULTIPLE broadcastIds.
  * Used by the "Bulk Archive Selected" button in the Active Banners
  * Control Center.
+ *
+ * MATCHING LOGIC:
+ *   Each broadcastId in the array may be either:
+ *     1. A real broadcastId stored in link.context.broadcastId (new broadcasts)
+ *     2. A notification _id fallback (legacy broadcasts without broadcastId)
+ *
+ *   We match BOTH so that legacy broadcasts are correctly archived.
+ *   This fixes the "Archive Selected removes 0" bug where old broadcasts
+ *   had no broadcastId field and thus never matched.
  *
  * SECURITY: Requires founder auth.
  */
@@ -350,8 +368,11 @@ export const bulkArchiveBroadcasts = mutation({
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
       const type = n.type || '';
       if (!type.startsWith('broadcast_')) return false;
+      // Match by link.context.broadcastId OR by the notification's own _id
       const bid = (n.link as any)?.context?.broadcastId;
-      return bid && args.broadcastIds.includes(bid);
+      if (bid && args.broadcastIds.includes(bid)) return true;
+      if (args.broadcastIds.includes(String(n._id))) return true;
+      return false;
     });
 
     for (const n of toDelete) {
@@ -411,5 +432,38 @@ export const cleanupDuplicateBroadcasts = mutation({
     }
 
     return { success: true, deleted, totalChecked: broadcasts.length };
+  },
+});
+
+/**
+ * purgeAllBroadcasts
+ *
+ * Deletes ALL broadcast notifications from the database — every single
+ * notification row with a type starting with 'broadcast_'.
+ *
+ * Used by the Founder Admin Dashboard's "Purge All" button when the
+ * founder wants to clean up all test/stale broadcasts in one shot.
+ *
+ * SECURITY: Requires founder auth.
+ */
+export const purgeAllBroadcasts = mutation({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    const users = await ctx.db.query("users").take(500);
+    const founder = users.find((u: any) =>
+      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
+    );
+    if (!founder) throw new Error("Unauthorized: founder access required");
+
+    const allNotes = await ctx.db.query("notifications").collect();
+    const toDelete = allNotes.filter((n: Doc<"notifications">) => {
+      return (n.type || '').startsWith('broadcast_');
+    });
+
+    for (const n of toDelete) {
+      await ctx.db.delete(n._id);
+    }
+
+    return { success: true, deleted: toDelete.length };
   },
 });

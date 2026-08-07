@@ -321,10 +321,18 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, [markNotificationsMutation, currentUser?.email]);
 
     const handleClearAllNotifications = React.useCallback(async () => {
+        // Optimistic update — immediately clear all notifications from local state
+        // so the bell badge drops to 0 instantly without waiting for Convex.
+        setAppState(prev => ({
+            ...prev,
+            notifications: [],
+        }));
         try {
             await clearAllNotificationsMutation({ userEmail: currentUser?.email });
         } catch (err: any) {
             console.warn('[handleClearAllNotifications] Failed:', err?.message);
+            // On failure, the Convex subscription will push the real data back
+            // (no revert needed — the next query refresh restores the true state)
         }
     }, [clearAllNotificationsMutation, currentUser?.email]);
     

@@ -166,11 +166,12 @@ const TaskColumn: React.FC<{
     onUpdateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
     openModal: (modalType: 'newTask', id?: string, context?: any) => void;
     appMode: AppMode;
-}> = ({ status, tasks, users, matters, onViewDetails, onPriorityClick, onUpdateTaskStatus, openModal, appMode }) => {
+    isPulsing?: boolean;
+}> = ({ status, tasks, users, matters, onViewDetails, onPriorityClick, onUpdateTaskStatus, openModal, appMode, isPulsing }) => {
     const title = status === 'pending_verification' ? 'Pending Review' : status.replace('_', ' ');
 
     return (
-        <div className="flex flex-col w-[85vw] sm:w-72 flex-shrink-0 h-full rounded-xl bg-slate-100/50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/50 snap-center">
+        <div className={`flex flex-col w-[85vw] sm:w-72 flex-shrink-0 h-full rounded-xl bg-slate-100/50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/50 snap-center transition-all duration-500 ${isPulsing ? 'ring-2 ring-primary-400 ring-offset-2 ring-offset-transparent scale-[1.02] shadow-lg' : ''}`}>
             {/* Column Header */}
             <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-zinc-700/50">
                 <h4 className="font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -236,11 +237,20 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, users, matters, onUpdateTa
         document.body.classList.add('dragging-active');
     };
 
+    // Track which column received a drop for pulse animation
+    const [pulsingColumn, setPulsingColumn] = useState<string | null>(null);
+
     const onDragEnd = (result: DropResult) => {
         document.body.classList.remove('dragging-active');
         const { source, destination, draggableId } = result;
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+        // Trigger pulse animation on the destination column
+        setPulsingColumn(destination.droppableId);
+        setTimeout(() => setPulsingColumn(null), 600);
+
+        // Update task status (async — the UI already moved the card via DnD)
         onUpdateTaskStatus(draggableId, destination.droppableId as TaskStatus);
     };
 
@@ -299,6 +309,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, users, matters, onUpdateTa
                             onUpdateTaskStatus={onUpdateTaskStatus}
                             openModal={openModal}
                             appMode={appMode}
+                            isPulsing={pulsingColumn === status}
                         />
                     ))}
                     {/* Spacer for horizontal scroll on mobile */}

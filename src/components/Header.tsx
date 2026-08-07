@@ -385,10 +385,10 @@ const Header: React.FC = React.memo(() => {
                                 </div>
                                 <div className="flex gap-3 items-center">
                                     {notifTab === 'platform' && aggregatedNotifications.filter(n => (n as any)._isBroadcast).length > 0 && (
-                                        <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).map(n => n.id))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
+                                        <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
                                     )}
                                     {notifTab === 'firm' && aggregatedNotifications.filter(n => !(n as any)._isBroadcast).length > 0 && (
-                                        <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => n.id))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
+                                        <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
                                     )}
                                     <button onClick={() => setNotificationsOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -480,7 +480,7 @@ const Header: React.FC = React.memo(() => {
                                                                     navigateTo(notification.link.view, notification.link.id, notification.link.context);
                                                                 }
                                                                 setNotificationsOpen(false);
-                                                                if (!notification.isRead) handleMarkNotificationsRead([notification.id]);
+                                                                if (!notification.isRead) handleMarkNotificationsRead([String(notification._id || notification.id || '')]);
                                                             }}
                                                         >
                                                             <p className={`text-sm leading-snug mb-1 ${!notification.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>

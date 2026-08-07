@@ -86,45 +86,68 @@ export const BroadcastConsole: React.FC = () => {
     const archiveBroadcast = useMutation(api.broadcasts.archiveBroadcast);
     const bulkArchiveBroadcasts = useMutation(api.broadcasts.bulkArchiveBroadcasts);
     const cleanupDuplicateBroadcasts = useMutation(api.broadcasts.cleanupDuplicateBroadcasts);
+    const purgeAllBroadcasts = useMutation(api.broadcasts.purgeAllBroadcasts);
 
     // Selected banner IDs for bulk actions
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [expandedBannerId, setExpandedBannerId] = useState<string | null>(null);
+    // Confirmation modal state — replaces browser confirm() dialogs
+    const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-    const handleArchive = async (broadcastId: string) => {
-        if (!confirm('Archive this banner? This will remove it from ALL users immediately.')) return;
-        try {
-            const result = await archiveBroadcast({ tokenIdentifier, broadcastId });
-            addToast(`Banner archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
-        } catch (e: any) {
-            addToast(e?.message || 'Failed to archive banner.', { type: 'error' });
-        }
+    const requestConfirm = (message: string, onConfirm: () => void) => {
+        setConfirmAction({ message, onConfirm });
     };
 
-    const handleBulkArchive = async () => {
-        if (selectedIds.size === 0) return;
-        if (!confirm(`Archive ${selectedIds.size} banner(s)? This will remove ALL their notifications from ALL users.`)) return;
-        try {
-            const result = await bulkArchiveBroadcasts({ tokenIdentifier, broadcastIds: [...selectedIds] });
-            addToast(`Bulk archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
-            setSelectedIds(new Set());
-        } catch (e: any) {
-            addToast(e?.message || 'Failed to bulk archive.', { type: 'error' });
-        }
-    };
-
-    const handleCleanupDuplicates = async () => {
-        if (!confirm('Remove all duplicate broadcast notifications? This keeps only the newest copy per user+title+message.')) return;
-        try {
-            const result = await cleanupDuplicateBroadcasts({ tokenIdentifier });
-            if (result.deleted > 0) {
-                addToast(`Cleaned up ${result.deleted} duplicate notification(s).`, { type: 'success' });
-            } else {
-                addToast('No duplicates found. Database is clean.', { type: 'info' });
+    const handleArchive = (broadcastId: string) => {
+        requestConfirm('Archive this banner? This will remove it from ALL users immediately.', async () => {
+            try {
+                const result = await archiveBroadcast({ tokenIdentifier, broadcastId });
+                addToast(`Banner archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
+            } catch (e: any) {
+                addToast(e?.message || 'Failed to archive banner.', { type: 'error' });
             }
-        } catch (e: any) {
-            addToast(e?.message || 'Failed to cleanup duplicates.', { type: 'error' });
-        }
+        });
+    };
+
+    const handleBulkArchive = () => {
+        if (selectedIds.size === 0) return;
+        const count = selectedIds.size;
+        requestConfirm(`Archive ${count} banner(s)? This will remove ALL their notifications from ALL users.`, async () => {
+            try {
+                const result = await bulkArchiveBroadcasts({ tokenIdentifier, broadcastIds: [...selectedIds] });
+                addToast(`Bulk archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
+                setSelectedIds(new Set());
+            } catch (e: any) {
+                addToast(e?.message || 'Failed to bulk archive.', { type: 'error' });
+            }
+        });
+    };
+
+    const handleCleanupDuplicates = () => {
+        requestConfirm('Remove all duplicate broadcast notifications? This keeps only the newest copy per user+title+message.', async () => {
+            try {
+                const result = await cleanupDuplicateBroadcasts({ tokenIdentifier });
+                if (result.deleted > 0) {
+                    addToast(`Cleaned up ${result.deleted} duplicate notification(s).`, { type: 'success' });
+                } else {
+                    addToast('No duplicates found. Database is clean.', { type: 'info' });
+                }
+            } catch (e: any) {
+                addToast(e?.message || 'Failed to cleanup duplicates.', { type: 'error' });
+            }
+        });
+    };
+
+    const handlePurgeAll = () => {
+        requestConfirm('PURGE ALL broadcast notifications? This deletes EVERY broadcast from ALL users permanently. This cannot be undone.', async () => {
+            try {
+                const result = await purgeAllBroadcasts({ tokenIdentifier });
+                addToast(`Purged all broadcasts. Removed ${result.deleted} notification(s).`, { type: 'success' });
+                setSelectedIds(new Set());
+            } catch (e: any) {
+                addToast(e?.message || 'Failed to purge.', { type: 'error' });
+            }
+        });
     };
 
     const toggleSelect = (broadcastId: string) => {
@@ -219,6 +242,14 @@ export const BroadcastConsole: React.FC = () => {
                                     className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded text-2xs font-bold hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
                                 >
                                     Cleanup Duplicates
+                                </button>
+                            )}
+                            {activeBanners && activeBanners.length > 0 && (
+                                <button
+                                    onClick={handlePurgeAll}
+                                    className="px-2 py-1 bg-red-600 text-white rounded text-2xs font-bold hover:bg-red-700 transition-colors"
+                                >
+                                    Purge All
                                 </button>
                             )}
                             {selectedIds.size > 0 && (
@@ -528,6 +559,43 @@ export const BroadcastConsole: React.FC = () => {
                         )}
                     </div>
                 </div>
+
+                {/* In-app Confirmation Modal — replaces browser confirm() dialogs */}
+                {confirmAction && (
+                    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4" onClick={() => setConfirmAction(null)}>
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                        <div
+                            className="relative bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-sm p-6 animate-fade-in-up"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex items-start gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                    </svg>
+                                </div>
+                                <p className="text-sm font-medium text-slate-700 dark:text-zinc-200 pt-2">{confirmAction.message}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        confirmAction.onConfirm();
+                                        setConfirmAction(null);
+                                    }}
+                                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors"
+                                >
+                                    Confirm
+                                </button>
+                                <button
+                                    onClick={() => setConfirmAction(null)}
+                                    className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
