@@ -1,29 +1,15 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Draggable, Droppable } from 'react-beautiful-dnd';
+import { Draggable, Droppable } from '@hello-pangea/dnd';
 import { NoteNotebook, NotePage, Matter } from '../../types';
 import { MATTERS_NOTEBOOK_ID } from '../../constants';
 import { getEventTypeBadgeClass } from '../../utils/colorUtils';
 import Tooltip from '../Tooltip';
 import { ZapIcon, CogIcon, DocumentIcon, CheckCircleIcon, UserCircleIcon } from '../../constants';
 
-// StrictModeDroppable — react-beautiful-dnd breaks under React.StrictMode
-// (double-invoked effects cause Droppable to measure dimensions in the
-// wrong pass). This wrapper delays rendering until after the first
-// animation frame, which is the canonical fix. Without this, NotesView
-// either crashes silently or drag-and-drop does nothing.
+// Note: @hello-pangea/dnd works natively with React 18 StrictMode.
+// The old StrictModeDroppable workaround is no longer needed.
 const StrictModeDroppable = ({ children, ...props }: any) => {
-    const [enabled, setEnabled] = useState(false);
-    useEffect(() => {
-        const animation = requestAnimationFrame(() => setEnabled(true));
-        return () => {
-            cancelAnimationFrame(animation);
-            setEnabled(false);
-        };
-    }, []);
-    if (!enabled) {
-        return null;
-    }
     return <Droppable {...props}>{children}</Droppable>;
 };
 
@@ -147,7 +133,7 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
         
         return (
             <StrictModeDroppable droppableId={droppableId} type="page" isDropDisabled={!isDraggableList}>
-                {(provided) => (
+                {(provided: any) => (
                     <ul {...provided.droppableProps} ref={provided.innerRef} className={`space-y-1 ${parentId ? 'pl-4' : 'p-2'}`}>
                         {treeItems.map((item, index) => {
                             const itemIdPrefix = treeType === 'notebook' ? 'notebook' : treeType === 'matter' ? 'matter' : 'page';
@@ -179,7 +165,7 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
                             
                             return (
                                 <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={!isDraggableList || isSystemNote}>
-                                    {(provided) => (
+                                    {(provided: any) => (
                                         <li ref={provided.innerRef} {...provided.draggableProps} className="group/item">
                                             <div
                                                 onClick={() => onSelect(currentLevel, itemId)}

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Matter, MatterStage, WorkflowDefinition, MatterType, Contact, User, UserRole, ModalType } from '../types';
 import ScrollArrows from './ScrollArrows';
 import Tooltip from './Tooltip';

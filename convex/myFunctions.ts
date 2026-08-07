@@ -2885,15 +2885,51 @@ export const clearAllNotifications = mutation({
   args: { userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
-    const all = await ctx.db
+    const userIdStr = String(user._id);
+    const userLegacyId = String((user as any).id || '');
+
+    // Fetch ALL notifications for this user across BOTH the user's firm
+    // AND the 'system' firmId (broadcast notifications have firmId='system').
+    // The old code only looked at the user's firm, so broadcast notifications
+    // (which have firmId='system') were never deleted — causing them to
+    // reappear after refresh when Convex re-fetched from the DB.
+
+    // 1. User's firm-scoped notifications
+    const firmNotes = await ctx.db
       .query("notifications")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
       .filter((q: any) => q.eq(q.field("userId"), user._id) || q.eq(q.field("userId"), (user as any).id))
       .collect();
-    for (const n of all) {
+
+    // 2. System-scoped notifications (broadcasts)
+    const systemNotes = await ctx.db
+      .query("notifications")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", "system"))
+      .filter((q: any) => q.eq(q.field("userId"), user._id) || q.eq(q.field("userId"), (user as any).id))
+      .collect();
+
+    // 3. Also scan for any notifications matching this user that might have
+    //    a different firmId (edge case: user belongs to multiple firms)
+    const allNotes = await ctx.db.query("notifications").collect();
+    const userNotes = allNotes.filter((n: any) => {
+      const nUserId = String(n.userId || '');
+      return nUserId === userIdStr || (userLegacyId && nUserId === userLegacyId);
+    });
+
+    // Combine all three sources and deduplicate by _id
+    const allToDelete = [...firmNotes, ...systemNotes, ...userNotes];
+    const seen = new Set<string>();
+    const toDelete = allToDelete.filter((n: any) => {
+      const id = String(n._id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    for (const n of toDelete) {
       try { await ctx.db.delete(n._id); } catch {}
     }
-    return { success: true, deleted: all.length };
+    return { success: true, deleted: toDelete.length };
   },
 });
 

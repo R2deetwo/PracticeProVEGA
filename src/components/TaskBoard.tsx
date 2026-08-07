@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Task, TaskStatus, User, Matter, TaskStatusValues, AppMode } from '../types';
 import { getInitials, getUserColor, formatDueDate, getDueDateColor } from '../utils/colorUtils';
 import { PriorityIcon, PlusIcon } from '../constants';
@@ -11,20 +11,10 @@ import PriorityPopover from './PriorityPopover';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 
-export const StrictModeDroppable = ({ children, ...props }: any) => {
-  const [enabled, setEnabled] = useState(false);
-  useEffect(() => {
-    const animation = requestAnimationFrame(() => setEnabled(true));
-    return () => {
-      cancelAnimationFrame(animation);
-      setEnabled(false);
-    };
-  }, []);
-  if (!enabled) {
-    return null;
-  }
-  return <Droppable {...props}>{children}</Droppable>;
-};
+// Note: @hello-pangea/dnd works natively with React 18 StrictMode.
+// The old StrictModeDroppable workaround is no longer needed — we use
+// Droppable directly now. This fixes the glitchy drag-and-drop behavior
+// (stuck borders, jarring screen-edge hanging, lag between columns).
 
 // Helper to get robust background color classes for date badges that work in dark mode
 const getDateBadgeClass = (dueDateString: string | null): string => {
@@ -186,7 +176,7 @@ const TaskColumn: React.FC<{
 
             {/* Column Body */}
             <div className="flex-grow flex flex-col min-h-0">
-                <StrictModeDroppable droppableId={status}>
+                <Droppable droppableId={status}>
                     {(provided: any, snapshot: any) => (
                         <div
                             ref={provided.innerRef}
@@ -202,7 +192,7 @@ const TaskColumn: React.FC<{
                             {provided.placeholder}
                         </div>
                     )}
-                </StrictModeDroppable>
+                </Droppable>
             </div>
         </div>
     );

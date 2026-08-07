@@ -19,6 +19,7 @@ import type { FounderUser, Toast } from './FounderContexts';
 import { useFounderTheme } from './useFounderTheme';
 import { FounderDashboard } from '../components/FounderDashboard';
 import { OrganizationsHub } from './views/OrganizationsHub';
+import { AnalyticsView } from './views/AnalyticsView';
 import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
 import { FeedbackInbox } from './views/FeedbackInbox';
@@ -84,7 +85,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export' | 'analytics';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -144,6 +145,7 @@ const FounderApp: React.FC = () => {
             case 'health': return <ViewErrorBoundary viewName="Organizations"><OrganizationsHub /></ViewErrorBoundary>;
             case 'system': return <ViewErrorBoundary viewName="System"><SystemStatus /></ViewErrorBoundary>;
             case 'export': return <ViewErrorBoundary viewName="Export"><ExportCenter /></ViewErrorBoundary>;
+            case 'analytics': return <ViewErrorBoundary viewName="Analytics"><AnalyticsView /></ViewErrorBoundary>;
             default: return null;
         }
     };

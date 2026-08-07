@@ -1,6 +1,6 @@
 
 import React, { useMemo, useCallback, useState } from 'react';
-import { DragDropContext, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { NoteNotebook, NotePage, ModalType, User, Matter, View } from '../types';
 import { NotesIcon, MATTERS_NOTEBOOK_ID, PRACTICE_NOTES_NOTEBOOK_ID } from '../constants';
 import { NoteColumn } from './notes/NoteColumn';
