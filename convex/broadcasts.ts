@@ -324,3 +324,92 @@ export const archiveBroadcast = mutation({
     return { success: true, deleted: toDelete.length };
   },
 });
+
+/**
+ * bulkArchiveBroadcasts
+ *
+ * Archives (deletes) ALL notification rows for MULTIPLE broadcastIds.
+ * Used by the "Bulk Archive Selected" button in the Active Banners
+ * Control Center.
+ *
+ * SECURITY: Requires founder auth.
+ */
+export const bulkArchiveBroadcasts = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    broadcastIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const users = await ctx.db.query("users").take(500);
+    const founder = users.find((u: any) =>
+      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
+    );
+    if (!founder) throw new Error("Unauthorized: founder access required");
+
+    const allNotes = await ctx.db.query("notifications").collect();
+    const toDelete = allNotes.filter((n: Doc<"notifications">) => {
+      const type = n.type || '';
+      if (!type.startsWith('broadcast_')) return false;
+      const bid = (n.link as any)?.context?.broadcastId;
+      return bid && args.broadcastIds.includes(bid);
+    });
+
+    for (const n of toDelete) {
+      await ctx.db.delete(n._id);
+    }
+
+    return { success: true, deleted: toDelete.length };
+  },
+});
+
+/**
+ * cleanupDuplicateBroadcasts
+ *
+ * Removes duplicate broadcast notifications — when the same broadcast
+ * (same title + message + targetProduct) was sent multiple times, only
+ * keep the most recent batch and delete the older duplicates.
+ *
+ * Also handles the case where the dedup fix wasn't deployed yet and
+ * users received N copies of the same broadcast. Groups by
+ * (userId + title + message) and keeps only ONE per group.
+ *
+ * SECURITY: Requires founder auth.
+ */
+export const cleanupDuplicateBroadcasts = mutation({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    const users = await ctx.db.query("users").take(500);
+    const founder = users.find((u: any) =>
+      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
+    );
+    if (!founder) throw new Error("Unauthorized: founder access required");
+
+    const allNotes = await ctx.db.query("notifications").collect();
+    const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
+      return (n.type || '').startsWith('broadcast_');
+    });
+
+    // Group by (userId + title + message) — keep the newest, delete rest
+    const seen = new Map<string, { _id: any; _creationTime: number }>();
+    let deleted = 0;
+
+    for (const n of broadcasts) {
+      const key = `${n.userId}|||${n.title || ''}|||${n.message || ''}`;
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, { _id: n._id, _creationTime: n._creationTime });
+      } else {
+        // Keep the newer one, delete the older one
+        if (n._creationTime > existing._creationTime) {
+          await ctx.db.delete(existing._id);
+          seen.set(key, { _id: n._id, _creationTime: n._creationTime });
+        } else {
+          await ctx.db.delete(n._id);
+        }
+        deleted++;
+      }
+    }
+
+    return { success: true, deleted, totalChecked: broadcasts.length };
+  },
+});

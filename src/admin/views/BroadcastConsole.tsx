@@ -73,7 +73,6 @@ export const BroadcastConsole: React.FC = () => {
         tokenIdentifier ? { tokenIdentifier } : "skip");
     const recipientCount = (allFirms as any[])?.reduce((sum, f) => sum + (f.userCount || 0), 0) || 0;
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
-    const cleanupDuplicates = useMutation(api.founderMetrics.cleanupDuplicateBroadcastNotifications);
 
     // Fetch broadcast history (admin action log filtered to broadcasts)
     const broadcastHistory = useQuery(api.founderMetrics.getAdminActionLog,
@@ -85,6 +84,12 @@ export const BroadcastConsole: React.FC = () => {
 
     // Archive a broadcast (kill all its notification rows)
     const archiveBroadcast = useMutation(api.broadcasts.archiveBroadcast);
+    const bulkArchiveBroadcasts = useMutation(api.broadcasts.bulkArchiveBroadcasts);
+    const cleanupDuplicateBroadcasts = useMutation(api.broadcasts.cleanupDuplicateBroadcasts);
+
+    // Selected banner IDs for bulk actions
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [expandedBannerId, setExpandedBannerId] = useState<string | null>(null);
 
     const handleArchive = async (broadcastId: string) => {
         if (!confirm('Archive this banner? This will remove it from ALL users immediately.')) return;
@@ -96,16 +101,47 @@ export const BroadcastConsole: React.FC = () => {
         }
     };
 
-    const handleCleanupDuplicates = async () => {
+    const handleBulkArchive = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Archive ${selectedIds.size} banner(s)? This will remove ALL their notifications from ALL users.`)) return;
         try {
-            const result = await cleanupDuplicates({ tokenIdentifier });
+            const result = await bulkArchiveBroadcasts({ tokenIdentifier, broadcastIds: [...selectedIds] });
+            addToast(`Bulk archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
+            setSelectedIds(new Set());
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to bulk archive.', { type: 'error' });
+        }
+    };
+
+    const handleCleanupDuplicates = async () => {
+        if (!confirm('Remove all duplicate broadcast notifications? This keeps only the newest copy per user+title+message.')) return;
+        try {
+            const result = await cleanupDuplicateBroadcasts({ tokenIdentifier });
             if (result.deleted > 0) {
-                addToast(`Cleaned up ${result.deleted} duplicate notification(s). Users will no longer see duplicates.`, { type: 'success' });
+                addToast(`Cleaned up ${result.deleted} duplicate notification(s).`, { type: 'success' });
             } else {
-                addToast('No duplicate notifications found. DB is clean.', { type: 'info' });
+                addToast('No duplicates found. Database is clean.', { type: 'info' });
             }
         } catch (e: any) {
-            addToast(e?.message || 'Failed to clean up duplicates.', { type: 'error' });
+            addToast(e?.message || 'Failed to cleanup duplicates.', { type: 'error' });
+        }
+    };
+
+    const toggleSelect = (broadcastId: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(broadcastId)) next.delete(broadcastId);
+            else next.add(broadcastId);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (!activeBanners || activeBanners.length === 0) return;
+        if (selectedIds.size === activeBanners.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(activeBanners.map((b: any) => b.broadcastId)));
         }
     };
 
@@ -162,10 +198,38 @@ export const BroadcastConsole: React.FC = () => {
                 {/* Active Banners Control Center */}
                 <div className={CARD}>
                     <div className="flex items-center justify-between mb-3">
-                        <p className={LABEL + ' mb-0'}>Active Banners Control Center</p>
-                        {activeBanners && activeBanners.length > 0 && (
-                            <span className="text-2xs font-bold text-primary-600 dark:text-primary-400">{activeBanners.length} active</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {activeBanners && activeBanners.length > 0 && (
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.size === activeBanners.length && activeBanners.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-zinc-600 text-primary-600 focus:ring-primary-500"
+                                />
+                            )}
+                            <p className={LABEL + ' mb-0'}>Active Banners Control Center</p>
+                            {activeBanners && activeBanners.length > 0 && (
+                                <span className="text-2xs font-bold text-primary-600 dark:text-primary-400">{activeBanners.length} active</span>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            {activeBanners && activeBanners.length > 0 && (
+                                <button
+                                    onClick={handleCleanupDuplicates}
+                                    className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded text-2xs font-bold hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                                >
+                                    Cleanup Duplicates
+                                </button>
+                            )}
+                            {selectedIds.size > 0 && (
+                                <button
+                                    onClick={handleBulkArchive}
+                                    className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-2xs font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                >
+                                    Archive Selected ({selectedIds.size})
+                                </button>
+                            )}
+                        </div>
                     </div>
                     {activeBanners === undefined ? (
                         <div className="flex justify-center py-4">
@@ -174,43 +238,71 @@ export const BroadcastConsole: React.FC = () => {
                     ) : activeBanners.length === 0 ? (
                         <p className="text-xs text-slate-400 text-center py-4">No active banners. Banners you send will appear here for monitoring.</p>
                     ) : (
-                        <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
-                            {activeBanners.map((banner: any) => (
-                                <div key={banner.broadcastId} className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg">
-                                    <div className="flex items-start justify-between gap-2 mb-2">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{banner.title}</p>
-                                            <p className="text-2xs text-slate-400 truncate">{banner.message}</p>
+                        <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+                            {activeBanners.map((banner: any) => {
+                                const isSelected = selectedIds.has(banner.broadcastId);
+                                const isExpanded = expandedBannerId === banner.broadcastId;
+                                const themeKey = banner.theme || 'info';
+                                const themeColors: Record<string, { badge: string; accent: string }> = {
+                                    info:    { badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', accent: 'border-l-blue-400' },
+                                    success: { badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', accent: 'border-l-emerald-400' },
+                                    warning: { badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', accent: 'border-l-amber-400' },
+                                    urgent:  { badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', accent: 'border-l-red-400' },
+                                };
+                                const tc = themeColors[themeKey] || themeColors.info;
+                                return (
+                                    <div key={banner.broadcastId} className={`p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border-l-4 ${tc.accent} ${isSelected ? 'ring-2 ring-primary-400' : ''}`}>
+                                        <div className="flex items-start gap-2 mb-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => toggleSelect(banner.broadcastId)}
+                                                className="w-4 h-4 mt-0.5 rounded border-slate-300 dark:border-zinc-600 text-primary-600 focus:ring-primary-500 flex-shrink-0"
+                                            />
+                                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedBannerId(isExpanded ? null : banner.broadcastId)}>
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${tc.badge}`}>
+                                                        {themeKey === 'info' ? '🔵 Info' : themeKey === 'success' ? '🟢 Success' : themeKey === 'warning' ? '🟡 Warning' : themeKey === 'urgent' ? '🔴 Urgent' : themeKey}
+                                                    </span>
+                                                    <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate flex-1">{banner.title}</p>
+                                                </div>
+                                                <p className={`text-2xs text-slate-400 ${isExpanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>
+                                                    {banner.message}
+                                                    {!isExpanded && banner.message && banner.message.length > 80 && (
+                                                        <span className="text-primary-500 ml-1">... (tap to expand)</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleArchive(banner.broadcastId)}
+                                                className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-2xs font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex-shrink-0"
+                                            >
+                                                Archive
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => handleArchive(banner.broadcastId)}
-                                            className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-2xs font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex-shrink-0"
-                                        >
-                                            Archive
-                                        </button>
+                                        <div className="flex flex-wrap gap-1 ml-6">
+                                            <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                                                {banner.targetProduct === 'all' ? 'All Apps' :
+                                                 banner.targetProduct === 'unified' ? 'Komplete' :
+                                                 banner.targetProduct === 'legal' ? 'Vega' :
+                                                 banner.targetProduct === 'property' ? 'Atrium' : banner.targetProduct}
+                                            </span>
+                                            <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                {banner.recipientCount} recipients
+                                            </span>
+                                            <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                                {banner.activeCount} active · {banner.dismissedCount} dismissed
+                                            </span>
+                                            <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                                {PERSISTENCE_LABELS[banner.persistenceMode as PersistenceMode]?.label || banner.persistenceMode}
+                                            </span>
+                                            <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                                {banner.createdAt ? new Date(banner.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-1">
-                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-                                            {banner.targetProduct === 'all' ? 'All Apps' :
-                                             banner.targetProduct === 'unified' ? 'Komplete' :
-                                             banner.targetProduct === 'legal' ? 'Vega' :
-                                             banner.targetProduct === 'property' ? 'Atrium' : banner.targetProduct}
-                                        </span>
-                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                            {banner.recipientCount} recipients
-                                        </span>
-                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                            {banner.activeCount} active · {banner.dismissedCount} dismissed
-                                        </span>
-                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
-                                            {PERSISTENCE_LABELS[banner.persistenceMode as PersistenceMode]?.label || banner.persistenceMode}
-                                        </span>
-                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
-                                            {banner.createdAt ? new Date(banner.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

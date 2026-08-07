@@ -2,7 +2,7 @@
 import { query, mutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-import { getMaxUsersForFirm, getTierLimitsForFirm } from "./tierLimits";
+import { getMaxUsersForFirm, getTierLimitsForFirm, getDisplayPlan } from "./tierLimits";
 
 // ─── Platform Subscription Pricing ───────────────────────────────────
 // PRIVACY: The founder dashboard ONLY tracks platform subscription
@@ -359,7 +359,7 @@ export const getAllFirmsForAdmin = query({
           id: firm._id,
           firmName: firm.name || 'Unnamed Firm',
           adminEmail: adminUser?.email || adminUser?.tokenIdentifier || firm.createdBy || 'unknown',
-          plan: firm.subscriptionPlan || 'Core',
+          plan: getDisplayPlan(firm.subscriptionPlan, firm.product), // Komplete = Enterprise
           status: firm.adminStatus || 'active',
           product: firm.product || 'legal', // actual product: 'legal' | 'property' | 'unified'
           userCount: firmUsers.length,
@@ -961,6 +961,10 @@ export const getFirmHealthDetails = query({
     const seatsUsed = users.length;
     const maxSeats = getMaxUsersForFirm(plan, product); // null = unlimited
 
+    // KOMPLETE = ENTERPRISE: Komplete firms always display as "Enterprise"
+    // regardless of their subscriptionPlan field value.
+    const displayPlan = getDisplayPlan(plan, product);
+
     // ─── USAGE LIMITS & CURRENT USAGE ──────────────────────────────────
     // Get all tier limits for this firm's plan/product
     const tierLimits = getTierLimitsForFirm(plan, product);
@@ -1002,7 +1006,7 @@ export const getFirmHealthDetails = query({
     return {
       firmId: args.firmId,
       firmName: (firm as any)?.name || 'Unknown',
-      plan,
+      plan: displayPlan, // Komplete shows as "Enterprise"
       product,
       seatsUsed,
       maxSeats,

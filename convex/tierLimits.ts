@@ -49,16 +49,16 @@ export const KOMPLETE_LIMITS = {
  *
  * MIRRORS src/hooks/useFeatures.ts:107 — keep in sync.
  *
- * Usage:
- *   const maxSeats = getMaxUsersForFirm(firm.subscriptionPlan, firm.product);
- *   if (maxSeats === null) {  // unlimited  }
- *   else if (users.length >= maxSeats) {  // at limit  }
+ * KOMPLETE = ENTERPRISE:
+ *   Komplete is the top-tier unified platform. It is ALWAYS mapped to
+ *   Enterprise-level features and limits (unlimited everything). It is
+ *   NEVER labeled as "Pro" or "Basic".
  */
 export function getMaxUsersForFirm(plan: string | undefined | null, product: string | undefined | null): number | null {
   const p = (plan || 'Core').trim();
   const prod = (product || 'legal').toLowerCase().trim();
 
-  // Komplete (unified) = unlimited seats
+  // Komplete (unified) = Enterprise tier = unlimited seats
   if (prod === 'unified' || prod === 'komplete' || p === 'Komplete') {
     return null;
   }
@@ -67,7 +67,6 @@ export function getMaxUsersForFirm(plan: string | undefined | null, product: str
   if (prod === 'legal' || prod === 'vega') {
     const limits = VEGA_LIMITS[p];
     if (limits) return limits.maxUsers;
-    // Default to Core if unknown plan
     return VEGA_LIMITS.Core.maxUsers;
   }
 
@@ -78,8 +77,31 @@ export function getMaxUsersForFirm(plan: string | undefined | null, product: str
     return 1; // Core / Starter / default
   }
 
-  // Default: Core tier
   return 1;
+}
+
+/**
+ * Get the display plan label for a firm.
+ *
+ * KOMPLETE = ENTERPRISE:
+ *   Firms on the Komplete product ALWAYS show as "Enterprise" regardless
+ *   of their subscriptionPlan field. This enforces the brand rule that
+ *   Komplete is the top-tier unified platform.
+ *
+ * Usage:
+ *   const displayPlan = getDisplayPlan(firm.subscriptionPlan, firm.product);
+ *   // Returns 'Enterprise' for Komplete firms, actual plan for others
+ */
+export function getDisplayPlan(plan: string | undefined | null, product: string | undefined | null): string {
+  const p = (plan || 'Core').trim();
+  const prod = (product || 'legal').toLowerCase().trim();
+
+  // Komplete = Enterprise (always)
+  if (prod === 'unified' || prod === 'komplete' || p === 'Komplete') {
+    return 'Enterprise';
+  }
+
+  return p;
 }
 
 /**
