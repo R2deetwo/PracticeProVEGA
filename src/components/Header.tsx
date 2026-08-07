@@ -71,10 +71,13 @@ const Header: React.FC = React.memo(() => {
         // Broadcasts are deduplicated by title+message so a user never
         // sees the same announcement multiple times (e.g., if they had
         // duplicate user records and received N copies of the same broadcast).
+        // Broadcasts are EXCLUDED from the toast system — they're handled
+        // by the persistent BroadcastBanner component in the Dashboard.
         const broadcastNotes = rawNotes
             .filter(n => (n.type || '').startsWith('broadcast_'))
             .map(n => ({
                 ...n,
+                _isBroadcast: true,  // flag for toast logic to skip
                 type: 'info' as const,
                 timestampStr: n.timestamp,
             }));
@@ -96,6 +99,7 @@ const Header: React.FC = React.memo(() => {
             )
         ).map(n => ({
             ...n,
+            _isBroadcast: false,
             type: n.message.includes('joined') ? 'success' as const :
                   (n.message.toLowerCase().includes('message') ? 'message' as const : 'info' as const),
             timestampStr: n.timestamp
@@ -149,7 +153,13 @@ const Header: React.FC = React.memo(() => {
             if (!seenIdsRef.current.has(n.id)) {
                 seenIdsRef.current.add(n.id);
                 if (!n.isRead) {
-                    // In-app toast (always shown)
+                    // SKIP TOAST for broadcast notifications — these are now
+                    // handled by the persistent BroadcastBanner component in
+                    // the Dashboard. Showing a toast too would be redundant
+                    // spam (user sees the banner AND a 5-second toast).
+                    if ((n as any)._isBroadcast) return;
+
+                    // In-app toast (always shown for non-broadcast notifications)
                     addToast(n.message, {
                         type: n.type === 'success' ? 'success' : 'info',
                         link: n.link ? {
