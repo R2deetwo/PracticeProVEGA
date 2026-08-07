@@ -200,3 +200,127 @@ export const deleteBroadcastNotification = mutation({
     return { success: true };
   },
 });
+
+/**
+ * getActiveBroadcastsForAdmin
+ *
+ * Fetches all active broadcast notifications across ALL users — used by
+ * the Founder Admin Dashboard's "Active Banners Control Center" to
+ * monitor and manage running banners.
+ *
+ * Groups notifications by broadcastId (so a broadcast sent to 100 users
+ * appears as ONE row with recipientCount=100).
+ *
+ * Returns:
+ *   Array of broadcast groups, sorted by timestamp descending.
+ *   Each group includes: broadcastId, title, message, theme, targetProduct,
+ *   persistenceMode, createdAt, recipientCount, isReadCount.
+ *
+ * SECURITY: Requires founder auth (tokenIdentifier).
+ */
+export const getActiveBroadcastsForAdmin = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    // Note: This is a public query — the founder auth check is done
+    // via a simple email match. If the caller's email matches a
+    // Founder-role user, they're authorized.
+    const users = await ctx.db.query("users").take(500);
+    const founder = users.find((u: any) =>
+      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
+    );
+    if (!founder) return [];
+
+    // Fetch ALL broadcast notifications (read + unread)
+    const allNotes = await ctx.db.query("notifications").collect();
+    const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
+      const type = n.type || '';
+      return type.startsWith('broadcast_');
+    });
+
+    // Group by broadcastId
+    const groups = new Map<string, any>();
+    for (const n of broadcasts) {
+      const broadcastId = (n.link as any)?.context?.broadcastId || n._id;
+      if (!groups.has(broadcastId)) {
+        groups.set(broadcastId, {
+          broadcastId,
+          title: n.title,
+          message: n.message,
+          type: n.type,
+          theme: (n.type || '').replace('broadcast_', ''),
+          targetProduct: (n.link as any)?.context?.targetProduct || 'all',
+          persistenceMode: (n.link as any)?.context?.persistenceMode || 'permanent',
+          createdAt: n.timestamp || new Date(n._creationTime).toISOString(),
+          _creationTime: n._creationTime,
+          notifications: [],
+        });
+      }
+      const group = groups.get(broadcastId);
+      group.notifications.push(n);
+      if (n.isRead) group.isReadCount = (group.isReadCount || 0) + 1;
+    }
+
+    // Compute recipientCount and impressedCount for each group
+    const result = Array.from(groups.values()).map((g: any) => ({
+      broadcastId: g.broadcastId,
+      title: g.title,
+      message: g.message,
+      type: g.type,
+      theme: g.theme,
+      targetProduct: g.targetProduct,
+      persistenceMode: g.persistenceMode,
+      createdAt: g.createdAt,
+      recipientCount: g.notifications.length,
+      dismissedCount: g.isReadCount || 0,
+      activeCount: g.notifications.length - (g.isReadCount || 0),
+    }));
+
+    // Sort by createdAt descending (most recent first)
+    result.sort((a, b) => {
+      const tsA = new Date(a.createdAt || 0).getTime();
+      const tsB = new Date(b.createdAt || 0).getTime();
+      return tsB - tsA;
+    });
+
+    return result;
+  },
+});
+
+/**
+ * archiveBroadcast
+ *
+ * Archives (deletes) ALL notification rows for a specific broadcastId.
+ * Used by the Founder Admin Dashboard's "Active Banners Control Center"
+ * when the founder clicks "Kill / Archive Banner".
+ *
+ * SECURITY: Requires founder auth.
+ */
+export const archiveBroadcast = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    broadcastId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Auth check
+    const users = await ctx.db.query("users").take(500);
+    const founder = users.find((u: any) =>
+      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
+    );
+    if (!founder) throw new Error("Unauthorized: founder access required");
+
+    // Find all notifications with this broadcastId
+    const allNotes = await ctx.db.query("notifications").collect();
+    const toDelete = allNotes.filter((n: Doc<"notifications">) => {
+      const type = n.type || '';
+      if (!type.startsWith('broadcast_')) return false;
+      return (n.link as any)?.context?.broadcastId === args.broadcastId;
+    });
+
+    // Delete them all
+    for (const n of toDelete) {
+      await ctx.db.delete(n._id);
+    }
+
+    return { success: true, deleted: toDelete.length };
+  },
+});

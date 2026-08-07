@@ -94,18 +94,120 @@ export const FirmHealth: React.FC = () => {
                     <p className="text-xs text-slate-500 mt-1">{h.churnRiskScore >= 60 ? 'HIGH RISK' : h.churnRiskScore >= 30 ? 'MEDIUM RISK' : 'LOW RISK'}</p>
                 </div>
 
-                {/* Seats */}
+                {/* Seats — corrected: null = unlimited, not 999999 */}
                 <div className={CARD}>
-                    <p className={SECTION_TITLE}>Seats</p>
+                    <p className={SECTION_TITLE}>User Seats</p>
                     <div className="flex items-center gap-4">
                         <div className="text-center">
                             <p className="text-2xl font-black text-slate-900 dark:text-white">{h.seatsUsed}</p>
                             <p className="text-2xs text-slate-400">Used</p>
                         </div>
                         <div className="text-center">
-                            <p className="text-2xl font-black text-slate-900 dark:text-white">{h.maxSeats || '∞'}</p>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white">
+                                {h.maxSeats == null ? '∞' : h.maxSeats}
+                            </p>
                             <p className="text-2xs text-slate-400">Max</p>
                         </div>
+                        {/* Usage percentage bar */}
+                        {h.usagePercentages?.seats != null && (
+                            <div className="flex-1">
+                                <div className="flex justify-between text-2xs text-slate-400 mb-1">
+                                    <span>Usage</span>
+                                    <span className={h.usagePercentages.seats >= 100 ? 'text-red-500 font-bold' : h.usagePercentages.seats >= 80 ? 'text-amber-500 font-bold' : ''}>
+                                        {h.usagePercentages.seats}%
+                                    </span>
+                                </div>
+                                <div className="h-2 bg-slate-100 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all ${
+                                            h.usagePercentages.seats >= 100 ? 'bg-red-500' :
+                                            h.usagePercentages.seats >= 80 ? 'bg-amber-500' :
+                                            'bg-emerald-500'
+                                        }`}
+                                        style={{ width: `${Math.min(100, h.usagePercentages.seats)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-2xs text-slate-400 mt-2">
+                        {h.maxSeats == null
+                            ? 'Unlimited seats (Pro/Enterprise/Komplete tier)'
+                            : `${h.plan} tier: ${h.maxSeats} seat${h.maxSeats !== 1 ? 's' : ''} max`}
+                    </p>
+                </div>
+
+                {/* Usage Limits — shows tier limits vs. current usage with progress bars */}
+                <div className={CARD}>
+                    <p className={SECTION_TITLE}>Usage Limits ({h.plan} · {h.product === 'property' ? 'Atrium' : h.product === 'unified' ? 'Komplete' : 'Vega'})</p>
+                    <div className="space-y-3">
+                        {/* Seats usage */}
+                        <UsageBar
+                            label="User Seats"
+                            used={h.usage?.seatsUsed ?? h.seatsUsed}
+                            max={h.tierLimits?.maxUsers ?? h.maxSeats}
+                            percent={h.usagePercentages?.seats}
+                        />
+
+                        {/* Atrium: Property Units */}
+                        {h.product === 'property' && (
+                            <UsageBar
+                                label="Property Units"
+                                used={h.usage?.unitsUsed ?? 0}
+                                max={h.tierLimits?.maxUnits ?? null}
+                                percent={h.usagePercentages?.units}
+                            />
+                        )}
+
+                        {/* Atrium: Managed Properties */}
+                        {h.product === 'property' && (
+                            <UsageBar
+                                label="Managed Properties"
+                                used={h.usage?.propertiesCount ?? 0}
+                                max={h.tierLimits?.maxManagedProperties ?? null}
+                                percent={h.usagePercentages?.units}
+                            />
+                        )}
+
+                        {/* Atrium: Active Tenants */}
+                        {h.product === 'property' && (
+                            <UsageBar
+                                label="Active Tenants"
+                                used={h.usage?.tenantsCount ?? 0}
+                                max={h.tierLimits?.maxActiveTenants ?? null}
+                                percent={h.usagePercentages?.tenants}
+                            />
+                        )}
+
+                        {/* Atrium: WhatsApp Limit */}
+                        {h.product === 'property' && h.tierLimits?.whatsappLimit != null && (
+                            <UsageBar
+                                label="WhatsApp / month"
+                                used={0}
+                                max={h.tierLimits.whatsappLimit}
+                                percent={null}
+                            />
+                        )}
+
+                        {/* Vega: Active Matters */}
+                        {h.product === 'legal' && (
+                            <UsageBar
+                                label="Active Matters"
+                                used={h.usage?.activeMattersCount ?? 0}
+                                max={h.tierLimits?.maxActiveMatters ?? null}
+                                percent={h.usagePercentages?.matters}
+                            />
+                        )}
+
+                        {/* Vega: Case File Storage */}
+                        {h.product === 'legal' && h.tierLimits?.maxCaseFileStorageGb != null && (
+                            <UsageBar
+                                label="Case File Storage (GB)"
+                                used={0}
+                                max={h.tierLimits.maxCaseFileStorageGb}
+                                percent={null}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -155,3 +257,48 @@ const AdoptionBadge: React.FC<{ label: string; used: boolean }> = ({ label, used
         <p className={`text-2xs ${used ? 'text-emerald-500' : 'text-slate-400'}`}>{used ? '✓ Adopted' : 'Not yet adopted'}</p>
     </div>
 );
+
+// UsageBar — shows a metric (used / max) with a colored progress bar.
+// max=null means unlimited — shows "Unlimited" with no bar.
+// percent is pre-computed by the backend (null = unlimited).
+// Color logic: green < 80%, amber 80-99%, red >= 100%.
+const UsageBar: React.FC<{
+    label: string;
+    used: number;
+    max: number | null;
+    percent: number | null;
+}> = ({ label, used, max, percent }) => {
+    const isUnlimited = max === null || max === undefined;
+    const pct = percent;
+    const colorClass = pct == null ? 'bg-slate-300' :
+                       pct >= 100 ? 'bg-red-500' :
+                       pct >= 80 ? 'bg-amber-500' :
+                       'bg-emerald-500';
+    const textColor = pct == null ? 'text-slate-400' :
+                      pct >= 100 ? 'text-red-500' :
+                      pct >= 80 ? 'text-amber-500' :
+                      'text-slate-600 dark:text-zinc-300';
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-bold text-slate-700 dark:text-zinc-200">{label}</span>
+                <span className={`text-2xs font-bold ${textColor}`}>
+                    {used}{isUnlimited ? '' : ` / ${max}`}
+                    {pct != null && ` (${pct}%)`}
+                </span>
+            </div>
+            {!isUnlimited && (
+                <div className="h-1.5 bg-slate-100 dark:bg-zinc-700 rounded-full overflow-hidden">
+                    <div
+                        className={`h-full rounded-full transition-all ${colorClass}`}
+                        style={{ width: `${Math.min(100, pct || 0)}%` }}
+                    />
+                </div>
+            )}
+            {isUnlimited && (
+                <p className="text-2xs text-slate-400">Unlimited</p>
+            )}
+        </div>
+    );
+};

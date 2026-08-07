@@ -1,40 +1,27 @@
 /**
- * BroadcastBanner — glassmorphic in-content banner for platform broadcasts.
+ * BroadcastBanner — multi-banner cascading glassmorphic banner system.
  *
- * DUAL-DELIVERY ARCHITECTURE:
- *   Broadcasts appear in BOTH:
- *     1. The notification bell (via getFirmData → coreState.notifications)
- *     2. This banner component (via getActiveBroadcasts real-time query)
- *
- *   The bell shows ALL notifications (including broadcasts) for history.
- *   This banner shows ONLY active unread broadcasts, prominently on the
- *   dashboard canvas. Dismissing the banner marks the notification as
- *   read (so it disappears from the banner) but it remains in the bell's
- *   history list.
- *
- * REAL-TIME SUBSCRIPTION:
- *   This component subscribes to api.broadcasts.getActiveBroadcasts via
- *   useQuery. The moment a broadcast is created (from the admin app),
- *   Convex's real-time sync pushes it to all connected clients, and the
- *   banner mounts automatically — no polling, no refresh needed.
- *
- * PER-BROADCAST DISMISSAL:
- *   When the user clicks Dismiss (X), we call markNotificationsAsRead
- *   which sets isRead=true on that specific notification. The real-time
- *   query immediately excludes it (because it filters by !isRead), so
- *   the banner disappears. The notification remains in the bell's history
- *   (where isRead items are still shown).
+ * FEATURES:
+ *   - Multi-banner stacking (max 2 banners visible simultaneously)
+ *   - Cascading visual stack — primary banner upfront, secondary offset
+ *   - Smooth layout height restoration on dismissal (CSS transitions)
+ *   - Persistence modes:
+ *       'permanent'  — dismiss is saved to DB (isRead=true), never shows again
+ *       'session'    — dismiss is saved to sessionStorage, reappears on re-login
+ *       'persistent' — no dismiss button, stays until archived by admin
+ *   - Per-broadcast dismissal (scoped by broadcastId, not global)
+ *   - Real-time subscription via getActiveBroadcasts query
+ *   - Glassmorphic styling with backdrop blur
  *
  * PLACEMENT:
  *   Rendered inside the Dashboard's main content container, below the
  *   Overview header, above the stats grid. Never overlaps the left
  *   sidebar or top navigation. Same width as the Overview section.
  *
- * PRODUCT TARGETING:
- *   The query returns all broadcasts for the user. The component then
- *   filters by targetProduct — a broadcast sent to 'all' shows for
- *   everyone; a broadcast sent to 'unified' (Komplete) shows only for
- *   Komplete users.
+ * LAYOUT RESTORATION:
+ *   When a banner is dismissed, its container smoothly collapses using
+ *   CSS max-height + opacity + margin transitions. The lower dashboard
+ *   sections shift up seamlessly without layout pop.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -42,7 +29,10 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 
-// Glassmorphic theme styles — translucent tints with backdrop blur.
+// Maximum number of banners to show simultaneously
+const MAX_BANNERS = 2;
+
+// Glassmorphic theme styles
 const THEME_STYLES: Record<string, {
     light: { bg: string; border: string; iconBg: string; iconColor: string; titleColor: string; bodyColor: string; accent: string };
     dark: { bg: string; border: string; iconBg: string; iconColor: string; titleColor: string; bodyColor: string; accent: string };
@@ -77,34 +67,49 @@ function parseTheme(type: string): string {
     return type.replace('broadcast_', '') || 'info';
 }
 
-/**
- * Resolve the user's product from their record.
- * Normalizes: 'komplete' → 'unified', 'vega' → 'legal', 'atrium' → 'property'
- */
 function getUserProduct(user: any): string {
     const product = (user?.product || '').toLowerCase();
     if (product === 'komplete' || product === 'unified') return 'unified';
     if (product === 'vega' || product === 'legal') return 'legal';
     if (product === 'atrium' || product === 'property') return 'property';
-    return 'unified'; // default
+    return 'unified';
+}
+
+/**
+ * Get session-dismissed broadcast IDs from sessionStorage.
+ * These are broadcasts dismissed with 'session' persistence mode —
+ * they reappear on next login (when sessionStorage is cleared).
+ */
+function getSessionDismissed(): Set<string> {
+    try {
+        const raw = sessionStorage.getItem('dismissed_broadcasts_session');
+        if (!raw) return new Set();
+        return new Set(JSON.parse(raw));
+    } catch {
+        return new Set();
+    }
+}
+
+function addSessionDismissed(broadcastId: string) {
+    try {
+        const existing = getSessionDismissed();
+        existing.add(broadcastId);
+        sessionStorage.setItem('dismissed_broadcasts_session', JSON.stringify([...existing]));
+    } catch {}
 }
 
 export const BroadcastBanner: React.FC = () => {
     const { currentUser, isAuthenticated } = useAuth();
-    const [isVisible, setIsVisible] = useState(false);
-    const [dismissingId, setDismissingId] = useState<string | null>(null);
+    const [dismissingIds, setDismissingIds] = useState<Set<string>>(new Set());
+    const [sessionDismissed, setSessionDismissed] = useState<Set<string>>(new Set());
 
-    // Mutation to mark notification as read (dismiss)
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
 
     const userId = currentUser?._id || (currentUser as any)?.id || '';
     const userIdStr = String(userId);
     const userEmail = currentUser?.email || '';
 
-    // REAL-TIME SUBSCRIPTION: Fetch active broadcasts for this user.
-    // This query updates instantly when a new broadcast is created or
-    // when an existing one is marked as read (dismissed).
-    // Pass both userId and email for multi-signal matching.
+    // Real-time subscription
     const broadcasts = useQuery(api.broadcasts.getActiveBroadcasts,
         isAuthenticated && (userIdStr || userEmail)
             ? { userId: userIdStr, email: userEmail }
@@ -112,82 +117,146 @@ export const BroadcastBanner: React.FC = () => {
 
     const userProduct = getUserProduct(currentUser);
 
-    // Find the most recent unread broadcast matching the user's product.
-    // PER-BROADCAST DISMISSAL: Each broadcast is evaluated independently.
-    // Dismissing one only hides that specific broadcast — new broadcasts
-    // still appear. There's no global "dismiss all" that would suppress
-    // future broadcasts.
-    const activeBroadcast = useMemo((): any | null => {
-        if (!broadcasts || !Array.isArray(broadcasts)) return null;
+    // Load session-dismissed IDs on mount
+    useEffect(() => {
+        setSessionDismissed(getSessionDismissed());
+    }, []);
 
-        // Filter by product targeting
+    // Filter and sort broadcasts — max 2 visible
+    const visibleBroadcasts = useMemo((): any[] => {
+        if (!broadcasts || !Array.isArray(broadcasts)) return [];
+
         const matching = broadcasts.filter((b: any) => {
+            // Product targeting
             const targetProduct = b.targetProduct || 'all';
-            if (targetProduct === 'all') return true;
-            return targetProduct === userProduct;
+            if (targetProduct !== 'all' && targetProduct !== userProduct) return false;
+
+            // Check persistence mode for dismissal logic
+            const persistenceMode = b.persistenceMode || 'permanent';
+            const broadcastId = b.link?.context?.broadcastId || b._id;
+
+            // Session-dismissed: skip if dismissed this session
+            if (persistenceMode === 'session' && sessionDismissed.has(broadcastId)) return false;
+
+            // Permanent-dismissed: handled by isRead in the query (already filtered)
+            // Persistent mode: never dismissible, always shows
+
+            // Currently dismissing (animation in progress)
+            if (dismissingIds.has(b._id || b.id)) return false;
+
+            return true;
         });
 
-        if (matching.length === 0) return null;
+        // Already sorted by timestamp desc — take top MAX_BANNERS
+        return matching.slice(0, MAX_BANNERS);
+    }, [broadcasts, userProduct, sessionDismissed, dismissingIds]);
 
-        // Already sorted by timestamp desc in the query — take the first
-        return matching[0];
-    }, [broadcasts, userProduct]);
+    if (visibleBroadcasts.length === 0) return null;
 
-    // Animate in when a broadcast appears
+    return (
+        <div className="w-full space-y-2">
+            {visibleBroadcasts.map((broadcast, index) => {
+                const isPrimary = index === 0;
+                return (
+                    <SingleBanner
+                        key={broadcast._id || broadcast.id}
+                        broadcast={broadcast}
+                        isPrimary={isPrimary}
+                        isDismissing={dismissingIds.has(broadcast._id || broadcast.id)}
+                        onDismiss={async () => {
+                            const notifId = broadcast._id || broadcast.id;
+                            const persistenceMode = broadcast.persistenceMode || 'permanent';
+                            const broadcastId = broadcast.link?.context?.broadcastId;
+
+                            // Mark as dismissing (for animation)
+                            setDismissingIds(prev => new Set(prev).add(notifId));
+
+                            // Handle dismissal based on persistence mode
+                            if (persistenceMode === 'session') {
+                                // Session dismissal — save to sessionStorage only
+                                if (broadcastId) addSessionDismissed(broadcastId);
+                                setSessionDismissed(prev => new Set(prev).add(broadcastId || notifId));
+                                // Remove from dismissing after animation
+                                setTimeout(() => {
+                                    setDismissingIds(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(notifId);
+                                        return next;
+                                    });
+                                }, 300);
+                            } else if (persistenceMode === 'permanent') {
+                                // Permanent dismissal — mark as read in DB
+                                try {
+                                    await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
+                                } catch (e) {
+                                    console.error('[BroadcastBanner] Failed to mark as read:', e);
+                                }
+                                setTimeout(() => {
+                                    setDismissingIds(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(notifId);
+                                        return next;
+                                    });
+                                }, 300);
+                            }
+                            // 'persistent' mode: no dismiss button shown, so this won't be called
+                        }}
+                        currentUser={currentUser}
+                    />
+                );
+            })}
+        </div>
+    );
+};
+
+// ─── Single Banner Component ──────────────────────────────────────────
+const SingleBanner: React.FC<{
+    broadcast: any;
+    isPrimary: boolean;
+    isDismissing: boolean;
+    onDismiss: () => void;
+    currentUser: any;
+}> = ({ broadcast, isPrimary, isDismissing, onDismiss, currentUser }) => {
+    const [isVisible, setIsVisible] = useState(false);
+
     useEffect(() => {
-        if (activeBroadcast && dismissingId !== (activeBroadcast._id || activeBroadcast.id)) {
+        if (!isDismissing) {
             const timer = setTimeout(() => setIsVisible(true), 50);
             return () => clearTimeout(timer);
         } else {
             setIsVisible(false);
         }
-    }, [activeBroadcast, dismissingId]);
+    }, [isDismissing]);
 
-    if (!activeBroadcast) return null;
-
-    const themeKey = parseTheme(activeBroadcast.type || '');
+    const themeKey = parseTheme(broadcast.type || '');
     const theme = THEME_STYLES[themeKey] || DEFAULT_THEME;
-    const notifId = activeBroadcast._id || activeBroadcast.id;
-
-    const handleDismiss = async () => {
-        // Mark this specific broadcast as dismissing (for animation)
-        setDismissingId(notifId);
-        setIsVisible(false);
-
-        // Mark as read in the backend — this removes it from the
-        // getActiveBroadcasts query result (which filters by !isRead),
-        // so the banner disappears. The notification remains in the
-        // bell's history list (which shows all notifications including
-        // read ones).
-        try {
-            await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
-        } catch (e) {
-            console.error('[BroadcastBanner] Failed to mark as read:', e);
-            // Reset dismissing state on error so the user can retry
-            setDismissingId(null);
-        }
-    };
+    const persistenceMode = broadcast.persistenceMode || 'permanent';
+    const isDismissible = persistenceMode !== 'persistent';
+    const hasDeepLink = !!broadcast.deepLink;
 
     const handleAction = () => {
-        if (activeBroadcast.deepLink) {
-            window.location.hash = activeBroadcast.deepLink;
+        if (broadcast.deepLink) {
+            window.location.hash = broadcast.deepLink;
         }
-        handleDismiss();
+        if (persistenceMode !== 'persistent') {
+            onDismiss();
+        }
     };
-
-    const hasDeepLink = !!activeBroadcast.deepLink;
-    const isThisDismissing = dismissingId === notifId;
 
     return (
         <div
-            className={`w-full transition-all duration-300 ease-out ${
-                isVisible && !isThisDismissing
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 -translate-y-2 pointer-events-none'
+            className={`w-full transition-all duration-300 ease-out overflow-hidden ${
+                isVisible && !isDismissing
+                    ? 'opacity-100 max-h-96'
+                    : 'opacity-0 max-h-0'
             }`}
+            style={{
+                marginTop: isDismissing ? '-0.5rem' : '0',
+                marginBottom: isDismissing ? '-0.5rem' : '0',
+            }}
         >
             <div
-                className="relative rounded-2xl overflow-hidden shadow-sm border"
+                className={`relative rounded-2xl overflow-hidden shadow-sm border ${isPrimary ? '' : 'opacity-90 scale-[0.98]'}`}
                 style={{
                     background: theme.light.bg,
                     borderColor: theme.light.border,
@@ -195,36 +264,35 @@ export const BroadcastBanner: React.FC = () => {
                     WebkitBackdropFilter: 'blur(12px)',
                 }}
             >
-                {/* Dark mode styles via class override */}
                 <style>{`
                     @media (prefers-color-scheme: dark) {
-                        .broadcast-glass-banner {
+                        .broadcast-glass-banner-${themeKey} {
                             background: ${theme.dark.bg} !important;
                             border-color: ${theme.dark.border} !important;
                         }
-                        .broadcast-glass-banner .broadcast-icon-wrap {
+                        .broadcast-glass-banner-${themeKey} .broadcast-icon-wrap {
                             background: ${theme.dark.iconBg} !important;
                         }
-                        .broadcast-glass-banner .broadcast-icon { color: ${theme.dark.iconColor} !important; }
-                        .broadcast-glass-banner .broadcast-title { color: ${theme.dark.titleColor} !important; }
-                        .broadcast-glass-banner .broadcast-body { color: ${theme.dark.bodyColor} !important; }
-                        .broadcast-glass-banner .broadcast-action {
+                        .broadcast-glass-banner-${themeKey} .broadcast-icon { color: ${theme.dark.iconColor} !important; }
+                        .broadcast-glass-banner-${themeKey} .broadcast-title { color: ${theme.dark.titleColor} !important; }
+                        .broadcast-glass-banner-${themeKey} .broadcast-body { color: ${theme.dark.bodyColor} !important; }
+                        .broadcast-glass-banner-${themeKey} .broadcast-action {
                             background: rgba(255,255,255,0.15) !important;
                             color: ${theme.dark.titleColor} !important;
                         }
-                        .broadcast-glass-banner .broadcast-action:hover {
+                        .broadcast-glass-banner-${themeKey} .broadcast-action:hover {
                             background: rgba(255,255,255,0.25) !important;
                         }
-                        .broadcast-glass-banner .broadcast-dismiss {
+                        .broadcast-glass-banner-${themeKey} .broadcast-dismiss {
                             color: ${theme.dark.iconColor} !important;
                         }
-                        .broadcast-glass-banner .broadcast-dismiss:hover {
+                        .broadcast-glass-banner-${themeKey} .broadcast-dismiss:hover {
                             background: rgba(255,255,255,0.15) !important;
                         }
                     }
                 `}</style>
 
-                <div className="broadcast-glass-banner relative p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
+                <div className={`broadcast-glass-banner-${themeKey} relative p-4 sm:p-5 flex items-start gap-3 sm:gap-4`}>
                     {/* Left: Category Icon */}
                     <div
                         className="broadcast-icon-wrap flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
@@ -243,18 +311,18 @@ export const BroadcastBanner: React.FC = () => {
                     </div>
 
                     {/* Center: Content */}
-                    <div className="flex-1 min-w-0 pr-6">
+                    <div className={`flex-1 min-w-0 ${isDismissible ? 'pr-6' : ''}`}>
                         <p
                             className="broadcast-title text-sm font-bold leading-tight"
                             style={{ color: theme.light.titleColor }}
                         >
-                            {activeBroadcast.title || 'Platform Announcement'}
+                            {broadcast.title || 'Platform Announcement'}
                         </p>
                         <p
                             className="broadcast-body text-xs mt-1 leading-relaxed whitespace-pre-wrap break-words"
                             style={{ color: theme.light.bodyColor }}
                         >
-                            {activeBroadcast.message || ''}
+                            {broadcast.message || ''}
                         </p>
                         {hasDeepLink && (
                             <button
@@ -270,17 +338,26 @@ export const BroadcastBanner: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Right: Dismiss (X) Button */}
-                    <button
-                        onClick={handleDismiss}
-                        className="broadcast-dismiss absolute top-3 right-3 p-1.5 rounded-lg transition-colors flex-shrink-0"
-                        style={{ color: theme.light.iconColor }}
-                        aria-label="Dismiss"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    {/* Right: Dismiss (X) Button — only for dismissible banners */}
+                    {isDismissible && (
+                        <button
+                            onClick={onDismiss}
+                            className="broadcast-dismiss absolute top-3 right-3 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                            style={{ color: theme.light.iconColor }}
+                            aria-label="Dismiss"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    )}
+
+                    {/* Persistent badge for non-dismissible banners */}
+                    {!isDismissible && (
+                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/10 text-2xs font-bold" style={{ color: theme.light.iconColor }}>
+                            📌 Pinned
+                        </div>
+                    )}
                 </div>
 
                 {/* Accent bar at bottom */}

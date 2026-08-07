@@ -30,6 +30,13 @@ const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase t
 type Target = 'all' | 'legal' | 'property' | 'unified';
 type Channel = 'inapp' | 'email' | 'both';
 type Theme = 'info' | 'success' | 'warning' | 'urgent';
+type PersistenceMode = 'permanent' | 'session' | 'persistent';
+
+const PERSISTENCE_LABELS: Record<PersistenceMode, { label: string; description: string; icon: string }> = {
+    permanent:  { label: 'Dismiss Permanently', description: 'Once dismissed, never shows again. Ideal for one-off announcements or compliance acknowledgments.', icon: '🔒' },
+    session:    { label: 'Dismiss for Session', description: 'Hidden until logout. Reappears on next login until expired.', icon: '⏱️' },
+    persistent: { label: 'Non-Dismissible',     description: 'No X button. Stays pinned until you archive it from the Control Center.', icon: '📌' },
+};
 
 const THEME_STYLES: Record<Theme, { label: string; color: string; bg: string; border: string; emoji: string }> = {
     info:    { label: 'Info / Announcement', color: 'text-blue-600',     bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-300 dark:border-blue-700',     emoji: '🔵' },
@@ -53,6 +60,7 @@ export const BroadcastConsole: React.FC = () => {
     const [target, setTarget] = useState<Target>('all');
     const [channel, setChannel] = useState<Channel>('inapp');
     const [theme, setTheme] = useState<Theme>('info');
+    const [persistenceMode, setPersistenceMode] = useState<PersistenceMode>('permanent');
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [deepLink, setDeepLink] = useState('');
@@ -70,6 +78,23 @@ export const BroadcastConsole: React.FC = () => {
     // Fetch broadcast history (admin action log filtered to broadcasts)
     const broadcastHistory = useQuery(api.founderMetrics.getAdminActionLog,
         tokenIdentifier ? { tokenIdentifier } : "skip");
+
+    // Active Banners Control Center — fetch all active broadcasts
+    const activeBanners = useQuery(api.broadcasts.getActiveBroadcastsForAdmin,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+
+    // Archive a broadcast (kill all its notification rows)
+    const archiveBroadcast = useMutation(api.broadcasts.archiveBroadcast);
+
+    const handleArchive = async (broadcastId: string) => {
+        if (!confirm('Archive this banner? This will remove it from ALL users immediately.')) return;
+        try {
+            const result = await archiveBroadcast({ tokenIdentifier, broadcastId });
+            addToast(`Banner archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to archive banner.', { type: 'error' });
+        }
+    };
 
     const handleCleanupDuplicates = async () => {
         try {
@@ -101,6 +126,7 @@ export const BroadcastConsole: React.FC = () => {
                 title: title.trim(),
                 message: message.trim(),
                 deepLink: deepLink.trim() || undefined,
+                persistenceMode,
             });
             // Log the admin action so it appears in the audit trail
             try {
@@ -133,6 +159,62 @@ export const BroadcastConsole: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8 space-y-4">
+                {/* Active Banners Control Center */}
+                <div className={CARD}>
+                    <div className="flex items-center justify-between mb-3">
+                        <p className={LABEL + ' mb-0'}>Active Banners Control Center</p>
+                        {activeBanners && activeBanners.length > 0 && (
+                            <span className="text-2xs font-bold text-primary-600 dark:text-primary-400">{activeBanners.length} active</span>
+                        )}
+                    </div>
+                    {activeBanners === undefined ? (
+                        <div className="flex justify-center py-4">
+                            <div className="w-6 h-6 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+                        </div>
+                    ) : activeBanners.length === 0 ? (
+                        <p className="text-xs text-slate-400 text-center py-4">No active banners. Banners you send will appear here for monitoring.</p>
+                    ) : (
+                        <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
+                            {activeBanners.map((banner: any) => (
+                                <div key={banner.broadcastId} className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{banner.title}</p>
+                                            <p className="text-2xs text-slate-400 truncate">{banner.message}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleArchive(banner.broadcastId)}
+                                            className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-2xs font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex-shrink-0"
+                                        >
+                                            Archive
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                                            {banner.targetProduct === 'all' ? 'All Apps' :
+                                             banner.targetProduct === 'unified' ? 'Komplete' :
+                                             banner.targetProduct === 'legal' ? 'Vega' :
+                                             banner.targetProduct === 'property' ? 'Atrium' : banner.targetProduct}
+                                        </span>
+                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                            {banner.recipientCount} recipients
+                                        </span>
+                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                            {banner.activeCount} active · {banner.dismissedCount} dismissed
+                                        </span>
+                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                            {PERSISTENCE_LABELS[banner.persistenceMode as PersistenceMode]?.label || banner.persistenceMode}
+                                        </span>
+                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                            {banner.createdAt ? new Date(banner.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 {/* Target Audience */}
                 <div className={CARD}>
                     <p className={LABEL}>Target Audience</p>
@@ -193,6 +275,32 @@ export const BroadcastConsole: React.FC = () => {
                                 }`}
                             >
                                 {THEME_STYLES[t].emoji} {THEME_STYLES[t].label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Persistence Mode */}
+                <div className={CARD}>
+                    <p className={LABEL}>Persistence / Dismissal Behavior</p>
+                    <div className="space-y-2 mt-3">
+                        {(Object.keys(PERSISTENCE_LABELS) as PersistenceMode[]).map(m => (
+                            <button
+                                key={m}
+                                onClick={() => setPersistenceMode(m)}
+                                className={`w-full p-3 rounded-lg text-left transition-colors border-2 ${
+                                    persistenceMode === m
+                                        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700'
+                                        : 'bg-slate-50 dark:bg-zinc-900 border-transparent hover:border-slate-200 dark:hover:border-zinc-700'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="text-base">{PERSISTENCE_LABELS[m].icon}</span>
+                                    <span className={`text-xs font-bold ${persistenceMode === m ? 'text-primary-700 dark:text-primary-400' : 'text-slate-700 dark:text-zinc-200'}`}>
+                                        {PERSISTENCE_LABELS[m].label}
+                                    </span>
+                                </div>
+                                <p className="text-2xs text-slate-400 ml-7">{PERSISTENCE_LABELS[m].description}</p>
                             </button>
                         ))}
                     </div>

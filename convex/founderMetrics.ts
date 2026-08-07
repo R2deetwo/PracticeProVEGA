@@ -2,6 +2,7 @@
 import { query, mutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
+import { getMaxUsersForFirm, getTierLimitsForFirm } from "./tierLimits";
 
 // ─── Platform Subscription Pricing ───────────────────────────────────
 // PRIVACY: The founder dashboard ONLY tracks platform subscription
@@ -760,6 +761,7 @@ export const broadcastNotification = action({
     title: v.string(),
     message: v.string(),
     deepLink: v.optional(v.string()),
+    persistenceMode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Actions can't use ctx.db directly — use internal query for auth check
@@ -769,6 +771,13 @@ export const broadcastNotification = action({
     const rawUsers = await ctx.runQuery(internal.myFunctions.getAllUsersForBroadcast, {
       targetProduct: args.targetProduct,
     });
+
+    // Generate a unique broadcastId for this broadcast — used to group
+    // all per-user notification rows created by this single broadcast.
+    // This lets the admin "archive" (delete) all rows for a broadcast
+    // in one operation, and lets the client track dismissal per-broadcast.
+    const broadcastId = `broadcast_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const persistenceMode = args.persistenceMode || 'permanent';
 
     // SECOND-LAYER DEDUP: The query already deduplicates by email, but
     // we add a second check here by _id as well — defense in depth.
@@ -799,6 +808,8 @@ export const broadcastNotification = action({
           theme: args.theme,
           deepLink: args.deepLink || undefined,
           targetProduct: args.targetProduct,
+          persistenceMode,
+          broadcastId,
         });
         recipientCount++;
       }
@@ -891,22 +902,28 @@ export const cleanupDuplicateBroadcastNotifications = mutation({
  *
  * Returns:
  *   - daysSinceLastLogin (per user)
- *   - seatsUsed vs maxSeats
+ *   - seatsUsed vs maxSeats (correct tier-based seat limits)
  *   - feature adoption flags (hasUsedEsign, hasUsedVoiceDictation, etc.)
  *   - recent activity count (last 7 days)
  *   - churn risk score
+ *   - usage limits: maxUsers, maxUnits, maxActiveTenants, maxActiveMatters,
+ *     maxManagedProperties, maxCaseFileStorageGb, whatsappLimit
+ *   - current usage: seatsUsed, unitsUsed, tenantsCount, mattersCount,
+ *     propertiesCount
+ *   - usage percentages for "approaching limit" indicators
  */
 export const getFirmHealthDetails = query({
   args: { tokenIdentifier: v.string(), firmId: v.string() },
   handler: async (ctx, args) => {
     await requireFounder(ctx, args.tokenIdentifier);
 
-    const [firm, users, matters, presence, events] = await Promise.all([
+    const [firm, users, matters, presence, events, properties] = await Promise.all([
       ctx.db.get(args.firmId as any),
       ctx.db.query("users").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).collect(),
       ctx.db.query("matters").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(500),
       ctx.db.query("presence").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).collect(),
       ctx.db.query("analytics_events").filter((q: any) => q.eq(q.field("firmId"), args.firmId)).take(200),
+      ctx.db.query("properties").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(500),
     ]);
 
     const now = Date.now();
@@ -934,9 +951,44 @@ export const getFirmHealthDetails = query({
     const hasUsedDraftPro = events.some((e: any) => (e.event || '').toLowerCase().includes('draft'));
     const hasUsedResearch = events.some((e: any) => (e.event || '').toLowerCase().includes('research'));
 
-    // Seats
+    // ─── CORRECT SEAT LIMITS ───────────────────────────────────────────
+    // OLD BUG: used firm.maxUnits (property units) as maxSeats — showed
+    // 999999 for Vega firms and ∞ for Core firms.
+    // FIX: use getMaxUsersForFirm() which returns the correct tier-based
+    // seat limit (1 for Core, 5 for Growth, null for Pro/Enterprise/Komplete).
+    const plan = (firm as any)?.subscriptionPlan || 'Core';
+    const product = (firm as any)?.product || 'legal';
     const seatsUsed = users.length;
-    const maxSeats = (firm as any)?.maxUnits || 0; // if 0 = unlimited
+    const maxSeats = getMaxUsersForFirm(plan, product); // null = unlimited
+
+    // ─── USAGE LIMITS & CURRENT USAGE ──────────────────────────────────
+    // Get all tier limits for this firm's plan/product
+    const tierLimits = getTierLimitsForFirm(plan, product);
+
+    // Current usage counts
+    const unitsUsed = properties.length; // property units
+    const propertiesCount = properties.length;
+    const mattersCount = matters.length;
+    const activeMattersCount = matters.filter((m: any) =>
+      m.status === 'Active' || m.status === 'In Progress' || m.status === 'Open'
+    ).length;
+
+    // Count tenants (contacts with role Tenant, or residents in properties)
+    const tenantsCount = users.filter((u: any) =>
+      u.role === 'Tenant' || u.role === 'Resident'
+    ).length;
+
+    // Usage percentages (null = unlimited, so no percentage)
+    const usagePercent = (used: number, max: number | null): number | null => {
+      if (max === null || max === undefined) return null;
+      if (max === 0) return 0;
+      return Math.round((used / max) * 100);
+    };
+
+    const seatsUsagePercent = usagePercent(seatsUsed, maxSeats);
+    const unitsUsagePercent = usagePercent(unitsUsed, tierLimits.maxUnits);
+    const tenantsUsagePercent = usagePercent(tenantsCount, tierLimits.maxActiveTenants);
+    const mattersUsagePercent = usagePercent(activeMattersCount, tierLimits.maxActiveMatters);
 
     // Churn risk score (0-100, higher = more risk)
     const activeUsers = userHealth.filter((u: any) => u.daysSinceLogin < 7).length;
@@ -950,8 +1002,8 @@ export const getFirmHealthDetails = query({
     return {
       firmId: args.firmId,
       firmName: (firm as any)?.name || 'Unknown',
-      plan: (firm as any)?.subscriptionPlan || 'Core',
-      product: (firm as any)?.product || 'legal',
+      plan,
+      product,
       seatsUsed,
       maxSeats,
       userHealth,
@@ -965,6 +1017,36 @@ export const getFirmHealthDetails = query({
       churnRiskScore,
       totalMatters: matters.length,
       joinedAt: new Date((firm as any)?._creationTime || 0).toISOString(),
+
+      // ─── USAGE LIMITS (tier-based) ───────────────────────────────
+      tierLimits: {
+        maxUsers: tierLimits.maxUsers,
+        maxUnits: tierLimits.maxUnits,
+        maxManagedProperties: tierLimits.maxManagedProperties,
+        maxActiveTenants: tierLimits.maxActiveTenants,
+        maxActiveMatters: tierLimits.maxActiveMatters,
+        maxCaseFileStorageGb: tierLimits.maxCaseFileStorageGb,
+        whatsappLimit: tierLimits.whatsappLimit,
+      },
+
+      // ─── CURRENT USAGE ───────────────────────────────────────────
+      usage: {
+        seatsUsed,
+        unitsUsed,
+        propertiesCount,
+        tenantsCount,
+        mattersCount,
+        activeMattersCount,
+      },
+
+      // ─── USAGE PERCENTAGES (for "approaching limit" indicators) ──
+      // null = unlimited (no % shown). 80%+ = warning, 100%+ = at limit.
+      usagePercentages: {
+        seats: seatsUsagePercent,
+        units: unitsUsagePercent,
+        tenants: tenantsUsagePercent,
+        matters: mattersUsagePercent,
+      },
     };
   },
 });

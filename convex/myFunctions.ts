@@ -4553,9 +4553,10 @@ export const getAllUsersForBroadcast = internalQuery({
  * internal mutation: createBroadcastNotification
  * Creates a notification row for a single user (used by broadcast action).
  *
- * Stores the targetProduct in the notification's link context so client
- * apps can evaluate whether the broadcast applies to their product:
- *   targetProduct === 'all' || targetProduct === userProduct
+ * Stores the targetProduct and persistenceMode in the notification's link
+ * context so client apps can:
+ *   - Evaluate whether the broadcast applies to their product
+ *   - Determine if the banner can be dismissed, and how dismissal persists
  */
 export const createBroadcastNotification = internalMutation({
   args: {
@@ -4566,6 +4567,8 @@ export const createBroadcastNotification = internalMutation({
     theme: v.string(),
     deepLink: v.optional(v.string()),
     targetProduct: v.optional(v.string()),
+    persistenceMode: v.optional(v.string()),
+    broadcastId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("notifications", {
@@ -4581,6 +4584,8 @@ export const createBroadcastNotification = internalMutation({
           deepLink: args.deepLink || undefined,
           targetProduct: args.targetProduct || 'all',
           isBroadcast: true,
+          persistenceMode: args.persistenceMode || 'permanent',
+          broadcastId: args.broadcastId,
         }
       },
       timestamp: new Date().toISOString(),
