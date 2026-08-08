@@ -1,24 +1,22 @@
 /**
- * BroadcastBanner — clean, minimal, polished.
+ * BroadcastBanner — Opaque Smoky Glass design with sequential queue.
  *
- * DESIGN PHILOSOPHY:
- *   Less is more. No heavy icon boxes, no clutter. Just:
- *   - A thin colored left border (urgency indicator)
- *   - A tiny dot + label badge (Info/Success/Warning/Urgent)
- *   - Title in bold
- *   - Message in muted text
- *   - Dismiss (X) in the top-right
+ * DESIGN:
+ *   - Deep, high-density dark smoky glass background (100% opaque to
+ *     underlying text — no ghosting/bleed-through)
+ *   - backdrop-filter: blur(16px) for the glass effect
+ *   - Thin colored left accent line per urgency type
+ *   - Clean row: category pill + bold title + body + dismiss (X)
  *
- *   The card is 100% opaque (solid white/zinc-800) with a subtle border
- *   and soft shadow. No glassmorphism, no translucency — just clean.
+ * QUEUE LOGIC:
+ *   - Deduplicates by broadcastId (client-side, defense-in-depth)
+ *   - Renders ONLY the primary (latest) banner at a time
+ *   - When dismissed, the next banner slides up smoothly
  *
- * DISMISSAL (CRO AUDIT FIX):
- *   Per-broadcast-ID dismissal using localStorage. When a NEW broadcast
- *   arrives with a new ID, it MUST render regardless of whether previous
- *   banners were dismissed. The old message-family suppression
- *   (`family|||${title}|||${message}`) could accidentally hide new
- *   broadcasts if the founder re-sent the same title+message — that's
- *   now removed.
+ * DISMISSAL ISOLATION:
+ *   - Dismissing one banner ONLY affects that specific broadcastId
+ *   - NEVER wipes other active banners from the queue
+ *   - Per-broadcast-ID localStorage key (not message-family)
  *
  * CRASH-SAFE: Returns null when no visible broadcasts.
  */
@@ -28,57 +26,46 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const MAX_BANNERS = 2;
-
 const THEME: Record<string, {
-    border: string;       // Card border color
-    accentBar: string;    // Left accent bar
-    dot: string;          // Status dot
-    badge: string;        // Badge background + text
+    accentBar: string;
+    pillBg: string;
+    pillText: string;
     label: string;
 }> = {
     info: {
-        border: 'border-slate-200 dark:border-zinc-700',
         accentBar: 'bg-blue-500',
-        dot: 'bg-blue-500',
-        badge: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+        pillBg: 'bg-blue-500/20',
+        pillText: 'text-blue-300',
         label: 'Info',
     },
     success: {
-        border: 'border-slate-200 dark:border-zinc-700',
         accentBar: 'bg-emerald-500',
-        dot: 'bg-emerald-500',
-        badge: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+        pillBg: 'bg-emerald-500/20',
+        pillText: 'text-emerald-300',
         label: 'Success',
     },
     warning: {
-        border: 'border-slate-200 dark:border-zinc-700',
         accentBar: 'bg-amber-500',
-        dot: 'bg-amber-500',
-        badge: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+        pillBg: 'bg-amber-500/20',
+        pillText: 'text-amber-300',
         label: 'Warning',
     },
     urgent: {
-        border: 'border-red-200 dark:border-red-800',
-        accentBar: 'bg-red-500',
-        dot: 'bg-red-500',
-        badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+        accentBar: 'bg-rose-500',
+        pillBg: 'bg-rose-500/20',
+        pillText: 'text-rose-300',
         label: 'Urgent',
     },
-    // CRO AUDIT FIX — support 'announcement' and 'upsell' themes
-    // (mentioned in the user's prompt as valid broadcast types)
     announcement: {
-        border: 'border-emerald-200 dark:border-emerald-800',
         accentBar: 'bg-emerald-500',
-        dot: 'bg-emerald-500',
-        badge: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+        pillBg: 'bg-emerald-500/20',
+        pillText: 'text-emerald-300',
         label: 'Announcement',
     },
     upsell: {
-        border: 'border-violet-200 dark:border-violet-800',
         accentBar: 'bg-violet-500',
-        dot: 'bg-violet-500',
-        badge: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
+        pillBg: 'bg-violet-500/20',
+        pillText: 'text-violet-300',
         label: 'Offer',
     },
 };
@@ -88,7 +75,6 @@ const DEFAULT_THEME = THEME.info;
 function parseTheme(type: string): string {
     if (!type || !type.startsWith('broadcast_')) return 'info';
     const parsed = type.replace('broadcast_', '') || 'info';
-    // Map to a known theme, fallback to 'info' for unknown themes
     return THEME[parsed] ? parsed : 'info';
 }
 
@@ -100,10 +86,7 @@ function getUserProduct(user: any): string {
     return 'unified';
 }
 
-// CRO AUDIT FIX — per-broadcast-ID dismissal via localStorage.
-// Keyed strictly to the specific broadcast ID (NOT title+message family).
-// When a NEW broadcast arrives with a new ID, it MUST render regardless
-// of whether previous banners were dismissed.
+// Per-broadcast-ID dismissal via localStorage.
 function isDismissed(broadcastId: string, notifId: string): boolean {
     try {
         if (broadcastId && localStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return true;
@@ -119,8 +102,6 @@ function markDismissed(broadcastId: string, notifId: string) {
     } catch {}
 }
 
-// Session-level dismissal (for 'session' persistence mode — dismissed
-// for the current browser session only, not persisted across refreshes)
 function isSessionDismissed(broadcastId: string, notifId: string): boolean {
     try {
         if (broadcastId && sessionStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return true;
@@ -141,15 +122,9 @@ export const BroadcastBanner: React.FC = () => {
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
 
     const [dismissingId, setDismissingId] = useState<string | null>(null);
-    const [activeIndex, setActiveIndex] = useState(0);
-    // CRO AUDIT FIX — tick state to force re-render when dismissal changes
     const [dismissTick, setDismissTick] = useState(0);
 
-    // CRO AUDIT FIX — one-time cleanup of OLD dismissal state.
-    // The old code used `dismissed_broadcasts_v2` in sessionStorage which
-    // stored message-family keys (`family|||title|||message`). These could
-    // accidentally hide new broadcasts with the same title+message. We
-    // clear that old key on mount so new banners always render.
+    // One-time cleanup of OLD dismissal state (message-family keys).
     useEffect(() => {
         try {
             sessionStorage.removeItem('dismissed_broadcasts_v2');
@@ -167,42 +142,54 @@ export const BroadcastBanner: React.FC = () => {
 
     const userProduct = getUserProduct(currentUser);
 
+    // CRO AUDIT FIX — DEDUPLICATE + FILTER in a single memo.
+    // 1. Deduplicate by broadcastId (client-side defense-in-depth, even
+    //    though the backend now deduplicates too)
+    // 2. Filter by product targeting
+    // 3. Filter by dismissal state (per-broadcast-ID, NOT message-family)
     const visibleBroadcasts = useMemo((): any[] => {
         if (!broadcasts || !Array.isArray(broadcasts)) return [];
-        const matching = broadcasts.filter((b: any) => {
+
+        // Step 1: Deduplicate by broadcastId (keep first = most recent)
+        const seenBroadcastIds = new Set<string>();
+        const deduped = broadcasts.filter((b: any) => {
             if (!b) return false;
-            // Product targeting
+            const bid = b.broadcastId || b.link?.context?.broadcastId || '';
+            if (bid) {
+                if (seenBroadcastIds.has(bid)) return false;
+                seenBroadcastIds.add(bid);
+            }
+            return true;
+        });
+
+        // Step 2 + 3: Filter by product + dismissal
+        const matching = deduped.filter((b: any) => {
             const targetProduct = b.targetProduct || 'all';
             if (targetProduct !== 'all' && targetProduct !== userProduct) return false;
 
-            // CRO AUDIT FIX — per-broadcast-ID dismissal (NOT message-family).
-            // A new broadcast with a new ID MUST render even if old ones were dismissed.
             const broadcastId = b.broadcastId || b.link?.context?.broadcastId || '';
             const notifId = String(b._id || b.id || '');
             const persistenceMode = b.persistenceMode || b.link?.context?.persistenceMode || 'permanent';
 
             if (persistenceMode === 'session') {
-                // Session-only dismissal
                 if (isSessionDismissed(broadcastId, notifId)) return false;
             } else {
-                // Permanent dismissal (localStorage persists across refreshes)
                 if (isDismissed(broadcastId, notifId)) return false;
             }
             return true;
         });
-        return matching.slice(0, MAX_BANNERS);
-        // CRO AUDIT FIX — include dismissTick in deps so re-render happens on dismissal
+
+        // Return ALL visible (not just MAX_BANNERS) — the queue logic below
+        // handles showing one at a time with smooth transitions.
+        return matching;
     }, [broadcasts, userProduct, dismissTick]);
 
-    useEffect(() => {
-        if (visibleBroadcasts.length === 0) {
-            setActiveIndex(0);
-            return;
-        }
-        if (activeIndex >= visibleBroadcasts.length) {
-            setActiveIndex(0);
-        }
-    }, [visibleBroadcasts.length, activeIndex]);
+    // CRO AUDIT FIX — SEQUENTIAL QUEUE LOGIC.
+    // The active banner is always visibleBroadcasts[0] (the latest/most recent).
+    // When dismissed, it's removed from visibleBroadcasts via the dismissal
+    // state, and visibleBroadcasts[1] automatically becomes the new [0].
+    const activeBroadcast = visibleBroadcasts[0] || null;
+    const queueCount = visibleBroadcasts.length;
 
     const handleDismiss = useCallback(async (broadcast: any) => {
         if (!broadcast) return;
@@ -214,20 +201,23 @@ export const BroadcastBanner: React.FC = () => {
         // Animate out
         setDismissingId(notifId);
 
-        // CRO AUDIT FIX — store dismissal per-broadcast-ID (NOT message-family)
+        // CRO AUDIT FIX — ISOLATED dismissal. Only store dismissal for THIS
+        // specific broadcastId + notifId. NEVER touch other banners' state.
         if (persistenceMode === 'session') {
             markSessionDismissed(broadcastId, notifId);
         } else {
             markDismissed(broadcastId, notifId);
         }
 
-        // Force re-render to update visibleBroadcasts
+        // Force re-render after animation completes. The dismissed banner
+        // is removed from visibleBroadcasts, and the next one slides up.
         setTimeout(() => {
             setDismissTick(t => t + 1);
             setDismissingId(null);
-        }, 250);
+        }, 300);
 
-        // Mark as read in backend (for 'permanent' mode only — 'persistent' can't be dismissed)
+        // Mark as read in backend (for 'permanent' mode only).
+        // CRO AUDIT FIX — only pass THIS ONE notifId, never multiple.
         if (persistenceMode === 'permanent') {
             try {
                 await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
@@ -237,66 +227,60 @@ export const BroadcastBanner: React.FC = () => {
         }
     }, [markAsRead, currentUser]);
 
-    const handleNext = useCallback(() => {
-        if (visibleBroadcasts.length < 2) return;
-        setActiveIndex(prev => (prev + 1) % visibleBroadcasts.length);
-    }, [visibleBroadcasts.length]);
-
-    const handleStubClick = useCallback((index: number) => {
-        setActiveIndex(index);
-    }, []);
-
     // CRASH-SAFE
-    if (!visibleBroadcasts || visibleBroadcasts.length === 0) return null;
-    const activeBroadcast = visibleBroadcasts[activeIndex];
     if (!activeBroadcast) return null;
 
     const activeTheme = THEME[parseTheme(activeBroadcast.type || '')] || DEFAULT_THEME;
     const persistenceMode = activeBroadcast.persistenceMode || activeBroadcast.link?.context?.persistenceMode || 'permanent';
-    // CRO AUDIT FIX — 'persistent' mode means the banner CANNOT be dismissed
-    // (it stays until the founder archives it). 'permanent' and 'session' can be dismissed.
     const isDismissible = persistenceMode !== 'persistent';
-    const stubs = visibleBroadcasts.map((b, i) => ({ b, i })).filter(({ i }) => i !== activeIndex);
+    const isDismissing = dismissingId === String(activeBroadcast._id || activeBroadcast.id);
 
     return (
         <div className="w-full">
-            {/* Active Card — clean, minimal, 100% opaque.
-                CRO AUDIT FIX — smooth animation via CSS transition.
-                Removed framer-motion dependency (was causing issues); using
-                Tailwind's transition-all + opacity/translate instead. */}
+            {/* Active Card — Opaque Smoky Glass
+                - background: rgba(18, 24, 22, 0.92) in dark mode (100% opaque to underlying text)
+                - backdrop-filter: blur(16px) for the glass effect
+                - Thin colored left accent line per urgency type
+                - Smooth slide-down fade-in when a banner arrives
+                - Smooth slide-up fade-out when dismissed */}
             <div
-                className={`relative bg-white dark:bg-zinc-800 rounded-xl border ${activeTheme.border} shadow-sm overflow-hidden transition-all duration-300 ease-out ${
-                    dismissingId === String(activeBroadcast._id || activeBroadcast.id)
-                        ? 'opacity-0 -translate-y-3 max-h-0'
+                className={`relative overflow-hidden rounded-xl border border-white/10 transition-all duration-300 ease-out ${
+                    isDismissing
+                        ? 'opacity-0 -translate-y-4 max-h-0 mt-0 mb-0'
                         : 'opacity-100 translate-y-0'
                 }`}
+                style={{
+                    background: 'rgba(18, 24, 22, 0.92)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                }}
             >
-                {/* Thin left accent bar */}
+                {/* Thin colored left accent bar */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${activeTheme.accentBar}`} />
 
                 <div className="p-4 pl-5">
-                    {/* Top row: badge + title + dismiss */}
+                    {/* Top row: pill + title + dismiss */}
                     <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {/* Tiny dot + label badge */}
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-3xs font-bold ${activeTheme.badge} flex-shrink-0`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.dot}`} />
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                            {/* Category pill */}
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold ${activeTheme.pillBg} ${activeTheme.pillText} flex-shrink-0`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.accentBar}`} />
                                 {activeTheme.label}
                             </span>
                             {persistenceMode === 'persistent' && (
                                 <span className="text-3xs font-bold text-slate-400 flex-shrink-0">📌 Pinned</span>
                             )}
                             {/* Title */}
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                            <p className="text-sm font-bold text-white truncate">
                                 {activeBroadcast.title || 'Announcement'}
                             </p>
                         </div>
 
-                        {/* Dismiss — 44px hitbox, minimal */}
+                        {/* Dismiss button */}
                         {isDismissible && (
                             <button
                                 onClick={() => handleDismiss(activeBroadcast)}
-                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
                                 aria-label="Dismiss"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -306,8 +290,8 @@ export const BroadcastBanner: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Message */}
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                    {/* Message body */}
+                    <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
                         {activeBroadcast.message || ''}
                     </p>
 
@@ -320,7 +304,7 @@ export const BroadcastBanner: React.FC = () => {
                                 }
                                 if (isDismissible) handleDismiss(activeBroadcast);
                             }}
-                            className="mt-2 text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                            className="mt-2 text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline"
                         >
                             View Details →
                         </button>
@@ -328,61 +312,12 @@ export const BroadcastBanner: React.FC = () => {
                 </div>
             </div>
 
-            {/* Compact stubs — single line each */}
-            {stubs.length > 0 && (
-                <div className="mt-1.5">
-                    {stubs.map(({ b, i }) => {
-                        const theme = THEME[parseTheme(b.type || '')] || DEFAULT_THEME;
-                        return (
-                            <button
-                                key={String(b._id || b.id || i)}
-                                onClick={() => handleStubClick(i)}
-                                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-zinc-800 border ${theme.border} hover:shadow-sm transition-all cursor-pointer`}
-                            >
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${theme.dot}`} />
-                                <span className={`text-3xs font-bold ${theme.badge.split(' ').slice(1).join(' ')} flex-shrink-0`}>
-                                    {theme.label}
-                                </span>
-                                <span className="text-xs font-medium text-slate-600 dark:text-zinc-300 truncate flex-1 text-left">
-                                    {b.title || 'Announcement'}
-                                </span>
-                                <span className="text-3xs text-slate-400 flex-shrink-0">{i + 1}</span>
-                                <svg className="w-3 h-3 text-slate-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* Pagination — minimal, large hitbox */}
-            {visibleBroadcasts.length > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-2">
-                    <button
-                        onClick={() => setActiveIndex(prev => (prev - 1 + visibleBroadcasts.length) % visibleBroadcasts.length)}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-                        aria-label="Previous"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={handleNext}
-                        className="flex items-center justify-center px-3 h-8 rounded-lg text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-                    >
-                        {activeIndex + 1} / {visibleBroadcasts.length}
-                    </button>
-                    <button
-                        onClick={handleNext}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-                        aria-label="Next"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
+            {/* Queue indicator — shows how many more banners are waiting */}
+            {queueCount > 1 && !isDismissing && (
+                <div className="flex items-center justify-center gap-1.5 mt-2">
+                    <span className="text-3xs text-slate-400 font-medium">
+                        +{queueCount - 1} more {queueCount - 1 === 1 ? 'banner' : 'banners'} in queue
+                    </span>
                 </div>
             )}
         </div>

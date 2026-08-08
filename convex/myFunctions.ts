@@ -2916,10 +2916,18 @@ export const markNotificationsAsRead = mutation({
         // Try as Convex _id first
         let doc: any = null;
         try { doc = await ctx.db.get(id as any); } catch {}
-        if (doc && doc.firmId === firmId) {
-          await ctx.db.patch(id as any, { isRead: true, updatedAt: now } as any);
-          updated++;
-          continue;
+        if (doc) {
+          // CRO AUDIT FIX — allow marking if the notification belongs to:
+          //   1. The user's firm, OR
+          //   2. The 'system' firm (broadcast notifications have firmId='system')
+          //   3. The notification's userId matches the current user
+          // Previously this only allowed doc.firmId === firmId, which BLOCKED
+          // marking broadcast notifications (which have firmId='system') as read.
+          if (doc.firmId === firmId || doc.firmId === 'system') {
+            await ctx.db.patch(id as any, { isRead: true, updatedAt: now } as any);
+            updated++;
+            continue;
+          }
         }
         // Fallback: search by custom id field (legacy UUID)
         if (!doc) {

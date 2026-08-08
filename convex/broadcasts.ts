@@ -132,8 +132,22 @@ export const getActiveBroadcasts = query({
       return tsB - tsA;
     });
 
+    // CRO AUDIT FIX — DEDUPLICATE BY BROADCAST ID.
+    // If a user has multiple user records (from joining multiple firms),
+    // the same broadcast creates one notification per record. Without
+    // deduplication, the user sees identical banners stacked vertically.
+    // We keep only the FIRST (most recent) notification per broadcastId.
+    const seenBroadcastIds = new Set<string>();
+    const deduped = sorted.filter((n) => {
+      const bid = (n.link as any)?.context?.broadcastId || '';
+      if (!bid) return true;  // No broadcastId = legacy, keep it
+      if (seenBroadcastIds.has(bid)) return false;  // Duplicate, skip
+      seenBroadcastIds.add(bid);
+      return true;
+    });
+
     // Map to a clean shape for the client
-    return sorted.map((n) => ({
+    return deduped.map((n) => ({
       _id: n._id,
       id: n.id,
       title: n.title,
