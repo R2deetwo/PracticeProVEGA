@@ -45,9 +45,12 @@ const PRODUCT_LABEL: Record<string, string> = {
 
 interface FounderDashboardProps {
     onNavigateToSignals?: (product?: string) => void;
+    // CRO AUDIT Track A — allow the dashboard to navigate to the
+    // Subscriptions approval queue when the founder taps the actionable banner.
+    onNavigateToSubscriptions?: () => void;
 }
 
-export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals: _onNavigateToSignals }) => {
+export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals: _onNavigateToSignals, onNavigateToSubscriptions }) => {
     const { currentUser } = useFounderAuth();
     const [productFilter, setProductFilter] = useState<ProductFilter>('all');
     const [entityToggle, setEntityToggle] = useState<'properties' | 'matters'>('properties');
@@ -55,6 +58,19 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const metrics = useQuery(api.founderMetrics.getFounderMetrics,
         tokenIdentifier ? { tokenIdentifier } : "skip");
+
+    // CRO AUDIT Track A — fetch pending subscription requests + trial metrics
+    // for the actionable items banner at the top of the dashboard.
+    const subStats = useQuery(api.founderMetrics.getSubscriptionRequestStats,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+    const trialMetrics = useQuery(api.founderMetrics.getTrialMetrics,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+
+    const pendingSubCount = subStats?.pending || 0;
+    const pendingSubVolume = subStats?.pendingAmountNaira || 0;
+    const expiringSoonCount = subStats?.expiringSoon || 0;
+    const activeTrials = trialMetrics?.activeTrials || 0;
+    const trialsEndingToday = trialMetrics?.endingToday || 0;
 
     if (metrics === undefined) {
         return (
@@ -141,6 +157,88 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
             </div>
 
             <div className="px-4 space-y-6">
+                {/* ─── ACTION ITEMS BANNER (CRO AUDIT Track A) ─────────────── */}
+                {/* Surfaces pending subscription requests + trials ending today
+                    as the most actionable items at the top of the dashboard. */}
+                {(pendingSubCount > 0 || trialsEndingToday > 0) && (
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-2xl p-4 animate-fade-in">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 bg-amber-500 rounded-full flex items-center justify-center text-white">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-sm font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">Action Items</h3>
+                        </div>
+                        <div className="space-y-2">
+                            {pendingSubCount > 0 && (
+                                <button
+                                    onClick={() => onNavigateToSubscriptions?.()}
+                                    className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors text-left"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-xs flex-shrink-0 ${expiringSoonCount > 0 ? 'bg-red-500' : 'bg-amber-500'}`}>
+                                            {pendingSubCount > 9 ? '9+' : pendingSubCount}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                                {pendingSubCount} subscription {pendingSubCount === 1 ? 'request' : 'requests'} pending
+                                            </p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                <NairaSymbol />{formatCompact(pendingSubVolume)} in pending volume
+                                                {expiringSoonCount > 0 && <span className="text-red-600 dark:text-red-400 font-bold"> • {expiringSoonCount} expiring in 24h</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            )}
+                            {trialsEndingToday > 0 && (
+                                <div className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl text-left">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-red-500 text-white font-black text-xs flex-shrink-0">
+                                            {trialsEndingToday > 9 ? '9+' : trialsEndingToday}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                                {trialsEndingToday} {trialsEndingToday === 1 ? 'trial' : 'trials'} ending today
+                                            </p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                {activeTrials} active trials total — daily expiry cron runs at 0:05 UTC
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ─── Trial Funnel Mini-Stats (CRO AUDIT Track B) ─────── */}
+                {/* Shows trial conversion funnel health at a glance. */}
+                {activeTrials > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className={KPI_CARD}>
+                            <p className={KPI_LABEL}>Active Trials</p>
+                            <p className={KPI_VALUE}>{activeTrials}</p>
+                        </div>
+                        <div className={KPI_CARD}>
+                            <p className={KPI_LABEL}>Ending in 4 Days</p>
+                            <p className="text-lg sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 truncate">
+                                {trialMetrics?.endingIn4Days || 0}
+                            </p>
+                        </div>
+                        <div className={KPI_CARD}>
+                            <p className={KPI_LABEL}>Total Trials Started</p>
+                            <p className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate">
+                                {trialMetrics?.totalTrialsStarted || 0}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* ─── PRODUCT BREAKDOWN (clickable → filter dashboard) ──── */}
                 <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden">
                     <p className={SECTION_TITLE}>Product Breakdown — Tap to filter dashboard</p>

@@ -24,6 +24,8 @@ import { AuditLogs } from './views/AuditLogs';
 import { FounderSignals } from './views/FounderSignals';
 import { FeedbackInbox } from './views/FeedbackInbox';
 import { BroadcastConsole } from './views/BroadcastConsole';
+// CRO AUDIT Track A — Founder-facing subscription request approval queue.
+import { SubscriptionRequestsCenter } from './views/SubscriptionRequestsCenter';
 import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
@@ -85,7 +87,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export' | 'analytics';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export' | 'analytics' | 'subscriptions';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -135,7 +137,7 @@ const FounderApp: React.FC = () => {
 
     const renderView = () => {
         switch (activeView) {
-            case 'dashboard': return <ViewErrorBoundary viewName="Dashboard"><FounderDashboard onNavigateToSignals={() => setActiveView('signals')} /></ViewErrorBoundary>;
+            case 'dashboard': return <ViewErrorBoundary viewName="Dashboard"><FounderDashboard onNavigateToSignals={() => setActiveView('signals')} onNavigateToSubscriptions={() => setActiveView('subscriptions')} /></ViewErrorBoundary>;
             case 'signals': return <ViewErrorBoundary viewName="Signals"><FounderSignals /></ViewErrorBoundary>;
             case 'organizations': return <ViewErrorBoundary viewName="Organizations"><OrganizationsHub /></ViewErrorBoundary>;
             case 'feedback': return <ViewErrorBoundary viewName="Feedback"><FeedbackInbox /></ViewErrorBoundary>;
@@ -146,6 +148,7 @@ const FounderApp: React.FC = () => {
             case 'system': return <ViewErrorBoundary viewName="System"><SystemStatus /></ViewErrorBoundary>;
             case 'export': return <ViewErrorBoundary viewName="Export"><ExportCenter /></ViewErrorBoundary>;
             case 'analytics': return <ViewErrorBoundary viewName="Analytics"><AnalyticsView /></ViewErrorBoundary>;
+            case 'subscriptions': return <ViewErrorBoundary viewName="Subscriptions"><SubscriptionRequestsCenter /></ViewErrorBoundary>;
             default: return null;
         }
     };

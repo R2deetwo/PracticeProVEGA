@@ -5585,3 +5585,62 @@ Files Created:
 - src/components/modals/SoftGateModal.tsx
 
 ALL CRO AUDIT ITEMS COMPLETE.
+
+---
+Task ID: CRO-AUDIT-FOUNDER-APP
+Agent: main (GLM)
+Task: Build founder admin UI for subscription request approval + trial visibility
+
+Work Log:
+- Added 5 new founder-facing queries/mutations to convex/founderMetrics.ts:
+  * getSubscriptionRequests — fetches + enriches requests by status
+  * getSubscriptionRequestStats — pending count, pending volume, expiring count
+  * approveSubscriptionRequestAsFounder — flips firm.subscriptionPlan + clears trial fields + notifies user + logs action
+  * rejectSubscriptionRequestAsFounder — marks rejected + notifies user + logs action
+  * getTrialMetrics — active trials, ending today, ending in 4 days, total started
+- Enriched getAllFirmsForAdmin return shape with trial fields: trialStartsAt, trialEndsAt, trialPlan, isOnTrial, trialDaysRemaining
+- Created new src/admin/views/SubscriptionRequestsCenter.tsx — dedicated approval queue with:
+  * Stats header (pending count + pending NGN volume + approved + expiring-soon)
+  * Searchable + filterable list (pending/approved/rejected/auto-reverted/all)
+  * Per-request expandable card with: firm name, plan transition, amount, reference, requestedAt, auto-revert countdown, user note
+  * Approve (with optional notes) + Reject (with reason) buttons — wired to founder mutations
+  * Status badges: pending (amber), approved (emerald), rejected (red), auto_reverted (slate)
+- Wired SubscriptionRequestsCenter into AdminApp.tsx as a new 'subscriptions' view
+- Updated FounderBottomNav.tsx:
+  * Added 'Subscriptions' as the FIRST item in the More menu (high priority)
+  * Added live pending-count badge on the Subscriptions item (amber for pending, red+pulse for expiring soon)
+  * Added red dot on the More button when pending requests exist
+- Updated FounderDashboard.tsx:
+  * Added Action Items banner at top showing pending count + pending volume + expiring-soon warning
+  * Action Items banner includes a one-tap button that navigates to the Subscriptions approval queue
+  * Added Trial Funnel mini-stats strip (Active Trials / Ending in 4 Days / Total Trials Started)
+  * Added onNavigateToSubscriptions prop so dashboard can route to approval queue
+- Updated OrganizationsHub.tsx:
+  * Added TRIAL · {plan} · {N}d badge next to plan in firm table rows
+  * Added TRIAL · {plan} · {N}d left badge in the firm detail drawer header
+  * Both badges include tooltip with trial end timestamp
+
+Stage Summary:
+- The founder app now has a complete subscription request approval workflow:
+  1. User clicks "Report Payment Transferred" → createSubscriptionRequest inserts pending row
+  2. Founder sees pending count badge on More menu + Action Items banner on dashboard
+  3. Founder taps through to SubscriptionRequestsCenter
+  4. Founder reviews details (firm, plan transition, amount, reference, user note)
+  5. Founder approves → firm.subscriptionPlan flips + trial fields clear + user notified
+  6. Or founder rejects → user notified with reason
+  7. Auto-revert cron handles 72h stale requests
+- Trial visibility is now everywhere: dashboard funnel stats, organizations list, firm detail drawer
+- TypeScript: zero errors in any modified file (10 pre-existing errors in conversationMemory.ts and retainerBilling.ts — untouched)
+- Convex codegen will regenerate api.d.ts on next `npx convex dev` or `npx convex deploy`
+
+Files Modified:
+- convex/founderMetrics.ts (5 new queries/mutations + trial-enriched getAllFirmsForAdmin)
+- src/admin/AdminApp.tsx (new 'subscriptions' view + nav wiring)
+- src/admin/FounderBottomNav.tsx (Subscriptions nav item + pending badge)
+- src/components/FounderDashboard.tsx (Action Items banner + trial funnel stats)
+- src/admin/views/OrganizationsHub.tsx (trial badges in table + detail drawer)
+
+Files Created:
+- src/admin/views/SubscriptionRequestsCenter.tsx
+
+ALL FOUNDER APP WORK COMPLETE.

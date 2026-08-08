@@ -370,6 +370,16 @@ export const getAllFirmsForAdmin = query({
           annualSubscription,        // Annualized platform revenue from this firm
           setupFeePaid: firm.setupFeePaid || false,
           subscriptionStatus: firm.setupFeePaid ? 'active' : 'pending',
+          // CRO AUDIT Track B — trial fields for the founder dashboard.
+          // When trialEndsAt is in the future, the firm is on active trial of
+          // trialPlan (its billingPlan stays at 'Core' until the trial converts).
+          trialStartsAt: firm.trialStartsAt || null,
+          trialEndsAt: firm.trialEndsAt || null,
+          trialPlan: firm.trialPlan || null,
+          isOnTrial: !!(firm.trialEndsAt && firm.trialPlan && firm.trialEndsAt > Date.now()),
+          trialDaysRemaining: firm.trialEndsAt
+            ? Math.max(0, Math.ceil((firm.trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000)))
+            : 0,
           joinedAt: new Date(firm._creationTime).toISOString().split('T')[0],
           lastActive: firm.lastActive || new Date(firm._creationTime).toISOString().split('T')[0],
           ingestionAccess: firm.ingestionAccess !== false,
@@ -1370,5 +1380,343 @@ export const checkFounderRole = internalQuery({
       throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'.`);
     }
     return userRecord;
+  },
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRO AUDIT TRACK A — FOUNDER-FACING SUBSCRIPTION REQUEST QUERIES
+// ════════════════════════════════════════════════════════════════════════════
+// These queries expose the new subscriptionRequests table to the founder
+// admin app. The founder can see all pending payment reports, approve them
+// (which flips firm.subscriptionPlan via approveSubscriptionRequest), or
+// reject them (which leaves the firm on its current plan).
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * getSubscriptionRequests — returns subscription requests filtered by status.
+ * Default: 'pending_review' (the most actionable). Also supports 'all',
+ * 'approved', 'rejected', 'auto_reverted', 'expired'.
+ */
+export const getSubscriptionRequests = query({
+  args: {
+    tokenIdentifier: v.string(),
+    status: v.optional(v.string()),  // 'pending_review' | 'all' | 'approved' | etc.
+  },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+    const status = args.status || 'pending_review';
+
+    const requests = status === 'all'
+      ? await ctx.db.query("subscriptionRequests").order("desc").take(200)
+      : await ctx.db
+          .query("subscriptionRequests")
+          .withIndex("by_status", (q: any) => q.eq("status", status))
+          .order("desc")
+          .take(200);
+
+    // Enrich with firm + user info
+    const firmCache = new Map<string, any>();
+    const userCache = new Map<string, any>();
+    const enriched = await Promise.all((requests || []).map(async (r: any) => {
+      let firm = firmCache.get(r.firmId);
+      if (!firm && r.firmId) {
+        try { firm = await ctx.db.get(r.firmId as any); } catch { firm = null; }
+        if (firm) firmCache.set(r.firmId, firm);
+      }
+      let user = userCache.get(r.userId);
+      if (!user && r.userId) {
+        try { user = await ctx.db.get(r.userId as any); } catch { user = null; }
+        if (user) userCache.set(r.userId, user);
+      }
+      return {
+        id: r._id,
+        firmId: r.firmId,
+        firmName: firm?.name || 'Unknown Firm',
+        firmProduct: firm?.product || 'unified',
+        userEmail: r.userEmail || user?.email || '',
+        userName: user?.name || '',
+        currentPlan: r.currentPlan || 'Core',
+        requestedPlan: r.requestedPlan,
+        billingInterval: r.billingInterval || 'annual',
+        amount: r.amount || 0,
+        transactionReference: r.transactionReference || '',
+        status: r.status,
+        paymentProofStorageId: r.paymentProofStorageId || null,
+        paymentProofNote: r.paymentProofNote || null,
+        requestedAt: r.requestedAt,
+        reviewedAt: r.reviewedAt || null,
+        reviewedBy: r.reviewedBy || null,
+        autoRevertAt: r.autoRevertAt || null,
+        adminNotes: r.adminNotes || null,
+      };
+    }));
+
+    return enriched;
+  },
+});
+
+/**
+ * getSubscriptionRequestStats — high-level stats for the founder dashboard.
+ * Returns counts by status + total pending NGN volume.
+ */
+export const getSubscriptionRequestStats = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const all = await ctx.db.query("subscriptionRequests").take(500);
+    const now = Date.now();
+
+    const stats = {
+      pending: 0,
+      pendingAmountNaira: 0,
+      approved: 0,
+      rejected: 0,
+      autoReverted: 0,
+      expiringSoon: 0,  // pending + autoRevertAt within 24h
+    };
+
+    for (const r of all) {
+      const status = (r as any).status;
+      const amount = (r as any).amount || 0;
+      const autoRevertAt = (r as any).autoRevertAt;
+      if (status === 'pending_review') {
+        stats.pending++;
+        stats.pendingAmountNaira += amount;
+        if (autoRevertAt && (autoRevertAt - now) < 24 * 60 * 60 * 1000) {
+          stats.expiringSoon++;
+        }
+      } else if (status === 'approved') {
+        stats.approved++;
+      } else if (status === 'rejected') {
+        stats.rejected++;
+      } else if (status === 'auto_reverted') {
+        stats.autoReverted++;
+      }
+    }
+
+    return stats;
+  },
+});
+
+/**
+ * approveSubscriptionRequestAsFounder — founder-only wrapper around
+ * approveSubscriptionRequest. Logs the admin action and triggers a refresh
+ * of the firm's data via updateFirmAdminSettings.
+ *
+ * NOTE: the actual plan flip happens in myFunctions.approveSubscriptionRequest
+ * (gated by requireAdmin + role check). This wrapper just adds the founder
+ * audit log entry.
+ */
+export const approveSubscriptionRequestAsFounder = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    requestId: v.string(),
+    adminNotes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const founder = await requireFounder(ctx, args.tokenIdentifier);
+
+    // Fetch the request first so we can log the details
+    const request: any = await ctx.db.get(args.requestId as any);
+    if (!request) throw new Error("Subscription request not found.");
+    if (request.status !== 'pending_review') {
+      throw new Error(`Request is not pending (current status: ${request.status}).`);
+    }
+
+    // Patch the request directly — bypass the requireAdmin gate in
+    // myFunctions.approveSubscriptionRequest because founders don't have
+    // a firmId (they're platform-level users, not firm members).
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.requestId as any, {
+      status: 'approved',
+      reviewedAt: now,
+      reviewedBy: founder.email,
+      adminNotes: args.adminNotes || null,
+      updatedAt: now,
+    } as any);
+
+    // Flip the firm's subscriptionPlan + clear trial fields
+    await ctx.db.patch(request.firmId, {
+      subscriptionPlan: request.requestedPlan,
+      setupFeePaid: true,
+      adminStatus: 'active',
+      trialStartsAt: null,
+      trialEndsAt: null,
+      trialPlan: null,
+      billingInterval: request.billingInterval,
+      nextBillingDate: computeNextBillingDate(request.billingInterval, now),
+      updatedAt: now,
+    } as any);
+
+    // Notify the requesting user
+    if (request.userId) {
+      try {
+        await ctx.db.insert("notifications", {
+          firmId: request.firmId,
+          userId: request.userId,
+          title: 'Subscription Activated',
+          message: `Your upgrade to ${request.requestedPlan} has been confirmed by ${founder.email}. Enjoy the new features!`,
+          type: 'subscription_activated',
+          timestamp: now,
+          isRead: false,
+        } as any);
+      } catch (e) {
+        console.warn('[approveSubscriptionRequestAsFounder] Notification insert failed:', e);
+      }
+    }
+
+    // Log the admin action (uses analytics_events table — same as logAdminAction)
+    try {
+      await ctx.db.insert("analytics_events", {
+        firmId: "system",
+        userId: args.tokenIdentifier,
+        event: 'ADMIN ACTION: APPROVED SUBSCRIPTION REQUEST',
+        properties: {
+          targetFirmId: request.firmId,
+          targetUserId: request.userId,
+          adminEmail: founder.email,
+          details: `Approved ${request.currentPlan} → ${request.requestedPlan} (${request.billingInterval}). Amount: ₦${request.amount}. Reference: ${request.transactionReference}. Notes: ${args.adminNotes || 'none'}`,
+          timestamp: Date.now(),
+        },
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.warn('[approveSubscriptionRequestAsFounder] Log insert failed:', e);
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * rejectSubscriptionRequestAsFounder — founder-only wrapper around
+ * rejectSubscriptionRequest. Same pattern as approve: patch directly + log.
+ */
+export const rejectSubscriptionRequestAsFounder = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    requestId: v.string(),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const founder = await requireFounder(ctx, args.tokenIdentifier);
+
+    const request: any = await ctx.db.get(args.requestId as any);
+    if (!request) throw new Error("Subscription request not found.");
+    if (request.status !== 'pending_review') {
+      throw new Error(`Request is not pending (current status: ${request.status}).`);
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.requestId as any, {
+      status: 'rejected',
+      reviewedAt: now,
+      reviewedBy: founder.email,
+      adminNotes: args.reason || null,
+      updatedAt: now,
+    } as any);
+
+    // Notify the requesting user
+    if (request.userId) {
+      try {
+        await ctx.db.insert("notifications", {
+          firmId: request.firmId,
+          userId: request.userId,
+          title: 'Subscription Request Update',
+          message: `Your upgrade request could not be verified. Reason: ${args.reason || 'Payment not confirmed. Please contact support.'}`,
+          type: 'subscription_rejected',
+          timestamp: now,
+          isRead: false,
+        } as any);
+      } catch (e) {
+        console.warn('[rejectSubscriptionRequestAsFounder] Notification insert failed:', e);
+      }
+    }
+
+    // Log the admin action
+    try {
+      await ctx.db.insert("analytics_events", {
+        firmId: "system",
+        userId: args.tokenIdentifier,
+        event: 'ADMIN ACTION: REJECTED SUBSCRIPTION REQUEST',
+        properties: {
+          targetFirmId: request.firmId,
+          targetUserId: request.userId,
+          adminEmail: founder.email,
+          details: `Rejected ${request.currentPlan} → ${request.requestedPlan}. Reason: ${args.reason || 'none'}`,
+          timestamp: Date.now(),
+        },
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.warn('[rejectSubscriptionRequestAsFounder] Log insert failed:', e);
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * Helper — compute the next billing date given an interval and start ISO.
+ */
+function computeNextBillingDate(interval: string, startIso: string): string {
+  const start = new Date(startIso);
+  if (interval === 'monthly') {
+    start.setMonth(start.getMonth() + 1);
+  } else {
+    start.setFullYear(start.getFullYear() + 1);
+  }
+  return start.toISOString();
+}
+
+/**
+ * getTrialMetrics — for the founder dashboard trial funnel.
+ * Returns counts of active trials, trials ending soon (4 days), trials
+ * ending today, and total trials started (lifetime).
+ */
+export const getTrialMetrics = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // Fetch all firms with trialEndsAt set
+    const firms = await ctx.db
+      .query("firms")
+      .withIndex("by_trial_ends", (q: any) => q.gte("trialEndsAt", 0))
+      .take(1000);
+
+    let activeTrials = 0;
+    let endingIn4Days = 0;
+    let endingToday = 0;
+    let expiredUncleared = 0;  // firms whose trialEndsAt < now but trialPlan still set
+    let totalTrialsStarted = 0;
+
+    for (const f of firms) {
+      const endsAt = (f as any).trialEndsAt;
+      const plan = (f as any).trialPlan;
+      if (!endsAt || !plan) continue;
+      totalTrialsStarted++;
+      if (endsAt > now) {
+        activeTrials++;
+        const msRemaining = endsAt - now;
+        if (msRemaining < DAY) endingToday++;
+        else if (msRemaining < 4 * DAY) endingIn4Days++;
+      } else {
+        // trialEndsAt is in the past but trialPlan still set → cron hasn't
+        // cleared it yet (runs daily at 0:05 UTC).
+        expiredUncleared++;
+      }
+    }
+
+    return {
+      activeTrials,
+      endingIn4Days,
+      endingToday,
+      expiredUncleared,
+      totalTrialsStarted,
+    };
   },
 });

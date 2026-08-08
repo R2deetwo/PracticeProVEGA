@@ -370,6 +370,12 @@ export const OrganizationsHub: React.FC = () => {
                                             </td>
                                             <td className="py-2.5 px-3">
                                                 <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${PLAN_COLOR[firm.plan] || PLAN_COLOR.Core}`}>{firm.plan}</span>
+                                                {/* CRO AUDIT Track B — show trial badge next to plan */}
+                                                {firm.isOnTrial && (
+                                                    <span className="ml-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title={`Trialing ${firm.trialPlan} • ${firm.trialDaysRemaining}d left`}>
+                                                        TRIAL · {firm.trialDaysRemaining}d
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">{firm.userCount}</td>
                                             <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300 font-bold">
@@ -404,6 +410,12 @@ export const OrganizationsHub: React.FC = () => {
                                         {PRODUCT_LABEL[selectedFirm.product] || selectedFirm.product || 'Vega'}
                                     </span>
                                     <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${PLAN_COLOR[selectedFirm.plan] || PLAN_COLOR.Core}`}>{selectedFirm.plan}</span>
+                                    {/* CRO AUDIT Track B — trial badge in detail drawer */}
+                                    {selectedFirm.isOnTrial && (
+                                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title={`Trial ends ${new Date(selectedFirm.trialEndsAt).toLocaleString()}`}>
+                                            TRIAL · {selectedFirm.trialPlan} · {selectedFirm.trialDaysRemaining}d left
+                                        </span>
+                                    )}
                                     <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${selectedFirm.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{selectedFirm.status}</span>
                                 </div>
                             </div>

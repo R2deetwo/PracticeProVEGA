@@ -1,9 +1,16 @@
 /**
  * FounderBottomNav — 4 primary items + More menu.
  * Settings, Audit, Broadcast are in the More menu.
+ *
+ * CRO AUDIT Track A — added Subscriptions view to More menu with a live
+ * pending-count badge so the founder can see at a glance when there are
+ * upgrade requests waiting for approval.
  */
 
 import React, { useState } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useFounderAuth } from './FounderContexts';
 import type { AdminView } from './AdminApp';
 
 interface NavItem {
@@ -52,6 +59,15 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const MORE_ITEMS: NavItem[] = [
+    {
+        view: 'subscriptions',
+        label: 'Subscriptions',
+        icon: (
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+            </svg>
+        ),
+    },
     {
         view: 'broadcast',
         label: 'Broadcast',
@@ -132,6 +148,15 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     const [isMoreOpen, setIsMoreOpen] = useState(false);
     const isMoreActive = MORE_ITEMS.some(item => item.view === activeView);
 
+    // CRO AUDIT Track A — fetch pending subscription request count for the
+    // badge on the Subscriptions nav item. Polls every 60s.
+    const { currentUser } = useFounderAuth();
+    const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
+    const subStats = useQuery(api.founderMetrics.getSubscriptionRequestStats,
+        tokenIdentifier ? { tokenIdentifier } : "skip");
+    const pendingCount = subStats?.pending || 0;
+    const expiringSoon = subStats?.expiringSoon || 0;
+
     return (
         <>
             <nav
@@ -152,6 +177,12 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                             >
                                 <div className="relative">
                                     {React.cloneElement(item.icon, { className: 'w-5 h-5 mb-0.5' })}
+                                    {/* CRO AUDIT Track A — show pending subscription count badge on More */}
+                                    {item.view === 'signals' && pendingCount > 0 && (
+                                        <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-red-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
+                                            {pendingCount > 9 ? '9+' : pendingCount}
+                                        </span>
+                                    )}
                                 </div>
                                 <span className="text-2xs font-medium">{item.label}</span>
                             </button>
@@ -166,6 +197,10 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                     >
                         <div className="relative">
                             <MoreIcon className="w-5 h-5 mb-0.5" />
+                            {/* CRO AUDIT Track A — red dot on More when pending requests exist */}
+                            {pendingCount > 0 && !isMoreOpen && (
+                                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                            )}
                         </div>
                         <span className="text-2xs font-medium">More</span>
                     </button>
@@ -191,16 +226,24 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                             <div className="grid grid-cols-3 gap-4">
                                 {MORE_ITEMS.map(item => {
                                     const isActive = activeView === item.view;
+                                    // CRO AUDIT Track A — show pending count badge on Subscriptions item
+                                    const showBadge = item.view === 'subscriptions' && pendingCount > 0;
+                                    const isUrgent = item.view === 'subscriptions' && expiringSoon > 0;
                                     return (
                                         <button
                                             key={item.view}
                                             onClick={() => { setActiveView(item.view); setIsMoreOpen(false); }}
                                             className="active-press flex flex-col items-center gap-2 group relative"
                                         >
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm relative ${
                                                 isActive ? 'bg-primary-600 text-white shadow-primary-500/30' : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 group-active:scale-95'
-                                            }`}>
+                                            } ${isUrgent && !isActive ? 'ring-2 ring-red-400' : ''}`}>
                                                 {React.cloneElement(item.icon, { className: "w-6 h-6" })}
+                                                {showBadge && (
+                                                    <span className={`absolute -top-1 -right-1 min-w-[20px] h-5 px-1 ${isUrgent ? 'bg-red-500 animate-pulse' : 'bg-amber-500'} text-white text-2xs font-bold rounded-full flex items-center justify-center`}>
+                                                        {pendingCount > 9 ? '9+' : pendingCount}
+                                                    </span>
+                                                )}
                                             </div>
                                             <span className={`text-2xs font-medium text-center leading-tight line-clamp-1 ${
                                                 isActive ? 'text-primary-700 dark:text-primary-400' : 'text-slate-600 dark:text-zinc-400'
