@@ -31,53 +31,58 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCoreState } from '../contexts/CoreContext';
 
 const THEME: Record<string, {
-    accentBar: string;
-    pillBg: string;
-    pillText: string;
-    label: string;
-    tint: string;  // subtle background tint for the smoky glass
+    accentBar: string;        // left accent bar color
+    pillBg: string;           // category pill background
+    pillText: string;         // category pill text color
+    label: string;            // category label text
+    glassBg: string;          // frosted colored glass background (rgba)
 }> = {
     info: {
-        accentBar: 'bg-blue-500',
-        pillBg: 'bg-blue-500/20',
-        pillText: 'text-blue-300',
+        accentBar: 'bg-blue-400',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
         label: 'Info',
-        tint: 'rgba(59, 130, 246, 0.08)',  // soft blue tint
+        // Frosted Sky Blue Glass
+        glassBg: 'rgba(82, 142, 186, 0.75)',
     },
     success: {
-        accentBar: 'bg-emerald-500',
-        pillBg: 'bg-emerald-500/20',
-        pillText: 'text-emerald-300',
+        accentBar: 'bg-emerald-400',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
         label: 'Success',
-        tint: 'rgba(16, 185, 129, 0.08)',  // soft emerald tint
+        // Frosted Emerald Green Glass
+        glassBg: 'rgba(86, 178, 126, 0.75)',
     },
     warning: {
-        accentBar: 'bg-amber-500',
-        pillBg: 'bg-amber-500/20',
-        pillText: 'text-amber-300',
+        accentBar: 'bg-amber-400',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
         label: 'Warning',
-        tint: 'rgba(245, 158, 11, 0.08)',  // soft amber tint
+        // Frosted Amber/Gold Glass
+        glassBg: 'rgba(217, 131, 43, 0.75)',
     },
     urgent: {
-        accentBar: 'bg-rose-500',
-        pillBg: 'bg-rose-500/20',
-        pillText: 'text-rose-300',
+        accentBar: 'bg-red-400',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
         label: 'Urgent',
-        tint: 'rgba(244, 63, 94, 0.08)',  // soft rose tint
+        // Frosted Coral/Red Glass
+        glassBg: 'rgba(225, 98, 89, 0.75)',
     },
     announcement: {
-        accentBar: 'bg-emerald-500',
-        pillBg: 'bg-emerald-500/20',
-        pillText: 'text-emerald-300',
+        accentBar: 'bg-emerald-400',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
         label: 'Announcement',
-        tint: 'rgba(16, 185, 129, 0.08)',
+        glassBg: 'rgba(86, 178, 126, 0.75)',
     },
     upsell: {
-        accentBar: 'bg-violet-500',
-        pillBg: 'bg-violet-500/20',
-        pillText: 'text-violet-300',
+        accentBar: 'bg-violet-400',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
         label: 'Offer',
-        tint: 'rgba(139, 92, 246, 0.08)',
+        // Frosted Violet Glass
+        glassBg: 'rgba(139, 92, 246, 0.75)',
     },
 };
 
@@ -294,34 +299,35 @@ export const BroadcastBanner: React.FC = () => {
 
     return (
         <div className="w-full">
-            {/* Active Card — Frosted Smoky Glass (NO GRADIENT)
-                - Flat uniform background: rgba(18, 26, 24, 0.78)
+            {/* Active Card — Frosted Colored Glass (vibrant, NOT dark)
+                - background: vibrant color-tinted glass matching urgency type
+                  (red for urgent, amber for warning, blue for info, green for success)
                 - backdrop-filter: blur(16px) saturate(180%) for the frosted glass effect
-                - Fine noise/grain texture overlay (3-4% opacity) for premium matte feel
-                - 1px translucent border: rgba(255, 255, 255, 0.15)
-                - Inner highlight: inset 0 1px 1px rgba(255,255,255,0.25) for "thick glass rim"
-                - Soft drop shadow: 0 4px 24px -4px rgba(0,0,0,0.25)
-                - Left color accent bar (kept — user didn't ask to remove it)
+                - Fine noise/grain texture overlay (4% opacity) for premium matte feel
+                - 1px translucent white border: rgba(255, 255, 255, 0.25)
+                - Inner highlight: inset 0 1px 1px rgba(255,255,255,0.3) for "thick glass rim"
+                - Soft drop shadow: 0 4px 24px -4px rgba(0,0,0,0.2)
+                - Left color accent bar (lighter shade for contrast against colored glass)
                 - Smooth horizontal slide transition */}
             <div
-                className={`relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
+                className={`relative overflow-hidden rounded-2xl transition-all duration-300 ease-out shadow-lg ${
                     isDismissing
                         ? 'opacity-0 -translate-x-8 max-h-0'
                         : 'opacity-100 translate-x-0'
                 }`}
                 style={{
-                    // FLAT smoky glass — NO GRADIENT. Uniform color throughout.
-                    background: 'rgba(18, 26, 24, 0.78)',
+                    // VIBRANT frosted colored glass — color matches urgency type.
+                    // NO dark/black background. The color IS the banner.
+                    background: activeTheme.glassBg,
                     backdropFilter: 'blur(16px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     // Inner highlight (top edge light refraction) + outer drop shadow
-                    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 4px 24px -4px rgba(0, 0, 0, 0.25)',
+                    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 4px 24px -4px rgba(0, 0, 0, 0.2)',
                 }}
             >
                 {/* Fine noise/grain texture overlay — gives the glass a premium
-                    matte/etched quality instead of flat digital smoothness.
-                    Uses an inline SVG noise filter at ~4% opacity. */}
+                    matte/etched quality instead of flat digital smoothness. */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -331,32 +337,32 @@ export const BroadcastBanner: React.FC = () => {
                     }}
                 />
 
-                {/* Thin colored left accent bar */}
+                {/* Thin colored left accent bar (lighter shade for contrast) */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${activeTheme.accentBar} z-10`} />
 
                 <div className="relative p-4 pl-5 z-10">
                     {/* Top row: pill + title + dismiss */}
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            {/* Category pill */}
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold ${activeTheme.pillBg} ${activeTheme.pillText} flex-shrink-0`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.accentBar}`} />
+                            {/* Category pill — semi-translucent white surface */}
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold ${activeTheme.pillBg} ${activeTheme.pillText} flex-shrink-0 backdrop-blur-sm`}>
+                                <span className={`w-1.5 h-1.5 rounded-full bg-white`} />
                                 {activeTheme.label}
                             </span>
                             {persistenceMode === 'persistent' && (
-                                <span className="text-3xs font-bold text-slate-400 flex-shrink-0">📌 Pinned</span>
+                                <span className="text-3xs font-bold text-white/70 flex-shrink-0">📌 Pinned</span>
                             )}
-                            {/* Title */}
-                            <p className="text-sm font-bold text-white truncate">
+                            {/* Title — bold white, uppercase for category headers */}
+                            <p className="text-sm font-bold text-white truncate uppercase tracking-wide">
                                 {activeBroadcast.title || 'Announcement'}
                             </p>
                         </div>
 
-                        {/* Dismiss button */}
+                        {/* Dismiss button — white X icon */}
                         {isDismissible && (
                             <button
                                 onClick={() => handleDismiss(activeBroadcast)}
-                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-white/70 hover:text-white hover:bg-white/20 transition-colors flex-shrink-0"
                                 aria-label="Dismiss"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -366,12 +372,12 @@ export const BroadcastBanner: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Message body */}
-                    <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                    {/* Message body — crisp white text */}
+                    <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
                         {activeBroadcast.message || ''}
                     </p>
 
-                    {/* Action link */}
+                    {/* Action link + optional pill button */}
                     {activeBroadcast.deepLink && (
                         <button
                             onClick={() => {
@@ -380,7 +386,7 @@ export const BroadcastBanner: React.FC = () => {
                                 }
                                 if (isDismissible) handleDismiss(activeBroadcast);
                             }}
-                            className="mt-2 text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                            className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-3xs font-bold bg-white/30 text-white hover:bg-white/40 transition-colors backdrop-blur-sm"
                         >
                             View Details →
                         </button>
@@ -388,13 +394,15 @@ export const BroadcastBanner: React.FC = () => {
                 </div>
             </div>
 
-            {/* Horizontal Carousel Stubs — sleek pills for inactive banners */}
+            {/* Horizontal Carousel Stubs — sleek pills for inactive banners.
+                Stubs use the colored glass theme so each stub's color matches
+                its banner type (red, amber, blue, green). */}
             {visibleBroadcasts.length > 1 && (
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                     {/* Prev arrow */}
                     <button
                         onClick={handlePrev}
-                        className="flex items-center justify-center w-6 h-6 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                        className="flex items-center justify-center w-6 h-6 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
                         aria-label="Previous banner"
                     >
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -402,7 +410,7 @@ export const BroadcastBanner: React.FC = () => {
                         </svg>
                     </button>
 
-                    {/* Stubs — one per banner, active one is highlighted */}
+                    {/* Stubs — one per banner, active one is highlighted with its theme color */}
                     {visibleBroadcasts.map((b, i) => {
                         const theme = THEME[parseTheme(b.type || '')] || DEFAULT_THEME;
                         const isActive = i === activeIndex;
@@ -412,12 +420,13 @@ export const BroadcastBanner: React.FC = () => {
                                 onClick={() => handleStubClick(i)}
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold transition-all ${
                                     isActive
-                                        ? `${theme.pillBg} ${theme.pillText} ring-1 ring-white/20`
-                                        : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                        ? 'text-white ring-1 ring-white/40 shadow-sm'
+                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                                 }`}
+                                style={isActive ? { background: theme.glassBg } : undefined}
                                 title={b.title || `Banner ${i + 1}`}
                             >
-                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? theme.accentBar : 'bg-slate-500'}`} />
+                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : theme.accentBar}`} />
                                 {i + 1}
                             </button>
                         );
@@ -426,7 +435,7 @@ export const BroadcastBanner: React.FC = () => {
                     {/* Next arrow + counter */}
                     <button
                         onClick={handleNext}
-                        className="flex items-center justify-center w-6 h-6 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                        className="flex items-center justify-center w-6 h-6 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
                         aria-label="Next banner"
                     >
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
