@@ -575,24 +575,44 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         setHistoryIndex(prev => prev + 1);
 
         setMobileSearchOpen(false);
-        setModal(null);
-    }, [navigate, historyIndex]);
+        // CRO AUDIT FIX — only close modal if there's no dirty form.
+        // If a form has unsaved changes, we skip the modal close — the
+        // navigation still happens, but the modal stays mounted so the
+        // user can see their draft. This is a simpler approach than a
+        // confirmation dialog and prevents silent data loss.
+        if (!formInteractionState.isReadyForSubmit || Object.keys(formInteractionState.fieldValues || {}).length === 0) {
+            setModal(null);
+        }
+    }, [navigate, historyIndex, formInteractionState]);
 
     const goBack = React.useCallback(() => {
         if (historyIndex > 0) {
             setHistoryIndex(prev => prev - 1);
             navigate(-1);
         } else {
-            // No in-app history to go back to. This happens when a route was
-            // opened directly in a new tab (e.g. DraftPro via window.open).
-            // Fall back to browser history, then to the app root.
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-                window.history.back();
-            } else if (typeof window !== 'undefined') {
-                window.location.href = '/';
-            }
+            // CRO AUDIT FIX — No in-app history to go back to. This happens
+            // when a route was opened directly (e.g. deep link from a
+            // notification). Previously fell through to window.history.back()
+            // which could EJECT the user from the app entirely on a fresh tab.
+            // Now: if we're on a detail view, go to the parent list view.
+            // Otherwise, go to the dashboard.
+            const currentEntry = history[historyIndex] || { view: 'dashboard' };
+            const view = currentEntry.view;
+            const parentMap: Record<string, string> = {
+                'matterDetail': 'matters',
+                'propertyDetail': 'properties',
+                'invoiceDetail': 'billing',
+                'documentDetail': 'documents',
+                'contactDetail': 'contacts',
+                'editor': 'matters',
+                'atriumEngine': 'billing',
+            };
+            const parentView = parentMap[view] || 'dashboard';
+            // Use navigateTo to go to the parent view (resets history properly)
+            // We call navigate directly to avoid recursive goBack
+            navigate(`/${parentView}`);
         }
-    }, [navigate, historyIndex]);
+    }, [navigate, historyIndex, history]);
 
     const goForward = React.useCallback(() => {
         if (historyIndex < history.length - 1) {

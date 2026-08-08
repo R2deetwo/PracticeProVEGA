@@ -19,14 +19,14 @@ const InvoiceDetailViewContent: React.FC = () => {
     const { coreState } = useCoreState();
     const { matterState } = useMatterState();
     const { handleUpdateInvoiceStatus, handleRevertPayment, handleSendInvoiceReminder, deleteItem: onDeleteInvoice } = useDataActions();
-    const { closeModal, navigateTo, openModal, addToast, selectedId: invoiceId, currentHistoryEntry } = useUI();
+    const { closeModal, navigateTo, openModal, addToast, selectedId: invoiceId, currentHistoryEntry, goBack } = useUI();
 
     const invoice = financeState.invoices.find((i: any) => i.id === invoiceId);
     const firmDetails = coreState.firmDetails;
     const client = invoice ? matterState.contacts.find((c: any) => c.id === invoice.client?.id) : null;
     const previousViewName = (currentHistoryEntry.previousView as string) || 'billing';
 
-    const onGoBack = () => navigateTo(previousViewName as any);
+    const onGoBack = () => goBack();
     const onViewReceipt = (id: string) => navigateTo('receiptDetail', id);
 
     // NOTE: All hooks must run BEFORE any conditional return (Rules of Hooks).
@@ -115,7 +115,7 @@ const InvoiceDetailViewContent: React.FC = () => {
             {/* Top Bar */}
             <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 z-20">
                 <Breadcrumbs items={[
-                    { label: 'Billing', onClick: () => navigateTo('billing') },
+                    { label: 'Billing', onClick: () => goBack() },
                     { label: invoice.invoiceNumber }
                 ]} />
                 <div className="flex items-center gap-1 sm:gap-2">

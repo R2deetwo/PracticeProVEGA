@@ -258,7 +258,7 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
 };
 
 const DocumentDetailViewContent: React.FC = () => {
-    const { selectedId, openModal, navigateTo, currentHistoryEntry } = useUI();
+    const { selectedId, openModal, navigateTo, currentHistoryEntry, goBack } = useUI();
     const { documentState, documentActions } = useDocumentState();
     const { coreState } = useCoreState();
     const { currentUser } = useAuth();
@@ -303,7 +303,7 @@ const DocumentDetailViewContent: React.FC = () => {
     }
 
     const previousViewName = (currentHistoryEntry?.previousView as string) || 'documents';
-    const onGoBack = () => navigateTo((previousViewName as any) || 'documents');
+    const onGoBack = () => goBack();
 
     const handleRunAnalysis = async () => {
         if (currentUser?.email === 'demo@practicepro.ng') {

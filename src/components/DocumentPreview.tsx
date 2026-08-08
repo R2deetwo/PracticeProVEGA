@@ -67,7 +67,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                         <PrinterIcon className="w-5 h-5" />
                     </button>
                     {latexContent && (
-                        <button onClick={handleCopyLatex} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors" title="Copy LaTeX">
+                        <button onClick={handleCopyLatex} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors" aria-label="Copy LaTeX" title="Copy LaTeX">
                             <DownloadIcon className="w-5 h-5" />
                         </button>
                     )}

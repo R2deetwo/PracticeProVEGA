@@ -420,7 +420,7 @@ const LedgerManager: React.FC = () => {
                       </span>
                     </div>
                     
-                    <button onClick={() => generateReceipt(entry)} title="Generate Receipt" className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-700 rounded-lg transition-all">
+                    <button onClick={() => generateReceipt(entry)} aria-label="Generate Receipt" title="Generate Receipt" className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-700 rounded-lg transition-all">
                       <ReceiptIcon className="w-5 h-5 sm:w-4 sm:h-4" />
                     </button>
                   </div>

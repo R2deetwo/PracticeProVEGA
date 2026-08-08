@@ -187,7 +187,7 @@ export const IntakeSettings: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => copyLink(form.publicLink)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full" title="Copy Public Link">
+                                        <button onClick={() => copyLink(form.publicLink)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full" aria-label="Copy Public Link" title="Copy Public Link">
                                             <LinkIcon className="w-4 h-4" />
                                         </button>
                                         <button onClick={() => setEditingForm(form)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full">

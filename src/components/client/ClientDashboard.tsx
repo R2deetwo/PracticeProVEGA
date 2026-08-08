@@ -1193,7 +1193,7 @@ const ClientDashboard: React.FC = () => {
                                     setPendingFiles(prev => [...prev, ...files.map(f => ({ file: f, name: f.name }))]);
                                     if (fileInputRef.current) fileInputRef.current.value = '';
                                 }} multiple className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
-                                <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5" title="Attach file">
+                                <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5" aria-label="Attach file" title="Attach file">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                                     Attach
                                 </button>

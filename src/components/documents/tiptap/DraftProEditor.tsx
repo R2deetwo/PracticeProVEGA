@@ -2715,7 +2715,7 @@ ${allCites.map((c: any) => {
                     <span className="font-medium">Page {currentPage} of {pageCount}</span>
                     <span className="text-slate-300 dark:text-zinc-700">·</span>
                     <div className="flex items-center gap-1">
-                        <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom Out (Ctrl+-)">
+                        <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" aria-label="Zoom Out (Ctrl+-)" title="Zoom Out (Ctrl+-)">
                             <Minimize2 className="w-3 h-3" />
                         </button>
                         <div className="relative">
@@ -2762,7 +2762,7 @@ ${allCites.map((c: any) => {
                                 </>
                             )}
                         </div>
-                        <button onClick={() => setZoom(Math.min(3.0, zoom + 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom In (Ctrl+=)">
+                        <button onClick={() => setZoom(Math.min(3.0, zoom + 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" aria-label="Zoom In (Ctrl+=)" title="Zoom In (Ctrl+=)">
                             <Maximize2 className="w-3 h-3" />
                         </button>
                     </div>

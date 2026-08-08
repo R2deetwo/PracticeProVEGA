@@ -3258,7 +3258,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     className="flex gap-1.5 items-end"
                 >
                     {messages.length > 0 && (
-                        <button onClick={resetChat} type="button" className="p-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-400 hover:text-red-500 transition-all flex-shrink-0" title="Clear chat">
+                        <button onClick={resetChat} type="button" className="p-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-400 hover:text-red-500 transition-all flex-shrink-0" aria-label="Clear chat" title="Clear chat">
                             <TrashIcon className="w-3.5 h-3.5" />
                         </button>
                     )}

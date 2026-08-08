@@ -604,13 +604,13 @@ export const CalendarView: React.FC = () => {
                 {/* View switcher + new event */}
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
-                        <button onClick={() => handleViewSwitch('month')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'month' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} title="Month">
+                        <button onClick={() => handleViewSwitch('month')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'month' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} aria-label="Month" title="Month">
                             <GridIcon className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleViewSwitch('week')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'week' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} title="Week">
+                        <button onClick={() => handleViewSwitch('week')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'week' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} aria-label="Week" title="Week">
                             <ClockIcon className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleViewSwitch('diary')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'diary' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} title="Day">
+                        <button onClick={() => handleViewSwitch('diary')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'diary' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} aria-label="Day" title="Day">
                             <ListIcon className="w-4 h-4" />
                         </button>
                     </div>

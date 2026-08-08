@@ -84,11 +84,11 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
                 
                 <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-1">
                     {isDue && (
-                        <button onClick={dismissReminder} title="Mark Done" className="hover:text-green-600 bg-white/50 dark:bg-black/20 rounded p-0.5">
+                        <button onClick={dismissReminder} aria-label="Mark Done" title="Mark Done" className="hover:text-green-600 bg-white/50 dark:bg-black/20 rounded p-0.5">
                             <CheckCircleIcon className="w-3 h-3" />
                         </button>
                     )}
-                    <button onClick={clearReminder} title="Clear Reminder" className="hover:text-red-500 bg-white/50 dark:bg-black/20 rounded p-0.5">
+                    <button onClick={clearReminder} aria-label="Clear Reminder" title="Clear Reminder" className="hover:text-red-500 bg-white/50 dark:bg-black/20 rounded p-0.5">
                         <TrashIcon className="w-3 h-3" />
                     </button>
                 </div>

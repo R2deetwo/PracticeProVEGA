@@ -187,7 +187,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
 
             <div className="flex items-center gap-1">
               {item.status === 'failed' && (
-                <button onClick={() => handleRetry(idx)} className="p-2 text-slate-500 hover:text-primary-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30" title="Retry">
+                <button onClick={() => handleRetry(idx)} className="p-2 text-slate-500 hover:text-primary-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30" aria-label="Retry" title="Retry">
                   <RevertIcon className="w-4 h-4" />
                 </button>
               )}

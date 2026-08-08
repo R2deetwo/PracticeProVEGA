@@ -7,7 +7,7 @@
  *
  * Usage:
  *   <ViewHeader title="Matters" subtitle="Manage your legal cases" />
- *   <ViewHeader title="Billing" actions={<button>Export</button>} />
+ *   <ViewHeader aria-label="Billing" title="Billing" actions={<button>Export</button>} />
  */
 
 import React from 'react';

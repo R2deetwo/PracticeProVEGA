@@ -98,7 +98,7 @@ const NavItemLink: React.FC<{
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
                 }
             `}
-            title={item.text}
+            aria-label={item.text} title={item.text}
         >
             <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300'}`}>
                 {React.cloneElement(item.icon, {
@@ -146,7 +146,7 @@ const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebar
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
                 }
             `}
-            title="Revenue Monitor"
+            aria-label="Revenue Monitor" title="Revenue Monitor"
         >
             <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-primary-500' : 'text-slate-400 dark:text-zinc-500 group-hover:text-primary-500'}`}>
                 <RevenueEngineShieldIcon className="w-5 h-5" />

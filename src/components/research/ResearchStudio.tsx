@@ -126,13 +126,13 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
                     <ChevronRightIcon className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                 </button>
                 <div className="flex items-center gap-1 ml-2">
-                    <button onClick={onSendToDraft} title="Send to DraftPro" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded hover:bg-indigo-100 transition-colors">
+                    <button onClick={onSendToDraft} aria-label="Send to DraftPro" title="Send to DraftPro" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded hover:bg-indigo-100 transition-colors">
                         DraftPro (Beta)
                     </button>
-                    <button onClick={onSave} title="Save as document" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded hover:bg-slate-50 transition-colors">
+                    <button onClick={onSave} aria-label="Save as document" title="Save as document" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded hover:bg-slate-50 transition-colors">
                         <DownloadIcon className="w-3 h-3" /> Save
                     </button>
-                    <button onClick={onDelete} title="Dismiss" className="p-1 text-slate-400 hover:text-red-500 transition-colors rounded">
+                    <button onClick={onDelete} aria-label="Dismiss" title="Dismiss" className="p-1 text-slate-400 hover:text-red-500 transition-colors rounded">
                         <DismissIcon className="w-3.5 h-3.5" />
                     </button>
                 </div>
