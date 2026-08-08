@@ -161,7 +161,7 @@ const TaskColumn: React.FC<{
     const title = status === 'pending_verification' ? 'Pending Review' : status.replace('_', ' ');
 
     return (
-        <div className={`flex flex-col w-[85vw] sm:w-72 flex-shrink-0 h-full rounded-xl bg-slate-100/50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/50 snap-center transition-all duration-500 ${isPulsing ? 'ring-2 ring-primary-400 ring-offset-2 ring-offset-transparent scale-[1.02] shadow-lg' : ''}`}>
+        <div className={`flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 h-full rounded-xl bg-slate-100/50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/50 snap-center transition-all duration-500 ${isPulsing ? 'ring-2 ring-primary-400 ring-offset-2 ring-offset-transparent scale-[1.02] shadow-lg' : ''}`}>
             {/* Column Header */}
             <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-zinc-700/50">
                 <h4 className="font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -284,9 +284,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, users, matters, onUpdateTa
     })();
 
     return (
-        <div ref={containerRef} className="flex flex-col h-full w-full">
+        <div ref={containerRef} className="relative flex flex-col h-full w-full">
             <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-                <div className="flex gap-4 pb-4 h-full overflow-x-auto snap-x snap-mandatory px-4 sm:px-0">
+                <div className="relative flex gap-4 pb-4 h-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-4 sm:px-0">
                     {TaskStatusValues.map(status => (
                         <TaskColumn
                             key={status}

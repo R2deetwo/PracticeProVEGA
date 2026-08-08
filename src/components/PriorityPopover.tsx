@@ -66,21 +66,19 @@ const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClo
     return (
         <div
             ref={popoverRef}
-            style={{ position: 'fixed', top: `${position.top}px`, left: `${position.left}px`, opacity: position.opacity, transition: 'opacity 0.2s ease-in-out' }}
-            className="w-40 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl p-1 z-[999]"
+            style={{ position: 'fixed', top: `${position.top}px`, left: `${position.left}px`, opacity: position.opacity, transition: 'opacity 0.15s ease-in-out' }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1.5 min-w-[140px] z-[9999]"
         >
-            <div className="space-y-1">
+            <div className="space-y-0.5">
                 {priorityOptions.map(option => (
                     <button
                         key={option.level}
                         onClick={() => handleSelect(option.level)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-colors ${task.priority === option.level ? 'bg-slate-100 dark:bg-zinc-700' : 'hover:bg-slate-50 dark:hover:bg-zinc-700/50'}`}
+                        className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${task.priority === option.level ? 'bg-slate-100 dark:bg-slate-800/60' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                     >
-                        <span className="flex items-center gap-2">
-                             <option.icon className={`w-4 h-4 ${option.colorClass}`} />
-                             {option.label}
-                        </span>
-                        {task.priority === option.level && <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>}
+                        <option.icon className={`w-4 h-4 ${option.colorClass}`} />
+                        <span className="uppercase tracking-wide">{option.label}</span>
+                        {task.priority === option.level && <div className="w-1.5 h-1.5 rounded-full bg-slate-400 ml-auto"></div>}
                     </button>
                 ))}
             </div>

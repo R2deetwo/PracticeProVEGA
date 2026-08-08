@@ -102,7 +102,7 @@ const TaskRow: React.FC<{
             {appMode === 'multi' && (
                 <td className="px-6 py-4 whitespace-nowrap">
                     {assignedUsers.length > 0 ? (
-                        <div className="flex items-center -space-x-2">
+                        <div className="flex justify-center items-center w-full -space-x-2">
                             {assignedUsers.map(user => (
                                 <Tooltip key={user.id} text={user.name}>
                                     <div className={`h-7 w-7 rounded-full flex items-center justify-center text-white font-bold text-3xs ring-2 ring-white dark:ring-zinc-800 ${getUserColor(user.name)}`}>
@@ -111,12 +111,12 @@ const TaskRow: React.FC<{
                                 </Tooltip>
                             ))}
                         </div>
-                    ) : <span className="text-xs text-gray-400">Unassigned</span>}
+                    ) : <div className="flex justify-center items-center w-full"><span className="text-xs text-gray-400">—</span></div>}
                 </td>
             )}
             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
                 <span className={`${task.status === 'done' ? 'text-slate-400 dark:text-zinc-500' : getDueDateColor(task.dueDate || null)} text-xs`}>
-                    {task.status === 'done' ? 'Completed' : formatDueDate(task.dueDate || null)}
+                    {task.status === 'done' ? 'Completed' : (task.dueDate ? formatDueDate(task.dueDate) : '—')}
                 </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap overflow-visible">
@@ -159,6 +159,49 @@ const TaskRow: React.FC<{
                         </div>
                     )}
                 </div>
+            </td>
+
+            {/* DELIVERY column — shows WhatsApp/Email dispatch status.
+                CRO AUDIT FIX — new column per user request.
+                🟢 Delivered = WhatsApp/Email sent
+                🟡 Pending = In-App only / queued
+                🔴 Failed = dispatch failed */}
+            <td className="px-6 py-4 whitespace-nowrap text-center">
+                {(() => {
+                    const deliveryStatus = (task as any).deliveryStatus || (task as any).notificationStatus || 'in_app';
+                    if (deliveryStatus === 'delivered' || deliveryStatus === 'sent') {
+                        return (
+                            <Tooltip text="WhatsApp/Email sent successfully">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Sent
+                                </span>
+                            </Tooltip>
+                        );
+                    }
+                    if (deliveryStatus === 'failed') {
+                        return (
+                            <Tooltip text="Delivery failed — click to retry">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Failed
+                                </span>
+                            </Tooltip>
+                        );
+                    }
+                    return (
+                        <Tooltip text="In-app notification only">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                In-App
+                            </span>
+                        </Tooltip>
+                    );
+                })()}
             </td>
 
             <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -322,6 +365,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, users, matters, onViewDetail
                                 <th scope="col" onClick={() => requestSort('dueDate')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Due Date</th>
                                 <th scope="col" onClick={() => requestSort('priority')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Priority</th>
                                 <th scope="col" onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Status</th>
+                                <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Delivery</th>
                                 <th scope="col" className="relative px-6 py-3">
                                     <span className="sr-only">Actions</span>
                                 </th>
