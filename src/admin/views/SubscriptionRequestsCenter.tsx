@@ -20,8 +20,8 @@
  * after 72 hours (cron at 0:10 UTC daily).
  */
 
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { formatNaira } from '../../utils/formatting';
@@ -98,12 +98,44 @@ export const SubscriptionRequestsCenter: React.FC = () => {
   const [discountReason, setDiscountReason] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
 
-  // Data
-  const stats = useQuery(api.founderMetrics.getSubscriptionRequestStats,
-    tokenIdentifier ? { tokenIdentifier } : "skip");
-  const requests = useQuery(api.founderMetrics.getSubscriptionRequests,
-    tokenIdentifier ? { tokenIdentifier, status: statusFilter } : "skip");
+  // Data — DEFENSIVE PATTERN.
+  // The new founderMetrics mutations (getSubscriptionRequestStats,
+  // getSubscriptionRequests) require a Convex deploy to exist on the backend.
+  // Until then, useQuery would throw synchronously and crash the page.
+  // Using useConvex() + useEffect + try/catch so the page renders with
+  // empty state until the backend is deployed.
+  const convex = useConvex();
+  const [stats, setStats] = useState<any>(undefined);
+  const [requests, setRequests] = useState<any[] | undefined>(undefined);
 
+  useEffect(() => {
+    if (!tokenIdentifier || !convex) return;
+    let cancelled = false;
+    const fetchData = async () => {
+      try {
+        const s = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier });
+        if (!cancelled) setStats(s);
+      } catch (e: any) {
+        console.warn('[SubscriptionRequestsCenter] getSubscriptionRequestStats failed (backend may not be deployed yet):', e?.message || e);
+        if (!cancelled) setStats(null);
+      }
+      try {
+        const r = await convex.query(api.founderMetrics.getSubscriptionRequests, { tokenIdentifier, status: statusFilter });
+        if (!cancelled) setRequests(r || []);
+      } catch (e: any) {
+        console.warn('[SubscriptionRequestsCenter] getSubscriptionRequests failed (backend may not be deployed yet):', e?.message || e);
+        if (!cancelled) setRequests([]);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 30_000);  // refresh every 30s
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [tokenIdentifier, convex, statusFilter]);
+
+  // Mutations — also defensive (use convex.mutation directly in handlers).
+  // The useMutation hook itself doesn't throw at render time even if the
+  // backend doesn't have the function yet — it only throws when called.
+  // So we keep useMutation here; the handlers wrap calls in try/catch.
   const approveMutation = useMutation(api.founderMetrics.approveSubscriptionRequestAsFounder);
   const rejectMutation  = useMutation(api.founderMetrics.rejectSubscriptionRequestAsFounder);
 

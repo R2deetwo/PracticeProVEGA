@@ -5,10 +5,18 @@
  * CRO AUDIT Track A — added Subscriptions view to More menu with a live
  * pending-count badge so the founder can see at a glance when there are
  * upgrade requests waiting for approval.
+ *
+ * DEFENSIVE QUERY PATTERN: the pending-count badge uses useConvex() +
+ * useEffect + try/catch instead of useQuery(). This is critical because
+ * the new founderMetrics mutations (getSubscriptionRequestStats) require
+ * a Convex deploy to exist on the backend. Until the deploy runs, useQuery
+ * would throw synchronously and crash the ENTIRE founder app (black screen).
+ * With the defensive pattern, the badge simply stays at 0 until the backend
+ * is deployed — the nav bar always renders.
  */
 
-import React, { useState } from 'react';
-import { useQuery } from 'convex/react';
+import React, { useState, useEffect } from 'react';
+import { useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useFounderAuth } from './FounderContexts';
 import type { AdminView } from './AdminApp';
@@ -149,13 +157,40 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     const isMoreActive = MORE_ITEMS.some(item => item.view === activeView);
 
     // CRO AUDIT Track A — fetch pending subscription request count for the
-    // badge on the Subscriptions nav item. Polls every 60s.
+    // badge on the Subscriptions nav item.
+    //
+    // DEFENSIVE: use useConvex() + useEffect + try/catch (NOT useQuery).
+    // The new founderMetrics.getSubscriptionRequestStats mutation requires
+    // a Convex deploy to exist on the backend. Until then, useQuery would
+    // throw synchronously and crash the entire founder app (black screen).
+    // With this pattern, the badge stays at 0 until the backend is deployed.
     const { currentUser } = useFounderAuth();
+    const convex = useConvex();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
-    const subStats = useQuery(api.founderMetrics.getSubscriptionRequestStats,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
-    const pendingCount = subStats?.pending || 0;
-    const expiringSoon = subStats?.expiringSoon || 0;
+    const [pendingCount, setPendingCount] = useState(0);
+    const [expiringSoon, setExpiringSoon] = useState(0);
+
+    useEffect(() => {
+        if (!tokenIdentifier || !convex) return;
+        let cancelled = false;
+        const fetchStats = async () => {
+            try {
+                const stats = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier });
+                if (!cancelled) {
+                    setPendingCount(stats?.pending || 0);
+                    setExpiringSoon(stats?.expiringSoon || 0);
+                }
+            } catch (e: any) {
+                // Backend may not be deployed yet — silently leave count at 0.
+                // Console.warn for debugging but don't crash the UI.
+                console.warn('[FounderBottomNav] getSubscriptionRequestStats failed (backend may not be deployed yet):', e?.message || e);
+            }
+        };
+        fetchStats();
+        // Poll every 60s for fresh pending counts.
+        const interval = setInterval(fetchStats, 60_000);
+        return () => { cancelled = true; clearInterval(interval); };
+    }, [tokenIdentifier, convex]);
 
     return (
         <>

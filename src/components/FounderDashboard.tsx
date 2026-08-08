@@ -9,8 +9,8 @@
  *   - Atrium-first layout (property metrics take priority)
  */
 
-import React, { useState } from 'react';
-import { useQuery } from 'convex/react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useFounderAuth } from '../admin/FounderContexts';
 import NairaSymbol from './NairaSymbol';
@@ -61,16 +61,49 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
 
     // CRO AUDIT Track A — fetch pending subscription requests + trial metrics
     // for the actionable items banner at the top of the dashboard.
-    const subStats = useQuery(api.founderMetrics.getSubscriptionRequestStats,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
-    const trialMetrics = useQuery(api.founderMetrics.getTrialMetrics,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+    //
+    // DEFENSIVE: use useConvex() + useEffect + try/catch (NOT useQuery).
+    // The new founderMetrics mutations (getSubscriptionRequestStats,
+    // getTrialMetrics) require a Convex deploy to exist on the backend.
+    // Until then, useQuery would throw synchronously and crash the dashboard.
+    // With this pattern, the banner just shows 0s until the backend is deployed.
+    const convex = useConvex();
+    const [pendingSubCount, setPendingSubCount] = useState(0);
+    const [pendingSubVolume, setPendingSubVolume] = useState(0);
+    const [expiringSoonCount, setExpiringSoonCount] = useState(0);
+    const [activeTrials, setActiveTrials] = useState(0);
+    const [trialsEndingToday, setTrialsEndingToday] = useState(0);
+    const [trialMetricsData, setTrialMetricsData] = useState<any>(null);
 
-    const pendingSubCount = subStats?.pending || 0;
-    const pendingSubVolume = subStats?.pendingAmountNaira || 0;
-    const expiringSoonCount = subStats?.expiringSoon || 0;
-    const activeTrials = trialMetrics?.activeTrials || 0;
-    const trialsEndingToday = trialMetrics?.endingToday || 0;
+    useEffect(() => {
+        if (!tokenIdentifier || !convex) return;
+        let cancelled = false;
+        const fetchStats = async () => {
+            try {
+                const stats = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier });
+                if (!cancelled) {
+                    setPendingSubCount(stats?.pending || 0);
+                    setPendingSubVolume(stats?.pendingAmountNaira || 0);
+                    setExpiringSoonCount(stats?.expiringSoon || 0);
+                }
+            } catch (e: any) {
+                console.warn('[FounderDashboard] getSubscriptionRequestStats failed (backend may not be deployed yet):', e?.message || e);
+            }
+            try {
+                const trials = await convex.query(api.founderMetrics.getTrialMetrics, { tokenIdentifier });
+                if (!cancelled) {
+                    setTrialMetricsData(trials);
+                    setActiveTrials(trials?.activeTrials || 0);
+                    setTrialsEndingToday(trials?.endingToday || 0);
+                }
+            } catch (e: any) {
+                console.warn('[FounderDashboard] getTrialMetrics failed (backend may not be deployed yet):', e?.message || e);
+            }
+        };
+        fetchStats();
+        const interval = setInterval(fetchStats, 60_000);
+        return () => { cancelled = true; clearInterval(interval); };
+    }, [tokenIdentifier, convex]);
 
     if (metrics === undefined) {
         return (
@@ -227,13 +260,13 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         <div className={KPI_CARD}>
                             <p className={KPI_LABEL}>Ending in 4 Days</p>
                             <p className="text-lg sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 truncate">
-                                {trialMetrics?.endingIn4Days || 0}
+                                {trialMetricsData?.endingIn4Days || 0}
                             </p>
                         </div>
                         <div className={KPI_CARD}>
                             <p className={KPI_LABEL}>Total Trials Started</p>
                             <p className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate">
-                                {trialMetrics?.totalTrialsStarted || 0}
+                                {trialMetricsData?.totalTrialsStarted || 0}
                             </p>
                         </div>
                     </div>
