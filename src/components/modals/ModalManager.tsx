@@ -717,7 +717,18 @@ const ModalManager: React.FC = () => {
       break;
     }
     case 'paymentGateway': {
-      content = <PaymentGatewayModal amount={modalContext.amount} email={currentUser?.email || ''} title={modalContext.title} description={modalContext.description} onSuccess={modalContext.onConfirm} onClose={closeModal} />;
+      content = <PaymentGatewayModal
+        amount={modalContext.amount}
+        email={currentUser?.email || ''}
+        title={modalContext.title}
+        description={modalContext.description}
+        invoiceId={modalContext.invoiceId}
+        // CRO AUDIT Track A — pass through subscription context + forcePracticeProAccount
+        forcePracticeProAccount={modalContext.forcePracticeProAccount ?? false}
+        subscriptionContext={modalContext.subscriptionContext}
+        onSuccess={modalContext.onConfirm}
+        onClose={closeModal}
+      />;
       break;
     }
 

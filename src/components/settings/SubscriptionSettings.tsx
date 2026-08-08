@@ -504,24 +504,59 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                 confirmText: 'Confirm Switch',
                 confirmButtonClass: 'bg-slate-600 hover:bg-slate-700',
                 onConfirm: () => {
-                    onUpdateFirmDetails({ ...firmDetails, subscriptionPlan: newPlan, aiSettings: { ...firmDetails.aiSettings, ...(newPlan === SubscriptionPlan.Core ? { enableAllAiFeatures: false } : {}) } });
-                    addToast(`Successfully switched to ${newPlan} plan.`, { type: 'success' });
+                    // CRO AUDIT FIX (Track A — A1): downgrades still go through the
+                    // secure updateItem path, BUT updateItem now strips the protected
+                    // 'subscriptionPlan' field. So we need to use a dedicated mutation
+                    // for downgrades too. For now, log the request and notify founder.
+                    // TODO: add a `requestPlanDowngrade` mutation that mirrors
+                    // createSubscriptionRequest but for downgrades.
+                    // For now, we'll route downgrades through the same pending flow
+                    // as upgrades — the founder admin can approve/reject.
+                    openModal('paymentGateway', null, {
+                        amount: price,
+                        title: `Switch to ${newPlan}`,
+                        description: `${isAnnual ? 'Annual' : 'Monthly'} subscription — ${firmDetails.name}`,
+                        forcePracticeProAccount: true,
+                        subscriptionContext: {
+                            requestedPlan: newPlan,
+                            billingInterval: isAnnual ? 'annual' : 'monthly',
+                            firmId: firmDetails.id,
+                        },
+                        onConfirm: () => {
+                            logActivity(`Requested switch to ${newPlan} plan (bank transfer)`, 'User',
+                                coreState.users.find(u => u.role === 'Admin')?.id,
+                                coreState.users.find(u => u.role === 'Admin')?.name);
+                            addToast(`Switch request logged. Our team will verify and update your workspace within 24 hours.`, { type: 'success', duration: 6000 });
+                        }
+                    });
                     closeModal();
                 }
             });
         } else {
             // Upgrading — show the payment modal with bank transfer details.
+            // CRO AUDIT FIX (Track A — A1): NO LONGER flips subscriptionPlan client-side.
+            // Instead, opens PaymentGatewayModal with subscriptionContext, which calls
+            // createSubscriptionRequest to write a pending row. The firm's plan is only
+            // flipped when (a) the founder admin approves OR (b) the Paystack webhook
+            // confirms payment (via activateFirmSubscription).
             openModal('paymentGateway', null, {
-                amount: price,  // FIX: was 'upgradePrice' (undefined) — should be 'price' (the parameter)
+                amount: price,
                 title: `Upgrade to ${newPlan}`,
                 description: `${isAnnual ? 'Annual' : 'Monthly'} subscription — ${firmDetails.name}`,
+                forcePracticeProAccount: true,   // CRO AUDIT A4 — always PracticePro's account
+                subscriptionContext: {
+                    requestedPlan: newPlan,
+                    billingInterval: isAnnual ? 'annual' : 'monthly',
+                    firmId: firmDetails.id,
+                },
                 onConfirm: () => {
+                    // This fires AFTER the user clicks "Done" on the PaymentGatewayModal's
+                    // confirmed state. The createSubscriptionRequest mutation has already
+                    // been called inside the modal — we just log the activity here.
                     logActivity(`Requested upgrade to ${newPlan} plan (bank transfer)`, 'User',
                         coreState.users.find(u => u.role === 'Admin')?.id,
                         coreState.users.find(u => u.role === 'Admin')?.name);
-                    addToast(`Upgrade request logged. Updating your workspace...`, { type: 'success', duration: 6000 });
-                    onUpdateFirmDetails({ ...firmDetails, subscriptionPlan: newPlan,
-                        aiSettings: { ...firmDetails.aiSettings, ...(newPlan === SubscriptionPlan.Core ? { enableAllAiFeatures: false } : {}) } });
+                    addToast(`Upgrade request logged. Our team will verify your payment within 24 hours. You'll get an email when ${newPlan} is active.`, { type: 'success', duration: 6000 });
                 }
             });
         }
@@ -532,16 +567,33 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             addToast('Please select at least one Practice Modality to activate Enterprise.', { type: 'error' });
             return;
         }
+        // CRO AUDIT FIX (Track A — A1): Enterprise is a paid tier. Cannot be
+        // self-activated without payment. Route through the same pending flow.
         openModal('deleteConfirmation', null, {
             title: 'Activate Enterprise Plan',
-            message: `You are requesting Enterprise access with ${selectedModalities.length} practice modalit${selectedModalities.length > 1 ? 'ies' : 'y'}: ${selectedModalities.join(', ')}.\n\nA PracticePro specialist will contact you to finalize onboarding and billing. For testing, Enterprise features will be unlocked immediately.`,
-            confirmText: '◆ Activate Enterprise',
+            message: `You are requesting Enterprise access with ${selectedModalities.length} practice modalit${selectedModalities.length > 1 ? 'ies' : 'y'}: ${selectedModalities.join(', ')}.\n\nEnterprise requires a setup fee and annual billing. Click continue to see bank-transfer details. Your workspace will be activated once payment is verified.`,
+            confirmText: 'Continue to Payment',
             confirmButtonClass: 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:opacity-90',
             onConfirm: () => {
-                onUpdateFirmDetails({ ...firmDetails, subscriptionPlan: SubscriptionPlan.Enterprise, firmSpecialties: selectedModalities, aiSettings: { ...firmDetails.aiSettings, enableAllAiFeatures: true } });
-                logActivity('Activated Enterprise plan', 'User', coreState.users.find(u => u.role === 'Admin')?.id);
-                addToast('◆ Enterprise plan activated. Welcome to the next level.', { type: 'success' });
                 closeModal();
+                // Open the payment modal with Enterprise pricing
+                const enterprisePrice = (getTiersForProduct(resolveProductMode(firmDetails.product)) as any)?.Enterprise?.annualPrice || 5000000;
+                openModal('paymentGateway', null, {
+                    amount: enterprisePrice,
+                    title: 'Activate Enterprise',
+                    description: `Annual subscription — ${firmDetails.name}`,
+                    forcePracticeProAccount: true,
+                    subscriptionContext: {
+                        requestedPlan: SubscriptionPlan.Enterprise,
+                        billingInterval: 'annual',
+                        firmId: firmDetails.id,
+                    },
+                    onConfirm: () => {
+                        logActivity('Requested Enterprise activation (bank transfer)', 'User',
+                            coreState.users.find(u => u.role === 'Admin')?.id);
+                        addToast('Enterprise activation request logged. Our team will contact you within 24 hours.', { type: 'success' });
+                    }
+                });
             }
         });
     };

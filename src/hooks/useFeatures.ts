@@ -8,14 +8,28 @@ export const useFeatures = () => {
     const { appState } = useDataState();
     const { currentUser } = useAuth();
 
+    // ─── CRO AUDIT TRACK B: Trial-aware plan resolution ──────────────────
+    // If the firm has an active trial (trialEndsAt in the future, trialPlan set),
+    // use the trialPlan for entitlement calculations — but only for feature
+    // gating, not for billing display. The actual subscriptionPlan stays at
+    // 'Core' until the trial converts to paid.
+    const now = Date.now();
+    const trialEndsAt = (appState.firmDetails as any)?.trialEndsAt;
+    const trialPlan = (appState.firmDetails as any)?.trialPlan;
+    const isOnTrial = !!(trialEndsAt && trialPlan && trialEndsAt > now);
+
     // Derive plan and product from firm details, with fallback to currentUser
     // for portal users (Client/Tenant) whose firm data may not be loaded yet.
     // This prevents portal users from seeing "Portal Unavailable" when
     // DataProvider hasn't loaded firmDetails for them.
-    const plan = appState.firmDetails.subscriptionPlan
+    const billingPlan = appState.firmDetails.subscriptionPlan
         || (currentUser?.role === 'Client' || currentUser?.role === 'Tenant'
             ? SubscriptionPlan.Komplete  // Portal users: assume full access until firm data loads
             : SubscriptionPlan.Core);
+
+    // For entitlements: use trialPlan if on active trial, else billingPlan.
+    const plan = isOnTrial ? (trialPlan as any) : billingPlan;
+
     const product = appState.firmDetails.product
         || currentUser?.product
         || 'unified';
@@ -50,6 +64,10 @@ export const useFeatures = () => {
 
     return {
         currentPlan: plan,
+        billingPlan,          // The actual subscription plan (may be 'Core' during trial)
+        isOnTrial,            // True if firm is in active trial window
+        trialPlan: isOnTrial ? trialPlan : null,
+        trialEndsAt: isOnTrial ? trialEndsAt : null,
         product,
         isPropertyFirm,
         isLegalFirm,

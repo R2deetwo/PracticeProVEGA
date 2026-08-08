@@ -135,6 +135,11 @@ export const markInvoiceProviderReference = internalMutation({
  * Called by the Paystack webhook when payment is confirmed.
  * This is the ONLY path that sets invoice status to 'Paid' for Paystack
  * transactions. NOT the client-side auto-flip.
+ *
+ * CRO AUDIT FIX (Track B — B7): if the payment metadata includes firmId + plan
+ * (i.e. this is a subscription payment, not an invoice payment), also call
+ * activateFirmSubscription to flip the firm's subscriptionPlan. Previously
+ * the webhook only updated the invoice and never touched the firm tier.
  */
 export const completePaystackPayment = internalMutation({
   args: {
@@ -150,20 +155,112 @@ export const completePaystackPayment = internalMutation({
       .withIndex("by_provider_reference", (q) => q.eq("providerReference", args.reference))
       .first();
 
-    if (!invoice) {
+    let invoiceId: any = null;
+    if (invoice) {
+      // Update invoice — this is the trusted path
+      await ctx.db.patch(invoice._id, {
+        status: 'Paid',
+        paidDate: args.paidAt,
+        provider: 'paystack',
+        paymentMethod: args.channel,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      invoiceId = invoice._id;
+    } else {
       console.warn(`[completePaystackPayment] No invoice found for reference ${args.reference}`);
+    }
+
+    // ─── CRO AUDIT FIX (B7): also check subscriptionRequests for this reference ──
+    // If found, activate the firm's subscription via activateFirmSubscription.
+    const subRequest = await ctx.db
+      .query("subscriptionRequests")
+      .withIndex("by_reference", (q: any) => q.eq("transactionReference", args.reference))
+      .first();
+
+    if (subRequest && subRequest.status === 'pending_review') {
+      // Activate the firm's subscription
+      await ctx.runMutation(internal.myFunctions.activateFirmSubscription, {
+        firmId: subRequest.firmId,
+        plan: subRequest.requestedPlan,
+        billingInterval: subRequest.billingInterval,
+        reference: args.reference,
+      });
+
+      // Mark the request as approved (by webhook)
+      await ctx.db.patch(subRequest._id, {
+        status: 'approved',
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: 'paystack_webhook',
+        updatedAt: new Date().toISOString(),
+      } as any);
+    }
+
+    if (!invoice && !subRequest) {
       return { success: false, error: "INVOICE_NOT_FOUND" };
     }
 
-    // Update invoice — this is the trusted path
-    await ctx.db.patch(invoice._id, {
-      status: 'Paid',
-      paidDate: args.paidAt,
-      provider: 'paystack',
-      paymentMethod: args.channel,
-      updatedAt: new Date().toISOString(),
-    } as any);
+    return { success: true, invoiceId };
+  },
+});
 
-    return { success: true, invoiceId: invoice._id };
+// ─── CRO AUDIT Track B — Subscription payment reference persistence ──────
+/**
+ * Called by paystack.initiateClientPayment when a subscription payment is
+ * initiated (firmId + plan provided). Either creates a new pending
+ * subscriptionRequest row or updates an existing one with the Paystack
+ * reference, so the webhook can find it and activate the firm subscription.
+ */
+export const markSubscriptionRequestReference = internalMutation({
+  args: {
+    firmId: v.string(),
+    plan: v.string(),
+    billingInterval: v.string(),
+    providerReference: v.string(),
+    amount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date();
+    const AUTO_REVERT_HOURS = 72;
+
+    // Look for an existing pending request for this firm with the same plan
+    const existing = await ctx.db
+      .query("subscriptionRequests")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+      .filter((q: any) =>
+        q.and(
+          q.eq(q.field("status"), "pending_review"),
+          q.eq(q.field("requestedPlan"), args.plan)
+        )
+      )
+      .first();
+
+    if (existing) {
+      // Update the existing request with the new reference
+      await ctx.db.patch(existing._id, {
+        transactionReference: args.providerReference,
+        amount: args.amount,
+        billingInterval: args.billingInterval,
+        updatedAt: now.toISOString(),
+      } as any);
+      return { success: true, requestId: existing._id };
+    }
+
+    // Otherwise create a new pending request — the webhook will activate it
+    const firm: any = await ctx.db.get(args.firmId as any);
+    const requestId = await ctx.db.insert("subscriptionRequests", {
+      firmId: args.firmId,
+      currentPlan: firm?.subscriptionPlan || 'Core',
+      requestedPlan: args.plan,
+      billingInterval: args.billingInterval,
+      amount: args.amount,
+      transactionReference: args.providerReference,
+      status: 'pending_review',
+      requestedAt: now.toISOString(),
+      autoRevertAt: now.getTime() + AUTO_REVERT_HOURS * 60 * 60 * 1000,
+      reviewedBy: null,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+    return { success: true, requestId };
   },
 });

@@ -5,7 +5,7 @@ import { Building as BuildingLibraryIcon, CreditCard as CreditCardIcon } from 'l
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { useCoreState } from '../../contexts/CoreContext';
-import { useQuery, useAction } from 'convex/react';
+import { useQuery, useAction, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -17,15 +17,37 @@ interface PaymentGatewayModalProps {
   invoiceId?: string;
   onSuccess: () => void;
   onClose: () => void;
+  // CRO AUDIT Track A — A4: when true, ALWAYS use PracticePro's Providus Bank
+  // account (never the firm's own bankAccounts[0]). Used for subscription
+  // upgrades where the payment goes to PracticePro, not the firm itself.
+  forcePracticeProAccount?: boolean;
+  // CRO AUDIT Track A — A3: subscription context. When provided, the modal
+  // calls createSubscriptionRequest (instead of just showing a confirmation)
+  // and passes firmId/plan/billingInterval to Paystack for webhook activation.
+  subscriptionContext?: {
+    requestedPlan: string;
+    billingInterval: 'monthly' | 'annual';
+    firmId: string;
+  };
 }
 
-const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email, title, description, invoiceId, onSuccess, onClose }) => {
+const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
+  amount, email, title, description, invoiceId, onSuccess, onClose,
+  forcePracticeProAccount = false,
+  subscriptionContext,
+}) => {
   const [step, setStep] = useState<'instructions' | 'confirming' | 'confirmed' | 'card_redirect'>('instructions');
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [transactionReference, setTransactionReference] = useState<string | null>(null);
   const { coreState } = useCoreState();
   const { currentUser } = useAuth();
+
+  // CRO AUDIT Track A — mutation to create a subscription request (replaces
+  // the broken flow where the client immediately flipped firm.subscriptionPlan).
+  const createSubscriptionRequest = useMutation(api.myFunctions.createSubscriptionRequest);
 
   // Check if Paystack (online card payments) is active
   const paystackStatus = useQuery(api.paystack.isPaystackActive, {});
@@ -37,8 +59,10 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
   // Get bank details from firm settings, with PracticePro corporate defaults.
   // For plan upgrades/subscriptions, the payment goes to PracticePro Systems Ltd,
   // not the firm's own bank account.
+  // CRO AUDIT FIX (A4): when forcePracticeProAccount=true (subscription upgrades),
+  // ALWAYS use PracticePro's account — never fall back to firm.bankAccounts[0].
   const bankAccounts = coreState.firmDetails?.bankAccounts;
-  const primaryBank = bankAccounts && bankAccounts.length > 0 ? bankAccounts[0] : null;
+  const primaryBank = (!forcePracticeProAccount && bankAccounts && bankAccounts.length > 0) ? bankAccounts[0] : null;
 
   // PracticePro corporate bank details (used when firm hasn't configured their own)
   const PRACTICEPRO_BANK = {
@@ -51,12 +75,42 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
   const accountNumber = primaryBank?.accountNumber || PRACTICEPRO_BANK.accountNumber;
   const accountName = primaryBank?.accountName || PRACTICEPRO_BANK.accountName;
 
-  const handleConfirmPayment = () => {
+  // CRO AUDIT Track A — generate a transaction reference client-side. The
+  // backend validates that it starts with PP-{firmId}-.
+  const generateReference = () => {
+    const firmId = subscriptionContext?.firmId || coreState.firmDetails?.id || 'unknown';
+    return `PP-${firmId}-${Date.now()}`;
+  };
+
+  const handleConfirmPayment = async () => {
     setStep('confirming');
-    // Brief processing state for UX feedback
-    setTimeout(() => {
-      setStep('confirmed');
-    }, 800);
+    setReportError(null);
+
+    // CRO AUDIT Track A — if this is a subscription upgrade, call the new
+    // createSubscriptionRequest mutation (writes a pending row, doesn't flip
+    // the plan). Otherwise, just show the confirmation as before.
+    if (subscriptionContext) {
+      try {
+        const ref = generateReference();
+        const result = await createSubscriptionRequest({
+          requestedPlan: subscriptionContext.requestedPlan,
+          billingInterval: subscriptionContext.billingInterval,
+          amount,
+          transactionReference: ref,
+          userEmail: currentUser?.email,
+        });
+        setTransactionReference(ref);
+        setStep('confirmed');
+      } catch (err: any) {
+        setReportError(err.message || 'Failed to record payment report. Please try again or contact support.');
+        setStep('instructions');
+      }
+    } else {
+      // Existing behavior for invoice payments — brief delay then confirmation.
+      setTimeout(() => {
+        setStep('confirmed');
+      }, 800);
+    }
   };
 
   const handlePayWithCard = async () => {
@@ -68,6 +122,13 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
         amount,
         email,
         userEmail: currentUser?.email,
+        // CRO AUDIT Track B — pass subscription context so the webhook can
+        // activate the firm subscription when payment is confirmed.
+        ...(subscriptionContext ? {
+          firmId: subscriptionContext.firmId,
+          plan: subscriptionContext.requestedPlan,
+          billingInterval: subscriptionContext.billingInterval,
+        } : {}),
       });
       // Redirect to Paystack's hosted checkout page
       if (result.authorizationUrl) {
@@ -108,6 +169,12 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
             {description && <p className="text-sm text-slate-500 mt-1">{description}</p>}
             <p className="text-2xl font-bold text-slate-900 dark:text-white mt-4"><NairaSymbol />{formatNaira(amount)}</p>
           </div>
+
+          {reportError && (
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">
+              {reportError}
+            </div>
+          )}
 
           {/* Pay with Card (Paystack) — only shown if active */}
           {isCardPaymentActive && (
@@ -262,7 +329,17 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
             <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
           </div>
           <h3 className="text-2xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Payment Reported</h3>
-          <p className="text-slate-500 mb-6">PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.</p>
+          {transactionReference && (
+            <p className="text-xs text-slate-500 mb-2">
+              Reference: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{transactionReference}</span>
+            </p>
+          )}
+          <p className="text-slate-500 mb-6">
+            {subscriptionContext
+              ? `We've recorded your bank transfer of ₦${formatNaira(amount)} to ${bankName}. Your reference is ${transactionReference}. Our team will verify within 24 hours. You'll get full ${subscriptionContext.requestedPlan} features once confirmed.`
+              : 'PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.'
+            }
+          </p>
           <button
             onClick={handleFinish}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all"

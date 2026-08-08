@@ -56,9 +56,32 @@ export const useFirm = (appState: AppState, actions: any) => {
 
     /**
      * Create a new firm (Onboarding).
+     *
+     * CRO AUDIT FIX (Track A — A5): wrapped the createFirmMutation call in a
+     * 30-second timeout. If Convex is slow or the WebSocket drops mid-call,
+     * the user now sees a clear error + a "Recover Connection" affordance
+     * instead of the button staying at "Creating..." forever.
+     *
+     * CRO AUDIT FIX (Track B — B2): added trial parameter. When trial=true,
+     * the backend creates the firm with subscriptionPlan='Core' but sets
+     * trialStartsAt/trialEndsAt/trialPlan so useFeatures can grant trial
+     * entitlements during the 14-day window.
      */
-    const createFirm = useCallback(async (name: string, address: string, plan: string, userDetails?: { email: string, name: string }, product?: Product, isDataMigration?: boolean) => {
-        return await createFirmMutation({
+    const createFirm = useCallback(async (
+        name: string,
+        address: string,
+        plan: string,
+        userDetails?: { email: string, name: string },
+        product?: Product,
+        isDataMigration?: boolean,
+        trial?: boolean,
+    ) => {
+        // Wrap the mutation in a 30-second timeout race. If it doesn't resolve
+        // in 30s, throw a clear error so the UI can show a "Recover Connection"
+        // affordance instead of staying stuck on "Creating..." forever.
+        const CREATE_FIRM_TIMEOUT_MS = 30_000;
+
+        const mutationPromise = createFirmMutation({
             name,
             address,
             subscriptionPlan: plan,
@@ -69,7 +92,20 @@ export const useFirm = (appState: AppState, actions: any) => {
             // Only send isDataMigration when true — omitting it keeps backward compat
             // with older Convex validators that don't declare this field yet.
             ...(isDataMigration ? { isDataMigration: true } : {}),
+            // Only send trial when true — same backward-compat pattern.
+            ...(trial ? { trial: true } : {}),
         });
+
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error(
+                    'Firm creation timed out. Your workspace may still have been created — ' +
+                    'click "Recover Connection" to check, or try again.'
+                ));
+            }, CREATE_FIRM_TIMEOUT_MS);
+        });
+
+        return await Promise.race([mutationPromise, timeoutPromise]) as string;
     }, [createFirmMutation, currentUser]);
 
     /**

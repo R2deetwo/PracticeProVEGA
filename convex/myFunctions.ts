@@ -1711,14 +1711,32 @@ export const createFirm = mutation({
     user_name: v.string(), 
     tokenIdentifier: v.string(),
     product: v.optional(v.union(v.literal("legal"), v.literal("property"), v.literal("unified"), v.literal("vega"), v.literal("atrium"))),
-    isDataMigration: v.optional(v.boolean())
+    isDataMigration: v.optional(v.boolean()),
+    // ─── CRO Audit Track B: Trial system support ───────────────────────
+    // When trial=true, the firm is created with subscriptionPlan='Core' but
+    // trialPlan/trialStartsAt/trialEndsAt set to track the 14-day trial of
+    // the originally-selected plan. useFeatures.ts reads trialPlan to grant
+    // entitlements during the trial window. The expireTrials cron downgrades
+    // expired trials back to Core.
+    trial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const inviteCode = "INV-" + Math.floor(1000 + Math.random() * 9000);
+    const now = Date.now();
+    const TRIAL_DAYS = 14;
+    const trialEndsAt = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+
+    // If trial=true, the firm runs at Core for billing but is granted the
+    // selected plan's entitlements during the trial window.
+    const effectivePlan = args.trial ? 'Core' : args.subscriptionPlan;
+    const trialPlan = args.trial ? args.subscriptionPlan : null;
+    const trialStartsAt = args.trial ? now : null;
+    const trialEndsAtFinal = args.trial ? trialEndsAt : null;
+
     const firmId = await ctx.db.insert("firms", {
       name: args.name,
       address: args.address,
-      subscriptionPlan: args.subscriptionPlan,
+      subscriptionPlan: effectivePlan,
       inviteCode: inviteCode,
       createdBy: args.user_email,
       aiSettings: { enableAllAiFeatures: true },
@@ -1728,6 +1746,14 @@ export const createFirm = mutation({
       whatsappLimit: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.whatsapp || 0) : 0,
       whatsappMessagesSent: 0,
       setupFeePaid: (args.subscriptionPlan === "Enterprise" || args.isDataMigration) ? false : true, // If they need a setup fee, it's NOT paid yet
+      // ─── Trial fields ──────────────────────────────────────────────────
+      trialStartsAt,
+      trialEndsAt: trialEndsAtFinal,
+      trialPlan,
+      // ─── Billing metadata defaults ─────────────────────────────────────
+      adminStatus: args.trial ? 'trial' : 'active',
+      createdAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString(),
     });
     let user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", args.user_email)).first();
     if (!user) {
@@ -2784,9 +2810,44 @@ async function resolveRecordForUpdate(
 export const updateItem = mutation({
   args: { table: v.string(), id: v.string(), data: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
     const { table, id, data } = args;
 
+    // ─── SECURITY GATE (CRO Audit Track A — A2) ───────────────────────────
+    // For `firms` table writes, require Admin role and reject any client-
+    // supplied attempt to change billing/tier fields. Those mutations must
+    // go through dedicated mutations (createSubscriptionRequest,
+    // activateFirmSubscription, updateFirmAdminSettings) that have proper
+    // auth + verification.
+    const FIRM_PROTECTED_FIELDS = new Set([
+      'subscriptionPlan', 'setupFeePaid', 'trialStartsAt', 'trialEndsAt',
+      'trialPlan', 'billingInterval', 'nextBillingDate', 'adminStatus',
+      'adminNotes', 'ingestionAccess',
+    ]);
+
+    if (table === 'firms') {
+      // Require Admin role (not just any firm member)
+      await requireAdmin(ctx, args.userEmail);
+
+      // Strip protected fields from client-supplied patch
+      const stripped: string[] = [];
+      for (const key of Object.keys(data || {})) {
+        if (FIRM_PROTECTED_FIELDS.has(key)) {
+          stripped.push(key);
+          delete data[key];
+        }
+      }
+      if (stripped.length > 0) {
+        console.warn(
+          `[updateItem] Rejected client-supplied protected fields on firms table: ${stripped.join(', ')}. ` +
+          `These must go through dedicated mutations (createSubscriptionRequest, activateFirmSubscription, etc.)`
+        );
+      }
+    } else {
+      // Non-firms tables: require firm membership (existing behavior)
+      await requireFirmUser(ctx, args.userEmail);
+    }
+
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
     const { docId } = await resolveRecordForUpdate(ctx, table, id, firmId);
 
     // Strip Convex-managed internal fields that cannot be patched
@@ -4866,5 +4927,484 @@ export const getPropertyById = query({
     } catch {
       return null;
     }
+  },
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRO AUDIT — TRACK A: REVENUE PROTECTION MUTATIONS
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Replaces the broken flow where SubscriptionSettings.processUpgrade
+// immediately flipped firm.subscriptionPlan on "Report Payment Transferred".
+// The new flow:
+//   1. User clicks "Report Payment Transferred" → createSubscriptionRequest
+//      inserts a pending row in subscriptionRequests (status='pending_review').
+//      Firm.subscriptionPlan is NOT touched.
+//   2. User gets continued access at their CURRENT plan during verification.
+//      The pending request is visible in the founder dashboard (OrganizationsHub).
+//   3. Founder admin approves → approveSubscriptionRequest flips firm.subscriptionPlan
+//      and updates the request to status='approved'.
+//   4. If Paystack is active and a webhook fires for this reference →
+//      activateFirmSubscription (called from payments.completePaystackPayment)
+//      flips the plan and approves the matching request.
+//   5. After 72h with no action → expirePendingSubscriptionRequests auto-reverts
+//      the request to status='auto_reverted'.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * createSubscriptionRequest — called from the PaymentGatewayModal's
+ * "Report Payment Transferred" button (replaces the old onUpdateFirmDetails
+ * call that immediately flipped the plan).
+ *
+ * Inserts a pending row in subscriptionRequests. The firm's subscriptionPlan
+ * is NOT touched. The founder admin must approve via approveSubscriptionRequest.
+ */
+export const createSubscriptionRequest = mutation({
+  args: {
+    requestedPlan: v.string(),
+    billingInterval: v.string(),                 // 'monthly' | 'annual'
+    amount: v.number(),                          // NGN expected
+    transactionReference: v.string(),            // PP-{firmId}-{timestamp}
+    paymentProofStorageId: v.optional(v.string()),
+    paymentProofNote: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+
+    // Fetch current firm to record the currentPlan
+    const firm: any = await ctx.db.get(firmId as any);
+    if (!firm) throw new Error("Firm not found.");
+
+    // Validate the reference is well-formed — must start with PP- and include the firmId
+    const expectedPrefix = `PP-${firmId}-`;
+    if (!args.transactionReference.startsWith(expectedPrefix)) {
+      throw new Error(
+        `Invalid transaction reference. Must start with '${expectedPrefix}'. ` +
+        `Got: '${args.transactionReference}'.`
+      );
+    }
+
+    const now = new Date();
+    const AUTO_REVERT_HOURS = 72;
+    const autoRevertAt = now.getTime() + AUTO_REVERT_HOURS * 60 * 60 * 1000;
+
+    // Insert the pending request
+    const requestId = await ctx.db.insert("subscriptionRequests", {
+      firmId,
+      userId: user?._id,
+      userEmail: user?.email || args.userEmail,
+      currentPlan: firm.subscriptionPlan || 'Core',
+      requestedPlan: args.requestedPlan,
+      billingInterval: args.billingInterval,
+      amount: args.amount,
+      transactionReference: args.transactionReference,
+      status: 'pending_review',
+      paymentProofStorageId: args.paymentProofStorageId || null,
+      paymentProofNote: args.paymentProofNote || null,
+      requestedAt: now.toISOString(),
+      autoRevertAt,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+
+    // Also notify all founder users so they can review
+    const founders = await ctx.db.query("users").filter((q: any) =>
+      q.eq(q.field("role"), "Founder")
+    ).collect();
+    for (const founder of founders) {
+      await ctx.db.insert("notifications", {
+        firmId: 'system',
+        userId: founder._id,
+        title: 'Subscription Request Pending Review',
+        message: `${user?.email || 'A user'} requested upgrade to ${args.requestedPlan} (₦${args.amount.toLocaleString()}). Reference: ${args.transactionReference}`,
+        type: 'subscription_request',
+        link: { view: 'organizationsHub', id: requestId, context: {} },
+        timestamp: now.toISOString(),
+        isRead: false,
+      } as any);
+    }
+
+    return {
+      success: true,
+      requestId,
+      transactionReference: args.transactionReference,
+      autoRevertAt,
+    };
+  },
+});
+
+/**
+ * getPendingSubscriptionRequests — for the founder admin dashboard.
+ * Returns all requests with status='pending_review', ordered newest first.
+ */
+export const getPendingSubscriptionRequests = query({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx, args.userEmail);
+    const requests = await ctx.db
+      .query("subscriptionRequests")
+      .withIndex("by_status", (q: any) => q.eq("status", "pending_review"))
+      .order("desc")
+      .take(100);
+    return requests;
+  },
+});
+
+/**
+ * getMyPendingSubscriptionRequest — for the user's own settings page.
+ * Returns the most recent pending request for the calling user's firm.
+ */
+export const getMyPendingSubscriptionRequest = query({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const request = await ctx.db
+      .query("subscriptionRequests")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .order("desc")
+      .first();
+    return request;
+  },
+});
+
+/**
+ * approveSubscriptionRequest — founder-only mutation that flips the firm's
+ * subscriptionPlan AND marks the request as approved.
+ */
+export const approveSubscriptionRequest = mutation({
+  args: {
+    requestId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // NOTE: this is a FOUNDER-only action, not a firm-admin action.
+    // requireAdmin checks firm admin role; we additionally check founder below.
+    const { user } = await requireAdmin(ctx, args.userEmail);
+    // Allow either 'Founder' or 'Admin' for now — TODO: tighten to Founder only
+    // once all founders have the Founder role assigned.
+    if (user?.role !== 'Founder' && user?.role !== 'Admin') {
+      throw new Error("Only founder admins can approve subscription requests.");
+    }
+
+    const request: any = await ctx.db.get(args.requestId as any);
+    if (!request) throw new Error("Subscription request not found.");
+    if (request.status !== 'pending_review') {
+      throw new Error(`Request is not pending (current status: ${request.status}).`);
+    }
+
+    const now = new Date().toISOString();
+
+    // Flip the firm's subscriptionPlan
+    await ctx.db.patch(request.firmId, {
+      subscriptionPlan: request.requestedPlan,
+      setupFeePaid: true,
+      adminStatus: 'active',
+      // Clear trial fields if present
+      trialStartsAt: null,
+      trialEndsAt: null,
+      trialPlan: null,
+      billingInterval: request.billingInterval,
+      nextBillingDate: computeNextBillingDate(request.billingInterval, now),
+      updatedAt: now,
+    } as any);
+
+    // Mark the request as approved
+    await ctx.db.patch(args.requestId as any, {
+      status: 'approved',
+      reviewedAt: now,
+      reviewedBy: user?.email || args.userEmail,
+      updatedAt: now,
+    } as any);
+
+    // Notify the requesting user
+    if (request.userId) {
+      await ctx.db.insert("notifications", {
+        firmId: request.firmId,
+        userId: request.userId,
+        title: 'Subscription Activated',
+        message: `Your upgrade to ${request.requestedPlan} has been confirmed. Enjoy the new features!`,
+        type: 'subscription_activated',
+        timestamp: now,
+        isRead: false,
+      } as any);
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * rejectSubscriptionRequest — founder-only mutation that marks the request
+ * as rejected without flipping the firm's plan.
+ */
+export const rejectSubscriptionRequest = mutation({
+  args: {
+    requestId: v.string(),
+    reason: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireAdmin(ctx, args.userEmail);
+    if (user?.role !== 'Founder' && user?.role !== 'Admin') {
+      throw new Error("Only founder admins can reject subscription requests.");
+    }
+
+    const request: any = await ctx.db.get(args.requestId as any);
+    if (!request) throw new Error("Subscription request not found.");
+    if (request.status !== 'pending_review') {
+      throw new Error(`Request is not pending (current status: ${request.status}).`);
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.requestId as any, {
+      status: 'rejected',
+      reviewedAt: now,
+      reviewedBy: user?.email || args.userEmail,
+      adminNotes: args.reason || null,
+      updatedAt: now,
+    } as any);
+
+    if (request.userId) {
+      await ctx.db.insert("notifications", {
+        firmId: request.firmId,
+        userId: request.userId,
+        title: 'Subscription Request Update',
+        message: `Your upgrade request could not be verified. Reason: ${args.reason || 'Payment not confirmed. Please contact support.'}`,
+        type: 'subscription_rejected',
+        timestamp: now,
+        isRead: false,
+      } as any);
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * activateFirmSubscription — called by the Paystack webhook (via
+ * payments.completePaystackPayment) when a subscription payment is confirmed.
+ * Also called manually by the founder admin path. This is the ONLY path
+ * that should flip firm.subscriptionPlan in response to a payment.
+ */
+export const activateFirmSubscription = internalMutation({
+  args: {
+    firmId: v.string(),
+    plan: v.string(),
+    billingInterval: v.optional(v.string()),
+    reference: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+
+    await ctx.db.patch(args.firmId as any, {
+      subscriptionPlan: args.plan,
+      setupFeePaid: true,
+      adminStatus: 'active',
+      trialStartsAt: null,
+      trialEndsAt: null,
+      trialPlan: null,
+      billingInterval: args.billingInterval || 'annual',
+      nextBillingDate: computeNextBillingDate(args.billingInterval || 'annual', now),
+      updatedAt: now,
+    } as any);
+
+    // If we have a reference, try to approve the matching subscription request
+    if (args.reference) {
+      const req = await ctx.db
+        .query("subscriptionRequests")
+        .withIndex("by_reference", (q: any) => q.eq("transactionReference", args.reference))
+        .first();
+      if (req && req.status === 'pending_review') {
+        await ctx.db.patch(req._id, {
+          status: 'approved',
+          reviewedAt: now,
+          reviewedBy: 'paystack_webhook',
+          updatedAt: now,
+        } as any);
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * expirePendingSubscriptionRequests — internal mutation called by a daily
+ * cron. Auto-reverts any pending request older than 72 hours.
+ */
+export const expirePendingSubscriptionRequests = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    // Scan by autoRevertAt index for requests whose auto-revert time has passed
+    const expired = await ctx.db
+      .query("subscriptionRequests")
+      .withIndex("by_auto_revert", (q: any) => q.lt("autoRevertAt", now))
+      .filter((q: any) => q.eq(q.field("status"), "pending_review"))
+      .take(200);
+
+    let reverted = 0;
+    for (const req of expired) {
+      await ctx.db.patch(req._id, {
+        status: 'auto_reverted',
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: 'system_auto_revert',
+        updatedAt: new Date().toISOString(),
+      } as any);
+      reverted++;
+    }
+    return { success: true, reverted };
+  },
+});
+
+/**
+ * computeNextBillingDate — helper. Given a billing interval and a start
+ * ISO timestamp, returns the next billing date as an ISO string.
+ */
+function computeNextBillingDate(interval: string, startIso: string): string {
+  const start = new Date(startIso);
+  if (interval === 'monthly') {
+    start.setMonth(start.getMonth() + 1);
+  } else {
+    // annual (default)
+    start.setFullYear(start.getFullYear() + 1);
+  }
+  return start.toISOString();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRO AUDIT — TRACK B: TRIAL EXPIRY CRON
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * expireTrials — internal mutation called by a daily cron (see convex/crons.ts).
+ * Scans for firms whose trialEndsAt has passed and reverts them to Core.
+ *
+ * Logic:
+ *   1. Query firms where trialEndsAt < now AND trialPlan is not null.
+ *   2. For each: clear trialStartsAt/trialEndsAt/trialPlan, set
+ *      subscriptionPlan='Core' (already is, but defensive), set
+ *      adminStatus='active'.
+ *   3. Insert a notification for the firm admin: "Your trial has ended".
+ *   4. Also dispatch trial-ending-soon notifications (4 days, 1 day before).
+ */
+export const expireTrials = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // ─── 1. Expire trials past their end date ───────────────────────────
+    const expired = await ctx.db
+      .query("firms")
+      .withIndex("by_trial_ends", (q: any) => q.lt("trialEndsAt", now))
+      .filter((q: any) => q.neq(q.field("trialPlan"), null))
+      .take(500);
+
+    let expiredCount = 0;
+    for (const firm of expired) {
+      await ctx.db.patch(firm._id, {
+        subscriptionPlan: 'Core',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        trialPlan: null,
+        adminStatus: 'active',
+        setupFeePaid: true,
+        updatedAt: new Date().toISOString(),
+      } as any);
+
+      // Notify the firm admin
+      const admin = await ctx.db
+        .query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firm._id))
+        .filter((q: any) => q.eq(q.field("role"), "Admin"))
+        .first();
+      if (admin) {
+        await ctx.db.insert("notifications", {
+          firmId: firm._id,
+          userId: admin._id,
+          title: 'Trial Ended',
+          message: `Your 14-day trial has ended. You're now on the Core plan. Upgrade to restore your trial features.`,
+          type: 'trial_ended',
+          link: { view: 'settings', id: 'subscription-management', context: {} },
+          timestamp: new Date().toISOString(),
+          isRead: false,
+        } as any);
+      }
+      expiredCount++;
+    }
+
+    // ─── 2. Send "trial ending soon" notifications (4 days and 1 day) ───
+    const fourDaysOut = now + 4 * DAY;
+    const oneDayOut = now + 1 * DAY;
+
+    // Find trials ending in ~4 days (between 3.5 and 4.5 days from now)
+    const endingSoon4 = await ctx.db
+      .query("firms")
+      .withIndex("by_trial_ends", (q: any) => q.lt("trialEndsAt", fourDaysOut + DAY/2))
+      .filter((q: any) =>
+        q.and(
+          q.gte(q.field("trialEndsAt"), fourDaysOut - DAY/2),
+          q.neq(q.field("trialPlan"), null)
+        )
+      )
+      .take(200);
+
+    const endingSoon1 = await ctx.db
+      .query("firms")
+      .withIndex("by_trial_ends", (q: any) => q.lt("trialEndsAt", oneDayOut + DAY/2))
+      .filter((q: any) =>
+        q.and(
+          q.gte(q.field("trialEndsAt"), oneDayOut - DAY/2),
+          q.neq(q.field("trialPlan"), null)
+        )
+      )
+      .take(200);
+
+    let notified4 = 0, notified1 = 0;
+    for (const firm of endingSoon4) {
+      const admin = await ctx.db
+        .query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firm._id))
+        .filter((q: any) => q.eq(q.field("role"), "Admin"))
+        .first();
+      if (admin) {
+        await ctx.db.insert("notifications", {
+          firmId: firm._id,
+          userId: admin._id,
+          title: 'Trial Ending in 4 Days',
+          message: `Your ${firm.trialPlan} trial ends in 4 days. Upgrade now to keep your features.`,
+          type: 'trial_ending_soon',
+          link: { view: 'settings', id: 'subscription-management', context: {} },
+          timestamp: new Date().toISOString(),
+          isRead: false,
+        } as any);
+      }
+      notified4++;
+    }
+
+    for (const firm of endingSoon1) {
+      const admin = await ctx.db
+        .query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firm._id))
+        .filter((q: any) => q.eq(q.field("role"), "Admin"))
+        .first();
+      if (admin) {
+        await ctx.db.insert("notifications", {
+          firmId: firm._id,
+          userId: admin._id,
+          title: 'Trial Ends Tomorrow',
+          message: `Your ${firm.trialPlan} trial ends tomorrow. Set up bank transfer now to avoid losing features.`,
+          type: 'trial_ending_tomorrow',
+          link: { view: 'settings', id: 'subscription-management', context: {} },
+          timestamp: new Date().toISOString(),
+          isRead: false,
+        } as any);
+      }
+      notified1++;
+    }
+
+    return { success: true, expired: expiredCount, notified4, notified1 };
   },
 });

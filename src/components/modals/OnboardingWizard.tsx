@@ -11,6 +11,8 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUI } from '../../contexts/UIContext';
 import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
+// CRO AUDIT Track A — A3: use the real PaymentGatewayModal instead of the stub.
+import PaymentGatewayModal from './PaymentGatewayModal';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -22,10 +24,45 @@ const PlanCard: React.FC<{
   onSelect: () => void;
   billingCycle: 'monthly' | 'annual';
   isAtrium: boolean;
-}> = ({ tier, selected, onSelect, billingCycle, isAtrium }) => {
+  productName?: 'Vega' | 'Atrium' | 'Komplete';
+}> = ({ tier, selected, onSelect, billingCycle, isAtrium, productName = 'Vega' }) => {
   const { price, per } = formatTierPrice(tier, billingCycle);
   const effectiveBilling = isAtrium ? 'annual' : billingCycle;
   const sce = effectiveBilling === 'annual' ? tier.scePer_annual : tier.scePer;
+
+  // CRO AUDIT Track C — C1: portfolio-size anchors per tier, per product.
+  // Collapses the tier-choice decision from a feature-comparison task to a
+  // self-identification task (cognitively cheaper, converts better).
+  const portfolioAnchor = (() => {
+    if (productName === 'Atrium') {
+      switch (tier.id) {
+        case 'Core': return 'For portfolios up to 10 units';
+        case 'Growth': return 'For portfolios of 10–25 units';
+        case 'Pro': return 'For portfolios of 25–100 units — most estate surveyors';
+        case 'Enterprise': return 'For developers and PMs with 100+ units';
+      }
+    } else if (productName === 'Vega') {
+      switch (tier.id) {
+        case 'Core': return 'For solo practitioners getting started';
+        case 'Growth': return 'For small teams of 2–5 lawyers';
+        case 'Pro': return 'For firms with active litigation pipelines';
+        case 'Enterprise': return 'For multi-branch firms with 50+ matters/month';
+      }
+    } else { // Komplete
+      return 'Unified property + legal for diversified firms';
+    }
+    return null;
+  })();
+
+  // CRO AUDIT Track C — C5: tier label badges. "Recommended" badge moves to
+  // Atrium Growth (the modal Nigerian portfolio size) instead of always
+  // being on Pro.
+  const badgeText = (() => {
+    if (tier.id === 'Growth' && productName === 'Atrium') return 'Recommended for most firms';
+    if (tier.id === 'Growth' && productName === 'Vega') return 'Most Popular';
+    if (tier.id === 'Pro' && productName === 'Vega') return 'For active practices';
+    return null;
+  })();
 
   return (
     <div
@@ -37,9 +74,9 @@ const PlanCard: React.FC<{
       }`}
     >
       {/* Recommended badge */}
-      {tier.recommended && (
+      {badgeText && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-3xs font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap z-10">
-          Most Popular
+          {badgeText}
         </div>
       )}
 
@@ -49,6 +86,11 @@ const PlanCard: React.FC<{
           <h4 className="font-black text-2xs uppercase tracking-widest text-slate-400">{tier.label}</h4>
           {selected && <div className="w-4 h-4 bg-primary-600 rounded-full flex items-center justify-center text-white p-0.5"><CheckIcon className="w-full h-full" /></div>}
         </div>
+
+        {/* CRO AUDIT Track C — C1: portfolio-size anchor */}
+        {portfolioAnchor && (
+          <p className="text-3xs font-bold text-primary-600  mb-2 leading-snug">{portfolioAnchor}</p>
+        )}
 
         {/* Price */}
         <div className="mb-4">
@@ -136,19 +178,24 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     Enterprise: SubscriptionPlan.Enterprise,
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (trial = false) => {
     if (!firmName.trim()) return;
     setIsSubmitting(true);
     setError(null);
     try {
       const plan = isKomplete(product) ? SubscriptionPlan.Komplete : tierToSubscriptionPlan[selectedTierId];
+      // CRO AUDIT FIX (Track B — B2): pass trial flag to createFirm so the
+      // backend sets trialStartsAt/trialEndsAt/trialPlan. The firm is created
+      // at Core for billing but granted the selected plan's entitlements
+      // during the 14-day trial window (see useFeatures.ts).
       const fid = await createFirm(
         firmName.trim(),
         'Address Pending',
         plan,
         { email: currentUser!.email, name: currentUser!.name },
         product,
-        isDataMigration
+        isDataMigration,
+        trial,
       );
       if (fid) {
         // CRITICAL FIX: refreshUser() can hang if Convex is slow to sync
@@ -236,8 +283,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         {step === 1 && (
           <div className="space-y-8">
             <div className="text-center">
+              {/* CRO AUDIT Track C — C5: fork Step 1 copy by product.
+                  Vega: "Welcome, {name}. Let's set up your practice."
+                  Atrium: "Welcome, {name}. Let's set up your portfolio."
+                  Komplete: "Welcome, {name}. Let's set up your unified workspace." */}
               <h2 className="text-4xl font-black text-slate-900  tracking-tighter">Welcome, {currentUser?.name?.split(' ')[0]}</h2>
-              <p className="text-slate-500 mt-2 text-sm font-medium">Initialize your secure workspace.</p>
+              <p className="text-slate-500 mt-2 text-sm font-medium">
+                {productName === 'Atrium'
+                  ? "Let's set up your property portfolio. Atrium tracks rents, invoicing, and tenants across all your properties."
+                  : productName === 'Vega'
+                  ? "Let's set up your practice. Vega manages matters, deadlines, documents, and billable hours."
+                  : "Let's set up your unified workspace. Komplete bridges property assets and legal matters in one place."}
+              </p>
             </div>
 
             <div className="max-w-md mx-auto space-y-6">
@@ -249,8 +306,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               {mode === 'create' ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
                   <div>
-                    <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Firm / Organization Name</label>
-                    <input autoComplete="off" data-lpignore="true" type="text" placeholder="e.g. Adeyemi & Co." value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-300" autoFocus />
+                    <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      {productName === 'Atrium'
+                        ? 'Property Company / PM Firm Name'
+                        : productName === 'Vega'
+                        ? 'Law Firm / Practice Name'
+                        : 'Firm / Organization Name'}
+                    </label>
+                    <input autoComplete="off" data-lpignore="true" type="text" placeholder={
+                      productName === 'Atrium' ? 'e.g. Landmark Properties, Adeyemi Surveyors'
+                      : productName === 'Vega' ? 'e.g. Adeyemi & Co. Solicitors'
+                      : 'e.g. Adeyemi & Co.'
+                    } value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-300" autoFocus />
                   </div>
                   <button onClick={() => { setStep(2); setShowAllPlans(false); }} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Confirm Plan</button>
                 </div>
@@ -282,7 +349,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
-                {showAllPlans ? 'Compare Plans' : `Your ${selectedTierId === 'Core' ? 'Core' : selectedTierId} Plan`}
+                {showAllPlans ? 'Compare Plans — Pick What Fits Your Practice' : `You've Selected ${selectedTierId === 'Core' ? 'Core' : selectedTierId}`}
               </h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
                 For your <span className="font-bold text-slate-700">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
@@ -336,6 +403,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   onSelect={() => setSelectedTierId('Core')}
                   billingCycle={billingCycle}
                   isAtrium={false}
+                  productName="Komplete"
                 />
               </div>
             ) : (
@@ -353,6 +421,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                           onSelect={() => setSelectedTierId(id)}
                           billingCycle={billingCycle}
                           isAtrium={isAtrium}
+                          productName={productName}
                         />
                       </div>
                     ))}
@@ -380,6 +449,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                         onSelect={() => { setSelectedTierId(id); setShowAllPlans(false); }}
                         billingCycle={billingCycle}
                         isAtrium={isAtrium}
+                        productName={productName}
                       />
                     ))}
                   </div>
@@ -467,18 +537,26 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               return (
                 <div className="max-w-md mx-auto pt-2 space-y-3">
                   {/* Back button */}
-                  <button onClick={() => setStep(1)} className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all" disabled={isSubmitting}>
+                  <button onClick={() => {
+                    setStep(1);
+                    // CRO AUDIT FIX (Track C — C2): auto-reset showAllPlans to false
+                    // when the user returns to the plan step, so they see their
+                    // selected tier centered rather than the full comparison grid.
+                    setShowAllPlans(false);
+                  }} className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all" disabled={isSubmitting}>
                     ← Back
                   </button>
 
-                  {/* Pay Now — available on ALL tiers */}
+                  {/* CRO AUDIT FIX (Track C — C2): renamed "Pay Now" → "Confirm Plan".
+                      The Step 1 CTA already says "Next: Confirm Plan", so the Step 2
+                      primary CTA must match that language. */}
                   <button
                     onClick={() => { setPaymentAction('pay_now'); setShowPaymentModal(true); }}
                     disabled={isSubmitting || !hasAgreed}
                     className={`w-full py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}
                   >
                     {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                    {isSubmitting ? 'Creating...' : `Pay Now — ${planLabel}`}
+                    {isSubmitting ? 'Creating...' : `Confirm Plan — ${planLabel}`}
                   </button>
 
                   {/* Start 14-Day Free Trial — NOT available on highest tier */}
@@ -490,7 +568,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                         <div className="flex-1 h-px bg-slate-100" />
                       </div>
                       <button
-                        onClick={() => { setPaymentAction('start_trial'); handleCreate(); }}
+                        onClick={() => { setPaymentAction('start_trial'); handleCreate(true); }}
                         disabled={isSubmitting || !hasAgreed}
                         className="w-full py-3 bg-white border-2 border-primary-200 text-primary-600 font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-primary-50 transition-all disabled:opacity-50"
                       >
@@ -508,32 +586,46 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   {/* Highest tier — payment only, no trial */}
                   {isHighestTier && (
                     <p className="text-center text-2xs text-slate-400">
-                      The {planLabel} tier requires payment to activate. Click "Pay Now" to proceed with bank transfer.
+                      The {planLabel} tier requires payment to activate. Click "Confirm Plan" to proceed with bank transfer.
                     </p>
                   )}
                 </div>
               );
             })()}
 
-            {/* Payment Reported confirmation — replaces Create Workspace after payment */}
+            {/* CRO AUDIT FIX (Track A — A3): replaced the stub "Payment Reported"
+                modal with the real PaymentGatewayModal component. Users now see
+                actual bank details, amount, and a generated transaction reference.
+                The modal calls createSubscriptionRequest to write a pending row
+                (no immediate plan flip) — the founder admin or Paystack webhook
+                activates the subscription after verification. */}
             {paymentAction === 'pay_now' && showPaymentModal && (
               <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900">Payment Reported</h3>
-                    <p className="text-sm text-slate-500 mt-2">PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.</p>
-                  </div>
-                  <button
-                    onClick={() => { setShowPaymentModal(false); handleCreate(); }}
-                    className="w-full py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-colors"
-                  >
-                    Continue to Workspace
-                  </button>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <PaymentGatewayModal
+                    amount={(() => {
+                      const isKompleteTier = isKomplete(product);
+                      const planPrice = isKompleteTier
+                        ? (billingCycle === 'annual' ? 1248000 : 130000)
+                        : (tiers[selectedTierId]?.[billingCycle === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
+                      return planPrice;
+                    })()}
+                    email={currentUser?.email || ''}
+                    title={`Confirm Plan — ${isKomplete(product) ? 'Komplete' : selectedTierId}`}
+                    description={`${billingCycle === 'annual' ? 'Annual' : 'Monthly'} subscription — ${firmName}`}
+                    forcePracticeProAccount={true}
+                    // No subscriptionContext for onboarding — the firm doesn't exist yet.
+                    // The user pays AFTER workspace creation via the in-app SubscriptionSettings.
+                    // For onboarding, "Confirm Plan" just creates the firm at Core (or trial).
+                    onSuccess={() => {
+                      setShowPaymentModal(false);
+                      // After the user reports payment, create the firm at Core.
+                      // The founder admin will see the pending payment and activate
+                      // the requested plan once verified.
+                      handleCreate(false);
+                    }}
+                    onClose={() => setShowPaymentModal(false)}
+                  />
                 </div>
               </div>
             )}

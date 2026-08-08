@@ -184,7 +184,16 @@ crons.interval(
   {}
 );
 
-export default crons;
+// ─── CRO AUDIT TRACK B: TRIAL EXPIRY CRON ────────────────────────────────────
+// Daily at 0:05 UTC (1:05 AM WAT). Scans for firms whose trialEndsAt has
+// passed and reverts them to Core. Also sends "trial ending in 4 days" and
+// "trial ends tomorrow" notifications. See convex/myFunctions.ts:expireTrials.
+crons.daily(
+  "expireTrials",
+  { hourUTC: 0, minuteUTC: 5 },
+  internal.myFunctions.expireTrials,
+  {}
+);
 
 // ─── LEASE EXPIRY ALERTS (ATRIUM) ────────────────────────────────────────────
 // Daily at 7:00 AM UTC (8:00 AM WAT). Scans all properties for leases expiring
@@ -196,3 +205,16 @@ crons.daily(
   internal.myFunctions.scanLeaseExpiries,
   {}
 );
+
+// ─── CRO AUDIT TRACK A: PENDING SUBSCRIPTION REQUEST AUTO-REVERT ────────────
+// Daily at 0:10 UTC (1:10 AM WAT). Auto-reverts any subscription request
+// still in 'pending_review' status after 72 hours. Prevents stale pending
+// requests from accumulating in the founder dashboard.
+crons.daily(
+  "expirePendingSubscriptionRequests",
+  { hourUTC: 0, minuteUTC: 10 },
+  internal.myFunctions.expirePendingSubscriptionRequests,
+  {}
+);
+
+export default crons;

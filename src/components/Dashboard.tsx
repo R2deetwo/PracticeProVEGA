@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Matter, Task, Invoice, CalendarEvent, CustomEventType, TimeEntry, Expense, InvoiceStatus, AppMode, User, UserRole, FirmActivity, Contact, Document, View, ModalType, FirmDetails, SubscriptionPlan } from '../types';
 import TasksWidget from './dashboard/TasksWidget';
 import RecentMattersWidget from './dashboard/FocusMatterWidget';
@@ -18,7 +18,82 @@ import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
 import { Skeleton } from './toolkit/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 import BroadcastBanner from './BroadcastBanner';
+// CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
+import TrialNudgeBanner from './TrialNudgeBanner';
 
+
+
+// CRO AUDIT Track C — C3: First-run welcome banner + auto-open create modal.
+// Shown only on the very first dashboard load (when the user has zero matters
+// AND zero properties). Dismissible with one click; auto-dismisses after 30s.
+const FirstRunWelcome: React.FC<{
+  firstName: string;
+  productName: 'Vega' | 'Atrium' | 'Komplete' | string;
+  hasRecords: boolean;
+  onCreateFirst: () => void;
+  onDismiss: () => void;
+}> = ({ firstName, productName, hasRecords, onCreateFirst, onDismiss }) => {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed || hasRecords) return null;
+
+  const cta = productName === 'Atrium' ? '+ Add Your First Property'
+            : productName === 'Vega' ? '+ Create Your First Matter'
+            : '+ Create Your First Record';
+
+  return (
+    <div className="bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-2xl p-5 sm:p-6 mb-4 sm:mb-6 animate-fade-in shadow-lg shadow-primary-500/5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-sm font-black">
+              {firstName?.[0]?.toUpperCase() || 'P'}
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400">Welcome to {productName}</span>
+          </div>
+          <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-2">
+            Welcome, {firstName}! Here's how to get started in 60 seconds:
+          </h3>
+          <ol className="space-y-1.5 text-sm text-slate-600 dark:text-zinc-300">
+            {productName === 'Atrium' ? (
+              <>
+                <li><span className="font-bold text-primary-600">1.</span> Add your first property (name, address, units).</li>
+                <li><span className="font-bold text-primary-600">2.</span> Add a tenant and link them to a unit.</li>
+                <li><span className="font-bold text-primary-600">3.</span> Record your first rent payment — done!</li>
+              </>
+            ) : productName === 'Vega' ? (
+              <>
+                <li><span className="font-bold text-primary-600">1.</span> Create your first matter (client + matter type).</li>
+                <li><span className="font-bold text-primary-600">2.</span> Add a task with a due date to track deadlines.</li>
+                <li><span className="font-bold text-primary-600">3.</span> Log your first time entry — done!</li>
+              </>
+            ) : (
+              <>
+                <li><span className="font-bold text-primary-600">1.</span> Add your first property OR create your first matter.</li>
+                <li><span className="font-bold text-primary-600">2.</span> Link them together to see the Komplete bridge in action.</li>
+                <li><span className="font-bold text-primary-600">3.</span> Invite a teammate — done!</li>
+              </>
+            )}
+          </ol>
+        </div>
+        <button
+          onClick={onDismiss}
+          className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
+          aria-label="Dismiss welcome"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <button
+        onClick={() => { onCreateFirst(); onDismiss(); }}
+        className="mt-4 w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary-600/20 transition-all hover:-translate-y-0.5 active:scale-95"
+      >
+        {cta}
+      </button>
+    </div>
+  );
+};
 
 
 const TierAccessBanner: React.FC<{ plan: SubscriptionPlan, onUpgrade: () => void }> = ({ plan, onUpgrade }) => (
@@ -113,6 +188,37 @@ const Dashboard: React.FC = () => {
         navigateTo('settings', null, { settingsTargetId: 'subscription-management' });
     };
 
+    // CRO AUDIT Track C — C3: First-run detection + auto-open create modal.
+    // If the user has zero matters AND zero properties, show the welcome banner
+    // AND auto-open the appropriate "create" modal ONCE per session.
+    // The flag is stored in sessionStorage so it doesn't re-fire on every dashboard
+    // re-render within the same session.
+    const hasAnyRecords = safeMatters.length > 0 || safeProperties.length > 0;
+    const productNameStr = hasPropertyFeatures && !isLegal ? 'Atrium'
+                         : isLegal && !hasPropertyFeatures ? 'Vega'
+                         : isUnified ? 'Komplete'
+                         : (firmDetails?.product === 'property' ? 'Atrium' : 'Vega');
+    const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+
+    useEffect(() => {
+        // Only auto-open the create modal if:
+        //   1. Data is loaded (not still fetching)
+        //   2. User has zero records (first run)
+        //   3. We haven't already auto-opened in this session
+        if (isDataLoaded && !hasAnyRecords && !sessionStorage.getItem('practicepro_autoopen_create')) {
+            sessionStorage.setItem('practicepro_autoopen_create', '1');
+            // Small delay to let the dashboard settle
+            const t = setTimeout(() => {
+                if (hasPropertyFeatures && !isLegal) {
+                    openModal('newProperty');
+                } else {
+                    openModal('newMatter');
+                }
+            }, 800);
+            return () => clearTimeout(t);
+        }
+    }, [isDataLoaded, hasAnyRecords, hasPropertyFeatures, isLegal, openModal]);
+
     if (!currentUser) return null; // Avoid crash before auth is ready
 
     return (
@@ -130,10 +236,29 @@ const Dashboard: React.FC = () => {
                 {/* Downgrade Banner */}
                 {isDowngradedState && <TierAccessBanner plan={plan} onUpgrade={handleUpgrade} />}
 
+                {/* CRO AUDIT Track C — C3: First-run welcome banner */}
+                {!welcomeDismissed && (
+                  <FirstRunWelcome
+                    firstName={currentUser.name?.split(' ')[0] || 'User'}
+                    productName={productNameStr}
+                    hasRecords={hasAnyRecords}
+                    onCreateFirst={() => {
+                      if (hasPropertyFeatures && !isLegal) openModal('newProperty');
+                      else openModal('newMatter');
+                    }}
+                    onDismiss={() => setWelcomeDismissed(true)}
+                  />
+                )}
+
                 {/* Broadcast Banner — glassmorphic, in-content placement.
                     Sits below Overview header, above the operational grid.
                     Never overlaps the left sidebar or top navigation. */}
                 <BroadcastBanner />
+
+                {/* CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
+                    Shows contextual value-driven messages on Days 0, 1, 3, 5, 7, 10, 13.
+                    Dismissible per-day via localStorage. */}
+                <TrialNudgeBanner />
 
                 <div className="grid grid-cols-1 gap-4 sm:gap-8">
                     {isLoading ? (

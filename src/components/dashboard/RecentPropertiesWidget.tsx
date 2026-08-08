@@ -94,6 +94,15 @@ const RecentPropertiesWidget: React.FC<RecentPropertiesWidgetProps> = ({ propert
                             <OfficeBuildingIcon className="h-5 w-5 text-slate-400" />
                         </div>
                         <h3 className="text-xs font-medium text-slate-500 dark:text-zinc-400">No {activeCategory} Properties</h3>
+                        {/* CRO AUDIT Track C — C4: add inline CTA so users can add their
+                            first property directly from the dashboard widget, instead of
+                            having to navigate to the Properties view to find the button. */}
+                        <button
+                          onClick={() => openModal('newProperty')}
+                          className="mt-3 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-2xs font-black uppercase tracking-widest rounded-lg transition-all hover:-translate-y-0.5 active:scale-95"
+                        >
+                          + Add Your First Property
+                        </button>
                     </div>
                 ) : (
                     <div className="animate-fade-in-scale h-full">

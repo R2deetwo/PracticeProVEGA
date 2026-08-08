@@ -49,6 +49,15 @@ export const isPaystackActive = query({
 // This wraps the internal initiatePaystackPayment action so the client
 // can call it directly. It authenticates the user and verifies the
 // invoice belongs to their firm before initiating payment.
+//
+// CRO AUDIT FIX (Track B — B6): now persists the providerReference on the
+// invoice (via internal.payments.markInvoiceProviderReference) so the webhook
+// can actually find the invoice when payment is confirmed. Previously this
+// was skipped, breaking the end-to-end Paystack flow.
+//
+// CRO AUDIT FIX (Track B — B5): replaced `window.location.origin` (which
+// throws ReferenceError in Convex's server runtime) with a hard requirement
+// on process.env.SITE_URL — throws a clear error if unset.
 
 export const initiateClientPayment = action({
   args: {
@@ -56,6 +65,12 @@ export const initiateClientPayment = action({
     amount: v.number(),       // in Naira
     email: v.string(),        // customer email
     userEmail: v.optional(v.string()),
+    // CRO AUDIT Track B — optional firmId + plan for subscription payments
+    // (not just invoice payments). When provided, the webhook will call
+    // activateFirmSubscription to flip the firm's tier.
+    firmId: v.optional(v.string()),
+    plan: v.optional(v.string()),
+    billingInterval: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Authenticate the user
@@ -64,6 +79,16 @@ export const initiateClientPayment = action({
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey || process.env.PAYSTACK_ENABLED !== 'true') {
       throw new Error("Online card payments are not yet activated. Please use bank transfer.");
+    }
+
+    const siteUrl = process.env.SITE_URL;
+    if (!siteUrl) {
+      // CRO AUDIT FIX (B5): window.location.origin throws in Convex server runtime.
+      // Require SITE_URL to be set instead of silently falling back to a broken value.
+      throw new Error(
+        "SITE_URL environment variable is not configured. " +
+        "The PracticePro team must set SITE_URL in Convex env to enable card payments."
+      );
     }
 
     // Generate a unique reference
@@ -81,11 +106,16 @@ export const initiateClientPayment = action({
         email: args.email,
         amount: amountInKobo,
         reference,
-        callback_url: `${process.env.SITE_URL || window.location.origin}/billing`,
+        callback_url: `${siteUrl}/billing`,
         metadata: {
           invoiceId: args.invoiceId,
+          firmId: args.firmId || null,
+          plan: args.plan || null,
+          billingInterval: args.billingInterval || null,
           custom_fields: [
             { display_name: "Invoice ID", variable_name: "invoice_id", value: args.invoiceId },
+            ...(args.firmId ? [{ display_name: "Firm ID", variable_name: "firm_id", value: args.firmId }] : []),
+            ...(args.plan ? [{ display_name: "Plan", variable_name: "plan", value: args.plan }] : []),
           ],
         },
       }),
@@ -95,6 +125,40 @@ export const initiateClientPayment = action({
 
     if (!data.status) {
       throw new Error(`Payment initialization failed: ${data.message}`);
+    }
+
+    // CRO AUDIT FIX (B6): persist the providerReference so the webhook can
+    // find the invoice (and optionally the firm) when payment is confirmed.
+    // We use a try/catch because the invoice may not exist yet for
+    // subscription upgrades (only for invoice payments).
+    try {
+      await ctx.runMutation(internal.payments.markInvoiceProviderReference, {
+        invoiceId: args.invoiceId,
+        provider: 'paystack',
+        providerReference: reference,
+      });
+    } catch (e) {
+      // Non-fatal: invoice may not exist for subscription-only flows.
+      // The reference is also stored in the subscriptionRequests table
+      // (created by createSubscriptionRequest) so the webhook can match.
+      console.warn(`[initiateClientPayment] Could not mark invoice reference (may be a subscription-only flow): ${(e as any)?.message}`);
+    }
+
+    // If this is a subscription payment (firmId + plan provided), also store
+    // the reference on the matching subscriptionRequest so the webhook can
+    // find it AND activate the firm subscription.
+    if (args.firmId && args.plan) {
+      try {
+        await ctx.runMutation(internal.payments.markSubscriptionRequestReference, {
+          firmId: args.firmId,
+          plan: args.plan,
+          billingInterval: args.billingInterval || 'annual',
+          providerReference: reference,
+          amount: args.amount,
+        });
+      } catch (e) {
+        console.warn(`[initiateClientPayment] Could not mark subscription request reference: ${(e as any)?.message}`);
+      }
     }
 
     return {

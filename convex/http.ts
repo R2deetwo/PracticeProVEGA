@@ -36,11 +36,26 @@ http.route({
       });
     }
     const { model, contents, systemInstruction, apiKey: providedApiKey } = await request.json();
-    const fallbackDemoKey = 'AIzaSyDd5ib2A1562gO2PY1FQElSVzwyIaeBAN8';
+    // CRO AUDIT FIX (Track D — D5): removed hard-coded fallback Gemini API key.
+    // Hard-coding API keys in source is a security issue — anyone with repo
+    // access can extract and abuse the key. Now requires either:
+    //   1. The client to pass `apiKey` in the request body (per-user key), OR
+    //   2. The GEMINI_API_KEY / GEMINI_DEMO_KEY env var to be set in Convex.
+    // If neither is present, returns a clear 503 error instead of silently
+    // using a compromised demo key.
     const envKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
-    
-    // Priority: Request Key -> Environment Key -> Demo Key
-    const apiKey = providedApiKey || envKey || fallbackDemoKey;
+
+    // Priority: Request Key -> Environment Key
+    const apiKey = providedApiKey || envKey;
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({
+          error: "GEMINI_API_KEY not configured. Set it in Convex env or pass apiKey in the request body.",
+        }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 

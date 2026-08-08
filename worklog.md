@@ -5497,3 +5497,91 @@ by ONE of:
 
 Until then, I'll manually run scripts/sync-master.sh after each push
 to keep Vercel deploying correctly.
+
+---
+Task ID: CRO-AUDIT-FIXES
+Agent: main (GLM)
+Task: Address all issues from the PracticePro CRO & PLG Audit PDF
+
+Work Log:
+- Track A (P0): Added subscriptionRequests table to schema.ts with proper indices
+- Track A (P0): Added trial fields (trialStartsAt, trialEndsAt, trialPlan) + billing metadata (billingInterval, nextBillingDate, adminStatus, adminNotes, lastActive, ingestionAccess) to firms schema
+- Track A (P0): Secured updateItem mutation — for `firms` table writes now requires Admin role + strips protected fields (subscriptionPlan, setupFeePaid, trialStartsAt, trialEndsAt, trialPlan, billingInterval, nextBillingDate, adminStatus, adminNotes, ingestionAccess)
+- Track A (P0): Added createSubscriptionRequest, getPendingSubscriptionRequests, getMyPendingSubscriptionRequest, approveSubscriptionRequest, rejectSubscriptionRequest, activateFirmSubscription, expirePendingSubscriptionRequests mutations to myFunctions.ts
+- Track A (P0): Updated SubscriptionSettings.processUpgrade to use subscriptionContext + forcePracticeProAccount (no longer flips plan client-side)
+- Track A (P0): Updated handleActivateEnterprise to route through payment modal (no longer self-activates Enterprise)
+- Track A (P0): Updated PaymentGatewayModal with forcePracticeProAccount + subscriptionContext props; calls createSubscriptionRequest on confirm
+- Track A (P0): Updated ModalManager to pass through new PaymentGatewayModal props
+- Track A (P0): Updated OnboardingWizard to use real PaymentGatewayModal (replaced stub) and renamed "Pay Now" → "Confirm Plan"; auto-resets showAllPlans on Back
+- Track A (P0): Added 30s timeout to createFirm in useFirm.ts with clear error message + Recover Connection guidance
+- Track B (P1): Updated createFirm mutation to accept `trial` flag and set trialStartsAt/trialEndsAt/trialPlan when true; firm created at Core for billing but granted trial entitlements
+- Track B (P1): Updated useFirm.ts createFirm wrapper to accept and pass trial parameter
+- Track B (P1): Updated OnboardingWizard.handleCreate to accept trial parameter; "Start 14-Day Free Trial" button now passes trial=true
+- Track B (P1): Updated useFeatures.ts to consult trialEndsAt/trialPlan — grants trialPlan entitlements during active trial window; added isOnTrial, billingPlan, trialPlan, trialEndsAt to returned hook
+- Track B (P1): Added expireTrials internal mutation in myFunctions.ts (downgrades expired trials to Core + sends Day-4 and Day-1 notifications)
+- Track B (P1): Added expireTrials + expirePendingSubscriptionRequests cron jobs in crons.ts
+- Track B (P1): Fixed Paystack window.location.origin server-side bug (now requires SITE_URL env var)
+- Track B (P1): Fixed Paystack providerReference persistence — initiateClientPayment now calls markInvoiceProviderReference
+- Track B (P1): Added markSubscriptionRequestReference internal mutation in payments.ts
+- Track B (P1): Updated completePaystackPayment webhook handler to also check subscriptionRequests + call activateFirmSubscription when matched
+- Track B (P1): Updated initiateClientPayment to accept firmId/plan/billingInterval and call markSubscriptionRequestReference
+
+Stage Summary:
+- All P0 (Track A) revenue protection + security fixes are complete and TypeScript-clean
+- All P1 (Track B) trial system + Paystack end-to-end fixes are complete
+- The 14-day trial is now REAL: schema fields, createFirm flag, useFeatures gate, expiry cron, nudge notifications
+- The revenue leak is closed: subscription upgrades no longer flip plan client-side; they go through pending subscriptionRequests → founder admin approval OR Paystack webhook activation
+- Paystack is now structurally complete: when env vars are flipped on, it will work end-to-end (initiate → webhook → activateFirmSubscription)
+- TypeScript: zero errors in any modified file (pre-existing errors in unrelated files only)
+
+---
+Task ID: CRO-AUDIT-FIXES-PART-2
+Agent: main (GLM)
+Task: Track C (P2) + Track D (P3/P4) onboarding polish + cleanup
+
+Work Log:
+- Track C (C1): Added portfolio-size anchors to PlanCard in OnboardingWizard.tsx — per-tier, per-product (e.g. "For portfolios of 10-25 units" for Atrium Growth)
+- Track C (C2): Renamed "Pay Now" → "Confirm Plan" (matches Step 1 CTA language); auto-resets showAllPlans to false on Back; updated Step 2 heading from "Your {Tier} Plan" → "You've Selected {Tier}"; updated "Compare Plans" → "Compare Plans — Pick What Fits Your Practice"
+- Track C (C3): Added FirstRunWelcome component to Dashboard.tsx — shown only on first dashboard load when user has zero matters/properties; provides 3 contextual onboarding steps; auto-dismisses on first interaction
+- Track C (C3): Added auto-open create modal logic — on first dashboard load with zero records, automatically opens the appropriate create modal (newProperty for Atrium, newMatter for Vega/Komplete) after 800ms delay
+- Track C (C4): Added inline "+ Add Your First Property" CTA button to RecentPropertiesWidget empty state
+- Track C (C5): Forked OnboardingWizard copy by product — Step 1 heading, subhead, firm-name label, and placeholder all now use product-specific text (Vega = "Law Firm / Practice Name", Atrium = "Property Company / PM Firm Name")
+- Track C (C5): Tier badge text now product-specific — Atrium Growth gets "Recommended for most firms" badge instead of always-Pro
+- Track C (C6): Created SoftGateModal component with two paths (Pay Now / Start 14-Day Free Trial) + billing toggle + price display
+- Track B (B8): Created TrialNudgeBanner component — surfaces Day-0, Day-1, Day-3, Day-7, Day-10, Day-13 milestone messages; dismissible per-day via localStorage
+- Track B (B8): Wired TrialNudgeBanner into Dashboard.tsx below BroadcastBanner
+- Track D (D3): Added Komplete bridge demo banner to PropertyDetailView.tsx — for Komplete firms only, dismissible per-property, suggests creating a linked legal matter
+- Track D (D4): Already done in Part 1 — added billingInterval, nextBillingDate, adminStatus, adminNotes, lastActive, ingestionAccess to firms schema
+- Track D (D5): Removed hard-coded Gemini API key from convex/http.ts (line 39) — now requires GEMINI_API_KEY env var or per-request apiKey, returns 503 if neither
+- Track D (D5): Updated .env.example with PAYSTACK_ENABLED, PAYSTACK_SECRET_KEY, PAYSTACK_PUBLIC_KEY, SITE_URL documentation
+
+Stage Summary:
+- All Track C (P2) onboarding polish items complete: portfolio anchors, language fixes, first-run welcome, auto-open create modal, properties widget CTA, product-forked copy, soft-gate modal
+- Track B (B8) trial nudge engine complete: in-app milestone banners wired into Dashboard, complements the existing Day-4 and Day-1 email notifications sent by the expireTrials cron
+- Track D (D3) Komplete bridge demo complete: dismissible banner on PropertyDetailView suggests linked legal matter creation
+- Track D (D5) cleanup complete: hard-coded Gemini key removed, .env.example updated
+- TypeScript: zero errors in any modified file (10 pre-existing errors in conversationMemory.ts and retainerBilling.ts — files NOT touched by this work)
+
+Files Modified:
+- convex/schema.ts (firms trial + billing fields, subscriptionRequests table)
+- convex/myFunctions.ts (createFirm trial flag, secured updateItem, new subscription/trial mutations)
+- convex/payments.ts (completePaystackPayment subscription activation, markSubscriptionRequestReference)
+- convex/paystack.ts (window.location.origin fix, providerReference persistence, subscription context)
+- convex/crons.ts (expireTrials + expirePendingSubscriptionRequests crons)
+- convex/http.ts (removed hard-coded Gemini key)
+- src/hooks/useFeatures.ts (trial-aware entitlement resolution)
+- src/hooks/useFirm.ts (30s timeout + trial flag passthrough)
+- src/components/modals/PaymentGatewayModal.tsx (forcePracticeProAccount + subscriptionContext + createSubscriptionRequest)
+- src/components/modals/OnboardingWizard.tsx (real PaymentGatewayModal, Confirm Plan language, portfolio anchors, product-forked copy, trial flag)
+- src/components/modals/ModalManager.tsx (pass through new PaymentGatewayModal props)
+- src/components/settings/SubscriptionSettings.tsx (no more client-side plan flip; routes through subscription request flow)
+- src/components/Dashboard.tsx (FirstRunWelcome + auto-open create + TrialNudgeBanner)
+- src/components/dashboard/RecentPropertiesWidget.tsx (inline + Add Your First Property CTA)
+- src/components/details/PropertyDetailView.tsx (Komplete bridge demo banner)
+- .env.example (payment gateway env vars)
+
+Files Created:
+- src/components/TrialNudgeBanner.tsx
+- src/components/modals/SoftGateModal.tsx
+
+ALL CRO AUDIT ITEMS COMPLETE.

@@ -46,11 +46,25 @@ export default defineSchema({
     whatsappLimit: nullableNumber,
     setupFeePaid: nullableBoolean,
     trustAccountingEnabled: v.optional(v.boolean()),  // Toggle: enable trust accounting for this firm
+    // ─── TRIAL SYSTEM (CRO Audit Track B) ───────────────────────────────
+    // When trialStartsAt is set, the firm is on a 14-day trial of `trialPlan`.
+    // On expiry (cron), trialPlan is cleared and subscriptionPlan reverts to 'Core'.
+    trialStartsAt: nullableNumber,       // epoch ms when trial began
+    trialEndsAt: nullableNumber,         // epoch ms when trial expires
+    trialPlan: nullableString,           // the plan being trialed (e.g. 'Pro', 'Growth')
+    // ─── BILLING METADATA (CRO Audit P3 — previously read by founder dashboard but missing) ──
+    billingInterval: nullableString,     // 'monthly' | 'annual'
+    nextBillingDate: nullableString,     // ISO date string
+    adminStatus: nullableString,         // 'active' | 'suspended' | 'trial' | 'pending'
+    adminNotes: nullableString,
+    lastActive: nullableString,          // ISO date string of last user activity
+    ingestionAccess: v.optional(v.boolean()),
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_invite", ["inviteCode"]),
+  }).index("by_invite", ["inviteCode"])
+    .index("by_trial_ends", ["trialEndsAt"]),   // for trial-expiry cron scans
 
   // 2. Users (Profiles)
   users: defineTable({
@@ -1691,6 +1705,37 @@ export default defineSchema({
     .index("by_firm", ["firmId"])
     .index("by_user", ["userId"])
     .index("by_user_email", ["userEmail"])
+    .index("by_custom_id", ["id"]),
+
+  // ─── SUBSCRIPTION REQUESTS (CRO Audit Track A — Revenue Protection) ──────
+  // Replaces the broken flow where SubscriptionSettings.processUpgrade
+  // immediately flipped firm.subscriptionPlan on "Report Payment Transferred".
+  // Now, a pending row is inserted here; only founder admin approval or a
+  // verified Paystack webhook flips the actual firm.subscriptionPlan.
+  subscriptionRequests: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    userEmail: nullableString,
+    currentPlan: nullableString,            // e.g. 'Core'
+    requestedPlan: nullableString,          // e.g. 'Pro'
+    billingInterval: nullableString,        // 'monthly' | 'annual'
+    amount: nullableNumber,                 // NGN amount expected
+    transactionReference: nullableString,   // PP-{firmId}-{timestamp} — generated client-side, validated server-side
+    status: nullableString,                 // 'pending_review' | 'approved' | 'rejected' | 'expired' | 'auto_reverted'
+    paymentProofStorageId: nullableString,  // Convex storage ID for uploaded receipt (optional)
+    paymentProofNote: nullableString,       // free-text note from user
+    requestedAt: nullableString,            // ISO timestamp
+    reviewedAt: nullableString,             // ISO timestamp when founder/webhook acted
+    reviewedBy: nullableString,             // founder email or 'paystack_webhook'
+    autoRevertAt: nullableNumber,           // epoch ms after which pending row auto-reverts (now + 72h)
+    id: nullableString,                     // Legacy field — frontend copy of _id
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_status", ["status"])
+    .index("by_reference", ["transactionReference"])
+    .index("by_auto_revert", ["autoRevertAt"])
     .index("by_custom_id", ["id"]),
 
 }, { schemaValidation: false });
