@@ -244,12 +244,116 @@ export const BroadcastBanner: React.FC = () => {
         return matching.slice(0, MAX_BANNERS);
     }, [broadcasts, userProduct, dismissTick]);
 
+    // ─── CRO AUDIT: AUTOMATED SYSTEM BANNERS ────────────────────────────
+    // Generate synthetic system banners based on lifecycle state:
+    //   1. Trial countdown (7 days, 3 days, expired)
+    //   2. Overdue rent alerts (Atrium users with >0 overdue payments)
+    // These are injected into the visible queue alongside real broadcasts.
+    const systemBanners = useMemo((): any[] => {
+        const banners: any[] = [];
+        const now = Date.now();
+        const DAY = 24 * 60 * 60 * 1000;
+
+        // ── Trial countdown banners ──
+        const trialEndsAt = (coreState?.firmDetails as any)?.trialEndsAt;
+        const trialPlan = (coreState?.firmDetails as any)?.trialPlan;
+        if (trialEndsAt && trialPlan) {
+            const daysRemaining = Math.ceil((trialEndsAt - now) / DAY);
+            if (daysRemaining <= 0) {
+                // Expired — non-dismissible Red Urgent
+                banners.push({
+                    _id: `system_trial_expired`,
+                    broadcastId: `system_trial_expired`,
+                    title: 'TRIAL EXPIRED',
+                    message: 'Your workspace trial has expired. Please select a plan to restore full access.',
+                    type: 'broadcast_urgent',
+                    persistenceMode: 'persistent',  // non-dismissible
+                    deepLink: '/settings/billing',
+                    targetProduct: 'all',
+                    isSystem: true,
+                });
+            } else if (daysRemaining <= 3) {
+                // 3 days — Amber Warning
+                banners.push({
+                    _id: `system_trial_3days`,
+                    broadcastId: `system_trial_3days`,
+                    title: 'TRIAL ENDING SOON',
+                    message: `Your workspace trial ends in ${daysRemaining} day(s). Select a plan to avoid service interruption.`,
+                    type: 'broadcast_warning',
+                    persistenceMode: 'permanent',
+                    deepLink: '/settings/billing',
+                    targetProduct: 'all',
+                    isSystem: true,
+                });
+            } else if (daysRemaining <= 7) {
+                // 7 days — soft Blue Info
+                banners.push({
+                    _id: `system_trial_7days`,
+                    broadcastId: `system_trial_7days`,
+                    title: 'TRIAL ENDING',
+                    message: `Your workspace trial ends in ${daysRemaining} days.`,
+                    type: 'broadcast_info',
+                    persistenceMode: 'permanent',
+                    deepLink: '/settings/billing',
+                    targetProduct: 'all',
+                    isSystem: true,
+                });
+            }
+        }
+
+        // ── Overdue rent alert (Atrium / Komplete property firms) ──
+        const ledgerEntries = (coreState as any)?.ledgerEntries || [];
+        const overdueCount = ledgerEntries.filter((e: any) =>
+            e.status === 'pending' || e.status === 'defaulted'
+        ).length;
+        if (overdueCount > 0 && (userProduct === 'property' || userProduct === 'unified')) {
+            banners.push({
+                _id: `system_overdue_rent`,
+                broadcastId: `system_overdue_rent`,
+                title: 'OVERDUE RENT PAYMENTS',
+                message: `Attention: You have ${overdueCount} overdue rent payment(s) pending review.`,
+                type: 'broadcast_warning',
+                persistenceMode: 'permanent',
+                deepLink: '/properties',
+                targetProduct: userProduct,
+                isSystem: true,
+            });
+        }
+
+        return banners;
+    }, [coreState?.firmDetails, (coreState as any)?.ledgerEntries, userProduct]);
+
+    // Merge system banners with real broadcasts, then sort by urgency.
+    // CRO AUDIT: urgency-based sorting so the highest urgency notice
+    // always occupies Position 1 in the carousel.
+    // Priority: Urgent (Red) > Warning (Amber) > Info (Blue) > Success (Green)
+    const URGENCY_RANK: Record<string, number> = {
+        urgent: 0, announcement: 0,
+        warning: 1,
+        info: 2,
+        success: 3,
+        upsell: 4,
+    };
+    const allVisibleBanners = useMemo(() => {
+        const combined = [...systemBanners, ...visibleBroadcasts];
+        // Sort by urgency rank (ascending — 0 = highest priority)
+        return combined.sort((a, b) => {
+            const rankA = URGENCY_RANK[parseTheme(a.type || '')] ?? 5;
+            const rankB = URGENCY_RANK[parseTheme(b.type || '')] ?? 5;
+            if (rankA !== rankB) return rankA - rankB;
+            // Same urgency — sort by timestamp (newest first)
+            const tsA = new Date(a.timestamp || a._creationTime || 0).getTime();
+            const tsB = new Date(b.timestamp || b._creationTime || 0).getTime();
+            return tsB - tsA;
+        }).slice(0, MAX_BANNERS);
+    }, [systemBanners, visibleBroadcasts]);
+
     // Reset activeIndex if it's out of bounds
     useEffect(() => {
-        if (activeIndex >= visibleBroadcasts.length) {
+        if (activeIndex >= allVisibleBanners.length) {
             setActiveIndex(0);
         }
-    }, [visibleBroadcasts.length, activeIndex]);
+    }, [allVisibleBanners.length, activeIndex]);
 
     const handleDismiss = useCallback(async (broadcast: any) => {
         if (!broadcast) return;
@@ -286,17 +390,17 @@ export const BroadcastBanner: React.FC = () => {
     }, []);
 
     const handlePrev = useCallback(() => {
-        setActiveIndex(prev => (prev - 1 + visibleBroadcasts.length) % visibleBroadcasts.length);
-    }, [visibleBroadcasts.length]);
+        setActiveIndex(prev => (prev - 1 + allVisibleBanners.length) % allVisibleBanners.length);
+    }, [allVisibleBanners.length]);
 
     const handleNext = useCallback(() => {
-        setActiveIndex(prev => (prev + 1) % visibleBroadcasts.length);
-    }, [visibleBroadcasts.length]);
+        setActiveIndex(prev => (prev + 1) % allVisibleBanners.length);
+    }, [allVisibleBanners.length]);
 
     // CRASH-SAFE
-    if (!visibleBroadcasts || visibleBroadcasts.length === 0) return null;
+    if (!allVisibleBanners || allVisibleBanners.length === 0) return null;
 
-    const activeBroadcast = visibleBroadcasts[activeIndex] || visibleBroadcasts[0];
+    const activeBroadcast = allVisibleBanners[activeIndex] || allVisibleBanners[0];
     if (!activeBroadcast) return null;
 
     const activeTheme = THEME[parseTheme(activeBroadcast.type || '')] || DEFAULT_THEME;
@@ -410,7 +514,7 @@ export const BroadcastBanner: React.FC = () => {
                 Active dot = colored pill matching the active banner's theme.
                 Inactive dots = slim semi-translucent pills.
                 Left < and right > arrows flank the indicators. */}
-            {visibleBroadcasts.length > 1 && (
+            {allVisibleBanners.length > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-2 w-full">
                     {/* Left arrow */}
                     <button
@@ -424,7 +528,7 @@ export const BroadcastBanner: React.FC = () => {
                     </button>
 
                     {/* Slim color-coded indicator dots — no numbers, no text */}
-                    {visibleBroadcasts.map((b, i) => {
+                    {allVisibleBanners.map((b, i) => {
                         const theme = THEME[parseTheme(b.type || '')] || DEFAULT_THEME;
                         const isActive = i === activeIndex;
                         return (

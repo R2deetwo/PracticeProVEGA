@@ -310,6 +310,29 @@ export const BroadcastConsole: React.FC = () => {
                                             >
                                                 Archive
                                             </button>
+                                            {/* CRO AUDIT FIX — ONE-CLICK REPOST ACTION.
+                                                Clicking "Repost" pre-fills the creator
+                                                with the selected message's title, body,
+                                                type, target_product, and deep-link URL. */}
+                                            <button
+                                                onClick={() => {
+                                                    setTitle(banner.title || '');
+                                                    setMessage(banner.message || '');
+                                                    setTheme(banner.theme || 'info');
+                                                    setTarget(banner.targetProduct || 'all');
+                                                    setDeepLink(banner.deepLink || '');
+                                                    setPersistenceMode(banner.persistenceMode || 'permanent');
+                                                    // Scroll to the creator section
+                                                    setTimeout(() => {
+                                                        const creator = document.getElementById('broadcast-creator');
+                                                        if (creator) creator.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                    }, 100);
+                                                    addToast('Broadcast fields pre-filled. Review and send.', { type: 'info' });
+                                                }}
+                                                className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded text-2xs font-bold hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors flex-shrink-0"
+                                            >
+                                                Repost
+                                            </button>
                                         </div>
                                         <div className="flex flex-wrap gap-1 ml-6">
                                             <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
@@ -430,8 +453,56 @@ export const BroadcastConsole: React.FC = () => {
                 </div>
 
                 {/* Message Composer */}
-                <div className={CARD}>
-                    <p className={LABEL}>Message</p>
+                <div className={CARD} id="broadcast-creator">
+                    <div className="flex items-center justify-between mb-3">
+                        <p className={LABEL + ' mb-0'}>Message</p>
+                        {/* CRO AUDIT FIX — TEMPLATE LIBRARY DROPDOWN.
+                            Quick-fill presets for common broadcast types. */}
+                        <div className="relative">
+                            <select
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (!val) return;
+                                    const templates: Record<string, { title: string; message: string; theme: string; deepLink: string }> = {
+                                        maintenance: {
+                                            title: 'SCHEDULED SYSTEM MAINTENANCE',
+                                            message: 'PracticePro will undergo scheduled maintenance on [DATE] from [TIME] to [TIME]. During this window, some features may be temporarily unavailable. We apologize for any inconvenience.',
+                                            theme: 'warning',
+                                            deepLink: '',
+                                        },
+                                        feature: {
+                                            title: 'PLATFORM FEATURE UPDATE',
+                                            message: 'We\'ve released a new feature: [FEATURE NAME]. [Brief description of what it does and how to use it]. Check it out today!',
+                                            theme: 'info',
+                                            deepLink: '',
+                                        },
+                                        holiday: {
+                                            title: 'HOLIDAY / OFFICE HOURS NOTICE',
+                                            message: 'In observance of [HOLIDAY], our support team will be unavailable on [DATE]. Regular office hours resume on [DATE]. For urgent matters, please email practiceprosystems@gmail.com.',
+                                            theme: 'info',
+                                            deepLink: '',
+                                        },
+                                    };
+                                    const tpl = templates[val];
+                                    if (tpl) {
+                                        setTitle(tpl.title);
+                                        setMessage(tpl.message);
+                                        setTheme(tpl.theme);
+                                        setDeepLink(tpl.deepLink);
+                                        addToast(`Template "${val}" loaded. Edit and send.`, { type: 'info' });
+                                    }
+                                    e.target.value = '';  // reset dropdown
+                                }}
+                                className="px-2 py-1 text-2xs font-bold bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-600 dark:text-slate-400 focus:ring-1 focus:ring-primary-500 cursor-pointer"
+                                defaultValue=""
+                            >
+                                <option value="" disabled>📋 Load Template...</option>
+                                <option value="maintenance">🔧 Scheduled System Maintenance</option>
+                                <option value="feature">✨ Platform Feature Update</option>
+                                <option value="holiday">📅 Holiday / Office Hours Notice</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="space-y-3 mt-3">
                         <div>
                             <label className="text-2xs font-bold text-slate-400 uppercase tracking-widest">Title</label>

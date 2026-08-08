@@ -736,48 +736,15 @@ const PropertyDetailViewContent: React.FC = () => {
             <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}>
                 <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
 
-                {/* CRO AUDIT Track D — D3: Komplete bridge demo banner.
-                    For Komplete (unified) firms only — surfaces a dismissible
-                    banner suggesting the user create a linked legal matter
-                    (tenancy agreement, lease review) for this property.
-                    This is the single most important value demonstration for
-                    the unified product. */}
-                {isKompleteFirm && !primaryMatter && !localStorage.getItem(`practicepro_bridge_dismissed_${propertyId}`) && (
-                  <div className="bg-gradient-to-r from-purple-50 via-white to-amber-50 dark:from-purple-900/20 dark:via-zinc-800 dark:to-amber-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-4 sm:p-5 mb-6 animate-fade-in">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">Komplete Bridge</span>
-                        </div>
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">
-                          This property doesn't have a linked legal matter yet.
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-300">
-                          Create a linked legal matter (tenancy agreement, lease review, eviction proceeding) to draft documents and track legal deadlines — all visible from this property.
-                        </p>
-                        <button
-                          onClick={() => openModal('newMatter', null, { linkedPropertyId: propertyId })}
-                          className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all hover:-translate-y-0.5 active:scale-95"
-                        >
-                          + Create Linked Legal Matter
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => {
-                          localStorage.setItem(`practicepro_bridge_dismissed_${propertyId}`, '1');
-                          // Force re-render
-                          window.dispatchEvent(new Event('storage'));
-                        }}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
-                        aria-label="Dismiss"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* CRO AUDIT FIX — REMOVED the static Komplete Bridge banner.
+                    Per user request: "Strip Komplete Bridge Static Banner —
+                    completely remove the permanent static KOMPLETE BRIDGE
+                    purple-gradient callout card."
+                    The property summary now opens directly into clean
+                    Property Information cards without top-heavy promotional
+                    banners. Legal matter linking is now available via
+                    event-driven contextual triggers (notice generation,
+                    lease breach) and the Property Actions menu. */}
 
                 {activeTab === 'summary' && (
                     <div className="space-y-8 animate-fade-in overflow-hidden w-full">
