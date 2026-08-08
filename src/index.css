@@ -1181,11 +1181,11 @@ body.aloax-is-processing .aloax-nav-badge {
    * padding across chat input containers. Use: <div className="chat-input-dock ...">
    */
   .chat-input-dock {
-    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0.5rem;
   }
   @media (min-width: 768px) {
     .chat-input-dock {
-      padding-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
     }
   }
 

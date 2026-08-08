@@ -2024,18 +2024,36 @@ const MessagesView: React.FC = () => {
                                                     ))}
                                                 </div>
                                             )}
-                                            <div className="flex items-end gap-2">
-                                                <button
-                                                    onClick={() => teamFileInputRef.current?.click()}
-                                                    className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-                                                    title="Attach file"
-                                                    aria-label="Attach file"
-                                                >
-                                                    <PaperClipIcon className="w-5 h-5" />
-                                                </button>
-                                                <AutoExpandingChatInput
+                                            <AutoExpandingChatInput
                                                     value={teamReplyText}
                                                     onChange={setTeamReplyText}
+                                                    attachments={teamAttachments}
+                                                    onRemoveAttachment={(i) => setTeamAttachments(prev => prev.filter((_, j) => j !== i))}
+                                                    onAttachClick={() => teamFileInputRef.current?.click()}
+                                                    showVoiceButton={true}
+                                                    onVoiceRecorded={async (blob, duration) => {
+                                                        try {
+                                                            const postUrl = await generateUploadUrl();
+                                                            const res = await fetch(postUrl, { method: 'POST', body: blob });
+                                                            if (res.ok) {
+                                                                const { storageId } = await res.json();
+                                                                if (storageId && selectedInboxId) {
+                                                                    await sendChatMessageMutation({
+                                                                        conversationId: selectedInboxId,
+                                                                        content: `🎤 Voice note (${duration}s)`,
+                                                                        authorId: currentUser?._id || currentUser?.id || '',
+                                                                        authorName: currentUser?.name || '',
+                                                                        userEmail: currentUser?.email,
+                                                                        attachments: [storageId],
+                                                                        attachmentNames: [`voice-note-${duration}s.webm`],
+                                                                    });
+                                                                    addToast('Voice note sent.', { type: 'success' });
+                                                                }
+                                                            }
+                                                        } catch (e) {
+                                                            addToast('Failed to send voice note.', { type: 'error' });
+                                                        }
+                                                    }}
                                                     onSend={async () => {
                                                         if (!teamReplyText.trim() && teamAttachments.length === 0) return;
                                                         if (!selectedInboxId) { addToast('No conversation selected. Please select a conversation first.', { type: 'info' }); return; }
@@ -2065,7 +2083,6 @@ const MessagesView: React.FC = () => {
                                                     sendAriaLabel="Send team message"
                                                     containerClassName="flex-1"
                                                 />
-                                            </div>
                                         </div>
                                     </>
                                 );
@@ -2821,18 +2838,27 @@ const MessagesView: React.FC = () => {
                                                     ))}
                                                 </div>
                                             )}
-                                            <div className="flex items-end gap-2">
-                                                <button
-                                                    onClick={() => teamFileInputRef.current?.click()}
-                                                    className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-                                                    title="Attach file"
-                                                    aria-label="Attach file"
-                                                >
-                                                    <PaperClipIcon className="w-5 h-5" />
-                                                </button>
-                                                <AutoExpandingChatInput
+                                            <AutoExpandingChatInput
                                                     value={teamReplyText}
                                                     onChange={setTeamReplyText}
+                                                    attachments={teamAttachments}
+                                                    onRemoveAttachment={(i) => setTeamAttachments(prev => prev.filter((_, j) => j !== i))}
+                                                    onAttachClick={() => teamFileInputRef.current?.click()}
+                                                    showVoiceButton={true}
+                                                    onVoiceRecorded={async (blob, duration) => {
+                                                        try {
+                                                            const postUrl = await generateUploadUrl();
+                                                            const res = await fetch(postUrl, { method: 'POST', body: blob });
+                                                            if (res.ok) {
+                                                                const { storageId } = await res.json();
+                                                                if (storageId) {
+                                                                    setTeamAttachments(prev => [...prev, { storageId, name: `voice-note-${duration}s.webm` }]);
+                                                                }
+                                                            }
+                                                        } catch (e) {
+                                                            addToast('Failed to upload voice note.', { type: 'error' });
+                                                        }
+                                                    }}
                                                     onSend={sendTeamReply}
                                                     placeholder="Type a message..."
                                                     sendDisabled={!teamReplyText.trim() && teamAttachments.length === 0}
@@ -2840,7 +2866,6 @@ const MessagesView: React.FC = () => {
                                                     sendAriaLabel="Send team message"
                                                     containerClassName="flex-1"
                                                 />
-                                            </div>
                                         </div>
                                     </>
                                 );
