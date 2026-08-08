@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FirmDetails, SubscriptionPlan, User, FirmSpecialty } from '../../types';
 import { CheckIcon, UserCircleIcon, CalculatorIcon } from '../../constants';
 import { ShieldCheckIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
@@ -880,33 +880,100 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                 Shows upsellable extras (extra WhatsApp, extra seats, storage,
                 AI priority, custom integrations, data migration). Users can
                 purchase add-ons, which create pending requests for founder
-                approval. Active add-ons are also shown. */}
-            <AddOnsSection firmDetails={firmDetails} />
+                approval. Active add-ons are also shown.
+
+                WRAPPED IN ERROR BOUNDARY: the new myFunctions mutations
+                (createAddonRequest, getActiveAddonsForFirm, etc.) require a
+                Convex deploy to exist on the backend. If the deploy hasn't
+                run yet, useQuery will throw — the error boundary catches
+                that so the rest of the Billing & Plans page still renders. */}
+            <AddOnsErrorBoundary>
+                <AddOnsSection firmDetails={firmDetails} />
+            </AddOnsErrorBoundary>
         </div>
     );
 };
 
+// ─── ADD-ONS ERROR BOUNDARY ─────────────────────────────────────────────────
+// Catches errors from AddOnsSection (e.g. Convex backend not yet deployed
+// with the new add-on mutations). Shows a silent fallback instead of
+// crashing the entire Billing & Plans page.
+class AddOnsErrorBoundary extends React.Component<
+    { children: React.ReactNode },
+    { hasError: boolean }
+> {
+    state = { hasError: false };
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(error: any) {
+        console.warn('[AddOnsErrorBoundary] Add-Ons section failed to load (backend may not be deployed yet):', error?.message || error);
+    }
+    render() {
+        if (this.state.hasError) {
+            // Silent fallback — render nothing. The rest of the page works.
+            return null;
+        }
+        return this.props.children;
+    }
+}
+
 // ─── ADD-ONS SECTION COMPONENT ─────────────────────────────────────────────
+// CRO AUDIT — DEFENSIVE QUERY PATTERN.
+// The new myFunctions mutations (getActiveAddonsForFirm, getPendingAddonsForFirm,
+// createAddonRequest) require a Convex deploy to exist on the backend.
+// Until the deploy runs, useQuery on a non-existent function throws and
+// crashes the entire Billing & Plans page.
+//
+// FIX: use the convex client directly via useConvex() + useEffect + try/catch.
+// If the queries fail (backend not deployed yet), the section silently shows
+// just the catalog without the active/pending lists. The catalog itself
+// (src/constants/addons.ts) is static and always renders.
 const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
     const { addToast } = useUI();
     const { currentUser } = useAuth();
+    const convex = useConvex();
     const [purchasingId, setPurchasingId] = useState<string | null>(null);
+    const [activeAddons, setActiveAddons] = useState<any[] | null>(null);
+    const [pendingAddons, setPendingAddons] = useState<any[] | null>(null);
 
-    // Fetch active + pending add-ons for this firm
-    const activeAddons = useQuery(api.myFunctions.getActiveAddonsForFirm,
-        currentUser?.email ? { userEmail: currentUser.email } : "skip");
-    const pendingAddons = useQuery(api.myFunctions.getPendingAddonsForFirm,
-        currentUser?.email ? { userEmail: currentUser.email } : "skip");
-
-    const createAddonRequest = useMutation(api.myFunctions.createAddonRequest);
+    // Fetch active + pending add-ons defensively — if the backend doesn't
+    // have the new mutations yet, silently skip (catalog still renders).
+    useEffect(() => {
+        if (!currentUser?.email || !convex) return;
+        let cancelled = false;
+        const email = currentUser.email;
+        (async () => {
+            try {
+                const active = await convex.query(api.myFunctions.getActiveAddonsForFirm, { userEmail: email });
+                if (!cancelled) setActiveAddons(active || []);
+            } catch (e: any) {
+                console.warn('[AddOnsSection] getActiveAddonsForFirm failed (backend may not be deployed yet):', e?.message || e);
+                if (!cancelled) setActiveAddons([]);
+            }
+            try {
+                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: email });
+                if (!cancelled) setPendingAddons(pending || []);
+            } catch (e: any) {
+                console.warn('[AddOnsSection] getPendingAddonsForFirm failed (backend may not be deployed yet):', e?.message || e);
+                if (!cancelled) setPendingAddons([]);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [currentUser?.email, convex]);
 
     const product = firmDetails.product || 'unified';
     const applicableAddons = getAddonsForProduct(product);
 
     const handlePurchase = async (addon: AddonDef) => {
+        if (!convex) {
+            addToast('Cannot submit request — backend not ready. Please try again in a moment.', { type: 'error' });
+            return;
+        }
         setPurchasingId(addon.id);
         try {
-            await createAddonRequest({
+            // CRO AUDIT — use convex.mutation directly (defensive — if the
+            // backend doesn't have createAddonRequest yet, this throws a
+            // catchable error instead of crashing the page).
+            await convex.mutation(api.myFunctions.createAddonRequest, {
                 addonId: addon.id,
                 addonName: addon.name,
                 billingInterval: addon.billingInterval,
@@ -915,8 +982,13 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 userEmail: currentUser?.email,
             });
             addToast(`${addon.name} request submitted. Our team will verify your payment and activate it within 24 hours.`, { type: 'success', duration: 6000 });
+            // Refresh the pending list
+            try {
+                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                setPendingAddons(pending || []);
+            } catch {}
         } catch (e: any) {
-            addToast(e?.message || 'Failed to submit add-on request.', { type: 'error' });
+            addToast(e?.message || 'Failed to submit add-on request. The backend may still be deploying — please try again in a few minutes.', { type: 'error' });
         } finally {
             setPurchasingId(null);
         }
