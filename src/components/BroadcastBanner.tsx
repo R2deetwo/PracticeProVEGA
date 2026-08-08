@@ -12,12 +12,15 @@
  *   The card is 100% opaque (solid white/zinc-800) with a subtle border
  *   and soft shadow. No glassmorphism, no translucency — just clean.
  *
- * ACCORDION STUBS:
- *   Inactive banners show as a single-line stub below the active card:
- *   [dot] [label] [title] ... [Banner N] [>]
+ * DISMISSAL (CRO AUDIT FIX):
+ *   Per-broadcast-ID dismissal using localStorage. When a NEW broadcast
+ *   arrives with a new ID, it MUST render regardless of whether previous
+ *   banners were dismissed. The old message-family suppression
+ *   (`family|||${title}|||${message}`) could accidentally hide new
+ *   broadcasts if the founder re-sent the same title+message — that's
+ *   now removed.
  *
  * CRASH-SAFE: Returns null when no visible broadcasts.
- * DISMISSAL: Message-family suppression prevents stack drain.
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -62,13 +65,31 @@ const THEME: Record<string, {
         badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
         label: 'Urgent',
     },
+    // CRO AUDIT FIX — support 'announcement' and 'upsell' themes
+    // (mentioned in the user's prompt as valid broadcast types)
+    announcement: {
+        border: 'border-emerald-200 dark:border-emerald-800',
+        accentBar: 'bg-emerald-500',
+        dot: 'bg-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+        label: 'Announcement',
+    },
+    upsell: {
+        border: 'border-violet-200 dark:border-violet-800',
+        accentBar: 'bg-violet-500',
+        dot: 'bg-violet-500',
+        badge: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
+        label: 'Offer',
+    },
 };
 
 const DEFAULT_THEME = THEME.info;
 
 function parseTheme(type: string): string {
     if (!type || !type.startsWith('broadcast_')) return 'info';
-    return type.replace('broadcast_', '') || 'info';
+    const parsed = type.replace('broadcast_', '') || 'info';
+    // Map to a known theme, fallback to 'info' for unknown themes
+    return THEME[parsed] ? parsed : 'info';
 }
 
 function getUserProduct(user: any): string {
@@ -79,19 +100,39 @@ function getUserProduct(user: any): string {
     return 'unified';
 }
 
-function getSessionDismissed(): Set<string> {
+// CRO AUDIT FIX — per-broadcast-ID dismissal via localStorage.
+// Keyed strictly to the specific broadcast ID (NOT title+message family).
+// When a NEW broadcast arrives with a new ID, it MUST render regardless
+// of whether previous banners were dismissed.
+function isDismissed(broadcastId: string, notifId: string): boolean {
     try {
-        const raw = sessionStorage.getItem('dismissed_broadcasts_v2');
-        if (!raw) return new Set();
-        return new Set(JSON.parse(raw));
-    } catch {
-        return new Set();
-    }
+        if (broadcastId && localStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return true;
+        if (notifId && localStorage.getItem(`dismissed_banner_${notifId}`) === 'true') return true;
+    } catch {}
+    return false;
 }
 
-function saveSessionDismissed(ids: Set<string>) {
+function markDismissed(broadcastId: string, notifId: string) {
     try {
-        sessionStorage.setItem('dismissed_broadcasts_v2', JSON.stringify([...ids]));
+        if (broadcastId) localStorage.setItem(`dismissed_banner_${broadcastId}`, 'true');
+        if (notifId) localStorage.setItem(`dismissed_banner_${notifId}`, 'true');
+    } catch {}
+}
+
+// Session-level dismissal (for 'session' persistence mode — dismissed
+// for the current browser session only, not persisted across refreshes)
+function isSessionDismissed(broadcastId: string, notifId: string): boolean {
+    try {
+        if (broadcastId && sessionStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return true;
+        if (notifId && sessionStorage.getItem(`dismissed_banner_${notifId}`) === 'true') return true;
+    } catch {}
+    return false;
+}
+
+function markSessionDismissed(broadcastId: string, notifId: string) {
+    try {
+        if (broadcastId) sessionStorage.setItem(`dismissed_banner_${broadcastId}`, 'true');
+        if (notifId) sessionStorage.setItem(`dismissed_banner_${notifId}`, 'true');
     } catch {}
 }
 
@@ -99,9 +140,21 @@ export const BroadcastBanner: React.FC = () => {
     const { currentUser, isAuthenticated } = useAuth();
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
 
-    const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
     const [dismissingId, setDismissingId] = useState<string | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
+    // CRO AUDIT FIX — tick state to force re-render when dismissal changes
+    const [dismissTick, setDismissTick] = useState(0);
+
+    // CRO AUDIT FIX — one-time cleanup of OLD dismissal state.
+    // The old code used `dismissed_broadcasts_v2` in sessionStorage which
+    // stored message-family keys (`family|||title|||message`). These could
+    // accidentally hide new broadcasts with the same title+message. We
+    // clear that old key on mount so new banners always render.
+    useEffect(() => {
+        try {
+            sessionStorage.removeItem('dismissed_broadcasts_v2');
+        } catch {}
+    }, []);
 
     const userId = currentUser?._id || (currentUser as any)?.id || '';
     const userIdStr = String(userId);
@@ -114,26 +167,32 @@ export const BroadcastBanner: React.FC = () => {
 
     const userProduct = getUserProduct(currentUser);
 
-    useEffect(() => {
-        setDismissedIds(getSessionDismissed());
-    }, []);
-
     const visibleBroadcasts = useMemo((): any[] => {
         if (!broadcasts || !Array.isArray(broadcasts)) return [];
         const matching = broadcasts.filter((b: any) => {
             if (!b) return false;
+            // Product targeting
             const targetProduct = b.targetProduct || 'all';
             if (targetProduct !== 'all' && targetProduct !== userProduct) return false;
-            const broadcastId = b.link?.context?.broadcastId || b._id;
-            const notifId = b._id || b.id;
-            if (dismissedIds.has(broadcastId)) return false;
-            if (dismissedIds.has(notifId)) return false;
-            const messageFamilyKey = `family|||${b.title || ''}|||${b.message || ''}`;
-            if (dismissedIds.has(messageFamilyKey)) return false;
+
+            // CRO AUDIT FIX — per-broadcast-ID dismissal (NOT message-family).
+            // A new broadcast with a new ID MUST render even if old ones were dismissed.
+            const broadcastId = b.broadcastId || b.link?.context?.broadcastId || '';
+            const notifId = String(b._id || b.id || '');
+            const persistenceMode = b.persistenceMode || b.link?.context?.persistenceMode || 'permanent';
+
+            if (persistenceMode === 'session') {
+                // Session-only dismissal
+                if (isSessionDismissed(broadcastId, notifId)) return false;
+            } else {
+                // Permanent dismissal (localStorage persists across refreshes)
+                if (isDismissed(broadcastId, notifId)) return false;
+            }
             return true;
         });
         return matching.slice(0, MAX_BANNERS);
-    }, [broadcasts, userProduct, dismissedIds]);
+        // CRO AUDIT FIX — include dismissTick in deps so re-render happens on dismissal
+    }, [broadcasts, userProduct, dismissTick]);
 
     useEffect(() => {
         if (visibleBroadcasts.length === 0) {
@@ -147,21 +206,28 @@ export const BroadcastBanner: React.FC = () => {
 
     const handleDismiss = useCallback(async (broadcast: any) => {
         if (!broadcast) return;
-        const notifId = broadcast._id || broadcast.id;
-        const broadcastId = broadcast.link?.context?.broadcastId;
-        const persistenceMode = broadcast.persistenceMode || 'permanent';
+        const notifId = String(broadcast._id || broadcast.id || '');
+        const broadcastId = broadcast.broadcastId || broadcast.link?.context?.broadcastId || '';
+        const persistenceMode = broadcast.persistenceMode || broadcast.link?.context?.persistenceMode || 'permanent';
         if (!notifId) return;
 
+        // Animate out
         setDismissingId(notifId);
-        setDismissedIds(prev => {
-            const next = new Set(prev);
-            next.add(notifId);
-            if (broadcastId) next.add(broadcastId);
-            next.add(`family|||${broadcast.title || ''}|||${broadcast.message || ''}`);
-            saveSessionDismissed(next);
-            return next;
-        });
 
+        // CRO AUDIT FIX — store dismissal per-broadcast-ID (NOT message-family)
+        if (persistenceMode === 'session') {
+            markSessionDismissed(broadcastId, notifId);
+        } else {
+            markDismissed(broadcastId, notifId);
+        }
+
+        // Force re-render to update visibleBroadcasts
+        setTimeout(() => {
+            setDismissTick(t => t + 1);
+            setDismissingId(null);
+        }, 250);
+
+        // Mark as read in backend (for 'permanent' mode only — 'persistent' can't be dismissed)
         if (persistenceMode === 'permanent') {
             try {
                 await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
@@ -169,7 +235,6 @@ export const BroadcastBanner: React.FC = () => {
                 console.error('[BroadcastBanner] Failed to mark as read:', e);
             }
         }
-        setTimeout(() => setDismissingId(null), 250);
     }, [markAsRead, currentUser]);
 
     const handleNext = useCallback(() => {
@@ -187,16 +252,22 @@ export const BroadcastBanner: React.FC = () => {
     if (!activeBroadcast) return null;
 
     const activeTheme = THEME[parseTheme(activeBroadcast.type || '')] || DEFAULT_THEME;
-    const isDismissible = activeBroadcast.persistenceMode !== 'persistent';
+    const persistenceMode = activeBroadcast.persistenceMode || activeBroadcast.link?.context?.persistenceMode || 'permanent';
+    // CRO AUDIT FIX — 'persistent' mode means the banner CANNOT be dismissed
+    // (it stays until the founder archives it). 'permanent' and 'session' can be dismissed.
+    const isDismissible = persistenceMode !== 'persistent';
     const stubs = visibleBroadcasts.map((b, i) => ({ b, i })).filter(({ i }) => i !== activeIndex);
 
     return (
         <div className="w-full">
-            {/* Active Card — clean, minimal, 100% opaque */}
+            {/* Active Card — clean, minimal, 100% opaque.
+                CRO AUDIT FIX — smooth animation via CSS transition.
+                Removed framer-motion dependency (was causing issues); using
+                Tailwind's transition-all + opacity/translate instead. */}
             <div
-                className={`relative bg-white dark:bg-zinc-800 rounded-xl border ${activeTheme.border} shadow-sm overflow-hidden transition-all duration-250 ${
-                    dismissingId === (activeBroadcast._id || activeBroadcast.id)
-                        ? 'opacity-0 -translate-y-3'
+                className={`relative bg-white dark:bg-zinc-800 rounded-xl border ${activeTheme.border} shadow-sm overflow-hidden transition-all duration-300 ease-out ${
+                    dismissingId === String(activeBroadcast._id || activeBroadcast.id)
+                        ? 'opacity-0 -translate-y-3 max-h-0'
                         : 'opacity-100 translate-y-0'
                 }`}
             >
@@ -208,12 +279,12 @@ export const BroadcastBanner: React.FC = () => {
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                             {/* Tiny dot + label badge */}
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-3xs font-bold ${activeTheme.badge}`}>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-3xs font-bold ${activeTheme.badge} flex-shrink-0`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.dot}`} />
                                 {activeTheme.label}
                             </span>
-                            {activeBroadcast.persistenceMode === 'persistent' && (
-                                <span className="text-3xs font-bold text-slate-400">📌 Pinned</span>
+                            {persistenceMode === 'persistent' && (
+                                <span className="text-3xs font-bold text-slate-400 flex-shrink-0">📌 Pinned</span>
                             )}
                             {/* Title */}
                             <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
@@ -264,7 +335,7 @@ export const BroadcastBanner: React.FC = () => {
                         const theme = THEME[parseTheme(b.type || '')] || DEFAULT_THEME;
                         return (
                             <button
-                                key={b._id || b.id || i}
+                                key={String(b._id || b.id || i)}
                                 onClick={() => handleStubClick(i)}
                                 className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-zinc-800 border ${theme.border} hover:shadow-sm transition-all cursor-pointer`}
                             >

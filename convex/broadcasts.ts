@@ -58,6 +58,35 @@ export const getActiveBroadcasts = query({
     const targetUserId = String(args.userId || '');
     const targetEmail = (args.email || '').toLowerCase().trim();
 
+    // CRO AUDIT FIX — BANNER RENDERING BUG:
+    // Look up the user's firmId by email so we can match broadcasts that
+    // were created with the user's firmId (not 'system'). Previously the
+    // query only matched on exact userId, empty userId (legacy), or
+    // firmId='system'. When the client's currentUser._id wasn't loaded yet
+    // (empty string), NONE of those matched → no banner rendered, even
+    // though the notification bell (which fetches by firmId) showed it.
+    let targetFirmId: string | null = null;
+    if (targetEmail) {
+      try {
+        const userRecord = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", targetEmail))
+          .first();
+        if (userRecord) {
+          targetFirmId = String(userRecord.firmId || '');
+        }
+      } catch {
+        // Fallback: try case-insensitive scan
+        try {
+          const allUsers = await ctx.db.query("users").take(500);
+          const found = allUsers.find((u: any) =>
+            (u.tokenIdentifier || '').toLowerCase() === targetEmail
+          );
+          if (found) targetFirmId = String(found.firmId || '');
+        } catch {}
+      }
+    }
+
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
       // Must be a broadcast type
       const type = n.type || '';
@@ -66,25 +95,30 @@ export const getActiveBroadcasts = query({
       // Must be unread (active)
       if (n.isRead) return false;
 
-      // USER MATCHING — multi-signal:
+      // USER MATCHING — multi-signal (relaxed for reliable rendering):
       const nUserId = String(n.userId || '');
+      const nFirmId = String(n.firmId || '');
 
       // 1. Exact userId match
-      if (nUserId && nUserId === targetUserId) return true;
+      if (nUserId && targetUserId && nUserId === targetUserId) return true;
 
-      // 2. Legacy broadcasts with no specific userId
-      //    (created before per-user targeting — these are firm-wide)
+      // 2. Legacy broadcasts with no specific userId (firm-wide)
       if (!nUserId || nUserId === 'undefined' || nUserId === 'null' || nUserId === '') {
-        // For legacy broadcasts, show to everyone (they were meant for all)
         return true;
       }
 
-      // 3. If userId doesn't match, but this is a broadcast and the
-      //    notification's firmId is 'system' (platform-wide), show it
-      //    to all users. This handles broadcasts where the per-user
-      //    creation loop might have missed some users due to the
-      //    dedup logic.
-      if (n.firmId === 'system') {
+      // 3. Platform-wide broadcasts (firmId === 'system')
+      if (nFirmId === 'system') {
+        return true;
+      }
+
+      // 4. CRO AUDIT FIX — match by firmId.
+      // If the broadcast was created with the user's firmId (which is the
+      // normal case — createBroadcastNotification sets firmId to the user's
+      // actual firmId, NOT 'system'), and the requesting user belongs to
+      // that firm, show the broadcast. This is the rule that was MISSING
+      // and caused the banner to never render.
+      if (targetFirmId && nFirmId && nFirmId === targetFirmId) {
         return true;
       }
 
@@ -114,6 +148,9 @@ export const getActiveBroadcasts = query({
       // Extract targetProduct for client-side product filtering
       targetProduct: (n.link as any)?.context?.targetProduct || 'all',
       deepLink: (n.link as any)?.context?.deepLink || null,
+      // Include persistenceMode + broadcastId for the client
+      persistenceMode: (n.link as any)?.context?.persistenceMode || 'permanent',
+      broadcastId: (n.link as any)?.context?.broadcastId || null,
     }));
   },
 });
