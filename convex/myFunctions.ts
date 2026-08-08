@@ -3288,9 +3288,15 @@ const BRAND_GREEN = "#16A34A";
 const BRAND_GREEN_DARK = "#15803D";
 const BRAND_GREEN_LIGHT = "#DCFCE7";
 
+// Product-specific accent colors.
+// The email header is ALWAYS PracticePro green (brand consistency).
+// The product name text uses the product accent color:
+//   Vega = amber/gold (#F59E0B)
+//   Atrium = lilac/purple (#A855F7)
+//   Komplete = violet (#7C3AED)
 const PRODUCT_BRANDING: Record<string, { name: string; accent: string; tagline: string; productColor: string }> = {
-  legal: { name: "Vega", accent: BRAND_GREEN, tagline: "Legal Practice System", productColor: BRAND_GREEN },
-  property: { name: "Atrium", accent: "#0EA5E9", tagline: "Property Management OS", productColor: "#0EA5E9" },
+  legal: { name: "Vega", accent: "#F59E0B", tagline: "Legal Practice System", productColor: "#F59E0B" },
+  property: { name: "Atrium", accent: "#A855F7", tagline: "Property Management OS", productColor: "#A855F7" },
   unified: { name: "Komplete", accent: "#7C3AED", tagline: "Legal & Property Platform", productColor: "#7C3AED" },
 };
 
@@ -3309,7 +3315,7 @@ function brandedEmailWrapper(opts: {
   const pName = opts.productName || '';
   const pColor = opts.productColor || BRAND_GREEN;
   const tagline = opts.tagline || 'PracticePro';
-  const productBadge = pName ? `<span style="color: ${pColor}; font-weight: 800;">${pName}</span>` : '';
+  const productBadge = pName ? `<span style="color: ${pColor}; font-weight: 800;"> ${pName}</span>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -3318,9 +3324,12 @@ function brandedEmailWrapper(opts: {
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f5f7;">
 <tr><td align="center" style="padding:24px 16px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-<tr><td style="background:linear-gradient(135deg,${BRAND_GREEN} 0%,${BRAND_GREEN_DARK} 100%);padding:32px 24px;text-align:center;">
-<h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:800;letter-spacing:-0.5px;">PracticePro ${productBadge}</h1>
-<p style="color:rgba(255,255,255,0.85);margin:6px 0 0 0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;">${tagline}</p>
+<tr><td style="background:linear-gradient(135deg,${BRAND_GREEN} 0%,${BRAND_GREEN_DARK} 100%);padding:36px 24px;text-align:center;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td align="center">
+<img src="https://practice-pro-vega.vercel.app/logo.png" alt="PracticePro" style="width:48px;height:48px;margin:0 auto 12px auto;display:block;border-radius:12px;" />
+<h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:900;letter-spacing:-0.5px;">Practice<span style="color:#FBBF24;">Pro</span>${productBadge}</h1>
+<p style="color:rgba(255,255,255,0.85);margin:8px 0 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:600;">${tagline}</p>
+</td></tr></table>
 </td></tr>
 <tr><td style="padding:40px 32px;">${opts.bodyHtml}</td></tr>
 <tr><td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 32px;text-align:center;">

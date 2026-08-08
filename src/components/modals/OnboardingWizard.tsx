@@ -33,7 +33,7 @@ const PlanCard: React.FC<{
       className={`relative flex flex-col rounded-2xl border-2 cursor-pointer transition-all duration-200 h-full ${
         selected
           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30/20 shadow-lg shadow-primary-500/10'
-          : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-slate-300 hover:shadow-sm'
+          : 'border-slate-200  bg-white  hover:border-slate-300 hover:shadow-sm'
       }`}
     >
       {/* Recommended badge */}
@@ -52,16 +52,16 @@ const PlanCard: React.FC<{
 
         {/* Price */}
         <div className="mb-4">
-          <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{price}</p>
+          <p className="text-2xl font-black text-slate-900  tracking-tighter leading-none">{price}</p>
           <p className="text-2xs font-bold text-slate-400 mt-1">{per || (tier.annualPrice === null && tier.monthlyPrice === null ? 'Contact sales' : isAtrium ? '/yr' : '')}</p>
         </div>
 
         {/* SCE block */}
         {sce && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40/80 border border-emerald-100">
-            <p className="text-3xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">SCE*</p>
+            <p className="text-3xs font-black text-emerald-600  uppercase tracking-widest">SCE*</p>
             <div className="flex items-baseline gap-1">
-              <p className="text-xs font-black text-slate-900 dark:text-white leading-tight">{sce}</p>
+              <p className="text-xs font-black text-slate-900  leading-tight">{sce}</p>
               <p className="text-3xs font-bold text-slate-400 uppercase">/tenant</p>
             </div>
           </div>
@@ -79,7 +79,7 @@ const PlanCard: React.FC<{
 
         {/* Setup fee notice */}
         {tier.requiresSetupFee && (
-          <p className="text-3xs text-amber-600 dark:text-amber-400 font-black uppercase tracking-widest mt-3 border-t border-slate-100 dark:border-zinc-800 pt-2">+ ₦150k One-Time Setup Fee</p>
+          <p className="text-3xs text-amber-600  font-black uppercase tracking-widest mt-3 border-t border-slate-100  pt-2">+ ₦150k One-Time Setup Fee</p>
         )}
       </div>
     </div>
@@ -195,18 +195,20 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="flex flex-col items-center h-full w-full bg-white dark:bg-zinc-900 overflow-y-auto scroll-smooth py-20 px-6">
+    <div className="flex flex-col items-center h-full w-full bg-white overflow-y-auto scroll-smooth py-20 px-6">
+      {/* Force light theme — onboarding should always be white with green PracticePro branding,
+          regardless of system dark mode preference. */}
       <div className="absolute top-6 right-6">
-        <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100 dark:border-zinc-800 px-3 py-2 rounded-xl transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
+        <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-xl transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
       </div>
 
       <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
-        {error && <div className="p-3 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg text-sm text-center border border-red-100 dark:border-red-900/50 font-bold">{error}</div>}
+        {error && <div className="p-3 bg-red-50  text-red-600  rounded-lg text-sm text-center border border-red-100  font-bold">{error}</div>}
 
         {/* ── Progress Indicator ── */}
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className={`h-2 rounded-full transition-all duration-500 ${step >= 1 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 dark:bg-zinc-700'}`} />
-          <div className={`h-2 rounded-full transition-all duration-500 ${step >= 2 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 dark:bg-zinc-700'}`} />
+          <div className={`h-2 rounded-full transition-all duration-500 ${step >= 1 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
+          <div className={`h-2 rounded-full transition-all duration-500 ${step >= 2 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
         </div>
         <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Step {step} of 2</p>
 
@@ -214,21 +216,21 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         {step === 1 && (
           <div className="space-y-8">
             <div className="text-center">
-              <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Welcome, {currentUser?.name?.split(' ')[0]}</h2>
+              <h2 className="text-4xl font-black text-slate-900  tracking-tighter">Welcome, {currentUser?.name?.split(' ')[0]}</h2>
               <p className="text-slate-500 mt-2 text-sm font-medium">Initialize your secure workspace.</p>
             </div>
 
             <div className="max-w-md mx-auto space-y-6">
-              <div className="flex p-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
-                <button onClick={() => { setMode('create'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'create' ? 'bg-white dark:bg-zinc-900 shadow-lg shadow-slate-200 text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Create New</button>
-                <button onClick={() => { setMode('join'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'join' ? 'bg-white dark:bg-zinc-900 shadow-lg shadow-slate-200 text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Join Existing</button>
+              <div className="flex p-1.5 bg-slate-50   rounded-2xl border border-slate-100 ">
+                <button onClick={() => { setMode('create'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'create' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Create New</button>
+                <button onClick={() => { setMode('join'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'join' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Join Existing</button>
               </div>
 
               {mode === 'create' ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
                   <div>
                     <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Firm / Organization Name</label>
-                    <input autoComplete="off" data-lpignore="true" type="text" placeholder="e.g. Adeyemi & Co." value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-300" autoFocus />
+                    <input autoComplete="off" data-lpignore="true" type="text" placeholder="e.g. Adeyemi & Co." value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-300" autoFocus />
                   </div>
                   <button onClick={() => setStep(2)} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Select Plan</button>
                 </div>
@@ -236,7 +238,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Invite Code</label>
-                    <input autoComplete="off" data-lpignore="true" type="text" placeholder="INV-XXXX" value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())} className="w-full p-4 text-center font-mono font-bold text-2xl border border-slate-100 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-200 uppercase" autoFocus />
+                    <input autoComplete="off" data-lpignore="true" type="text" placeholder="INV-XXXX" value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())} className="w-full p-4 text-center font-mono font-bold text-2xl border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-200 uppercase" autoFocus />
                   </div>
                   <button onClick={handleJoin} disabled={!inviteCode || isSubmitting} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 flex justify-center disabled:opacity-50 disabled:translate-y-0">
                     {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Join Workspace'}
@@ -259,9 +261,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Choose Your Plan</h2>
+              <h2 className="text-3xl font-black text-slate-900  tracking-tighter">Choose Your Plan</h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
-                For your <span className="font-bold text-slate-700 dark:text-zinc-300">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
+                For your <span className="font-bold text-slate-700 ">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
               </p>
             </div>
 
@@ -272,7 +274,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   const name = p === 'legal' ? 'Vega' : p === 'property' ? 'Atrium' : 'Komplete';
                   const active = product === p;
                   return (
-                    <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-2xs font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'border-slate-200 dark:border-zinc-700 text-slate-400 hover:border-slate-300'}`}>
+                    <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-2xs font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 ' : 'border-slate-200  text-slate-400 hover:border-slate-300'}`}>
                       {name}
                     </button>
                   );
@@ -283,13 +285,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             {/* Billing Toggle — Vega and Komplete only. Atrium is annual-only. */}
             {!isAtrium && !isKomplete(product) && (
               <div className="flex items-center justify-center gap-4">
-                <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Monthly</span>
-                <button onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')} className="relative w-12 h-6 bg-slate-200 dark:bg-zinc-700 rounded-full transition-colors" aria-label="Toggle billing cycle">
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white dark:bg-zinc-900 rounded-full shadow-sm transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-6 bg-primary-500' : ''}`} />
+                <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900 ' : 'text-slate-400'}`}>Monthly</span>
+                <button onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')} className="relative w-12 h-6 bg-slate-200  rounded-full transition-colors" aria-label="Toggle billing cycle">
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white  rounded-full shadow-sm transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-6 bg-primary-500' : ''}`} />
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold ${billingCycle === 'annual' ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Annual</span>
-                  <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 text-3xs font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
+                  <span className={`text-xs font-bold ${billingCycle === 'annual' ? 'text-slate-900 ' : 'text-slate-400'}`}>Annual</span>
+                  <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600  text-3xs font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
                 </div>
               </div>
             )}
@@ -340,13 +342,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             {isAtrium && (
               <div className="max-w-md mx-auto p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40/60 border border-amber-100 dark:border-amber-900/50">
                 <div className="flex items-start gap-3">
-                  <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 focus:ring-amber-500" />
+                  <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-amber-200 dark:border-amber-900/50 text-amber-600  focus:ring-amber-500" />
                   <div className="flex-1 min-w-0">
                     <label htmlFor="data-migration" className="text-2xs font-bold text-amber-900 cursor-pointer">
-                      Managed Data Migration <span className="font-normal text-amber-600 dark:text-amber-400">+₦150k</span>
+                      Managed Data Migration <span className="font-normal text-amber-600 ">+₦150k</span>
                     </label>
                     <details className="mt-1 group/det">
-                      <summary className="text-2xs font-semibold text-amber-500 dark:text-amber-400 cursor-pointer hover:text-amber-700 transition-colors list-none inline-flex items-center gap-1">
+                      <summary className="text-2xs font-semibold text-amber-500  cursor-pointer hover:text-amber-700 transition-colors list-none inline-flex items-center gap-1">
                         What's included
                         <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </summary>
@@ -370,7 +372,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                             <span><strong>Opening balances</strong> if available</span>
                           </div>
                         </div>
-                        <p className="text-amber-600 dark:text-amber-400/80 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
+                        <p className="text-amber-600 /80 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
                       </div>
                     </details>
                   </div>
@@ -380,15 +382,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
             {/* DPA Agreement */}
             <div className="max-w-md mx-auto pt-2 flex items-start gap-3">
-              <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 text-primary-600 dark:text-primary-300 border-slate-200 dark:border-zinc-700 rounded focus:ring-primary-500 cursor-pointer transition-all" />
+              <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 text-primary-600  border-slate-200  rounded focus:ring-primary-500 cursor-pointer transition-all" />
               <label htmlFor="agree-dpa" className="text-2xs text-slate-400 font-medium leading-relaxed cursor-pointer select-none">
-                I agree to the <button type="button" onClick={() => openLegalDocument('dpa')} className="text-primary-600 dark:text-primary-300 hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => openLegalDocument('terms')} className="text-primary-600 dark:text-primary-300 hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
+                I agree to the <button type="button" onClick={() => openLegalDocument('dpa')} className="text-primary-600  hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => openLegalDocument('terms')} className="text-primary-600  hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
               </label>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto pt-2">
-              <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all" disabled={isSubmitting}>Back</button>
-              <button onClick={handleCreate} disabled={isSubmitting || !hasAgreed} className={`flex-[2] py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 dark:bg-zinc-700 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}>
+              <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50   text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all" disabled={isSubmitting}>Back</button>
+              <button onClick={handleCreate} disabled={isSubmitting || !hasAgreed} className={`flex-[2] py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200  cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}>
                 {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {isSubmitting ? 'Creating...' : 'Create Workspace'}
               </button>
