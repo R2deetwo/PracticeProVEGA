@@ -1,27 +1,32 @@
 /**
- * BroadcastBanner — Tinted Smoky Glass with Horizontal Carousel.
+ * BroadcastBanner — Frosted Colored Glass with Slim Carousel Indicators.
  *
  * DESIGN:
- *   - Tinted smoky glass: rgba(18, 26, 24, 0.75) + backdrop-filter: blur(16px)
- *   - Color tint accent per urgency type (subtle glow matching the badge)
- *   - Crisp 1px translucent border (rgba(255, 255, 255, 0.12))
+ *   - Vibrant color-tinted frosted glass (red/amber/blue/green/violet)
+ *   - backdrop-filter: blur(16px) saturate(180%)
+ *   - Fine noise/grain texture overlay (4% opacity)
+ *   - Dark text on colored glass for high contrast
  *   - Left color accent bar
  *
- * CAROUSEL:
+ * CAROUSEL (max 4 banners):
  *   - Active banner in full view
- *   - Inactive banners as sleek horizontal stubs/pills below
- *   - Clicking a stub smoothly transitions to that banner
- *   - "1 of N" indicator with prev/next arrows
+ *   - Slim color-coded indicator dots/pills centered below the card
+ *   - No numbers or "1 of N" text — just colored dots
+ *   - Left < and right > arrows flanking the indicators
+ *   - Clicking an indicator transitions to that banner
  *
- * DISMISSAL:
- *   - Per-broadcast-ID localStorage (isolated, never wipes others)
+ * DISMISSAL (strict isolation):
+ *   - Per-broadcast-ID localStorage (NEVER wipes other banners)
+ *   - 'persistent' persistenceMode = non-dismissible (no X button)
  *   - Smooth slide-out animation
  *
- * PRODUCT TARGETING FIX:
- *   - Uses multiple signals to resolve the user's product (user.product,
- *     firmDetails.product, subscriptionPlan)
- *   - Handles casing mismatches ('Komplete' vs 'komplete' vs 'unified')
- *   - Falls back gracefully when product field is empty
+ * ACTION BUTTONS:
+ *   - Deep links render as an explicit pill button on the right
+ *   - The banner body is NOT clickable — only the button is
+ *
+ * HEIGHT UNIFORMITY:
+ *   - All banners use the same min-height, padding, and gap spacing
+ *   - Badges use identical line-heights and flex alignment
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -29,6 +34,9 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCoreState } from '../contexts/CoreContext';
+
+// CRO AUDIT FIX — increased from 2 to 4 max simultaneous banners.
+const MAX_BANNERS = 4;
 
 const THEME: Record<string, {
     accentBar: string;        // left accent bar color
@@ -233,7 +241,7 @@ export const BroadcastBanner: React.FC = () => {
             return true;
         });
 
-        return matching;
+        return matching.slice(0, MAX_BANNERS);
     }, [broadcasts, userProduct, dismissTick]);
 
     // Reset activeIndex if it's out of bounds
@@ -295,19 +303,17 @@ export const BroadcastBanner: React.FC = () => {
     const persistenceMode = activeBroadcast.persistenceMode || activeBroadcast.link?.context?.persistenceMode || 'permanent';
     const isDismissible = persistenceMode !== 'persistent';
     const isDismissing = dismissingId === String(activeBroadcast._id || activeBroadcast.id);
-    const stubs = visibleBroadcasts.map((b, i) => ({ b, i })).filter(({ i }) => i !== activeIndex);
 
     return (
         <div className="w-full">
             {/* Active Card — Frosted Colored Glass (vibrant, NOT dark)
                 - background: vibrant color-tinted glass matching urgency type
-                  (red for urgent, amber for warning, blue for info, green for success)
-                - backdrop-filter: blur(16px) saturate(180%) for the frosted glass effect
-                - Fine noise/grain texture overlay (4% opacity) for premium matte feel
+                - backdrop-filter: blur(16px) saturate(180%)
+                - Fine noise/grain texture overlay (4% opacity)
                 - 1px translucent white border: rgba(255, 255, 255, 0.25)
-                - Inner highlight: inset 0 1px 1px rgba(255,255,255,0.3) for "thick glass rim"
-                - Soft drop shadow: 0 4px 24px -4px rgba(0,0,0,0.2)
-                - Left color accent bar (lighter shade for contrast against colored glass)
+                - Inner highlight + soft drop shadow
+                - UNIFORM HEIGHT: min-h-[110px], p-5, gap-2 between header and body
+                - Left color accent bar
                 - Smooth horizontal slide transition */}
             <div
                 className={`relative overflow-hidden rounded-2xl transition-all duration-300 ease-out shadow-lg ${
@@ -316,18 +322,14 @@ export const BroadcastBanner: React.FC = () => {
                         : 'opacity-100 translate-x-0'
                 }`}
                 style={{
-                    // VIBRANT frosted colored glass — color matches urgency type.
-                    // NO dark/black background. The color IS the banner.
                     background: activeTheme.glassBg,
                     backdropFilter: 'blur(16px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(16px) saturate(180%)',
                     border: '1px solid rgba(255, 255, 255, 0.25)',
-                    // Inner highlight (top edge light refraction) + outer drop shadow
                     boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 4px 24px -4px rgba(0, 0, 0, 0.2)',
                 }}
             >
-                {/* Fine noise/grain texture overlay — gives the glass a premium
-                    matte/etched quality instead of flat digital smoothness. */}
+                {/* Fine noise/grain texture overlay */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -337,68 +339,80 @@ export const BroadcastBanner: React.FC = () => {
                     }}
                 />
 
-                {/* Thin colored left accent bar (lighter shade for contrast) */}
+                {/* Thin colored left accent bar */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${activeTheme.accentBar} z-10`} />
 
-                <div className="relative p-4 pl-5 z-10">
-                    {/* Top row: title + dismiss
-                        CRO AUDIT FIX — removed the category pill (Info/Success/
-                        Warning/Urgent) per user request. The left accent bar
-                        already communicates the urgency type via color. */}
+                {/* CRO AUDIT FIX — UNIFORM HEIGHT + PADDING + GAP.
+                    min-h-[110px] ensures all banners are the same height.
+                    p-5 (was p-4) gives consistent padding.
+                    flex-col with gap-2 standardizes vertical rhythm. */}
+                <div className="relative p-5 pl-6 z-10 flex flex-col gap-2 min-h-[110px] justify-between">
+                    {/* Top row: title + (action button + dismiss) */}
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
                             {persistenceMode === 'persistent' && (
-                                <span className="text-3xs font-bold text-slate-800/70 flex-shrink-0">📌 Pinned</span>
+                                <span className="text-3xs font-bold text-slate-800/70 flex-shrink-0 leading-none">📌 Pinned</span>
                             )}
-                            {/* Title — bold DARK text, uppercase for category headers.
-                                Dark text on colored glass = high contrast + legible. */}
-                            <p className="text-sm font-bold text-slate-900 truncate uppercase tracking-wide">
+                            {/* Title — bold DARK text, uppercase, leading-none for uniform height */}
+                            <p className="text-sm font-bold text-slate-900 truncate uppercase tracking-wide leading-none">
                                 {activeBroadcast.title || 'Announcement'}
                             </p>
                         </div>
 
-                        {/* Dismiss button — dark X icon */}
-                        {isDismissible && (
-                            <button
-                                onClick={() => handleDismiss(activeBroadcast)}
-                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-white/30 transition-colors flex-shrink-0"
-                                aria-label="Dismiss"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        )}
+                        {/* Right side: explicit action button + dismiss X */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* CRO AUDIT FIX — EXPLICIT ACTION BUTTON for deep links.
+                                The banner body is NOT clickable — only this button is.
+                                Semi-translucent white pill, white bold text, rounded-full. */}
+                            {activeBroadcast.deepLink && (
+                                <button
+                                    onClick={() => {
+                                        if (activeBroadcast.deepLink) {
+                                            window.location.hash = activeBroadcast.deepLink;
+                                        }
+                                    }}
+                                    className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-3xs font-bold text-slate-900 hover:text-slate-900 bg-slate-900/15 hover:bg-slate-900/25 transition-colors backdrop-blur-sm leading-none"
+                                >
+                                    Open
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            )}
+
+                            {/* Dismiss button — only if isDismissible.
+                                CRO AUDIT FIX — 'persistent' mode hides the X completely
+                                (non-dismissible enforcement). */}
+                            {isDismissible && (
+                                <button
+                                    onClick={() => handleDismiss(activeBroadcast)}
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-white/30 transition-colors flex-shrink-0"
+                                    aria-label="Dismiss"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Message body — crisp DARK text for high contrast */}
-                    <p className="text-xs text-slate-800 mt-1.5 leading-relaxed">
+                    {/* Message body — crisp DARK text, leading-relaxed for uniform spacing */}
+                    <p className="text-xs text-slate-800 leading-relaxed">
                         {activeBroadcast.message || ''}
                     </p>
-
-                    {/* Action link + optional pill button */}
-                    {activeBroadcast.deepLink && (
-                        <button
-                            onClick={() => {
-                                if (activeBroadcast.deepLink) {
-                                    window.location.hash = activeBroadcast.deepLink;
-                                }
-                                if (isDismissible) handleDismiss(activeBroadcast);
-                            }}
-                            className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-3xs font-bold bg-slate-900/20 text-slate-900 hover:bg-slate-900/30 transition-colors backdrop-blur-sm"
-                        >
-                            View Details →
-                        </button>
-                    )}
                 </div>
             </div>
 
-            {/* Horizontal Carousel Stubs — sleek pills for inactive banners.
-                Stubs use the colored glass theme so each stub's color matches
-                its banner type (red, amber, blue, green). */}
+            {/* CRO AUDIT FIX — SLIM CAROUSEL INDICATORS.
+                Centered directly below the banner card.
+                No numbers, no "1 of N" text — just slim color-coded dots.
+                Active dot = colored pill matching the active banner's theme.
+                Inactive dots = slim semi-translucent pills.
+                Left < and right > arrows flank the indicators. */}
             {visibleBroadcasts.length > 1 && (
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {/* Prev arrow */}
+                <div className="flex justify-center items-center gap-2 mt-2 w-full">
+                    {/* Left arrow */}
                     <button
                         onClick={handlePrev}
                         className="flex items-center justify-center w-6 h-6 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
@@ -409,9 +423,7 @@ export const BroadcastBanner: React.FC = () => {
                         </svg>
                     </button>
 
-                    {/* Stubs — one per banner, active one is highlighted with its theme color.
-                        CRO AUDIT FIX — active stub uses dark text (matching the banner)
-                        instead of white text for consistency. */}
+                    {/* Slim color-coded indicator dots — no numbers, no text */}
                     {visibleBroadcasts.map((b, i) => {
                         const theme = THEME[parseTheme(b.type || '')] || DEFAULT_THEME;
                         const isActive = i === activeIndex;
@@ -419,21 +431,24 @@ export const BroadcastBanner: React.FC = () => {
                             <button
                                 key={String(b._id || b.id || i)}
                                 onClick={() => handleStubClick(i)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold transition-all ${
-                                    isActive
-                                        ? 'text-slate-900 ring-1 ring-slate-900/20 shadow-sm'
-                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                                }`}
+                                className="transition-all duration-300 ease-out flex-shrink-0"
                                 style={isActive ? { background: theme.glassBg } : undefined}
                                 title={b.title || `Banner ${i + 1}`}
+                                aria-label={`Go to banner ${i + 1}`}
                             >
-                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-slate-900' : theme.accentBar}`} />
-                                {i + 1}
+                                {/* Active = wider colored pill; Inactive = slim translucent dot */}
+                                <span
+                                    className={`block rounded-full transition-all duration-300 ease-out ${
+                                        isActive
+                                            ? 'w-6 h-2 shadow-sm'
+                                            : 'w-2 h-2 bg-slate-300 dark:bg-zinc-600 hover:bg-slate-400 dark:hover:bg-zinc-500'
+                                    }`}
+                                />
                             </button>
                         );
                     })}
 
-                    {/* Next arrow + counter */}
+                    {/* Right arrow */}
                     <button
                         onClick={handleNext}
                         className="flex items-center justify-center w-6 h-6 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
@@ -443,9 +458,6 @@ export const BroadcastBanner: React.FC = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                     </button>
-                    <span className="text-3xs text-slate-500 font-medium ml-1">
-                        {activeIndex + 1} of {visibleBroadcasts.length}
-                    </span>
                 </div>
             )}
         </div>
