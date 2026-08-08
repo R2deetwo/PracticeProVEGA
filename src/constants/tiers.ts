@@ -326,7 +326,10 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
 
 // ─── KOMPLETE (Unified) — single tier, all features ──────────────────────────
 // Only shown when user selects the Unified/Komplete product.
-// Flat rate: ₦130K/mo or ₦1.248M/yr. All VEGA + Atrium features, unlimited.
+// Flat rate: ₦130K/mo or ₦1.248M/yr. All VEGA + Atrium features.
+// Komplete is the TOP-TIER unified platform — its price MUST NEVER be
+// lower than individual standalone Pro/Enterprise plans.
+// Seat allowance: 10 seats standard, max 15 (Enterprise cap).
 export const KOMPLETE_TIER: TierDef = {
   id: 'Core',                       // Uses Core as TierId for compatibility
   label: 'Komplete',
@@ -335,7 +338,7 @@ export const KOMPLETE_TIER: TierDef = {
   monthlyPriceDisplay: fmt(KOMPLETE_MONTHLY),
   annualPriceDisplay: fmt(KOMPLETE_ANNUAL),
   features: [
-    'Unlimited Users',
+    '10 Seats Standard (Max Enterprise Cap: 15 Seats)',
     'Unlimited Matters & Units',
     'Unlimited Active Tenants',
     'Unlimited WhatsApp Reminders',
@@ -344,7 +347,7 @@ export const KOMPLETE_TIER: TierDef = {
     'Automated Retainer Billing & Client Auto-Invoicing',
     'Billing Monitor — pending queue, lawyer override controls',
   ],
-  maxUsers: null,
+  maxUsers: 10,              // 10 seats standard (not null/unlimited)
   maxUnits: null,
   maxManagedProperties: null,
   maxActiveTenants: null,

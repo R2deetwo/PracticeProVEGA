@@ -29,12 +29,12 @@ import BacklinksPanel from '../BacklinksPanel';
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
-    <div className="w-full min-w-0 overflow-hidden">
+    <div className="w-full min-w-0 overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
-        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words">
+        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words overflow-hidden">
             {value}
         </div>
-        {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight">{subText}</p>}
+        {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight break-words">{subText}</p>}
     </div>
 );
 
@@ -737,12 +737,12 @@ const PropertyDetailViewContent: React.FC = () => {
                 <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
 
                 {activeTab === 'summary' && (
-                    <div className="space-y-8 animate-fade-in">
-                        
+                    <div className="space-y-8 animate-fade-in overflow-hidden w-full">
+
                         {/* 1. Core Information & Quick Actions Row */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                             {/* Identity Card */}
-                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700`}>
+                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700 overflow-hidden w-full`}>
                                 <div className="flex justify-between items-start border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
                                     <div className="flex items-center gap-3">
                                         <h3 className="text-sm font-bold text-slate-800 dark:text-white">Property Information</h3>

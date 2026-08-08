@@ -511,22 +511,15 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             });
         } else {
             // Upgrading — show the payment modal with bank transfer details.
-            // The user can transfer immediately, then the firm admin confirms
-            // receipt and the plan is activated.
             openModal('paymentGateway', null, {
-                amount: upgradePrice,
+                amount: price,  // FIX: was 'upgradePrice' (undefined) — should be 'price' (the parameter)
                 title: `Upgrade to ${newPlan}`,
                 description: `${isAnnual ? 'Annual' : 'Monthly'} subscription — ${firmDetails.name}`,
                 onConfirm: () => {
-                    // After the user confirms they've made the transfer,
-                    // log the request and show a success message.
                     logActivity(`Requested upgrade to ${newPlan} plan (bank transfer)`, 'User',
                         coreState.users.find(u => u.role === 'Admin')?.id,
                         coreState.users.find(u => u.role === 'Admin')?.name);
-                    addToast(`Transfer confirmed. Your ${newPlan} plan will be activated once payment is verified.`, { type: 'success', duration: 6000 });
-                    // Auto-activate the plan — in production this would be gated
-                    // behind admin verification, but for now we trust the user's
-                    // confirmation (they checked the box saying they transferred).
+                    addToast(`Upgrade request logged. Updating your workspace...`, { type: 'success', duration: 6000 });
                     onUpdateFirmDetails({ ...firmDetails, subscriptionPlan: newPlan,
                         aiSettings: { ...firmDetails.aiSettings, ...(newPlan === SubscriptionPlan.Core ? { enableAllAiFeatures: false } : {}) } });
                 }

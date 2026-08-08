@@ -399,7 +399,7 @@ const Header: React.FC = React.memo(() => {
                             <div className="flex border-b border-slate-100 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900">
                                 <button
                                     onClick={() => setNotifTab('platform')}
-                                    className={`flex-1 py-2.5 text-xs font-bold transition-colors relative ${
+                                    className={`flex-1 py-2.5 pb-3 text-xs font-bold transition-colors relative flex flex-col items-center justify-center ${
                                         notifTab === 'platform'
                                             ? 'text-primary-600 dark:text-primary-400'
                                             : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
@@ -414,11 +414,11 @@ const Header: React.FC = React.memo(() => {
                                     {aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).length > 0 && (
                                         <span className="absolute top-1.5 right-3 w-2 h-2 rounded-full bg-red-500" />
                                     )}
-                                    {notifTab === 'platform' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />}
+                                    {notifTab === 'platform' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 z-10" />}
                                 </button>
                                 <button
                                     onClick={() => setNotifTab('firm')}
-                                    className={`flex-1 py-2.5 text-xs font-bold transition-colors relative ${
+                                    className={`flex-1 py-2.5 pb-3 text-xs font-bold transition-colors relative flex flex-col items-center justify-center ${
                                         notifTab === 'firm'
                                             ? 'text-primary-600 dark:text-primary-400'
                                             : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
@@ -433,7 +433,7 @@ const Header: React.FC = React.memo(() => {
                                     {aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).length > 0 && (
                                         <span className="absolute top-1.5 right-3 w-2 h-2 rounded-full bg-red-500" />
                                     )}
-                                    {notifTab === 'firm' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />}
+                                    {notifTab === 'firm' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 z-10" />}
                                 </button>
                             </div>
 
