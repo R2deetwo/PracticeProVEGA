@@ -294,11 +294,14 @@ export const BroadcastBanner: React.FC = () => {
 
     return (
         <div className="w-full">
-            {/* Active Card — Tinted Smoky Glass
-                - background: rgba(18, 26, 24, 0.75) base + color tint overlay
-                - backdrop-filter: blur(16px)
-                - 1px translucent border (rgba(255, 255, 255, 0.12))
-                - Left color accent bar
+            {/* Active Card — Frosted Smoky Glass (NO GRADIENT)
+                - Flat uniform background: rgba(18, 26, 24, 0.78)
+                - backdrop-filter: blur(16px) saturate(180%) for the frosted glass effect
+                - Fine noise/grain texture overlay (3-4% opacity) for premium matte feel
+                - 1px translucent border: rgba(255, 255, 255, 0.15)
+                - Inner highlight: inset 0 1px 1px rgba(255,255,255,0.25) for "thick glass rim"
+                - Soft drop shadow: 0 4px 24px -4px rgba(0,0,0,0.25)
+                - Left color accent bar (kept — user didn't ask to remove it)
                 - Smooth horizontal slide transition */}
             <div
                 className={`relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
@@ -307,17 +310,31 @@ export const BroadcastBanner: React.FC = () => {
                         : 'opacity-100 translate-x-0'
                 }`}
                 style={{
-                    background: `linear-gradient(135deg, ${activeTheme.tint}, rgba(18, 26, 24, 0.85))`,
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)',
+                    // FLAT smoky glass — NO GRADIENT. Uniform color throughout.
+                    background: 'rgba(18, 26, 24, 0.78)',
+                    backdropFilter: 'blur(16px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    // Inner highlight (top edge light refraction) + outer drop shadow
+                    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 4px 24px -4px rgba(0, 0, 0, 0.25)',
                 }}
             >
-                {/* Thin colored left accent bar */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${activeTheme.accentBar}`} />
+                {/* Fine noise/grain texture overlay — gives the glass a premium
+                    matte/etched quality instead of flat digital smoothness.
+                    Uses an inline SVG noise filter at ~4% opacity. */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")`,
+                        opacity: 0.04,
+                        mixBlendMode: 'overlay',
+                    }}
+                />
 
-                <div className="p-4 pl-5">
+                {/* Thin colored left accent bar */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${activeTheme.accentBar} z-10`} />
+
+                <div className="relative p-4 pl-5 z-10">
                     {/* Top row: pill + title + dismiss */}
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
