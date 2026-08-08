@@ -107,6 +107,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDataMigration, setIsDataMigration] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Show all plans or just the pre-selected one
+  const [showAllPlans, setShowAllPlans] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
   const [hasAgreed, setHasAgreed] = useState(false);
 
@@ -299,7 +301,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             {/* Atrium annual-only badge */}
             {isAtrium && (
               <div className="flex justify-center">
-                <span className="px-4 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-2xs font-black uppercase tracking-widest rounded-full border border-blue-100 dark:border-blue-900/50">
+                <span className="px-4 py-1.5 bg-slate-100 text-slate-700 text-2xs font-black uppercase tracking-widest rounded-full border border-slate-200">
                   Annual Billing Only
                 </span>
               </div>
@@ -317,18 +319,65 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 />
               </div>
             ) : (
-              /* Standard 3-tier grid — responsive and contained */
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
-                {tierIds.map(id => (
-                  <PlanCard
-                    key={id}
-                    tier={tiers[id]}
-                    selected={selectedTierId === id}
-                    onSelect={() => setSelectedTierId(id)}
-                    billingCycle={billingCycle}
-                    isAtrium={isAtrium}
-                  />
-                ))}
+              /* Plan display — pre-selected plan front and center by default.
+                 'View other plans' button reveals the full 3-tier grid. */
+              <div className="max-w-3xl mx-auto">
+                {!showAllPlans ? (
+                  <div className="space-y-3">
+                    {/* Show only the selected plan */}
+                    {tierIds.filter(id => id === selectedTierId).map(id => (
+                      <div key={id} className="max-w-md mx-auto transition-all duration-300">
+                        <PlanCard
+                          tier={tiers[id]}
+                          selected={true}
+                          onSelect={() => setSelectedTierId(id)}
+                          billingCycle={billingCycle}
+                          isAtrium={isAtrium}
+                        />
+                      </div>
+                    ))}
+                    {/* View other plans toggle */}
+                    <div className="text-center">
+                      <button
+                        onClick={() => setShowAllPlans(true)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-500 hover:text-primary-600 hover:bg-slate-50 rounded-lg transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Compare with other plans
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Full 3-tier grid with smooth cascade transition */
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+                    {tierIds.map(id => (
+                      <PlanCard
+                        key={id}
+                        tier={tiers[id]}
+                        selected={selectedTierId === id}
+                        onSelect={() => { setSelectedTierId(id); setShowAllPlans(false); }}
+                        billingCycle={billingCycle}
+                        isAtrium={isAtrium}
+                      />
+                    ))}
+                  </div>
+                )}
+                {/* Collapse button when showing all plans */}
+                {showAllPlans && (
+                  <div className="text-center mt-3">
+                    <button
+                      onClick={() => setShowAllPlans(false)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-500 hover:text-primary-600 hover:bg-slate-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                      Show selected plan only
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -340,42 +389,40 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
             {/* Managed Migration opt-in */}
             {isAtrium && (
-              <div className="max-w-md mx-auto p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40/60 border border-amber-100 dark:border-amber-900/50">
-                <div className="flex items-start gap-3">
-                  <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-amber-200 dark:border-amber-900/50 text-amber-600  focus:ring-amber-500" />
-                  <div className="flex-1 min-w-0">
-                    <label htmlFor="data-migration" className="text-2xs font-bold text-amber-900 cursor-pointer">
-                      Managed Data Migration <span className="font-normal text-amber-600 ">+₦150k</span>
-                    </label>
-                    <details className="mt-1 group/det">
-                      <summary className="text-2xs font-semibold text-amber-500  cursor-pointer hover:text-amber-700 transition-colors list-none inline-flex items-center gap-1">
-                        What's included
-                        <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                      </summary>
-                      <div className="mt-2 space-y-1.5 text-2xs text-amber-800 dark:text-amber-200 leading-relaxed">
-                        <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+              <div className="max-w-md mx-auto p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+                  <label htmlFor="data-migration" className="text-xs font-bold text-slate-700 cursor-pointer flex-1">
+                    Managed Data Migration <span className="font-normal text-slate-500">(+₦150k)</span>
+                  </label>
+                  <details className="group/det">
+                    <summary className="text-2xs font-semibold text-primary-600 cursor-pointer hover:text-primary-800 transition-colors list-none inline-flex items-center gap-1">
+                      What's included
+                      <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                    </summary>
+                    <div className="absolute mt-2 p-3 bg-white border border-slate-200 rounded-lg shadow-lg z-10 max-w-xs space-y-1.5 text-2xs text-slate-600 leading-relaxed">
+                      <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
                             <span>Up to <strong>50 tenant/unit</strong> entries</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
                             <span><strong>Lease terms</strong> & rent cycles</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
                             <span><strong>Property details</strong> & unit specs</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
                             <span><strong>Opening balances</strong> if available</span>
                           </div>
                         </div>
-                        <p className="text-amber-600 /80 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
+                        <p className="text-slate-500 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
                       </div>
                     </details>
-                  </div>
                 </div>
               </div>
             )}
