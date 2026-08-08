@@ -157,7 +157,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     + Add Task
                 </button>
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
                 {tasks.length > 0 ? (
                     <ul className="overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[500px]">
                         {tasks.map(task => {
@@ -246,7 +246,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     + New Event
                 </button>
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
                 {displayEvents.length > 0 ? (
                     <ul className="overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[500px]">
                         {displayEvents.map(event => {
@@ -307,7 +307,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
         <div className="py-2 space-y-4">
 
             {/* Sub-view Tab Pills */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl w-fit">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg w-fit">
                 {hasStatutoryWorkflow && (
                     <TabPill id="timeline" label="Timeline" active={subView === 'timeline'} onClick={() => setSubView('timeline')} />
                 )}

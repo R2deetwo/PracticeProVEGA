@@ -96,7 +96,7 @@ export const AdminLogin: React.FC = () => {
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-black border border-zinc-700 flex items-center justify-center text-white font-black text-2xl shadow-xl mb-3">
                         P
                     </div>
-                    <h1 className="text-2xl font-black text-white tracking-tight">PracticePro Founder</h1>
+                    <h1 className="text-2xl font-bold text-white tracking-tight">PracticePro Founder</h1>
                     <p className="text-sm text-zinc-500 mt-1">Platform Control Center</p>
                 </div>
 

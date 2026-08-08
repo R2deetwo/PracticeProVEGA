@@ -192,7 +192,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
         return (
             <div className={`flex items-center gap-2 ${containerClassName}`}>
                 {/* Recording indicator */}
-                <div className="flex-1 flex items-center gap-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                <div className="flex-1 flex items-center gap-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                     <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
                     <span className="text-sm font-bold text-red-600 dark:text-red-400 font-mono">
                         {formatTime(recordTime)}
@@ -214,7 +214,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 {/* Cancel */}
                 <button
                     onClick={() => stopRecording(false)}
-                    className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                    className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
                     aria-label="Cancel recording"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -224,7 +224,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 {/* Stop & Send */}
                 <button
                     onClick={() => stopRecording(true)}
-                    className="flex-shrink-0 w-10 h-10 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center"
+                    className="flex-shrink-0 w-10 h-10 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center"
                     aria-label="Stop and send voice note"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -265,7 +265,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                     <button
                         onClick={onAttachClick}
                         disabled={disabled}
-                        className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-50"
+                        className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-50"
                         title="Attach file"
                         aria-label="Attach file"
                     >
@@ -283,7 +283,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                     disabled={disabled}
                     rows={1}
                     aria-label={placeholder}
-                    className={`flex-1 min-w-0 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm rounded-xl border-0 focus:ring-2 focus:ring-primary-500 outline-none resize-none overflow-y-auto leading-relaxed ${textareaClassName}`}
+                    className={`flex-1 min-w-0 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm rounded-lg border-0 focus:ring-2 focus:ring-primary-500 outline-none resize-none overflow-y-auto leading-relaxed ${textareaClassName}`}
                     style={{
                         minHeight: `${(LINE_HEIGHT_REM + TEXTAREA_PY_REM * 2) * 16}px`,
                         maxHeight: `${maxHeightRem * 16}px`,
@@ -294,7 +294,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                     <button
                         onClick={startRecording}
                         disabled={disabled}
-                        className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-50"
+                        className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-50"
                         title="Record voice note"
                         aria-label="Record voice note"
                     >
@@ -307,7 +307,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                     onClick={handleSendClick}
                     disabled={disabled || sendDisabled}
                     aria-label={sendAriaLabel}
-                    className={`flex-shrink-0 w-10 h-10 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${sendButtonClassName}`}
+                    className={`flex-shrink-0 w-10 h-10 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${sendButtonClassName}`}
                 >
                     {sendIcon || (
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

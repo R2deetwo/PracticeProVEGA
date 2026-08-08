@@ -22,7 +22,7 @@ export const ExpandablePropertyGroup: React.FC<ExpandablePropertyGroupProps> = (
   const occupiedCount = units.filter((u) => u.status === PropertyStatus.Occupied).length;
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-700 rounded-xl overflow-hidden bg-white dark:bg-zinc-800 shadow-sm transition-all mb-3">
+    <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-800 shadow-sm transition-all mb-3">
       {/* Property header — always visible, tappable to expand */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}

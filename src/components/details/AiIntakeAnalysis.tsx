@@ -36,7 +36,7 @@ export const AiIntakeAnalysis: React.FC<AiIntakeAnalysisProps> = ({ matter, lead
     const safeRecordings = Array.isArray(recordings) ? recordings : [];
 
     return (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-purple-100 dark:border-zinc-700 overflow-hidden shadow-sm mb-6">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-purple-100 dark:border-zinc-700 overflow-hidden shadow-sm mb-6">
             <button 
                 className="w-full flex items-center justify-between p-4 sm:p-6 text-left bg-gradient-to-r from-purple-50/50 to-white dark:from-zinc-800 dark:to-zinc-800"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -67,7 +67,7 @@ export const AiIntakeAnalysis: React.FC<AiIntakeAnalysisProps> = ({ matter, lead
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Action Plan */}
                         {safeSteps.length > 0 && (
-                            <div className="lg:col-span-2 bg-slate-50 dark:bg-zinc-700/30 rounded-xl p-5 border border-slate-100 dark:border-zinc-700">
+                            <div className="lg:col-span-2 bg-slate-50 dark:bg-zinc-700/30 rounded-lg p-5 border border-slate-100 dark:border-zinc-700">
                                 <h4 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-sm">
                                     <span className="w-2 h-2 rounded-full bg-purple-500"></span>
                                     Recommended Strategy
@@ -87,7 +87,7 @@ export const AiIntakeAnalysis: React.FC<AiIntakeAnalysisProps> = ({ matter, lead
                         {/* Sidebar */}
                         <div className="space-y-4">
                              {safeLaws.length > 0 && (
-                                 <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-4">
+                                 <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-4">
                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Relevant Laws</h4>
                                     <ul className="space-y-3">
                                         {safeLaws.map((law, index) => (
@@ -101,7 +101,7 @@ export const AiIntakeAnalysis: React.FC<AiIntakeAnalysisProps> = ({ matter, lead
                             )}
 
                             {safeRecordings.length > 0 && (
-                                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-4">
+                                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-4">
                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Source Audio</h4>
                                     <div className="space-y-2">
                                         {safeRecordings.map((rec, index) => (

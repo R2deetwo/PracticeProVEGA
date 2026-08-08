@@ -34,7 +34,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
             <ShieldCheckIcon className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Bulk Edit Properties</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Bulk Edit Properties</h3>
             <p className="text-sm text-slate-500 font-medium">Updating <span className="text-primary-600 dark:text-primary-300 font-bold">{propertyIds.length}</span> selected properties.</p>
           </div>
         </div>

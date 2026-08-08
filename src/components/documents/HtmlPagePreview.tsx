@@ -530,7 +530,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         <div
             ref={containerRef}
             tabIndex={0}
-            className={`flex flex-col h-full w-full overflow-hidden outline-none rounded-xl border ${
+            className={`flex flex-col h-full w-full overflow-hidden outline-none rounded-lg border ${
                 isDark
                     ? 'bg-zinc-950 border-zinc-800'
                     : 'bg-slate-200 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800'

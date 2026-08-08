@@ -10,7 +10,7 @@ import { useProduct } from '../../contexts/ProductContext';
 import FeedbackButton from '../FeedbackButton';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -254,7 +254,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                             onClick={() => setFontSize(size)}
                                             className={`w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-md text-sm font-bold transition-all capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
                                         >
-                                            <span className="font-serif font-bold tracking-tighter opacity-70">Aa</span>
+                                            <span className="font-serif font-bold tracking-tight opacity-70">Aa</span>
                                             {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}
                                         </button>
                                     ))}

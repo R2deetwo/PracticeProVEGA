@@ -192,7 +192,7 @@ const ReadingPane: React.FC<{
                 <div className="max-w-4xl mx-auto space-y-8">
                      
                      {/* Metadata Card */}
-                     <div className="bg-slate-50 dark:bg-zinc-800/50 p-6 rounded-xl border border-slate-200 dark:border-zinc-700">
+                     <div className="bg-slate-50 dark:bg-zinc-800/50 p-6 rounded-lg border border-slate-200 dark:border-zinc-700">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
                             <div>
                                 <h5 className="font-bold text-slate-500 dark:text-zinc-500 uppercase text-xs mb-1">Subject Matter</h5>

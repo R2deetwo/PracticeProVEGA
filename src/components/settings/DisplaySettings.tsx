@@ -10,7 +10,7 @@ import { haptics } from '../../utils/haptics';
 import { notificationManager } from '../../utils/notifications';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -105,7 +105,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                                     onClick={() => setFontSize(size)}
                                     className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
                                 >
-                                    <span className="font-serif font-bold tracking-tighter opacity-70">Aa</span>
+                                    <span className="font-serif font-bold tracking-tight opacity-70">Aa</span>
                                     {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}
                                 </button>
                             ))}
@@ -113,7 +113,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
 
                         <div className="pt-6 border-t border-slate-100 dark:border-zinc-800">
                             <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-4">Typography Preview</label>
-                            <div className="p-6 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800 space-y-4">
+                            <div className="p-6 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-800 space-y-4">
                                 <div className="space-y-1">
                                     <h4 className="text-2xl font-bold text-slate-900 dark:text-white transition-all">This is a Heading</h4>
                                     <p className="text-sm text-slate-500 dark:text-zinc-400">Subtitle or secondary text</p>

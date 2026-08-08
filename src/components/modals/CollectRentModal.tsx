@@ -309,7 +309,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           <Receipt className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-xl font-black text-slate-800 dark:text-zinc-100 tracking-tight">Issue Rent Receipt</h3>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 tracking-tight">Issue Rent Receipt</h3>
           <p className="text-sm text-slate-500">Record rent collection for:</p>
           <p className="text-sm font-bold text-slate-700 dark:text-zinc-300 break-words">{unitDisplayLabel}</p>
         </div>
@@ -336,7 +336,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                   type="text"
                   value={displayAmount}
                   onChange={e => handleAmountChange(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl font-bold text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg font-bold text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
             </div>
@@ -353,7 +353,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                       setPaymentDate(e.target.value);
                       if (!periodStart) setPeriodStart(e.target.value);
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
@@ -362,7 +362,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 <select 
                   value={paymentMethod}
                   onChange={e => setPaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                  className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 >
                   <option>Bank Transfer</option>
                   <option>Cheque</option>
@@ -381,7 +381,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                     type="date"
                     value={periodStart}
                     onChange={e => setPeriodStart(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
@@ -393,7 +393,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                     type="date"
                     value={periodEnd}
                     onChange={e => setPeriodEnd(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
@@ -428,7 +428,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
             {/* Management fee breakdown — informational only */}
             {feePercentage > 0 && feeAmount > 0 && (
-              <div className="p-3 bg-primary-500/10 rounded-xl border border-primary-500/20">
+              <div className="p-3 bg-primary-500/10 rounded-lg border border-primary-500/20">
                 <div className="flex justify-between items-start text-sm mb-2">
                   <div>
                     <span className="text-slate-300 font-semibold">Management Fee</span>
@@ -448,7 +448,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
             {/* Zero-fee properties */}
             {feePercentage <= 0 && (
-              <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+              <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                 <p className="text-2xs text-emerald-400 font-semibold">No management fee configured</p>
                 <p className="text-3xs text-slate-500 mt-0.5">Full amount is remitted to the landlord.</p>
               </div>

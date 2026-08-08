@@ -130,7 +130,7 @@ function formatResetsAt(timestamp: number | null): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MetricCardSkeleton: React.FC = () => (
-  <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5 animate-pulse">
+  <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5 animate-pulse">
     <div className="flex items-center gap-3 mb-3">
       <div className="w-9 h-9 rounded-lg bg-[#1e293b]" />
       <div className="h-3 w-20 rounded bg-[#1e293b]" />
@@ -170,7 +170,7 @@ const MetricCard: React.FC<{
   iconColor: string;
   trend?: { label: string; positive: boolean };
 }> = ({ title, value, subtitle, icon, iconBg, iconColor, trend }) => (
-  <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5 transition-shadow hover:shadow-lg hover:shadow-black/20 group">
+  <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5 transition-shadow hover:shadow-lg hover:shadow-black/20 group">
     <div className="flex items-center gap-3 mb-3">
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg}`}>
         <span className={iconColor}>{icon}</span>
@@ -224,7 +224,7 @@ const RateLimitBar: React.FC<{ used: number; limit: number; resetsAt: number | n
       : 'bg-blue-500/20';
 
   return (
-    <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5">
+    <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-500/10">
@@ -288,7 +288,7 @@ const BreakdownList: React.FC<{
 
   if (sortedEntries.length === 0) {
     return (
-      <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5">
+      <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e293b]">
             <span className="text-gray-400">{icon}</span>
@@ -303,7 +303,7 @@ const BreakdownList: React.FC<{
   }
 
   return (
-    <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5">
+    <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e293b]">
           <span className="text-gray-400">{icon}</span>
@@ -419,11 +419,11 @@ const AIUsageDashboard: React.FC = () => {
           <MetricCardSkeleton />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5 animate-pulse">
+          <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5 animate-pulse">
             <div className="h-4 w-24 rounded bg-[#1e293b] mb-4" />
             <ListSkeleton />
           </div>
-          <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5 animate-pulse">
+          <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5 animate-pulse">
             <div className="h-4 w-24 rounded bg-[#1e293b] mb-4" />
             <ListSkeleton />
           </div>
@@ -524,7 +524,7 @@ const AIUsageDashboard: React.FC = () => {
               resetsAt={rateLimitData.resetsAt}
             />
           ) : (
-            <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5">
+            <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5">
               <p className="text-sm text-gray-500">Rate limit data unavailable</p>
             </div>
           )}
@@ -557,7 +557,7 @@ const AIUsageDashboard: React.FC = () => {
 
       {/* Daily Activity Mini-Chart (text-based) */}
       {Object.keys(usageData.daily).length > 0 && (
-        <div className="bg-[#0f1629] border border-[#1e293b] rounded-xl p-5">
+        <div className="bg-[#0f1629] border border-[#1e293b] rounded-lg p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e293b]">
               <BarChart3 className="w-4 h-4 text-gray-400" />

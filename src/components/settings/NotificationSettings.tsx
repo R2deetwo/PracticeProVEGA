@@ -160,7 +160,7 @@ export const NotificationSettings: React.FC = () => {
           Per-user in-app notification preferences (moved from Profile Settings).
           These control which in-app notifications YOU receive — distinct from
           the firm-wide email notifications below. */}
-      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5">
+      <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
             <BellIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -208,7 +208,7 @@ export const NotificationSettings: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
             <MailIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
@@ -225,7 +225,7 @@ export const NotificationSettings: React.FC = () => {
       </div>
 
       {/* Info banner */}
-      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 rounded-xl p-3.5">
+      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 rounded-lg p-3.5">
         <div className="flex items-start gap-2.5">
           <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -253,7 +253,7 @@ export const NotificationSettings: React.FC = () => {
         if (category === 'legal' && !isLegal) return null;
 
         return (
-          <div key={category} className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
+          <div key={category} className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
             {/* Category header */}
             <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2.5">
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${meta.color}`}>

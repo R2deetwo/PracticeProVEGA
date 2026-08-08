@@ -69,7 +69,7 @@ const SummaryCard: React.FC<{
     accent?: string;
 }> = ({ icon, label, value, accent = 'text-brand-primary' }) => (
     <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-brand-primary/10 ${accent}`}>
+        <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-primary/10 ${accent}`}>
             {icon}
         </div>
         <div>
@@ -373,7 +373,7 @@ const ClientDashboard: React.FC = () => {
                             }
                         }}
                         disabled={isRepairing}
-                        className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-3 rounded-lg bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isRepairing ? (
                             <span className="flex items-center gap-2">
@@ -563,7 +563,7 @@ const ClientDashboard: React.FC = () => {
                         <p className="text-2xs font-bold text-white/60 uppercase tracking-widest mb-1">
                             Client Portal
                         </p>
-                        <h2 className="text-xl font-black tracking-tight">
+                        <h2 className="text-xl sm:text-3xl font-bold tracking-tight">
                             {currentUser.name?.split(' ')[0] || 'Client'}
                         </h2>
                         {currentUser.email && (
@@ -648,7 +648,7 @@ const ClientDashboard: React.FC = () => {
                             onClick={() => handleTabChange(service.tab)}
                             className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform relative"
                         >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color} relative`}>
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${service.color} relative`}>
                                 {service.icon}
                                 {service.badge !== undefined && service.badge > 0 && (
                                     <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-3xs font-bold rounded-full flex items-center justify-center px-1">
@@ -746,7 +746,7 @@ const ClientDashboard: React.FC = () => {
             return (
                 <div className="space-y-4">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1 space-y-2">
                                     <div className="h-5 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
@@ -1044,7 +1044,7 @@ const ClientDashboard: React.FC = () => {
                     {isLoading ? (
                         <div className="space-y-3">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
                                         <div className="flex-1 space-y-2">
@@ -1141,7 +1141,7 @@ const ClientDashboard: React.FC = () => {
         return (
             <div className="space-y-4">
                 {/* Compose Area */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
                     {!isComposing ? (
                         <div className="p-4">
                             <button
@@ -1220,7 +1220,7 @@ const ClientDashboard: React.FC = () => {
                 {isLoading ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
                                 <div className="flex items-start gap-3">
                                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-700" />
                                     <div className="flex-1 space-y-2">
@@ -1586,7 +1586,7 @@ const ClientDashboard: React.FC = () => {
                 {isLoading ? (
                     <div className="space-y-2">
                         {[1, 2].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-700" />
                                     <div className="flex-1">
@@ -1607,7 +1607,7 @@ const ClientDashboard: React.FC = () => {
                             return (
                                 <div
                                     key={r._id}
-                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden"
+                                    className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden"
                                 >
                                     <div className="p-4 flex flex-row items-start sm:items-center justify-between gap-3">
                                         <div className="flex items-center gap-3 min-w-0">
@@ -1694,8 +1694,8 @@ const ClientDashboard: React.FC = () => {
                         })}
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-                        <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+                        <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
                             <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
                         </div>
                         <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No service requests yet</p>
@@ -1770,7 +1770,7 @@ const ClientDashboard: React.FC = () => {
                     <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Invoices</h3>
                     {/* Payment info banner — shown when there are outstanding invoices */}
                     {invoices.length > 0 && totalOutstanding > 0 && (
-                        <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30 text-xs text-amber-800 dark:text-amber-300">
+                        <div className="mb-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30 text-xs text-amber-800 dark:text-amber-300">
                             <p className="font-bold mb-1">How to Pay</p>
                             <p>Tap "Pay Now" on any outstanding invoice below to view payment instructions. After making payment, tap "I've Paid" to notify your legal team for confirmation.</p>
                         </div>
@@ -1778,7 +1778,7 @@ const ClientDashboard: React.FC = () => {
                     {isLoading ? (
                         <div className="space-y-2">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-zinc-700" />
                                         <div className="flex-1 space-y-2">
@@ -1790,8 +1790,8 @@ const ClientDashboard: React.FC = () => {
                             ))}
                         </div>
                     ) : invoices.length === 0 ? (
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-                            <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+                            <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
                                 <Receipt className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
                             </div>
                             <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No invoices yet</p>
@@ -1806,7 +1806,7 @@ const ClientDashboard: React.FC = () => {
                                 const isUnpaid = inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent';
                                 const isExpanded = expandedInvoiceId === invId;
                                 return (
-                                    <div key={invId} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                                    <div key={invId} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
                                         <div className="p-4 flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -1928,7 +1928,7 @@ const ClientDashboard: React.FC = () => {
                 during impersonation, even if the admin's DB record is still loading
                 or has a missing role. */}
             {isImpersonating && (
-                <div className="mb-4 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
+                <div className="mb-4 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
@@ -1954,7 +1954,7 @@ const ClientDashboard: React.FC = () => {
                         {activeTab !== 'overview' && (
                             <button
                                 onClick={() => handleTabChange('overview')}
-                                className="p-2 -ml-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0"
+                                className="p-2 -ml-2 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0"
                                 aria-label="Back to dashboard"
                             >
                                 <ChevronRightIcon className="w-5 h-5 rotate-180" />
@@ -1981,7 +1981,7 @@ const ClientDashboard: React.FC = () => {
                         {/* Theme Toggle */}
                         <button
                             onClick={toggleTheme}
-                            className="p-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                            className="p-2 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                             aria-label="Toggle theme"
                         >
@@ -1992,7 +1992,7 @@ const ClientDashboard: React.FC = () => {
                         {/* Sign Out */}
                         <button
                             onClick={() => logout()}
-                            className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                            className="p-2 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                             title="Sign out"
                             aria-label="Sign out"
                         >

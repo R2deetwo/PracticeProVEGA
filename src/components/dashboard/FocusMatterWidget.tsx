@@ -214,7 +214,7 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                             {item.matter.referenceNumber}
                                         </div>
                                         {activeCategory === 'Review' && item.matter.reviewReminder && (
-                                            <div className="text-3xs font-bold text-red-500 uppercase tracking-tighter">
+                                            <div className="text-3xs font-bold text-red-500 uppercase tracking-tight">
                                                 Due {new Date(item.matter.reviewReminder.remindAt).toLocaleDateString('en-GB')}
                                             </div>
                                         )}

@@ -68,7 +68,7 @@ const PropertyListItem: React.FC<{
     return (
         <div
             onClick={onClick}
-            className={`group relative p-3 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${isSelected ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : leaseExpired ? 'border-l-red-400 bg-white dark:bg-zinc-900 shadow-sm' : leaseUrgent ? 'border-l-amber-400 bg-white dark:bg-zinc-900 shadow-sm' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
+            className={`group relative p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${isSelected ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : leaseExpired ? 'border-l-red-400 bg-white dark:bg-zinc-900 shadow-sm' : leaseUrgent ? 'border-l-amber-400 bg-white dark:bg-zinc-900 shadow-sm' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
             <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
@@ -251,7 +251,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                 <div className="px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
                                 <div className="h-3 w-20 bg-slate-200 dark:bg-zinc-700 rounded mb-3" />
                                 <div className="h-6 w-28 bg-slate-200 dark:bg-zinc-700 rounded mb-2" />
                                 <div className="h-3 w-12 bg-slate-200 dark:bg-zinc-700 rounded" />
@@ -260,7 +260,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                     </div>
                     <div className="space-y-2">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse flex items-center gap-4">
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 animate-pulse flex items-center gap-4">
                                 <div className="w-10 h-10 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
                                 <div className="flex-1 space-y-2">
                                     <div className="h-4 w-40 bg-slate-200 dark:bg-zinc-700 rounded" />
@@ -555,7 +555,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                                     });
                                     addToast(`Generated ${upcoming.length} rent review notices.`, { type: 'success' });
                                 }}
-                                className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-2xs font-black uppercase tracking-wider rounded-xl border border-primary-100 dark:border-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-all shadow-sm whitespace-nowrap"
+                                className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-2xs font-black uppercase tracking-wider rounded-lg border border-primary-100 dark:border-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-all shadow-sm whitespace-nowrap"
                             >
                                 <MailIcon className="w-3.5 h-3.5" /> Bulk Notices ({expiringSoon})
                             </button>

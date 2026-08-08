@@ -467,7 +467,7 @@ const InlineTicketReply: React.FC<{
 
     return (
         <div className="mt-2 ml-1 pl-3 border-l-2 border-primary-400/50 w-full box-border min-w-0">
-            <div className="bg-slate-50 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 p-2.5 w-full box-border">
+            <div className="bg-slate-50 dark:bg-zinc-800/80 rounded-lg border border-slate-200 dark:border-zinc-700 p-2.5 w-full box-border">
                 <div className="flex items-center gap-1.5 mb-1.5">
                     <svg className="w-3.5 h-3.5 text-primary-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -2366,7 +2366,7 @@ const MessagesView: React.FC = () => {
                                                             </div>
                                                             <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.content}</p>
                                                             {selectedInboundMsg.mediaUrl && (
-                                                                <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700">
+                                                                <div className="mt-3 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
                                                                     <img src={selectedInboundMsg.mediaUrl} alt="Attachment" className="w-full h-auto max-h-64 object-cover" />
                                                                 </div>
                                                             )}
@@ -2398,7 +2398,7 @@ const MessagesView: React.FC = () => {
                                                     <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 italic">"{selectedInboundMsg.aiAnalysis.suggestedReply}"</p>
                                                     <button
                                                         onClick={() => setInboxReply(selectedInboundMsg.aiAnalysis!.suggestedReply!)}
-                                                        className="px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-xl transition-colors"
+                                                        className="px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-lg transition-colors"
                                                     >
                                                         Use Reply
                                                     </button>
@@ -2474,7 +2474,7 @@ const MessagesView: React.FC = () => {
                                                         />
                                                         <button
                                                             onClick={() => adminFileInputRef.current?.click()}
-                                                            className="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors flex-shrink-0"
+                                                            className="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors flex-shrink-0"
                                                             title="Attach file"
                                                         >
                                                             <PaperClipIcon className="w-5 h-5" />

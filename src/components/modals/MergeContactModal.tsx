@@ -49,7 +49,7 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
           placeholder="Search target contact..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
         />
       </div>
 
@@ -59,7 +59,7 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
             <button
               key={contact.id}
               onClick={() => setSelectedTargetId(contact.id)}
-              className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group ${
+              className={`w-full text-left p-4 rounded-lg border transition-all flex items-center justify-between group ${
                 selectedTargetId === contact.id 
                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30/50' 
                 : 'border-slate-100 hover:border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900'
@@ -103,7 +103,7 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
         <button 
           onClick={handleMerge}
           disabled={!selectedTargetId}
-          className="px-8 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-primary-500/20 hover:bg-primary-700 disabled:opacity-50 disabled:shadow-none transition-all"
+          className="px-8 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-primary-500/20 hover:bg-primary-700 disabled:opacity-50 disabled:shadow-none transition-all"
         >
           Merge & Delete Source
         </button>

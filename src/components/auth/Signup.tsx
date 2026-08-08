@@ -267,7 +267,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       <button
        type="submit"
        disabled={isSubmittingRestore}
-       className="w-full py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+       className="w-full py-3 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
       >
        {isSubmittingRestore
         ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Sending Request...</>
@@ -300,7 +300,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       </div>
       <button
        onClick={() => closeModal()}
-       className="w-full py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md"
+       className="w-full py-3 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md"
       >
        Continue to App
       </button>
@@ -330,7 +330,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       value={verificationCode}
       onChange={e => setVerificationCode(e.target.value)}
       placeholder="Enter 6-digit Code"
-      className="text-center text-2xl tracking-widest font-mono w-full bg-white border-2 border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+      className="text-center text-2xl tracking-widest font-mono w-full bg-white border-2 border-slate-200 rounded-lg p-4 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
       maxLength={6}
       autoFocus
      />
@@ -367,7 +367,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
   return (
    <div className="flex flex-col h-full animate-fade-in space-y-6">
     <div className="text-center mb-2">
-     <h2 className="text-2xl font-black text-slate-900 tracking-tight">Choose Your Solution</h2>
+     <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Choose Your Solution</h2>
      <p className="text-sm text-slate-500 mt-2">PracticePro builds dedicated operating systems for the organizations that run modern Africa. Which one fits yours?</p>
     </div>
 
@@ -378,7 +378,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       style={{ '--glow-color': 'rgba(245, 158, 11, 0.12)', '--glow-border': 'rgba(245, 158, 11, 0.25)' } as React.CSSProperties}
       className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-amber-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
+      <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div>
@@ -393,7 +393,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       style={{ '--glow-color': 'rgba(59, 130, 246, 0.12)', '--glow-border': 'rgba(59, 130, 246, 0.25)' } as React.CSSProperties}
       className="product-glow-pulse product-glow-pulse-delay-2 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-blue-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
+      <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div>
@@ -408,7 +408,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       style={{ '--glow-color': 'rgba(99, 102, 241, 0.12)', '--glow-border': 'rgba(99, 102, 241, 0.25)' } as React.CSSProperties}
       className="product-glow-pulse product-glow-pulse-delay-3 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-indigo-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors relative">
+      <div className="p-2.5 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors relative">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div className="w-full relative">
@@ -532,7 +532,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
      <button
       type="submit"
-      className="w-full py-4 bg-primary-600 text-white rounded-xl font-bold text-lg hover:bg-primary-700 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+      className="w-full py-4 bg-primary-600 text-white rounded-lg font-bold text-lg hover:bg-primary-700 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
       disabled={isLoading}
      >
       {isLoading ? 'Processing...' : isMigrationUser ? 'Create Account & Restore →' : 'Create Account'}

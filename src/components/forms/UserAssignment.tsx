@@ -78,7 +78,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
                 </button>
 
                 {isOpen && (
-                    <div ref={popoverRef} className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-800 border-2 border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl p-2 z-50 animate-fade-in-up">
+                    <div ref={popoverRef} className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-800 border-2 border-slate-200 dark:border-zinc-600 rounded-lg shadow-2xl p-2 z-50 animate-fade-in-up">
                         <div className="max-h-60 overflow-y-auto custom-scrollbar">
                             {assignableUsers.map(user => (
                                 <label key={user.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 cursor-pointer transition-colors">

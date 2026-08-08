@@ -250,7 +250,7 @@ const SetupPassword: React.FC = () => {
                         <p className="text-sm text-slate-400 leading-relaxed mb-6">{msg.body}</p>
                         <button
                             onClick={() => { navigate('/'); }}
-                            className="px-6 py-3 rounded-xl text-slate-300 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.08] transition-all"
+                            className="px-6 py-3 rounded-lg text-slate-300 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.08] transition-all"
                         >
                             Back to PracticePro
                         </button>
@@ -260,7 +260,7 @@ const SetupPassword: React.FC = () => {
                                     const isClient = effectivePortalType === 'client';
                                     navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                 }}
-                                className="ml-3 px-6 py-3 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-400 transition-all"
+                                className="ml-3 px-6 py-3 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-400 transition-all"
                             >
                                 Sign In
                             </button>
@@ -318,7 +318,7 @@ const SetupPassword: React.FC = () => {
                                         const isClient = effectivePortalType === 'client';
                                         navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                     }}
-                                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all"
+                                    className="px-8 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all"
                                 >
                                     Sign In to {portalLabel}
                                 </button>
@@ -377,7 +377,7 @@ const SetupPassword: React.FC = () => {
 
                     {/* Invite info */}
                     {inviteData?.invite && (
-                        <div className="mb-4 px-4 py-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
+                        <div className="mb-4 px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
                             <div className="flex items-start gap-2">
                                 <ShieldCheckIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                 <div>
@@ -399,7 +399,7 @@ const SetupPassword: React.FC = () => {
                     <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">
                         <div className="space-y-4">
                             {error && (
-                                <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                                <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
                                     {error}
                                 </div>
                             )}
@@ -414,7 +414,7 @@ const SetupPassword: React.FC = () => {
                                         onChange={e => setName(e.target.value)}
                                         onKeyDown={handleKeyDown}
                                         placeholder="Full name"
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
                                     />
                                 </div>
                             )}
@@ -426,7 +426,7 @@ const SetupPassword: React.FC = () => {
                                     type="email"
                                     value={inviteData?.invite?.inviteeEmail || ''}
                                     disabled
-                                    className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-slate-400 text-sm cursor-not-allowed"
+                                    className="w-full px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-slate-400 text-sm cursor-not-allowed"
                                 />
                                 <p className="text-2xs text-slate-600 mt-1">This is locked to your invitation email</p>
                             </div>
@@ -441,7 +441,7 @@ const SetupPassword: React.FC = () => {
                                         onChange={e => setPassword(e.target.value)}
                                         onKeyDown={handleKeyDown}
                                         placeholder="At least 8 characters"
-                                        className="w-full px-4 py-3 pr-10 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
+                                        className="w-full px-4 py-3 pr-10 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
                                     />
                                     <button
                                         type="button"
@@ -474,7 +474,7 @@ const SetupPassword: React.FC = () => {
                                         onChange={e => setConfirmPassword(e.target.value)}
                                         onKeyDown={handleKeyDown}
                                         placeholder="Re-enter your password"
-                                        className={`w-full px-4 py-3 pr-10 rounded-xl bg-white/[0.06] border text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all ${
+                                        className={`w-full px-4 py-3 pr-10 rounded-lg bg-white/[0.06] border text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all ${
                                             confirmPassword && confirmPassword !== password
                                                 ? 'border-rose-500/50 focus:border-rose-500/50'
                                                 : confirmPassword && confirmPassword === password
@@ -498,7 +498,7 @@ const SetupPassword: React.FC = () => {
                             </div>
 
                             {/* Terms & Conditions */}
-                            <div className={`mt-4 p-3 rounded-xl bg-white/[0.04] border ${termsError ? 'border-rose-500/50' : 'border-white/[0.08]'} transition-colors`}>
+                            <div className={`mt-4 p-3 rounded-lg bg-white/[0.04] border ${termsError ? 'border-rose-500/50' : 'border-white/[0.08]'} transition-colors`}>
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input
                                         type="checkbox"
@@ -535,7 +535,7 @@ const SetupPassword: React.FC = () => {
                             <button
                                 onClick={handleSubmit}
                                 disabled={step === 'submitting' || !password || !confirmPassword || password !== confirmPassword || !agreedToTerms}
-                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {step === 'submitting' ? (
                                     <>
@@ -553,7 +553,7 @@ const SetupPassword: React.FC = () => {
                             <button
                                 onClick={() => { navigate('/'); }}
                                 disabled={step === 'submitting'}
-                                className="w-full py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all disabled:opacity-50"
+                                className="w-full py-3 rounded-lg text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all disabled:opacity-50"
                             >
                                 Back to PracticePro
                             </button>

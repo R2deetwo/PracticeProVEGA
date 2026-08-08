@@ -331,18 +331,18 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
     <div className="space-y-4">
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="bg-slate-50 dark:bg-zinc-800 rounded-xl p-3 text-center border border-slate-100 dark:border-zinc-700"><div className="text-2xl font-black text-slate-700 dark:text-zinc-200">{doc.totalPages}</div><div className="text-xs text-slate-500 dark:text-zinc-400">Pages</div></div>
-        <div className="bg-slate-50 dark:bg-zinc-800 rounded-xl p-3 text-center border border-slate-100 dark:border-zinc-700"><div className="text-2xl font-black text-slate-700 dark:text-zinc-200">{searchableItems.length}</div><div className="text-xs text-slate-500 dark:text-zinc-400">Indexed Items</div></div>
+        <div className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-3 text-center border border-slate-100 dark:border-zinc-700"><div className="text-2xl font-black text-slate-700 dark:text-zinc-200">{doc.totalPages}</div><div className="text-xs text-slate-500 dark:text-zinc-400">Pages</div></div>
+        <div className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-3 text-center border border-slate-100 dark:border-zinc-700"><div className="text-2xl font-black text-slate-700 dark:text-zinc-200">{searchableItems.length}</div><div className="text-xs text-slate-500 dark:text-zinc-400">Indexed Items</div></div>
         
-        {doc.stats?.totalOrders !== undefined && <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-3 text-center border border-indigo-100 dark:border-indigo-800/30"><div className="text-2xl font-black text-indigo-700 dark:text-indigo-300">{doc.stats.totalOrders}</div><div className="text-xs text-indigo-500 dark:text-indigo-400">Orders</div></div>}
-        {doc.stats?.totalRules !== undefined && <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 text-center border border-purple-100 dark:border-purple-800/30"><div className="text-2xl font-black text-purple-700 dark:text-purple-300">{doc.stats.totalRules}</div><div className="text-xs text-purple-500 dark:text-purple-400">Rules</div></div>}
+        {doc.stats?.totalOrders !== undefined && <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 text-center border border-indigo-100 dark:border-indigo-800/30"><div className="text-2xl font-black text-indigo-700 dark:text-indigo-300">{doc.stats.totalOrders}</div><div className="text-xs text-indigo-500 dark:text-indigo-400">Orders</div></div>}
+        {doc.stats?.totalRules !== undefined && <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center border border-purple-100 dark:border-purple-800/30"><div className="text-2xl font-black text-purple-700 dark:text-purple-300">{doc.stats.totalRules}</div><div className="text-xs text-purple-500 dark:text-purple-400">Rules</div></div>}
         
-        {doc.stats?.totalSections !== undefined && <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center border border-blue-100 dark:border-blue-800/30"><div className="text-2xl font-black text-blue-700 dark:text-blue-300">{doc.stats.totalSections}</div><div className="text-xs text-blue-500 dark:text-blue-400">Sections</div></div>}
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-center border border-emerald-100 dark:border-emerald-800/30"><div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{doc.confidence}%</div><div className="text-xs text-emerald-500 dark:text-emerald-400">Confidence</div></div>
+        {doc.stats?.totalSections !== undefined && <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800/30"><div className="text-2xl font-black text-blue-700 dark:text-blue-300">{doc.stats.totalSections}</div><div className="text-xs text-blue-500 dark:text-blue-400">Sections</div></div>}
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-center border border-emerald-100 dark:border-emerald-800/30"><div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{doc.confidence}%</div><div className="text-xs text-emerald-500 dark:text-emerald-400">Confidence</div></div>
       </div>
 
       {doc.confidenceReasons && doc.confidenceReasons.length > 0 && (
-        <details className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-100 dark:border-zinc-700">
+        <details className="bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-100 dark:border-zinc-700">
           <summary className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-zinc-400 cursor-pointer">Confidence breakdown</summary>
           <ul className="px-4 pb-3 space-y-1">
             {doc.confidenceReasons.map((r, i) => <li key={i} className="text-xs text-slate-600 dark:text-zinc-300 flex gap-1.5"><span className="text-slate-400">•</span>{r}</li>)}
@@ -351,7 +351,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
       )}
 
       {/* Tabs */}
-      <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl">
+      <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
         <button onClick={() => setActiveTab('structure')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'structure' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'}`}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
           Structure
@@ -375,7 +375,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
             {doc.content_tree && doc.content_tree.length > 0 ? (
               <div className="space-y-2">
                 {doc.content_tree.map((node: any, idx: number) => (
-                  <div key={idx} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm p-3">
+                  <div key={idx} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm p-3">
                     <TreeNode node={node} onCopy={handleCopy} copied={copied} />
                   </div>
                 ))}
@@ -386,7 +386,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                 {doc.rulesIndex?.orders && (
                   <div className="space-y-2">
                     {doc.rulesIndex.orders.map((order: any, idx: number) => (
-                      <details key={idx} className="group bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+                      <details key={idx} className="group bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm">
                         <summary className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors select-none">
                           <div className="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 flex items-center justify-center flex-shrink-0 group-open:bg-indigo-500 group-open:text-white transition-colors">
                             <svg className="w-4 h-4 transform group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -429,7 +429,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                 {doc.actIndex?.chapters && (
                   <div className="space-y-2">
                     {doc.actIndex.chapters.map((chapter: any, idx: number) => (
-                      <details key={idx} className="group bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm" open={idx === 0}>
+                      <details key={idx} className="group bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm" open={idx === 0}>
                         <summary className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors select-none">
                           <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300 flex items-center justify-center flex-shrink-0 group-open:bg-slate-800 group-open:text-white dark:group-open:bg-zinc-600 transition-colors">
                             <svg className="w-4 h-4 transform group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -477,7 +477,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
           <div className="space-y-4">
             <textarea readOnly 
               value={doc.full_raw_text || (doc as any).fullText || ''} 
-              className="w-full min-h-[500px] p-6 bg-slate-50 dark:bg-zinc-900 text-sm font-mono text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none resize-none custom-scrollbar"
+              className="w-full min-h-[500px] p-6 bg-slate-50 dark:bg-zinc-900 text-sm font-mono text-slate-700 dark:text-zinc-300 rounded-lg border border-slate-200 dark:border-zinc-700 focus:outline-none resize-none custom-scrollbar"
               placeholder="Source text not available for this document."
             />
           </div>
@@ -491,7 +491,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </div>
               <input autoComplete="off" data-lpignore="true"  id="aloa-x-search" type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder={`Search ${searchableItems.length} items…`}
-                className="w-full pl-10 pr-10 py-3 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
+                className="w-full pl-10 pr-10 py-3 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
               {query && <button onClick={() => setQuery('')} className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-sm">✕</button>}
             </div>
 
@@ -507,7 +507,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                         <div className="min-w-0">
                           <p className={`text-sm font-bold text-slate-800 dark:text-zinc-100 truncate ${item.repealed ? 'line-through text-slate-400' : ''}`}>{item.citation || item.label}</p>
                           <p className={`text-xs text-slate-900 dark:text-zinc-200 font-medium ${item.repealed ? 'line-through text-slate-400' : ''}`}>{item.text.replace(item.citation || '', '').trim()}</p>
-                          {item.parentLabel && <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate mt-0.5 uppercase tracking-tighter">{item.parentLabel}</p>}
+                          {item.parentLabel && <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate mt-0.5 uppercase tracking-tight">{item.parentLabel}</p>}
                         </div>
                       </div>
                       <button onClick={() => handleCopy(item.text, item.id)}
@@ -774,7 +774,7 @@ export const AloaXView: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowApiKeyPrompt(false)}>
           <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 dark:border-zinc-700" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl flex items-center justify-center text-xl"><Key className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /></div>
+              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center text-xl"><Key className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /></div>
               <div>
                 <h2 className="font-black text-slate-900 dark:text-white">Gemini API Key Required</h2>
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Powers AI structure extraction</p>
@@ -789,13 +789,13 @@ export const AloaXView: React.FC = () => {
             </p>
             <input autoComplete="off" data-lpignore="true"  id="api-key-input" type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } if (e.key === 'Escape') setShowApiKeyPrompt(false); }}
-              placeholder="AIzaSy…" className="w-full px-4 py-2.5 border border-slate-200 dark:border-zinc-600 rounded-xl bg-slate-50 dark:bg-zinc-900 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
+              placeholder="AIzaSy…" className="w-full px-4 py-2.5 border border-slate-200 dark:border-zinc-600 rounded-lg bg-slate-50 dark:bg-zinc-900 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
             <div className="flex gap-2">
               <button onClick={() => { if (apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } }} disabled={!apiKeyInput}
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold rounded-xl text-sm transition-colors">
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold rounded-lg text-sm transition-colors">
                 Save & Continue
               </button>
-              <button onClick={() => setShowApiKeyPrompt(false)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold rounded-xl text-sm">Skip for Now</button>
+              <button onClick={() => setShowApiKeyPrompt(false)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold rounded-lg text-sm">Skip for Now</button>
             </div>
           </div>
         </div>
@@ -805,7 +805,7 @@ export const AloaXView: React.FC = () => {
       <div className="flex-shrink-0 px-6 py-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-black shadow-lg shadow-indigo-500/20">⚖</div>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white text-lg font-black shadow-lg shadow-indigo-500/20">⚖</div>
             <div>
               <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{isProperty ? 'ARIA-X Document Indexer' : 'ALOA-X Legal Indexer'}</h1>
               <p className="text-xs text-slate-500 dark:text-zinc-400">{isProperty ? 'Transform documents into searchable structured intelligence' : 'Transform legal PDFs into searchable structured intelligence'} · Stored on this device</p>
@@ -817,11 +817,11 @@ export const AloaXView: React.FC = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
             </button>
             {selectedDoc && !isProcessing && (
-              <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold rounded-xl text-xs transition-colors hover:bg-slate-200 dark:hover:bg-zinc-600">← Back</button>
+              <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold rounded-lg text-xs transition-colors hover:bg-slate-200 dark:hover:bg-zinc-600">← Back</button>
             )}
             {!isProcessing && (
               <button id="aloa-x-upload-btn" onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20 active:scale-95">
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-all shadow-md shadow-indigo-500/20 active:scale-95">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                 Import PDF
               </button>
@@ -852,7 +852,7 @@ export const AloaXView: React.FC = () => {
                   const docType = doc.documentType as DisplayDocType;
                   const isSelected = (selectedDoc as any)?.documentId === doc.documentId;
                   return (
-                    <div key={doc.documentId} className={`group relative rounded-xl transition-all duration-150 cursor-pointer ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-200 dark:ring-indigo-800' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}>
+                    <div key={doc.documentId} className={`group relative rounded-lg transition-all duration-150 cursor-pointer ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-200 dark:ring-indigo-800' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}>
                       <button onClick={() => { setSelectedDoc(doc); setProgress({ status: 'idle', currentPage: 0, totalPages: 0, percentComplete: 0 }); setErrorMsg(null); }} className="w-full text-left p-3">
                         <div className="flex items-start gap-2">
                           <span className="w-5 h-5 flex-shrink-0 mt-0.5 text-slate-500">{DOC_TYPE_ICONS[docType] ?? DefaultDocIcon}</span>
@@ -867,7 +867,7 @@ export const AloaXView: React.FC = () => {
                         </div>
                       </button>
                       {deleteConfirm === doc.documentId ? (
-                        <div className="absolute inset-0 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center gap-2 p-2 z-10 border border-red-200 dark:border-red-900/50 shadow-sm">
+                        <div className="absolute inset-0 bg-white dark:bg-zinc-900 rounded-lg flex items-center justify-center gap-2 p-2 z-10 border border-red-200 dark:border-red-900/50 shadow-sm">
                           <span className="text-xs text-red-600 dark:text-red-400 font-bold">Delete?</span>
                           <button onClick={() => handleDeleteDoc(doc.documentId)} className="text-xs bg-red-600 text-white px-2 py-1 rounded-lg font-bold">Yes</button>
                           <button onClick={() => setDeleteConfirm(null)} className="text-xs bg-slate-200 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 px-2 py-1 rounded-lg">No</button>
@@ -952,8 +952,8 @@ export const AloaXView: React.FC = () => {
                   <p className="text-xs text-indigo-700 dark:text-indigo-300">Verify extracted structure. Edit JSON safely if needed.</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleCancelReview} className="px-4 py-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl text-sm border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 transition-colors">Discard</button>
-                  <button onClick={handleConfirmReview} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-500/20 active:scale-95 transition-all">Confirm & Save</button>
+                  <button onClick={handleCancelReview} className="px-4 py-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-lg text-sm border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 transition-colors">Discard</button>
+                  <button onClick={handleConfirmReview} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm shadow-md shadow-indigo-500/20 active:scale-95 transition-all">Confirm & Save</button>
                 </div>
               </div>
               
@@ -1004,8 +1004,8 @@ export const AloaXView: React.FC = () => {
                   <h3 className="font-bold text-red-700 dark:text-red-400 mb-1">Processing Failed</h3>
                   <p className="text-sm text-red-600 dark:text-red-300 mb-3 break-words">{errorMsg}</p>
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={handleReset} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm">Try Again</button>
-                    <button onClick={() => setShowApiKeyPrompt(true)} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold rounded-xl text-sm">Check API Key</button>
+                    <button onClick={handleReset} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-sm">Try Again</button>
+                    <button onClick={() => setShowApiKeyPrompt(true)} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold rounded-lg text-sm">Check API Key</button>
                   </div>
                 </div>
               </div>
@@ -1032,14 +1032,14 @@ export const AloaXView: React.FC = () => {
                   </div>
                 </div>
                 <button onClick={() => handleExport(selectedDoc)}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 font-bold rounded-xl text-xs transition-colors">
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 font-bold rounded-lg text-xs transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                   Export JSON
                 </button>
               </div>
 
               {selectedDoc.judgmentIndex && (
-                <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/30">
+                <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-100 dark:border-amber-800/30">
                   <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-3">Judgment Details</p>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     {selectedDoc.judgmentIndex.suitNumber && <div><span className="text-xs text-amber-600 dark:text-amber-400 block">Suit No.</span><span className="font-bold">{selectedDoc.judgmentIndex.suitNumber}</span></div>}
@@ -1085,14 +1085,14 @@ export const AloaXView: React.FC = () => {
                     { icon: <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>, step: '3. Structure + Revise', desc: 'Gemini extracts chapters/sections/rules then reconstructs a clean Table of Contents matching the actual document' },
                     { icon: <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>, step: '4. Store Locally', desc: 'Indexes saved to your browser storage. No cloud required. Instant search across all your documents' },
                   ].map(({ icon, step, desc }) => (
-                    <div key={step} className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-xl">
+                    <div key={step} className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg">
                       <div className="w-6 h-6 text-indigo-500 mb-2">{icon}</div>
                       <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 mb-1">{step}</p>
                       <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">{desc}</p>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 p-3 bg-slate-50 dark:bg-zinc-900 rounded-xl flex items-center gap-3">
+                <div className="mt-4 p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg flex items-center gap-3">
                   <div className="w-5 h-5 flex-shrink-0 text-slate-400"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
                   <p className="text-xs text-slate-600 dark:text-zinc-300"><strong className="text-slate-800 dark:text-zinc-100">Your data stays with you.</strong> Indexes are stored in your browser's local storage — not sent to any server. Your Gemini API key is only used for AI processing.</p>
                 </div>
@@ -1104,7 +1104,7 @@ export const AloaXView: React.FC = () => {
                   <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">Select the same PDF to resume from where processing stopped.</p>
                   <div className="space-y-2">
                     {resumableSessions.map(session => (
-                      <div key={session.documentId} className="flex items-center justify-between bg-white dark:bg-zinc-800 rounded-xl p-3 border border-amber-100 dark:border-amber-800/30">
+                      <div key={session.documentId} className="flex items-center justify-between bg-white dark:bg-zinc-800 rounded-lg p-3 border border-amber-100 dark:border-amber-800/30">
                         <div className="min-w-0 flex-1 mr-3">
                           <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100 truncate">{session.fileName}</p>
                           <div className="flex items-center gap-2 mt-0.5">

@@ -751,7 +751,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {/* 1. Core Information & Quick Actions Row */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                             {/* Identity Card */}
-                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700 overflow-hidden w-full`}>
+                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700 overflow-hidden w-full`}>
                                 <div className="flex justify-between items-start border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
                                     <div className="flex items-center gap-3">
                                         <h3 className="text-sm font-bold text-slate-800 dark:text-white">Property Information</h3>
@@ -841,7 +841,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                             {/* Quick Actions (Right Side) - ONLY for properties WITHOUT a Units tab */}
                             {!(isLeased || hasMultipleUnits) && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700 flex flex-col">
+                                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-5 border border-slate-200 dark:border-zinc-700 flex flex-col">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Quick Actions</h3>
                                     <div className="space-y-2 flex-grow">
                                         {isLeased ? (
@@ -881,7 +881,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 </div>
                                                 <button 
                                                     onClick={() => handleInitializeMatter()}
-                                                    className="w-full py-1 text-3xs font-black uppercase text-slate-400 hover:text-primary-600 transition-colors tracking-tighter"
+                                                    className="w-full py-1 text-3xs font-black uppercase text-slate-400 hover:text-primary-600 transition-colors tracking-tight"
                                                 >
                                                     + New {isProperty ? 'File' : 'Matter'}
                                                 </button>
@@ -895,7 +895,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {/* 2. Linked Matters & Automation Status */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Automation Status — compact summary */}
-                            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
+                            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
                                 <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
                                     <ZapIcon className="w-4 h-4 text-amber-500" /> Automation Status
                                 </h3>
@@ -925,7 +925,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             </div>
 
                             {linkedMatters.length > 0 && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
+                                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
                                     <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3">{isProperty ? 'Linked Files' : 'Linked Matters'}</h3>
                                     <div className="space-y-2">
                                         {linkedMatters.map(m => (
@@ -1037,7 +1037,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                             {/* Add Unit inline form */}
                             {showAddUnitForm && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-sm p-5">
+                                <div className="bg-white dark:bg-zinc-800 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm p-5">
                                     <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                                         <Plus className="w-4 h-4 text-primary-500" /> Add New Unit
                                     </h4>
@@ -1227,7 +1227,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         ref={isSelected ? (el: HTMLDivElement | null) => { /* removed scrollIntoView — caused scroll bounce when expanding unit details */ } : undefined}
                                                         onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                                        className={`${typeBg} rounded-xl border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'}`}
+                                                        className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'}`}
                                                     >
                                                         {/* ── Card Header ── */}
                                                         <div className="flex items-center justify-between mb-2">
@@ -1392,10 +1392,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 <div
                                                                     ref={unitMenuInnerRef}
                                                                     style={{ position: 'fixed', top: openUnitMenuPos.top, right: openUnitMenuPos.right, zIndex: 99999 }}
-                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[99999] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl z-[99999] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
                                                                 >
                                                                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
-                                                                        <p className="text-3xs font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
+                                                                        <p className="text-3xs font-black text-slate-400 uppercase tracking-tight">{d.name} — actions</p>
                                                                     </div>
                                                                     
                                                                     {!isFloor ? (
@@ -1794,7 +1794,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
 
                         {/* Revenue Breakdown by Unit */}
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center justify-between">
                                 <h3 className="text-sm font-bold text-slate-800 dark:text-white">Revenue Breakdown by Unit</h3>
                                 <button onClick={() => navigateTo('atriumEngine')} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
@@ -1847,7 +1847,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
 
                         {/* Link to Full Revenue Monitor — compact */}
-                        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-lg px-4 py-3">
                             <div className="flex items-center gap-2">
                                 <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                 <span className="text-sm font-bold text-slate-700 dark:text-zinc-200">Firm-wide Revenue Monitor</span>
@@ -1933,7 +1933,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {/* Mini Ledger + Invoices */}
                         <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-5 shadow-sm">
                             <div className="flex items-start gap-4">
-                                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0">
+                                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg flex-shrink-0">
                                     <Receipt className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1944,7 +1944,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </p>
 
                                     {propertyLedgerEntries.length > 0 && (
-                                        <div className="bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
+                                        <div className="bg-white/60 dark:bg-black/20 rounded-lg border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
                                             <div className="px-4 py-2 bg-emerald-100/50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
                                                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Recent Ledger</span>
                                                 <button onClick={() => navigateTo('atriumEngine')} className="text-2xs font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
@@ -1975,7 +1975,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
 
                         {/* Invoices */}
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
                                 <h4 className="font-bold text-sm text-slate-800 dark:text-white">Related Invoices</h4>
                             </div>
@@ -2183,7 +2183,7 @@ const PropertyNoticeBoard: React.FC<{
 
             {/* Create Form */}
             {showForm && (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 space-y-4">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 space-y-4">
                     <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">New Notice</h4>
                     <div className="space-y-3">
                         <input
@@ -2257,7 +2257,7 @@ const PropertyNoticeBoard: React.FC<{
             {isLoading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
                             <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
                             <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
                             <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
@@ -2272,7 +2272,7 @@ const PropertyNoticeBoard: React.FC<{
                         return (
                             <div
                                 key={notice._id}
-                                className={`bg-white dark:bg-zinc-800 rounded-xl border overflow-hidden transition-colors ${pri.border}`}
+                                className={`bg-white dark:bg-zinc-800 rounded-lg border overflow-hidden transition-colors ${pri.border}`}
                             >
                                 {notice.isPinned && (
                                     <div className="px-5 pt-3 flex items-center gap-1.5">

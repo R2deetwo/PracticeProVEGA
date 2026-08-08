@@ -20,7 +20,7 @@ export const DocumentComparisonModal: React.FC<DocumentComparisonModalProps> = (
       <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-3">
         Comparing <strong className="text-slate-700 dark:text-zinc-300">{currentDocument.title}</strong> — current version vs. version from <strong className="text-slate-700">{new Date(versionToCompare.uploadedAt).toLocaleDateString('en-GB')}</strong>.
       </p>
-      <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-xl max-w-md">
+      <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg max-w-md">
         <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
           Inline redline comparison is not yet available. For now, open both versions from the document history to compare them side by side.
         </p>
@@ -28,7 +28,7 @@ export const DocumentComparisonModal: React.FC<DocumentComparisonModalProps> = (
       <div className="mt-6">
         <button
           onClick={onClose}
-          className="px-6 py-2 bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-xl font-bold hover:bg-slate-300 transition-colors"
+          className="px-6 py-2 bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg font-bold hover:bg-slate-300 transition-colors"
         >
           Close
         </button>

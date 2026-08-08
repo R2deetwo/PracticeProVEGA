@@ -347,7 +347,7 @@ export const MatterIngestionWizard: React.FC = () => {
                 multiple
                 onChange={handleFileChange}
               />
-              <div className="px-8 py-4 bg-slate-900 text-white rounded-xl font-bold shadow-xl hover:scale-105 transition-all flex items-center gap-3 ring-4 ring-slate-100">
+              <div className="px-8 py-4 bg-slate-900 text-white rounded-lg font-bold shadow-xl hover:scale-105 transition-all flex items-center gap-3 ring-4 ring-slate-100">
                 <FoldersIcon className="w-5 h-5" />
                 Browse Local Directories
               </div>
@@ -418,7 +418,7 @@ export const MatterIngestionWizard: React.FC = () => {
                 </thead>
                 <tbody>
                   {draftMatters.map(draft => (
-                    <tr key={draft.id} className="bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-all rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800">
+                    <tr key={draft.id} className="bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-all rounded-lg shadow-sm border border-slate-100 dark:border-zinc-800">
                       <td className="p-4 rounded-l-xl">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-blue-100 text-blue-600 dark:text-blue-400 rounded flex items-center justify-center">
@@ -466,7 +466,7 @@ export const MatterIngestionWizard: React.FC = () => {
               </div>
               <button
                 onClick={startIngestion}
-                className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-lg shadow-primary-500/30 transition-all flex items-center gap-2"
+                className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold shadow-lg shadow-primary-500/30 transition-all flex items-center gap-2"
               >
                 <CloudArrowUpIcon className="w-5 h-5" />
                 {ingestionError ? 'Retry Migration' : 'Begin Migration'}
@@ -493,7 +493,7 @@ export const MatterIngestionWizard: React.FC = () => {
                 <ArrowPathIcon className="w-4 h-4 animate-spin text-primary-500" />
                 Sequential Batching... Ensuring data integrity
               </div>
-              <div className="p-4 bg-primary-50 dark:bg-primary-900/30 rounded-xl border border-primary-100 flex items-center gap-3">
+              <div className="p-4 bg-primary-50 dark:bg-primary-900/30 rounded-lg border border-primary-100 flex items-center gap-3">
                 <div className="w-2 h-2 bg-primary-600 rounded-full animate-ping"></div>
                 <span className="text-2xs font-bold text-primary-700 dark:text-primary-300 uppercase tracking-widest">Processing Index: {progress.current} of {progress.total}</span>
               </div>

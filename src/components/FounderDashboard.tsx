@@ -207,7 +207,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                             {pendingSubCount > 0 && (
                                 <button
                                     onClick={() => onNavigateToSubscriptions?.()}
-                                    className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors text-left"
+                                    className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors text-left"
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-xs flex-shrink-0 ${expiringSoonCount > 0 ? 'bg-red-500' : 'bg-amber-500'}`}>
@@ -229,7 +229,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                                 </button>
                             )}
                             {trialsEndingToday > 0 && (
-                                <div className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl text-left">
+                                <div className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-lg text-left">
                                     <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-red-500 text-white font-black text-xs flex-shrink-0">
                                             {trialsEndingToday > 9 ? '9+' : trialsEndingToday}
@@ -279,7 +279,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         {/* Atrium */}
                         <button
                             onClick={() => setProductFilter('property')}
-                            className={`text-center p-3 bg-sky-50 dark:bg-sky-900/20 rounded-xl min-w-0 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors ${productFilter === 'property' ? 'ring-2 ring-sky-500' : ''}`}
+                            className={`text-center p-3 bg-sky-50 dark:bg-sky-900/20 rounded-lg min-w-0 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors ${productFilter === 'property' ? 'ring-2 ring-sky-500' : ''}`}
                         >
                             <p className="text-2xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest mb-1">Atrium</p>
                             <p className="text-xl font-black text-slate-900 dark:text-white">{atrium?.firms || 0}</p>
@@ -289,7 +289,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         {/* Vega */}
                         <button
                             onClick={() => setProductFilter('legal')}
-                            className={`text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl min-w-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors ${productFilter === 'legal' ? 'ring-2 ring-emerald-500' : ''}`}
+                            className={`text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg min-w-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors ${productFilter === 'legal' ? 'ring-2 ring-emerald-500' : ''}`}
                         >
                             <p className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Vega</p>
                             <p className="text-xl font-black text-slate-900 dark:text-white">{vega?.firms || 0}</p>
@@ -299,7 +299,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         {/* Komplete */}
                         <button
                             onClick={() => setProductFilter('unified')}
-                            className={`text-center p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl min-w-0 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors ${productFilter === 'unified' ? 'ring-2 ring-violet-500' : ''}`}
+                            className={`text-center p-3 bg-violet-50 dark:bg-violet-900/20 rounded-lg min-w-0 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors ${productFilter === 'unified' ? 'ring-2 ring-violet-500' : ''}`}
                         >
                             <p className="text-2xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-1">Komplete</p>
                             <p className="text-xl font-black text-slate-900 dark:text-white">{komplete?.firms || 0}</p>

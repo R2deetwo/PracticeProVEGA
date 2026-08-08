@@ -67,7 +67,7 @@ const FilingDeadlineNotice: React.FC<FilingDeadlineNoticeProps> = ({ tasks, onVi
     const displayTitle = isOfficialFiling ? mostUrgentDeadline.title.replace('[FILING DEADLINE] ', '') : mostUrgentDeadline.title;
 
     return (
-        <div className={`mb-6 p-4 rounded-xl shadow-sm relative group overflow-hidden ${urgencyClasses}`}>
+        <div className={`mb-6 p-4 rounded-lg shadow-sm relative group overflow-hidden ${urgencyClasses}`}>
              <button 
                 onClick={(e) => { e.stopPropagation(); dismissTip(tipId); }}
                 className="absolute top-2 right-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"

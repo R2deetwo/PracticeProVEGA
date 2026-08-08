@@ -208,7 +208,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           )}
 
           {/* Bank Transfer Details */}
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-5 space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-5 space-y-4">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Transfer to this account</p>
 
             {/* Bank Name */}

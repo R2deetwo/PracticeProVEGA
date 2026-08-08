@@ -83,7 +83,7 @@ const DailyFocusView: React.FC<DailyFocusViewProps> = ({ currentUser }) => {
             border rounded-2xl px-5 py-3 flex items-center justify-between shadow-sm animate-fade-in group transition-all duration-300 hover:shadow-md
         `}>
             <div className="flex items-center gap-4 overflow-hidden flex-grow mr-4">
-                <div className={`p-2 rounded-xl shadow-sm flex-shrink-0 animate-bounce-slow ${isUrgent ? 'bg-orange-500 text-white' : 'bg-indigo-600 text-white'}`}>
+                <div className={`p-2 rounded-lg shadow-sm flex-shrink-0 animate-bounce-slow ${isUrgent ? 'bg-orange-500 text-white' : 'bg-indigo-600 text-white'}`}>
                     <LightbulbIcon className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col min-w-0">

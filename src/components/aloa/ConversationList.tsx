@@ -60,7 +60,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ activeId, on
             {conversations.map(conv => (
                 <div
                     key={conv._id}
-                    className={`group relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${activeId === conv._id ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300' : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400'}`}
+                    className={`group relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${activeId === conv._id ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300' : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400'}`}
                     onClick={() => onSelect(conv._id)}
                 >
                     <MessageSquareIcon className="w-4 h-4 flex-shrink-0" />

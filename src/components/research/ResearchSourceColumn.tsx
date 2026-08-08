@@ -36,7 +36,7 @@ const SourceCard: React.FC<{
         }
         if (source.type === 'pdf') {
             return (
-                <div className={`${iconBaseClass} ${isSelected ? 'bg-blue-600 text-white' : 'bg-red-100 dark:bg-red-900/30 text-red-600'} font-bold text-3xs tracking-tighter`}>
+                <div className={`${iconBaseClass} ${isSelected ? 'bg-blue-600 text-white' : 'bg-red-100 dark:bg-red-900/30 text-red-600'} font-bold text-3xs tracking-tight`}>
                     PDF
                 </div>
             );

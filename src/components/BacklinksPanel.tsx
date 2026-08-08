@@ -77,7 +77,7 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, n
   const exampleLabel = entityLabel || `This ${entityNoun}`;
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 overflow-hidden">
+    <div className="mt-4 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 overflow-hidden">
       {/* Header */}
       <div className="px-4 py-2.5 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">
         <div className="flex items-center gap-2">

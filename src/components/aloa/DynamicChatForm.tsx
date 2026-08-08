@@ -151,7 +151,7 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
     };
 
     const renderField = (field: InteractiveFormField) => {
-        const baseInput = `w-full px-3 py-2 rounded-xl text-sm border transition-all
+        const baseInput = `w-full px-3 py-2 rounded-lg text-sm border transition-all
             bg-white dark:bg-zinc-800 text-slate-900 dark:text-white
             border-slate-200 dark:border-zinc-700
             focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500
@@ -257,7 +257,7 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
             {/* Header */}
             <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-800/70">
                 <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-500/20">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-500/20">
                         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
@@ -294,7 +294,7 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
             <div className="px-5 py-3 border-t border-slate-200 dark:border-zinc-700/80 bg-white/50 dark:bg-zinc-800/50 flex justify-end">
                 <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2"
+                    className="px-5 py-2 rounded-lg text-sm font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2"
                 >
                     <CheckIcon className="w-4 h-4" />
                     {schema.submitLabel || 'Confirm'}

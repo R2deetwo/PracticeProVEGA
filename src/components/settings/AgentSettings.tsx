@@ -11,7 +11,7 @@ import { getAssistantName } from '../../utils/assistantIdentity';
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-5 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-5 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{title}</h3>
             {children}
@@ -212,7 +212,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
     return (
         <div className="space-y-5">
-            <div className="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-slate-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg p-5 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
                         <ZapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />

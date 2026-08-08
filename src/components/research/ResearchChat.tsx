@@ -359,7 +359,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
             {/* Input Area — uses .chat-input-dock for correct bottom-nav spacing */}
             <div className="px-4 py-3 sm:px-6 chat-input-dock bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800 shrink-0">
                 <div className="max-w-3xl mx-auto">
-                    <div className={`rounded-xl p-2 transition-all focus-within:ring-2
+                    <div className={`rounded-lg p-2 transition-all focus-within:ring-2
                         ${prefillQuery && hasAppliedPrefill && !input.trim()
                             ? 'bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-300 dark:border-emerald-700 focus-within:border-emerald-400 dark:focus-within:border-emerald-600 focus-within:ring-emerald-500/10'
                             : 'bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus-within:border-blue-400 dark:focus-within:border-blue-600 focus-within:ring-blue-500/10'

@@ -138,7 +138,7 @@ const LinkAutocomplete: React.FC<LinkAutocompleteProps> = ({ textareaRef, value,
 
   return (
     <div
-      className="fixed z-[3000] bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden min-w-[280px] max-w-[360px] animate-in zoom-in-95 duration-150"
+      className="fixed z-[3000] bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden min-w-[280px] max-w-[360px] animate-in zoom-in-95 duration-150"
       style={{ top: position.top, left: position.left }}
     >
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">

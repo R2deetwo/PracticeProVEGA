@@ -118,7 +118,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
         </div>
 
         {/* Billing toggle */}
-        <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl">
+        <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg">
           <button
             onClick={() => setBillingInterval('monthly')}
             className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${billingInterval === 'monthly' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400'}`}
@@ -147,7 +147,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
         <div className="space-y-2">
           <button
             onClick={handlePayNow}
-            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-lg transition-all hover:-translate-y-0.5 active:scale-95"
+            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-[0.2em] rounded-lg shadow-lg transition-all hover:-translate-y-0.5 active:scale-95"
           >
             Pay Now — {targetPlan}
           </button>
@@ -158,7 +158,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
           </div>
           <button
             onClick={handleStartTrial}
-            className="w-full py-3 bg-white dark:bg-zinc-800 border-2 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+            className="w-full py-3 bg-white dark:bg-zinc-800 border-2 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-[0.2em] rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
           >
             Start 14-Day Free Trial
           </button>

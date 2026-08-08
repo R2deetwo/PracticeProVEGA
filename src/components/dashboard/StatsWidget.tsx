@@ -102,7 +102,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                                 </div>
                             )}
                         </div>
-                        <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight overflow-hidden">
+                        <div className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight overflow-hidden">
                             {isLoading ? <Skeleton width={100} height={28} /> : <span className="flex items-center"><NairaSymbol />{formatLargeNumber(value)}</span>}
                         </div>
                     </div>

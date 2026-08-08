@@ -25,7 +25,7 @@ export const NoteDetails: React.FC<NoteDetailsProps> = ({ note, onEdit, onBack }
                             {new Date(note.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                     </div>
-                    <h1 className="text-3xl font-black text-slate-900 dark:text-white leading-tight break-words tracking-tight">{note.title}</h1>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white leading-tight break-words tracking-tight">{note.title}</h1>
                 </div>
 
                 <div className="h-px bg-slate-100 dark:border-zinc-800 w-16" />

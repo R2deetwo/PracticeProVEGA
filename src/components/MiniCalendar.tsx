@@ -135,7 +135,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ events, eventTypes, onEvent
                 <div className="mt-auto pt-3 flex-shrink-0">
                     <div className={`overflow-hidden transition-all duration-300 ${isUpcomingExpanded ? 'max-h-[300px]' : 'max-h-0'}`}>
                         {tomorrowEvents.length > 0 && (
-                            <div className="mb-3 bg-slate-50 dark:bg-zinc-800/40 p-2.5 rounded-xl border border-slate-100/50 dark:border-zinc-700/50">
+                            <div className="mb-3 bg-slate-50 dark:bg-zinc-800/40 p-2.5 rounded-lg border border-slate-100/50 dark:border-zinc-700/50">
                                 <p className="text-3xs font-black uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1">
                                     <div className="w-1.5 h-1.5 rounded-full bg-orange-400"></div> Tomorrow
                                 </p>
@@ -153,7 +153,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ events, eventTypes, onEvent
                         )}
                         
                         {nextWeekEvents.length > 0 && (
-                            <div className="bg-primary-50/30 dark:bg-primary-900/10 p-2.5 rounded-xl border border-primary-100/50 dark:border-primary-900/30 mb-3">
+                            <div className="bg-primary-50/30 dark:bg-primary-900/10 p-2.5 rounded-lg border border-primary-100/50 dark:border-primary-900/30 mb-3">
                                 <p className="text-3xs font-black uppercase tracking-widest text-primary-500 mb-1.5">Upcoming Week</p>
                                 <div className="space-y-1 max-h-[120px] overflow-y-auto pr-1 thin-scrollbar">
                                     {nextWeekEvents.map(e => (
@@ -172,7 +172,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ events, eventTypes, onEvent
 
                     <button 
                         onClick={() => setIsUpcomingExpanded(!isUpcomingExpanded)}
-                        className={`w-full flex items-center justify-between text-2xs font-black uppercase tracking-widest transition-all px-3 py-2 rounded-xl
+                        className={`w-full flex items-center justify-between text-2xs font-black uppercase tracking-widest transition-all px-3 py-2 rounded-lg
                             ${isUpcomingExpanded 
                                 ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500' 
                                 : 'bg-primary-600 text-white shadow-lg shadow-primary-500/20 active:scale-[0.98]'
@@ -209,7 +209,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ events, eventTypes, onEvent
                         <div 
                             key={event.id} 
                             onClick={() => onEventSelect(event.id, event.date)} 
-                            className="group p-3 rounded-xl cursor-pointer bg-slate-50/50 dark:bg-zinc-800/30 border border-transparent hover:border-primary-200 dark:hover:border-primary-900/50 hover:bg-white dark:hover:bg-zinc-800 transition-all duration-300 shadow-sm hover:shadow-md"
+                            className="group p-3 rounded-lg cursor-pointer bg-slate-50/50 dark:bg-zinc-800/30 border border-transparent hover:border-primary-200 dark:hover:border-primary-900/50 hover:bg-white dark:hover:bg-zinc-800 transition-all duration-300 shadow-sm hover:shadow-md"
                         >
                             <div className="flex items-start gap-4">
                                 <div className={`w-1 h-10 rounded-full ${colorClass} shrink-0 opacity-80 group-hover:opacity-100 transition-opacity`}></div>

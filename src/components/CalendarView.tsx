@@ -222,7 +222,7 @@ const DiaryEventTile: React.FC<{
             id={`event-tile-${event.id}`}
             onClick={(e) => { e.stopPropagation(); openModal('viewEvent', event.id, { openedFrom: 'calendar', instanceDate: event.date }); }}
             className={`
-                absolute rounded-xl p-2 shadow-sm cursor-pointer transition-all hover:z-50 hover:scale-[1.02] hover:shadow-lg
+                absolute rounded-lg p-2 shadow-sm cursor-pointer transition-all hover:z-50 hover:scale-[1.02] hover:shadow-lg
                 border-l-[3px] ${tileColorClass}
                 ${hasConflict ? 'ring-2 ring-red-400/40 ring-offset-1 dark:ring-offset-zinc-900' : ''}
             `}
@@ -581,7 +581,7 @@ export const CalendarView: React.FC = () => {
             <div className="sticky top-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-safe">
                 {/* Date title + nav — aligned on center axis */}
                 <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                    <h2 className="text-base sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex-1 min-w-0 truncate">
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex-1 min-w-0 truncate">
                         {localViewMode === 'month'
                             ? currentMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })
                             : localViewMode === 'week'
@@ -589,7 +589,7 @@ export const CalendarView: React.FC = () => {
                                 : selectedDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
                         }
                     </h2>
-                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-xl p-1 flex-shrink-0">
+                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 flex-shrink-0">
                         <button onClick={() => handleNav('prev')} className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg transition-colors text-slate-500">
                             <ChevronRightIcon className="w-4 h-4 rotate-180" />
                         </button>
@@ -603,7 +603,7 @@ export const CalendarView: React.FC = () => {
                 </div>
                 {/* View switcher + new event */}
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                    <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl">
+                    <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
                         <button onClick={() => handleViewSwitch('month')} className={`p-1.5 rounded-lg transition-all ${localViewMode === 'month' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary-600' : 'text-slate-400'}`} title="Month">
                             <GridIcon className="w-4 h-4" />
                         </button>
@@ -614,7 +614,7 @@ export const CalendarView: React.FC = () => {
                             <ListIcon className="w-4 h-4" />
                         </button>
                     </div>
-                    <button onClick={() => openModal('newEvent', null, { date: selectedDateObj, openedFrom: 'calendar' })} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 shadow-sm transition-all flex-shrink-0">
+                    <button onClick={() => openModal('newEvent', null, { date: selectedDateObj, openedFrom: 'calendar' })} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 shadow-sm transition-all flex-shrink-0">
                         <PlusIcon className="w-4 h-4" /> <span className="hidden sm:inline">New</span>
                     </button>
                 </div>

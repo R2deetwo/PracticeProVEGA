@@ -43,7 +43,7 @@ export const FeatureGuard: React.FC<Props> = ({ requiredProduct, children }) => 
             </p>
             <button 
                 onClick={() => navigateTo('dashboard')}
-                className="w-full py-3.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
+                className="w-full py-3.5 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold transition-all shadow-lg shadow-primary/20"
             >
                 Return to Dashboard
             </button>

@@ -91,7 +91,7 @@ const RevenueEngine: React.FC = () => {
         {/* Title row */}
         <div className="px-4 sm:px-6 pt-3 pb-2 sm:pt-5 sm:pb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
               <ShieldIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div>
@@ -100,7 +100,7 @@ const RevenueEngine: React.FC = () => {
             </div>
           </div>
           {criticalCount > 0 && (
-            <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-800 rounded-xl px-2.5 py-1.5 flex-shrink-0">
+            <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-800 rounded-lg px-2.5 py-1.5 flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
               <span className="text-2xs sm:text-xs font-bold text-rose-400">{criticalCount} Critical</span>
             </div>
@@ -109,7 +109,7 @@ const RevenueEngine: React.FC = () => {
 
         {/* Stats — 4-col on desktop, 2x2 on mobile, more compact */}
         <div className="px-3 sm:px-6 pb-2 sm:pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 landscape-compact-stats min-w-0">
-          <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
+          <div className="bg-slate-900 border border-emerald-900/40 rounded-lg p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Collected</p>
             <p className="text-sm sm:text-base font-black text-emerald-400">
               ₦{((coreState.ledgerEntries || []).filter(e => {
@@ -119,17 +119,17 @@ const RevenueEngine: React.FC = () => {
               }).reduce((s, e) => s + (e.amount || 0), 0) || 0).toLocaleString('en-NG', { notation: 'compact', maximumFractionDigits: 1 })}
             </p>
           </div>
-          <div className="bg-slate-900 border border-amber-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
+          <div className="bg-slate-900 border border-amber-900/40 rounded-lg p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Outstanding</p>
             <p className="text-sm sm:text-base font-black text-amber-400">
               ₦{((coreState.ledgerEntries || []).filter(e => e.status === 'pending').reduce((s, e) => s + (e.amount || 0), 0) || 0).toLocaleString('en-NG', { notation: 'compact', maximumFractionDigits: 1 })}
             </p>
           </div>
-          <div className="bg-slate-900 border border-rose-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
+          <div className="bg-slate-900 border border-rose-900/40 rounded-lg p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Defaults</p>
             <p className="text-sm sm:text-base font-black text-rose-400">{criticalCount}</p>
           </div>
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 sm:p-2.5 min-w-0">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Vacant</p>
             <p className="text-sm sm:text-base font-black text-slate-300">{vacantCount}</p>
           </div>

@@ -13,7 +13,7 @@ const EntryCard: React.FC<{ entry: ChangelogEntry; isLatest: boolean }> = ({ ent
     const [expanded, setExpanded] = useState(isLatest);
 
     return (
-        <div className={`rounded-xl border transition-all duration-200 ${isLatest
+        <div className={`rounded-lg border transition-all duration-200 ${isLatest
                 ? 'border-indigo-300 dark:border-indigo-600/50 bg-indigo-50/50 dark:bg-indigo-900/10'
                 : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50'
             }`}>
@@ -80,7 +80,7 @@ const ChangelogSettings: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-zinc-800 rounded-xl p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">What's New</h2>

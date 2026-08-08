@@ -86,13 +86,13 @@ const TrustAccountTab: React.FC = () => {
             <div className="flex gap-2">
                 <button
                     onClick={() => { setShowDepositForm(true); setShowWithdrawalForm(false); }}
-                    className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
                 >
                     <ArrowDownIcon className="w-4 h-4" /> Record Deposit
                 </button>
                 <button
                     onClick={() => { setShowWithdrawalForm(true); setShowDepositForm(false); }}
-                    className="flex-1 px-4 py-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl font-bold text-sm hover:bg-rose-200 dark:hover:bg-rose-900/50 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg font-bold text-sm hover:bg-rose-200 dark:hover:bg-rose-900/50 transition-colors flex items-center justify-center gap-2"
                 >
                     <ArrowUpIcon className="w-4 h-4" /> Record Withdrawal
                 </button>
@@ -217,7 +217,7 @@ const TrustAccountTab: React.FC = () => {
             </div>
 
             {/* Info Card */}
-            <div className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
+            <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-4 border border-blue-100 dark:border-blue-800/30">
                 <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
                     <strong>What is Trust Accounting?</strong> Trust accounts hold client funds separately from your firm's operating money. Use this ledger to track deposits (client money received), withdrawals (money paid out for the client's matter), and transfers (moving earned fees to your operating account). Always ensure the trust balance never goes negative.
                 </p>
@@ -323,10 +323,10 @@ const TrustTransactionForm: React.FC<{
             )}
 
             <div className="flex gap-2 pt-2">
-                <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">
+                <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">
                     Cancel
                 </button>
-                <button type="submit" className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors">
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors">
                     Record {type === 'deposit' ? 'Deposit' : 'Withdrawal'}
                 </button>
             </div>

@@ -60,7 +60,7 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sources (Optional)</label>
                 <div 
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 dark:border-zinc-600 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group"
+                    className="border-2 border-dashed border-gray-300 dark:border-zinc-600 rounded-lg p-4 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group"
                 >
                     <UploadIcon className="w-8 h-8 mx-auto text-slate-400 group-hover:text-primary-500 mb-2" />
                     <p className="text-sm text-slate-600 dark:text-zinc-400 font-medium">Click to upload sources</p>

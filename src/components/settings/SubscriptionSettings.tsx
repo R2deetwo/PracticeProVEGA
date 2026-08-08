@@ -241,7 +241,7 @@ const BillingCalculator: React.FC<{
                     </div>
 
                     <div className="space-y-3 mb-4">
-                        <div className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
                             <div>
                                 <p className="text-sm font-bold text-white">Enterprise Platform Base</p>
                                 <p className="text-2xs text-zinc-400">Unlimited users · Full AI suite · All core features</p>
@@ -253,7 +253,7 @@ const BillingCalculator: React.FC<{
                             if (!m) return null;
                             const rate = isAnnual ? Math.round(m.price * 0.8) : m.price;
                             return (
-                                <div key={s} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10">
+                                <div key={s} className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
                                     <div>
                                         <p className="text-sm font-bold text-white">{ModalityIcons[m.specialty]} {m.label} Modality</p>
                                         <p className="text-2xs text-zinc-400">Specialist dashboards · Statutory forms · AI Expert Mode</p>
@@ -301,7 +301,7 @@ const BillingCalculator: React.FC<{
     const addOnDisplay = addOnCost * multiplier;
 
     return (
-        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-6 shadow-sm mb-8">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-6 shadow-sm mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${isSimulating ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
@@ -338,7 +338,7 @@ const BillingCalculator: React.FC<{
                             Annual Billing Only
                         </span>
                     )}
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-700/30 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-700/30 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700">
                         <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
                         <div className="flex items-center gap-2">
                             <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
@@ -393,7 +393,7 @@ const BillingCalculator: React.FC<{
 // --- ENTERPRISE UPGRADE SECTION ---
 // SVG icon components — glassmorphic, no emojis
 const GlassIcon: React.FC<{ children: React.ReactNode; selected: boolean }> = ({ children, selected }) => (
-    <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 border transition-all ${selected ? 'bg-amber-400/15 border-amber-400/40' : 'bg-white/5 border-white/10'}`}
+    <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 border transition-all ${selected ? 'bg-amber-400/15 border-amber-400/40' : 'bg-white/5 border-white/10'}`}
         style={{ backdropFilter: 'blur(8px)' }}>
         {children}
     </div>
@@ -468,7 +468,7 @@ const EnterpriseSection: React.FC<{
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-md">
+                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-md">
                             <svg viewBox="0 0 24 24" className="w-4 h-4 text-black" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
                         </div>
                         <div>
@@ -497,7 +497,7 @@ const EnterpriseSection: React.FC<{
                             <button
                                 key={mod.specialty}
                                 onClick={() => onToggleModality(mod.specialty)}
-                                className={`relative text-left p-3 rounded-xl border transition-all duration-150 ${isSelected ? 'border-amber-400/40 bg-amber-400/5' : 'border-white/5 bg-white/[0.02] hover:border-white/10'}`}
+                                className={`relative text-left p-3 rounded-lg border transition-all duration-150 ${isSelected ? 'border-amber-400/40 bg-amber-400/5' : 'border-white/5 bg-white/[0.02] hover:border-white/10'}`}
                             >
                                 {isSelected && (
                                     <div className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-amber-400 flex items-center justify-center">
@@ -514,7 +514,7 @@ const EnterpriseSection: React.FC<{
                 </div>
                 {/* CTA */}
                 {isEnterprise ? (
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-400/5 border border-amber-400/20">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-400/5 border border-amber-400/20">
                         <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400 flex-shrink-0" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
                         <div>
                             <p className="font-black text-white text-xs">You are on the Enterprise Plan</p>
@@ -524,7 +524,7 @@ const EnterpriseSection: React.FC<{
                 ) : (
                     <button
                         onClick={onActivate}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs uppercase tracking-[0.12em] shadow-lg hover:opacity-95 hover:scale-[1.005] active:scale-[0.99] transition-all duration-150"
+                        className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs uppercase tracking-[0.12em] shadow-lg hover:opacity-95 hover:scale-[1.005] active:scale-[0.99] transition-all duration-150"
                     >
                         {selectedModalities.length > 0
                             ? `Activate Enterprise with ${selectedModalities.length} Module${selectedModalities.length > 1 ? 's' : ''}`
@@ -734,7 +734,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
 
             {/* ─── Fix Product Mode Warning ─────────────────────────── */}
             {needsProductFix && (
-                <div className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 flex flex-col gap-3">
+                <div className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-4 flex flex-col gap-3">
                     <div className="flex items-start gap-2">
                         <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -818,7 +818,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                         no longer need the unified product. This prevents churn —
                         we'd rather keep them on a lower plan than lose them entirely. */}
                     {isOnHighestPlan && (
-                        <div className="mt-4 p-4 bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl">
+                        <div className="mt-4 p-4 bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-lg">
                             <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-2">Need to downsize?</h4>
                             <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
                                 You can downgrade to a single-product plan (Atrium Pro or Vega Pro) if you no longer need the unified Komplete experience. Your data is preserved.
@@ -1054,7 +1054,7 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 {applicableAddons.map((addon) => {
                     const isPurchasing = purchasingId === addon.id;
                     return (
-                        <div key={addon.id} className={`p-4 rounded-xl border transition-all ${addon.popular ? 'border-primary-300 dark:border-primary-700 bg-primary-50/30 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'} hover:shadow-md`}>
+                        <div key={addon.id} className={`p-4 rounded-lg border transition-all ${addon.popular ? 'border-primary-300 dark:border-primary-700 bg-primary-50/30 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'} hover:shadow-md`}>
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2 min-w-0">
                                     {addon.icon && <span className="text-xl flex-shrink-0">{addon.icon}</span>}

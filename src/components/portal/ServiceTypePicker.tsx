@@ -186,7 +186,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                     {/* Desktop dropdown (sm+) — anchored below button */}
                     <div
                         ref={dropdownRef}
-                        className="hidden sm:block absolute z-30 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-premium overflow-hidden"
+                        className="hidden sm:block absolute z-30 mt-1 w-full bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-premium overflow-hidden"
                     >
                         <div className="max-h-72 overflow-y-auto custom-scrollbar py-1">
                             {options.length === 0 ? (
@@ -273,7 +273,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                                             key={opt.key}
                                             type="button"
                                             onClick={() => handleSelect(opt.key)}
-                                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors mb-1 ${
+                                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors mb-1 ${
                                                 isSelected
                                                     ? 'bg-emerald-50 dark:bg-emerald-900/20'
                                                     : 'hover:bg-slate-50 dark:hover:bg-zinc-800'

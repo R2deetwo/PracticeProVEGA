@@ -88,7 +88,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
 
   return (
     <div className="space-y-6">
-      <div className="text-center p-4 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
+      <div className="text-center p-4 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
         <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-3">
           <OfficeBuildingIcon className="w-6 h-6 text-primary-600 dark:text-primary-300" />
         </div>
@@ -144,7 +144,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
               placeholder="INV-XXXX" 
               value={inviteCode}
               onChange={e => setInviteCode(e.target.value.toUpperCase())}
-              className="w-full p-4 text-2xl font-mono font-bold tracking-widest text-center border border-slate-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 transition-all uppercase"
+              className="w-full p-4 text-2xl font-mono font-bold tracking-widest text-center border border-slate-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 transition-all uppercase"
               autoFocus
             />
           </div>
@@ -153,7 +153,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
             <button 
               type="submit" 
               disabled={!inviteCode || isSubmitting}
-              className="w-full py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-all shadow-lg flex justify-center items-center gap-2"
+              className="w-full py-3 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-all shadow-lg flex justify-center items-center gap-2"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -168,7 +168,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
         </form>
       ) : (
         <div className="space-y-6 animate-fade-in">
-          <div className="bg-green-50 dark:bg-green-950/40 p-4 rounded-xl border border-green-200 text-center">
+          <div className="bg-green-50 dark:bg-green-950/40 p-4 rounded-lg border border-green-200 text-center">
             <CheckCircleIcon className="w-10 h-10 text-green-500 mx-auto mb-2" />
             <h4 className="text-lg font-bold text-green-900">{foundFirmName}</h4>
             <p className="text-xs text-green-700 dark:text-green-300 mt-1">Code Verified</p>
@@ -178,7 +178,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
             <button 
               onClick={handleConfirmJoin} 
               disabled={isSubmitting}
-              className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg flex justify-center items-center gap-2"
+              className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg flex justify-center items-center gap-2"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

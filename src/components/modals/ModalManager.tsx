@@ -205,7 +205,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
           {unitName}{tenantName ? ` • Tenant: ${tenantName}` : ''}
         </p>
         {/* Ledger vs Invoice explainer */}
-        <div className="mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100">
+        <div className="mt-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100">
           <p className="text-2xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
             <strong>Atrium Ledger</strong> tracks rent & service charges for this property.
             Formal <strong>Invoices</strong> (for {isProperty ? 'professional fees' : 'professional/legal fees'}) are managed separately in Billing.
@@ -218,7 +218,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₦</span>
             <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required min="0"
-              className="w-full pl-8 pr-3 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-8 pr-3 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               placeholder="0.00" />
           </div>
         </div>
@@ -231,15 +231,15 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
               ['defaulted', 'Defaulted', 'border-rose-500 bg-rose-50 text-rose-700', <XCircle className="w-3.5 h-3.5" />]
             ] as const).map(([val, label, activeClass, icon]) => (
               <button key={val as string} type="button" onClick={() => setStatus(val as any)}
-                className={`py-2 rounded-xl border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 rounded-lg border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
                 }`}>{icon} {label as string}</button>
             ))}
           </div>
         </div>
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
+          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
             {loading ? 'Saving...' : 'Record Payment'}
           </button>
         </div>
@@ -441,7 +441,7 @@ const ModalManager: React.FC = () => {
               </div>
               <button 
                 onClick={() => openModal('newContact', null, { returnTo: 'newProperty' })}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
                 Add New Contact
@@ -452,7 +452,7 @@ const ModalManager: React.FC = () => {
                 <button
                   key={c.id}
                   onClick={() => openModal('newProperty', c.id)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
+                  className="w-full text-left p-4 rounded-lg border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold group-hover:bg-primary-100 group-hover:text-primary-600">
@@ -475,7 +475,7 @@ const ModalManager: React.FC = () => {
                   <p className="text-slate-500 font-medium mb-6">No contacts found in your workspace.</p>
                   <button 
                     onClick={() => openModal('newContact', null, { returnTo: 'newProperty' })}
-                    className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary-500/30 transition-all inline-flex items-center gap-2"
+                    className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-primary-500/30 transition-all inline-flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
                     Create First Contact

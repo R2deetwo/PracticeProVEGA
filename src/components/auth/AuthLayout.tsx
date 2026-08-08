@@ -21,7 +21,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ title, children }) => {
         className="w-full max-w-md"
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-white rounded-xl shadow-2xl p-8 border border-black/5 relative">
+        <div className="bg-white rounded-lg shadow-2xl p-8 border border-black/5 relative">
           <div className="flex justify-center mb-6">
             <Logo className="h-16 w-auto text-primary-600" />
           </div>

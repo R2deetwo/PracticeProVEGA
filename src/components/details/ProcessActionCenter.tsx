@@ -273,7 +273,7 @@ const ActionCard: React.FC<{
 }> = ({ action, accent, onExecute }) => (
     <div className="group flex items-start gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700/60 hover:border-slate-200 dark:hover:border-zinc-600 hover:shadow-md transition-all">
         {/* Icon */}
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
             style={{ background: `${accent}15`, border: `1px solid ${accent}25` }}>
             {action.icon}
         </div>
@@ -410,7 +410,7 @@ const StrategicSuggestions: React.FC<{
             </div>
             <div className="p-3 space-y-2">
                 {dynamicSuggestions.map((s, i) => (
-                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
                         <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
                         <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 leading-tight">
                             {s}
@@ -592,7 +592,7 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
 
             {/* Critical warning if any */}
             {criticalActions.length > 0 && (
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/40">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/40">
                     <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
                     <div>
                         <p className="text-sm font-bold text-red-700 dark:text-red-400">
@@ -606,7 +606,7 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
             )}
 
             {/* Section Switcher */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl w-fit">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg w-fit">
                 {([
                     { id: 'actions',   label: 'Actions' },
                     { id: 'checklist', label: 'Checklist' },

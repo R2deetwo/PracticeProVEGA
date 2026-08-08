@@ -117,7 +117,7 @@ const FeedbackForm: React.FC = () => {
 
             {/* Data Restoration Request — special form */}
             {isRestoreTicket ? (
-                <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-xl">
+                <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg">
                     <div className="flex items-start gap-2">
                         <div className="text-lg leading-none mt-0.5"><RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin-slow" /></div>
                         <div>

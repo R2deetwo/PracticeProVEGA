@@ -286,7 +286,7 @@ const TenantPortal: React.FC = () => {
               }
             }}
             disabled={isRepairing}
-            className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 rounded-lg bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRepairing ? (
               <span className="flex items-center gap-2">
@@ -412,7 +412,7 @@ const TenantPortal: React.FC = () => {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              className="p-2 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-label="Toggle theme"
             >
@@ -423,7 +423,7 @@ const TenantPortal: React.FC = () => {
             {/* Sign Out */}
             <button
               onClick={() => logout()}
-              className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+              className="p-2 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
               title="Sign out"
               aria-label="Sign out"
             >
@@ -494,7 +494,7 @@ const TenantPortal: React.FC = () => {
                 }
               }}
               disabled={isRepairing}
-              className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-3 rounded-lg bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isRepairing ? (
                 <>
@@ -559,7 +559,7 @@ class TabErrorBoundary extends React.Component<
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors"
+            className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors"
           >
             Try Again
           </button>
@@ -616,7 +616,7 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
             <p className="text-2xs font-bold text-white/60 uppercase tracking-widest mb-1">
               Residents' Portal
             </p>
-            <h2 className="text-xl font-black tracking-tight truncate">
+            <h2 className="text-xl sm:text-3xl font-bold tracking-tight truncate">
               {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
             </h2>
             {tenantInfo?.primaryPropertyName && (
@@ -677,7 +677,7 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
               onClick={() => onNavigate(service.tab)}
               className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color}`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${service.color}`}>
                 {service.icon}
               </div>
               <span className="text-2xs font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
@@ -739,7 +739,7 @@ const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ t
         <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">Updates from your property manager</p>
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-slate-200 dark:border-zinc-700 animate-pulse">
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-5 border border-slate-200 dark:border-zinc-700 animate-pulse">
               <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
               <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
               <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
@@ -773,7 +773,7 @@ const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ t
             return (
               <div
                 key={notice._id}
-                className={`bg-white dark:bg-zinc-800 rounded-xl border overflow-hidden transition-colors ${
+                className={`bg-white dark:bg-zinc-800 rounded-lg border overflow-hidden transition-colors ${
                   notice.priority === 'urgent'
                     ? 'border-rose-200 dark:border-rose-800/50'
                     : notice.priority === 'important'
@@ -878,14 +878,14 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
       <div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
               <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24 mb-2" />
               <div className="h-7 bg-slate-200 dark:bg-zinc-700 rounded w-32 mb-1" />
               <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-16" />
             </div>
           ))}
         </div>
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
           <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-3" />
           <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
           <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
@@ -906,7 +906,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700">
           <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month SC</p>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatNaira(currentMonthSC)}
@@ -921,7 +921,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
             </span>
           ) : null}
         </div>
-        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700">
           <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month MV</p>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
             {currentMonthMV > 0 ? formatNaira(currentMonthMV) : '—'}
@@ -936,7 +936,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
             </span>
           ) : null}
         </div>
-        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700">
           <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Outstanding Balance</p>
           <p className={`text-2xl font-bold ${outstandingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {outstandingBalance > 0 ? formatNaira(outstandingBalance) : formatNaira(0)}
@@ -958,7 +958,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
       {hasServiceCharges && (
         <div className="mb-6">
           <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Service Charges</h4>
-          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1013,7 +1013,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
 
       {/* Ledger Table */}
       {hasLedgerData ? (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -1061,8 +1061,8 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
           </div>
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
             <ReceiptIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment records found</p>
@@ -1158,7 +1158,7 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+          <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
               <div className="flex-1">
@@ -1184,7 +1184,7 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
           {receipts.map((r: any) => (
             <div
               key={r._id}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+              className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
@@ -1210,8 +1210,8 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
           ))}
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
             <DownloadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No receipts yet</p>
@@ -1428,7 +1428,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
 
       {/* Property/Unit Info Banner */}
       {tenantInfo?.primaryPropertyName && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30 text-sm">
+        <div className="mb-4 px-4 py-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30 text-sm">
           <div className="flex items-center gap-2">
             <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             <span className="text-emerald-800 dark:text-emerald-300 font-medium">
@@ -1441,7 +1441,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
       )}
 
       {/* New Ticket Form */}
-      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+      <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 mb-6">
         <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Report New Issue</h4>
         <div className="space-y-3">
           <div>
@@ -1535,7 +1535,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
                 <div className="flex-1">
@@ -1558,7 +1558,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
             return (
             <div
               key={t._id}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden"
+              className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden"
             >
               <div className="p-4 flex flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -1646,8 +1646,8 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
           })}
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
             <WrenchIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No maintenance tickets</p>
@@ -2089,13 +2089,13 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
                 rows={1}
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none max-h-32"
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none max-h-32"
                 style={{ minHeight: '40px' }}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={isSending || (!messageContent.trim() && pendingFiles.length === 0)}
-                className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                className="p-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
               >
                 {isSending ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2115,7 +2115,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+          <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-700" />
               <div className="flex-1">
@@ -2145,7 +2145,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
           {conversations && conversations.length > 0 ? (
             <button
               onClick={() => setActiveConversationId(String(conversations[0]._id))}
-              className="w-full flex items-center gap-3 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors cursor-pointer"
             >
               <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
                 <ChatIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -2167,7 +2167,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
             </button>
           ) : (
             /* No conversation yet — inline compose to start one */
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4">
               <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Start a Conversation</h4>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
                 Contact your property manager directly.
@@ -2205,7 +2205,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
             {inboundMessages.map((msg: any) => (
               <div
                 key={msg._id}
-                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-3"
+                className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-3"
               >
                 <div className="flex items-start gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -2244,8 +2244,8 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
 
       {/* Empty state */}
       {(!conversations || conversations.length === 0) && (!inboundMessages || inboundMessages.length === 0) && (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
             <ChatIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No messages</p>
@@ -2384,7 +2384,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
       </p>
 
       {/* Upload Form */}
-      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+      <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 mb-6">
         <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Submit Payment Proof</h4>
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2476,7 +2476,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
       {paymentProofs === undefined ? (
         <div className="space-y-2">
           {[1, 2].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
                 <div className="flex-1">
@@ -2492,7 +2492,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
           {paymentProofs.map((proof: any) => (
             <div
               key={proof._id}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -2532,8 +2532,8 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
           ))}
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
             <ReceiptIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment proofs submitted</p>
@@ -2799,13 +2799,13 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
           <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-4" />
           <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
           <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
           <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
         </div>
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
           <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-4" />
           <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
           <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
@@ -2828,8 +2828,8 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
       </p>
 
       {!hasAnyContent && (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
             <FolderOpenIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No documents available yet</p>
@@ -2853,7 +2853,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
               return (
                 <div
                   key={lease.propertyId || idx}
-                  className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4"
+                  className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
@@ -2921,7 +2921,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
             {consentRecords.map((consent: any) => (
               <div
                 key={String(consent._id)}
-                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4"
+                className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
@@ -2974,7 +2974,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
             {tenantDocs.map((doc: any) => (
               <div
                 key={String(doc._id)}
-                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4"
+                className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -3035,7 +3035,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
             {paymentProofs.map((proof: any) => (
               <div
                 key={proof._id}
-                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${

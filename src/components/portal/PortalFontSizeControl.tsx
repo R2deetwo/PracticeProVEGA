@@ -71,7 +71,7 @@ export const PortalFontSizeControl: React.FC<{ className?: string }> = ({ classN
 
     return (
         <div
-            className={`inline-flex items-center rounded-xl border border-slate-100 dark:border-zinc-700 shadow-soft bg-white dark:bg-zinc-900 overflow-hidden ${className}`}
+            className={`inline-flex items-center rounded-lg border border-slate-100 dark:border-zinc-700 shadow-soft bg-white dark:bg-zinc-900 overflow-hidden ${className}`}
             title="Adjust text size — your preference is saved on this device"
             role="group"
             aria-label="Text size"

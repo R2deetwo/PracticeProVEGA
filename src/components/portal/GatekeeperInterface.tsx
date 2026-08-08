@@ -193,7 +193,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                             </svg>
                         </button>
                     )}
-                    <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
                         <GateIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
@@ -218,7 +218,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     <select
                         value={selectedPropertyId}
                         onChange={(e) => setSelectedPropertyId(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                     >
                         {properties.map((p: any) => (
                             <option key={p.id} value={p.id}>{p.name}</option>
@@ -253,7 +253,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     <button
                         onClick={handleVerify}
                         disabled={codeInput.length !== 6 || isVerifying || !selectedPropertyId}
-                        className="w-full mt-4 px-6 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-base hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed transition-colors"
+                        className="w-full mt-4 px-6 py-3.5 bg-emerald-600 text-white rounded-lg font-bold text-base hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed transition-colors"
                     >
                         {isVerifying ? 'Verifying...' : 'Verify Code'}
                     </button>
@@ -303,7 +303,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                 </div>
                                 <button
                                     onClick={handleApproveEntry}
-                                    className="w-full px-6 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-base hover:bg-emerald-700 transition-colors"
+                                    className="w-full px-6 py-3.5 bg-emerald-600 text-white rounded-lg font-bold text-base hover:bg-emerald-700 transition-colors"
                                 >
                                     Approve Entry
                                 </button>

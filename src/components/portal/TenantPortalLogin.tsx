@@ -267,7 +267,7 @@ const TenantPortalLogin: React.FC = () => {
 
                     {/* Invite banner */}
                     {showInviteBanner && viewMode === 'login' && (
-                        <div className="mb-4 px-4 py-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
+                        <div className="mb-4 px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
                             <div className="flex items-start gap-2">
                                 <MailIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                 <div>
@@ -287,7 +287,7 @@ const TenantPortalLogin: React.FC = () => {
 
                     {/* Expired/revoked invite banner */}
                     {invite && invite.status !== 'pending' && inviteToken && viewMode === 'login' && (
-                        <div className="mb-4 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                        <div className="mb-4 px-4 py-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
                             {invite.status === 'expired' || invite.expiresAt < Date.now()
                                 ? 'Your invitation link has expired, but you can still sign in if you already set up a password. Otherwise, ask your property manager for a new invitation.'
                                 : invite.status === 'revoked'
@@ -300,7 +300,7 @@ const TenantPortalLogin: React.FC = () => {
 
                     {/* Access revoked banner */}
                     {isRevoked && viewMode === 'login' && (
-                        <div className="mb-4 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                        <div className="mb-4 px-4 py-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
                             <div className="flex items-start gap-2">
                                 <AlertCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                 <div>
@@ -315,7 +315,7 @@ const TenantPortalLogin: React.FC = () => {
 
                     {/* Inactivity logout banner */}
                     {isInactiveLogout && viewMode === 'login' && (
-                        <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
+                        <div className="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
                             <div className="flex items-start gap-2">
                                 <AlertCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                 <div>
@@ -333,7 +333,7 @@ const TenantPortalLogin: React.FC = () => {
                         <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">
                             <div className="space-y-4">
                                 {error && !isRevoked && (
-                                    <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                                    <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
                                         {error}
                                     </div>
                                 )}
@@ -346,7 +346,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="your@email.com"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -367,14 +367,14 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="Enter your password"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
 
                                 <button
                                     onClick={handleSignIn}
                                     disabled={isSubmitting}
-                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>
@@ -389,7 +389,7 @@ const TenantPortalLogin: React.FC = () => {
                                 <button
                                     onClick={() => { window.location.href = '/'; }}
                                     disabled={isSubmitting}
-                                    className="w-full py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all disabled:opacity-50"
+                                    className="w-full py-3 rounded-lg text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all disabled:opacity-50"
                                 >
                                     Back to PracticePro
                                 </button>
@@ -413,13 +413,13 @@ const TenantPortalLogin: React.FC = () => {
                                     </p>
                                     <button
                                         onClick={() => { setViewMode('reset'); setResetError(''); }}
-                                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
+                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
                                     >
                                         I Have a Recovery Code
                                     </button>
                                     <button
                                         onClick={() => { setViewMode('login'); setForgotSent(false); }}
-                                        className="w-full py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all"
+                                        className="w-full py-3 rounded-lg text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all"
                                     >
                                         Back to Sign In
                                     </button>
@@ -427,7 +427,7 @@ const TenantPortalLogin: React.FC = () => {
                             ) : (
                                 <div className="space-y-4">
                                     {resetError && (
-                                        <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                                        <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
                                             {resetError}
                                         </div>
                                     )}
@@ -440,13 +440,13 @@ const TenantPortalLogin: React.FC = () => {
                                             onKeyDown={handleKeyDown}
                                             placeholder="your@email.com"
                                             disabled={isSubmitting}
-                                            className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                            className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                         />
                                     </div>
                                     <button
                                         onClick={handleForgotPassword}
                                         disabled={isSubmitting}
-                                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         {isSubmitting ? (
                                             <>
@@ -459,7 +459,7 @@ const TenantPortalLogin: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => { setViewMode('login'); setResetError(''); }}
-                                        className="w-full py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all"
+                                        className="w-full py-3 rounded-lg text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all"
                                     >
                                         Back to Sign In
                                     </button>
@@ -473,7 +473,7 @@ const TenantPortalLogin: React.FC = () => {
                         <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">
                             <div className="space-y-4">
                                 {resetError && (
-                                    <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                                    <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
                                         {resetError}
                                     </div>
                                 )}
@@ -485,7 +485,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onChange={e => setForgotEmail(e.target.value)}
                                         placeholder="your@email.com"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -497,7 +497,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="RCV-XXXXXX"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm font-mono tracking-widest focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm font-mono tracking-widest focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                     />
                                     <p className="text-xs text-slate-500 mt-1.5">Enter the code from the recovery email we sent you.</p>
                                 </div>
@@ -510,7 +510,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="At least 8 characters"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                     />
                                     {newPassword && (
                                         <div className="mt-2">
@@ -532,7 +532,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="Re-enter your new password"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
                                     />
                                     {confirmPassword && confirmPassword !== newPassword && (
                                         <p className="text-xs text-red-400 mt-1.5">Passwords do not match</p>
@@ -541,7 +541,7 @@ const TenantPortalLogin: React.FC = () => {
                                 <button
                                     onClick={handleResetPassword}
                                     disabled={isSubmitting}
-                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>
@@ -554,7 +554,7 @@ const TenantPortalLogin: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={() => { setViewMode('forgot'); setResetError(''); }}
-                                    className="w-full py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all"
+                                    className="w-full py-3 rounded-lg text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all"
                                 >
                                     Resend Recovery Code
                                 </button>

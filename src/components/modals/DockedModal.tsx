@@ -283,7 +283,7 @@ export const DockedModal: React.FC = () => {
                   <button
                     key={c.id}
                     onClick={() => setSelectedContactId(c.id)}
-                    className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
+                    className="w-full text-left p-3 rounded-lg border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:bg-primary-100 group-hover:text-primary-600">
@@ -297,7 +297,7 @@ export const DockedModal: React.FC = () => {
                     <svg className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                   </button>
                 )) : (
-                  <div className="text-center py-12 bg-slate-50 dark:bg-zinc-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+                  <div className="text-center py-12 bg-slate-50 dark:bg-zinc-900 rounded-lg border-2 border-dashed border-slate-200 dark:border-zinc-700">
                     <p className="text-slate-500 font-medium text-sm mb-4">No contacts found.</p>
                     <button 
                       onClick={() => {

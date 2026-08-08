@@ -23,7 +23,7 @@ const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({ onClose
         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input autoComplete="off" data-lpignore="true"
           type="text"
-          className="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow"
+          className="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow"
           placeholder="Search your Drive..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -50,7 +50,7 @@ const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({ onClose
       <div className="pt-4 border-t border-slate-200 dark:border-zinc-700 flex justify-end">
         <button
           onClick={onClose}
-          className="px-5 py-2 text-sm font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-xl transition-colors"
+          className="px-5 py-2 text-sm font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-lg transition-colors"
         >
           Close
         </button>

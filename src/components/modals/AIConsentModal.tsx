@@ -27,7 +27,7 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
         <p>
           PracticePro {productName} uses specialized AI agents (ARIA, ALDIA, etc.) to assist with {isProperty ? 'property management, tenant screening, and document processing' : 'legal drafting, research, and data extraction'}.
         </p>
-        <div className="bg-slate-50 dark:bg-zinc-900 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 text-left">
+        <div className="bg-slate-50 dark:bg-zinc-900 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 text-left">
           <ul className="list-disc pl-5 space-y-2">
             <li><strong>Data Minimization:</strong> Only relevant data is processed by the AI.</li>
             <li><strong>No Model Training:</strong> Your private data is <strong>never</strong> used to train foundational AI models.</li>
@@ -43,13 +43,13 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
       <div className="flex gap-3">
         <button 
           onClick={onDecline}
-          className="flex-1 py-3 px-4 border border-slate-300 dark:border-zinc-700 rounded-xl font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors"
+          className="flex-1 py-3 px-4 border border-slate-300 dark:border-zinc-700 rounded-lg font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors"
         >
           Decline
         </button>
         <button 
           onClick={onAccept}
-          className="flex-1 py-3 px-4 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-md transition-colors"
+          className="flex-1 py-3 px-4 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 shadow-md transition-colors"
         >
           I Consent
         </button>

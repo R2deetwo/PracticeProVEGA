@@ -117,7 +117,7 @@ export const Settings: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
-                <div className="flex gap-1 mb-6 bg-white dark:bg-zinc-800 rounded-xl p-1 border border-slate-200 dark:border-zinc-700 overflow-x-auto custom-scrollbar">
+                <div className="flex gap-1 mb-6 bg-white dark:bg-zinc-800 rounded-lg p-1 border border-slate-200 dark:border-zinc-700 overflow-x-auto custom-scrollbar">
                     {TABS.map(t => (
                         <button
                             key={t.id}
@@ -202,7 +202,7 @@ export const Settings: React.FC = () => {
                                             setTheme(opt.id);
                                             addToast(`Theme: ${opt.label}`, { type: 'success' });
                                         }}
-                                        className={`relative p-3 rounded-xl border-2 transition-all text-left ${
+                                        className={`relative p-3 rounded-lg border-2 transition-all text-left ${
                                             theme === opt.id
                                                 ? 'border-primary-500 shadow-md'
                                                 : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'

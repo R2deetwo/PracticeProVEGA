@@ -384,19 +384,19 @@ export const BillingView: React.FC = () => {
             <div className="px-4 sm:px-6 lg:px-8">
                 {/* KPI Strip — unified across legal + property */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-800/30 shadow-sm">
+                    <div className="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-800/30 shadow-sm">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Collected</p>
                         <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{formatNaira(kpiData.collected)}</p>
                     </div>
-                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-800/30 shadow-sm">
+                    <div className="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-800/30 shadow-sm">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Outstanding</p>
                         <p className="text-lg font-black text-amber-600 dark:text-amber-400">{formatNaira(kpiData.outstanding)}</p>
                     </div>
-                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-800/30 shadow-sm">
+                    <div className="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-800/30 shadow-sm">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Defaults</p>
                         <p className="text-lg font-black text-rose-600 dark:text-rose-400">{kpiData.defaults}</p>
                     </div>
-                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm">
+                    <div className="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Invoices</p>
                         <p className="text-lg font-black text-slate-900 dark:text-white">{kpiData.invoiceCount}</p>
                     </div>

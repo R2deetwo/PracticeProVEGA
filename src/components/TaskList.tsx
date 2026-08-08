@@ -344,7 +344,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, users, matters, onViewDetail
     });
 
     return (
-        <div className="flex-grow flex flex-col min-h-0 shadow-sm sm:rounded-xl border-t sm:border border-slate-200 dark:border-zinc-700 overflow-hidden bg-slate-50 sm:bg-white dark:bg-zinc-900 sm:dark:bg-zinc-800">
+        <div className="flex-grow flex flex-col min-h-0 shadow-sm sm:rounded-lg border-t sm:border border-slate-200 dark:border-zinc-700 overflow-hidden bg-slate-50 sm:bg-white dark:bg-zinc-900 sm:dark:bg-zinc-800">
             {sortedTasks.length > 0 ? (
                 <div className="flex-grow overflow-auto custom-scrollbar">
                     <table className="min-w-[600px] w-full divide-y divide-slate-200 dark:divide-zinc-700">

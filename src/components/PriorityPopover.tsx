@@ -67,7 +67,7 @@ const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClo
         <div
             ref={popoverRef}
             style={{ position: 'fixed', top: `${position.top}px`, left: `${position.left}px`, opacity: position.opacity, transition: 'opacity 0.15s ease-in-out' }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1.5 min-w-[140px] z-[9999]"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-1.5 min-w-[140px] z-[9999]"
         >
             <div className="space-y-0.5">
                 {priorityOptions.map(option => (

@@ -156,7 +156,7 @@ const ContactSalesDrawer: React.FC<{
                             </p>
                             <button
                                 onClick={handleClose}
-                                className="mt-8 px-6 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                className="mt-8 px-6 py-2.5 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                             >
                                 Back to Browsing
                             </button>
@@ -177,7 +177,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.email}
                                         onChange={e => updateField('email', e.target.value)}
                                         placeholder="you@firm.com"
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.email && <p className="text-2xs text-red-500 mt-1">{errors.email}</p>}
@@ -196,7 +196,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.name}
                                         onChange={e => updateField('name', e.target.value)}
                                         placeholder="Full name"
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.name ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.name ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.name && <p className="text-2xs text-red-500 mt-1">{errors.name}</p>}
@@ -214,7 +214,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.companyName}
                                         onChange={e => updateField('companyName', e.target.value)}
                                         placeholder="Firm or company name"
-                                        className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                                        className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                                     />
                                 </div>
                             </div>
@@ -232,7 +232,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.message}
                                         onChange={e => updateField('message', e.target.value)}
                                         placeholder="Tell us about your firm's legal or property management operations..."
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.message ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.message ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.message && <p className="text-2xs text-red-500 mt-1">{errors.message}</p>}
@@ -240,7 +240,7 @@ const ContactSalesDrawer: React.FC<{
 
                             {/* Submit error */}
                             {errors.submit && (
-                                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+                                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
                                     <p className="text-xs text-red-600 dark:text-red-400">{errors.submit}</p>
                                 </div>
                             )}
@@ -254,7 +254,7 @@ const ContactSalesDrawer: React.FC<{
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="w-full py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-600/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-3 rounded-lg text-sm font-bold text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-600/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>

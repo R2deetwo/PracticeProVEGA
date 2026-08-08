@@ -82,7 +82,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
     // Active (non-dismissed) reminder banner
     if (reminder && !reminder.dismissed) {
         return (
-            <div className={`rounded-xl border p-3 ${
+            <div className={`rounded-lg border p-3 ${
                 isDue
                     ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                     : isSoon
@@ -153,7 +153,7 @@ const MatterReviewReminderPanel: React.FC<MatterReviewReminderProps> = ({ matter
                     {reminder?.dismissed ? 'Set new review reminder' : 'Set review reminder'}
                 </button>
             ) : (
-                <div className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
                     <div className="flex items-center justify-between">
                         <h4 className="text-xs font-bold text-slate-700 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
                             <ClockIcon className="w-3.5 h-3.5" /> Review Reminder

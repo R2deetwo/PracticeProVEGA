@@ -18,7 +18,7 @@ const FeedbackButton: React.FC = () => {
         <div className="mt-2">
             <button
                 onClick={() => openModal('feedback')}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 text-slate-600 dark:text-zinc-300 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700/60 transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 text-slate-600 dark:text-zinc-300 rounded-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700/60 transition-all"
                 aria-label="Provide feedback"
             >
                 <FeedbackIcon />

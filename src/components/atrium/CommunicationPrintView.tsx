@@ -117,13 +117,13 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2"
           >
             <PrinterIcon className="w-3.5 h-3.5" /> Print
           </button>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
             <XIcon className="w-5 h-5" />
           </button>
@@ -133,13 +133,13 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
       {/* Printable content */}
       <div
         ref={printRef}
-        className="print-content bg-white dark:bg-zinc-900 text-slate-900 w-full max-w-3xl mx-auto mt-16 mb-4 rounded-xl overflow-y-auto max-h-[calc(100dvh-5rem)] print:max-h-none print:rounded-none print:m-0 print:shadow-none shadow-2xl"
+        className="print-content bg-white dark:bg-zinc-900 text-slate-900 w-full max-w-3xl mx-auto mt-16 mb-4 rounded-lg overflow-y-auto max-h-[calc(100dvh-5rem)] print:max-h-none print:rounded-none print:m-0 print:shadow-none shadow-2xl"
       >
         {/* Letterhead */}
         <div className="print-letterhead border-b-2 border-slate-200 px-8 py-6 print:px-12 print:py-8">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight print:text-2xl">{firmName}</h1>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight print:text-2xl">{firmName}</h1>
               {firmAddress && <p className="text-xs text-slate-500 mt-0.5 print:text-sm">{firmAddress}</p>}
               <div className="flex gap-4 mt-1">
                 {firmPhone && <p className="text-2xs text-slate-400 print:text-xs">Tel: {firmPhone}</p>}

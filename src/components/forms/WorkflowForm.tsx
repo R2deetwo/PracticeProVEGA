@@ -162,7 +162,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Core Identity Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <PlusIcon className="w-3.5 h-3.5" />
@@ -205,7 +205,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                 </div>
 
                 {/* Stages Section */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                     <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-4">
                             <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
@@ -252,13 +252,13 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                     )}
                 </div>
                 <div className="flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 flex-1 sm:flex-none">
-                    <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+                    <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-lg sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                         Save {isSubCategoryMode ? 'Sub-category' : 'Workflow'}
                     </button>

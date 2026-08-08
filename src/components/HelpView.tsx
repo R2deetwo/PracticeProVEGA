@@ -209,7 +209,7 @@ const HelpView: React.FC = () => {
                 <div className="grid md:grid-cols-3 gap-6 mb-12">
                     <button
                         onClick={() => handleCardClick('getting-started')}
-                        className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
+                        className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-100 dark:border-blue-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
                     >
                         <div className="w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-200 mb-4 group-hover:scale-110 transition-transform">
                             <HelpCircleIcon className="w-6 h-6" />
@@ -220,7 +220,7 @@ const HelpView: React.FC = () => {
 
                     <button
                         onClick={() => handleCardClick('aloa-tips')}
-                        className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-xl border border-emerald-100 dark:border-emerald-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
+                        className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-lg border border-emerald-100 dark:border-emerald-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
                     >
                         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-200 mb-4 group-hover:scale-110 transition-transform">
                             <ZapIcon className="w-6 h-6" />
@@ -231,7 +231,7 @@ const HelpView: React.FC = () => {
 
                     <button
                         onClick={() => handleCardClick('draftpro-editor')}
-                        className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-xl border border-amber-100 dark:border-amber-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
+                        className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-lg border border-amber-100 dark:border-amber-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
                     >
                         <div className="w-12 h-12 bg-amber-100 dark:bg-amber-800 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-200 mb-4 group-hover:scale-110 transition-transform">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
@@ -241,7 +241,7 @@ const HelpView: React.FC = () => {
                     </button>
                 </div>
 
-                <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-6 sm:p-8">
+                <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-6 sm:p-8">
                     <Accordion>
                         <AccordionItem
                             id="getting-started"
@@ -738,7 +738,7 @@ const HelpView: React.FC = () => {
                             onToggle={() => handleSectionToggle('revenue-engine')}
                         >
                             <div className="space-y-6">
-                                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+                                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
                                     <h4 className="font-bold text-emerald-900 dark:text-emerald-100 mb-2 flex items-center gap-2 text-lg">
                                         <ShieldCheckIcon className="w-5 h-5" />
                                         The Philosophy of Atrium
@@ -749,13 +749,13 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div className="grid sm:grid-cols-2 gap-4">
-                                    <div className="p-4 border border-slate-200 dark:border-zinc-700 rounded-xl">
+                                    <div className="p-4 border border-slate-200 dark:border-zinc-700 rounded-lg">
                                         <h5 className="font-bold text-slate-900 dark:text-white mb-2">Immutable Ledger</h5>
                                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                                             Every rent collection and service charge payment is recorded in an immutable ledger with unique transaction hashes. This prevents record tampering and ensures audit-grade financial clarity for property owners.
                                         </p>
                                     </div>
-                                    <div className="p-4 border border-slate-200 dark:border-zinc-700 rounded-xl">
+                                    <div className="p-4 border border-slate-200 dark:border-zinc-700 rounded-lg">
                                         <h5 className="font-bold text-slate-900 dark:text-white mb-2">Defaulter Dashboard</h5>
                                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                                             Identify revenue at risk instantly. The dashboard highlights residents who have crossed the grace period, allowing managers to trigger recovery processes or restriction notices with one click.

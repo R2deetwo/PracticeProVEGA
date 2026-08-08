@@ -80,7 +80,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   <div className="flex flex-col h-full animate-fade-in" onKeyDown={handleKeyDown}>
    {/* Header — EXACT match to ConfirmDialog */}
    <div className="p-5 sm:p-6 flex items-start gap-4">
-    <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-rose-100 text-rose-600">
+    <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center bg-rose-100 text-rose-600">
      <AlertTriangle className="w-5 h-5" />
     </div>
     <div className="flex-1 min-w-0">
@@ -157,7 +157,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         placeholder="Enter your password to confirm..."
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        className="w-full px-4 py-2.5 text-sm border border-slate-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+        className="w-full px-4 py-2.5 text-sm border border-slate-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:border-transparent"
         autoComplete="off"
        />
       </div>
@@ -170,7 +170,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     <button
      type="button"
      onClick={onCancel}
-     className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors active:scale-[0.98]"
+     className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors active:scale-[0.98]"
     >
      Cancel
     </button>
@@ -178,7 +178,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
      <button
       type="button"
       onClick={() => onConfirmArchive()}
-      className="px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-colors active:scale-[0.98]"
+      className="px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-colors active:scale-[0.98]"
      >
       {archiveText}
      </button>
@@ -187,7 +187,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
      type="button"
      onClick={handlePrimaryAction}
      disabled={!isConfirmed}
-     className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-colors active:scale-[0.98] shadow-lg ${
+     className={`px-4 py-2.5 rounded-lg text-sm font-bold text-white transition-colors active:scale-[0.98] shadow-lg ${
       confirmButtonClass || 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
      } ${!isConfirmed ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
     >

@@ -89,7 +89,7 @@ const NavItemLink: React.FC<{
             data-tour-id={`nav-${item.view}`}
             aria-disabled={locked ? 'true' : undefined}
             className={`
-                group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-xl transition-all duration-200 relative
+                group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
                 ${locked ? 'opacity-60 cursor-not-allowed' : ''}
                 ${isActive
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-md shadow-slate-900/10 dark:shadow-white/10'
@@ -140,7 +140,7 @@ const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebar
         <button
             onClick={() => setView('atriumEngine', null)}
             className={`
-                group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-xl transition-all duration-200 relative
+                group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
                 ${isActive
                     ? 'bg-slate-900 text-white font-bold shadow-md shadow-slate-900/10'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
@@ -300,7 +300,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
                 {/* Workspace Dropdown */}
                 {isWorkspaceOpen && !isSidebarRetracted && canUseMultiFirm && (
-                    <div className="absolute top-full left-2 right-2 mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl rounded-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full left-2 right-2 mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl rounded-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="p-1 space-y-0.5 max-h-[60vh] overflow-y-auto custom-scrollbar">
                             <p className="px-3 py-2 text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Switch Workspace</p>
 

@@ -71,7 +71,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
               id="firmName"
               value={firmName}
               onChange={(e) => setFirmName(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm text-slate-900 dark:text-white"
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm text-slate-900 dark:text-white"
               placeholder={product === 'property' ? "e.g. Horizon Properties" : "e.g. Adeyemi & Co."}
               required
               autoFocus
@@ -84,13 +84,13 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
             What will you use PracticePro for?
           </label>
           <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => setProduct('legal')} className={`p-3 text-center border rounded-xl transition-all ${product === 'legal' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-1 ring-primary-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setProduct('legal')} className={`p-3 text-center border rounded-lg transition-all ${product === 'legal' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-1 ring-primary-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
               <div className="font-bold text-xs text-slate-900 dark:text-white">Vega (Legal)</div>
             </button>
-            <button type="button" onClick={() => setProduct('property')} className={`p-3 text-center border rounded-xl transition-all ${product === 'property' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setProduct('property')} className={`p-3 text-center border rounded-lg transition-all ${product === 'property' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
               <div className="font-bold text-xs text-slate-900 dark:text-white">Atrium (Property)</div>
             </button>
-            <button type="button" onClick={() => setProduct('unified')} className={`p-3 text-center border rounded-xl transition-all ${product === 'unified' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setProduct('unified')} className={`p-3 text-center border rounded-lg transition-all ${product === 'unified' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
               <div className="font-bold text-xs text-slate-900 dark:text-white">Unified</div>
             </button>
           </div>
@@ -100,14 +100,14 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
           <button 
             type="button" 
             onClick={onClose} 
-            className="px-4 py-2.5 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-xl font-bold text-sm transition-colors"
+            className="px-4 py-2.5 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-lg font-bold text-sm transition-colors"
           >
             Cancel
           </button>
           <button 
             type="submit" 
             disabled={!firmName.trim() || !product}
-            className="px-6 py-2.5 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="px-6 py-2.5 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             Activate Workspace
           </button>

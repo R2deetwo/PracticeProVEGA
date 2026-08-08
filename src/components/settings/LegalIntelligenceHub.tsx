@@ -72,7 +72,7 @@ const ModuleCard: React.FC<{ module: LegalModule }> = ({ module }) => {
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div className={`rounded-xl border transition-all ${
+        <div className={`rounded-lg border transition-all ${
             module.status === 'active'
                 ? 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60'
                 : module.status === 'locked'
@@ -201,7 +201,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                 </div>
                 <button 
                    onClick={() => setShowGrant(true)}
-                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-2xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95"
+                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-2xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-all shadow-md active:scale-95"
                 >
                     <PlusIcon className="w-3.5 h-3.5" /> Grant New License
                 </button>
@@ -213,7 +213,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                         <div className="space-y-1">
                             <label className="text-2xs font-black uppercase text-slate-400 tracking-wider mb-1 block">Firm Reference ID</label>
                             <input autoComplete="off" data-lpignore="true"  
-                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
                                 placeholder="e.g. k17..." 
                                 value={newLicense.targetFirmId}
                                 onChange={e => setNewLicense({...newLicense, targetFirmId: e.target.value})}
@@ -222,7 +222,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                         <div className="space-y-1">
                             <label className="text-2xs font-black uppercase text-slate-400 tracking-wider mb-1 block">Legal Rule Lib</label>
                             <select 
-                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                                 value={newLicense.moduleKey}
                                 onChange={e => setNewLicense({...newLicense, moduleKey: e.target.value})}
                             >
@@ -235,7 +235,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                         <div className="space-y-1">
                             <label className="text-2xs font-black uppercase text-slate-400 tracking-wider mb-1 block">License Plan</label>
                             <select 
-                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                                 value={newLicense.plan}
                                 onChange={e => setNewLicense({...newLicense, plan: e.target.value})}
                             >
@@ -247,7 +247,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <button onClick={() => setShowGrant(false)} className="text-xs px-4 py-2 font-bold text-slate-400 hover:text-slate-600 transition-colors">Cancel</button>
-                        <button onClick={handleGrant} className="text-xs px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">Enable License</button>
+                        <button onClick={handleGrant} className="text-xs px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">Enable License</button>
                     </div>
                 </div>
             )}
@@ -300,14 +300,14 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                                             {l.isActive ? (
                                                 <button 
                                                     onClick={() => revokeLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey })}
-                                                    className="text-3xs font-black text-rose-500/80 hover:text-rose-600 uppercase tracking-tighter hover:underline"
+                                                    className="text-3xs font-black text-rose-500/80 hover:text-rose-600 uppercase tracking-tight hover:underline"
                                                 >
                                                     Revoke
                                                 </button>
                                             ) : (
                                                 <button 
                                                     onClick={() => grantLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey, plan: l.plan })}
-                                                    className="text-3xs font-black text-emerald-600/80 hover:text-emerald-700 uppercase tracking-tighter hover:underline"
+                                                    className="text-3xs font-black text-emerald-600/80 hover:text-emerald-700 uppercase tracking-tight hover:underline"
                                                 >
                                                     Reactivate
                                                 </button>
@@ -377,7 +377,7 @@ const UsageLogsTab: React.FC = () => {
                                     </td>
                                     <td className="py-4 px-6 whitespace-nowrap">
                                         <div className="flex flex-col">
-                                            <span className="text-2xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">
+                                            <span className="text-2xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
                                                 {log.sourceType === 'module' ? 'ALOA Core' : log.sourceType.toUpperCase()}
                                             </span>
                                             <span className="text-3xs text-slate-400 dark:text-zinc-500 italic truncate max-w-[120px]">
@@ -506,7 +506,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
                         <button
                             key={tab.id}
                             onClick={() => setTopLevelTab(tab.id as any)}
-                            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all ${
+                            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold transition-all ${
                                 topLevelTab === tab.id
                                     ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-xl scale-105'
                                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'
@@ -528,7 +528,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
                     { label: 'Optional Add-ons', value: lockedCount, color: 'amber'   },
                     { label: 'In Development',   value: comingCount,  color: 'slate'   },
                 ].map(({ label, value, color }) => (
-                    <div key={label} className={`p-4 rounded-xl border ${
+                    <div key={label} className={`p-4 rounded-lg border ${
                         color === 'emerald' ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20' :
                         color === 'amber'   ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20' :
                         'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50'
@@ -582,7 +582,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
             )}
 
                     {/* Footer note */}
-                    <div className="flex items-start gap-2.5 p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                    <div className="flex items-start gap-2.5 p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
                         <InfoIcon className="w-4 h-4 text-slate-400 dark:text-zinc-500 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
                             All <strong className="text-slate-700 dark:text-zinc-300">Active</strong> modules are included in your Enterprise plan.

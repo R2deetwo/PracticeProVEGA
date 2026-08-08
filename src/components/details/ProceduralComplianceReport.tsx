@@ -30,7 +30,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
         }`}>
             <div className="flex items-center justify-between px-6 py-5">
                 <div className="flex items-center gap-5">
-                    <div className={`p-2.5 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
+                    <div className={`p-2.5 rounded-lg flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
                         criticalCount > 0 ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'
                     }`}>
                         <ZapIcon className="w-5 h-5 animate-pulse" />
@@ -49,7 +49,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                 </div>
                 <button 
                     onClick={() => setExpanded(!expanded)}
-                    className={`px-5 py-2.5 rounded-xl text-2xs font-black uppercase tracking-widest transition-all border shadow-sm ${
+                    className={`px-5 py-2.5 rounded-lg text-2xs font-black uppercase tracking-widest transition-all border shadow-sm ${
                         criticalCount > 0 
                             ? 'bg-rose-600 text-white border-rose-700 hover:bg-rose-700 hover:shadow-rose-500/30' 
                             : 'bg-primary-600 text-white border-primary-700 hover:bg-primary-700 hover:shadow-primary-500/30'
@@ -64,7 +64,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                     <div className="h-px bg-slate-200 dark:bg-zinc-700/50 mx-1 mb-6 opacity-50" />
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {warnings.map((w, i) => (
-                            <div key={i} className={`flex flex-col gap-3 p-4 rounded-xl transition-all border group/card hover:shadow-md ${
+                            <div key={i} className={`flex flex-col gap-3 p-4 rounded-lg transition-all border group/card hover:shadow-md ${
                                 w.severity === 'DONE'
                                     ? 'bg-emerald-600 dark:bg-emerald-600 border-emerald-500 shadow-emerald-500/20'
                                     : w.severity === 'CRITICAL'

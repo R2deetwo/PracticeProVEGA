@@ -247,7 +247,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     </div>
 
     {errorMsg && (
-     <div className={`p-4 text-sm rounded-xl border ${isLocked ? 'bg-red-600 border-red-700 text-white font-bold shadow-lg animate-pulse' : 'bg-red-50 text-red-600 border-red-100'} flex items-start gap-3`}>
+     <div className={`p-4 text-sm rounded-lg border ${isLocked ? 'bg-red-600 border-red-700 text-white font-bold shadow-lg animate-pulse' : 'bg-red-50 text-red-600 border-red-100'} flex items-start gap-3`}>
       {isLocked ? <WarningIcon className="w-5 h-5 shrink-0" /> : null}
       <div>{errorMsg}</div>
      </div>
@@ -271,7 +271,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
 
      {requiresMfa ? (
       <div className="space-y-4 animate-fade-in">
-       <div className="p-4 bg-primary-50 border border-primary-200 rounded-xl text-sm">
+       <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg text-sm">
         <p className="font-bold text-primary-900 flex items-center gap-2">
          <ShieldCheckIcon className="w-5 h-5 text-primary-500" /> Security Check
         </p>

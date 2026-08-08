@@ -76,7 +76,7 @@ const DocumentRow: React.FC<{
                         onViewDetails(doc.id);
                     }
                 }}
-                className={`flex items-start gap-2 p-3.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border min-h-[48px] ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
+                className={`flex items-start gap-2 p-3.5 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border min-h-[48px] ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
             >
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                     {/* Checkbox — visible in selection mode */}
@@ -112,7 +112,7 @@ const DocumentRow: React.FC<{
                             <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
                             {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
                             {doc.isCourtProcess && (
-                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
+                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
                                     doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
                                         doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
                                             'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
@@ -245,7 +245,7 @@ const DocumentRow: React.FC<{
                         <div className="p-3 border-t border-slate-100 dark:border-zinc-800">
                             <button
                                 onClick={() => setShowBottomSheet(false)}
-                                className="w-full py-3 text-sm font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                className="w-full py-3 text-sm font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                             >
                                 Cancel
                             </button>
@@ -276,7 +276,7 @@ const MatterGroup: React.FC<{
 
     return (
         <div className="mb-3">
-            <div className="flex items-center justify-between w-full p-3 rounded-xl border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors group">
+            <div className="flex items-center justify-between w-full p-3 rounded-lg border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors group">
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className="flex items-center gap-2 flex-grow text-left"

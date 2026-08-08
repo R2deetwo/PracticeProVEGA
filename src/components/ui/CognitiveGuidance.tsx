@@ -92,7 +92,7 @@ export const ContextualBanner: React.FC<ContextualBannerProps> = ({
     };
 
     return (
-        <div className={`flex items-start gap-3 p-3 rounded-xl border ${variantClasses[variant]} ${className}`}>
+        <div className={`flex items-start gap-3 p-3 rounded-lg border ${variantClasses[variant]} ${className}`}>
             <svg className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColor[variant]}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={icons[variant]} />
             </svg>

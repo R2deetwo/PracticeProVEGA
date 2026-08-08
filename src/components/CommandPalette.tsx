@@ -217,7 +217,7 @@ const CommandPalette: React.FC = () => {
         <div ref={paletteRef} role="dialog" aria-modal="true" aria-label="Command palette" className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] px-4">
             <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => setCommandPaletteOpen(false)} />
             
-            <div className="w-full max-w-2xl bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden relative z-10 flex flex-col max-h-[70vh] animate-slide-in-up">
+            <div className="w-full max-w-2xl bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden relative z-10 flex flex-col max-h-[70vh] animate-slide-in-up">
                 <div className="flex items-center p-4 border-b border-slate-200 dark:border-zinc-700">
                     <SearchIcon className="w-5 h-5 text-slate-400 mr-3" />
                     <input autoComplete="off" data-lpignore="true" 

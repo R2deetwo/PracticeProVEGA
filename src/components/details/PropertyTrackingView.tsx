@@ -384,7 +384,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                 {isLeased && (
                     <>
                         {/* Next Rent Due */}
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 relative overflow-hidden min-h-[88px]">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 relative overflow-hidden min-h-[88px]">
                             {!property.rentalDetails?.leaseStart && (
                                 <button
                                     onClick={() => { 
@@ -416,7 +416,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
 
                         {/* Days Left */}
                         <div
-                            className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 cursor-pointer hover:border-blue-300 transition-colors min-h-[88px]"
+                            className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 cursor-pointer hover:border-blue-300 transition-colors min-h-[88px]"
                             onClick={() => { 
                                 setAddType('lease_setup'); 
                                 setLocalRentAmount(formatNumberWithCommas(property.rentalDetails?.rentAmount || 0));
@@ -443,7 +443,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                         </div>
 
                         {/* Rent Review */}
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
                             <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-600 flex-shrink-0">
                                 <ClockIcon className="w-5 h-5" />
                             </div>
@@ -460,7 +460,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
 
                 {isSale && (
                     <>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
                             <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600 flex-shrink-0">
                                 <CurrencyDollarIcon className="w-5 h-5" />
                             </div>
@@ -471,7 +471,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 </p>
                             </div>
                         </div>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
                             <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 flex-shrink-0">
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
@@ -486,7 +486,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                 )}
 
                 {/* Maintenance — always shown */}
-                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
                     <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-600 flex-shrink-0">
                         <WrenchIcon className="w-5 h-5" />
                     </div>
@@ -500,7 +500,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex space-x-2 bg-slate-100 dark:bg-zinc-800/50 p-1 rounded-xl w-fit">
+            <div className="flex space-x-2 bg-slate-100 dark:bg-zinc-800/50 p-1 rounded-lg w-fit">
                 {(['timeline', 'rent', 'maintenance'] as const)
                     .filter(tab => isLeased || tab !== 'rent')
                     .map(tab => (
@@ -528,7 +528,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                             if (type === 'rent') setLocalPaymentAmount(formatNumberWithCommas(property.rentalDetails?.rentAmount));
                             setShowAddModal(true); 
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-primary-500/20 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-primary-500/20 transition-all"
                     >
                         <PlusIcon className="w-4 h-4" />
                         Add {activeSection === 'rent' ? 'Payment' : activeSection === 'maintenance' ? 'Request' : 'Event'}
@@ -642,9 +642,9 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
 
                                             <div className="space-y-3">
                                                 {items.map(record => (
-                                                    <div key={record.id} className="group p-3 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm hover:border-primary-500 transition-all">
+                                                    <div key={record.id} className="group p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm hover:border-primary-500 transition-all">
                                                         <div className="flex justify-between items-start mb-2">
-                                                            <div className={`px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-tighter ${
+                                                            <div className={`px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-tight ${
                                                                 record.priority === 'emergency' ? 'bg-red-500 text-white' :
                                                                 record.priority === 'high' ? 'bg-orange-500 text-white' :
                                                                 record.priority === 'medium' ? 'bg-blue-500 text-white' :
@@ -741,7 +741,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                 name="amount" 
                                                 value={localPaymentAmount}
                                                 onChange={e => setLocalPaymentAmount(formatNumberWithCommas(e.target.value))}
-                                                className="w-full pl-8 pr-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
+                                                className="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
                                                 required 
                                             />
                                         </div>
@@ -749,26 +749,26 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="dueDate" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
+                                            <input autoComplete="off" data-lpignore="true"  type="date" name="dueDate" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Paid Date</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="paidDate" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
+                                            <input autoComplete="off" data-lpignore="true"  type="date" name="paidDate" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">Period Start</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="periodStart" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
+                                            <input autoComplete="off" data-lpignore="true"  type="date" name="periodStart" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                         <div>
                                             <label className="block text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">Period End</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="periodEnd" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
+                                            <input autoComplete="off" data-lpignore="true"  type="date" name="periodEnd" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
-                                        <select name="method" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800">
+                                        <select name="method" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800">
                                             <option value="Transfer">Bank Transfer</option>
                                             <option value="Cash">Cash</option>
                                             <option value="Cheque">Cheque</option>
@@ -785,7 +785,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                         <select
                                             name="type"
                                             defaultValue="inspection"
-                                            className="w-full px-4 py-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all outline-none text-slate-900 dark:text-white font-bold"
+                                            className="w-full px-4 py-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 transition-all outline-none text-slate-900 dark:text-white font-bold"
                                         >
                                             <option value="inspection">Inspection</option>
                                             <option value="renewal">Lease Renewal</option>
@@ -800,14 +800,14 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                             type="date"
                                             name="date"
                                             defaultValue={today}
-                                            className="w-full px-4 py-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all outline-none text-slate-900 dark:text-white"
+                                            className="w-full px-4 py-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 transition-all outline-none text-slate-900 dark:text-white"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Description</label>
                                         <textarea
                                             name="description"
-                                            className="w-full px-4 py-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all outline-none text-slate-900 dark:text-white min-h-[100px]"
+                                            className="w-full px-4 py-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 transition-all outline-none text-slate-900 dark:text-white min-h-[100px]"
                                             placeholder="Details about this event..."
                                             required
                                         />
@@ -819,16 +819,16 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Issue Description</label>
-                                        <input autoComplete="off" data-lpignore="true"  type="text" name="issue" placeholder="e.g. Leaking roof" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
+                                        <input autoComplete="off" data-lpignore="true"  type="text" name="issue" placeholder="e.g. Leaking roof" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Date Reported</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
+                                            <input autoComplete="off" data-lpignore="true"  type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-                                            <select name="priority" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800">
+                                            <select name="priority" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800">
                                                 <option value="low">Low</option>
                                                 <option value="medium">Medium</option>
                                                 <option value="high">High</option>
@@ -840,7 +840,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                         <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Assign Vendor (Optional)</label>
                                         <select 
                                             name="vendorId" 
-                                            className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800"
+                                            className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800"
                                             onChange={(e) => {
                                                 const contact = matterState.contacts.find(c => c.id === e.target.value);
                                                 if (contact) {
@@ -862,7 +862,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Notes</label>
-                                        <textarea name="notes" placeholder="Additional details..." className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 h-24"></textarea>
+                                        <textarea name="notes" placeholder="Additional details..." className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 h-24"></textarea>
                                     </div>
                                 </>
                             )}
@@ -871,7 +871,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tenant Name</label>
-                                        <input autoComplete="off" data-lpignore="true"  type="text" name="tenantName" defaultValue={property.rentalDetails?.tenantName} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" />
+                                        <input autoComplete="off" data-lpignore="true"  type="text" name="tenantName" defaultValue={property.rentalDetails?.tenantName} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -881,7 +881,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                 name="rentAmount" 
                                                 value={localRentAmount}
                                                 onChange={e => setLocalRentAmount(formatNumberWithCommas(e.target.value))}
-                                                className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
+                                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
                                                 required 
                                             />
                                         </div>
@@ -891,7 +891,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                 name="rentFrequency" 
                                                 value={leaseFrequency}
                                                 onChange={e => handleLeaseFrequencyChange(e.target.value)}
-                                                className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800"
+                                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800"
                                             >
                                                 <option value="Annually">Annually</option>
                                                 <option value="Bi-Annually">Bi-Annually</option>
@@ -909,7 +909,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                 name="commencementDate" 
                                                 value={leaseStart}
                                                 onChange={e => handleLeaseStartChange(e.target.value)}
-                                                className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
+                                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
                                                 required 
                                             />
                                         </div>
@@ -921,7 +921,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                 name="terminationDate" 
                                                 value={leaseEnd}
                                                 onChange={e => setLeaseEnd(e.target.value)}
-                                                className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
+                                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
                                                 required 
                                             />
                                         </div>
@@ -929,7 +929,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 </>
                             )}
 
-                            <button type="submit" className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-primary-500/20">
+                            <button type="submit" className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold transition-colors shadow-lg shadow-primary-500/20">
                                 Save Records
                             </button>
                         </form>

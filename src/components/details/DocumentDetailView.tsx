@@ -113,7 +113,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     // Loading state for PDFs while preparation is happening
     if (isPdf && !blobUrl) {
         return (
-            <div className="w-full h-[80vh] min-h-[600px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg flex flex-col items-center justify-center border border-slate-200">
+            <div className="w-full h-[80vh] min-h-[600px] bg-white dark:bg-zinc-800 rounded-lg shadow-lg flex flex-col items-center justify-center border border-slate-200">
                 <div className="relative w-16 h-16 mb-4">
                     <div className="absolute inset-0 border-4 border-slate-100 dark:border-zinc-700 rounded-full"></div>
                     <div className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
@@ -125,7 +125,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
 
     if (activeUrl && isImage) {
         return (
-            <div className="flex justify-center bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 shadow-lg">
+            <div className="flex justify-center bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 shadow-lg">
                 <img src={activeUrl} alt={file.name} className="max-w-full max-h-[75vh] object-contain rounded" />
             </div>
         );
@@ -133,7 +133,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
 
     if (isPdf && blobUrl) {
         return (
-            <div className="flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 h-[80vh] min-h-[600px]">
+            <div className="flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-800 h-[80vh] min-h-[600px]">
                 <PdfViewer
                     fileUrl={blobUrl}
                     title={file.name}
@@ -153,7 +153,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
             <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-full mb-4"><DocumentIcon className="w-10 h-10 text-slate-400" /></div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{file.name}</h3>
             <p className="text-sm text-slate-500 mb-6">Preview unavailable for this format.</p>
-            <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
+            <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all">
                 <DownloadIcon className="w-5 h-5" /> Download for Full Access
             </a>
         </div>
@@ -199,7 +199,7 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
 
     if (loading) {
         return (
-            <div className="w-full min-h-[400px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg flex flex-col items-center justify-center border border-slate-200">
+            <div className="w-full min-h-[400px] bg-white dark:bg-zinc-800 rounded-lg shadow-lg flex flex-col items-center justify-center border border-slate-200">
                 <div className="relative w-12 h-12 mb-4">
                     <div className="absolute inset-0 border-4 border-slate-100 dark:border-zinc-700 rounded-full" />
                     <div className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin" />
@@ -215,7 +215,7 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
                 <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-full mb-4"><DocumentIcon className="w-10 h-10 text-slate-400" /></div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{file.name}</h3>
                 <p className="text-sm text-slate-500 mb-6">Preview unavailable: {error}</p>
-                <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
+                <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all">
                     <DownloadIcon className="w-5 h-5" /> Download for Full Access
                 </a>
             </div>
@@ -223,9 +223,9 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
     }
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-xl p-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-lg p-4 custom-scrollbar">
             <div
-                className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-slate-200 mx-auto"
+                className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-slate-200 mx-auto"
                 style={{ maxWidth: '210mm', minHeight: '297mm', padding: '25mm 25mm 25mm 25mm' }}
             >
                 <style>{`
@@ -334,7 +334,7 @@ const DocumentDetailViewContent: React.FC = () => {
                         {document.isCourtProcess && (
                             <div className="flex flex-col items-end">
                                 <span className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
-                                <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-xl p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
+                                <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
                                     <Tooltip text="Document is still being drafted">
                                         <button
                                             onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'draft' })}
@@ -372,7 +372,7 @@ const DocumentDetailViewContent: React.FC = () => {
                         )}
                         <div className="flex items-center gap-2">
                             <Tooltip text="Edit Document Metadata">
-                                <button onClick={() => openModal('editDocument', document.id)} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors"><EditIcon className="w-5 h-5" /></button>
+                                <button onClick={() => openModal('editDocument', document.id)} className="p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors"><EditIcon className="w-5 h-5" /></button>
                             </Tooltip>
                             {(document.content || document.file) && (
                                 <Tooltip text="Open in immersive full-screen reader">
@@ -381,14 +381,14 @@ const DocumentDetailViewContent: React.FC = () => {
                                             setActiveTab('details');
                                             setShowFullScreenPreview(true);
                                         }}
-                                        className="p-2.5 rounded-xl bg-slate-900 dark:bg-zinc-900 hover:bg-slate-700 dark:hover:bg-zinc-700 text-white transition-colors flex items-center justify-center"
+                                        className="p-2.5 rounded-lg bg-slate-900 dark:bg-zinc-900 hover:bg-slate-700 dark:hover:bg-zinc-700 text-white transition-colors flex items-center justify-center"
                                         aria-label="Full screen preview"
                                     >
                                         <ArrowsExpandIcon className="w-5 h-5" />
                                     </button>
                                 </Tooltip>
                             )}
-                            <button onClick={() => openModal('shareDocument', document.id)} className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-black shadow-lg shadow-primary-500/20 transition-all active:scale-95">Share</button>
+                            <button onClick={() => openModal('shareDocument', document.id)} className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-black shadow-lg shadow-primary-500/20 transition-all active:scale-95">Share</button>
                         </div>
                     </div>
                 )}
@@ -454,7 +454,7 @@ const DocumentDetailViewContent: React.FC = () => {
 
                                         return (
                                             <div key={step.id} className="relative">
-                                                <div className={`p-4 rounded-xl border-2 transition-all ${isCurrent ? `bg-${step.color}-50 dark:bg-${step.color}-900/20 border-${step.color}-500 shadow-md` :
+                                                <div className={`p-4 rounded-lg border-2 transition-all ${isCurrent ? `bg-${step.color}-50 dark:bg-${step.color}-900/20 border-${step.color}-500 shadow-md` :
                                                     isPast ? `bg-slate-50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-700 opacity-60` :
                                                         `bg-white dark:bg-zinc-800 border-dashed border-slate-200 dark:border-zinc-700`
                                                     }`}>
@@ -481,7 +481,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     })}
                                 </div>
 
-                                <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl border border-primary-100 dark:border-primary-800/50 flex items-start gap-3">
+                                <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-100 dark:border-primary-800/50 flex items-start gap-3">
                                     <SparklesIcon className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
                                     <div>
                                         <h6 className="text-xs font-bold text-primary-900 dark:text-primary-100 mb-1">{isProperty ? 'Manager Tip' : 'Litigation Lawyer Tip'}</h6>
@@ -513,7 +513,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     </p>
                                     <button
                                         onClick={handleRunAnalysis}
-                                        className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2 mx-auto"
+                                        className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2 mx-auto"
                                     >
                                         <SparklesIcon className="w-5 h-5" />
                                         {document.analysisState === 'failed' ? (isProperty ? 'Retry Analysis' : 'Retry ALDIA Analysis') : (isProperty ? 'Run Analysis' : 'Run ALDIA Analysis')}
@@ -554,19 +554,19 @@ const DocumentDetailViewContent: React.FC = () => {
                                                     <h4 className="font-bold">Key Intelligence & Metadata</h4>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-700">
+                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700">
                                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Contract Type</span>
                                                         <span className="text-slate-900 dark:text-white font-medium">{document.extractedMetadata?.contractType || 'Unspecified'}</span>
                                                     </div>
-                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-700">
+                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700">
                                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Governing Law</span>
                                                         <span className="text-slate-900 dark:text-white font-medium">{document.extractedMetadata?.governingLaw || 'Unspecified'}</span>
                                                     </div>
-                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-700">
+                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700">
                                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Effective Date</span>
                                                         <span className="text-slate-900 dark:text-white font-medium">{document.extractedMetadata?.effectiveDate || 'N/A'}</span>
                                                     </div>
-                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-700">
+                                                    <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700">
                                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Expiration Date</span>
                                                         <span className="text-slate-900 dark:text-white font-medium">{document.extractedMetadata?.expirationDate || 'N/A'}</span>
                                                     </div>
@@ -637,7 +637,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                                 </p>
                                                 <div className="flex items-center gap-1.5 py-1 px-3 bg-white dark:bg-zinc-800 rounded-full w-fit border border-green-100 dark:border-green-900">
                                                     <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className="text-2xs font-black uppercase text-green-600 tracking-tighter">Verified Agent</span>
+                                                    <span className="text-2xs font-black uppercase text-green-600 tracking-tight">Verified Agent</span>
                                                 </div>
                                             </section>
 

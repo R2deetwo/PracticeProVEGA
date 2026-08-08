@@ -87,7 +87,7 @@ const FirstRunWelcome: React.FC<{
       </div>
       <button
         onClick={() => { onCreateFirst(); onDismiss(); }}
-        className="mt-4 w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary-600/20 transition-all hover:-translate-y-0.5 active:scale-95"
+        className="mt-4 w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-widest rounded-lg shadow-lg shadow-primary-600/20 transition-all hover:-translate-y-0.5 active:scale-95"
       >
         {cta}
       </button>
@@ -225,7 +225,7 @@ const Dashboard: React.FC = () => {
         <div className="h-full overflow-y-auto custom-scrollbar scroll-smooth-ios bg-slate-50 dark:bg-zinc-900">
             <header className="sticky top-0 z-30 glass py-3 sm:py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0 pt-safe">
                 <div className="min-w-0">
-                    <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Overview</h2>
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Overview</h2>
                     <p className="text-2xs sm:text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
                         Good day, {currentUser.name?.split(' ')[0] || 'User'}.
                     </p>
@@ -295,7 +295,7 @@ const Dashboard: React.FC = () => {
                         {/* Column 1: Recent Matters / Properties */}
                         <div className="lg:col-span-1 h-auto min-h-[20rem] sm:min-h-[24rem] lg:h-[28rem] flex flex-col gap-2">
                             {isUnified && (
-                                <div className="flex border border-slate-200/60 dark:border-zinc-700/60 bg-white dark:bg-zinc-800 rounded-xl p-1 shadow-sm flex-shrink-0">
+                                <div className="flex border border-slate-200/60 dark:border-zinc-700/60 bg-white dark:bg-zinc-800 rounded-lg p-1 shadow-sm flex-shrink-0">
                                     <button
                                         onClick={() => setActiveUnifiedTab('matters')}
                                         className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-2xs sm:text-xs font-bold transition-all ${

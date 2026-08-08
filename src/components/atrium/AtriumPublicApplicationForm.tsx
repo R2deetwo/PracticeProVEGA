@@ -78,7 +78,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
     return (
         <div className="max-w-xl mx-auto mt-10 p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 rounded-xl">
+                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 rounded-lg">
                     <BuildingOfficeIcon className="w-6 h-6" />
                 </div>
                 <div>
@@ -162,7 +162,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? 'Submitting...' : 'Submit Application'}
                     </button>

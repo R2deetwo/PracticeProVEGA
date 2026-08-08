@@ -179,7 +179,7 @@ const ReportGenerator: React.FC = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
             <h3 className="text-xl font-bold mb-4">Generate Report</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div>
@@ -242,7 +242,7 @@ const ReportingView: React.FC = () => {
             case 'bi':
                 if (!canUseAdvancedReporting) {
                     return (
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-12 flex flex-col items-center justify-center text-center border border-slate-200 dark:border-zinc-700 animate-fade-in">
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-12 flex flex-col items-center justify-center text-center border border-slate-200 dark:border-zinc-700 animate-fade-in">
                             <div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-full mb-4">
                                 <LockClosedIcon className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                             </div>
@@ -316,7 +316,7 @@ const ReportingView: React.FC = () => {
                     canUseReportGenerator ? (
                         <ReportGenerator />
                     ) : (
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-12 flex flex-col items-center justify-center text-center border border-slate-200 dark:border-zinc-700 animate-fade-in">
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-12 flex flex-col items-center justify-center text-center border border-slate-200 dark:border-zinc-700 animate-fade-in">
                             <div className="p-4 bg-amber-100 dark:bg-amber-900/30 rounded-full mb-4">
                                 <LockClosedIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                             </div>

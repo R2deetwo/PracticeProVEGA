@@ -6,7 +6,7 @@ import { useProduct } from '../../contexts/ProductContext';
 import { getAssistantName } from '../../utils/assistantIdentity';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -149,7 +149,7 @@ export const HelpSettings: React.FC = () => {
 
                         <AccordionItem title={isProperty ? "Residents' Portal Guide" : "Client Portal Guide"}>
                             <div className="space-y-6">
-                                <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-xl">
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-lg">
                                     <h4 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
                                         <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-2xs uppercase tracking-wider">Portal</span>
                                         {isProperty ? "Residents' Portal Overview" : 'Client Portal Overview'}
@@ -374,7 +374,7 @@ export const HelpSettings: React.FC = () => {
 
                         <AccordionItem title="Beta Features & Feedback" defaultOpen={false}>
                             <div className="space-y-6">
-                                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl">
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg">
                                     <h4 className="font-bold text-lg text-amber-800 dark:text-amber-400 flex items-center gap-2">
                                         <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-2xs uppercase tracking-wider">Beta</span>
                                         What is a Beta Feature?
@@ -413,7 +413,7 @@ export const HelpSettings: React.FC = () => {
                     <div className="flex flex-col sm:flex-row gap-3">
                         <a
                             href="mailto:practiceprosystems@gmail.com?subject=PracticePro%20Support%20Request"
-                            className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-all shadow-sm"
+                            className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 transition-all shadow-sm"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -422,7 +422,7 @@ export const HelpSettings: React.FC = () => {
                         </a>
                         <button
                             onClick={() => { resetTour(); addToast("App tour has been reset.", { type: 'success' }); }}
-                            className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
+                            className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />

@@ -337,7 +337,7 @@ const InviteForm: React.FC<{
     : 'Invite a client to access their matters, documents, messages, and billing.';
 
   return (
-    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-6">
+    <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -607,8 +607,8 @@ const InviteList: React.FC<{
 
       {/* Invitations List */}
       {filteredInvites.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 text-center">
-          <div className="w-10 h-10 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-2">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 text-center">
+          <div className="w-10 h-10 mx-auto rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-2">
             <MailIcon className="w-5 h-5 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">
@@ -630,7 +630,7 @@ const InviteList: React.FC<{
             return (
               <div
                 key={invite._id}
-                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+                className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
               >
                 {/* Avatar + Info */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -768,7 +768,7 @@ const PortalSection: React.FC<{
   // ── Plan gate ──
   if (!canUsePortal) {
     return (
-      <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+      <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
         <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-4">
           <LockClosedIcon className="w-7 h-7 text-amber-500" />
         </div>
@@ -1127,7 +1127,7 @@ export const PortalAccessSettings: React.FC = () => {
           <div className="h-4 w-72 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
         </div>
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+          <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-700" />
               <div className="flex-1 space-y-2">
@@ -1170,7 +1170,7 @@ export const PortalAccessSettings: React.FC = () => {
         </div>
 
         {/* Portal Settings Card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 p-5">
           <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Portal Settings</h3>
           <div className="space-y-4">
             {/* Resident Messaging Toggle */}
@@ -1387,7 +1387,7 @@ export const PortalAccessSettings: React.FC = () => {
       />
 
       {/* Portal Settings Card */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 p-5">
         <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Portal Settings</h3>
         <div className="space-y-4">
           {/* Resident Messaging Toggle */}
@@ -1463,7 +1463,7 @@ const PortalUsersList: React.FC<{ coreState: any }> = ({ coreState }) => {
 
   if (portalUsers.length === 0) {
     return (
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 p-5">
         <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Active Portal Users</h3>
         <p className="text-xs text-slate-400 dark:text-zinc-500">No portal users have accepted invitations yet. Invite {coreState.firmDetails?.product === 'atrium' ? 'residents' : 'clients'} using the invitation form above.</p>
       </div>
@@ -1471,7 +1471,7 @@ const PortalUsersList: React.FC<{ coreState: any }> = ({ coreState }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+    <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 p-5">
       <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Active Portal Users ({portalUsers.length})</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -1510,7 +1510,7 @@ const PortalUsersList: React.FC<{ coreState: any }> = ({ coreState }) => {
 
 // ─── Security Notice ────────────────────────────────────────────────────────
 const SecurityNotice: React.FC<{ isProperty: boolean; isUnified: boolean }> = ({ isProperty, isUnified }) => (
-  <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4">
+  <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-lg p-4">
     <div className="flex items-start gap-3">
       <ShieldCheckIcon className="w-5 h-5 text-slate-400 dark:text-zinc-500 flex-shrink-0 mt-0.5" />
       <div>

@@ -159,7 +159,7 @@ const COURT_OPTIONS: { court: CourtType; label: string }[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 const inputCls =
-    'w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-primary-400/60 focus:border-primary-400 dark:focus:border-primary-500 outline-none transition-all';
+    'w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-primary-400/60 focus:border-primary-400 dark:focus:border-primary-500 outline-none transition-all';
 const selectCls = `${inputCls} cursor-pointer`;
 const labelCls = 'block text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] mb-1.5 ml-0.5';
 
@@ -215,7 +215,7 @@ const Screen0: React.FC<{
                                 key={action}
                                 type="button"
                                 onClick={() => onChange({ legalAction: action, jurisdiction: undefined, selectedState: undefined })}
-                                className={`relative p-3 rounded-xl border text-left transition-all duration-150 ${
+                                className={`relative p-3 rounded-lg border text-left transition-all duration-150 ${
                                     isSelected
                                         ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40 shadow-sm shadow-primary-200 dark:shadow-none'
                                         : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-slate-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800'
@@ -273,7 +273,7 @@ const Screen0: React.FC<{
                                     <button
                                         type="button"
                                         onClick={() => onChange({ jurisdiction: court, selectedState: court === CourtType.StateHighCourt ? data.selectedState : undefined })}
-                                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all duration-150 ${
+                                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-sm transition-all duration-150 ${
                                             isSelected
                                                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40'
                                                 : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-slate-300 dark:hover:border-zinc-600'
@@ -313,7 +313,7 @@ const Screen0: React.FC<{
                                                             key={state}
                                                             type="button"
                                                             onClick={() => onChange({ selectedState: state })}
-                                                            className={`flex items-center justify-between px-3 py-2 rounded-xl border text-2xs font-semibold transition-all shadow-sm ${
+                                                            className={`flex items-center justify-between px-3 py-2 rounded-lg border text-2xs font-semibold transition-all shadow-sm ${
                                                                 stateSelected
                                                                     ? 'border-primary-500 bg-primary-100/50 dark:bg-primary-900/40 text-primary-900 dark:text-white shadow-primary-100 dark:shadow-none'
                                                                     : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 text-slate-600 dark:text-zinc-400 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
@@ -439,7 +439,7 @@ const HINT_COLORS: Record<AloaHint['type'], string> = {
 };
 
 const AloaHintBubble: React.FC<{ hint: AloaHint; onDismiss: () => void }> = ({ hint, onDismiss }) => (
-    <div className={`flex gap-2.5 p-3 rounded-xl border text-2xs leading-relaxed font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${HINT_COLORS[hint.type]}`}>
+    <div className={`flex gap-2.5 p-3 rounded-lg border text-2xs leading-relaxed font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${HINT_COLORS[hint.type]}`}>
         <span className="text-base flex-shrink-0 mt-px">{hint.icon}</span>
         <div className="flex-1 min-w-0">
             <span className="text-3xs font-black uppercase tracking-widest opacity-60 block mb-0.5">ARIA Insight</span>
@@ -573,14 +573,14 @@ const Screen1: React.FC<{
             </div>
             
             {data[side].length === 0 && (
-                <div className="py-4 text-center text-2xs uppercase font-bold tracking-[0.1em] text-slate-400 dark:text-zinc-500 border border-dashed border-slate-300/60 dark:border-zinc-700/60 rounded-xl">
+                <div className="py-4 text-center text-2xs uppercase font-bold tracking-[0.1em] text-slate-400 dark:text-zinc-500 border border-dashed border-slate-300/60 dark:border-zinc-700/60 rounded-lg">
                     No {roleLabel.toLowerCase()}s added
                 </div>
             )}
             
             <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                 {data[side].map((p, idx) => (
-                    <div key={p.id} className="flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 border border-slate-200/50 dark:border-zinc-700 rounded-xl shadow-sm relative group animate-in slide-in-from-top-2 duration-300">
+                    <div key={p.id} className="flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 border border-slate-200/50 dark:border-zinc-700 rounded-lg shadow-sm relative group animate-in slide-in-from-top-2 duration-300">
                         <div className="flex gap-2 items-start">
                             <span className="text-2xs font-black text-slate-200 dark:text-zinc-700 w-4 mt-2.5 flex-shrink-0">{idx+1}.</span>
                             <div className="flex-1 min-w-0 space-y-2">
@@ -700,7 +700,7 @@ const Screen1: React.FC<{
 
             {/* Firm's Role & Primary Client */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 flex flex-col">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col">
                     <p className="text-2xs font-bold text-slate-500 uppercase mb-2 tracking-[0.1em]">Firm is representing:</p>
                     <div className="flex gap-2 mb-3">
                         {['Claimant', 'Defendant'].map(r => (
@@ -786,7 +786,7 @@ const Screen1: React.FC<{
                         </button>
                     </div>
                     {data.isCreatingNewClient ? (
-                        <div className="space-y-2 p-3 bg-primary-50 dark:bg-primary-900/30/50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/50 rounded-xl">
+                        <div className="space-y-2 p-3 bg-primary-50 dark:bg-primary-900/30/50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/50 rounded-lg">
                             <input autoComplete="off" data-lpignore="true"  
                                 className={`${inputCls} !py-2 text-xs`} 
                                 placeholder="Full Name or Company Name" 
@@ -930,7 +930,7 @@ const Screen2: React.FC<{
                                 key={u.id}
                                 type="button"
                                 onClick={() => toggle(u.id)}
-                                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border text-sm transition-all ${
                                     isSelected
                                         ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-950/40'
                                         : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-slate-300 dark:hover:border-zinc-600'
@@ -1035,7 +1035,7 @@ const Screen3: React.FC<{
 
             {/* Module status */}
             {activeModule && (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
                     <ShieldCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                     <div className="min-w-0">
                         <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{activeModule.name}</p>
@@ -1093,7 +1093,7 @@ const Screen3: React.FC<{
 
             {/* Warning if no module */}
             {data.legalAction && data.jurisdiction && !activeModule && (
-                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                     <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-px" />
                     <p className="text-xs text-amber-700 dark:text-amber-400">
                         No specific rules module is active for this court. Generic guidance will apply.
@@ -1298,7 +1298,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                            className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                         >
                             <XIcon className="w-4 h-4" />
                         </button>
@@ -1350,7 +1350,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                     <button
                         type="button"
                         onClick={() => screen === 0 ? onClose() : setScreen(s => s - 1)}
-                        className="px-5 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 hover:text-slate-800 dark:hover:text-white transition-all"
+                        className="px-5 py-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 hover:text-slate-800 dark:hover:text-white transition-all"
                     >
                         {screen === 0 ? 'Cancel' : '← Back'}
                     </button>
@@ -1375,7 +1375,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                             type="button"
                             onClick={() => setScreen(s => s + 1)}
                             disabled={!canProceed()}
-                            className="px-5 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                            className="px-5 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
                         >
                             Continue →
                         </button>
@@ -1385,7 +1385,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                                 type="button"
                                 onClick={() => handleSubmit(false)}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-sm font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-60 border border-slate-200 dark:border-zinc-700 transition-all shadow-sm"
+                                className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-sm font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-60 border border-slate-200 dark:border-zinc-700 transition-all shadow-sm"
                             >
                                 {isSubmitting ? 'Saving…' : 'Save & Close'}
                             </button>
@@ -1393,7 +1393,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                                 type="button"
                                 onClick={() => handleSubmit(true)}
                                 disabled={isSubmitting}
-                                className="px-5 py-2 rounded-xl bg-primary-600 text-white text-sm font-bold hover:bg-primary-500 disabled:opacity-60 transition-all shadow-sm flex items-center gap-2"
+                                className="px-5 py-2 rounded-lg bg-primary-600 text-white text-sm font-bold hover:bg-primary-500 disabled:opacity-60 transition-all shadow-sm flex items-center gap-2"
                             >
                                 <SparklesIcon className="w-4 h-4" />
                                 {isSubmitting ? 'Creating…' : 'Begin Drafting Lab'}

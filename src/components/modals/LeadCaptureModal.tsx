@@ -55,7 +55,7 @@ const LeadCaptureModal: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl mb-4">
+        <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg mb-4">
           <button
             type="button"
             onClick={() => setSelectedProduct('vega')}
@@ -87,7 +87,7 @@ const LeadCaptureModal: React.FC = () => {
           />
         </div>
 
-        <div className="bg-slate-100 dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-start gap-3">
+        <div className="bg-slate-100 dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 flex items-start gap-3">
           <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           </div>

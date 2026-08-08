@@ -123,7 +123,7 @@ const TypeRow: React.FC<{
   };
 
   return (
-    <div className={`rounded-xl border ${isActive ? 'border-slate-200 dark:border-zinc-700' : 'border-slate-200 dark:border-zinc-700 opacity-60'} bg-white dark:bg-zinc-900 overflow-hidden`}>
+    <div className={`rounded-lg border ${isActive ? 'border-slate-200 dark:border-zinc-700' : 'border-slate-200 dark:border-zinc-700 opacity-60'} bg-white dark:bg-zinc-900 overflow-hidden`}>
       <div className="flex items-center gap-3 p-3">
         <span className="text-2xl flex-shrink-0 w-10 text-center">{icon || '📋'}</span>
         <div className="flex-1 min-w-0">
@@ -324,7 +324,7 @@ const NewTypeForm: React.FC<{
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full px-4 py-2.5 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-semibold text-slate-500 dark:text-zinc-400 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors inline-flex items-center justify-center gap-2"
+        className="w-full px-4 py-2.5 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-semibold text-slate-500 dark:text-zinc-400 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors inline-flex items-center justify-center gap-2"
       >
         <PlusIcon className="w-4 h-4" />
         Add Custom Request Type
@@ -333,7 +333,7 @@ const NewTypeForm: React.FC<{
   }
 
   return (
-    <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-900/10 p-4 space-y-3">
+    <div className="rounded-lg border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-900/10 p-4 space-y-3">
       <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">New Request Type</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
@@ -477,7 +477,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
   const portalIcon = portalType === 'resident' ? '🏠' : '⚖️';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
       {/* Summary header — always visible. Click to expand/collapse. */}
       <button
         onClick={() => setIsExpanded(e => !e)}

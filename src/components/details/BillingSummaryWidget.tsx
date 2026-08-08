@@ -119,7 +119,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
                             <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{timeEntries.length}</span>
                         </h4>
                     </div>
-                    <div className="flex-grow bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden flex flex-col shadow-sm min-h-[300px]">
+                    <div className="flex-grow bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden flex flex-col shadow-sm min-h-[300px]">
                         {timeEntries.length > 0 ? (
                             <div className="max-h-96 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                                 {timeEntries.map(entry => (
@@ -161,7 +161,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
                             <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{expenses.length}</span>
                         </h4>
                     </div>
-                    <div className="flex-grow bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden flex flex-col shadow-sm min-h-[300px]">
+                    <div className="flex-grow bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden flex flex-col shadow-sm min-h-[300px]">
                         {expenses.length > 0 ? (
                             <div className="max-h-96 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                                 {expenses.map(expense => (
@@ -204,7 +204,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
                         <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{matterInvoices.length}</span>
                     </h4>
                 </div>
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm">
                     {matterInvoices.length > 0 ? (
                         <div className="max-h-80 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                             {matterInvoices.map(invoice => (

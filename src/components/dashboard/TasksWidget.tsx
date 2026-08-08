@@ -108,13 +108,13 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
           <div className="flex bg-slate-200/50 dark:bg-zinc-800/50 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700">
             <button 
                 onClick={() => setViewType('due')}
-                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tight rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
             >
                 Due
             </button>
             <button 
                 onClick={() => setViewType('matter')}
-                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tight rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
             >
                 Matter
             </button>
@@ -183,7 +183,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                               >
                                   <span className="text-[11.5px] font-bold text-slate-700 dark:text-zinc-300 truncate group-hover/item:text-primary-600 dark:group-hover/item:text-primary-400 transition-colors uppercase tracking-tight">{task.title}</span>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <span className={`text-3xs font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${task.priority === 'High' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500'}`}>
+                                    <span className={`text-3xs font-black uppercase tracking-tight px-1.5 py-0.5 rounded ${task.priority === 'High' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500'}`}>
                                       {task.priority || 'Medium'}
                                     </span>
                                   </div>

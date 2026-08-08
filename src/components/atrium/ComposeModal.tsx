@@ -756,7 +756,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Message Type</label>
-                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400">
+                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400">
                   <optgroup label="Standard" className="bg-white dark:bg-zinc-900">
                     {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </optgroup>
@@ -784,7 +784,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                         onClick={() => waAllowed && setChannel(ch)}
                         disabled={!waAllowed}
                         title={!waAllowed ? 'WhatsApp requires Growth plan or above' : undefined}
-                        className={`relative flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                        className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
                           !waAllowed
                             ? 'bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
                             : channel === ch 
@@ -819,7 +819,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
               {/* Chip area + search input */}
               <div 
-                className="min-h-[42px] bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-2 py-1.5 flex flex-wrap gap-1.5 items-center cursor-text focus-within:ring-2 focus-within:ring-primary-500/30"
+                className="min-h-[42px] bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2 py-1.5 flex flex-wrap gap-1.5 items-center cursor-text focus-within:ring-2 focus-within:ring-primary-500/30"
                 onClick={() => setShowRecipientDropdown(true)}
               >
                 {selectedRecipients.map(r => (
@@ -842,7 +842,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
               {/* Dropdown list — with recipient type tabs */}
               {showRecipientDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl max-h-80 overflow-hidden flex flex-col">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-lg shadow-2xl max-h-80 overflow-hidden flex flex-col">
                   {/* Recipient type tabs — product-aware.
                       Pure legal (Vega): hide Residents tab entirely.
                       Pure property (Atrium): hide Clients tab entirely.
@@ -1048,7 +1048,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             </div>
 
             {/* ── Financial Details (collapsible) ────────────────────── */}
-            <div className="border border-slate-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+            <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
               <button
                 onClick={() => setShowFinancials(!showFinancials)}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors"
@@ -1105,25 +1105,25 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 value={customText} 
                 onChange={e => { setCustomText(e.target.value); setIsEdited(true); }} 
                 rows={7}
-                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-3 text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder:text-slate-400 leading-relaxed resize-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-3 text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder:text-slate-400 leading-relaxed resize-none"
                 placeholder="Type your message here..."
               />
             </div>
 
             {/* ── Action Buttons ──────────────────────────────────────── */}
             <div className="flex gap-3 pt-2">
-              <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-xl text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
+              <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
               <button 
                 onClick={() => setStep('preview')} 
                 disabled={selectedRecipients.length === 0} 
-                className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-500 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
               >
                 <EyeIcon /> Preview {isMultiRecipient ? `(${selectedRecipients.length})` : ''}
               </button>
             </div>
 
             {/* ── Upcoming Messages Panel ─────────────────────────────── */}
-            <div className="border border-slate-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+            <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
               <button
                 onClick={() => setShowUpcoming(!showUpcoming)}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors"
@@ -1176,7 +1176,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           <div className="p-4 sm:p-5 overflow-y-auto flex-1">
             {/* Recipients summary for multi-send */}
             {isMultiRecipient && (
-              <div className="mb-3 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/10 border border-primary-200 dark:border-primary-700/30">
+              <div className="mb-3 p-3 rounded-lg bg-primary-50 dark:bg-primary-900/10 border border-primary-200 dark:border-primary-700/30">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                   <span className="text-sm font-bold text-slate-900 dark:text-white">Sending to {selectedRecipients.length} recipients</span>
@@ -1194,7 +1194,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             {/* Message preview(s) */}
             {!isMultiRecipient ? (
               /* Single recipient — show full message */
-              <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 mb-4">
+              <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-lg">{MSG_TYPE_ICONS[msgType]}</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
@@ -1206,7 +1206,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               /* Multiple recipients — show first full + count */
               <div className="space-y-2 mb-4">
                 {previewMessages.slice(0, 3).map((pm, i) => (
-                  <div key={pm.recipient.id} className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3">
+                  <div key={pm.recipient.id} className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
                       <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium">{pm.recipient.label}</span>
@@ -1228,8 +1228,8 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               <ZapIcon className="w-3 h-3" /> Review message carefully before sending. Logs are always recorded.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-xl text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">← Edit</button>
-              <button onClick={handleSend} disabled={loading} className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+              <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">← Edit</button>
+              <button onClick={handleSend} disabled={loading} className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                 <SendIcon /> {loading ? 'Sending…' : `Confirm & Send${isMultiRecipient ? ` (${selectedRecipients.length})` : ''}`}
               </button>
             </div>

@@ -67,14 +67,14 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ document
 
     return (
         <div 
-            className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 relative"
+            className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 relative"
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
             onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
             onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
             onDrop={handleDrop}
         >
             {isDragging && (
-                <div className="absolute inset-0 bg-primary-500/20 border-4 border-dashed border-primary-500 rounded-xl flex items-center justify-center z-10 pointer-events-none">
+                <div className="absolute inset-0 bg-primary-500/20 border-4 border-dashed border-primary-500 rounded-lg flex items-center justify-center z-10 pointer-events-none">
                     <div className="text-center text-primary-600 font-bold text-xl"><UploadIcon className="w-12 h-12 mx-auto" /><p>Drop to Upload</p></div>
                 </div>
             )}

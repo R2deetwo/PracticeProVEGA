@@ -118,8 +118,8 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ fir
             <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="Optional note..." />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
               {loading ? 'Saving...' : 'Add Charge'}
             </button>
           </div>
@@ -158,8 +158,8 @@ const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: (
           <p className="text-2xl font-black text-rose-400 my-4">₦{penalty.toLocaleString('en-NG')}</p>
           <p className="text-slate-600 text-xs mb-6">Category: {charge.category} · Overdue: {charge.daysOverdue ?? 0} days</p>
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
-            <button onClick={handleApply} disabled={loading} className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-500 transition-colors disabled:opacity-50">
+            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button onClick={handleApply} disabled={loading} className="flex-1 py-2.5 bg-rose-600 text-white rounded-lg text-sm font-bold hover:bg-rose-500 transition-colors disabled:opacity-50">
               {loading ? 'Applying...' : 'Apply Penalty'}
             </button>
           </div>
@@ -184,7 +184,7 @@ const ChargeRow: React.FC<{
   const isPartial = charge.serviceChargeStatus === 'PARTIALLY_PAID';
   const isPaidFully = charge.serviceChargeStatus === 'PAID_FULLY';
   return (
-    <div className={`relative flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 border rounded-xl transition-all ${
+    <div className={`relative flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 border rounded-lg transition-all ${
       isPaidFully ? 'bg-emerald-950/20 border-emerald-800/40' :
       isCritical ? 'bg-rose-950/30 border-rose-800/60 shadow-rose-900/10 shadow-md' :
       isPartial ? 'bg-amber-950/20 border-amber-800/40' :
@@ -344,29 +344,29 @@ const ServiceChargeMonitor: React.FC = () => {
       <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-white tracking-tight">Service Charge Monitor</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">Service Charge Monitor</h2>
             {critical.length > 0 && <span className="flex items-center gap-1 text-2xs font-bold bg-rose-900/50 text-rose-400 px-2 py-0.5 rounded-full border border-rose-800 animate-pulse"><AlertIcon className="w-3 h-3" />{critical.length} CRITICAL</span>}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">Automated defaulter tracking & enforcement</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-colors sm:w-auto w-full">
+        <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
           <PlusIcon /> Add Charge
         </button>
       </div>
 
       {/* Revenue at Risk Widget */}
       <div className="flex-shrink-0 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 px-4 sm:px-6 py-4">
-        <div className="bg-rose-950/40 border border-rose-800/50 rounded-xl p-4">
+        <div className="bg-rose-950/40 border border-rose-800/50 rounded-lg p-4">
           <p className="text-xs text-rose-400 uppercase tracking-wider font-bold mb-1">Revenue at Risk</p>
           <p className="text-2xl sm:text-3xl font-black text-rose-300">₦{formatLargeNumber(revenueAtRisk)}</p>
           <p className="text-2xs text-rose-700 mt-1">{defaulters.length} defaulting units</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Critical Defaults</p>
           <p className="text-2xl sm:text-3xl font-black text-rose-400">{critical.length}</p>
           <p className="text-2xs text-slate-600 mt-1">&gt;14 days overdue</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Active Charges</p>
           <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(allCharges || []).filter(c => !c.isDefaulter).length}</p>
           <p className="text-2xs text-slate-600 mt-1">on-time payments</p>
@@ -386,7 +386,7 @@ const ServiceChargeMonitor: React.FC = () => {
       {/* Charges List */}
       <div className="flex-1 sm:overflow-y-auto px-4 sm:px-6 pb-44 sm:pb-6 space-y-2 custom-scrollbar scroll-smooth-ios">
         {!allCharges ? (
-          [...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-900 rounded-xl animate-pulse" />)
+          [...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-900 rounded-lg animate-pulse" />)
         ) : charges.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-600">
             <CheckIcon className="w-8 h-8 mb-2 text-emerald-600" />
@@ -439,7 +439,7 @@ const ServiceChargeMonitor: React.FC = () => {
                     type="text"
                     value={partialAmount}
                     onChange={e => setPartialAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 pl-8 text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 pl-8 text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     placeholder="Enter amount received"
                     autoFocus
                   />
@@ -453,14 +453,14 @@ const ServiceChargeMonitor: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => setPartialPaymentCharge(null)}
-                  className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-700 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handlePartialPayment}
                   disabled={!partialAmount || parseFloat(partialAmount) <= 0}
-                  className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Record Payment
                 </button>

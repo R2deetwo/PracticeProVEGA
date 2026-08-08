@@ -185,7 +185,7 @@ export const ConfirmDialogComponent: React.FC<{
       >
         {/* Header */}
         <div className="p-5 sm:p-6 flex items-start gap-4">
-          <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
+          <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
             danger
               ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
               : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
@@ -222,14 +222,14 @@ export const ConfirmDialogComponent: React.FC<{
         <div className="px-5 sm:px-6 py-4 bg-slate-50 dark:bg-zinc-950/50 border-t border-slate-200 dark:border-zinc-800 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98]"
+            className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98]"
           >
             {cancelLabel || 'Cancel'}
           </button>
           <button
             onClick={onConfirm}
             autoFocus
-            className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-colors active:scale-[0.98] ${
+            className={`px-4 py-2.5 rounded-lg text-sm font-bold text-white transition-colors active:scale-[0.98] ${
               danger
                 ? 'bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/20'
                 : 'bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20'

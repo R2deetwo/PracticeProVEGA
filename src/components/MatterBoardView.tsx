@@ -96,7 +96,7 @@ const MatterColumn: React.FC<{
     onViewDetails: (id: string) => void;
 }> = ({ stage, matters, workflow, contacts, onViewDetails }) => {
     return (
-        <div className="flex flex-col w-80 flex-shrink-0 bg-slate-100 dark:bg-zinc-800 rounded-xl p-2">
+        <div className="flex flex-col w-80 flex-shrink-0 bg-slate-100 dark:bg-zinc-800 rounded-lg p-2">
             <div className="p-3 mb-2 border-b-2 border-gray-300 dark:border-slate-700">
                 <h4 className="font-bold text-lg text-gray-800 dark:text-white flex justify-between items-center">
                     {stage}

@@ -186,14 +186,14 @@ const NavBar: React.FC<{
             {/* Desktop Links */}
             <nav className="hidden md:flex items-center gap-1">
                 <div className="relative group">
-                    <button className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200">
+                    <button className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200">
                         Products
                         <svg className="w-4 h-4 ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {/* Invisible hover bridge: transparent padding fills the gap between
                         trigger and dropdown so the cursor never leaves the hover boundary */}
                     <div className="absolute top-full left-0 pt-1 w-[210px]">
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
+                    <div className="bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
                         <button onClick={() => setActiveProduct('vega')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
                             <ScalesIcon className="w-4 h-4 opacity-70" />
                             Vega
@@ -207,7 +207,7 @@ const NavBar: React.FC<{
                 </div>
                 <button
                     onClick={() => scrollTo('features')}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         activeSection === 'features'
                             ? 'bg-primary-50 text-primary-700'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -217,7 +217,7 @@ const NavBar: React.FC<{
                 </button>
                 <button
                     onClick={() => scrollTo('pricing')}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         activeSection === 'pricing'
                             ? 'bg-primary-50 text-primary-700'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -227,7 +227,7 @@ const NavBar: React.FC<{
                 </button>
                 <button
                     onClick={onResources}
-                    className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
                 >
                     Resources
                 </button>
@@ -243,7 +243,7 @@ const NavBar: React.FC<{
                 >
                     Log In
                 </button>
-                <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-xl">
+                <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-lg">
                     Get Started Free
                 </PrimaryButton>
             </div>
@@ -765,7 +765,7 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                             >
                                 <div className="flex items-center gap-3 mb-8">
                                     <div
-                                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                        className="w-10 h-10 rounded-lg flex items-center justify-center"
                                         style={{ backgroundColor: `${accentColorValue}15`, color: accentColorValue }}
                                     >
                                         <cat.Icon className="w-5 h-5" />
@@ -952,7 +952,7 @@ const SceCalculatorModal: React.FC<{
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                        className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
                         aria-label="Close calculator"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -962,7 +962,7 @@ const SceCalculatorModal: React.FC<{
                 {/* Body */}
                 <div className="px-4 sm:px-6 py-5 space-y-5">
                     {/* Explanation */}
-                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
                         <p className="text-xs text-emerald-900 leading-relaxed">
                             <strong>Service Charge Equivalent (SCE)</strong> is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is <strong>not</strong> an additional fee charged by Atrium.
                         </p>
@@ -1000,7 +1000,7 @@ const SceCalculatorModal: React.FC<{
                     {/* Results — stacked cards on mobile, table on desktop */}
                     <div className="space-y-3 sm:hidden">
                         {calculations.map(calc => (
-                            <div key={calc.id} className="border border-slate-200 rounded-xl p-3">
+                            <div key={calc.id} className="border border-slate-200 rounded-lg p-3">
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
                                         <p className="font-display font-bold text-slate-900 text-sm">{calc.tierName}</p>
@@ -1035,7 +1035,7 @@ const SceCalculatorModal: React.FC<{
                     </div>
 
                     {/* Desktop table */}
-                    <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="hidden sm:block border border-slate-200 rounded-lg overflow-hidden">
                         <div className="grid grid-cols-4 gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
                             <span>Tier</span>
                             <span className="text-right">SCE / tenant / mo</span>
@@ -1090,13 +1090,13 @@ const SceCalculatorModal: React.FC<{
                     <div className="flex gap-2 w-full sm:w-auto">
                         <button
                             onClick={onClose}
-                            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
                         >
                             Close
                         </button>
                         <button
                             onClick={() => { onClose(); onSignup('atrium'); }}
-                            className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm transition-all"
+                            className="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm transition-all"
                         >
                             Get Started
                         </button>
@@ -1190,7 +1190,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                     >
                         {/* SCE explanation tooltip — shows when hovering the area */}
                         <div
-                            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 max-w-[90vw] rounded-xl bg-slate-900 px-4 py-3 text-xs leading-relaxed text-white shadow-2xl transition-all duration-300 pointer-events-none ${
+                            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 max-w-[90vw] rounded-lg bg-slate-900 px-4 py-3 text-xs leading-relaxed text-white shadow-2xl transition-all duration-300 pointer-events-none ${
                                 isHoveringArea ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
                             }`}
                         >

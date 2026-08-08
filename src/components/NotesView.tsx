@@ -152,7 +152,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                 )}
 
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className={`flex-grow flex relative ${noBox ? '' : 'bg-white dark:bg-zinc-800 md:rounded-xl md:shadow-md md:border border-black/5 dark:border-white/5'} overflow-hidden`}>
+                <div className={`flex-grow flex relative ${noBox ? '' : 'bg-white dark:bg-zinc-800 md:rounded-lg md:shadow-md md:border border-black/5 dark:border-white/5'} overflow-hidden`}>
                     
                     {/* Column 1: Notebooks */}
                     <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-gray-200 dark:border-gray-700 ${isMobileCol1 ? 'block' : 'hidden md:block'}`}>

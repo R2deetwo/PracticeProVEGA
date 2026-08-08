@@ -296,7 +296,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 -m-2">
             <div className="space-y-3">
                 {isEditing && !fullDoc && (
-                    <div className="absolute inset-x-0 top-0 -bottom-10 z-[60] bg-white/60 dark:bg-zinc-800/60 backdrop-blur-[2px] flex items-center justify-center rounded-xl">
+                    <div className="absolute inset-x-0 top-0 -bottom-10 z-[60] bg-white/60 dark:bg-zinc-800/60 backdrop-blur-[2px] flex items-center justify-center rounded-lg">
                         <div className="flex flex-col items-center gap-3 text-slate-600 dark:text-zinc-300">
                             <div className="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
                             <p className="text-xs font-semibold">Loading…</p>

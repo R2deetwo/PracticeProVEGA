@@ -58,7 +58,7 @@ const EndorsementTimelineItem: React.FC<{
 
             {/* Content Bubble */}
             <div className="flex-grow pb-8 min-w-0">
-                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl rounded-tl-none p-4 shadow-sm relative hover:shadow-md transition-shadow">
+                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg rounded-tl-none p-4 shadow-sm relative hover:shadow-md transition-shadow">
 
                     <div className="flex justify-between items-start mb-2">
                         <div className="flex flex-col gap-1">

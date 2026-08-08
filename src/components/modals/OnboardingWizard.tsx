@@ -94,7 +94,7 @@ const PlanCard: React.FC<{
 
         {/* Price */}
         <div className="mb-4">
-          <p className="text-2xl font-black text-slate-900  tracking-tighter leading-none">{price}</p>
+          <p className="text-2xl font-bold text-slate-900  tracking-tight leading-none">{price}</p>
           <p className="text-2xs font-bold text-slate-400 mt-1">{per || (tier.annualPrice === null && tier.monthlyPrice === null ? 'Contact sales' : isAtrium ? '/yr' : '')}</p>
         </div>
 
@@ -266,7 +266,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
       {/* Force light theme — onboarding should always be white with green PracticePro branding,
           regardless of system dark mode preference. */}
       <div className="absolute top-6 right-6">
-        <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-xl transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
+        <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-lg transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
       </div>
 
       <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
@@ -287,7 +287,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   Vega: "Welcome, {name}. Let's set up your practice."
                   Atrium: "Welcome, {name}. Let's set up your portfolio."
                   Komplete: "Welcome, {name}. Let's set up your unified workspace." */}
-              <h2 className="text-4xl font-black text-slate-900  tracking-tighter">Welcome, {currentUser?.name?.split(' ')[0]}</h2>
+              <h2 className="text-4xl font-bold text-slate-900  tracking-tight">Welcome, {currentUser?.name?.split(' ')[0]}</h2>
               <p className="text-slate-500 mt-2 text-sm font-medium">
                 {productName === 'Atrium'
                   ? "Let's set up your property portfolio. Atrium tracks rents, invoicing, and tenants across all your properties."
@@ -299,8 +299,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
             <div className="max-w-md mx-auto space-y-6">
               <div className="flex p-1.5 bg-slate-50   rounded-2xl border border-slate-100 ">
-                <button onClick={() => { setMode('create'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'create' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Create New</button>
-                <button onClick={() => { setMode('join'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'join' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Join Existing</button>
+                <button onClick={() => { setMode('create'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${mode === 'create' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Create New</button>
+                <button onClick={() => { setMode('join'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${mode === 'join' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Join Existing</button>
               </div>
 
               {mode === 'create' ? (
@@ -348,7 +348,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
                 {showAllPlans ? 'Compare Plans — Pick What Fits Your Practice' : `You've Selected ${selectedTierId === 'Core' ? 'Core' : selectedTierId}`}
               </h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
@@ -479,7 +479,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
             {/* Managed Migration opt-in */}
             {isAtrium && (
-              <div className="max-w-md mx-auto p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="max-w-md mx-auto p-4 rounded-lg bg-slate-50 border border-slate-200">
                 <div className="flex items-center gap-3">
                   <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                   <label htmlFor="data-migration" className="text-xs font-bold text-slate-700 cursor-pointer flex-1">

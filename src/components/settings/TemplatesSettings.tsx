@@ -11,7 +11,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -141,7 +141,7 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                         <button
                             id="add-workflow-btn"
                             onClick={() => openModal('newWorkflow')}
-                            className="w-full text-center px-4 py-3 bg-white dark:bg-zinc-800 border-2 border-dashed border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 rounded-xl font-bold hover:border-primary-500 hover:text-primary-600 transition-all mb-6"
+                            className="w-full text-center px-4 py-3 bg-white dark:bg-zinc-800 border-2 border-dashed border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 rounded-lg font-bold hover:border-primary-500 hover:text-primary-600 transition-all mb-6"
                         >
                             + Add New Workflow
                         </button>

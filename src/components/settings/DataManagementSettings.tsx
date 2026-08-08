@@ -12,7 +12,7 @@ import { DownloadIcon, TrashIcon, SearchIcon, ShieldCheckIcon, ComputerDesktopIc
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; className?: string; onTitleClick?: () => void }> = ({ title, children, className, onTitleClick }) => (
-    <div className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3
                 className={`text-xl font-bold text-gray-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
@@ -116,7 +116,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
             title: 'Confirm Identity to Delete Account',
             message: (
                 <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                    <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                         <LockClosedIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
                         <div>
                             <p className="text-red-700 dark:text-red-400 font-bold text-sm">Security Verification Required</p>
@@ -293,7 +293,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {joinedFirms ? (
                         joinedFirms.map((f: any) => (
-                            <div key={f.id} className={`p-4 rounded-xl border transition-all ${f.id === currentUser?.firmId ? 'bg-primary-50 dark:bg-primary-900/10 border-primary-300 dark:border-primary-800 ring-1 ring-primary-500' : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'}`}>
+                            <div key={f.id} className={`p-4 rounded-lg border transition-all ${f.id === currentUser?.firmId ? 'bg-primary-50 dark:bg-primary-900/10 border-primary-300 dark:border-primary-800 ring-1 ring-primary-500' : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'}`}>
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <p className="font-bold text-slate-900 dark:text-white">{f.name}</p>
@@ -413,7 +413,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
             {/* 1.5. Secure Local Access */}
             <SettingsCard title="Secure Local Access" className="border-blue-200 dark:border-blue-900/50">
                 <div className="flex flex-col sm:flex-row items-start gap-4">
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                         <ComputerDesktopIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
@@ -625,7 +625,7 @@ const ContentProtectionToggle: React.FC = () => {
     };
 
     return (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
             <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${enabled ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-200 text-slate-400 dark:bg-zinc-700'}`}>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

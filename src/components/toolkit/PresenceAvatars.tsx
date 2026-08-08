@@ -236,7 +236,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                         +{overflowCount}
                     </button>
                     {showOverflowList && (
-                        <div className="absolute right-0 top-full mt-2 w-64 max-h-80 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 z-[100] animate-fade-in-up">
+                        <div className="absolute right-0 top-full mt-2 w-64 max-h-80 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 z-[100] animate-fade-in-up">
                             <div className="p-3 border-b border-slate-100 dark:border-zinc-700">
                                 <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Team Members ({visibleItems.length})</p>
                                 <p className="text-2xs text-slate-400">

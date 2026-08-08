@@ -228,7 +228,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       <div className="flex flex-col gap-4 -m-2">
         <div className="space-y-2 sm:space-y-3 pb-6">
           {/* Financial Header Section */}
-          <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+          <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
               <div className="flex items-center gap-4 mb-2 px-1">
                   <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                       <CalculatorIcon className="w-4 h-4" />
@@ -257,7 +257,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           </div>
 
           {/* Line Items Section */}
-          <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+          <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
               <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-4">
                       <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
@@ -303,7 +303,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
           {/* Totals & Parameters Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 px-1">
-              <div className="p-3 sm:p-4 bg-slate-900 dark:bg-zinc-950 rounded-xl border border-zinc-800 flex flex-col justify-between">
+              <div className="p-3 sm:p-4 bg-slate-900 dark:bg-zinc-950 rounded-lg border border-zinc-800 flex flex-col justify-between">
                   <div>
                       <p className="text-2xs font-bold text-emerald-500/70 uppercase tracking-widest leading-none mb-4">Summary</p>
                       <div className="space-y-3">
@@ -332,7 +332,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   <div className="mt-8 pt-8 border-t border-zinc-800 flex justify-between items-end gap-4 overflow-hidden">
                       <div className="min-w-0">
                           <p className="text-2xs font-bold text-emerald-500 uppercase tracking-widest mb-1">Total</p>
-                          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tighter leading-none truncate"><NairaSymbol />{formatNumberWithCommas(invoiceTotal)}</h2>
+                          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight leading-none truncate"><NairaSymbol />{formatNumberWithCommas(invoiceTotal)}</h2>
                       </div>
                       {applyWht && (
                           <div className="text-right flex-shrink-0">
@@ -344,7 +344,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
               </div>
 
               <div className="space-y-3">
-                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
                           <label className={labelClass}>Dates</label>
                           <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -360,7 +360,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                       </div>
                   </div>
                   
-                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
                           <label className={labelClass}>Bank Account</label>
                           {safeBankAccounts.length > 0 ? (
@@ -380,10 +380,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
         </div>
 
         <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50 pb-safe-extra">
-          <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+          <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Cancel
           </button>
-          <button onClick={handleSubmit} type="submit" disabled={isSubmitting || (!paymentAccountId && safeBankAccounts.length === 0)} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+          <button onClick={handleSubmit} type="submit" disabled={isSubmitting || (!paymentAccountId && safeBankAccounts.length === 0)} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-lg sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
               <SaveIcon className="w-4 h-4" /> {isEditing ? 'Update Invoice' : 'Create Invoice'}
           </button>
         </div>

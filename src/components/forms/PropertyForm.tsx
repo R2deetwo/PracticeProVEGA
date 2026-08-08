@@ -595,7 +595,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Core Profile Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <OfficeBuildingIcon className="w-3.5 h-3.5" />
@@ -720,7 +720,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Amenities Section --- */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <SparklesIcon className="w-3.5 h-3.5" />
@@ -744,7 +744,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <button
                                 type="button"
                                 onClick={handleAddAmenity}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
                             >
                                 <PlusIcon className="w-4 h-4" />
                             </button>
@@ -767,7 +767,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Automation Settings --- */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 px-1">
                         <div className="p-1.5 bg-amber-500 text-white rounded-lg shadow-sm ring-2 ring-amber-400/10">
                             <ZapIcon className="w-3.5 h-3.5" />
@@ -796,7 +796,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Minimum Vend / Estate Fees --- */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 px-1">
                         <div className="p-1.5 bg-teal-500 text-white rounded-lg shadow-sm ring-2 ring-teal-400/10">
                             <CalculatorIcon className="w-3.5 h-3.5" />
@@ -814,7 +814,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-fade-in">
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Minimum Vend Amount</label>
-                                <div className="relative rounded-xl shadow-xs">
+                                <div className="relative rounded-lg shadow-xs">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                     <input autoComplete="off" data-lpignore="true"
                                         type="text"
@@ -843,7 +843,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 1. Dispute Details */}
                 {isDisputed && (
-                    <div className="p-3 sm:p-4 bg-rose-50/50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-rose-50/50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-rose-600 text-white rounded-lg shadow-sm ring-2 ring-rose-500/10">
                                 <GavelIconLarge className="w-3.5 h-3.5" />
@@ -872,7 +872,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         <div className="pt-4 border-t border-rose-200 dark:border-rose-800 mt-2 space-y-2 sm:space-y-3">
                             <label className={labelClass}>Linked Matter (Dispute)</label>
                             {linkedMatterId ? (
-                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
+                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-lg border border-rose-200 dark:border-zinc-700 shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
                                             <BriefcaseIcon className="w-4 h-4" />
@@ -881,7 +881,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                             <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">
                                                 {(appState.matters || []).find(m => m.id === linkedMatterId)?.title || 'Matter Not Found'}
                                             </p>
-                                            <p className="text-2xs text-slate-500 uppercase tracking-tighter">Connected for Legal Management</p>
+                                            <p className="text-2xs text-slate-500 uppercase tracking-tight">Connected for Legal Management</p>
                                         </div>
                                     </div>
                                     <button 
@@ -907,7 +907,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <button 
                                         type="button"
                                         onClick={handleConvertToMatter}
-                                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 text-white text-xs font-semibold rounded-xl hover:bg-rose-700 transition-all whitespace-nowrap shadow-sm shadow-rose-500/20"
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 text-white text-xs font-semibold rounded-lg hover:bg-rose-700 transition-all whitespace-nowrap shadow-sm shadow-rose-500/20"
                                     >
                                         <BriefcaseIcon className="w-3.5 h-3.5" />
                                         Convert to Matter
@@ -920,7 +920,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 2. Sale Details */}
                 {isSale && (
-                    <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-blue-600 text-white rounded-lg shadow-sm ring-2 ring-blue-500/10">
                                 <CalculatorIcon className="w-3.5 h-3.5" />
@@ -955,7 +955,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 3. Rental Details */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
-                    <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3 sm:space-y-4 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3 sm:space-y-4 animate-fade-in">
                          <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                                 <CalendarIcon className="w-3.5 h-3.5" />
@@ -973,7 +973,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         key={unit.id}
                                         type="button"
                                         onClick={() => setActiveUnitIndex(index)}
-                                        className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm border ${
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${
                                             activeUnitIndex === index 
                                             ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20' 
                                             : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 dark:hover:bg-primary-900/10'
@@ -1048,7 +1048,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Monthly Service Charge</label>
-                                    <div className="relative rounded-xl shadow-xs">
+                                    <div className="relative rounded-lg shadow-xs">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
@@ -1061,7 +1061,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Total Service Charge Due</label>
-                                    <div className="relative rounded-xl shadow-xs">
+                                    <div className="relative rounded-lg shadow-xs">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                         <input
                                             autoComplete="off"
@@ -1093,7 +1093,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 {activeUnit.serviceChargeStatus === 'PARTIALLY_PAID' && (
                                     <div className="space-y-2 group animate-fade-in">
                                         <label className={labelClass}>Outstanding Balance</label>
-                                        <div className="relative rounded-xl shadow-xs">
+                                        <div className="relative rounded-lg shadow-xs">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                             <input autoComplete="off" data-lpignore="true"
                                                 type="text"
@@ -1110,10 +1110,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <label className={labelClass}>Legal Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
                                         </label>
                                     </div>
-                                    <div className="relative rounded-xl shadow-xs">
+                                    <div className="relative rounded-lg shadow-xs">
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
                                             disabled={unitsData[activeUnitIndex].isLegalNA}
@@ -1148,10 +1148,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <label className={labelClass}>Agency Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
                                         </label>
                                     </div>
-                                    <div className="relative rounded-xl shadow-xs">
+                                    <div className="relative rounded-lg shadow-xs">
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
                                             disabled={unitsData[activeUnitIndex].isAgencyNA}
@@ -1183,7 +1183,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <label className={labelClass}>Caution Deposit (<NairaSymbol />)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isCautionNA} onChange={e => updateUnit(activeUnitIndex, 'isCautionNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
                                         </label>
                                     </div>
                                     <input autoComplete="off" data-lpignore="true" 
@@ -1198,7 +1198,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
 
                             {/* Total Tenancy Package Summary Card */}
-                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
+                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <p className="text-2xs font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
@@ -1212,7 +1212,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <p className="text-base font-black text-emerald-700 dark:text-emerald-300">
                                             ₦{totalPayable.toLocaleString('en-NG')}
                                         </p>
-                                        <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
+                                        <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tight">
                                             {unitsData[activeUnitIndex]?.rentFrequency === 'Monthly' ? 'Per Month' : 'Per Annum'}
                                         </p>
                                     </div>
@@ -1312,7 +1312,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 {activeUnitIndex === 0 && ownershipType !== 'owned' && ( // Management fee is property-level, only show it once
                                     <div className="space-y-2 group">
                                         <label className={labelClass}>Management Fee (%)</label>
-                                        <div className="flex bg-white dark:bg-zinc-800 p-1.5 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
+                                        <div className="flex bg-white dark:bg-zinc-800 p-1.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
                                             <input autoComplete="off" data-lpignore="true" 
                                                 type="number"
                                                 value={managementFee}
@@ -1348,7 +1348,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex justify-between items-center px-1">
                         <div className="flex items-center gap-4">
                             <div className="p-1.5 bg-slate-600 text-white rounded-lg shadow-sm ring-2 ring-slate-500/10">
@@ -1417,10 +1417,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         if (!ok) return;
                     }
                     onClose();
-                }} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+                }} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-lg sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <SaveIcon className="w-4 h-4" /> Save Property
                 </button>
             </div>

@@ -152,7 +152,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                         <VisitorIcon className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black tracking-tight">Visitor Codes</h2>
+                        <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Visitor Codes</h2>
                         <p className="text-emerald-100 text-xs">{propertyName || 'Your Estate'} · {unitName || 'Resident'}</p>
                     </div>
                 </div>
@@ -171,23 +171,23 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                         <h3 className="font-bold text-slate-900 dark:text-white text-base">Code Ready!</h3>
                     </div>
                     <div className="text-center my-4">
-                        <div className="text-4xl font-black tracking-[0.3em] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl py-4">
+                        <div className="text-4xl font-black tracking-[0.3em] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg py-4">
                             {lastGenerated.tokenCode}
                         </div>
                     </div>
-                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3 mb-3 max-h-32 overflow-y-auto">
+                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 mb-3 max-h-32 overflow-y-auto">
                         <p className="text-xs text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{lastGenerated.message}</p>
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={handleShareViaWhatsApp}
-                            className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
                         >
                             <ShareIcon className="w-4 h-4" /> Open WhatsApp
                         </button>
                         <button
                             onClick={() => setLastGenerated(null)}
-                            className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                            className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
                         >
                             Done
                         </button>
@@ -208,7 +208,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             value={visitorName}
                             onChange={(e) => setVisitorName(e.target.value)}
                             placeholder="e.g. John Doe"
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                         />
                     </div>
 
@@ -220,7 +220,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             value={visitorPhone}
                             onChange={(e) => setVisitorPhone(e.target.value)}
                             placeholder="+234 801 234 5678"
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                         />
                         <p className="text-2xs text-slate-400 mt-1">Required for portal delivery. Include country code.</p>
                     </div>
@@ -233,7 +233,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                 type="date"
                                 value={visitDate}
                                 onChange={(e) => setVisitDate(e.target.value)}
-                                className="w-full px-3 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                                className="w-full px-3 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                             />
                         </div>
                         <div>
@@ -241,7 +241,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             <select
                                 value={expiryWindow}
                                 onChange={(e) => setExpiryWindow(parseInt(e.target.value))}
-                                className="w-full px-3 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                                className="w-full px-3 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                             >
                                 {EXPIRY_OPTIONS.map(opt => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -256,7 +256,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => setDeliveryMethod('client_share')}
-                                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                className={`p-3 rounded-lg border-2 text-left transition-all ${
                                     deliveryMethod === 'client_share'
                                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                                         : 'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900'
@@ -270,7 +270,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             </button>
                             <button
                                 onClick={() => setDeliveryMethod('portal_api')}
-                                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                className={`p-3 rounded-lg border-2 text-left transition-all ${
                                     deliveryMethod === 'portal_api'
                                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                                         : 'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900'
@@ -286,7 +286,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                     </div>
 
                     {/* Auto-filled address preview */}
-                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3 flex items-start gap-2">
+                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 flex items-start gap-2">
                         <MapPinIcon className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                         <div className="min-w-0">
                             <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Auto-filled Address</p>
@@ -300,7 +300,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                     <button
                         onClick={handleGenerate}
                         disabled={isGenerating || !visitorName.trim() || !visitorPhone.trim()}
-                        className="w-full px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                        className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                     >
                         {isGenerating ? (
                             <>
@@ -325,7 +325,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                     <h3 className="font-bold text-slate-900 dark:text-white text-base mb-3">Active Codes ({activeTokens.length})</h3>
                     <div className="space-y-2">
                         {activeTokens.map((token: any) => (
-                            <div key={token._id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-700/30">
+                            <div key={token._id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-700/30">
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="font-bold text-slate-900 dark:text-white text-sm">{token.visitorName}</span>

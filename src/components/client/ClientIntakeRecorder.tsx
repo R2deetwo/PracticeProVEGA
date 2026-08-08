@@ -178,7 +178,7 @@ export const ClientIntakeRecorder: React.FC<{ lead: Lead }> = ({ lead }) => {
     
     if (lead.intakeRecordings) {
          return (
-             <div className="bg-green-50 dark:bg-green-900/40 p-6 rounded-xl border border-green-200 dark:border-green-800 text-center">
+             <div className="bg-green-50 dark:bg-green-900/40 p-6 rounded-lg border border-green-200 dark:border-green-800 text-center">
                 <h3 className="text-xl font-bold text-green-800 dark:text-green-200">Intake Information Submitted</h3>
                 <p className="text-sm text-green-700 dark:text-green-300 mt-2">
                     Thank you. Your legal team has received your information and will begin their analysis.
@@ -194,7 +194,7 @@ export const ClientIntakeRecorder: React.FC<{ lead: Lead }> = ({ lead }) => {
     };
 
     return (
-        <div className="bg-primary-50 dark:bg-primary-900/40 p-6 rounded-xl border border-primary-200 dark:border-primary-800">
+        <div className="bg-primary-50 dark:bg-primary-900/40 p-6 rounded-lg border border-primary-200 dark:border-primary-800">
             <h3 className="text-xl font-bold text-primary-800 dark:text-primary-200">AI Intake Assistant</h3>
             <p className="text-sm text-primary-700 dark:text-primary-300 mt-2">
                 To help us understand your case better, please record your story. You can record up to 3 segments, each up to 4 minutes long.

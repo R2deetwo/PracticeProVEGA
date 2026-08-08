@@ -97,11 +97,11 @@ const ClientMatterDetailViewContent: React.FC = () => {
             return (
                 <div className="animate-pulse space-y-6">
                     <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6">
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
                         <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
                         <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
                     </div>
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 space-y-4">
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 space-y-4">
                         <div className="h-6 bg-slate-200 dark:bg-zinc-700 rounded w-1/3" />
                         <div className="h-20 bg-slate-200 dark:bg-zinc-700 rounded" />
                         <div className="h-20 bg-slate-200 dark:bg-zinc-700 rounded" />
@@ -110,7 +110,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
             );
         }
         return (
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-12 text-center">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-12 text-center">
                 <div className="text-4xl mb-4">📋</div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Matter Not Found</h3>
                 <p className="text-slate-500 dark:text-zinc-400 mb-6">This matter may have been removed or you don't have access to it.</p>
@@ -161,7 +161,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
                     const reviewDocs = documents.filter(d => (d.clientReviewStatus === 'review_requested' || d.isSignatureRequested) && !d.signatureData);
                     const hasItems = pendingActionItems.length > 0 || reviewDocs.length > 0;
                     return (
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6">
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
                             <h3 className="text-xl font-bold mb-4">Your Action Items</h3>
                             {!hasItems ? (
                                 <div className="text-center py-8">
@@ -205,7 +205,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
                 }
             case 'messages':
                 return (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md flex flex-col h-[70vh]">
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md flex flex-col h-[70vh]">
                         <main className="flex-grow p-4 overflow-y-auto space-y-4">
                             {clientMessages.map(msg => <ChatBubble key={msg.id} message={msg} author={coreState.users.find(u => u.id === msg.authorId)} isCurrentUser={msg.authorId === currentUser.id} />)}
                             <div ref={clientMessagesEndRef}></div>
@@ -223,7 +223,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
             case 'overview':
             default:
                 return (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6">
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
                         <h3 className="text-xl font-bold">Matter Overview</h3>
                         <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-6 text-sm">
                             <DetailItem label="Status" value={matter.status} />
@@ -252,7 +252,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
             <button onClick={onGoBack} className="flex items-center text-sm font-semibold text-slate-600 dark:text-zinc-300 hover:text-primary-600 mb-6">
                 &larr; Back to Dashboard
             </button>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 mb-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 mb-6">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{matter.title}</h2>
                 <p className="text-slate-500 dark:text-zinc-400 mt-1">Reference: {matter.referenceNumber}</p>
             </div>

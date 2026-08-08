@@ -103,7 +103,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
           </div>
 
           {showScheduleForm && (
-            <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
+            <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Channel</label>
@@ -183,7 +183,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
           ) : (
             <div className="space-y-2">
               {(scheduledMessages as any[]).map((msg: any) => (
-                <div key={msg._id} className={`p-4 rounded-xl border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 ${msg.status === 'sent' ? 'opacity-60' : ''}`}>
+                <div key={msg._id} className={`p-4 rounded-lg border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 ${msg.status === 'sent' ? 'opacity-60' : ''}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">

@@ -18,7 +18,7 @@ export const ClientIntakePortal: React.FC = () => {
     // Show loading skeleton while data is still being fetched
     if (!lead && !isDataLoaded) return (
         <div className="h-full flex flex-col items-center justify-center p-8">
-            <div className="w-full max-w-md bg-white dark:bg-zinc-800 rounded-xl p-6 animate-pulse">
+            <div className="w-full max-w-md bg-white dark:bg-zinc-800 rounded-lg p-6 animate-pulse">
                 <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mx-auto mb-4" />
                 <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
                 <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-2/3 mx-auto mb-8" />
@@ -49,7 +49,7 @@ export const ClientIntakePortal: React.FC = () => {
 
     return (
         <div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 mb-6 text-center">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 mb-6 text-center">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white">New Service Request</h2>
                 <p className="mt-2 text-slate-600 dark:text-zinc-300 max-w-2xl mx-auto">
                     Thank you for choosing {coreState.firmDetails.name}. To get started, please use the intake assistant below to tell us about your new legal issue.

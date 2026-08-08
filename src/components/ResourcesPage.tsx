@@ -774,7 +774,7 @@ function renderBlocks(blocks: Block[]) {
                 );
             case 'table':
                 return (
-                    <div key={i} className="my-5 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10">
+                    <div key={i} className="my-5 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
                         <table className="w-full text-sm border-collapse">
                             <thead>
                                 <tr className="bg-slate-100 dark:bg-slate-800">
@@ -870,13 +870,13 @@ const WhitePaperCard: React.FC<{ paper: typeof WHITE_PAPERS[0], activeProduct: '
             <div className="px-7 pb-6 flex gap-3">
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-all"
+                    className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-all"
                 >
                     {expanded ? 'Collapse' : 'Read Paper'}
                 </button>
                 <button
                     onClick={handlePrint}
-                    className="py-2.5 px-4 rounded-xl font-semibold text-sm border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-2"
+                    className="py-2.5 px-4 rounded-lg font-semibold text-sm border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-2"
                     title="Print or save as PDF"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -911,7 +911,7 @@ const GuideCard: React.FC<{ guide: typeof GUIDES[0] }> = ({ guide }) => {
             <div className="px-6 pb-5 flex gap-3">
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className="flex-1 py-2 rounded-xl font-semibold text-xs border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-center"
+                    className="flex-1 py-2 rounded-lg font-semibold text-xs border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-center"
                 >
                     {expanded ? 'Hide Guide' : 'Read Guide'}
                 </button>
@@ -972,7 +972,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     </div>
                     {/* Toggle */}
                     {setActiveProduct && (
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-white/10 shrink-0 self-start">
+                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-white/10 shrink-0 self-start">
                             <button 
                                 onClick={() => setActiveProduct('vega')} 
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-600 dark:text-primary-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
@@ -1124,7 +1124,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     <div className="grid md:grid-cols-2 gap-4">
                         {(isVega ? COMPLIANCE_DOCS : ATRIUM_COMPLIANCE_DOCS).map((doc, i) => (
                             <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 flex gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center flex-shrink-0">
                                     {doc.icon}
                                 </div>
                                 <div>
@@ -1164,20 +1164,20 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     <div className="flex flex-wrap gap-3">
                         <button
                             onClick={onPrivacyClick}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                         >
                             Privacy Policy
                         </button>
                         <button
                             onClick={onTermsClick}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                         >
                             Terms of Service
                         </button>
-                        <div className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-default">
+                        <div className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-default">
                             Cookie Policy <span className="text-2xs ml-1 font-bold uppercase text-slate-300 dark:text-slate-600">Soon</span>
                         </div>
-                        <button onClick={onDPAClick} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <button onClick={onDPAClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                             Data Processing Agreement
                         </button>
                     </div>

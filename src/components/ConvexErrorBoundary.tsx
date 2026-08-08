@@ -189,7 +189,7 @@ class ConvexErrorBoundary extends Component<Props, State> {
                 </div>
 
                 {/* Text Content */}
-                <h1 className="text-3xl font-black mb-4 tracking-tight leading-tight max-w-lg">
+                <h1 className="text-3xl font-bold mb-4 tracking-tight leading-tight max-w-lg">
                     {isConvexError ? 'System Connection Interrupted' : 'Application Logic Error'}
                 </h1>
 

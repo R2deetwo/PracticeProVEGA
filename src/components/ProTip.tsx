@@ -51,7 +51,7 @@ const ProTip: React.FC<ProTipProps> = ({ id, children }) => {
         <div
             ref={containerRef}
             onAnimationEnd={handleAnimationEnd}
-            className={`relative overflow-hidden group bg-primary-50 dark:bg-primary-900/50 p-4 rounded-xl border-l-4 border-primary-500 flex items-start gap-4 shadow-sm ${isExiting ? 'animate-tip-exit' : 'animate-tip-enter'}`}
+            className={`relative overflow-hidden group bg-primary-50 dark:bg-primary-900/50 p-4 rounded-lg border-l-4 border-primary-500 flex items-start gap-4 shadow-sm ${isExiting ? 'animate-tip-exit' : 'animate-tip-enter'}`}
         >
             {/* Background Icon - now properly contained by overflow-hidden on parent */}
             <InfoIcon className="absolute -bottom-4 -right-4 w-24 h-24 text-primary-500/10 dark:text-primary-400/5 pointer-events-none" />

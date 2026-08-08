@@ -88,7 +88,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Financial Disbursement Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <Receipt className="w-3.5 h-3.5" />
@@ -116,7 +116,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                 </div>
 
                 {/* Allocation Parameters */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <CalendarIcon className="w-3.5 h-3.5" />
@@ -149,13 +149,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                             </div>
                             <div>
                                 <p className="text-2xs font-black text-slate-700 dark:text-zinc-300 uppercase tracking-widest leading-none mb-1">Billable Expense</p>
-                                <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">Include in Next Invoice</p>
+                                <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tight">Include in Next Invoice</p>
                             </div>
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" id="isBillable" checked={isBillable} onChange={e => setIsBillable(e.target.checked)} className="hidden" />
                         </label>
 
                         {!taxAnalysis && (
-                            <button type="button" onClick={handleAnalyzeTax} disabled={isAnalyzing} className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-3xs font-black uppercase tracking-widest rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-2">
+                            <button type="button" onClick={handleAnalyzeTax} disabled={isAnalyzing} className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-3xs font-black uppercase tracking-widest rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-2">
                                 <ZapIcon className="w-3.5 h-3.5" />
                                 {isAnalyzing ? 'Analyzing...' : 'Check Tax Status'}
                             </button>
@@ -163,9 +163,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                     </div>
                     
                     {taxAnalysis && (
-                        <div className={`p-3 sm:p-4 rounded-xl border transition-all animate-in slide-in-from-top-2 duration-500 ${taxAnalysis.isDeductible ? 'bg-emerald-50 dark:bg-emerald-950/40/50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/30' : 'bg-rose-50/50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/30'}`}>
+                        <div className={`p-3 sm:p-4 rounded-lg border transition-all animate-in slide-in-from-top-2 duration-500 ${taxAnalysis.isDeductible ? 'bg-emerald-50 dark:bg-emerald-950/40/50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/30' : 'bg-rose-50/50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/30'}`}>
                             <div className="flex gap-4">
-                                <div className={`p-2 rounded-xl h-fit ${taxAnalysis.isDeductible ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-900/20' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/20'}`}>
+                                <div className={`p-2 rounded-lg h-fit ${taxAnalysis.isDeductible ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-900/20' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/20'}`}>
                                     {taxAnalysis.isDeductible ? <ShieldCheckIcon className="w-5 h-5" /> : <InfoIcon className="w-5 h-5" />}
                                 </div>
                                 <div>
@@ -182,10 +182,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
             </div>
 
             <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20 pb-safe-extra">
-                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-lg sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Expense'}
                 </button>
             </div>

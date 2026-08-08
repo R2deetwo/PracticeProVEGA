@@ -45,7 +45,7 @@ export const DashboardSkeleton: React.FC = () => (
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map(i => (
-                 <div key={i} className="h-32 bg-white dark:bg-zinc-800 rounded-xl p-6 border border-slate-200 dark:border-zinc-700">
+                 <div key={i} className="h-32 bg-white dark:bg-zinc-800 rounded-lg p-6 border border-slate-200 dark:border-zinc-700">
                     <Skeleton width={100} height={12} className="mb-4" />
                     <Skeleton width={60} height={36} />
                  </div>

@@ -287,7 +287,7 @@ const MatterDetailViewContent: React.FC = () => {
                 <div className="space-y-3">
                     <p>Are you sure you want to <strong>permanently delete</strong> this matter?</p>
                     
-                    <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl space-y-2">
+                    <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg space-y-2">
                         <p className="text-red-700 dark:text-red-400 font-bold text-xs uppercase tracking-wider">Associated Data Blast Radius:</p>
                         <ul className="text-xs text-red-600 dark:text-red-400 space-y-1 font-medium">
                             {associatedTaskCount > 0 && <li>• {associatedTaskCount} Tasks will be deleted</li>}
@@ -436,7 +436,7 @@ const MatterDetailViewContent: React.FC = () => {
                                 {showMoreMenu && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
+                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); openModal('editMatter', matterData.id); }}
                                                 className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"

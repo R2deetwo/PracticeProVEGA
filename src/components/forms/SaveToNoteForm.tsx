@@ -557,7 +557,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                 <button
                                     type="button"
                                     onClick={() => setContent("")}
-                                    className="p-2 sm:p-3 text-slate-400 hover:text-red-500 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-900 rounded-xl sm:rounded-2xl transition-all"
+                                    className="p-2 sm:p-3 text-slate-400 hover:text-red-500 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:hover:bg-zinc-900 rounded-lg sm:rounded-2xl transition-all"
                                     title="Clear All"
                                 >
                                     <DismissIcon className="w-5 h-5" />
@@ -611,7 +611,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     <div className="bg-white dark:bg-zinc-950 rounded-t-[40px] shadow-2xl p-3 sm:p-4 pb-6 sm:p-8 animate-slide-up max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-8">
                             <div>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-zinc-100 italic tracking-tight">SAVE NOTE</h3>
+                                <h3 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 italic tracking-tight">SAVE NOTE</h3>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Archive to your firm library</p>
                             </div>
                             <button onClick={() => setViewMode('compose')} className="p-3 bg-slate-100 dark:bg-zinc-800 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">

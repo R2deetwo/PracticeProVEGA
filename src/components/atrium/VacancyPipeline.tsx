@@ -128,8 +128,8 @@ const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmI
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
               {loading ? 'Adding...' : 'Add Applicant'}
             </button>
           </div>
@@ -146,7 +146,7 @@ const LeadCard: React.FC<{ lead: LeadPipelineEntry; unitLabel: string; onAdvance
   const next = NEXT_STAGE[lead.stage];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all space-y-2.5">
+    <div className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg p-3 transition-all space-y-2.5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-bold text-white">{lead.applicantName}</p>
@@ -244,10 +244,10 @@ const VacancyPipeline: React.FC = () => {
       {/* Header */}
       <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-white tracking-tight">Vacancy Pipeline</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">Vacancy Pipeline</h2>
           <p className="text-xs text-slate-500 mt-0.5">Inquiry → Closed conversion tracking</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-colors sm:w-auto w-full">
+        <button onClick={() => setShowAdd(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
           <PlusIcon /> Add Applicant
         </button>
       </div>
@@ -255,7 +255,7 @@ const VacancyPipeline: React.FC = () => {
       {/* KPIs */}
       <div className="flex-shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 sm:px-6 py-4">
         {STAGES.map(s => (
-          <div key={s} className={`border rounded-xl p-3 text-center ${STAGE_COLORS[s]}`}>
+          <div key={s} className={`border rounded-lg p-3 text-center ${STAGE_COLORS[s]}`}>
             <p className="text-xl sm:text-2xl font-black">{byStage[s].length}</p>
             <p className="text-3xs sm:text-2xs uppercase tracking-wider font-bold mt-0.5 opacity-80">{STAGE_LABELS[s]}</p>
           </div>
@@ -282,14 +282,14 @@ const VacancyPipeline: React.FC = () => {
         <div className="flex gap-4 h-full min-w-max">
           {STAGES.map(stage => (
             <div key={stage} className="w-64 flex-shrink-0 flex flex-col">
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl mb-3 border ${STAGE_COLORS[stage]}`}>
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-3 border ${STAGE_COLORS[stage]}`}>
                 <div className={`w-2 h-2 rounded-full ${STAGE_DOT[stage]}`} />
                 <span className="text-xs font-bold uppercase tracking-wider">{STAGE_LABELS[stage]}</span>
                 <span className="ml-auto text-xs font-black">{byStage[stage].length}</span>
               </div>
               <div className="flex-1 sm:overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 {byStage[stage].length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-slate-700 border-2 border-dashed border-slate-800 rounded-xl">
+                  <div className="flex flex-col items-center justify-center py-8 text-slate-700 border-2 border-dashed border-slate-800 rounded-lg">
                     <UserPlusIcon className="w-6 h-6 mb-1" />
                     <p className="text-xs">No applicants</p>
                   </div>

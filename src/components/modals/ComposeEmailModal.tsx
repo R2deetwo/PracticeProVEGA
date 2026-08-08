@@ -89,7 +89,7 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
     <div className="flex flex-col -m-1 sm:-m-2 h-[75vh] sm:h-auto sm:max-h-[80vh]">
       {/* Inline warning for missing subject — replaces the confusing deleteConfirmation overload */}
       {confirmNoSubject && (
-        <div className="mx-1 mt-1 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl flex items-center justify-between gap-3 animate-fade-in">
+        <div className="mx-1 mt-1 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg flex items-center justify-between gap-3 animate-fade-in">
           <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
             Send without a subject line?
           </p>
@@ -197,14 +197,14 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
           <button
             type="button"
             onClick={() => setIsAttaching(!isAttaching)}
-            className={`p-2 rounded-xl transition-colors ${isAttaching ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400'}`}
+            className={`p-2 rounded-lg transition-colors ${isAttaching ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400'}`}
             title="Attach files from matter"
           >
             <PaperClipIcon className="w-5 h-5" />
           </button>
 
           {isAttaching && (
-            <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden z-50 animate-fade-in">
+            <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden z-50 animate-fade-in">
               <div className="px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
                 Attach from Matter
               </div>
@@ -230,13 +230,13 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
           )}
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-slate-500 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-xl transition-colors">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-slate-500 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 dark:bg-zinc-800 rounded-lg transition-colors">
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSend}
-            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-md text-xs transition-all active:scale-95"
+            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold shadow-md text-xs transition-all active:scale-95"
           >
             Send Email
           </button>

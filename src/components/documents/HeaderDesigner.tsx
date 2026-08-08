@@ -315,7 +315,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                                 {!localConfig.logo && (
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="w-full py-4 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center gap-2 text-zinc-400 hover:text-white hover:border-primary-500 hover:bg-zinc-800 transition-all group"
+                                        className="w-full py-4 border-2 border-dashed border-zinc-700 rounded-lg flex flex-col items-center gap-2 text-zinc-400 hover:text-white hover:border-primary-500 hover:bg-zinc-800 transition-all group"
                                     >
                                         <UploadIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                         <span className="text-xs font-bold uppercase">Add Firm Logo</span>

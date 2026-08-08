@@ -216,7 +216,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
         <div className="space-y-6">
 
             {/* MULTI-FACTOR AUTHENTICATION */}
-            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
@@ -274,7 +274,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                     }
                     (window as any)._devClickLast = now;
                 }}
-                className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-xl p-6 shadow-sm cursor-default hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors"
+                className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-lg p-6 shadow-sm cursor-default hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors"
             >
                 <div className="flex items-start gap-4 pointer-events-none select-none">
                     <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400">
@@ -301,7 +301,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
 
 
             {/* AUDIT LOGS */}
-            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden">
                 <div className="p-6 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center bg-slate-50 dark:bg-zinc-900/50">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-200 dark:bg-zinc-700 rounded-lg">
@@ -365,7 +365,7 @@ const ContentProtectionSection: React.FC = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">
@@ -434,7 +434,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     // On web, show a different message
     if (!isNative) {
         return (
-            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-slate-50 dark:bg-zinc-700 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -455,7 +455,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     // Native but biometrics not available
     if (!available) {
         return (
-            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -475,7 +475,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
 
     // Native + available
     return (
-        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">

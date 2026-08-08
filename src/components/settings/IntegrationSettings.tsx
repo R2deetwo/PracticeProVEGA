@@ -60,7 +60,7 @@ const IntegrationSettings: React.FC = () => {
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center p-2">
+            <div className="w-12 h-12 bg-white dark:bg-zinc-900 rounded-lg flex items-center justify-center p-2">
               <img src="https://chakrahq.com/favicon.ico" alt="ChakraHQ" className="w-full h-full object-contain" />
             </div>
             <div>
@@ -87,7 +87,7 @@ const IntegrationSettings: React.FC = () => {
             <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Configuration</h4>
             
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-800">
                 <span className="text-sm text-slate-300">Enable Integration</span>
                 <button 
                   onClick={() => setEditingConfig({ ...editingConfig, isActive: !editingConfig.isActive })}
@@ -119,7 +119,7 @@ const IntegrationSettings: React.FC = () => {
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
-                  <div className="bg-amber-900/10 border border-amber-900/30 rounded-xl p-3">
+                  <div className="bg-amber-900/10 border border-amber-900/30 rounded-lg p-3">
                     <p className="text-2xs text-amber-500/80 leading-relaxed italic">
                       API Keys are configured by the PracticePro administrator during the initial onboarding session for security.
                     </p>
@@ -132,7 +132,7 @@ const IntegrationSettings: React.FC = () => {
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
               >
                 {isSaving ? 'Saving...' : 'Update Integration'}
               </button>

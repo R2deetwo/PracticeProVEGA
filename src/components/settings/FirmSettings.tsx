@@ -14,7 +14,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, onTitleClick?: () => void }> = ({ title, children, id, className, onTitleClick }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3
                 className={`text-xl font-bold text-gray-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
@@ -363,7 +363,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                             </div>
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                                 <div className="flex-grow w-full sm:w-auto">
-                                    <div className="bg-white dark:bg-zinc-900 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                    <div className="bg-white dark:bg-zinc-900 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-lg p-4 flex items-center justify-between">
                                         <span className="text-2xl font-mono font-bold tracking-[0.2em] text-slate-800 dark:text-white uppercase">
                                             {firmDetails.inviteCode || 'GENERATING...'}
                                         </span>
@@ -445,7 +445,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                                         )}
                                                     </span>
                                                     {isInAnotherFirm && (
-                                                        <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
+                                                        <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tight">
                                                             Currently in other workspace
                                                         </span>
                                                      )}

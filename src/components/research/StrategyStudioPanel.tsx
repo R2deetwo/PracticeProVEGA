@@ -48,12 +48,12 @@ export const StrategyStudioPanel: React.FC<StrategyStudioPanelProps> = ({
                     results.map(result => (
                         <div
                             key={result.id}
-                            className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                            className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-sm hover:shadow-md transition-all group overflow-hidden"
                         >
                             <div className="p-3 border-b border-slate-100 dark:border-zinc-700/50 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
                                 <div className="flex items-center gap-2">
                                     {getTypeIcon(result.type)}
-                                    <span className="text-2xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tighter truncate max-w-[150px]">
+                                    <span className="text-2xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight truncate max-w-[150px]">
                                         {result.title}
                                     </span>
                                 </div>

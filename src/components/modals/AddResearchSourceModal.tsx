@@ -153,7 +153,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+      <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
         <TabButton label="Upload" icon={<UploadIcon className="w-4 h-4" />} isActive={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
         <TabButton label="Website" icon={<GlobeIcon className="w-4 h-4" />} isActive={activeTab === 'website'} onClick={() => setActiveTab('website')} />
         <TabButton label="Paste Text" icon={<ClipboardListIcon className="w-4 h-4" />} isActive={activeTab === 'paste'} onClick={() => setActiveTab('paste')} />
@@ -192,7 +192,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<UploadIcon className="w-3.5 h-3.5" />} text="PDF and Text files only. Ensure documents are clearly legible for optimal AI extraction. Limit of 20 sources per notebook." />
           <div
-            className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl p-8 text-center hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors cursor-pointer group"
+            className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
           >
             <input autoComplete="off" data-lpignore="true" type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".pdf,.txt" multiple />

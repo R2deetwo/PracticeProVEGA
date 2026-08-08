@@ -170,7 +170,7 @@ const TaskCard: React.FC<{
 
     return (
         <div
-            className={`group relative flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+            className={`group relative flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
                 isDone
                     ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30 opacity-90'
                     : isOverdue

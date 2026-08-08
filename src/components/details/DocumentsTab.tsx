@@ -124,7 +124,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     const isEmbedded = variant === 'embedded';
     const containerClasses = isEmbedded
         ? "bg-transparent"
-        : "bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6";
+        : "bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6";
 
     // --- RENDER GRID ITEM (Embedded View) ---
     const renderGridItem = (doc: Document) => {
@@ -136,7 +136,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 key={doc.id}
                 onClick={() => onViewDocumentDetails(doc.id)}
                 className={`
-                    group relative flex flex-col items-center justify-between p-3 rounded-xl border transition-all cursor-pointer min-h-[140px]
+                    group relative flex flex-col items-center justify-between p-3 rounded-lg border transition-all cursor-pointer min-h-[140px]
                     bg-white dark:bg-zinc-800 hover:shadow-xl hover:-translate-y-1
                     ${isNew ? 'border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-500/20' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-400 dark:hover:border-primary-500'}
                 `}
@@ -144,7 +144,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 {/* New Indicator */}
                 {isNew && (
                     <div className="absolute top-2 right-2 flex items-center gap-1">
-                        <span className="text-3xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">New</span>
+                        <span className="text-3xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">New</span>
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                     </div>
                 )}
@@ -193,7 +193,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
             onDrop={handleDrop}
         >
             {isDragging && (
-                <div className="absolute inset-0 bg-primary-500/20 border-4 border-dashed border-primary-500 rounded-xl flex items-center justify-center z-50 pointer-events-none">
+                <div className="absolute inset-0 bg-primary-500/20 border-4 border-dashed border-primary-500 rounded-lg flex items-center justify-center z-50 pointer-events-none">
                     <div className="text-center text-primary-600 font-bold text-xl"><UploadIcon className="w-12 h-12 mx-auto" /><p>Drop to Upload</p></div>
                 </div>
             )}
@@ -214,7 +214,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                             <div className="grid grid-cols-1 gap-3">
                                 <button
                                     onClick={handleInternalEdit}
-                                    className="flex items-center justify-center gap-3 p-4 rounded-xl border-2 border-slate-100 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/10 hover:border-slate-900 dark:hover:border-white hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 rounded-lg border-2 border-slate-100 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/10 hover:border-slate-900 dark:hover:border-white hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all group"
                                 >
                                     <div className="bg-slate-900 dark:bg-zinc-700 p-2 rounded-lg shadow-sm text-white">
                                         <EditIcon className="w-5 h-5" />
@@ -227,7 +227,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
                                 <button
                                     onClick={handleExternalEdit}
-                                    className="flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-all group"
                                 >
                                     <div className="bg-slate-100 dark:bg-zinc-600 p-2 rounded-lg text-slate-600 dark:text-slate-300">
                                         <DownloadIcon className="w-5 h-5" />
@@ -367,7 +367,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                         </div>
                     )
                 ) : (
-                    <div className={`text-center py-8 text-slate-500 dark:text-zinc-400 ${isEmbedded ? 'border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-xl' : 'bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700'}`}>
+                    <div className={`text-center py-8 text-slate-500 dark:text-zinc-400 ${isEmbedded ? 'border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg' : 'bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700'}`}>
                         <p className="text-xs">No documents found.</p>
                     </div>
                 )}

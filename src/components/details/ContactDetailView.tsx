@@ -172,7 +172,7 @@ const ContactMessagesTab: React.FC<{
     };
 
     return (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-white">Messages & Communication History</h3>
@@ -315,7 +315,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
     switch (activeTab) {
         case 'matters':
             return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Associated Matters</h3>
                         <button 
@@ -342,7 +342,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                             ))}
                         </ul>
                     ) : (
-                        <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-xl">
+                        <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg">
                             <p className="text-sm text-slate-500">No matters linked.</p>
                         </div>
                     )}
@@ -350,7 +350,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             );
         case 'properties':
             return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Property Portfolio</h3>
                         <button onClick={() => openModal('newProperty', contact.id)} className="px-3 py-1.5 bg-primary-600 text-white rounded-lg font-bold text-xs hover:bg-primary-700 flex items-center gap-2 shadow-sm transition-colors">
@@ -380,7 +380,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                             })()}
                         </div>
                     ) : (
-                        <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-xl">
+                        <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg">
                             <OfficeBuildingIcon className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                             <p className="text-sm text-slate-500">No properties recorded.</p>
                         </div>
@@ -389,7 +389,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             );
         case 'relationships':
             return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Relationship Map</h3>
                     </div>
@@ -409,7 +409,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                     {matters.map(m => (
                                         <div key={m.id} className="flex flex-col items-center">
                                             <div className="w-0.5 h-6 bg-slate-300 dark:bg-zinc-600 z-0"></div>
-                                            <div onClick={() => onViewMatterDetails(m.id)} className="bg-slate-50 dark:bg-zinc-700/50 border border-slate-200 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 font-bold py-2 px-4 rounded-xl shadow-sm text-xs text-center cursor-pointer hover:border-primary-400 hover:shadow-md transition-all max-w-[120px]">
+                                            <div onClick={() => onViewMatterDetails(m.id)} className="bg-slate-50 dark:bg-zinc-700/50 border border-slate-200 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 font-bold py-2 px-4 rounded-lg shadow-sm text-xs text-center cursor-pointer hover:border-primary-400 hover:shadow-md transition-all max-w-[120px]">
                                                 {m.title}
                                             </div>
                                         </div>
@@ -428,7 +428,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
         case 'overview':
         default:
              return (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8">
                         <DetailItem label="Email" value={<a href={`mailto:${contact.email}`} className="text-primary-600 hover:underline">{contact.email}</a>} />
                         <DetailItem label="Phone" value={contact.phone || 'N/A'} />

@@ -120,7 +120,7 @@ export const MatterBrief: React.FC<MatterBriefProps> = ({
 
             {/* Activity Log */}
             {activities.length > 0 && (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
                     <button
                         onClick={() => setShowActivity(!showActivity)}
                         className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors"

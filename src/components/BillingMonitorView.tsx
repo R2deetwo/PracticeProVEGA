@@ -151,19 +151,19 @@ const BillingMonitorNotDeployedFallback: React.FC = () => {
         <div className="space-y-5">
             {/* KPI cards — show zeros so the page layout is consistent */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Staged</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Queued</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Sent</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Failed</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
@@ -185,7 +185,7 @@ const BillingMonitorNotDeployedFallback: React.FC = () => {
                 </p>
                 <button
                     onClick={() => openModal('newMatter')}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/20"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/20"
                 >
                     Create a Matter
                 </button>
@@ -327,7 +327,7 @@ const BillingMonitorInner: React.FC = () => {
                     {[1, 2, 3].map((i) => (
                         <div
                             key={i}
-                            className="h-24 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 animate-pulse"
+                            className="h-24 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 animate-pulse"
                         />
                     ))}
                 </div>
@@ -398,7 +398,7 @@ const KpiCard: React.FC<{
     highlight?: boolean;
 }> = ({ label, value, dot, icon, subtitle, highlight }) => (
     <div
-        className={`p-3 rounded-xl border bg-white dark:bg-zinc-800 shadow-sm transition-all ${
+        className={`p-3 rounded-lg border bg-white dark:bg-zinc-800 shadow-sm transition-all ${
             highlight
                 ? 'border-rose-300 dark:border-rose-700 ring-2 ring-rose-100 dark:ring-rose-900/30'
                 : 'border-slate-200 dark:border-zinc-700'
@@ -435,7 +435,7 @@ const OutboxRow: React.FC<{
     const canRetry = entry.state === 'Failed';
 
     return (
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all overflow-hidden">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all overflow-hidden">
             <button
                 onClick={onSelect}
                 className="w-full text-left p-3 sm:p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors"
@@ -616,7 +616,7 @@ const OutboxDetailDrawer: React.FC<{
 
                 <div className="p-5 space-y-4">
                     {/* Cycle Info */}
-                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
+                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-lg border border-slate-200 dark:border-zinc-700">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
                             Cycle
                         </p>
@@ -649,7 +649,7 @@ const OutboxDetailDrawer: React.FC<{
                     </div>
 
                     {/* Client Info */}
-                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
+                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-lg border border-slate-200 dark:border-zinc-700">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
                             Client
                         </p>
@@ -703,7 +703,7 @@ const OutboxDetailDrawer: React.FC<{
                     </div>
 
                     {/* Line Items */}
-                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
+                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-lg border border-slate-200 dark:border-zinc-700">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
                             Line Items
                         </p>
@@ -737,7 +737,7 @@ const OutboxDetailDrawer: React.FC<{
 
                     {/* Failure Reason */}
                     {entry.failureReason && (
-                        <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800/30">
+                        <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-800/30">
                             <p className="text-2xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1 flex items-center gap-1">
                                 <ExclamationTriangleIcon className="w-3 h-3" />
                                 Failure Reason

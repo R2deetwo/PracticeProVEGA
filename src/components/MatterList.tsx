@@ -116,7 +116,7 @@ const MatterCardItem: React.FC<{
                 <div className="space-y-3">
                     <p>Are you sure you want to <strong>permanently delete</strong> this matter?</p>
                     {(taskCount > 0 || docCount > 0) && (
-                        <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl space-y-1">
+                        <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg space-y-1">
                             <p className="text-red-700 dark:text-red-400 font-bold text-2xs uppercase tracking-wider">Will also delete:</p>
                             {taskCount > 0 && <p className="text-xs text-red-600 dark:text-red-400">• {taskCount} Tasks</p>}
                             {docCount > 0 && <p className="text-xs text-red-600 dark:text-red-400">• {docCount} Documents</p>}
@@ -145,7 +145,7 @@ const MatterCardItem: React.FC<{
     return (
         <div
             onClick={() => selectionMode && onSelect ? onSelect(matter.id, !isSelected) : navigateTo('matterDetail', matter.id)}
-            className={`group relative p-3.5 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 min-h-[48px] ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
+            className={`group relative p-3.5 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 min-h-[48px] ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
             <div className="flex items-start gap-2">
                 {/* Checkbox — visible on hover or when selection mode active */}

@@ -27,7 +27,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ matterId, hideHeader })
     if (activities.length === 0 && hideHeader) return null;
 
     return (
-        <div className={`bg-white dark:bg-zinc-800 p-4 ${hideHeader ? 'rounded-none shadow-none border-none' : 'rounded-xl shadow-md border border-black/5 dark:border-white/5'} overflow-hidden`}>
+        <div className={`bg-white dark:bg-zinc-800 p-4 ${hideHeader ? 'rounded-none shadow-none border-none' : 'rounded-lg shadow-md border border-black/5 dark:border-white/5'} overflow-hidden`}>
             {!hideHeader && <h4 className="font-bold text-slate-500 text-xs uppercase mb-3 tracking-wider">Activity History</h4>}
             
             {/* Horizontal Timeline Container */}

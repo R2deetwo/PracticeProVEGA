@@ -54,7 +54,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 overflow-hidden animate-fade-in">
             <header className="flex-shrink-0 p-4 sm:px-6 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-50 dark:bg-primary-900/20 rounded-xl flex items-center justify-center text-primary-600">
+                    <div className="w-10 h-10 bg-primary-50 dark:bg-primary-900/20 rounded-lg flex items-center justify-center text-primary-600">
                         <DocumentIcon className="w-5 h-5" />
                     </div>
                     <div>
@@ -82,7 +82,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <div className="flex-grow overflow-auto p-4 sm:p-6 lg:p-8 flex flex-col items-center">
                 
                 {missingFields.length > 0 && (
-                    <div className="w-full max-w-3xl mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-3">
+                    <div className="w-full max-w-3xl mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex gap-3">
                         <WarningIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                         <div>
                             <h4 className="font-bold text-amber-800 dark:text-amber-500 text-sm">Missing Information Detected</h4>

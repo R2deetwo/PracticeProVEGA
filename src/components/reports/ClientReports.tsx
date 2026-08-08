@@ -143,11 +143,11 @@ const ClientReports: React.FC<ClientReportsProps> = () => {
                 <StatCard title="Total Billed" value={<><NairaSymbol/>{formatNaira(kpis.totalBilled)}</>} icon={<div/>} colorClass="text-green-500" />
                 <StatCard title="Top Client" value={kpis.topClient?.name || 'N/A'} icon={<div/>} colorClass="text-purple-500" />
             </div>
-             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">Revenue by Client (Top 10)</h3>
                 <BarChart data={chartData.revenueByClient} color="bg-primary-500" />
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">All Clients</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">

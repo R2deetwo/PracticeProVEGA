@@ -441,7 +441,7 @@ function renderCardContent({
                     {!isFirstStep && (
                         <button
                             onClick={onBack}
-                            className="p-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                            className="p-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                             aria-label="Previous step"
                         >
                             <ChevronLeftIcon className="w-4 h-4" />
@@ -449,7 +449,7 @@ function renderCardContent({
                     )}
                     <button
                         onClick={onNext}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 min-h-[44px]"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-bold rounded-lg shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 min-h-[44px]"
                     >
                         {isLastStep ? 'Complete' : 'Got it'}
                         {!isLastStep && <ChevronRightIcon className="w-4 h-4" />}

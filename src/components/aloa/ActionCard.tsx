@@ -158,7 +158,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                     {isExpanded && (
                         <div className="mt-2 space-y-2 animate-in slide-in-from-top-1 duration-300">
                             {displayInsights.map((hint, idx) => (
-                                <div key={idx} className={`flex gap-2 p-2 rounded-xl text-2xs font-medium leading-relaxed ${
+                                <div key={idx} className={`flex gap-2 p-2 rounded-lg text-2xs font-medium leading-relaxed ${
                                     hint.type === 'error' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
                                     hint.type === 'warning' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
                                     'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'

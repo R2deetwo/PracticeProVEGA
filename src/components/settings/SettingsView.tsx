@@ -15,7 +15,7 @@
  *   4. **Smooth transitions** — animated drawer slide-in, animated
  *      content swap on tab change.
  *   5. **Consistent with the rest of the app** — uses the same emerald
- *      brand-primary accent, same dark mode palette, same rounded-xl
+ *      brand-primary accent, same dark mode palette, same rounded-lg
  *      cards, same shadow-soft elevation language.
  *
  * The actual settings panels (ProfileSettings, FirmSettings, etc.) are
@@ -114,7 +114,7 @@ const NavItem: React.FC<{
             id={id}
             onClick={handleClick}
             className={`
-                group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
                 transition-all duration-200 text-left
                 ${isActive
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 shadow-soft'
@@ -167,7 +167,7 @@ const LockedDemoPanel: React.FC<{ title: string, description: string, onSignup: 
         <p className="text-slate-500 dark:text-zinc-400 max-w-sm mb-8">{description}</p>
         <button
             onClick={onSignup}
-            className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-black transition-all shadow-xl shadow-primary-500/20 active:scale-95"
+            className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-black transition-all shadow-xl shadow-primary-500/20 active:scale-95"
         >
             Unlock with Your Account
         </button>
@@ -554,7 +554,7 @@ export const SettingsView: React.FC = () => {
                             </button>
                             <div className="min-w-0">
                                 {/* On mobile show the active section name; on desktop show "Settings" */}
-                                <h2 className="text-base sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                                <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
                                     <span className="lg:hidden">{activeTabLabel[activeTab]}</span>
                                     <span className="hidden lg:inline">Settings</span>
                                 </h2>

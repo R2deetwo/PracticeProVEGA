@@ -98,7 +98,7 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
     };
 
     return (
-        <div className="bg-slate-100 dark:bg-zinc-800 rounded-xl shadow-md p-4 border border-black/5 dark:border-white/5 flex flex-col h-96">
+        <div className="bg-slate-100 dark:bg-zinc-800 rounded-lg shadow-md p-4 border border-black/5 dark:border-white/5 flex flex-col h-96">
             <div className="flex justify-between items-center mb-2 flex-shrink-0">
                 <h3 className="font-bold text-slate-800 dark:text-white">Recent Matters</h3>
                 <button onClick={() => onNavigateToDetail('matters', null)} className="text-xs font-semibold text-primary-600 hover:underline">View All</button>

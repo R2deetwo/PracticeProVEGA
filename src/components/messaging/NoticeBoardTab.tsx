@@ -131,7 +131,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
 
           {/* Create Notice Form */}
           {showNoticeForm && (
-            <div className="mt-3 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
+            <div className="mt-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
               <input
                 type="text"
                 value={newNoticeTitle}
@@ -255,7 +255,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                         ? matchedUnit?.address || notice.propertyId
                         : 'All Properties';
                       return (
-                        <div key={notice._id} className="p-4 rounded-xl border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700">
+                        <div key={notice._id} className="p-4 rounded-lg border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1.5 flex-wrap">

@@ -135,7 +135,7 @@ const TrialNudgeBanner: React.FC = () => {
   };
 
   return (
-    <div className={`${urgencyClasses[milestone.urgency]} border rounded-xl p-3 sm:p-4 mb-4 flex items-start gap-3 animate-fade-in`}>
+    <div className={`${urgencyClasses[milestone.urgency]} border rounded-lg p-3 sm:p-4 mb-4 flex items-start gap-3 animate-fade-in`}>
       <div className="flex-1 min-w-0">
         <h4 className="font-bold text-sm">{milestone.title}</h4>
         <p className="text-xs mt-1 opacity-90">{milestone.body}</p>

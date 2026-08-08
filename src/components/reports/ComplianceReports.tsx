@@ -36,7 +36,7 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
                 </ProTip>
             </div>
 
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">Team Professional Standards</h3>
                 {teamStandards.length === 0 ? (
                     <div className="text-center py-12">

@@ -465,7 +465,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     </p>
                     <button
                         onClick={revertToOriginalUser}
-                        className="w-full px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm transition-colors active:scale-[0.98]"
+                        className="w-full px-5 py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm transition-colors active:scale-[0.98]"
                     >
                         Return to Admin Session
                     </button>
@@ -1151,7 +1151,7 @@ export const App: React.FC = () => {
                         <div className="flex flex-col items-center gap-4">
                             <Logo className="w-24 h-24 text-emerald-500" />
                             <div className="text-center">
-                                <h1 className="text-2xl font-black text-white tracking-tight">PracticePro</h1>
+                                <h1 className="text-2xl font-bold text-white tracking-tight">PracticePro</h1>
                                 <p className="text-sm text-slate-400 mt-1 max-w-xs">
                                     Operating systems for the organizations that run modern Africa.
                                 </p>
@@ -1180,13 +1180,13 @@ export const App: React.FC = () => {
                                         <div className="flex gap-2 justify-center">
                                             <button
                                                 onClick={() => { light(); window.location.href = '/portal/tenant/login'; }}
-                                                className="active-press touch-target flex-1 py-2.5 text-xs font-bold text-emerald-400 rounded-xl bg-emerald-500/10 border border-emerald-500/20 transition-all"
+                                                className="active-press touch-target flex-1 py-2.5 text-xs font-bold text-emerald-400 rounded-lg bg-emerald-500/10 border border-emerald-500/20 transition-all"
                                             >
                                                 Resident Portal
                                             </button>
                                             <button
                                                 onClick={() => { light(); window.location.href = '/portal/client/login'; }}
-                                                className="active-press touch-target flex-1 py-2.5 text-xs font-bold text-blue-400 rounded-xl bg-blue-500/10 border border-blue-500/20 transition-all"
+                                                className="active-press touch-target flex-1 py-2.5 text-xs font-bold text-blue-400 rounded-lg bg-blue-500/10 border border-blue-500/20 transition-all"
                                             >
                                                 Client Portal
                                             </button>
@@ -1266,7 +1266,7 @@ export const App: React.FC = () => {
                         <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-8 ring-8 ring-amber-50/50 dark:ring-amber-900/10">
                             <OfficeBuildingIcon className="w-10 h-10 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-3 tracking-tight">Access Pending</h2>
+                        <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">Access Pending</h2>
                         <p className="text-slate-500 dark:text-zinc-400 mb-10 leading-relaxed text-lg">
                             Your request to join <span className="font-bold text-slate-900 dark:text-white">{coreState?.firmDetails?.name || 'this workspace'}</span> is awaiting approval from {product === 'atrium' ? 'the portfolio manager' : 'a firm administrator'}.
                         </p>

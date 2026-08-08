@@ -55,7 +55,7 @@ export const EnterpriseMatterDashboard: React.FC<{ matter: Matter }> = ({ matter
 const WidgetCard: React.FC<{ title: string; subtitle?: string; icon: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, subtitle, icon, children, className = '' }) => (
     <div className={`bg-gradient-to-br from-slate-900 to-slate-800 dark:from-zinc-900 dark:to-zinc-950 rounded-2xl shadow-xl border border-amber-400/20 overflow-hidden mb-6 ${className}`}>
         <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 bg-black/20">
-            <div className="w-10 h-10 rounded-xl bg-amber-400/10 flex items-center justify-center text-amber-400 border border-amber-400/20 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
+            <div className="w-10 h-10 rounded-lg bg-amber-400/10 flex items-center justify-center text-amber-400 border border-amber-400/20 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
                 {icon}
             </div>
             <div>
@@ -90,7 +90,7 @@ const MaritimeDossierWidget: React.FC<{ data?: any }> = ({ data }) => {
                 <DataPoint label="Flag State" value={data.flagState} />
                 <DataPoint label="P&I Club" value={data.pAndIClub} />
             </div>
-            <div className="p-3 bg-amber-400/5 rounded-xl border border-amber-400/10 flex items-center justify-between">
+            <div className="p-3 bg-amber-400/5 rounded-lg border border-amber-400/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${data.arrestStatus === 'Vessel Arrested' || data.arrestStatus === 'Warrant Issued' ? 'bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-green-500'}`} />
                     <span className="text-sm font-bold text-zinc-300">Arrest Status: <span className={data.arrestStatus === 'Vessel Arrested' ? 'text-red-400' : 'text-white'}>{data.arrestStatus || 'None'}</span></span>
@@ -150,7 +150,7 @@ const CorporateGovernanceTracker: React.FC<{ data?: any }> = ({ data }) => {
                 <DataPoint label="Share Capital" value={`₦${formatNaira(data.shareCapital || 0)}`} />
                 <DataPoint label="Board Sec." value={data.boardSecretary} />
             </div>
-            <div className="flex items-center gap-4 p-3 bg-white/5 rounded-xl border border-white/10">
+            <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg border border-white/10">
                 <div className="flex-1">
                     <p className="text-2xs font-bold text-zinc-500 uppercase tracking-widest mb-1">CAMA Annual Returns Due</p>
                     <p className={`text-lg font-black ${data.annualReturnsStatus === 'Overdue' ? 'text-red-400' : 'text-zinc-200'}`}>{data.annualReturnsDueDate || 'Not set'}</p>
@@ -177,7 +177,7 @@ const TaxDisputeLedger: React.FC<{ data?: any }> = ({ data }) => {
                 <DataPoint label="Tax Type" value={data.taxType} />
                 <DataPoint label="Audit Year" value={data.auditYear} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-red-500/5 rounded-xl border border-red-500/10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-red-500/5 rounded-lg border border-red-500/10">
                 <div>
                     <p className="text-2xs font-bold text-red-400/70 uppercase tracking-widest mb-1">Disputed Liability</p>
                     <p className="text-xl font-black text-red-400">₦{formatNaira(data.disputedTaxLiability || 0)}</p>

@@ -289,7 +289,7 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
                 <button
                     onClick={handleSelectFolder}
                     disabled={!isAdmin && !firmFolderPath}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <LargeFolderIcon className="w-5 h-5" />
                     {firmFolderPath ? `Select "${firmFolderPath}"` : "Select Secure Folder"}

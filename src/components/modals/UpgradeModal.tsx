@@ -71,14 +71,14 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
       </div>
 
       {/* Price + CTA */}
-      <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 text-center">
+      <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700 text-center">
         <div className="flex items-baseline justify-center gap-1 mb-4">
           <span className={`text-3xl font-black ${planConfig.accentColor}`}>{planConfig.price}</span>
           <span className="text-sm text-slate-500">/mo</span>
         </div>
         <button
           onClick={onUpgrade}
-          className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 mb-2"
+          className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 mb-2"
         >
           {planConfig.buttonText}
         </button>

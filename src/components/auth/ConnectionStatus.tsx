@@ -347,7 +347,7 @@ const ConnectionStatus: React.FC = () => {
         title="Click to troubleshoot connection"
       >
         <div className="relative mb-0.5">{triggerIcon}</div>
-        <span className={`text-3xs font-bold uppercase tracking-tighter ${status === 'offline' ? 'text-amber-700' : 'text-purple-800'}`}>
+        <span className={`text-3xs font-bold uppercase tracking-tight ${status === 'offline' ? 'text-amber-700' : 'text-purple-800'}`}>
           {triggerLabel}
         </span>
       </button>

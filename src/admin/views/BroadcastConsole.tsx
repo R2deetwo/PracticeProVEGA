@@ -540,7 +540,7 @@ export const BroadcastConsole: React.FC = () => {
                 {/* Preview */}
                 <div className={CARD}>
                     <p className={LABEL}>Preview</p>
-                    <div className={`mt-3 p-4 rounded-xl border-2 ${themeStyle.bg} ${themeStyle.border}`}>
+                    <div className={`mt-3 p-4 rounded-lg border-2 ${themeStyle.bg} ${themeStyle.border}`}>
                         <div className="flex items-start gap-3">
                             <span className="text-lg">{themeStyle.emoji}</span>
                             <div className="flex-1 min-w-0">
@@ -555,7 +555,7 @@ export const BroadcastConsole: React.FC = () => {
                 <button
                     onClick={handleSend}
                     disabled={isSending || !title.trim() || !message.trim()}
-                    className="w-full px-4 py-3 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                    className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                     {isSending ? 'Sending broadcast...' : `Send Broadcast to ${TARGET_LABELS[target]}`}
                 </button>
@@ -564,7 +564,7 @@ export const BroadcastConsole: React.FC = () => {
                     from the DB (from before the dedup fix was deployed) */}
                 <button
                     onClick={handleCleanupDuplicates}
-                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
                 >
                     Clean Up Duplicate Notifications
                 </button>

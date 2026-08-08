@@ -29,7 +29,7 @@ export const ListItemSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) =>
 export const CardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => (
   <div className="space-y-3">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="p-4 rounded-xl border border-slate-200 dark:border-zinc-700 space-y-3">
+      <div key={i} className="p-4 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
         <div className="flex items-center gap-2">
           <Pulse className="h-5 w-2/3" />
           <Pulse className="h-4 w-16 rounded-full" />
@@ -65,13 +65,13 @@ export const DetailSkeleton: React.FC = () => (
     </div>
     <div className="grid grid-cols-3 gap-4">
       {[1, 2, 3].map(i => (
-        <div key={i} className="p-4 rounded-xl border border-slate-200 dark:border-zinc-700 space-y-2">
+        <div key={i} className="p-4 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-2">
           <Pulse className="h-3 w-16" />
           <Pulse className="h-6 w-20" />
         </div>
       ))}
     </div>
-    <Pulse className="h-40 w-full rounded-xl" />
+    <Pulse className="h-40 w-full rounded-lg" />
   </div>
 );
 

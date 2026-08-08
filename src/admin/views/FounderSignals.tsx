@@ -141,7 +141,7 @@ export const FounderSignals: React.FC = () => {
                             <p className="text-xs text-slate-400 italic md:col-span-2">No scaling signals right now. Platform is humming along.</p>
                         )}
                         {(alerts.scalingSignals as any[]).map(s => (
-                            <div key={s.id} className={`rounded-xl border p-3 text-xs ${SEVERITY_STYLE[s.severity] || SEVERITY_STYLE.info}`}>
+                            <div key={s.id} className={`rounded-lg border p-3 text-xs ${SEVERITY_STYLE[s.severity] || SEVERITY_STYLE.info}`}>
                                 <p className="font-black uppercase tracking-wider text-3xs mb-1">{s.severity}</p>
                                 <p className="font-bold text-sm">{s.title}</p>
                                 <p className="mt-1 opacity-90">{s.detail}</p>
@@ -219,7 +219,7 @@ export const FounderSignals: React.FC = () => {
                         </table>
                     </div>
                     {alerts.pushProduct && (
-                        <div className="mt-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                        <div className="mt-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                             <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                 Push: {PRODUCT_LABEL[alerts.pushProduct.product] || alerts.pushProduct.product}
                             </p>

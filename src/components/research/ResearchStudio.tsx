@@ -231,7 +231,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                 <div className="mt-6 flex flex-col gap-3 w-full max-w-xs px-4">
                     <button
                         onClick={() => openModal('addResearchSource', null, { notebookId: notebook.id })}
-                        className="px-4 py-2.5 bg-primary-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-transform"
+                        className="px-4 py-2.5 bg-primary-600 text-white rounded-lg font-bold text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-transform"
                     >
                         Add Your First Source
                     </button>

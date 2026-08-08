@@ -112,7 +112,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
                     <button
                         type="submit"
                         disabled={isLoading || !password || attempts >= MAX_ATTEMPTS}
-                        className="w-full mt-2 py-3.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full mt-2 py-3.5 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

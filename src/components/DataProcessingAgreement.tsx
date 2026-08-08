@@ -25,7 +25,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <span>Effective Date: July 19, 2026</span>
                             <span>Version: 1.0</span>
                         </div>
-                        <div className="p-5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                        <div className="p-5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
                             <strong>Important:</strong> This Data Processing Agreement ("DPA") governs the processing of personal data by PracticePro Systems Limited ("Processor") on behalf of the {isVega ? 'law firm or legal practitioner' : 'property manager or real estate agency'} ("Controller") that has agreed to the PracticePro Terms of Service. This DPA is incorporated by reference into and forms part of the main Service Agreement.
                         </div>
                     </div>
@@ -33,7 +33,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                     <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-[1.8] prose-p:mb-8 prose-h2:mt-16 prose-h2:mb-6 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-3 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800 prose-h3:mt-10 prose-h3:mb-4 prose-h3:text-lg prose-h3:font-bold prose-ul:mb-8 prose-ul:space-y-3 prose-li:leading-relaxed">
 
                         {/* TOC */}
-                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 p-6 rounded-xl mb-12">
+                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 p-6 rounded-lg mb-12">
                             <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Table of Contents</p>
                             <ol className="list-decimal pl-5 space-y-1.5 text-sm text-slate-700 dark:text-zinc-300">
                                 {['Definitions','Scope and Duration','Roles of the Parties','Controller Obligations','Processor Obligations','Sub-Processors','Data Subject Rights','Security Measures','Personal Data Breaches','Data Transfers','Audit Rights','Liability','Termination and Data Return','Governing Law','Signatures'].map((item, i) => (
@@ -115,7 +115,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <h2>6. Sub-Processors</h2>
                             <h3>6.1 Authorised Sub-Processors</h3>
                             <p>The Controller grants general authorisation for the Processor to engage Sub-Processors. The current list of authorised Sub-Processors includes:</p>
-                            <div className="overflow-x-auto my-6 rounded-xl border border-slate-200 dark:border-zinc-700">
+                            <div className="overflow-x-auto my-6 rounded-lg border border-slate-200 dark:border-zinc-700">
                                 <table className="w-full text-sm border-collapse">
                                     <thead className="bg-slate-100 dark:bg-zinc-800">
                                         <tr>
@@ -219,7 +219,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                         <section className="mb-14">
                             <h2>15. Execution and Acceptance</h2>
                             <p>This Agreement is entered into and takes effect automatically upon the Controller's acceptance of the PracticePro Terms of Service, registration of an account, or the first instance of processing Personal Data on the Platform. <strong>No manual signature is required.</strong></p>
-                            <div className="mt-8 p-6 bg-primary-50/50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-xl flex items-start gap-4">
+                            <div className="mt-8 p-6 bg-primary-50/50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-lg flex items-start gap-4">
                                 <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center shrink-0">
                                     <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

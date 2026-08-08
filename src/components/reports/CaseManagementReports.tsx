@@ -124,7 +124,7 @@ const GhostReassignPanel: React.FC<GhostReassignPanelProps> = ({ ghost, existing
                             </p>
                             <div className="space-y-3">
                                 {ghostMatters.map(m => (
-                                    <div key={m.id} className="p-4 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800/50">
+                                    <div key={m.id} className="p-4 border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50">
                                         <div className="font-semibold text-sm text-slate-800 dark:text-white mb-2">{m.title}</div>
                                         <select
                                             value={assignments[m.id]}
@@ -408,16 +408,16 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
                 <StatCard title="Total Documents" value={reportData.totalDocuments} icon={<DocumentsIcon />} colorClass="text-teal-500" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+                <div className="lg:col-span-1 bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                     <h3 className="text-lg font-bold mb-4">Matters by Status</h3>
                     <DoughnutChart data={reportData.mattersByStatus} />
                 </div>
-                <div className="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+                <div className="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                     <h3 className="text-lg font-bold mb-4">{isProperty ? 'Properties by Category' : 'Caseload by Practice Area'}</h3>
                     <CaseloadBarChart data={reportData.caseloadByPracticeArea} color="bg-primary-500" />
                 </div>
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                 {appMode === 'multi' ? (
                     <>
                         <div className="flex items-center justify-between mb-4">
@@ -450,7 +450,7 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
             {/* ─── STALE MATTERS TABLE WITH FILE REVIEW REMINDERS ─── */}
             <div 
                 id="stale-matters-section"
-                className={`bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border transition-all duration-1000 ${currentHistoryEntry?.context?.highlight ? 'ring-4 ring-primary-500/30 border-primary-500 shadow-2xl scale-[1.01]' : 'border-black/5 dark:border-white/5'}`}
+                className={`bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border transition-all duration-1000 ${currentHistoryEntry?.context?.highlight ? 'ring-4 ring-primary-500/30 border-primary-500 shadow-2xl scale-[1.01]' : 'border-black/5 dark:border-white/5'}`}
             >
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold">{isProperty ? 'Stale Records' : 'Stale Matters'} <span className="text-slate-400 dark:text-zinc-500 font-normal text-sm">(No activity in 30+ days)</span></h3>

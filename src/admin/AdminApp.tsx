@@ -255,7 +255,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {/* Toast container — bottom of screen */}
             <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] space-y-2 w-full max-w-sm px-4" style={{ bottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom)))' }}>
                 {toasts.map(t => (
-                    <div key={t.id} className={`px-4 py-3 rounded-xl shadow-lg text-sm font-bold text-center animate-slide-in-up ${
+                    <div key={t.id} className={`px-4 py-3 rounded-lg shadow-lg text-sm font-bold text-center animate-slide-in-up ${
                         t.type === 'success' ? 'bg-emerald-600 text-white' :
                         t.type === 'error' ? 'bg-red-600 text-white' :
                         'bg-slate-800 text-white'

@@ -26,8 +26,8 @@ const ArchiveMatterModal: React.FC<ArchiveMatterModalProps> = ({ matter, onConfi
       </ul>
     </div>
     <div className="pt-4 flex justify-end space-x-2">
-      <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
-      <button type="submit" className="px-5 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors shadow-md">Confirm & Archive</button>
+      <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
+      <button type="submit" className="px-5 py-2 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-700 transition-colors shadow-md">Confirm & Archive</button>
     </div>
   </form>
  );

@@ -48,7 +48,7 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-xl font-bold mb-4">Outstanding Invoices</h3>
                 {outstandingInvoices.length > 0 ? (
                     <ul className="space-y-3">
@@ -90,7 +90,7 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
                 )}
             </div>
 
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-xl font-bold mb-4">Financial Records</h3>
                 <div className="space-y-4">
                     {lastReceipt ? (

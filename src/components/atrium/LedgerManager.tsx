@@ -105,7 +105,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
             <div className="grid grid-cols-4 gap-2">
               {TYPE_OPTIONS.map(opt => (
                 <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, type: opt.value }))}
-                  className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-2xs font-bold transition-all ${
+                  className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-2xs font-bold transition-all ${
                     form.type === opt.value
                       ? 'bg-emerald-600 border-emerald-500 text-white'
                       : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
@@ -135,7 +135,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
                 ['defaulted', 'Defaulted', 'border-rose-600 bg-rose-900/30 text-rose-300', <XCircle className="w-3.5 h-3.5" />]
               ] as const).map(([val, label, activeClass, icon]) => (
                 <button key={val as string} type="button" onClick={() => setForm(f => ({ ...f, status: val as LedgerEntryStatus }))}
-                  className={`py-2 px-2 rounded-xl border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-2 rounded-lg border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     form.status === val ? activeClass : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
                   }`}>{icon} {label as string}</button>
               ))}
@@ -166,8 +166,8 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
           )}
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
               {loading ? 'Recording...' : 'Record Payment'}
             </button>
           </div>
@@ -315,17 +315,17 @@ const LedgerManager: React.FC = () => {
       {/* Header */}
       <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-white tracking-tight">Financial Ledger</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">Financial Ledger</h2>
           <p className="text-xs text-slate-500 mt-0.5">Immutable append-only financial truth</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/20 sm:w-auto w-full">
+        <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-emerald-500/20 sm:w-auto w-full">
           <PlusIcon /> Record Entry
         </button>
       </div>
 
       {/* KPI Row */}
       <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 px-4 sm:px-6 py-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendUpIcon className="w-4 h-4 text-emerald-400" />
             <span className="text-xs text-slate-500 uppercase tracking-wider">Total Income</span>
@@ -333,7 +333,7 @@ const LedgerManager: React.FC = () => {
           <p className="text-2xl font-black text-emerald-400">₦{formatLargeNumber(cashFlow?.totalIncome ?? 0)}</p>
           <p className="text-2xs text-slate-600 mt-1">{cashFlow?.totalTransactions ?? 0} transactions</p>
         </div>
-        <div className="bg-slate-900 border border-rose-900/30 rounded-xl p-4">
+        <div className="bg-slate-900 border border-rose-900/30 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             <span className="text-xs text-slate-500 uppercase tracking-wider">Revenue at Risk</span>
@@ -341,7 +341,7 @@ const LedgerManager: React.FC = () => {
           <p className="text-2xl font-black text-rose-400">₦{formatLargeNumber(cashFlow?.revenueAtRisk ?? 0)}</p>
           <p className="text-2xs text-slate-600 mt-1">Pending + Defaulted</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <HashIcon className="w-4 h-4 text-slate-500" />
             <span className="text-xs text-slate-500 uppercase tracking-wider">6-Month Flow</span>
@@ -377,7 +377,7 @@ const LedgerManager: React.FC = () => {
       <div className="flex-1 sm:overflow-y-auto px-6 pb-44 sm:pb-6">
         {!entries ? (
           <div className="space-y-2">
-            {[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-slate-900 rounded-xl animate-pulse" />)}
+            {[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-slate-900 rounded-lg animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-600">
@@ -388,7 +388,7 @@ const LedgerManager: React.FC = () => {
         ) : (
           <div className="space-y-1.5">
             {filtered.map(entry => (
-              <div key={entry._id} className="group relative bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl px-4 py-3.5 transition-all">
+              <div key={entry._id} className="group relative bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3.5 transition-all">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Type dot */}

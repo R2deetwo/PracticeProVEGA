@@ -38,7 +38,7 @@ const NotFoundView: React.FC = () => {
                 </p>
                 <button
                     onClick={() => navigate(loginPath, { replace: true })}
-                    className="px-6 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
+                    className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
                 >
                     Return to Portal
                 </button>
@@ -60,7 +60,7 @@ const NotFoundView: React.FC = () => {
             </p>
             <button
                 onClick={() => navigateTo('dashboard')}
-                className="px-6 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
+                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
             >
                 Go to Dashboard
             </button>

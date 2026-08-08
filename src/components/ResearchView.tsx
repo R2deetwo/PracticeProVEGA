@@ -465,7 +465,7 @@ const ResearchView: React.FC = () => {
                     with the "Research" title and "PracticePro Research" subtitle
                     so the page identity matches its navigation entry point. */}
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
                         <ResearchIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                     </div>
                     <div className="min-w-0">
