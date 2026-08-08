@@ -93,6 +93,9 @@ export const SubscriptionRequestsCenter: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+  // CRO AUDIT — discounting system state
+  const [discountPercent, setDiscountPercent] = useState<Record<string, number>>({});
+  const [discountReason, setDiscountReason] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
 
   // Data
@@ -124,10 +127,21 @@ export const SubscriptionRequestsCenter: React.FC = () => {
         tokenIdentifier,
         requestId,
         adminNotes: adminNotes[requestId] || undefined,
+        // CRO AUDIT — discounting system
+        discountPercent: discountPercent[requestId] || undefined,
+        discountReason: discountReason[requestId] || undefined,
       });
-      addToast('Subscription approved. Firm plan updated.', { type: 'success' });
+      const dp = discountPercent[requestId] || 0;
+      addToast(
+        dp > 0
+          ? `Subscription approved with ${dp}% discount. Firm plan updated.`
+          : 'Subscription approved. Firm plan updated.',
+        { type: 'success' }
+      );
       setExpandedId(null);
       setAdminNotes(prev => { const n = { ...prev }; delete n[requestId]; return n; });
+      setDiscountPercent(prev => { const n = { ...prev }; delete n[requestId]; return n; });
+      setDiscountReason(prev => { const n = { ...prev }; delete n[requestId]; return n; });
     } catch (e: any) {
       addToast(e?.message || 'Failed to approve.', { type: 'error' });
     } finally {
@@ -334,9 +348,69 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                       </div>
                     )}
 
+                    {/* CRO AUDIT — show discount info on approved requests */}
+                    {r.status === 'approved' && r.discountPercent && r.discountPercent > 0 && (
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
+                        <p className={LABEL}>Discount Applied</p>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-slate-600 dark:text-zinc-300">
+                            {r.discountPercent}% — {r.discountReason || 'no reason'}
+                          </span>
+                          <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                            <NairaSymbol />{formatNaira(r.discountedAmount || 0)}
+                            <span className="ml-1 text-2xs text-slate-400 line-through">
+                              <NairaSymbol />{formatNaira(r.amount || 0)}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Approve / Reject UI for pending requests */}
                     {isPending && (
                       <div className="space-y-3 pt-2">
+                        {/* CRO AUDIT — Discounting system.
+                            Founder can apply a discount % (0-100) before approving.
+                            The discounted amount is computed live + shown below. */}
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3">
+                          <label className={LABEL + ' block mb-2'}>Discount (optional)</label>
+                          <div className="flex items-center gap-2 mb-2">
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              step={5}
+                              value={discountPercent[r.id] || 0}
+                              onChange={e => setDiscountPercent(prev => ({ ...prev, [r.id]: parseInt(e.target.value) }))}
+                              className="flex-1 accent-emerald-600"
+                            />
+                            <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm w-12 text-right">
+                              {discountPercent[r.id] || 0}%
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Discount reason (e.g. Early adopter loyalty discount)"
+                            value={discountReason[r.id] || ''}
+                            onChange={e => setDiscountReason(prev => ({ ...prev, [r.id]: e.target.value }))}
+                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-1 focus:ring-emerald-500/30 outline-none"
+                          />
+                          {/* Live discount calculation */}
+                          <div className="mt-2 flex justify-between items-center text-xs">
+                            <span className="text-slate-500 dark:text-zinc-400">
+                              Original: <NairaSymbol />{formatNaira(r.amount || 0)}
+                            </span>
+                            {(discountPercent[r.id] || 0) > 0 && (
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                                Final: <NairaSymbol />{formatNaira(Math.round((r.amount || 0) * (1 - (discountPercent[r.id] || 0) / 100)))}
+                                <span className="ml-1 text-2xs text-emerald-600 dark:text-emerald-500">
+                                  (save <NairaSymbol />{formatNaira((r.amount || 0) - Math.round((r.amount || 0) * (1 - (discountPercent[r.id] || 0) / 100)))})
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
                         {/* Approve notes */}
                         <div>
                           <label className={LABEL + ' block mb-1'}>Approval Notes (optional)</label>

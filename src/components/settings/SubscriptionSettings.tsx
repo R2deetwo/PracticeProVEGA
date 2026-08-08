@@ -5,7 +5,7 @@ import { CheckIcon, UserCircleIcon, CalculatorIcon } from '../../constants';
 import { ShieldCheckIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
@@ -16,10 +16,13 @@ import {
     getTiersForProduct,
     DISPLAY_TIER_IDS,
     VEGA_TIERS,
+    KOMPLETE_TIER,
     type ProductMode,
     type TierId,
     type TierDef,
 } from '../../constants/tiers';
+// CRO AUDIT — add-ons catalog for the Add-Ons section.
+import { getAddonsForProduct, formatAddonPrice, type AddonDef } from '../../constants/addons';
 
 interface SubscriptionSettingsProps {
     firmDetails: FirmDetails;
@@ -195,7 +198,14 @@ const BillingCalculator: React.FC<{
     simulationCount: number,
     setSimulationCount: (n: number) => void,
     selectedModalities: FirmSpecialty[],
-}> = ({ users, currentPlan, isAnnual, viewAsMonthlyCost, simulationCount, setSimulationCount, selectedModalities }) => {
+    // CRO AUDIT: toggle controls moved INTO the calculator (next to "Estimated
+    // Monthly Cost" header) instead of a giant toggle at the top of the page.
+    showBillingToggle?: boolean,
+    isAnnualState?: boolean,
+    onToggleBilling?: () => void,
+    viewAsMonthlyCostState?: boolean,
+    onToggleViewMode?: () => void,
+}> = ({ users, currentPlan, isAnnual, viewAsMonthlyCost, simulationCount, setSimulationCount, selectedModalities, showBillingToggle = false, isAnnualState, onToggleBilling, viewAsMonthlyCostState, onToggleViewMode }) => {
     const seatRateForTier = (tier: TierDef): number => {
         if (!isAnnual) return tier.monthlyPrice ?? 0;
         return Math.round((tier.annualPrice ?? 0) / 12);
@@ -267,7 +277,21 @@ const BillingCalculator: React.FC<{
     } else if (currentPlan === SubscriptionPlan.Growth) {
         const rate = seatRateForTier(VEGA_TIERS.Growth);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Growth Rate)";
-    } else if (currentPlan === SubscriptionPlan.Pro || currentPlan === SubscriptionPlan.Komplete) {
+    } else if (currentPlan === SubscriptionPlan.Komplete) {
+        // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr with 10 seats included.
+        // Seats 2-10 are included in the base price (no extra charge).
+        // Seats 11+ are billed pro-rata at the Komplete annual rate / 10 / 12 per seat per month.
+        const kompleteAnnual = KOMPLETE_TIER.annualPrice ?? 2500000;
+        const baseRate = Math.round(kompleteAnnual / 12);  // monthly-equiv for display
+        baseCost = baseRate;
+        // First 9 additional seats (positions 2-10) are included; only bill beyond 10
+        const billableExtraSeats = Math.max(0, additionalSeats - 9);
+        const extraSeatRate = Math.round(baseRate / 10);  // pro-rata: 1/10th of monthly-equiv
+        addOnCost = billableExtraSeats * extraSeatRate;
+        addOnLabel = billableExtraSeats > 0
+            ? `Addt'l Seats (Komplete Pro-Rata) — ${additionalSeats - billableExtraSeats} included`
+            : `Addt'l Seats (Included in Komplete — ${10 - (1 + additionalSeats)} remaining)`;
+    } else if (currentPlan === SubscriptionPlan.Pro) {
         const rate = seatRateForTier(VEGA_TIERS.Pro);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Pro Rate)";
     }
@@ -292,16 +316,51 @@ const BillingCalculator: React.FC<{
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700">
-                    <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
-                        <span className={`w-8 text-center font-mono font-bold text-sm ${isSimulating ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>+{simulationCount}</span>
-                        <button onClick={() => setSimulationCount(Math.min(50, simulationCount + 1))} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 transition-all font-bold">+</button>
+                {/* CRO AUDIT FIX: compact monthly/yearly toggle moved INSIDE the
+                    billing calculator (between "Simulate Growth" and the cost display).
+                    Smaller pill toggle with -20% badge. Hidden for annual-only products
+                    (Komplete, Atrium) — showBillingToggle prop controls visibility. */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    {showBillingToggle && onToggleBilling && (
+                        <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 text-2xs font-bold">
+                            <button
+                                onClick={() => { if (isAnnualState) onToggleBilling(); }}
+                                className={`px-2.5 py-1 rounded-full transition-all ${!isAnnualState ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}`}
+                            >Monthly</button>
+                            <button
+                                onClick={() => { if (!isAnnualState) onToggleBilling(); }}
+                                className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 ${isAnnualState ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}`}
+                            >Yearly <span className="text-emerald-600 text-3xs">-20%</span></button>
+                        </div>
+                    )}
+                    {!showBillingToggle && (
+                        <span className="px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 rounded-full text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                            Annual Billing Only
+                        </span>
+                    )}
+                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700">
+                        <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
+                            <span className={`w-8 text-center font-mono font-bold text-sm ${isSimulating ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>+{simulationCount}</span>
+                            <button onClick={() => setSimulationCount(Math.min(50, simulationCount + 1))} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 transition-all font-bold">+</button>
+                        </div>
+                        {isSimulating && <button onClick={() => setSimulationCount(0)} className="text-2xs font-bold text-primary-600 hover:underline ml-1">Reset</button>}
                     </div>
-                    {isSimulating && <button onClick={() => setSimulationCount(0)} className="text-2xs font-bold text-primary-600 hover:underline ml-1">Reset</button>}
                 </div>
             </div>
+            {/* CRO AUDIT FIX: compact view-mode toggle (Show Monthly Avg / Show Total Billed)
+                moved into the calculator header area too. Only shown when billing toggle
+                is visible (i.e. for monthly/annual-capable plans). */}
+            {showBillingToggle && onToggleViewMode && (
+                <div className="flex items-center justify-end gap-2 text-xs text-slate-500 dark:text-zinc-400 mb-4 -mt-3">
+                    <span className={viewAsMonthlyCostState ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Monthly Avg</span>
+                    <div onClick={onToggleViewMode} className={`relative w-8 h-4 bg-slate-300 dark:bg-zinc-600 rounded-full cursor-pointer transition-colors ${!viewAsMonthlyCostState ? 'bg-primary-500' : ''}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 bg-white dark:bg-zinc-900 rounded-full shadow-sm transition-transform duration-200 ${!viewAsMonthlyCostState ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
+                    </div>
+                    <span className={!viewAsMonthlyCostState ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Total Billed</span>
+                </div>
+            )}
             <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 rounded-lg">
                     <div className="flex items-center gap-3">
@@ -637,73 +696,107 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
         }
     };
 
+    // CRO AUDIT FIX: detect if current plan supports monthly billing.
+    // Komplete (unified) is annual-only. Atrium (property) is annual-only.
+    // Only Vega (legal) firms on Core/Growth/Pro can toggle monthly/yearly.
+    const isAnnualOnlyProduct = isUnified || productMode === 'property' || productMode === 'atrium';
+
+    // CRO AUDIT FIX: detect if the user is already on the highest available
+    // plan for their product. If so, hide upgrade CTAs and show downgrade +
+    // seat-usage info instead.
+    const isOnHighestPlan = isUnified
+        ? (currentPlan === SubscriptionPlan.Komplete || currentPlan === SubscriptionPlan.Enterprise)
+        : (currentPlan === SubscriptionPlan.Pro || currentPlan === SubscriptionPlan.Enterprise);
+
     return (
         <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+            {/* Header — CRO AUDIT FIX: show current plan immediately.
+                "Billing & Plans: Komplete" instead of just "Billing & Plans".
+                Also moved higher on the page (removed mb-6, tighter spacing). */}
+            <div className="flex flex-col gap-3 mb-2">
                 <div>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Billing & Plans</h3>
-                    <p className="text-slate-500 dark:text-zinc-400 max-w-2xl">Manage your plan, billing cycle, and seat allocation.</p>
-                </div>
-
-                {/* ─── Fix Product Mode Warning ─────────────────────────── */}
-                {needsProductFix && (
-                    <div className="w-full md:w-auto bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 flex flex-col gap-3">
-                        <div className="flex items-start gap-2">
-                            <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <div className="text-sm">
-                                <p className="font-bold text-amber-800 dark:text-amber-200">Product Mode Mismatch Detected</p>
-                                <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
-                                    Your plan is <strong>{currentPlan}</strong> but your product mode is <strong>{activeProduct}</strong>.
-                                    This means property features (Properties page, Units on dashboard) are hidden.
-                                    Click below to fix this permanently.
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleFixProductMode}
-                            disabled={isFixingProduct}
-                            className="w-full md:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {isFixingProduct ? (
-                                <>
-                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                    </svg>
-                                    Fixing...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Fix Product Mode → Komplete
-                                </>
-                            )}
-                        </button>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                            Billing &amp; Plans: <span className="text-primary-600 dark:text-primary-400">{currentPlan}</span>
+                        </h3>
+                        {/* SIMULATED badge — CRO AUDIT: makes clear that current MRR/plan
+                            status is simulated until the founder approves a real payment. */}
+                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-2xs font-black uppercase tracking-widest rounded-full border border-amber-300 dark:border-amber-700">
+                            Simulated
+                        </span>
                     </div>
-                )}
-                <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
-                        <button onClick={() => setIsAnnual(false)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${!isAnnual ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Monthly</button>
-                        <button onClick={() => setIsAnnual(true)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${isAnnual ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Yearly <span className="text-xs text-green-600 ml-1">-20%</span></button>
-                    </div>
-                    <span className="text-2xs text-slate-500 max-w-[250px] text-right mt-1 leading-tight">Billing is processed annually. Contact us to arrange monthly payments.</span>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 mt-2">
-                        <span className={viewAsMonthlyCost ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Monthly Avg</span>
-                        <div onClick={() => setViewAsMonthlyCost(!viewAsMonthlyCost)} className={`relative w-8 h-4 bg-slate-300 dark:bg-zinc-600 rounded-full cursor-pointer transition-colors ${!viewAsMonthlyCost ? 'bg-primary-500' : ''}`}>
-                            <div className={`absolute top-0.5 w-3 h-3 bg-white dark:bg-zinc-900 rounded-full shadow-sm transition-transform duration-200 ${!viewAsMonthlyCost ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
-                        </div>
-                        <span className={!viewAsMonthlyCost ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Total Billed</span>
-                    </div>
+                    <p className="text-slate-500 dark:text-zinc-400 max-w-2xl text-sm mt-1">
+                        Manage your plan, billing cycle, and seat allocation.
+                        {!isAnnualOnlyProduct && (
+                            <span className="ml-1 text-slate-400">Switch between monthly and yearly billing below.</span>
+                        )}
+                        {isAnnualOnlyProduct && (
+                            <span className="ml-1 text-slate-400">Your plan is billed annually.</span>
+                        )}
+                    </p>
                 </div>
             </div>
 
-            {/* Billing Widget */}
-            <BillingCalculator users={activeFirmUsers} currentPlan={firmDetails.subscriptionPlan || SubscriptionPlan.Core} isAnnual={isAnnual} viewAsMonthlyCost={viewAsMonthlyCost} simulationCount={simulationCount} setSimulationCount={setSimulationCount} selectedModalities={selectedModalities.length > 0 ? selectedModalities : (firmDetails.firmSpecialties || [])} />
+            {/* ─── Fix Product Mode Warning ─────────────────────────── */}
+            {needsProductFix && (
+                <div className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 flex flex-col gap-3">
+                    <div className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="text-sm">
+                            <p className="font-bold text-amber-800 dark:text-amber-200">Product Mode Mismatch Detected</p>
+                            <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
+                                Your plan is <strong>{currentPlan}</strong> but your product mode is <strong>{activeProduct}</strong>.
+                                This means property features (Properties page, Units on dashboard) are hidden.
+                                Click below to fix this permanently.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleFixProductMode}
+                        disabled={isFixingProduct}
+                        className="w-full md:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {isFixingProduct ? (
+                            <>
+                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Fixing...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Fix Product Mode → Komplete
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* Billing Widget — CRO AUDIT FIX: monthly/yearly toggle is now INSIDE
+                the BillingCalculator (passed as props), not a giant toggle at the top.
+                For annual-only products (Komplete, Atrium), the toggle is hidden entirely. */}
+            <BillingCalculator
+                users={activeFirmUsers}
+                currentPlan={firmDetails.subscriptionPlan || SubscriptionPlan.Core}
+                isAnnual={isAnnual}
+                viewAsMonthlyCost={viewAsMonthlyCost}
+                simulationCount={simulationCount}
+                setSimulationCount={setSimulationCount}
+                selectedModalities={selectedModalities.length > 0 ? selectedModalities : (firmDetails.firmSpecialties || [])}
+                // CRO AUDIT: pass toggle controls into the calculator so they sit
+                // in the "estimated monthly cost" area, not at the top of the page.
+                showBillingToggle={!isAnnualOnlyProduct}
+                isAnnualState={isAnnual}
+                onToggleBilling={() => setIsAnnual(!isAnnual)}
+                viewAsMonthlyCostState={viewAsMonthlyCost}
+                onToggleViewMode={() => setViewAsMonthlyCost(!viewAsMonthlyCost)}
+            />
 
             {/* Standard Plan Cards — Core / Growth / Pro from tiers.ts.
                 For Komplete (unified) firms, all three tiers are the same
@@ -714,16 +807,43 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     <PlanCard
                         plan={SubscriptionPlan.Komplete}
                         currentPlan={normalizedCurrent}
-                        price={formatSettingsPrice(tiers.Core, isAnnual, viewAsMonthlyCost)}
+                        price={formatSettingsPrice(tiers.Core, true, viewAsMonthlyCost)}
                         description={TIER_SETTINGS_COPY.Core.description}
                         userLimit={TIER_SETTINGS_COPY.Core.userLimit}
                         viewAsMonthlyCost={viewAsMonthlyCost}
-                        isAnnual={isAnnual}
+                        isAnnual={true}
                         features={tiers.Core.features}
                         isPopular={true}
                         isKomplete={true}
-                        onSelect={() => processUpgrade(SubscriptionPlan.Komplete, isAnnual ? (tiers.Core.annualPrice ?? 0) : (tiers.Core.monthlyPrice ?? 0))}
+                        // CRO AUDIT FIX: Komplete is annual-only — always pass annualPrice
+                        onSelect={() => processUpgrade(SubscriptionPlan.Komplete, tiers.Core.annualPrice ?? 0)}
                     />
+                    {/* CRO AUDIT FIX: For Komplete users, show downgrade options.
+                        Komplete users can downgrade to Atrium Pro or Vega Pro if they
+                        no longer need the unified product. This prevents churn —
+                        we'd rather keep them on a lower plan than lose them entirely. */}
+                    {isOnHighestPlan && (
+                        <div className="mt-4 p-4 bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl">
+                            <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-2">Need to downsize?</h4>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+                                You can downgrade to a single-product plan (Atrium Pro or Vega Pro) if you no longer need the unified Komplete experience. Your data is preserved.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => processUpgrade('Pro' as any, 2100000)}
+                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    Downgrade to Atrium Pro (₦2.1M/yr)
+                                </button>
+                                <button
+                                    onClick={() => processUpgrade('Pro' as any, 768000)}
+                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    Downgrade to Vega Pro (₦768K/yr)
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -734,15 +854,15 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     const price = formatSettingsPrice(tier, isAnnual, viewAsMonthlyCost);
                     const upgradePrice = isAnnual ? (tier.annualPrice ?? 0) : (tier.monthlyPrice ?? 0);
                     return (
-                <PlanCard 
+                <PlanCard
                             key={tierId}
                             plan={plan}
                             currentPlan={normalizedCurrent}
                             price={price}
                             description={copy.description}
                             userLimit={copy.userLimit}
-                    viewAsMonthlyCost={viewAsMonthlyCost} 
-                    isAnnual={isAnnual} 
+                    viewAsMonthlyCost={viewAsMonthlyCost}
+                    isAnnual={isAnnual}
                             features={tier.features}
                             isPopular={tier.recommended}
                             isKomplete={currentPlan === SubscriptionPlan.Komplete}
@@ -760,6 +880,153 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     {' '}to change billing or modalities.
                 </p>
             )}
+
+            {/* ─── ADD-ONS SECTION (CRO AUDIT — Revenue Expansion) ──────────
+                Shows upsellable extras (extra WhatsApp, extra seats, storage,
+                AI priority, custom integrations, data migration). Users can
+                purchase add-ons, which create pending requests for founder
+                approval. Active add-ons are also shown. */}
+            <AddOnsSection firmDetails={firmDetails} />
+        </div>
+    );
+};
+
+// ─── ADD-ONS SECTION COMPONENT ─────────────────────────────────────────────
+const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { addToast } = useUI();
+    const { currentUser } = useAuth();
+    const [purchasingId, setPurchasingId] = useState<string | null>(null);
+
+    // Fetch active + pending add-ons for this firm
+    const activeAddons = useQuery(api.myFunctions.getActiveAddonsForFirm,
+        currentUser?.email ? { userEmail: currentUser.email } : "skip");
+    const pendingAddons = useQuery(api.myFunctions.getPendingAddonsForFirm,
+        currentUser?.email ? { userEmail: currentUser.email } : "skip");
+
+    const createAddonRequest = useMutation(api.myFunctions.createAddonRequest);
+
+    const product = firmDetails.product || 'unified';
+    const applicableAddons = getAddonsForProduct(product);
+
+    const handlePurchase = async (addon: AddonDef) => {
+        setPurchasingId(addon.id);
+        try {
+            await createAddonRequest({
+                addonId: addon.id,
+                addonName: addon.name,
+                billingInterval: addon.billingInterval,
+                amount: addon.amount,
+                quantity: 1,
+                userEmail: currentUser?.email,
+            });
+            addToast(`${addon.name} request submitted. Our team will verify your payment and activate it within 24 hours.`, { type: 'success', duration: 6000 });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to submit add-on request.', { type: 'error' });
+        } finally {
+            setPurchasingId(null);
+        }
+    };
+
+    if (applicableAddons.length === 0) return null;
+
+    return (
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add-Ons &amp; Extras</h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                Supercharge your workspace with additional capacity. All add-ons are billed separately and can be cancelled anytime.
+            </p>
+
+            {/* Active Add-Ons (if any) */}
+            {activeAddons && activeAddons.length > 0 && (
+                <div className="mb-4 space-y-2">
+                    <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active Add-Ons</p>
+                    {activeAddons.map((addon: any) => (
+                        <div key={addon._id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                    {addon.addonName}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                    {addon.quantity > 1 ? `${addon.quantity} × ` : ''}<NairaSymbol />{formatNaira(addon.discountedAmount || addon.amount || 0)}/{addon.billingInterval === 'monthly' ? 'mo' : addon.billingInterval === 'annual' ? 'yr' : 'one-time'}
+                                    {addon.discountPercent && addon.discountPercent > 0 && <span className="text-emerald-600 ml-1">({addon.discountPercent}% discount applied)</span>}
+                                </p>
+                            </div>
+                            <span className="px-2 py-0.5 bg-emerald-600 text-white text-2xs font-black uppercase rounded-full">Active</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Pending Add-Ons (if any) */}
+            {pendingAddons && pendingAddons.length > 0 && (
+                <div className="mb-4 space-y-2">
+                    <p className="text-2xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Pending Review</p>
+                    {pendingAddons.map((addon: any) => (
+                        <div key={addon._id} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.addonName}</p>
+                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                    Submitted {new Date(addon.requestedAt).toLocaleDateString()} — awaiting founder approval.
+                                </p>
+                            </div>
+                            <span className="px-2 py-0.5 bg-amber-500 text-white text-2xs font-black uppercase rounded-full animate-pulse">Pending</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Available Add-Ons Catalog */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {applicableAddons.map((addon) => {
+                    const isPurchasing = purchasingId === addon.id;
+                    return (
+                        <div key={addon.id} className={`p-4 rounded-xl border transition-all ${addon.popular ? 'border-primary-300 dark:border-primary-700 bg-primary-50/30 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'} hover:shadow-md`}>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {addon.icon && <span className="text-xl flex-shrink-0">{addon.icon}</span>}
+                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.name}</h4>
+                                </div>
+                                {addon.popular && (
+                                    <span className="px-1.5 py-0.5 bg-primary-600 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Popular</span>
+                                )}
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3 leading-relaxed">{addon.description}</p>
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-base font-black text-primary-600 dark:text-primary-400">{formatAddonPrice(addon)}</p>
+                                    <p className="text-3xs text-slate-400 uppercase tracking-wider">{addon.unitLabel}</p>
+                                </div>
+                                <button
+                                    onClick={() => handlePurchase(addon)}
+                                    disabled={isPurchasing}
+                                    className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center gap-1.5 flex-shrink-0"
+                                >
+                                    {isPurchasing ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            Submitting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Purchase
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 };

@@ -1719,7 +1719,7 @@ export default defineSchema({
     currentPlan: nullableString,            // e.g. 'Core'
     requestedPlan: nullableString,          // e.g. 'Pro'
     billingInterval: nullableString,        // 'monthly' | 'annual'
-    amount: nullableNumber,                 // NGN amount expected
+    amount: nullableNumber,                 // NGN amount expected (original)
     transactionReference: nullableString,   // PP-{firmId}-{timestamp} — generated client-side, validated server-side
     status: nullableString,                 // 'pending_review' | 'approved' | 'rejected' | 'expired' | 'auto_reverted'
     paymentProofStorageId: nullableString,  // Convex storage ID for uploaded receipt (optional)
@@ -1728,6 +1728,12 @@ export default defineSchema({
     reviewedAt: nullableString,             // ISO timestamp when founder/webhook acted
     reviewedBy: nullableString,             // founder email or 'paystack_webhook'
     autoRevertAt: nullableNumber,           // epoch ms after which pending row auto-reverts (now + 72h)
+    // ─── DISCOUNTING SYSTEM (CRO Audit — founder can adjust amount on approval) ──
+    // Founder can apply a discount % when approving. The discountedAmount is
+    // what the firm actually owes. stored for audit + revenue reporting.
+    discountPercent: nullableNumber,        // 0-100, applied by founder at approval
+    discountedAmount: nullableNumber,       // amount * (1 - discountPercent/100), stored at approval
+    discountReason: nullableString,         // e.g. "Early adopter loyalty discount"
     id: nullableString,                     // Legacy field — frontend copy of _id
     createdAt: nullableString,
     updatedAt: nullableString,
@@ -1736,6 +1742,35 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_reference", ["transactionReference"])
     .index("by_auto_revert", ["autoRevertAt"])
+    .index("by_custom_id", ["id"]),
+
+  // ─── ADD-ONS (CRO Audit — upsellable extras: extra WhatsApp, extra seats, etc.) ──
+  // Each row represents a single add-on purchase (one firm, one add-on type, one billing cycle).
+  // Status flow: 'pending_review' (awaiting founder approval) → 'active' (approved + billing) → 'cancelled' (firm cancelled)
+  subscriptionAddons: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    userEmail: nullableString,
+    addonId: nullableString,                // catalog ID, e.g. 'extra_whatsapp_500', 'extra_seats_5'
+    addonName: nullableString,              // human-readable, e.g. 'Extra 500 WhatsApp Messages/mo'
+    billingInterval: nullableString,        // 'monthly' | 'annual' | 'one_time'
+    amount: nullableNumber,                 // NGN amount (original, before discount)
+    discountPercent: nullableNumber,        // founder-applied discount (0-100)
+    discountedAmount: nullableNumber,       // amount * (1 - discountPercent/100)
+    status: nullableString,                 // 'pending_review' | 'active' | 'cancelled' | 'expired'
+    requestedAt: nullableString,            // ISO timestamp
+    activatedAt: nullableString,            // ISO timestamp when founder approved
+    cancelledAt: nullableString,            // ISO timestamp when firm cancelled
+    reviewedBy: nullableString,             // founder email who approved
+    quantity: nullableNumber,               // for multi-unit add-ons (e.g. 3 × extra-seats-5)
+    notes: nullableString,                  // free-text
+    id: nullableString,                     // Legacy field — frontend copy of _id
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_status", ["status"])
+    .index("by_addon", ["addonId"])
     .index("by_custom_id", ["id"]),
 
 }, { schemaValidation: false });

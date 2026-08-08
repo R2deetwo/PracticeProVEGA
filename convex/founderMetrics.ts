@@ -1448,6 +1448,10 @@ export const getSubscriptionRequests = query({
         reviewedBy: r.reviewedBy || null,
         autoRevertAt: r.autoRevertAt || null,
         adminNotes: r.adminNotes || null,
+        // CRO AUDIT — discount fields
+        discountPercent: r.discountPercent || null,
+        discountedAmount: r.discountedAmount || null,
+        discountReason: r.discountReason || null,
       };
     }));
 
@@ -1504,15 +1508,23 @@ export const getSubscriptionRequestStats = query({
  * approveSubscriptionRequest. Logs the admin action and triggers a refresh
  * of the firm's data via updateFirmAdminSettings.
  *
- * NOTE: the actual plan flip happens in myFunctions.approveSubscriptionRequest
- * (gated by requireAdmin + role check). This wrapper just adds the founder
- * audit log entry.
+ * CRO AUDIT — DISCOUNTING SYSTEM: founder can pass discountPercent (0-100)
+ * and discountReason. The discountedAmount is computed server-side as
+ * amount * (1 - discountPercent/100) and stored on the request row for
+ * audit + revenue reporting.
+ *
+ * NOTE: the actual plan flip happens directly here (founders don't have a
+ * firmId, so they bypass the requireAdmin gate in
+ * myFunctions.approveSubscriptionRequest).
  */
 export const approveSubscriptionRequestAsFounder = mutation({
   args: {
     tokenIdentifier: v.string(),
     requestId: v.string(),
     adminNotes: v.optional(v.string()),
+    // CRO AUDIT — discounting system
+    discountPercent: v.optional(v.number()),   // 0-100
+    discountReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const founder = await requireFounder(ctx, args.tokenIdentifier);
@@ -1524,6 +1536,11 @@ export const approveSubscriptionRequestAsFounder = mutation({
       throw new Error(`Request is not pending (current status: ${request.status}).`);
     }
 
+    // CRO AUDIT — compute discounted amount if discount provided
+    const discountPercent = Math.max(0, Math.min(100, args.discountPercent || 0));
+    const originalAmount = request.amount || 0;
+    const discountedAmount = Math.round(originalAmount * (1 - discountPercent / 100));
+
     // Patch the request directly — bypass the requireAdmin gate in
     // myFunctions.approveSubscriptionRequest because founders don't have
     // a firmId (they're platform-level users, not firm members).
@@ -1533,6 +1550,10 @@ export const approveSubscriptionRequestAsFounder = mutation({
       reviewedAt: now,
       reviewedBy: founder.email,
       adminNotes: args.adminNotes || null,
+      // CRO AUDIT — store discount info for audit + revenue reporting
+      discountPercent,
+      discountedAmount,
+      discountReason: args.discountReason || null,
       updatedAt: now,
     } as any);
 
@@ -1549,14 +1570,17 @@ export const approveSubscriptionRequestAsFounder = mutation({
       updatedAt: now,
     } as any);
 
-    // Notify the requesting user
+    // Notify the requesting user — include discount info if applied
     if (request.userId) {
       try {
+        const discountMsg = discountPercent > 0
+          ? ` A ${discountPercent}% discount was applied — your actual amount due is ₦${discountedAmount.toLocaleString()}.`
+          : '';
         await ctx.db.insert("notifications", {
           firmId: request.firmId,
           userId: request.userId,
           title: 'Subscription Activated',
-          message: `Your upgrade to ${request.requestedPlan} has been confirmed by ${founder.email}. Enjoy the new features!`,
+          message: `Your upgrade to ${request.requestedPlan} has been confirmed by ${founder.email}. Enjoy the new features!${discountMsg}`,
           type: 'subscription_activated',
           timestamp: now,
           isRead: false,
@@ -1576,7 +1600,7 @@ export const approveSubscriptionRequestAsFounder = mutation({
           targetFirmId: request.firmId,
           targetUserId: request.userId,
           adminEmail: founder.email,
-          details: `Approved ${request.currentPlan} → ${request.requestedPlan} (${request.billingInterval}). Amount: ₦${request.amount}. Reference: ${request.transactionReference}. Notes: ${args.adminNotes || 'none'}`,
+          details: `Approved ${request.currentPlan} → ${request.requestedPlan} (${request.billingInterval}). Original: ₦${originalAmount}. Discount: ${discountPercent}% (${args.discountReason || 'no reason given'}). Final: ₦${discountedAmount}. Reference: ${request.transactionReference}. Notes: ${args.adminNotes || 'none'}`,
           timestamp: Date.now(),
         },
         timestamp: Date.now(),
@@ -1585,7 +1609,7 @@ export const approveSubscriptionRequestAsFounder = mutation({
       console.warn('[approveSubscriptionRequestAsFounder] Log insert failed:', e);
     }
 
-    return { success: true };
+    return { success: true, discountedAmount, discountPercent };
   },
 });
 
@@ -1718,5 +1742,193 @@ export const getTrialMetrics = query({
       expiredUncleared,
       totalTrialsStarted,
     };
+  },
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRO AUDIT — ADD-ONS SYSTEM (Founder-facing queries + mutations)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * getAddonRequests — returns add-on requests filtered by status.
+ * Default: 'pending_review'. Founder dashboard uses this to surface
+ * pending add-on purchases for approval.
+ */
+export const getAddonRequests = query({
+  args: {
+    tokenIdentifier: v.string(),
+    status: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+    const status = args.status || 'pending_review';
+
+    const requests = status === 'all'
+      ? await ctx.db.query("subscriptionAddons").order("desc").take(200)
+      : await ctx.db
+          .query("subscriptionAddons")
+          .withIndex("by_status", (q: any) => q.eq("status", status))
+          .order("desc")
+          .take(200);
+
+    // Enrich with firm name
+    const firmCache = new Map<string, any>();
+    const enriched = await Promise.all((requests || []).map(async (r: any) => {
+      let firm = firmCache.get(r.firmId);
+      if (!firm && r.firmId) {
+        try { firm = await ctx.db.get(r.firmId as any); } catch { firm = null; }
+        if (firm) firmCache.set(r.firmId, firm);
+      }
+      return {
+        id: r._id,
+        firmId: r.firmId,
+        firmName: firm?.name || 'Unknown Firm',
+        userEmail: r.userEmail || '',
+        addonId: r.addonId,
+        addonName: r.addonName,
+        billingInterval: r.billingInterval,
+        amount: r.amount || 0,
+        quantity: r.quantity || 1,
+        status: r.status,
+        notes: r.notes || null,
+        requestedAt: r.requestedAt,
+        activatedAt: r.activatedAt || null,
+        cancelledAt: r.cancelledAt || null,
+        reviewedBy: r.reviewedBy || null,
+        discountPercent: r.discountPercent || null,
+        discountedAmount: r.discountedAmount || null,
+        discountReason: r.discountReason || null,
+      };
+    }));
+
+    return enriched;
+  },
+});
+
+/**
+ * approveAddonRequestAsFounder — activates a pending add-on request.
+ * Optionally applies a discount. The firm sees the add-on as 'active'
+ * in their Billing & Plans page.
+ */
+export const approveAddonRequestAsFounder = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    requestId: v.string(),
+    discountPercent: v.optional(v.number()),
+    discountReason: v.optional(v.string()),
+    adminNotes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const founder = await requireFounder(ctx, args.tokenIdentifier);
+
+    const request: any = await ctx.db.get(args.requestId as any);
+    if (!request) throw new Error("Add-on request not found.");
+    if (request.status !== 'pending_review') {
+      throw new Error(`Request is not pending (current status: ${request.status}).`);
+    }
+
+    const discountPercent = Math.max(0, Math.min(100, args.discountPercent || 0));
+    const originalAmount = request.amount || 0;
+    const discountedAmount = Math.round(originalAmount * (1 - discountPercent / 100));
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.requestId as any, {
+      status: 'active',
+      activatedAt: now,
+      reviewedBy: founder.email,
+      discountPercent,
+      discountedAmount,
+      discountReason: args.discountReason || null,
+      notes: args.adminNotes || request.notes,
+      updatedAt: now,
+    } as any);
+
+    // Notify the requesting user
+    if (request.userId) {
+      try {
+        const discountMsg = discountPercent > 0
+          ? ` A ${discountPercent}% discount was applied — your actual amount due is ₦${discountedAmount.toLocaleString()}.`
+          : '';
+        await ctx.db.insert("notifications", {
+          firmId: request.firmId,
+          userId: request.userId,
+          title: 'Add-On Activated',
+          message: `Your ${request.addonName} add-on has been activated.${discountMsg}`,
+          type: 'addon_activated',
+          timestamp: now,
+          isRead: false,
+        } as any);
+      } catch (e) {
+        console.warn('[approveAddonRequestAsFounder] Notification insert failed:', e);
+      }
+    }
+
+    // Log the admin action
+    try {
+      await ctx.db.insert("analytics_events", {
+        firmId: "system",
+        userId: args.tokenIdentifier,
+        event: 'ADMIN ACTION: APPROVED ADD-ON REQUEST',
+        properties: {
+          targetFirmId: request.firmId,
+          targetUserId: request.userId,
+          adminEmail: founder.email,
+          details: `Approved ${request.addonName} (qty ${request.quantity || 1}). Original: ₦${originalAmount}. Discount: ${discountPercent}%. Final: ₦${discountedAmount}. Notes: ${args.adminNotes || 'none'}`,
+          timestamp: Date.now(),
+        },
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.warn('[approveAddonRequestAsFounder] Log insert failed:', e);
+    }
+
+    return { success: true, discountedAmount, discountPercent };
+  },
+});
+
+/**
+ * rejectAddonRequestAsFounder — rejects a pending add-on request.
+ */
+export const rejectAddonRequestAsFounder = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    requestId: v.string(),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const founder = await requireFounder(ctx, args.tokenIdentifier);
+
+    const request: any = await ctx.db.get(args.requestId as any);
+    if (!request) throw new Error("Add-on request not found.");
+    if (request.status !== 'pending_review') {
+      throw new Error(`Request is not pending (current status: ${request.status}).`);
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.requestId as any, {
+      status: 'cancelled',  // reuse 'cancelled' status for rejected too
+      cancelledAt: now,
+      reviewedBy: founder.email,
+      notes: args.reason || null,
+      updatedAt: now,
+    } as any);
+
+    if (request.userId) {
+      try {
+        await ctx.db.insert("notifications", {
+          firmId: request.firmId,
+          userId: request.userId,
+          title: 'Add-On Request Update',
+          message: `Your ${request.addonName} add-on request could not be verified. Reason: ${args.reason || 'Please contact support.'}`,
+          type: 'addon_rejected',
+          timestamp: now,
+          isRead: false,
+        } as any);
+      } catch (e) {
+        console.warn('[rejectAddonRequestAsFounder] Notification insert failed:', e);
+      }
+    }
+
+    return { success: true };
   },
 });

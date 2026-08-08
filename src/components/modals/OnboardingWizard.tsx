@@ -385,8 +385,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               </div>
             )}
 
-            {/* Atrium annual-only badge */}
-            {isAtrium && (
+            {/* Atrium + Komplete annual-only badge (both are annual-only products) */}
+            {(isAtrium || isKomplete(product)) && (
               <div className="flex justify-center">
                 <span className="px-4 py-1.5 bg-slate-100 text-slate-700 text-2xs font-black uppercase tracking-widest rounded-full border border-slate-200">
                   Annual Billing Only
@@ -530,9 +530,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               const isKompleteTier = isKomplete(product);
               const isHighestTier = isKompleteTier || selectedTierId === 'Pro' || selectedTierId === 'Enterprise';
               const planLabel = isKompleteTier ? 'Komplete' : selectedTierId;
+              // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr. Always use annualPrice
+              // from the tier definition (never hardcode). For Komplete, billingCycle is
+              // forced to 'annual' regardless of the toggle.
+              const effectiveBilling = isKompleteTier ? 'annual' : billingCycle;
               const planPrice = isKompleteTier
-                ? (billingCycle === 'annual' ? 1248000 : 130000)
-                : (tiers[selectedTierId]?.[billingCycle === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
+                ? (tiers.Core?.annualPrice || 0)
+                : (tiers[selectedTierId]?.[effectiveBilling === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
 
               return (
                 <div className="max-w-md mx-auto pt-2 space-y-3">
@@ -605,14 +609,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   <PaymentGatewayModal
                     amount={(() => {
                       const isKompleteTier = isKomplete(product);
+                      // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr (no monthly option).
                       const planPrice = isKompleteTier
-                        ? (billingCycle === 'annual' ? 1248000 : 130000)
+                        ? (tiers.Core?.annualPrice || 0)
                         : (tiers[selectedTierId]?.[billingCycle === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
                       return planPrice;
                     })()}
                     email={currentUser?.email || ''}
                     title={`Confirm Plan — ${isKomplete(product) ? 'Komplete' : selectedTierId}`}
-                    description={`${billingCycle === 'annual' ? 'Annual' : 'Monthly'} subscription — ${firmName}`}
+                    description={`${isKomplete(product) ? 'Annual' : (billingCycle === 'annual' ? 'Annual' : 'Monthly')} subscription — ${firmName}`}
                     forcePracticeProAccount={true}
                     // No subscriptionContext for onboarding — the firm doesn't exist yet.
                     // The user pays AFTER workspace creation via the in-app SubscriptionSettings.

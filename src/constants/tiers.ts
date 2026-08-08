@@ -18,10 +18,13 @@
 export type ProductMode = 'vega' | 'atrium' | 'unified' | 'legal' | 'property';
 export type TierId = 'Core' | 'Growth' | 'Pro' | 'Enterprise';
 
-// Komplete is a SINGLE flat-rate tier — ₦130K/mo or ₦1.248M/yr.
-// All VEGA + Atrium features, unlimited capacity.
-const KOMPLETE_MONTHLY = 130000;
-const KOMPLETE_ANNUAL = 1248000;
+// Komplete is a SINGLE flat-rate tier — ₦2.5M/yr (ANNUAL ONLY, no monthly).
+// 1 user account with 10 seats standard. All VEGA + Atrium features.
+// Komplete is the TOP-TIER unified platform — its price MUST NEVER be
+// lower than individual standalone Pro/Enterprise plans.
+// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.5M/yr is correctly positioned above.)
+const KOMPLETE_MONTHLY = null;        // Komplete is NEVER billed monthly
+const KOMPLETE_ANNUAL = 2500000;      // ₦2.5M/yr — 1 user account, 10 seats included
 
 export interface TierDef {
   id: TierId;
@@ -326,19 +329,19 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
 
 // ─── KOMPLETE (Unified) — single tier, all features ──────────────────────────
 // Only shown when user selects the Unified/Komplete product.
-// Flat rate: ₦130K/mo or ₦1.248M/yr. All VEGA + Atrium features.
+// ₦2.5M/yr ANNUAL ONLY (no monthly billing option). 1 user account with 10
+// seats standard. All VEGA + Atrium features.
 // Komplete is the TOP-TIER unified platform — its price MUST NEVER be
 // lower than individual standalone Pro/Enterprise plans.
-// Seat allowance: 10 seats standard, max 15 (Enterprise cap).
 export const KOMPLETE_TIER: TierDef = {
   id: 'Core',                       // Uses Core as TierId for compatibility
   label: 'Komplete',
-  monthlyPrice: KOMPLETE_MONTHLY,
+  monthlyPrice: KOMPLETE_MONTHLY,   // null — Komplete is annual-only
   annualPrice: KOMPLETE_ANNUAL,
-  monthlyPriceDisplay: fmt(KOMPLETE_MONTHLY),
+  monthlyPriceDisplay: '—',         // No monthly option for Komplete
   annualPriceDisplay: fmt(KOMPLETE_ANNUAL),
   features: [
-    '10 Seats Standard (Max Enterprise Cap: 15 Seats)',
+    '1 User Account — 10 Seats Standard (Included)',
     'Unlimited Matters & Units',
     'Unlimited Active Tenants',
     'Unlimited WhatsApp Reminders',

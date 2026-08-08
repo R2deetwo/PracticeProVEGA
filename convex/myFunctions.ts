@@ -5408,3 +5408,162 @@ export const expireTrials = internalMutation({
     return { success: true, expired: expiredCount, notified4, notified1 };
   },
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRO AUDIT — ADD-ONS SYSTEM (Revenue Expansion)
+// ════════════════════════════════════════════════════════════════════════════
+// Allows firms to purchase upsellable add-ons (extra WhatsApp, extra seats,
+// storage, AI priority, custom integrations, data migration).
+//
+// Pipeline:
+//   1. User purchases add-on in main app → createAddonRequest mutation
+//      writes a pending row in subscriptionAddons table
+//   2. Founder approves in SubscriptionRequestsCenter → addon becomes 'active'
+//   3. Firm can cancel an active add-on at any time
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * createAddonRequest — called from the main app when a user purchases an
+ * add-on. Writes a pending row in subscriptionAddons. The founder admin
+ * must approve before the add-on becomes active (same trust model as
+ * subscription requests — no client-side auto-activation).
+ */
+export const createAddonRequest = mutation({
+  args: {
+    addonId: v.string(),
+    addonName: v.string(),
+    billingInterval: v.string(),        // 'monthly' | 'annual' | 'one_time'
+    amount: v.number(),
+    quantity: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+
+    const now = new Date();
+    const AUTO_REVERT_HOURS = 72;
+    const autoRevertAt = now.getTime() + AUTO_REVERT_HOURS * 60 * 60 * 1000;
+
+    const requestId = await ctx.db.insert("subscriptionAddons", {
+      firmId,
+      userId: user?._id,
+      userEmail: user?.email || args.userEmail,
+      addonId: args.addonId,
+      addonName: args.addonName,
+      billingInterval: args.billingInterval,
+      amount: args.amount,
+      quantity: args.quantity || 1,
+      status: 'pending_review',
+      notes: args.notes || null,
+      requestedAt: now.toISOString(),
+      autoRevertAt,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+
+    // Notify founder users
+    const founders = await ctx.db.query("users").filter((q: any) =>
+      q.eq(q.field("role"), "Founder")
+    ).collect();
+    for (const founder of founders) {
+      await ctx.db.insert("notifications", {
+        firmId: 'system',
+        userId: founder._id,
+        title: 'Add-On Request Pending Review',
+        message: `${user?.email || 'A user'} requested ${args.addonName} (₦${args.amount.toLocaleString()}).`,
+        type: 'addon_request',
+        link: { view: 'subscriptions', id: requestId, context: {} },
+        timestamp: now.toISOString(),
+        isRead: false,
+      } as any);
+    }
+
+    return { success: true, requestId };
+  },
+});
+
+/**
+ * getActiveAddonsForFirm — returns all ACTIVE add-ons for the calling
+ * user's firm. Used in the main app's Billing & Plans page to show
+ * purchased add-ons.
+ */
+export const getActiveAddonsForFirm = query({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const addons = await ctx.db
+      .query("subscriptionAddons")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .filter((q: any) => q.eq(q.field("status"), "active"))
+      .collect();
+    return addons;
+  },
+});
+
+/**
+ * getPendingAddonsForFirm — returns the most recent PENDING add-on request
+ * for the calling user's firm (if any). Used to show a "pending review"
+ * badge in the main app.
+ */
+export const getPendingAddonsForFirm = query({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const addons = await ctx.db
+      .query("subscriptionAddons")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .filter((q: any) => q.eq(q.field("status"), "pending_review"))
+      .collect();
+    return addons;
+  },
+});
+
+/**
+ * cancelAddon — called from the main app when a user cancels an active
+ * add-on. Sets status to 'cancelled' immediately (no founder approval
+ * needed for cancellation — only for activation).
+ */
+export const cancelAddon = mutation({
+  args: {
+    addonRequestId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+
+    const addon: any = await ctx.db.get(args.addonRequestId as any);
+    if (!addon) throw new Error("Add-on request not found.");
+    if (addon.firmId !== firmId) {
+      throw new Error("Unauthorized. This add-on belongs to another firm.");
+    }
+    if (addon.status !== 'active') {
+      throw new Error(`Add-on is not active (current status: ${addon.status}).`);
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.addonRequestId as any, {
+      status: 'cancelled',
+      cancelledAt: now,
+      updatedAt: now,
+    } as any);
+
+    // Notify founder
+    const founders = await ctx.db.query("users").filter((q: any) =>
+      q.eq(q.field("role"), "Founder")
+    ).collect();
+    for (const founder of founders) {
+      await ctx.db.insert("notifications", {
+        firmId: 'system',
+        userId: founder._id,
+        title: 'Add-On Cancelled',
+        message: `${user?.email || 'A user'} cancelled ${addon.addonName}.`,
+        type: 'addon_cancelled',
+        timestamp: now,
+        isRead: false,
+      } as any);
+    }
+
+    return { success: true };
+  },
+});

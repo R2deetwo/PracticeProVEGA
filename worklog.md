@@ -5644,3 +5644,92 @@ Files Created:
 - src/admin/views/SubscriptionRequestsCenter.tsx
 
 ALL FOUNDER APP WORK COMPLETE.
+
+---
+Task ID: CRO-AUDIT-PRICING-BILLING-OVERHAUL
+Agent: main (GLM)
+Task: Fix Komplete pricing, redesign Billing & Plans page, add discounting + add-ons system
+
+Work Log:
+- KOMPLETE PRICING FIX: Updated src/constants/tiers.ts:
+  * KOMPLETE_MONTHLY = null (Komplete is NEVER billed monthly)
+  * KOMPLETE_ANNUAL = 2,500,000 (₦2.5M/yr — correctly positioned above Atrium Pro ₦2.1M/yr)
+  * Updated features list: "1 User Account — 10 Seats Standard (Included)" (clearer than old "10 Seats Standard (Max Enterprise Cap: 15 Seats)")
+  * monthlyPriceDisplay = '—' (no monthly option)
+- Removed all hardcoded Komplete price references (₦1.248M / ₦130K) from OnboardingWizard.tsx — now reads from tiers.Core.annualPrice
+- Added "Annual Billing Only" badge for Komplete in OnboardingWizard (was only showing for Atrium)
+- BILLING & PLANS PAGE REDESIGN (SubscriptionSettings.tsx):
+  * Header now reads "Billing & Plans: {Current Plan}" with the plan name in primary color
+  * Added "SIMULATED" amber badge next to header — makes clear no real payments processed yet
+  * Removed giant monthly/yearly toggle from top of page
+  * Moved compact monthly/yearly toggle INTO the BillingCalculator (next to "Simulate Growth")
+  * Toggle is HIDDEN for annual-only products (Komplete, Atrium) — shows "Annual Billing Only" badge instead
+  * Compact view-mode toggle (Show Monthly Avg / Show Total Billed) also moved into calculator
+  * Added isAnnualOnlyProduct detection (Komplete + Atrium)
+  * Added isOnHighestPlan detection — Komplete users see downgrade options instead of upgrade
+  * Added "Need to downsize?" section for Komplete users with downgrade buttons to Atrium Pro (₦2.1M) and Vega Pro (₦768K)
+  * Fixed BillingCalculator for Komplete: now correctly shows 10 seats included in base, pro-rata billing for seats 11+
+- SIMULATED BADGE in Founder Dashboard: added "SIM" badge to MRR KPI card with tooltip "No real payments processed yet — figure is simulated based on plan assignments"
+- DISCOUNTING SYSTEM:
+  * Added discountPercent, discountedAmount, discountReason fields to subscriptionRequests schema
+  * Updated approveSubscriptionRequestAsFounder mutation to accept discountPercent (0-100) + discountReason
+  * Server-side computation of discountedAmount (amount × (1 - discountPercent/100))
+  * Founder notification includes discount info if applied
+  * Audit log includes original amount, discount %, reason, and final amount
+  * Updated SubscriptionRequestsCenter UI with:
+    - Discount slider (0-100%, step 5%) in the expanded approve section
+    - Discount reason text input
+    - Live discount calculation showing Original / Final / Savings
+    - Approved requests show discount info badge (with strikethrough original price)
+- ADD-ONS SYSTEM (Revenue Expansion):
+  * Created src/constants/addons.ts with ADDON_CATALOG (7 add-ons):
+    - extra_whatsapp_500 (₦5K/mo)
+    - extra_whatsapp_2000 (₦18K/mo)
+    - extra_seats_5 (₦20K/mo)
+    - extra_seats_10 (₦36K/mo)
+    - extra_storage_50gb (₦8K/mo)
+    - ai_priority_boost (₦15K/mo)
+    - custom_integration_setup (₦250K one-time)
+    - managed_data_migration (₦150K one-time, up to 50 units)
+  * Added subscriptionAddons table to schema.ts with proper indices
+  * Added 4 new mutations to myFunctions.ts:
+    - createAddonRequest (user purchases add-on → pending row)
+    - getActiveAddonsForFirm (firm sees their active add-ons)
+    - getPendingAddonsForFirm (firm sees pending requests)
+    - cancelAddon (firm cancels active add-on)
+  * Added 3 founder-facing mutations to founderMetrics.ts:
+    - getAddonRequests (founder sees all add-on requests by status)
+    - approveAddonRequestAsFounder (activates with optional discount)
+    - rejectAddonRequestAsFounder (rejects pending add-on)
+  * Built AddOnsSection component in SubscriptionSettings.tsx:
+    - Shows active add-ons (emerald badges)
+    - Shows pending add-ons (amber pulse badges)
+    - Shows available add-on catalog (filtered by product)
+    - Each add-on card: icon, name, description, price, unit label, Purchase button
+    - Purchase creates a pending request → founder approves in SubscriptionRequestsCenter
+- KOMPLETE DOWNGRADE FLOW: Komplete users can now downgrade to Atrium Pro or Vega Pro via the "Need to downsize?" section — routes through the same subscription request pipeline (founder approval required)
+
+Stage Summary:
+- Komplete pricing is now CORRECT: ₦2.5M/yr annual-only (was ₦1.248M/yr with monthly option — cheaper than Atrium Pro, which was wrong)
+- Billing & Plans page now shows current plan immediately in the header ("Billing & Plans: Komplete")
+- Monthly/yearly toggle is compact and lives inside the billing calculator (not a giant toggle at the top)
+- Toggle is hidden for Komplete + Atrium (annual-only products)
+- Komplete users see downgrade options instead of being upsold to Komplete (which they're already on)
+- Founder can apply discounts (0-100%) when approving subscription requests, with live calculation + audit trail
+- Add-ons system is fully built: 7-item catalog, purchase pipeline (pending → founder approval → active), cancellation flow
+- "SIMULATED" badges make clear that current MRR/plan status is simulated (no real payments yet)
+- TypeScript: zero errors in any modified file (10 pre-existing errors in conversationMemory.ts and retainerBilling.ts — untouched)
+
+Files Modified:
+- src/constants/tiers.ts (Komplete pricing: ₦2.5M annual-only)
+- src/components/modals/OnboardingWizard.tsx (removed hardcoded prices, Komplete annual-only badge)
+- src/components/settings/SubscriptionSettings.tsx (header redesign, toggle relocation, Komplete seat calc, downgrade options, Add-Ons section)
+- src/components/FounderDashboard.tsx (SIMULATED badge on MRR)
+- convex/schema.ts (discount fields on subscriptionRequests + new subscriptionAddons table)
+- convex/founderMetrics.ts (discount support in approve mutation + 3 new add-on mutations + enriched getSubscriptionRequests return)
+- convex/myFunctions.ts (4 new add-on mutations: createAddonRequest, getActiveAddonsForFirm, getPendingAddonsForFirm, cancelAddon)
+
+Files Created:
+- src/constants/addons.ts (ADDON_CATALOG with 7 add-ons + helper functions)
+
+ALL PRICING + BILLING + DISCOUNTING + ADD-ONS WORK COMPLETE.
