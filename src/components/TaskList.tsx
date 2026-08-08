@@ -379,7 +379,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, users, matters, onViewDetail
                                             <td colSpan={appMode === 'multi' ? 8 : 7} className="px-6 py-2">
                                                 <div className="flex items-center gap-2">
                                                     <div className="h-4 w-1 bg-primary-500 rounded-full" />
-                                                    <span className="text-2xs font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">
+                                                    <span className="text-2xs font-black uppercase tracking-wide-label text-slate-500 dark:text-zinc-400">
                                                         {groupBy === 'matter' ? 'Matter: ' : 'Priority: '}
                                                         <span className="text-slate-900 dark:text-white">{group.title}</span>
                                                     </span>

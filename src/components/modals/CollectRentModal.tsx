@@ -415,7 +415,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         <div className="bg-slate-900 rounded-3xl p-6 text-white flex flex-col shadow-xl">
           <div className="flex items-center gap-2 mb-6 opacity-60">
             <CalculatorIcon className="w-4 h-4" />
-            <span className="text-2xs font-black uppercase tracking-[0.2em]">Receipt Summary</span>
+            <span className="text-2xs font-black uppercase tracking-wide-label">Receipt Summary</span>
           </div>
 
           <div className="space-y-4 flex-grow">

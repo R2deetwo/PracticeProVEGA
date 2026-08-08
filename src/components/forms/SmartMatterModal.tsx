@@ -344,7 +344,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                             </button>
                         )}
                         <div>
-                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-[0.2em]">New Matter</p>
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-wide-label">New Matter</p>
                             <h1 id="smart-matter-title" className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                                 {step === 0 ? 'What type of matter is this?' : MATTER_TYPES.find(m => m.type === matterType)?.label + ' Matter'}
                             </h1>
@@ -449,7 +449,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* ── Process-specific dynamic intake fields ── */}
                                     {activeProcessConfig.keyIntakeFields.length > 0 && (
                                         <div className="space-y-2 sm:space-y-3 pt-1 border-t border-slate-100 dark:border-zinc-800">
-                                            <p className="text-2xs font-black text-primary-500 uppercase tracking-[0.15em]">Process-Specific Details</p>
+                                            <p className="text-2xs font-black text-primary-500 uppercase tracking-eyebrow">Process-Specific Details</p>
                                             {activeProcessConfig.keyIntakeFields.map(field => (
                                                 <div key={field.fieldId}>
                                                     <label className={lbl}>
@@ -635,7 +635,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {(propertyCategory === 'Tenanted Property' || propertyCategory === 'Personal Residence' || propertyCategory === 'Other') && (
                                         <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/40/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-lg animate-fade-in">
                                             <div className="flex justify-between items-center">
-                                                <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.15em]">
+                                                <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-eyebrow">
                                                     {numberOfUnits > 1 ? `${unitsData[activeUnitIndex].unitName} Details` : 'Rental / Lease Details'}
                                                 </p>
                                                 {numberOfUnits > 1 && (
@@ -709,7 +709,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* For Sale sub-section */}
                                     {propertyCategory === 'Property For Sale' && (
                                         <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-lg animate-fade-in">
-                                            <p className="text-2xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em]">Listing Details</p>
+                                            <p className="text-2xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-eyebrow">Listing Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Target Price (₦)</label>
@@ -732,7 +732,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* Disputed sub-section */}
                                     {propertyCategory === 'Disputed Property' && (
                                         <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg">
-                                            <p className="text-2xs font-black text-red-600 dark:text-red-400 uppercase tracking-[0.15em]">Dispute / Litigation Details</p>
+                                            <p className="text-2xs font-black text-red-600 dark:text-red-400 uppercase tracking-eyebrow">Dispute / Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Court</label>
@@ -762,7 +762,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     )}
                                     {reHasLitigation && propertyCategory !== 'Disputed Property' && (
                                         <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg">
-                                            <p className="text-2xs font-black text-red-600 dark:text-red-400 uppercase tracking-[0.15em]">Litigation Details</p>
+                                            <p className="text-2xs font-black text-red-600 dark:text-red-400 uppercase tracking-eyebrow">Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Court</label>

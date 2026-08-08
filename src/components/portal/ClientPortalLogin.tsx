@@ -236,9 +236,9 @@ const ClientPortalLogin: React.FC = () => {
                 <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
                     <div className="flex items-center gap-2.5">
                         <Logo className="h-7 w-7 text-primary-500" />
-                        <span className="text-[19px] font-bold tracking-tight text-white flex items-center">
+                        <span className="text-lg font-bold tracking-tight text-white flex items-center">
                             Practice<span className="text-primary-500">Pro</span>
-                            <span className="ml-2 text-[15px] font-black uppercase tracking-tight text-amber-500">
+                            <span className="ml-2 text-sm font-black uppercase tracking-tight text-amber-500">
                                 VEGA
                             </span>
                         </span>

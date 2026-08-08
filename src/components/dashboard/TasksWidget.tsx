@@ -147,7 +147,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
               <div key={task.id} onClick={() => handleTaskClick(task)} className="active-press px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-rose-50/50 dark:hover:bg-rose-900/10 transition-all border-l-2 border-rose-500 group">
                 <div className="flex justify-between items-start gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[12px] text-slate-800 dark:text-rose-200 truncate group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors">{task.title}</p>
+                    <p className="font-bold text-xs text-slate-800 dark:text-rose-200 truncate group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors">{task.title}</p>
                     <p className="text-3xs font-bold text-slate-400 uppercase tracking-tight mt-0.5 truncate">{task.matterTitle || 'No Matter Assigned'}</p>
                   </div>
                   <p className="text-3xs font-black text-rose-600 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-900/30 px-2 py-0.5 rounded-full uppercase border border-rose-200/50 shrink-0 shadow-sm">{formatDueDate(task.dueDate || '')}</p>
@@ -158,7 +158,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
               <div key={task.id} onClick={() => handleTaskClick(task)} className="active-press px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-all border-l-2 border-transparent group">
                 <div className="flex justify-between items-start gap-3">
                    <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[12px] text-slate-700 dark:text-zinc-300 truncate group-hover:text-primary-600 transition-colors">{task.title}</p>
+                    <p className="font-bold text-xs text-slate-700 dark:text-zinc-300 truncate group-hover:text-primary-600 transition-colors">{task.title}</p>
                     <p className="text-3xs font-bold text-slate-400 uppercase tracking-tight mt-0.5 truncate">{task.matterTitle || 'Internal'}</p>
                   </div>
                   <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 bg-slate-100/30 dark:bg-zinc-800/50 px-2 py-0.5 rounded-full border border-slate-200/20 shrink-0">{formatDueDate(task.dueDate || '')}</p>
@@ -172,7 +172,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                     <div key={matterGroup.id} className="px-5 py-3 group/matter">
                         <div className="flex items-center gap-2 mb-1.5 opacity-60 group-hover/matter:opacity-100 transition-opacity">
                             <div className="h-2.5 w-0.5 bg-primary-500 rounded-full" />
-                            <h4 className="text-3xs font-black uppercase tracking-[0.15em] text-slate-500 dark:text-zinc-400 line-clamp-1">{matterGroup.title}</h4>
+                            <h4 className="text-3xs font-black uppercase tracking-eyebrow text-slate-500 dark:text-zinc-400 line-clamp-1">{matterGroup.title}</h4>
                         </div>
                         <div className="space-y-0.5">
                           {matterGroup.tasks.slice(0, 3).map(task => (
@@ -181,7 +181,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                                   onClick={() => handleTaskClick(task)}
                                   className="py-1.5 flex justify-between items-center group/item cursor-pointer"
                               >
-                                  <span className="text-[11.5px] font-bold text-slate-700 dark:text-zinc-300 truncate group-hover/item:text-primary-600 dark:group-hover/item:text-primary-400 transition-colors uppercase tracking-tight">{task.title}</span>
+                                  <span className="text-2xs font-bold text-slate-700 dark:text-zinc-300 truncate group-hover/item:text-primary-600 dark:group-hover/item:text-primary-400 transition-colors uppercase tracking-tight">{task.title}</span>
                                   <div className="flex items-center gap-2 shrink-0">
                                     <span className={`text-3xs font-black uppercase tracking-tight px-1.5 py-0.5 rounded ${task.priority === 'High' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500'}`}>
                                       {task.priority || 'Medium'}
@@ -190,7 +190,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                               </div>
                           ))}
                           {matterGroup.tasks.length > 3 && (
-                            <div className="pt-0.5 text-[8.5px] font-black uppercase tracking-widest text-primary-500/50 hover:text-primary-500 cursor-pointer transition-colors">
+                            <div className="pt-0.5 text-3xs font-black uppercase tracking-widest text-primary-500/50 hover:text-primary-500 cursor-pointer transition-colors">
                                + {matterGroup.tasks.length - 3} more in matter
                             </div>
                           )}

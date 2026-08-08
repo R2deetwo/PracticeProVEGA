@@ -355,7 +355,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
               </div>
 
               <div className="relative group/delegate">
-                <select onChange={e => { handleUserToggle(e.target.value); e.target.value = ''; }} className="w-full pl-4 pr-12 py-4 text-2xs font-black uppercase tracking-[0.1em] bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
+                <select onChange={e => { handleUserToggle(e.target.value); e.target.value = ''; }} className="w-full pl-4 pr-12 py-4 text-2xs font-black uppercase tracking-label bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
                   <option value="" disabled>+ Assign {assigneeType === 'team' ? 'Team Member' : assigneeType === 'client' ? 'Client' : 'Resident'}</option>
                   {assignableUsers.filter(u => !assignedUsers.has(u.id)).map(user => (
                     <option key={user.id} value={user.id}>{user.name || 'Unknown User'} ({user.role})</option>

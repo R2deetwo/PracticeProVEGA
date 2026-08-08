@@ -578,7 +578,7 @@ export const CalendarView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900 overflow-hidden">
             {/* ─── Header Toolbar — static, golden-ratio spacing ─────────── */}
-            <div className="sticky top-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-safe">
+            <div className="sticky top-0 z-30 glass flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-safe">
                 {/* Date title + nav — aligned on center axis */}
                 <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex-1 min-w-0 truncate">
@@ -628,7 +628,7 @@ export const CalendarView: React.FC = () => {
                         {/* Weekday headers — muted, premium */}
                         <div className="grid grid-cols-7 border-b border-slate-100 dark:border-zinc-800/50 bg-white dark:bg-zinc-900 sticky top-0 z-20">
                             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                                <div key={day} className="py-2.5 text-center text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-[0.15em] select-none">
+                                <div key={day} className="py-2.5 text-center text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-eyebrow select-none">
                                     {day}
                                 </div>
                             ))}

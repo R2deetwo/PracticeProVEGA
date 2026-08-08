@@ -342,7 +342,7 @@ const UsageLogsTab: React.FC = () => {
     return (
         <div className="bg-white dark:bg-zinc-900/40 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-sm">
             <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/40 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
-                <h3 className="text-2xs font-black uppercase text-slate-400 tracking-[0.2em]">Global Telemetry Feed</h3>
+                <h3 className="text-2xs font-black uppercase text-slate-400 tracking-wide-label">Global Telemetry Feed</h3>
                 <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                     <span className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Live Stream</span>
@@ -554,7 +554,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
                                 className="w-full flex items-center justify-between group"
                             >
                                 <div className="flex items-center gap-3">
-                                    <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em]">
+                                    <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label">
                                         {CATEGORY_LABELS[category as ModuleCategory]}
                                     </p>
                                     <div className="h-px flex-1 bg-slate-100 dark:bg-zinc-800/60 min-w-[32px] group-hover:bg-indigo-500/20 transition-colors" />

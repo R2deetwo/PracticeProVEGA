@@ -235,7 +235,7 @@ const BillingCalculator: React.FC<{
                             <ShieldCheckIcon className="w-5 h-5 text-black" />
                         </div>
                         <div>
-                            <p className="text-2xs font-black text-amber-400/70 uppercase tracking-[0.2em]">Enterprise</p>
+                            <p className="text-2xs font-black text-amber-400/70 uppercase tracking-wide-label">Enterprise</p>
                             <h3 className="text-lg font-black text-white">Projected Billing</h3>
                         </div>
                     </div>
@@ -472,7 +472,7 @@ const EnterpriseSection: React.FC<{
                             <svg viewBox="0 0 24 24" className="w-4 h-4 text-black" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
                         </div>
                         <div>
-                            <p className="text-3xs font-black text-amber-400/60 uppercase tracking-[0.2em]">PracticePro</p>
+                            <p className="text-3xs font-black text-amber-400/60 uppercase tracking-wide-label">PracticePro</p>
                             <h3 className="text-lg font-black text-white leading-tight">Enterprise</h3>
                         </div>
                     </div>
@@ -488,7 +488,7 @@ const EnterpriseSection: React.FC<{
                     ))}
                 </div>
                 {/* Modules */}
-                <p className="text-3xs font-black text-amber-400/50 uppercase tracking-[0.2em] mb-2">Add Practice Modules</p>
+                <p className="text-3xs font-black text-amber-400/50 uppercase tracking-wide-label mb-2">Add Practice Modules</p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
                     {ENTERPRISE_MODALITIES.map(mod => {
                         const isSelected = selectedModalities.includes(mod.specialty);
@@ -524,7 +524,7 @@ const EnterpriseSection: React.FC<{
                 ) : (
                     <button
                         onClick={onActivate}
-                        className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs uppercase tracking-[0.12em] shadow-lg hover:opacity-95 hover:scale-[1.005] active:scale-[0.99] transition-all duration-150"
+                        className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs uppercase tracking-label shadow-lg hover:opacity-95 hover:scale-[1.005] active:scale-[0.99] transition-all duration-150"
                     >
                         {selectedModalities.length > 0
                             ? `Activate Enterprise with ${selectedModalities.length} Module${selectedModalities.length > 1 ? 's' : ''}`

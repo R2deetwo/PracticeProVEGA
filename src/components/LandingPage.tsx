@@ -155,7 +155,7 @@ const NavBar: React.FC<{
             <div className="flex items-center gap-3">
                 <button onClick={() => productChosen ? scrollTo('home') : undefined} className="flex items-center gap-2 group">
                     <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
-                    <span className="text-[19px] font-bold tracking-tight text-slate-900 flex items-center">
+                    <span className="text-lg font-bold tracking-tight text-slate-900 flex items-center">
                         Practice<span className="text-primary-500">Pro</span>
                     </span>
                 </button>
@@ -169,7 +169,7 @@ const NavBar: React.FC<{
                         <span className="relative h-5 w-28 overflow-hidden flex items-center">
                             {/* Default state: product name (VEGA in amber, ATRIUM in emerald) */}
                             <span
-                                className={`absolute inset-0 flex items-center text-[15px] font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
+                                className={`absolute inset-0 flex items-center text-sm font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
                             >
                                 {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                             </span>
@@ -265,7 +265,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             Practice<span className="text-primary-500">Pro</span>
                             {productChosen && (
                                 <span
-                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
+                                    className={`ml-2 text-sm font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
                                 >
                                     {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                                 </span>
@@ -350,7 +350,7 @@ const TrustBadgesStrip: React.FC = () => {
                         <div className="w-8 h-8 rounded-full bg-slate-50 shadow-sm border border-slate-200/60 flex items-center justify-center">
                             <b.Icon className="w-4 h-4 text-slate-500" />
                         </div>
-                        <span className="text-[11px] sm:text-xs font-semibold text-slate-600 tracking-wide whitespace-nowrap">
+                        <span className="text-2xs sm:text-xs font-semibold text-slate-600 tracking-wide whitespace-nowrap">
                             {b.label}
                         </span>
                     </div>
@@ -1236,7 +1236,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             }`}
                     >
                         {plan.highlighted && (
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-2xs font-black uppercase tracking-[0.2em] rounded-full shadow-xl z-20 whitespace-nowrap">
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-2xs font-black uppercase tracking-wide-label rounded-full shadow-xl z-20 whitespace-nowrap">
                                 Most Popular
                             </div>
                         )}

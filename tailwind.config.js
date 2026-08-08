@@ -73,6 +73,13 @@ export default {
         '2xs': ['10px', { lineHeight: '14px', letterSpacing: '0.02em' }],
         '3xs': ['9px', { lineHeight: '12px', letterSpacing: '0.03em' }],
       },
+      // CRO AUDIT FIX — named letter-spacing values to replace 13+ arbitrary
+      // tracking-[Nem] values used across the codebase for eyebrow labels.
+      letterSpacing: {
+        'eyebrow': '0.15em',    // uppercase eyebrow labels (was tracking-[0.15em])
+        'label': '0.1em',       // slightly tighter labels (was tracking-[0.1em])
+        'wide-label': '0.2em',  // wider labels (was tracking-[0.2em])
+      },
       zIndex: {
         sticky: 30,
         dropdown: 50,

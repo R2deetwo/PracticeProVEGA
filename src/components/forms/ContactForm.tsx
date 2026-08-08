@@ -252,7 +252,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                             <button 
                                 type="button"
                                 onClick={handlePickContact}
-                                className="ml-auto px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-primary-600 to-indigo-600 text-white text-3xs font-black uppercase tracking-[0.2em] rounded-lg shadow-xl shadow-primary-500/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 border border-white/10 group overflow-hidden relative"
+                                className="ml-auto px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-primary-600 to-indigo-600 text-white text-3xs font-black uppercase tracking-wide-label rounded-lg shadow-xl shadow-primary-500/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 border border-white/10 group overflow-hidden relative"
                             >
                                 <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out skew-x-12" />
                                 <PhoneIcon className="w-3.5 h-3.5 relative z-10" /> 
@@ -470,7 +470,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                 {!isEditing ? (
                                     <div className="text-center py-8 sm:py-12 bg-white/50 dark:bg-zinc-900/50 rounded-lg sm:rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
                                         <OfficeBuildingIcon className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-3 sm:mb-4 opacity-50" />
-                                        <p className="text-2xs text-slate-400 font-extrabold uppercase tracking-[0.2em] mb-2 px-4 sm:px-6">Portfolio management requires a saved contact</p>
+                                        <p className="text-2xs text-slate-400 font-extrabold uppercase tracking-wide-label mb-2 px-4 sm:px-6">Portfolio management requires a saved contact</p>
                                         <p className="text-2xs text-slate-500 mb-4 sm:mb-6 px-4 sm:px-8">Save this contact first to enable property registration.</p>
                                         <button type="button" disabled className="inline-flex items-center gap-2 sm:gap-3 text-xs font-semibold bg-slate-200 dark:bg-zinc-700 text-slate-400 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl cursor-not-allowed">
                                             <PlusIcon className="w-4 h-4" /> Register New Property

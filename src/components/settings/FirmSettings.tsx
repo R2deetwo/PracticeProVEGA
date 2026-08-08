@@ -364,7 +364,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                                 <div className="flex-grow w-full sm:w-auto">
                                     <div className="bg-white dark:bg-zinc-900 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-lg p-4 flex items-center justify-between">
-                                        <span className="text-2xl font-mono font-bold tracking-[0.2em] text-slate-800 dark:text-white uppercase">
+                                        <span className="text-2xl font-mono font-bold tracking-wide-label text-slate-800 dark:text-white uppercase">
                                             {firmDetails.inviteCode || 'GENERATING...'}
                                         </span>
                                         <button

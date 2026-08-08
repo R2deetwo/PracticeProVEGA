@@ -51,7 +51,7 @@ const QuickLookModal: React.FC = () => {
         <div className="p-3 bg-primary-50 dark:bg-primary-900/30 rounded-lg shadow-sm">
           {getIcon()}
         </div>
-        <span className="px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-500 text-2xs font-black uppercase tracking-[0.2em] rounded-full">
+        <span className="px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-500 text-2xs font-black uppercase tracking-wide-label rounded-full">
           Quick Insight
         </span>
       </div>

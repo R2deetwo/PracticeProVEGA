@@ -161,7 +161,7 @@ const COURT_OPTIONS: { court: CourtType; label: string }[] = [
 const inputCls =
     'w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-primary-400/60 focus:border-primary-400 dark:focus:border-primary-500 outline-none transition-all';
 const selectCls = `${inputCls} cursor-pointer`;
-const labelCls = 'block text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] mb-1.5 ml-0.5';
+const labelCls = 'block text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-eyebrow mb-1.5 ml-0.5';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 0 — Legal Action & Jurisdiction
@@ -302,7 +302,7 @@ const Screen0: React.FC<{
                                     {court === CourtType.StateHighCourt && isSelected && (
                                         <div className="mt-3 ml-2 pl-4 border-l-2 border-primary-500/30 space-y-3 animate-in slide-in-from-left-2 duration-300">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Select Judicial Jurisdiction</p>
+                                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-eyebrow">Select Judicial Jurisdiction</p>
                                                 <span className="text-3xs font-bold text-primary-500 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/20 px-2 py-0.5 rounded-full border border-primary-100 dark:border-primary-800">Choose State</span>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
@@ -560,7 +560,7 @@ const Screen1: React.FC<{
     const renderPartySection = (side: 'claimants' | 'defendants', roleLabel: string) => (
         <div className="p-3.5 bg-slate-100/50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-inner-sm space-y-2 sm:space-y-3">
             <div className="flex items-center gap-3 px-1">
-                <span className="text-2xs uppercase font-black tracking-[0.14em] text-slate-500 dark:text-zinc-400 whitespace-nowrap flex-shrink-0">
+                <span className="text-2xs uppercase font-black tracking-label text-slate-500 dark:text-zinc-400 whitespace-nowrap flex-shrink-0">
                     {roleLabel}s ({data[side].length})
                 </span>
                 <button 
@@ -573,7 +573,7 @@ const Screen1: React.FC<{
             </div>
             
             {data[side].length === 0 && (
-                <div className="py-4 text-center text-2xs uppercase font-bold tracking-[0.1em] text-slate-400 dark:text-zinc-500 border border-dashed border-slate-300/60 dark:border-zinc-700/60 rounded-lg">
+                <div className="py-4 text-center text-2xs uppercase font-bold tracking-label text-slate-400 dark:text-zinc-500 border border-dashed border-slate-300/60 dark:border-zinc-700/60 rounded-lg">
                     No {roleLabel.toLowerCase()}s added
                 </div>
             )}
@@ -701,7 +701,7 @@ const Screen1: React.FC<{
             {/* Firm's Role & Primary Client */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col">
-                    <p className="text-2xs font-bold text-slate-500 uppercase mb-2 tracking-[0.1em]">Firm is representing:</p>
+                    <p className="text-2xs font-bold text-slate-500 uppercase mb-2 tracking-label">Firm is representing:</p>
                     <div className="flex gap-2 mb-3">
                         {['Claimant', 'Defendant'].map(r => (
                             <button
@@ -1289,7 +1289,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 <div className="flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-5 pb-3 sm:pb-4 border-b border-slate-100 dark:border-zinc-800">
                     <div className="flex items-start justify-between mb-4">
                         <div>
-                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-[0.2em] mb-1">
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-wide-label mb-1">
                                 Enterprise Matter Creation
                             </p>
                             <h1 className="text-lg font-bold text-slate-900 dark:text-white">

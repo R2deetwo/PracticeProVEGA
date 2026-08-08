@@ -105,7 +105,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                     <CalendarIcon className="w-5 h-5" />
                 </div>
                 <div>
-                   <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-0.5">DATE</p>
+                   <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label mb-0.5">DATE</p>
                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
                         {safeFormatDate(event.date, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                    </p>
@@ -116,7 +116,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                     <ClockIcon className="w-5 h-5" />
                 </div>
                 <div>
-                   <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-0.5">TIME</p>
+                   <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label mb-0.5">TIME</p>
                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{timeString}</p>
                 </div>
              </div>
@@ -124,7 +124,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         {event.description && (
             <div className="space-y-2">
-                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">NOTES</p>
+                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label px-1">NOTES</p>
                 <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed italic">
                     {event.description}
                 </div>
@@ -134,7 +134,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
         {event.matterTitle && (
             <div className="p-4 glass-premium rounded-2xl flex items-center justify-between border-l-4 border-l-primary-500">
                 <div className="min-w-0">
-                    <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1">ASSOCIATED MATTER</p>
+                    <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label mb-1">ASSOCIATED MATTER</p>
                     <p className="text-sm font-bold text-slate-800 dark:text-white truncate pr-4">{event.matterTitle}</p>
                 </div>
                 {openedFrom === 'calendar' && event.matterId && onNavigateToMatter && (
@@ -147,7 +147,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         <div className="space-y-3">
             <div className="flex justify-between items-center px-1">
-                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em]">ASSIGNED TEAM</p>
+                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label">ASSIGNED TEAM</p>
                 <button onClick={onAssign} className="text-2xs font-black text-primary-600 hover:underline uppercase tracking-widest">ASSIGN NEW</button>
             </div>
             <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl flex items-center justify-between">

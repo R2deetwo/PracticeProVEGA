@@ -59,7 +59,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = (props) => {
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xs font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">DUE DATE</p>
+            <p className="text-2xs font-black text-slate-400 uppercase tracking-wide-label mb-0.5">DUE DATE</p>
             <p className={`text-sm font-bold ${getDueDateColor(task.dueDate)}`}>
               {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'No deadline'}
             </p>
@@ -70,7 +70,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = (props) => {
             <TasksIcon className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xs font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">TASK CATEGORY</p>
+            <p className="text-2xs font-black text-slate-400 uppercase tracking-wide-label mb-0.5">TASK CATEGORY</p>
             <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">Legal Task</p>
           </div>
          </div>
@@ -78,7 +78,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = (props) => {
 
       {task.description && (
         <div className="space-y-2">
-          <p className="text-2xs font-black text-slate-400 uppercase tracking-[0.2em] px-1">SPECIFICATIONS</p>
+          <p className="text-2xs font-black text-slate-400 uppercase tracking-wide-label px-1">SPECIFICATIONS</p>
           <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-sm text-slate-700 dark:text-zinc-300 shadow-sm leading-relaxed italic">
             {task.description}
           </div>
@@ -88,7 +88,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = (props) => {
       {matter && (
         <div className="p-4 glass-premium rounded-2xl flex items-center justify-between border-l-4 border-l-primary-500">
           <div className="min-w-0">
-            <p className="text-2xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">ASSOCIATED MATTER</p>
+            <p className="text-2xs font-black text-slate-400 uppercase tracking-wide-label mb-1">ASSOCIATED MATTER</p>
             <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate pr-4">{matter.title}</p>
           </div>
           {openedFrom !== 'matterDetail' && onNavigateToMatter && (
@@ -100,7 +100,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = (props) => {
       )}
 
       <div className="space-y-3">
-        <p className="text-2xs font-black text-slate-400 uppercase tracking-[0.2em] px-1">ASSIGNED TEAM</p>
+        <p className="text-2xs font-black text-slate-400 uppercase tracking-wide-label px-1">ASSIGNED TEAM</p>
         <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl flex items-center justify-between">
           {assignedUsers.length > 0 ? (
             <div className="flex items-center gap-3">

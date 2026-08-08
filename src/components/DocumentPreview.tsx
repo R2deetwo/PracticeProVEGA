@@ -102,7 +102,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 )}
 
                 <div className="w-full max-w-3xl bg-white dark:bg-zinc-950 shadow-sm border border-slate-200 dark:border-zinc-800 p-8 sm:p-12 min-h-[800px] font-serif text-slate-800 dark:text-slate-200">
-                    <div className="whitespace-pre-wrap leading-relaxed text-[15px]">
+                    <div className="whitespace-pre-wrap leading-relaxed text-sm">
                         {markdownContent}
                     </div>
                 </div>

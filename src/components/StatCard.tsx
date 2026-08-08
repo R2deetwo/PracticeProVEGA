@@ -47,12 +47,12 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
             </div>
 
             {/* Text content — full width, flex column, title at top, value at bottom.
-                CRO AUDIT FIX — no scroll marquee, no truncation.
-                Title: single line, text-[11px] font-semibold tracking-wider uppercase.
-                Value: full untruncated currency, text-base lg:text-lg font-bold. */}
+                CRO AUDIT FIX — unified stat number typography.
+                Title: text-2xs font-bold tracking-widest uppercase (matches admin LABEL pattern).
+                Value: text-lg lg:text-xl font-bold (matches admin stat values, was text-base lg:text-lg). */}
             <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
-                <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase truncate">{title}</p>
-                <div className="text-base lg:text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                <p className="text-2xs font-bold tracking-widest text-slate-500 dark:text-zinc-400 uppercase truncate">{title}</p>
+                <div className="text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
                     {displayValue}
                 </div>
                 {subtitle && (

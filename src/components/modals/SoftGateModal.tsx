@@ -147,7 +147,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
         <div className="space-y-2">
           <button
             onClick={handlePayNow}
-            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-[0.2em] rounded-lg shadow-lg transition-all hover:-translate-y-0.5 active:scale-95"
+            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-wide-label rounded-lg shadow-lg transition-all hover:-translate-y-0.5 active:scale-95"
           >
             Pay Now — {targetPlan}
           </button>
@@ -158,7 +158,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
           </div>
           <button
             onClick={handleStartTrial}
-            className="w-full py-3 bg-white dark:bg-zinc-800 border-2 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-[0.2em] rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+            className="w-full py-3 bg-white dark:bg-zinc-800 border-2 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-wide-label rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
           >
             Start 14-Day Free Trial
           </button>

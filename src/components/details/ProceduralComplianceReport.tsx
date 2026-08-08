@@ -36,7 +36,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                         <ZapIcon className="w-5 h-5 animate-pulse" />
                     </div>
                     <div>
-                        <p className="text-2xs font-black uppercase tracking-[0.25em] text-slate-500 dark:text-zinc-500 leading-none mb-2 flex items-center gap-2">
+                        <p className="text-2xs font-black uppercase tracking-wide-label text-slate-500 dark:text-zinc-500 leading-none mb-2 flex items-center gap-2">
                              Legal Processes
                         </p>
                         <p className="text-sm font-black text-slate-800 dark:text-zinc-100 flex items-center gap-2">
@@ -87,7 +87,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                                 </div>
                                 
                                 <div className="space-y-1">
-                                    <p className={`text-[12px] font-bold leading-snug ${w.severity === 'DONE' ? 'text-white' : 'text-slate-800 dark:text-zinc-200'}`}>
+                                    <p className={`text-xs font-bold leading-snug ${w.severity === 'DONE' ? 'text-white' : 'text-slate-800 dark:text-zinc-200'}`}>
                                         {w.message}
                                     </p>
                                     <p className={`text-2xs font-medium ${w.severity === 'DONE' ? 'text-emerald-100' : 'text-slate-500 dark:text-zinc-400'}`}>

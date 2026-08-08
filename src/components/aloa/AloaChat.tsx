@@ -2739,7 +2739,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             )}
                             <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
                             <div className={`max-w-[88%] ${msg.role === 'user' ? '' : 'w-full relative'}`}>
-                                <div className={`px-5 py-4 rounded-3xl text-[14px] leading-relaxed break-words shadow-sm transition-all
+                                <div className={`px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all
                                 ${msg.role === 'user'
                                         ? 'bg-primary-600 text-white rounded-tr-none shadow-lg shadow-primary-500/10'
                                         : msg.isError

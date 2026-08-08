@@ -639,7 +639,11 @@ html.font-size-lg .line-clamp-2 {
   }
 
   .glass {
-    @apply bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md border border-white/20 dark:border-white/5;
+    /* CRO AUDIT FIX — standardized to match CalendarView and SettingsView.
+       Was bg-white/70 backdrop-blur-md — too translucent, content showed
+       through when scrolling. Now bg-white/95 backdrop-blur-xl for a
+       crisp, opaque header that still has a subtle glass feel. */
+    @apply bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl;
   }
 }
 

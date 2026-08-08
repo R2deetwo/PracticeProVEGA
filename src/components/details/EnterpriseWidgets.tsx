@@ -60,7 +60,7 @@ const WidgetCard: React.FC<{ title: string; subtitle?: string; icon: React.React
             </div>
             <div>
                 <h3 className="text-white font-black tracking-tight leading-tight">{title}</h3>
-                {subtitle && <p className="text-amber-400/70 text-2xs uppercase tracking-[0.15em] font-bold">{subtitle}</p>}
+                {subtitle && <p className="text-amber-400/70 text-2xs uppercase tracking-eyebrow font-bold">{subtitle}</p>}
             </div>
         </div>
         <div className="p-5 backdrop-blur-md">
