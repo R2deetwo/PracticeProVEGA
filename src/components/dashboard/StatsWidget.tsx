@@ -80,11 +80,11 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                         <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
                     </div>
                     <div className="flex flex-col justify-center min-w-0 pl-3 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap truncate">{label}</p>
+                        <div className="flex items-center gap-1 mb-0.5 min-w-0">
+                            <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider truncate">{label}</p>
                             {showTabs && (
                                 <div
-                                    className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5"
+                                    className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0"
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <button
@@ -102,8 +102,8 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                                 </div>
                             )}
                         </div>
-                        <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight break-all">
-                            {isLoading ? <Skeleton width={100} height={28} /> : <><NairaSymbol />{formatLargeNumber(value)}</>}
+                        <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight overflow-hidden">
+                            {isLoading ? <Skeleton width={100} height={28} /> : <span className="flex items-center"><NairaSymbol />{formatLargeNumber(value)}</span>}
                         </div>
                     </div>
                 </div>

@@ -34,13 +34,22 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
   // Mutation to initiate Paystack payment
   const initiatePayment = useAction(api.paystack.initiateClientPayment);
 
-  // Get bank details from firm settings, with sensible defaults
+  // Get bank details from firm settings, with PracticePro corporate defaults.
+  // For plan upgrades/subscriptions, the payment goes to PracticePro Systems Ltd,
+  // not the firm's own bank account.
   const bankAccounts = coreState.firmDetails?.bankAccounts;
   const primaryBank = bankAccounts && bankAccounts.length > 0 ? bankAccounts[0] : null;
 
-  const bankName = primaryBank?.bankName || 'Contact firm for details';
-  const accountNumber = primaryBank?.accountNumber || '—';
-  const accountName = primaryBank?.accountName || coreState.firmDetails?.name || '—';
+  // PracticePro corporate bank details (used when firm hasn't configured their own)
+  const PRACTICEPRO_BANK = {
+    bankName: 'Providus Bank',
+    accountNumber: '1203984572',
+    accountName: 'PracticePro Systems Ltd',
+  };
+
+  const bankName = primaryBank?.bankName || PRACTICEPRO_BANK.bankName;
+  const accountNumber = primaryBank?.accountNumber || PRACTICEPRO_BANK.accountNumber;
+  const accountName = primaryBank?.accountName || PRACTICEPRO_BANK.accountName;
 
   const handleConfirmPayment = () => {
     setStep('confirming');
@@ -143,7 +152,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               </div>
               <button
                 onClick={() => copyToClipboard(bankName, 'Bank name')}
-                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-60"
                 title="Copy"
               >
                 <ClipboardIcon className="w-4 h-4" />
@@ -158,7 +167,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               </div>
               <button
                 onClick={() => copyToClipboard(accountNumber, 'Account number')}
-                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-60"
                 title="Copy"
               >
                 <ClipboardIcon className="w-4 h-4" />
@@ -173,7 +182,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               </div>
               <button
                 onClick={() => copyToClipboard(accountName, 'Account name')}
-                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-60"
                 title="Copy"
               >
                 <ClipboardIcon className="w-4 h-4" />
@@ -189,7 +198,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                 </div>
                 <button
                   onClick={() => copyToClipboard(String(amount), 'Amount')}
-                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-60"
                   title="Copy"
                 >
                   <ClipboardIcon className="w-4 h-4" />
@@ -215,21 +224,18 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
           <button
             onClick={handleConfirmPayment}
             disabled={!confirmChecked}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:bg-zinc-700 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
           >
-            I've Completed This Payment
+            Report Payment Transferred
           </button>
 
           <div className="text-center">
             <button type="button" onClick={onClose} className="text-sm text-slate-500 hover:underline">Cancel</button>
           </div>
 
-          {/* Honest Disclaimer */}
+          {/* Disclaimer */}
           <p className="text-2xs text-center text-slate-400 leading-relaxed">
-            {isCardPaymentActive
-              ? 'Transfer to the account above and confirm, or pay instantly with your card. Your plan activates after verification.'
-              : 'Transfer to the account above, then confirm. Your plan activates after verification.'
-            }
+            PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.
           </p>
         </div>
       )}
@@ -237,8 +243,8 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
       {step === 'confirming' && (
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-6"></div>
-          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Recording Confirmation...</h3>
-          <p className="text-slate-500">Your payment will be verified by the firm.</p>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Recording Report...</h3>
+          <p className="text-slate-500">PracticePro will verify your bank transfer within 24 hours.</p>
         </div>
       )}
 
@@ -256,7 +262,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
             <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
           </div>
           <h3 className="text-2xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Payment Reported</h3>
-          <p className="text-slate-500 mb-6">Your firm will verify the transfer and update the invoice status.</p>
+          <p className="text-slate-500 mb-6">PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.</p>
           <button
             onClick={handleFinish}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all"
