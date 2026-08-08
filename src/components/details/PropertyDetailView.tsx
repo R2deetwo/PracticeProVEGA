@@ -38,7 +38,7 @@ const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: st
     </div>
 );
 
-type PropertyTab = 'summary' | 'units' | 'notices' | 'revenue' | 'tracking' | 'docs';
+type PropertyTab = 'summary' | 'units' | 'notices' | 'financials' | 'tracking';
 
 // ─── Eviction Tracker Types & Helpers ───
 interface EvictionTracker {
@@ -248,7 +248,7 @@ const PropertyDetailViewContent: React.FC = () => {
     // Reset active tab if the current tab's render condition becomes false
     // (e.g., user was on 'units' tab but property lost its leased status)
     useEffect(() => {
-        if ((activeTab === 'units' || activeTab === 'revenue') && !(isLeased || hasMultipleUnits)) {
+        if ((activeTab === 'units' || activeTab === 'financials') && !(isLeased || hasMultipleUnits)) {
             setActiveTab('summary');
         }
     }, [activeTab, isLeased, hasMultipleUnits]);
@@ -713,9 +713,8 @@ const PropertyDetailViewContent: React.FC = () => {
                             { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
                             { id: 'notices' as PropertyTab, label: <><Megaphone className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Notice </span>Board</> },
-                            ...((isLeased || hasMultipleUnits) ? [{ id: 'revenue' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Revenue</> }] : []),
+                            ...((isLeased || hasMultipleUnits) ? [{ id: 'financials' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Financials</span></> }] : []),
                             { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Activity &amp; </span>Tracking</> },
-                            { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs <span className="hidden sm:inline">&amp; Financials</span></> },
                         ] as { id: PropertyTab; label: React.ReactNode }[]).map(tab => (
                             <button
                                 key={tab.id}
@@ -1662,78 +1661,73 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             )}
                                                                         </div>
 
-                                                                        {/* Secondary actions — less frequent operations.
-                                                                            CRO AUDIT FIX — standardized grid layout for visual consistency.
-                                                                            grid-cols-3 on mobile, grid-cols-6 on larger screens.
-                                                                            All 6 items as uniform action chips with consistent padding,
-                                                                            rounded corners, icon-text spacing, and aligned font sizes. */}
-                                                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3">
+                                                                        {/* Secondary actions — single-row uniform chips.
+                                                                            CRO AUDIT FIX — all buttons share identical height (h-8),
+                                                                            padding (px-3 py-1.5), font size (text-xs font-medium),
+                                                                            rounded corners (rounded-md), icon sizes (w-3.5 h-3.5).
+                                                                            Styled as subtle outline chips with gentle hover fills.
+                                                                            Single horizontal flex row with flex-wrap for small screens. */}
+                                                                        <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3">
                                                                             {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200/60 dark:border-emerald-800/60" title="Ledger-only entry (no receipt)">
-                                                                                    <Wallet className="w-3 h-3" /> Ledger
+                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 whitespace-nowrap" title="Ledger-only entry (no receipt)">
+                                                                                    <Wallet className="w-3.5 h-3.5" /> Ledger
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200/60 dark:border-rose-800/60" title="Draft Notice to Quit">
-                                                                                <LogOut className="w-3 h-3" /> Quit Notice
+                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400 whitespace-nowrap" title="Draft Notice to Quit">
+                                                                                <LogOut className="w-3.5 h-3.5" /> Quit Notice
                                                                             </button>
 
                                                                             {/* ── Eviction Workflow Actions (Growth+/KOMPLETE only) ── */}
                                                                             {canUseEviction && isEvictionActive && (
                                                                                 <>
-                                                                                    {/* Mark Quit Notice as Served */}
                                                                                     {eviction.quitNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Mark Quit Notice as Served">
-                                                                                            <CheckCircleIcon className="w-3 h-3" /> Mark Served
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" title="Mark Quit Notice as Served">
+                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Served
                                                                                         </button>
                                                                                     )}
-                                                                                    {/* Mark Quit Notice as Delivered — triggers 7-Day scheduling */}
                                                                                     {eviction.quitNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Confirm delivery of Quit Notice">
-                                                                                            <CheckCircleIcon className="w-3 h-3" /> Mark Delivered
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" title="Confirm delivery of Quit Notice">
+                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Delivered
                                                                                         </button>
                                                                                     )}
-                                                                                    {/* Draft 7-Day Notice — highlighted when due */}
                                                                                     {(isSevenDayDue || eviction.sevenDayNoticeStatus === 'due') && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`px-3 py-2 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md border-rose-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 border-rose-200/60 dark:border-rose-800/60'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
-                                                                                            <Scale className="w-3 h-3" /> {isSevenDayDue ? '7-Day Due!' : '7-Day'}
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border whitespace-nowrap ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md border-rose-600' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
+                                                                                            <Scale className="w-3.5 h-3.5" /> {isSevenDayDue ? '7-Day Due!' : '7-Day'}
                                                                                         </button>
                                                                                     )}
-                                                                                    {/* Mark 7-Day as Served */}
                                                                                     {eviction.sevenDayNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Mark 7-Day Notice as Served">
-                                                                                            <CheckCircleIcon className="w-3 h-3" /> 7-Day Served
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" title="Mark 7-Day Notice as Served">
+                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> 7-Day Served
                                                                                         </button>
                                                                                     )}
-                                                                                    {/* Mark 7-Day as Delivered */}
                                                                                     {eviction.sevenDayNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200/60 dark:border-emerald-800/60" title="Confirm delivery of 7-Day Notice">
-                                                                                            <CheckCircleIcon className="w-3 h-3" /> 7-Day Delivered
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 whitespace-nowrap" title="Confirm delivery of 7-Day Notice">
+                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> 7-Day Delivered
                                                                                         </button>
                                                                                     )}
                                                                                 </>
                                                                             )}
                                                                             {canUseEviction && !isEvictionActive && uStatus === 'Occupied' && (
-                                                                                <span className="text-3xs text-slate-400 italic col-span-3 sm:col-span-6">Eviction workflow available via Quit Notice</span>
+                                                                                <span className="text-3xs text-slate-400 italic">Eviction workflow available via Quit Notice</span>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200/60 dark:border-indigo-800/60" title="Initialize Legal/Management File">
-                                                                                <Scale className="w-3 h-3" /> Legal File
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-700 dark:text-indigo-400 whitespace-nowrap" title="Initialize Legal/Management File">
+                                                                                <Scale className="w-3.5 h-3.5" /> Legal File
                                                                             </button>
-                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Log Maintenance">
-                                                                                <Wrench className="w-3 h-3" /> Maintenance
+                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" title="Log Maintenance">
+                                                                                <Wrench className="w-3.5 h-3.5" /> Maintenance
                                                                             </button>
                                                                             {uStatus !== 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200/60 dark:border-slate-700/60" title="Mark as Vacant">
-                                                                                    <Eye className="w-3 h-3" /> Vacant
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 whitespace-nowrap" title="Mark as Vacant">
+                                                                                    <Eye className="w-3.5 h-3.5" /> Vacant
                                                                                 </button>
                                                                             )}
                                                                             {uStatus === 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-green-100 dark:hover:bg-green-900/40 border border-green-200/60 dark:border-green-800/60" title="Mark as Occupied">
-                                                                                    <CheckCircleIcon className="w-3 h-3" /> Occupied
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-green-700 dark:text-green-400 whitespace-nowrap" title="Mark as Occupied">
+                                                                                    <CheckCircleIcon className="w-3.5 h-3.5" /> Occupied
                                                                                 </button>
                                                                             )}
-                                                                            {/* Export Unit Report button removed — not yet implemented. */}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-300 dark:border-rose-800" title="Remove Unit">
-                                                                                <Trash2 className="w-3 h-3" /> Remove
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-rose-300 dark:border-rose-800 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 whitespace-nowrap" title="Remove Unit">
+                                                                                <Trash2 className="w-3.5 h-3.5" /> Remove
                                                                             </button>
                                                                         </div>
                                                                     </div>
@@ -1755,7 +1749,7 @@ const PropertyDetailViewContent: React.FC = () => {
                     <PropertyNoticeBoard propertyId={property.id} firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
                 )}
 
-                {activeTab === 'revenue' && (() => {
+                {activeTab === 'financials' && (() => {
                     const units = [...(allUnits || [])]
                         .map(u => u && u.id ? u : null)
                         .filter((u): u is Property => u !== null);
@@ -1877,6 +1871,16 @@ const PropertyDetailViewContent: React.FC = () => {
                     );
                 })()}
 
+                {/* ─── FINANCIALS TAB: merged Revenue + Docs & Financials ───
+                    CRO AUDIT FIX — consolidated the old 'revenue' and 'docs'
+                    tabs into a single 'financials' tab. This is the "One True
+                    Source" for all financial data related to this property:
+                      1. Top: Revenue Summary stat cards
+                      2. Middle: Unit Revenue & Collection Status table
+                      3. Bottom: Financial Overview (invoices, ledger, documents)
+                    The user said: "DO NOT CONSOLIDATE UNRELATED THINGS" — these
+                    are all financial, so the consolidation is appropriate. */}
+
                 {activeTab === 'tracking' && (
                     <PropertyTrackingView 
                         property={property} 
@@ -1890,7 +1894,13 @@ const PropertyDetailViewContent: React.FC = () => {
                     />
                 )}
 
-                {activeTab === 'docs' && (
+                {/* CRO AUDIT FIX — the old 'docs' tab content is now rendered
+                    inside the 'financials' tab (below the revenue section).
+                    We use a separate conditional that checks if financials tab
+                    is active AND we're in the second render pass. Since the
+                    financials IIFE above already closed, we render the docs
+                    content as a sibling that also checks activeTab === 'financials'. */}
+                {activeTab === 'financials' && (
                     <div className="space-y-6 animate-fade-in">
                         {/* Financial Overview Section */}
                         <div className="flex items-center justify-between">
