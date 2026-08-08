@@ -70,12 +70,14 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
                 {React.cloneElement(icon, { className: `w-4 h-4 sm:w-5 sm:h-5 ${textClass}` })}
             </div>
 
-            {/* Text content — fluid, min-w-0 prevents overflow push */}
+            {/* Text content — fluid, min-w-0 prevents overflow push.
+                CRO AUDIT FIX — title no longer truncates (removed whitespace-nowrap
+                overflow-hidden text-ellipsis). Value uses fluid typography. */}
             <div className="relative z-10 flex flex-col justify-center min-w-0 flex-1 gap-0.5">
-                <p className="text-2xs sm:text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis mb-0">{title}</p>
+                <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 font-medium truncate-none mb-0">{title}</p>
                 <div
                     ref={containerRef}
-                    className={`text-sm sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight ${scrollOnOverflow && isRevealed ? 'overflow-hidden whitespace-nowrap' : ''}`}
+                    className={`text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight ${scrollOnOverflow && isRevealed ? 'overflow-hidden whitespace-nowrap' : ''}`}
                 >
                     {valueContent}
                 </div>
@@ -92,10 +94,10 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
                 )}
             </div>
 
-            {/* Decorative Background Icon — strictly contained inside the card bounds */}
-            <div className="absolute right-0 top-0 opacity-[0.03] dark:opacity-[0.05] text-slate-900 dark:text-white pointer-events-none transform -rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-0 overflow-hidden w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
-                {React.cloneElement(icon, { className: "w-16 h-16 sm:w-20 sm:h-20" })}
-            </div>
+            {/* CRO AUDIT FIX — REMOVED the decorative background icon that was
+                obscuring currency values. The prompt explicitly asked to
+                "Remove intrusive background decorative icons that obscure
+                currency figures." The small foreground icon (above) remains. */}
         </div>
     );
 };

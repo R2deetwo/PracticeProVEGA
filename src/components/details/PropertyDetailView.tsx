@@ -1662,14 +1662,18 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             )}
                                                                         </div>
 
-                                                                        {/* Secondary actions — less frequent operations */}
-                                                                        <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100 dark:border-zinc-700">
+                                                                        {/* Secondary actions — less frequent operations.
+                                                                            CRO AUDIT FIX — standardized grid layout for visual consistency.
+                                                                            grid-cols-3 on mobile, grid-cols-6 on larger screens.
+                                                                            All 6 items as uniform action chips with consistent padding,
+                                                                            rounded corners, icon-text spacing, and aligned font sizes. */}
+                                                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3">
                                                                             {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Ledger-only entry (no receipt)">
-                                                                                    <Wallet className="w-3 h-3" /> Ledger Entry
+                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200/60 dark:border-emerald-800/60" title="Ledger-only entry (no receipt)">
+                                                                                    <Wallet className="w-3 h-3" /> Ledger
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40" title="Draft Notice to Quit">
+                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200/60 dark:border-rose-800/60" title="Draft Notice to Quit">
                                                                                 <LogOut className="w-3 h-3" /> Quit Notice
                                                                             </button>
 
@@ -1678,57 +1682,57 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 <>
                                                                                     {/* Mark Quit Notice as Served */}
                                                                                     {eviction.quitNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark Quit Notice as Served">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Mark Quit Notice as Served">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> Mark Served
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Mark Quit Notice as Delivered — triggers 7-Day scheduling */}
                                                                                     {eviction.quitNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Confirm delivery of Quit Notice">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Confirm delivery of Quit Notice">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> Mark Delivered
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Draft 7-Day Notice — highlighted when due */}
                                                                                     {(isSevenDayDue || eviction.sevenDayNoticeStatus === 'due') && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`px-2.5 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
-                                                                                            <Scale className="w-3 h-3" /> {isSevenDayDue ? '7-Day Notice Due!' : '7-Day Notice'}
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`px-3 py-2 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md border-rose-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 border-rose-200/60 dark:border-rose-800/60'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
+                                                                                            <Scale className="w-3 h-3" /> {isSevenDayDue ? '7-Day Due!' : '7-Day'}
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Mark 7-Day as Served */}
                                                                                     {eviction.sevenDayNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark 7-Day Notice as Served">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Mark 7-Day Notice as Served">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> 7-Day Served
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Mark 7-Day as Delivered */}
                                                                                     {eviction.sevenDayNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Confirm delivery of 7-Day Notice">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200/60 dark:border-emerald-800/60" title="Confirm delivery of 7-Day Notice">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> 7-Day Delivered
                                                                                         </button>
                                                                                     )}
                                                                                 </>
                                                                             )}
                                                                             {canUseEviction && !isEvictionActive && uStatus === 'Occupied' && (
-                                                                                <span className="text-3xs text-slate-400 italic">Eviction workflow available via Quit Notice</span>
+                                                                                <span className="text-3xs text-slate-400 italic col-span-3 sm:col-span-6">Eviction workflow available via Quit Notice</span>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40" title="Initialize Legal/Management File">
-                                                                                <Scale className="w-3 h-3" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200/60 dark:border-indigo-800/60" title="Initialize Legal/Management File">
+                                                                                <Scale className="w-3 h-3" /> Legal File
                                                                             </button>
-                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Log Maintenance">
+                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60" title="Log Maintenance">
                                                                                 <Wrench className="w-3 h-3" /> Maintenance
                                                                             </button>
                                                                             {uStatus !== 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Mark as Vacant">
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200/60 dark:border-slate-700/60" title="Mark as Vacant">
                                                                                     <Eye className="w-3 h-3" /> Vacant
                                                                                 </button>
                                                                             )}
                                                                             {uStatus === 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-green-100 dark:hover:bg-green-900/40" title="Mark as Occupied">
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-green-100 dark:hover:bg-green-900/40 border border-green-200/60 dark:border-green-800/60" title="Mark as Occupied">
                                                                                     <CheckCircleIcon className="w-3 h-3" /> Occupied
                                                                                 </button>
                                                                             )}
                                                                             {/* Export Unit Report button removed — not yet implemented. */}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 ml-auto" title="Remove Unit">
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-300 dark:border-rose-800" title="Remove Unit">
                                                                                 <Trash2 className="w-3 h-3" /> Remove
                                                                             </button>
                                                                         </div>
@@ -1797,10 +1801,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                 const totalAnnual = allRent + allServiceCharge;
                                 return (
                                     <>
-                                        <StatCard title="Total Annual Revenue" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<Receipt />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
-                                        <StatCard title="Recurring Rent" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<Receipt />} colorClass="bg-blue-600" scrollOnOverflow={true} />
-                                        <StatCard title="Service Charges" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
-                                        <StatCard title="SC Status" value={`${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'} scrollOnOverflow={true} />
+                                        <StatCard title="TOTAL ANNUAL RENT" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<Receipt />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
+                                        <StatCard title="RECURRING REVENUE" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<Receipt />} colorClass="bg-blue-600" scrollOnOverflow={true} />
+                                        <StatCard title="SERVICE CHARGE COLLECTED" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
+                                        <StatCard title="COLLECTION STATUS" value={`${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'} scrollOnOverflow={true} />
                                     </>
                                 );
                             })()}
@@ -2154,9 +2158,9 @@ const PropertyNoticeBoard: React.FC<{
     };
 
     const priorityConfig: Record<string, { bg: string; text: string; label: string; dot: string; border: string }> = {
-        urgent: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-300', label: 'Urgent', dot: 'bg-rose-500', border: 'border-rose-200 dark:border-rose-800/50' },
-        important: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', label: 'Important', dot: 'bg-amber-500', border: 'border-amber-200 dark:border-amber-800/50' },
-        normal: { bg: 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800', text: 'text-slate-600 dark:text-zinc-400', label: 'General', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-zinc-700' },
+        urgent: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-300', label: 'Urgent Rent/Payment Notice', dot: 'bg-rose-500', border: 'border-rose-200 dark:border-rose-800/50' },
+        important: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', label: 'Maintenance Notice', dot: 'bg-amber-500', border: 'border-amber-200 dark:border-amber-800/50' },
+        normal: { bg: 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800', text: 'text-slate-600 dark:text-zinc-400', label: 'General Announcement', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-zinc-700' },
     };
 
     const isLoading = notices === undefined;
@@ -2323,8 +2327,15 @@ const PropertyNoticeBoard: React.FC<{
                     <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
                         <Megaphone className="w-7 h-7 text-slate-400 dark:text-zinc-500" />
                     </div>
-                    <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-1">No active notices</p>
-                    <p className="text-xs text-slate-400 dark:text-zinc-500">Post a notice to keep your residents informed. It will appear on their portal immediately.</p>
+                    <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-1">No Announcements Posted</p>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500 max-w-sm">Broadcast notices, maintenance schedules, or building updates directly to all residents in this property.</p>
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                    >
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        Post New Notice
+                    </button>
                 </div>
             )}
 
