@@ -111,6 +111,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const [showAllPlans, setShowAllPlans] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
   const [hasAgreed, setHasAgreed] = useState(false);
+  // Payment/trial flow state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAction, setPaymentAction] = useState<'pay_now' | 'start_trial' | null>(null);
 
   // If user already chose product during signup, set it immediately
   useEffect(() => {
@@ -148,9 +151,24 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         isDataMigration
       );
       if (fid) {
-        await refreshUser();
-        sessionStorage.removeItem('practicepro_demo_product');
-        onComplete();
+        // CRITICAL FIX: refreshUser() can hang if Convex is slow to sync
+        // the new firmId onto the user record. Add a 10-second timeout —
+        // if it takes too long, force-reload the page (the firm WAS
+        // created successfully, the user just needs a fresh session).
+        try {
+          await Promise.race([
+            refreshUser(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+          ]);
+          sessionStorage.removeItem('practicepro_demo_product');
+          onComplete();
+        } catch (refreshErr) {
+          // refreshUser timed out or failed — but the firm WAS created.
+          // Force a page reload so the user's session picks up the new firmId.
+          console.warn('[Onboarding] refreshUser timed out, force-reloading...', refreshErr);
+          sessionStorage.removeItem('practicepro_demo_product');
+          window.location.reload();
+        }
       } else {
         throw new Error('Firm creation returned no ID.');
       }
@@ -234,7 +252,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Firm / Organization Name</label>
                     <input autoComplete="off" data-lpignore="true" type="text" placeholder="e.g. Adeyemi & Co." value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-300" autoFocus />
                   </div>
-                  <button onClick={() => setStep(2)} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Select Plan</button>
+                  <button onClick={() => { setStep(2); setShowAllPlans(false); }} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Confirm Plan</button>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -263,9 +281,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-slate-900  tracking-tighter">Choose Your Plan</h2>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+                {showAllPlans ? 'Compare Plans' : `Your ${selectedTierId === 'Core' ? 'Core' : selectedTierId} Plan`}
+              </h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
-                For your <span className="font-bold text-slate-700 ">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
+                For your <span className="font-bold text-slate-700">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
               </p>
             </div>
 
@@ -435,13 +455,88 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               </label>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto pt-2">
-              <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50   text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all" disabled={isSubmitting}>Back</button>
-              <button onClick={handleCreate} disabled={isSubmitting || !hasAgreed} className={`flex-[2] py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200  cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}>
-                {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                {isSubmitting ? 'Creating...' : 'Create Workspace'}
-              </button>
-            </div>
+            {/* Tier-specific action buttons */}
+            {(() => {
+              const isKompleteTier = isKomplete(product);
+              const isHighestTier = isKompleteTier || selectedTierId === 'Pro' || selectedTierId === 'Enterprise';
+              const planLabel = isKompleteTier ? 'Komplete' : selectedTierId;
+              const planPrice = isKompleteTier
+                ? (billingCycle === 'annual' ? 1248000 : 130000)
+                : (tiers[selectedTierId]?.[billingCycle === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
+
+              return (
+                <div className="max-w-md mx-auto pt-2 space-y-3">
+                  {/* Back button */}
+                  <button onClick={() => setStep(1)} className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all" disabled={isSubmitting}>
+                    ← Back
+                  </button>
+
+                  {/* Pay Now — available on ALL tiers */}
+                  <button
+                    onClick={() => { setPaymentAction('pay_now'); setShowPaymentModal(true); }}
+                    disabled={isSubmitting || !hasAgreed}
+                    className={`w-full py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}
+                  >
+                    {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                    {isSubmitting ? 'Creating...' : `Pay Now — ${planLabel}`}
+                  </button>
+
+                  {/* Start 14-Day Free Trial — NOT available on highest tier */}
+                  {!isHighestTier && (
+                    <>
+                      <div className="flex items-center gap-3 py-1">
+                        <div className="flex-1 h-px bg-slate-100" />
+                        <span className="text-2xs text-slate-400 font-bold uppercase">or</span>
+                        <div className="flex-1 h-px bg-slate-100" />
+                      </div>
+                      <button
+                        onClick={() => { setPaymentAction('start_trial'); handleCreate(); }}
+                        disabled={isSubmitting || !hasAgreed}
+                        className="w-full py-3 bg-white border-2 border-primary-200 text-primary-600 font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-primary-50 transition-all disabled:opacity-50"
+                      >
+                        Start 14-Day Free Trial
+                      </button>
+                      {/* Subtle upsell for Core tier — suggest trying the highest tier */}
+                      {selectedTierId === 'Core' && !isKompleteTier && (
+                        <p className="text-center text-2xs text-slate-400 mt-1">
+                          Want full features? <button onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 14 days</button> instead.
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  {/* Highest tier — payment only, no trial */}
+                  {isHighestTier && (
+                    <p className="text-center text-2xs text-slate-400">
+                      The {planLabel} tier requires payment to activate. Click "Pay Now" to proceed with bank transfer.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Payment Reported confirmation — replaces Create Workspace after payment */}
+            {paymentAction === 'pay_now' && showPaymentModal && (
+              <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900">Payment Reported</h3>
+                    <p className="text-sm text-slate-500 mt-2">PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowPaymentModal(false); handleCreate(); }}
+                    className="w-full py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-colors"
+                  >
+                    Continue to Workspace
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
