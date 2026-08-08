@@ -719,11 +719,6 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                             Billing &amp; Plans: <span className="text-primary-600 dark:text-primary-400">{currentPlan}</span>
                         </h3>
-                        {/* SIMULATED badge — CRO AUDIT: makes clear that current MRR/plan
-                            status is simulated until the founder approves a real payment. */}
-                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-2xs font-black uppercase tracking-widest rounded-full border border-amber-300 dark:border-amber-700">
-                            Simulated
-                        </span>
                     </div>
                     <p className="text-slate-500 dark:text-zinc-400 max-w-2xl text-sm mt-1">
                         Manage your plan, billing cycle, and seat allocation.

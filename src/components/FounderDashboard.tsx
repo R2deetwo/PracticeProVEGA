@@ -290,15 +290,9 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                         <p className={KPI_LABEL}>{productFilter === 'property' ? 'Properties' : productFilter === 'legal' ? 'Matters' : 'Matters + Properties'}</p>
                         <p className={KPI_VALUE}>{displayMatters}</p>
                     </div>
-                    <div className={KPI_CARD} title={`Full: ₦${(displayMRR || 0).toLocaleString('en-NG')}/mo — SIMULATED (no real payments processed yet)`}>
-                        <p className={KPI_LABEL + ' flex items-center gap-1'}>
+                    <div className={KPI_CARD} title={`Full: ₦${(displayMRR || 0).toLocaleString('en-NG')}/mo`}>
+                        <p className={KPI_LABEL}>
                             {productFilter === 'all' ? 'Platform MRR' : `${PRODUCT_LABEL[productFilter] || ''} MRR`}
-                            {/* CRO AUDIT: SIMULATED badge — makes clear that current MRR is
-                                a projection based on plan assignments, NOT actual collected revenue.
-                                No firm has paid yet; all plan activations are simulated. */}
-                            <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-3xs font-black uppercase rounded border border-amber-300 dark:border-amber-700" title="No real payments processed yet — figure is simulated based on plan assignments">
-                                SIM
-                            </span>
                         </p>
                         <p className={KPI_VALUE}><NairaSymbol />{formatCompact(displayMRR)}</p>
                         <p className="text-3xs text-slate-400 mt-1 truncate">Annual: <NairaSymbol />{formatCompact(displayRevenue)}</p>
