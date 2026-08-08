@@ -472,7 +472,9 @@ export const BroadcastBanner: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         if (activeBroadcast.deepLink) {
-                                            window.location.hash = activeBroadcast.deepLink;
+                                            // CRO AUDIT FIX — was window.location.hash which only sets
+                                            // the URL fragment, not the route. Use href for actual navigation.
+                                            window.location.href = activeBroadcast.deepLink;
                                         }
                                     }}
                                     className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-3xs font-bold text-slate-900 hover:text-slate-900 bg-slate-900/15 hover:bg-slate-900/25 transition-colors backdrop-blur-sm leading-none"

@@ -99,7 +99,7 @@ const AgentRow: React.FC<{ icon: React.ReactNode; name: string; desc: string; tr
         <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-slate-900 dark:text-white text-xs">{name}</span>
-                <span className="text-3xs font-mono text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">{trigger}</span>
+                <span className="text-3xs font-mono text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">{trigger}</span>
             </div>
             <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-snug mt-0.5">{desc}</p>
         </div>
@@ -212,7 +212,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
     return (
         <div className="space-y-5">
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl p-5 border border-slate-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
                         <ZapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -241,7 +241,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                                 onChange={(e) => setCustomKey(e.target.value)}
                                 onFocus={handleInputFocus}
                                 placeholder="AIzaSy..."
-                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-base focus:ring-primary-500 focus:border-primary-500 pr-10"
+                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-base focus:ring-primary-500 focus:border-primary-500 pr-10"
                             />
                             <button
                                 onClick={handleToggleShow}
@@ -339,7 +339,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                                         addToast("Firm Gemini Key updated.", { type: 'success' });
                                     }
                                 }}
-                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
                             />
                         </div>
                     </SettingsCard>
@@ -371,7 +371,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                     </SettingsCard>
                 </>
             ) : (
-                <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 rounded-lg text-center text-sm text-slate-500">
+                <div className="p-4 bg-slate-50 dark:bg-zinc-800 rounded-lg text-center text-sm text-slate-500">
                     <p>Only Administrators can configure firm-wide agents.</p>
                 </div>
             )}

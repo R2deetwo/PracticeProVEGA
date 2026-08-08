@@ -46,7 +46,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
               <select 
                 value={status} 
                 onChange={(e) => setStatus(e.target.value as PropertyStatus)}
-                className="w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
               >
                 <option value="">Keep Original Status</option>
                 <option value="Available">Available</option>
@@ -63,7 +63,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
               <select 
                 value={category} 
                 onChange={(e) => setCategory(e.target.value as PropertyCategory)}
-                className="w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
               >
                 <option value="">Keep Original Category</option>
                 <option value="Residential">Residential</option>

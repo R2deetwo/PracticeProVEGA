@@ -160,7 +160,7 @@ export const NotificationSettings: React.FC = () => {
           Per-user in-app notification preferences (moved from Profile Settings).
           These control which in-app notifications YOU receive — distinct from
           the firm-wide email notifications below. */}
-      <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5">
+      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
             <BellIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />

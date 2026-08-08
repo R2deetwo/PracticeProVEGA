@@ -84,7 +84,7 @@ const StatusPill: React.FC<{
         [TaskStatus.Done]:               { label: 'Done',               cls: 'bg-emerald-600 text-white border-emerald-700 shadow-sm' },
         [TaskStatus.InProgress]:         { label: 'In Progress',         cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25 hover:bg-blue-500/25' },
         [TaskStatus.PendingVerification]:{ label: 'Pending Review',      cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/25' },
-        [TaskStatus.Todo]:               { label: 'To Do',               cls: 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700/50 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600 hover:bg-slate-200 dark:hover:bg-zinc-700' },
+        [TaskStatus.Todo]:               { label: 'To Do',               cls: 'bg-slate-100 dark:bg-zinc-700/50 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600 hover:bg-slate-200 dark:hover:bg-zinc-700' },
     };
     const next: Record<TaskStatus, TaskStatus> = {
         [TaskStatus.Todo]: TaskStatus.InProgress,
@@ -142,7 +142,7 @@ const StageHeader: React.FC<{
                     </span>
                 </div>
                 {stage.tasks.length > 0 && (
-                    <div className="mt-1 h-1 rounded-full bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 overflow-hidden">
+                    <div className="mt-1 h-1 rounded-full bg-slate-100 dark:bg-zinc-700 overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-500 ${stage.isComplete ? 'bg-green-500' : 'bg-sky-500'}`}
                             style={{ width: `${pct}%` }}
@@ -177,7 +177,7 @@ const TaskCard: React.FC<{
                         ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/40 hover:border-red-300 dark:hover:border-red-700'
                         : isStatutory
                             ? 'bg-amber-50/50 dark:bg-amber-900/5 border-amber-200/60 dark:border-amber-700/20 hover:border-amber-300 dark:hover:border-amber-700/40'
-                            : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-700/50 hover:border-primary-200 dark:hover:border-primary-800'
+                            : 'bg-white dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-700/50 hover:border-primary-200 dark:hover:border-primary-800'
             }`}
             onClick={() => openModal('viewTask', task.id, { openedFrom: 'matterDetail' })}
         >
@@ -295,7 +295,7 @@ export const StatutoryTaskTimeline: React.FC<StatutoryTaskTimelineProps> = ({
             <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">All Tasks</span>
-                    <div className="h-px flex-1 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700" />
+                    <div className="h-px flex-1 bg-slate-100 dark:bg-zinc-700" />
                     <button
                         className="text-xs font-bold text-primary-600 hover:text-primary-700 transition-colors"
                         onClick={() => openModal('newTask', null, { matterId, openedFrom: 'matterDetail' })}

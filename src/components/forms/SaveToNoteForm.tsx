@@ -482,7 +482,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
     const commonInputClass = inputModern + ` ${embeddedMode ? 'px-4 py-3' : ''}`;
 
     return (
-        <div className={`relative flex flex-col h-full animate-fade-in bg-white dark:bg-zinc-900 dark:bg-zinc-950`}>
+        <div className={`relative flex flex-col h-full animate-fade-in bg-white dark:bg-zinc-950`}>
             
             {!window.isSecureContext && window.location.hostname !== 'localhost' && viewMode === 'compose' && (
                 <div className="absolute top-0 left-0 right-0 z-[60] bg-amber-500 text-white text-2xs font-bold text-center py-2 px-4 shadow-sm animate-fade-in">
@@ -551,7 +551,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     </div>
 
                     {/* ACTIONS FOOTER - Mirrored from AloaChat style */}
-                    <footer className="flex-shrink-0 p-4 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
+                    <footer className="flex-shrink-0 p-4 sm:p-4 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
                         <div className="grid grid-cols-3 items-center">
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <button
@@ -608,7 +608,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
             {/* STEP 2: SAVE TARGET SELECTOR (Overlay Drawer) */}
             {viewMode === 'target' && (
                 <div className="absolute inset-0 z-[100] bg-black/40 backdrop-blur-sm animate-fade-in flex flex-col justify-end">
-                    <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-950 rounded-t-[40px] shadow-2xl p-3 sm:p-4 pb-6 sm:p-8 animate-slide-up max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white dark:bg-zinc-950 rounded-t-[40px] shadow-2xl p-3 sm:p-4 pb-6 sm:p-8 animate-slide-up max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-8">
                             <div>
                                 <h3 className="text-2xl font-black text-slate-900 dark:text-zinc-100 italic tracking-tight">SAVE NOTE</h3>
@@ -626,7 +626,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                     type="text"
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-sm font-bold focus:ring-2 focus:ring-primary-500/50 transition-all"
+                                    className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-sm font-bold focus:ring-2 focus:ring-primary-500/50 transition-all"
                                     placeholder="Untitled Note"
                                 />
                             </div>
@@ -673,9 +673,9 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                                 <ChevronDownIcon className="w-4 h-4" />
                                             </div>
                                         </div>
-                                        <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-900 rounded-[20px]">
-                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow-sm text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>General Note</button>
-                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow-sm text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>Task / Log</button>
+                                        <div className="flex p-1 bg-slate-100 dark:bg-zinc-900 rounded-[20px]">
+                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>General Note</button>
+                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>Task / Log</button>
                                         </div>
                                     </div>
                                 ) : destinationType === 'matter' ? (
@@ -694,9 +694,9 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                                 <ChevronDownIcon className="w-4 h-4" />
                                             </div>
                                         </div>
-                                        <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-900 rounded-[20px]">
-                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow-sm text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Memo</button>
-                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow-sm text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>Endorsement</button>
+                                        <div className="flex p-1 bg-slate-100 dark:bg-zinc-900 rounded-[20px]">
+                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600 dark:text-primary-300' : 'text-slate-400'}`}>Memo</button>
+                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>Endorsement</button>
                                         </div>
                                     </div>
                                 ) : (

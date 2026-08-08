@@ -17,18 +17,18 @@ const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: st
 );
 
 const FieldEditor: React.FC<{ field: FormField, onChange: (updated: FormField) => void, onDelete: () => void }> = ({ field, onChange, onDelete }) => (
-    <div className="flex gap-2 items-center p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/50 rounded border border-slate-200 dark:border-zinc-600 mb-2">
+    <div className="flex gap-2 items-center p-2 bg-slate-50 dark:bg-zinc-700/50 rounded border border-slate-200 dark:border-zinc-600 mb-2">
         <input autoComplete="off" data-lpignore="true" 
             type="text"
             value={field.label}
             onChange={e => onChange({ ...field, label: e.target.value })}
-            className="flex-grow p-1 text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded"
+            className="flex-grow p-1 text-sm bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded"
             placeholder="Field Label"
         />
         <select
             value={field.type}
             onChange={e => onChange({ ...field, type: e.target.value as any })}
-            className="p-1 text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded w-24"
+            className="p-1 text-sm bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded w-24"
         >
             <option value="text">Text</option>
             <option value="email">Email</option>
@@ -119,7 +119,7 @@ const IntakeFormBuilder: React.FC<{ form?: IntakeFormTemplate, onSave: (form: In
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-                <button onClick={onCancel} className="px-4 py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded text-sm font-semibold">Cancel</button>
+                <button onClick={onCancel} className="px-4 py-2 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded text-sm font-semibold">Cancel</button>
                 <button onClick={handleSave} className="px-4 py-2 bg-primary-600 text-white rounded text-sm font-semibold hover:bg-primary-700">Save Form</button>
             </div>
         </div>
@@ -145,7 +145,7 @@ export const IntakeSettings: React.FC = () => {
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
                     Configure how PracticePro's procedural intelligence {isProperty ? 'guides managers during property creation' : 'guides attorneys during matter creation'}.
                 </p>
-                <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg">
                     <div>
                         <h4 className="font-bold text-slate-800 dark:text-white">Enforce Statutory Jurisdiction Rules</h4>
                         <p className="text-xs text-slate-500 mt-0.5 max-w-prose">When creating a new matter, automatically map the selected originating process to the appropriate court rules and enforce territorial and capacity checks.</p>
@@ -173,7 +173,7 @@ export const IntakeSettings: React.FC = () => {
 
                         <div className="space-y-3">
                             {coreState.intakeForms.map(form => (
-                                <div key={form.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:shadow-md transition-shadow">
+                                <div key={form.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:shadow-md transition-shadow">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg">
                                             <FormIcon className="w-5 h-5" />

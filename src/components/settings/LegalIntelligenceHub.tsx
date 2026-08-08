@@ -74,7 +74,7 @@ const ModuleCard: React.FC<{ module: LegalModule }> = ({ module }) => {
     return (
         <div className={`rounded-xl border transition-all ${
             module.status === 'active'
-                ? 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800/60'
+                ? 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60'
                 : module.status === 'locked'
                 ? 'border-amber-200/60 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-950/10'
                 : 'border-slate-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/60 opacity-70'
@@ -144,7 +144,7 @@ const ModuleCard: React.FC<{ module: LegalModule }> = ({ module }) => {
                             </p>
                             <div className="flex flex-wrap gap-1.5">
                                 {module.coverageAreas.map(area => (
-                                    <span key={area} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700/60 text-2xs text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                                    <span key={area} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-700/60 text-2xs text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
                                         {area}
                                     </span>
                                 ))}
@@ -208,12 +208,12 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
             </div>
 
             {showGrant && (
-                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-6 rounded-2xl border-2 border-indigo-500 shadow-2xl space-y-4 animate-in slide-in-from-top-4 duration-300">
+                <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl border-2 border-indigo-500 shadow-2xl space-y-4 animate-in slide-in-from-top-4 duration-300">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                             <label className="text-2xs font-black uppercase text-slate-400 tracking-wider mb-1 block">Firm Reference ID</label>
                             <input autoComplete="off" data-lpignore="true"  
-                                className="w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
                                 placeholder="e.g. k17..." 
                                 value={newLicense.targetFirmId}
                                 onChange={e => setNewLicense({...newLicense, targetFirmId: e.target.value})}
@@ -222,7 +222,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                         <div className="space-y-1">
                             <label className="text-2xs font-black uppercase text-slate-400 tracking-wider mb-1 block">Legal Rule Lib</label>
                             <select 
-                                className="w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                                 value={newLicense.moduleKey}
                                 onChange={e => setNewLicense({...newLicense, moduleKey: e.target.value})}
                             >
@@ -235,7 +235,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                         <div className="space-y-1">
                             <label className="text-2xs font-black uppercase text-slate-400 tracking-wider mb-1 block">License Plan</label>
                             <select 
-                                className="w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                                 value={newLicense.plan}
                                 onChange={e => setNewLicense({...newLicense, plan: e.target.value})}
                             >
@@ -255,7 +255,7 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
             <div className="bg-white dark:bg-zinc-900/40 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                        <thead className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800/80 border-b border-slate-200 dark:border-zinc-700">
+                        <thead className="bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-200 dark:border-zinc-700">
                             <tr>
                                 <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Firm / Tenant</th>
                                 <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Law Library</th>
@@ -508,7 +508,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
                             onClick={() => setTopLevelTab(tab.id as any)}
                             className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all ${
                                 topLevelTab === tab.id
-                                    ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-xl scale-105'
+                                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-xl scale-105'
                                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'
                             }`}
                         >

@@ -50,7 +50,7 @@ const DeleteConfirmDialog: React.FC<{
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div
-        className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200"
+        className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 mb-4">
@@ -100,9 +100,9 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const cfg: Record<string, { bg: string; text: string; label: string }> = {
     pending: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400', label: 'Pending' },
     accepted: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', label: 'Active' },
-    expired: { bg: 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700', text: 'text-slate-500 dark:text-zinc-400', label: 'Expired' },
+    expired: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-500 dark:text-zinc-400', label: 'Expired' },
     revoked: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-400', label: 'Revoked' },
-    superseded: { bg: 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700', text: 'text-slate-400 dark:text-zinc-500', label: 'Superseded' },
+    superseded: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-400 dark:text-zinc-500', label: 'Superseded' },
   };
   const c = cfg[status] || cfg.pending;
   return (
@@ -135,7 +135,7 @@ const ChannelBadge: React.FC<{ channel?: string }> = ({ channel }) => {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
       <MailIcon className="w-2.5 h-2.5" /> Email
     </span>
   );
@@ -337,7 +337,7 @@ const InviteForm: React.FC<{
     : 'Invite a client to access their matters, documents, messages, and billing.';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-6">
+    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -369,7 +369,7 @@ const InviteForm: React.FC<{
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
                   channel === opt.value
                     ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
-                    : 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-600 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-600 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 <opt.icon className="w-3.5 h-3.5" />
@@ -392,7 +392,7 @@ const InviteForm: React.FC<{
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder={isProperty ? 'resident@example.com' : 'client@example.com'}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               />
             </div>
           </div>
@@ -411,7 +411,7 @@ const InviteForm: React.FC<{
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 placeholder="e.g., +2348012345678"
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               />
             </div>
           </div>
@@ -436,7 +436,7 @@ const InviteForm: React.FC<{
             className={`w-full px-3 py-2 rounded-lg border text-sm outline-none ${
               isProperty && isNameAutoFilled
                 ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-900/10 text-slate-800 dark:text-zinc-200 cursor-default'
-                : 'border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                : 'border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent'
             }`}
           />
           {isProperty && isNameAutoFilled && (
@@ -453,11 +453,11 @@ const InviteForm: React.FC<{
             Link to {isProperty ? 'Property' : 'Matter'} <span className="text-slate-400">(optional — auto-fills details)</span>
           </label>
           {isProperty && flatUnits.length === 0 ? (
-            <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
+            <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
               No properties on file yet. Add properties to link them here.
             </div>
           ) : !isProperty && (matterState.matters || []).length === 0 ? (
-            <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
+            <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
               No matters on file yet. Create a matter to link it here.
             </div>
           ) : isProperty ? (
@@ -466,7 +466,7 @@ const InviteForm: React.FC<{
               <select
                 value={relatedId}
                 onChange={e => handleRelatedChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               >
                 <option value="">Select a unit to auto-fill details</option>
                 {propertyGroups.map((group: PropertyGroup) => (
@@ -490,7 +490,7 @@ const InviteForm: React.FC<{
               <select
                 value={relatedId}
                 onChange={e => handleRelatedChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               >
                 <option value="">Select a matter to auto-fill details</option>
                 {relatedItems.map((item: any) => (
@@ -588,7 +588,7 @@ const InviteList: React.FC<{
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap ${
               filterStatus === tab.key
                 ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800/50'
-                : 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 border border-transparent hover:bg-slate-200 dark:hover:bg-zinc-600'
+                : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 border border-transparent hover:bg-slate-200 dark:hover:bg-zinc-600'
             }`}
           >
             {tab.label}
@@ -607,8 +607,8 @@ const InviteList: React.FC<{
 
       {/* Invitations List */}
       {filteredInvites.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 text-center">
-          <div className="w-10 h-10 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 flex items-center justify-center mb-2">
+        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 text-center">
+          <div className="w-10 h-10 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-2">
             <MailIcon className="w-5 h-5 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">
@@ -630,7 +630,7 @@ const InviteList: React.FC<{
             return (
               <div
                 key={invite._id}
-                className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
               >
                 {/* Avatar + Info */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -639,7 +639,7 @@ const InviteList: React.FC<{
                       ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
                       : isPending
                       ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                      : 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'
+                      : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'
                   }`}>
                     {(invite.inviteeName || invite.inviteeEmail || '?')[0].toUpperCase()}
                   </div>
@@ -768,7 +768,7 @@ const PortalSection: React.FC<{
   // ── Plan gate ──
   if (!canUsePortal) {
     return (
-      <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+      <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-4">
           <LockClosedIcon className="w-7 h-7 text-amber-500" />
         </div>
@@ -1127,7 +1127,7 @@ export const PortalAccessSettings: React.FC = () => {
           <div className="h-4 w-72 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
         </div>
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-700" />
               <div className="flex-1 space-y-2">
@@ -1272,7 +1272,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <select
                   value={portalSettings?.vmsGracePeriodMinutes ?? 30}
                   onChange={(e) => updateSettings({ firmId, vmsGracePeriodMinutes: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                   <option value={0}>No grace</option>
                   <option value={15}>15 min</option>
@@ -1285,7 +1285,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <select
                   value={portalSettings?.vmsDefaultExpiryHours ?? 6}
                   onChange={(e) => updateSettings({ firmId, vmsDefaultExpiryHours: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                   <option value={2}>2 Hours</option>
                   <option value={6}>6 Hours</option>

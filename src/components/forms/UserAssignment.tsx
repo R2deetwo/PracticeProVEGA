@@ -60,7 +60,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
             <label className="block text-sm font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Assigned Team</label>
             <div ref={buttonRef} className="relative flex items-center gap-2 flex-wrap p-2 border border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 rounded-lg min-h-[42px]">
                 {selectedUsers.map(user => (
-                    <div key={user.id} className="flex items-center gap-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-full px-2 py-1 text-sm shadow-sm">
+                    <div key={user.id} className="flex items-center gap-2 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-full px-2 py-1 text-sm shadow-sm">
                         <div className={`h-5 w-5 rounded-full flex items-center justify-center text-white font-bold text-3xs ${getUserColor(user.name)}`}>
                             {getInitials(user.name)}
                         </div>
@@ -78,7 +78,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
                 </button>
 
                 {isOpen && (
-                    <div ref={popoverRef} className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-2 border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl p-2 z-50 animate-fade-in-up">
+                    <div ref={popoverRef} className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-800 border-2 border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl p-2 z-50 animate-fade-in-up">
                         <div className="max-h-60 overflow-y-auto custom-scrollbar">
                             {assignableUsers.map(user => (
                                 <label key={user.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 cursor-pointer transition-colors">

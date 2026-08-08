@@ -72,13 +72,13 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
       inputRef: React.RefObject<HTMLInputElement>,
       helperText?: string
   ) => (
-      <div className="border border-gray-200 dark:border-zinc-700 rounded-lg p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 hover:border-primary-400 dark:hover:border-primary-600 transition-all duration-300 group shadow-sm hover:shadow-sm cursor-default">
+      <div className="border border-gray-200 dark:border-zinc-700 rounded-lg p-4 bg-white dark:bg-zinc-800 hover:border-primary-400 dark:hover:border-primary-600 transition-all duration-300 group shadow-sm hover:shadow-sm cursor-default">
           <div className="flex justify-between items-start mb-3">
             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{label}</label>
           </div>
           
           <div className="flex items-start gap-4">
-              <div className="w-24 h-24 flex-shrink-0 bg-gray-100 dark:bg-zinc-800 dark:bg-zinc-700 rounded-md border border-dashed border-gray-300 dark:border-zinc-600 flex items-center justify-center overflow-hidden relative group/image">
+              <div className="w-24 h-24 flex-shrink-0 bg-gray-100 dark:bg-zinc-700 rounded-md border border-dashed border-gray-300 dark:border-zinc-600 flex items-center justify-center overflow-hidden relative group/image">
                   {imageUrl ? (
                       <>
                           <img src={imageUrl} alt={label} className="w-full h-full object-contain" />
@@ -111,7 +111,7 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
                     <button 
                         type="button"
                         onClick={() => inputRef.current?.click()}
-                        className="px-4 py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-600 flex items-center gap-2 transition-colors shadow-sm"
+                        className="px-4 py-2 bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-600 flex items-center gap-2 transition-colors shadow-sm"
                     >
                         <UploadIcon className="w-4 h-4" />
                         {imageUrl ? 'Change Image' : 'Upload Image'}
@@ -213,7 +213,7 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
       </div>
 
       <div className="pt-4 flex justify-end space-x-2 border-t border-gray-200 dark:border-zinc-700">
-        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
         <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Save Changes</button>
       </div>
     </form>

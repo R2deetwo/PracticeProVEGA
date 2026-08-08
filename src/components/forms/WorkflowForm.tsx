@@ -162,7 +162,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Core Identity Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <PlusIcon className="w-3.5 h-3.5" />

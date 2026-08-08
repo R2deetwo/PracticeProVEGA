@@ -64,7 +64,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                 {/* Avatar */}
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 ${isUser
                         ? 'bg-blue-600 text-white'
-                        : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-blue-600'
+                        : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-blue-600'
                     }`}>
                     {isUser ? <UserCircleIcon className="w-4 h-4" /> : <ResearchIcon className="w-4 h-4" />}
                 </div>
@@ -75,7 +75,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                         px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm
                         ${isUser
                             ? 'bg-blue-600 text-white rounded-tr-sm'
-                            : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm w-full'
+                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm w-full'
                         }
                     `}>
                         {isThinking ? (
@@ -114,7 +114,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                             className={`mt-1 px-2 py-0.5 rounded-md text-3xs font-bold transition-all flex items-center gap-1 ${
                                 copied
                                     ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                    : 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 opacity-0 group-hover:opacity-100'
+                                    : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 opacity-0 group-hover:opacity-100'
                             }`}
                             title="Copy response"
                         >
@@ -256,13 +256,13 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
     const isAiThinking = lastMessage?.role === 'model' && (lastMessage as any).isThinking === true;
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 relative overflow-hidden">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900/50 relative overflow-hidden">
 
             {/* Context pill */}
             <div className="flex-shrink-0 flex justify-center pt-3 pb-1 px-4">
                 <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-semibold uppercase tracking-wider border ${selectedSourceIds.length > 0
                         ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                        : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400'
                     }`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${selectedSourceIds.length > 0 ? 'bg-blue-500 animate-pulse' : 'bg-slate-300'}`} />
                     {selectedSourceIds.length > 0
@@ -293,14 +293,14 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                                 {prefillDocumentTitle
                                     ? `From your draft "${prefillDocumentTitle}". `
                                     : ''}
-                                I've prepared a precise search query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-3xs font-mono font-bold">Enter</kbd> to run a live web search.
+                                I've prepared a precise search query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-3xs font-mono font-bold">Enter</kbd> to run a live web search.
                             </p>
                             {prefillContext && (
                                 <details className="mt-1.5">
                                     <summary className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer hover:underline">
                                         View source context ({prefillContext.split('\n').length} citation{prefillContext.split('\n').length > 1 ? 's' : ''})
                                     </summary>
-                                    <pre className="mt-1 p-2 bg-white dark:bg-zinc-900 dark:bg-zinc-800/80 rounded text-3xs text-slate-600 dark:text-zinc-300 whitespace-pre-wrap max-h-32 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-zinc-700">
+                                    <pre className="mt-1 p-2 bg-white dark:bg-zinc-800/80 rounded text-3xs text-slate-600 dark:text-zinc-300 whitespace-pre-wrap max-h-32 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-zinc-700">
                                         {prefillContext}
                                     </pre>
                                 </details>
@@ -329,7 +329,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                                         <button
                                             key={prompt}
                                             onClick={() => setInput(prompt)}
-                                            className="p-3 text-left bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all text-sm font-medium text-slate-600 dark:text-zinc-300"
+                                            className="p-3 text-left bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all text-sm font-medium text-slate-600 dark:text-zinc-300"
                                         >
                                             <span className="text-blue-500 mr-1.5">→</span>
                                             {prompt}
@@ -357,12 +357,12 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
             </div>
 
             {/* Input Area — uses .chat-input-dock for correct bottom-nav spacing */}
-            <div className="px-4 py-3 sm:px-6 chat-input-dock bg-white dark:bg-zinc-900 dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800 shrink-0">
+            <div className="px-4 py-3 sm:px-6 chat-input-dock bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800 shrink-0">
                 <div className="max-w-3xl mx-auto">
                     <div className={`rounded-xl p-2 transition-all focus-within:ring-2
                         ${prefillQuery && hasAppliedPrefill && !input.trim()
                             ? 'bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-300 dark:border-emerald-700 focus-within:border-emerald-400 dark:focus-within:border-emerald-600 focus-within:ring-emerald-500/10'
-                            : 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus-within:border-blue-400 dark:focus-within:border-blue-600 focus-within:ring-blue-500/10'
+                            : 'bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus-within:border-blue-400 dark:focus-within:border-blue-600 focus-within:ring-blue-500/10'
                         }`}>
                         <AutoExpandingChatInput
                             value={input}

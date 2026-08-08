@@ -58,7 +58,7 @@ const EndorsementTimelineItem: React.FC<{
 
             {/* Content Bubble */}
             <div className="flex-grow pb-8 min-w-0">
-                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl rounded-tl-none p-4 shadow-sm relative hover:shadow-md transition-shadow">
+                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl rounded-tl-none p-4 shadow-sm relative hover:shadow-md transition-shadow">
 
                     <div className="flex justify-between items-start mb-2">
                         <div className="flex flex-col gap-1">
@@ -98,7 +98,7 @@ const EndorsementTimelineItem: React.FC<{
                             <textarea
                                 value={editContent}
                                 onChange={(e) => setEditContent(e.target.value)}
-                                className="w-full text-sm p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 min-h-[100px] outline-none"
+                                className="w-full text-sm p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 min-h-[100px] outline-none"
                             />
                             <div className="flex justify-end gap-2">
                                 <button onClick={handleCancel} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg text-xs font-bold flex items-center gap-1">
@@ -157,7 +157,7 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
     return (
         <div className="max-w-3xl mx-auto py-2">
             {/* 1. Sleek Input Area */}
-            <div className="mb-10 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl shadow-md border border-slate-200 dark:border-zinc-700 overflow-hidden ring-1 ring-black/5">
+            <div className="mb-10 bg-white dark:bg-zinc-800 rounded-2xl shadow-md border border-slate-200 dark:border-zinc-700 overflow-hidden ring-1 ring-black/5">
                 <div className="p-1">
                     <textarea
                         value={content}
@@ -168,7 +168,7 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
                 </div>
 
                 {/* Toolbar */}
-                <div className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 px-3 py-2 flex flex-wrap gap-3 items-center justify-between border-t border-slate-100 dark:border-zinc-700">
+                <div className="bg-slate-50 dark:bg-zinc-900/50 px-3 py-2 flex flex-wrap gap-3 items-center justify-between border-t border-slate-100 dark:border-zinc-700">
                     <div className="flex gap-1 flex-wrap items-center">
                         <button
                             onClick={handleCreateTask}

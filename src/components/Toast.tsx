@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Toast as ToastType } from '../types';
 
 interface ToastProps {
@@ -9,26 +9,16 @@ interface ToastProps {
 
 const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
   const [isExiting, setIsExiting] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DURATION = 5000;
 
-  // ─── Auto-dismiss after DURATION ────────────────────────────
-  // Uses a simple setTimeout instead of CSS animation — more reliable.
-  // The previous approach used @keyframes shrink which was never defined,
-  // so onAnimationEnd never fired and toasts stayed forever.
-  useEffect(() => {
-    timeoutRef.current = setTimeout(() => {
-      handleManualClose();
-    }, DURATION);
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  // CRO AUDIT FIX — removed the local setTimeout auto-dismiss.
+  // UIContext.tsx already handles auto-removal with the caller-specified
+  // duration (default 5000ms, but callers can pass duration: 7000 for
+  // important errors). The local setTimeout was hardcoded to 5000ms and
+  // raced with UIContext's timer, causing toasts to always vanish at 5s
+  // regardless of the caller's duration preference.
 
   const handleManualClose = () => {
     if (isExiting) return; // Prevent double-close
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsExiting(true);
     setTimeout(() => onRemove(toast.id), 300);
   };

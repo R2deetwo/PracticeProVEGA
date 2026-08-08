@@ -685,7 +685,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const dRole = isApplicant ? 'Respondent' : 'Defendant';
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col h-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-4 pb-40 space-y-2 sm:space-y-3">
                 
                 {/* CLASSIFICATION */}
@@ -773,11 +773,11 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     : 'No workflow stages — click to create'}
                             </button>
                             {showWorkflowStages && (
-                                <div className="mt-2 p-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700/50">
+                                <div className="mt-2 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700/50">
                                     {effectiveStages.length > 0 ? (
                                         <div className="flex flex-wrap gap-1.5">
                                             {effectiveStages.map((stage, i) => (
-                                                <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-md text-2xs font-bold text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                                                <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-2xs font-bold text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
                                                     <span className="text-primary-500">{i + 1}.</span> {stage}
                                                 </span>
                                             ))}
@@ -807,7 +807,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 </div>
 
                 {/* MATTER INFORMATION */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800/80 glass-premium rounded-2xl border border-slate-200 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800/80 glass-premium rounded-2xl border border-slate-200 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
                     <div className="space-y-1.5">
                         <label className={labelClass}>Matter Title</label>
                         <div className="relative">
@@ -928,7 +928,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
                         <div className="space-y-1.5">
                             <label className={labelClass}>Billing Model</label>
-                            <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
+                            <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
                                 {Object.values(BillingModel).map((model) => (
                                     <button
                                         key={model}
@@ -1021,7 +1021,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 <div className="animate-in fade-in slide-in-from-right-2 duration-300 col-span-full mt-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40/60 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/30 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
-                                            <p className="text-2xs font-bold text-emerald-700 dark:text-emerald-300/80 dark:text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Recurring Retainer</p>
+                                            <p className="text-2xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Recurring Retainer</p>
                                             <h4 className="text-sm font-bold text-slate-800 dark:text-white">Payment Frequency</h4>
                                             <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                                 System auto-generates a draft invoice per cycle, staged for your review in the Billing Monitor.
@@ -1032,7 +1032,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
+                                    <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
                                         {Object.values(BillingFrequency).map((freq) => (
                                             <button
                                                 key={freq}
@@ -1074,7 +1074,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     </div>
 
                                     {retainerAutoBillingEnabled && features.canUseRetainerAutoBilling && (
-                                        <div className="flex items-center gap-2 pt-1 text-2xs text-emerald-700 dark:text-emerald-300 dark:text-emerald-400 font-medium">
+                                        <div className="flex items-center gap-2 pt-1 text-2xs text-emerald-700 dark:text-emerald-400 font-medium">
                                             <CalendarIcon className="w-3 h-3" />
                                             <span>
                                                 Next invoice will stage automatically based on the {billingFrequency.toLowerCase()} cycle starting from matter creation.
@@ -1126,7 +1126,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 <input autoComplete="off" data-lpignore="true"  type="text" value={presidingJudge} onChange={e => setPresidingJudge(e.target.value)} className={commonInputClass} placeholder="Enter Name..." />
                             </div>
                             <div className="space-y-1.5 md:col-span-2 mt-2">
-                                <div className="p-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700/50">
+                                <div className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700/50">
                                     <div className="flex items-center justify-between mb-3">
                                         <div>
                                             <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Litigation Parties</p>

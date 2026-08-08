@@ -114,7 +114,7 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
                 </div>
             </div>
              <div className="pt-4 flex justify-end gap-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-zinc-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-zinc-500">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-zinc-500">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700">Send Invitation</button>
             </div>
         </form>

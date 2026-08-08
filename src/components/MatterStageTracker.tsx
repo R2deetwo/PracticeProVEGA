@@ -77,7 +77,7 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
 
                   {/* Connector Line */}
                   {index < stages.length - 1 && (
-                    <div className="flex-1 min-w-[1.5rem] h-[1px] mx-0 relative overflow-visible bg-gray-200 dark:bg-zinc-800 dark:bg-zinc-700 z-0 mt-[15px]">
+                    <div className="flex-1 min-w-[1.5rem] h-[1px] mx-0 relative overflow-visible bg-gray-200 dark:bg-zinc-700 z-0 mt-[15px]">
                       {/* mt-15px aligns line exactly with center of h-8 container/w-7 circle */}
                       <div className={`absolute top-0 left-0 h-full bg-green-500 transition-all duration-500 ease-in-out`} style={{ width: isCompleted ? '100%' : '0%' }}></div>
                     </div>

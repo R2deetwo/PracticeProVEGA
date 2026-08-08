@@ -63,7 +63,7 @@ const NavItemLink: React.FC<{
 
     // Badge Logic
     let badgeCount = 0;
-    let badgeColor = 'bg-green-600'; // Default Brand Green
+    let badgeColor = 'bg-primary-600'; // Default Brand Green
 
     if (item.view === 'matters') badgeCount = counts.updatedMatters;
     if (item.view === 'messaging') {
@@ -148,7 +148,7 @@ const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebar
             `}
             title="Revenue Monitor"
         >
-            <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-emerald-500' : 'text-slate-400 dark:text-zinc-500 group-hover:text-emerald-500'}`}>
+            <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-primary-500' : 'text-slate-400 dark:text-zinc-500 group-hover:text-primary-500'}`}>
                 <RevenueEngineShieldIcon className="w-5 h-5" />
             </div>
             {!isSidebarRetracted && (
@@ -270,7 +270,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 >
                     {!isSidebarRetracted ? (
                         <div className="flex-1 min-w-0 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold text-xs overflow-hidden flex-shrink-0 shadow-sm">
+                            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-xs overflow-hidden flex-shrink-0 shadow-sm">
                                 {logoUrl ? (
                                     <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
                                 ) : (
@@ -288,7 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                             </div>
                         </div>
                     ) : (
-                        <div className="mx-auto w-9 h-9 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold overflow-hidden shadow-sm">
+                        <div className="mx-auto w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold overflow-hidden shadow-sm">
                             {logoUrl ? (
                                 <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
                             ) : (

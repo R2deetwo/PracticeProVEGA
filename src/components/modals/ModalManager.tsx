@@ -232,7 +232,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
             ] as const).map(([val, label, activeClass, icon]) => (
               <button key={val as string} type="button" onClick={() => setStatus(val as any)}
                 className={`py-2 rounded-xl border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
+                  status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
                 }`}>{icon} {label as string}</button>
             ))}
           </div>
@@ -468,7 +468,7 @@ const ModalManager: React.FC = () => {
                   </div>
                 </button>
               )) : (
-                <div className="text-center py-20 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+                <div className="text-center py-20 bg-slate-50 dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
                   <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                   </div>

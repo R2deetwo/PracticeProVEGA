@@ -146,12 +146,12 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
         <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matter</label>
-                <p className="p-2 bg-gray-100 dark:bg-zinc-800 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{matter.title}</p>
+                <p className="p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{matter.title}</p>
             </div>
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unbilled Items</label>
-                <div className="space-y-2 sm:space-y-3 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-gray-200 dark:border-zinc-700 dark:border-gray-700">
+                <div className="space-y-2 sm:space-y-3 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-gray-200 dark:border-gray-700">
                     {fixedFeeItem && (
                         <>
                             <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Fixed Fee</div>
@@ -163,7 +163,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                         </>
                     )}
                     {unbilledTimeEntries.length > 0 && (
-                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-zinc-700 dark:border-gray-700">Professional Fees</div>
+                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">Professional Fees</div>
                     )}
                     {unbilledTimeEntries.map(entry => (
                         <div key={entry.id} className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
@@ -174,7 +174,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                         </div>
                     ))}
                     {unbilledExpenses.length > 0 && (
-                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-zinc-700 dark:border-gray-700">Disbursements</div>
+                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">Disbursements</div>
                     )}
                     {unbilledExpenses.map(expense => (
                         <div key={expense.id} className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
@@ -205,7 +205,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 border-t pt-4 border-gray-200 dark:border-zinc-700 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 border-t pt-4 border-gray-200 dark:border-gray-700">
                 <div>
                     <label htmlFor="paymentAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Account</label>
                     <select id="paymentAccount" value={paymentAccountId} onChange={e => setPaymentAccountId(e.target.value)} className={commonInputClass} required>
@@ -231,7 +231,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
             </div>
 
             <div className="pt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Generate Invoice</button>
             </div>
         </form>

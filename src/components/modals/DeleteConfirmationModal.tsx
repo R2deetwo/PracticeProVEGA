@@ -166,7 +166,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
    )}
 
    {/* Footer — EXACT match to ConfirmDialog */}
-   <div className="px-5 sm:px-6 py-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-auto">
+   <div className="px-5 sm:px-6 py-4 bg-slate-50 dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-auto">
     <button
      type="button"
      onClick={onCancel}

@@ -11,7 +11,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -141,7 +141,7 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                         <button
                             id="add-workflow-btn"
                             onClick={() => openModal('newWorkflow')}
-                            className="w-full text-center px-4 py-3 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-2 border-dashed border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 rounded-xl font-bold hover:border-primary-500 hover:text-primary-600 transition-all mb-6"
+                            className="w-full text-center px-4 py-3 bg-white dark:bg-zinc-800 border-2 border-dashed border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 rounded-xl font-bold hover:border-primary-500 hover:text-primary-600 transition-all mb-6"
                         >
                             + Add New Workflow
                         </button>
@@ -151,7 +151,7 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
             case 'checklists':
                 return (
                     <SettingsCard title="Checklist Template Management" id="checklist-template-management">
-                        <button onClick={() => openModal('newChecklistTemplate')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Checklist Template</button>
+                        <button onClick={() => openModal('newChecklistTemplate')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Checklist Template</button>
                         <ul className="space-y-2">
                             {(props.checklistTemplates || []).map(t => t ? (
                                 <li key={t.id} onClick={() => openModal('editChecklistTemplate', t.id)} className="p-3 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-700/50 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-zinc-600">
@@ -166,8 +166,8 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                 return (
                     <SettingsCard title="Document Template Management" id="document-template-management">
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                            <button onClick={() => openModal('newTemplate')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all">Add Template</button>
-                            <button onClick={() => openModal('newTemplateCategory')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all">Add Category</button>
+                            <button onClick={() => openModal('newTemplate')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all">Add Template</button>
+                            <button onClick={() => openModal('newTemplateCategory')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all">Add Category</button>
                         </div>
                         {(props.documentTemplateCategories || []).map(cat => cat ? (
                             <div key={cat.id} className="mb-6 last:mb-0">
@@ -197,7 +197,7 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
             case 'events':
                 return (
                     <SettingsCard title="Event Type Management" id="event-type-management">
-                        <button onClick={() => openModal('newEventType')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Event Type</button>
+                        <button onClick={() => openModal('newEventType')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Event Type</button>
                         <CategoryList
                             items={props.eventTypes}
                             onEdit={(id: string) => openModal('editEventType', id)}
@@ -211,7 +211,7 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
             case 'contacts':
                 return (
                     <SettingsCard title="Contact Category Management" id="contact-category-management">
-                        <button onClick={() => openModal('newContactCategory')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Contact Category</button>
+                        <button onClick={() => openModal('newContactCategory')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Contact Category</button>
                         <CategoryList
                             items={props.contactCategories}
                             onEdit={(id: string) => openModal('editContactCategory', id)}
@@ -223,7 +223,7 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
             case 'documents_folders':
                 return (
                     <SettingsCard title="Document Folder Management" id="document-category-management">
-                        <button onClick={() => openModal('newDocumentCategory')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Top-Level Folder</button>
+                        <button onClick={() => openModal('newDocumentCategory')} className="w-full text-center px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 transition-all mb-4">Add Top-Level Folder</button>
                         <DocumentCategoryList
                             categories={props.documentCategories}
                             parentId={null}

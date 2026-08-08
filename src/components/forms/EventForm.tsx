@@ -247,7 +247,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-32">
                 {/* Core Event Info */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <CalendarIcon className="w-3.5 h-3.5" />
@@ -324,7 +324,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                             {/* Stepper UI — touch-friendly +/- buttons + free-text input.
                                                 The input is a STRING so users can delete and retype freely.
                                                 parseInt('') || 1 no longer clobbers their typing. */}
-                                            <div className="flex items-center bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg overflow-hidden">
+                                            <div className="flex items-center bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg overflow-hidden">
                                                 <button
                                                     type="button"
                                                     onClick={() => {
@@ -368,7 +368,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                                     +
                                                 </button>
                                             </div>
-                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="minutes">Min</option>
                                                 <option value="hours">Hrs</option>
                                                 <option value="days">Day</option>
@@ -390,7 +390,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                     <input autoComplete="off" data-lpignore="true"  type="checkbox" id="recurrenceEnabled" checked={recurrenceEnabled} onChange={e => setRecurrenceEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 dark:text-indigo-300 focus:ring-indigo-500 cursor-pointer" />
                                     {recurrenceEnabled && (
                                         <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2 duration-300">
-                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="daily">Daily</option>
                                                 <option value="weekly">Weekly</option>
                                                 <option value="monthly">Monthly</option>
@@ -404,7 +404,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                 </div>
 
                 {isCourtEventType && (
-                    <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-950/40/50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/50 dark:border-amber-900/30 space-y-2 sm:space-y-3">
+                    <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-950/40/50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30 space-y-2 sm:space-y-3">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-amber-600 text-white rounded-lg shadow-sm ring-2 ring-amber-500/10">
                                 <MapPinIcon className="w-3.5 h-3.5" />

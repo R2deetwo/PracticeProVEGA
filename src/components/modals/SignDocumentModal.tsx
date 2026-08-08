@@ -146,7 +146,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
     <button onClick={() => setActiveTab('draw')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'draw' ? 'bg-white dark:bg-zinc-900 shadow' : ''}`}>Draw Signature</button>
    </div>
 
-   <div className="relative border border-gray-300 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 min-h-[12rem]">
+   <div className="relative border border-gray-300 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 min-h-[12rem]">
     {activeTab === 'type' ? (
      <div className="p-4 flex flex-col items-center justify-center h-48">
       <input autoComplete="off" data-lpignore="true" 

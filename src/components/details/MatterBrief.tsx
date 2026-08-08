@@ -120,14 +120,14 @@ export const MatterBrief: React.FC<MatterBriefProps> = ({
 
             {/* Activity Log */}
             {activities.length > 0 && (
-                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
                     <button
                         onClick={() => setShowActivity(!showActivity)}
                         className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors"
                     >
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Activity History</span>
-                            <span className="bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs px-1.5 py-0.5 rounded-full font-bold">{activities.length}</span>
+                            <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs px-1.5 py-0.5 rounded-full font-bold">{activities.length}</span>
                         </div>
                         <svg className={`w-4 h-4 text-slate-400 transition-transform ${showActivity ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

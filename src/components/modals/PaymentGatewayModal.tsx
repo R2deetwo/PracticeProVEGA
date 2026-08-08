@@ -156,7 +156,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   };
 
   return (
-    <div className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 p-6 flex flex-col items-center justify-center min-h-[400px]">
+    <div className="bg-slate-50 dark:bg-zinc-900 p-6 flex flex-col items-center justify-center min-h-[400px]">
       {step === 'instructions' && (
         <div className="w-full max-w-sm space-y-6 animate-fade-in">
           {/* Header */}

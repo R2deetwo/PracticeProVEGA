@@ -206,7 +206,7 @@ export const HelpSettings: React.FC = () => {
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                                         {isProperty ? 'Residents' : 'Clients'} can access the portal at:
                                     </p>
-                                    <div className="p-3 bg-gray-100 dark:bg-zinc-800 dark:bg-gray-800 rounded-lg font-mono text-sm text-primary-600 dark:text-primary-400 break-all">
+                                    <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg font-mono text-sm text-primary-600 dark:text-primary-400 break-all">
                                         {isProperty ? 'https://practice-pro-vega.vercel.app/portal/tenant/login' : 'https://practice-pro-vega.vercel.app/portal/client/login'}
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">

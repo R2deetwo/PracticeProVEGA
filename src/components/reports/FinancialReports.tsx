@@ -25,7 +25,7 @@ const RevenueVelocityChart: React.FC<{ data: { month: string; value: number }[] 
         <div className="h-64 flex gap-2 sm:gap-4 pt-8 pb-2">
             {data.map((item, index) => (
                 <div key={index} className="flex-1 flex flex-col items-center gap-2 group relative h-full">
-                    <div className="relative w-full bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700/50 rounded-t-lg flex items-end overflow-hidden flex-grow">
+                    <div className="relative w-full bg-slate-100 dark:bg-zinc-700/50 rounded-t-lg flex items-end overflow-hidden flex-grow">
                         <div
                             className="w-full bg-primary-500 dark:bg-primary-600 group-hover:bg-primary-400 transition-all duration-700 ease-out rounded-t-lg relative"
                             style={{ height: `${(item.value / maxValue) * 100}%` }}
@@ -50,7 +50,7 @@ const TargetTracker: React.FC<{ current: number, target: number }> = ({ current,
     const remaining = Math.max(target - current, 0);
 
     return (
-        <div className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 rounded-xl p-6 border border-slate-100 dark:border-zinc-700/50 relative overflow-hidden">
+        <div className="bg-slate-50 dark:bg-zinc-700/30 rounded-xl p-6 border border-slate-100 dark:border-zinc-700/50 relative overflow-hidden">
             {percentage >= 100 && <div className="absolute top-0 right-0 p-2"><span className="text-2xl">🎉</span></div>}
             <div className="flex justify-between items-end mb-2 relative z-10">
                 <div>
@@ -89,7 +89,7 @@ const BarChart: React.FC<{ data: { label: string; value: number }[]; color: stri
             {data.map(item => (
                 <div key={item.label} className="flex items-center gap-3 text-sm group">
                     <span className="w-24 text-right truncate text-slate-500 dark:text-zinc-400 font-medium">{item.label}</span>
-                    <div className="flex-grow bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700/50 rounded-full h-5 overflow-hidden">
+                    <div className="flex-grow bg-slate-100 dark:bg-zinc-700/50 rounded-full h-5 overflow-hidden">
                         <div
                             className={`h-full rounded-full ${color} transition-all duration-1000 ease-out relative group-hover:opacity-90`}
                             style={{ width: `${(item.value / maxValue) * 100}%` }}
@@ -229,7 +229,7 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Revenue Velocity Chart */}
-                <div className="lg:col-span-2 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
+                <div className="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800 dark:text-white">
                             <ChartBarIcon className="w-5 h-5 text-primary-500" /> Revenue Velocity (6 Months)
@@ -242,7 +242,7 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
                 <div className="lg:col-span-1 flex flex-col gap-6">
                     <TargetTracker current={financialSummary.currentMonthRevenue} target={financialSummary.monthlyTarget} />
 
-                    <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700 flex-grow">
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700 flex-grow">
                         <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-white">Profitability</h3>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-zinc-700">
@@ -268,7 +268,7 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue Forecast */}
-                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center gap-2 mb-6">
                         <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
                             <TrendingUpIconStyled />
@@ -288,7 +288,7 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
                 </div>
 
                 {/* A/R Aging Chart */}
-                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center gap-2 mb-6">
                         <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
                             <ClockIcon className="w-5 h-5" />
@@ -310,14 +310,14 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
 
             {/* A/R Deep Dive Table */}
             {financialSummary.overdueInvoicesList.length > 0 && (
-                <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center gap-2 mb-4">
                         <AlertIcon />
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Top Overdue Invoices</h3>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50">
+                            <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase bg-slate-50 dark:bg-zinc-900/50">
                                 <tr>
                                     <th className="py-3 px-4 rounded-l-lg">Client</th>
                                     <th className="py-3 px-4">Invoice #</th>

@@ -78,7 +78,7 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
                 {files.length > 0 && (
                     <div className="mt-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                         {files.map((file, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm">
+                            <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm">
                                 <div className="flex items-center gap-2 overflow-hidden">
                                     <DocumentIcon className="w-4 h-4 text-primary-500 flex-shrink-0" />
                                     <span className="truncate text-slate-700 dark:text-zinc-300">{file.name}</span>
@@ -109,7 +109,7 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
             </div>
 
             <div className="pt-4 flex justify-end space-x-2 border-t border-gray-200 dark:border-zinc-700">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
                 <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">
                     {files.length > 0 ? `Create & Add ${files.length} Sources` : 'Create Notebook'}
                 </button>

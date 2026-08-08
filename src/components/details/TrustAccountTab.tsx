@@ -155,7 +155,7 @@ const TrustAccountTab: React.FC = () => {
             )}
 
             {/* Transaction List */}
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl shadow-soft border border-slate-200 dark:border-zinc-700 overflow-hidden">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft border border-slate-200 dark:border-zinc-700 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-700">
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm">Transaction History</h3>
                 </div>
@@ -258,7 +258,7 @@ const TrustTransactionForm: React.FC<{
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl p-4 space-y-3 border border-slate-200 dark:border-zinc-700 shadow-soft">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-800 rounded-2xl p-4 space-y-3 border border-slate-200 dark:border-zinc-700 shadow-soft">
             <h4 className="font-bold text-slate-900 dark:text-white text-sm">
                 {type === 'deposit' ? 'Record Trust Deposit' : 'Record Trust Withdrawal'}
             </h4>
@@ -270,7 +270,7 @@ const TrustTransactionForm: React.FC<{
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 />
             </div>
 
@@ -279,7 +279,7 @@ const TrustTransactionForm: React.FC<{
                 <select
                     value={matterId}
                     onChange={(e) => setMatterId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                     <option value="">No specific matter</option>
                     {matters.map(m => (
@@ -295,7 +295,7 @@ const TrustTransactionForm: React.FC<{
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder={type === 'deposit' ? 'e.g. Retainer deposit from client' : 'e.g. Filing fees paid on behalf of client'}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 />
             </div>
 
@@ -306,7 +306,7 @@ const TrustTransactionForm: React.FC<{
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     placeholder="e.g. Bank transfer ref / cheque number"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 />
             </div>
 
@@ -323,7 +323,7 @@ const TrustTransactionForm: React.FC<{
             )}
 
             <div className="flex gap-2 pt-2">
-                <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">
+                <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">
                     Cancel
                 </button>
                 <button type="submit" className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors">

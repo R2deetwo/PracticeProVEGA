@@ -72,7 +72,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
 
     // inputClassic is now imported at top level
   const commonInputClass = "text-sm " + inputClassic;
-  const itemInputClass = "text-sm text-gray-900 dark:text-gray-300 w-full bg-white dark:bg-zinc-900 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-1 focus:ring-primary-500 focus:border-primary-500";
+  const itemInputClass = "text-sm text-gray-900 dark:text-gray-300 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-1 focus:ring-primary-500 focus:border-primary-500";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -82,7 +82,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Checklist Items</label>
-        <div className="space-y-2 p-2 border rounded-md border-gray-200 dark:border-zinc-700 dark:border-gray-700 max-h-48 overflow-y-auto">
+        <div className="space-y-2 p-2 border rounded-md border-gray-200 dark:border-gray-700 max-h-48 overflow-y-auto">
           {items.map((item, index) => (
             <div key={item.id} className="flex items-center gap-2">
               <input autoComplete="off" data-lpignore="true"  type="text" value={item.text} onChange={e => handleItemChange(index, e.target.value)} className={itemInputClass} placeholder="Enter checklist item..." />
@@ -94,7 +94,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Relevant Matter Types (Optional)</label>
-        <div className="flex flex-wrap gap-2 p-2 border rounded-md border-gray-200 dark:border-zinc-700 dark:border-gray-700">
+        <div className="flex flex-wrap gap-2 p-2 border rounded-md border-gray-200 dark:border-gray-700">
           {matterTypes.map(type => (
             <label key={type} className="flex items-center gap-2 text-sm p-1 cursor-pointer">
               <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={relevantMatterTypes.has(type)} onChange={() => handleMatterTypeToggle(type)} className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
@@ -122,7 +122,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
           </button>
         )}</div>
         <div className="space-x-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
           <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Template'}</button>
         </div>
       </div>

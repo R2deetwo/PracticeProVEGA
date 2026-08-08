@@ -111,12 +111,12 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                     )}
                 </div>
                 <div className="space-x-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
                     <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Template'}</button>
                 </div>
             </div>
         </form>
-        <div className="md:col-span-1 p-4 bg-gray-50 dark:bg-zinc-800/50 dark:bg-gray-700/50 rounded-lg">
+        <div className="md:col-span-1 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Placeholders</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Click a placeholder to copy it.</p>
             <div className="space-y-2 max-h-[20rem] overflow-y-auto pr-2">
@@ -125,7 +125,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                         <button 
                             type="button" 
                             onClick={() => handleCopyPlaceholder(p.placeholder)}
-                            className="w-full text-left p-2 bg-white dark:bg-zinc-900 dark:bg-gray-700 rounded-md font-mono text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/40 transition-colors"
+                            className="w-full text-left p-2 bg-white dark:bg-gray-700 rounded-md font-mono text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 dark:hover:bg-primary-900/40 transition-colors"
                         >
                             {p.placeholder}
                         </button>

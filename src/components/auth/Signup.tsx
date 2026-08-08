@@ -267,7 +267,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       <button
        type="submit"
        disabled={isSubmittingRestore}
-       className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+       className="w-full py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
       >
        {isSubmittingRestore
         ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Sending Request...</>

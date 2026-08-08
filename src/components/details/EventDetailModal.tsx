@@ -101,7 +101,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/50 dark:bg-zinc-800/20 p-4 rounded-2xl border border-slate-100 dark:border-zinc-700/30">
              <div className="flex items-start gap-3">
-                <div className="p-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
+                <div className="p-2 bg-white dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
                     <CalendarIcon className="w-5 h-5" />
                 </div>
                 <div>
@@ -112,7 +112,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                 </div>
              </div>
              <div className="flex items-start gap-3">
-                <div className="p-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
+                <div className="p-2 bg-white dark:bg-zinc-700 rounded-xl shadow-sm text-primary-600">
                     <ClockIcon className="w-5 h-5" />
                 </div>
                 <div>

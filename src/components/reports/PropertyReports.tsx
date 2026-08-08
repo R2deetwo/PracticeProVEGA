@@ -116,11 +116,11 @@ const PropertyReports: React.FC = () => {
                 <StatCard title="Rent Collected (YTD)" value={<><NairaSymbol/>{formatNaira(kpis.totalRentCollectedYTD)}</>} icon={<Receipt />} colorClass="text-blue-500" />
                 <StatCard title="Total Expected Rent" value={<><NairaSymbol/>{formatNaira(kpis.totalExpectedRent)}</>} icon={<Receipt />} colorClass="text-purple-500" />
             </div>
-             <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">Rent Collection by Property (Top 10)</h3>
                 <BarChart data={chartData.revenueByProperty} color="bg-indigo-500" />
             </div>
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">All Properties</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">

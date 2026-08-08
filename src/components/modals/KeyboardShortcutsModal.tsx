@@ -57,7 +57,7 @@ const KeyboardShortcutsModal: React.FC = () => {
    {categories.map((category, index) => (
     <div key={index}>
      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{category.title}</h3>
-     <div className="bg-gray-50 dark:bg-zinc-800/50 dark:bg-zinc-800 rounded-lg p-3 border border-gray-200 dark:border-zinc-700">
+     <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3 border border-gray-200 dark:border-zinc-700">
       {category.shortcuts.map((shortcut, sIndex) => (
        <ShortcutItem key={sIndex} {...shortcut} />
       ))}

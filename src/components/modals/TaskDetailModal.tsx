@@ -53,7 +53,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = (props) => {
          </h3>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800">
          <div className="flex items-start gap-3">
           <div className="p-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm text-primary-600 dark:text-primary-300">
             <CalendarIcon className="w-5 h-5" />

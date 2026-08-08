@@ -88,13 +88,13 @@ const AuditLogViewer: React.FC<SecuritySettingsProps> = ({ activities, users }) 
                         placeholder="Search actions, targets, or IPs..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-primary-500"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-primary-500"
                     />
                 </div>
                 <select
                     value={filterUser}
                     onChange={e => setFilterUser(e.target.value)}
-                    className="p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-primary-500"
+                    className="p-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-primary-500"
                 >
                     <option value="All">All Users</option>
                     <option value="system">System</option>
@@ -104,7 +104,7 @@ const AuditLogViewer: React.FC<SecuritySettingsProps> = ({ activities, users }) 
                     <select
                         value={filterAction}
                         onChange={e => setFilterAction(e.target.value)}
-                        className="p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-primary-500 min-w-[120px]"
+                        className="p-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-primary-500 min-w-[120px]"
                     >
                         <option value="All">All Actions</option>
                         <option value="login">Login</option>
@@ -115,7 +115,7 @@ const AuditLogViewer: React.FC<SecuritySettingsProps> = ({ activities, users }) 
                     </select>
                     <button
                         onClick={handleExportCsv}
-                        className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-semibold transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-semibold transition-colors"
                         title="Export filtered logs to CSV"
                     >
                         <DownloadIcon className="w-4 h-4" />
@@ -124,10 +124,10 @@ const AuditLogViewer: React.FC<SecuritySettingsProps> = ({ activities, users }) 
                 </div>
             </div>
 
-            <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow-sm">
+            <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-800 shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-medium border-b border-slate-200 dark:border-zinc-700">
+                        <thead className="bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-medium border-b border-slate-200 dark:border-zinc-700">
                             <tr>
                                 <th className="px-4 py-3">Timestamp</th>
                                 <th className="px-4 py-3">User</th>
@@ -216,11 +216,11 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
         <div className="space-y-6">
 
             {/* MULTI-FACTOR AUTHENTICATION */}
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 dark:bg-indigo-900/30 rounded-lg">
-                            <ShieldCheckIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-300 dark:text-indigo-400" />
+                        <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+                            <ShieldCheckIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Two-Factor Authentication (2FA)</h3>
@@ -240,7 +240,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                     </label>
                 </div>
                 {currentUser?.isMfaEnabled && (
-                    <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/40 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50 dark:border-amber-800/30 rounded-lg">
+                    <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg">
                         <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
                             <strong>Important:</strong> If you lose access to your 2FA device, contact your firm administrator to disable 2FA for your account. Admins can reset 2FA from Settings → Account Recovery. Consider enabling biometric login on the mobile app as a backup authentication method.
                         </p>
@@ -274,7 +274,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                     }
                     (window as any)._devClickLast = now;
                 }}
-                className="bg-red-50 dark:bg-red-950/40 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-xl p-6 shadow-sm cursor-default hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors"
+                className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-xl p-6 shadow-sm cursor-default hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors"
             >
                 <div className="flex items-start gap-4 pointer-events-none select-none">
                     <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400">
@@ -282,7 +282,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                     </div>
                     <div className="flex-grow">
                         <h3 className="text-lg font-bold text-red-900 dark:text-red-100">Emergency Data Rescue</h3>
-                        <p className="text-sm text-red-700 dark:text-red-400 dark:text-red-300 mt-1">
+                        <p className="text-sm text-red-700 dark:text-red-300 mt-1">
                             If data appears missing or corrupted on the server, you can attempt to restore it from this browser's local backup cache.
                             This will force-push your local data to the cloud.
                         </p>
@@ -301,8 +301,8 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
 
 
             {/* AUDIT LOGS */}
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden">
-                <div className="p-6 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden">
+                <div className="p-6 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center bg-slate-50 dark:bg-zinc-900/50">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-200 dark:bg-zinc-700 rounded-lg">
                             <ShieldCheckIcon className="w-6 h-6 text-slate-700 dark:text-slate-200" />
@@ -365,7 +365,7 @@ const ContentProtectionSection: React.FC = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">
@@ -434,9 +434,9 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     // On web, show a different message
     if (!isNative) {
         return (
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 rounded-lg">
+                    <div className="p-2 bg-slate-50 dark:bg-zinc-700 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.568 8.268m9.14-9.14a3 3 0 11-4.243 4.243M3 3l18 18" />
                         </svg>
@@ -455,9 +455,9 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     // Native but biometrics not available
     if (!available) {
         return (
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-50 dark:bg-amber-950/40 dark:bg-amber-900/30 rounded-lg">
+                    <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
                         </svg>
@@ -475,10 +475,10 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
 
     // Native + available
     return (
-        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-50 dark:bg-green-950/40 dark:bg-green-900/30 rounded-lg">
+                    <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.568 8.268m9.14-9.14a3 3 0 11-4.243 4.243M3 3l18 18" />
                         </svg>
@@ -493,7 +493,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
                 {registered ? (
                     <button
                         onClick={handleUnregister}
-                        className="px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 dark:hover:bg-red-900/20 transition-colors"
+                        className="px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 dark:hover:bg-red-900/20 transition-colors"
                     >
                         Disable
                     </button>

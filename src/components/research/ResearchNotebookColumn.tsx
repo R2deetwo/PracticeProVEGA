@@ -15,7 +15,7 @@ interface ResearchNotebookColumnProps {
 
 export const ResearchNotebookColumn: React.FC<ResearchNotebookColumnProps> = ({ notebooks, matters, selectedNotebookId, onSelect, openModal, onDeleteNotebook, isLoading }) => {
     return (
-        <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800">
+        <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800">
             <header className="flex-shrink-0 p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900">
                 <h3 className="font-bold text-slate-800 dark:text-white">Notebooks</h3>
                 <button

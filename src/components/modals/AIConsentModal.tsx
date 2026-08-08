@@ -27,7 +27,7 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
         <p>
           PracticePro {productName} uses specialized AI agents (ARIA, ALDIA, etc.) to assist with {isProperty ? 'property management, tenant screening, and document processing' : 'legal drafting, research, and data extraction'}.
         </p>
-        <div className="bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 text-left">
+        <div className="bg-slate-50 dark:bg-zinc-900 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 text-left">
           <ul className="list-disc pl-5 space-y-2">
             <li><strong>Data Minimization:</strong> Only relevant data is processed by the AI.</li>
             <li><strong>No Model Training:</strong> Your private data is <strong>never</strong> used to train foundational AI models.</li>

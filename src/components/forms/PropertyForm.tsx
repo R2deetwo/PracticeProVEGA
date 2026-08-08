@@ -595,7 +595,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Core Profile Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <OfficeBuildingIcon className="w-3.5 h-3.5" />
@@ -720,7 +720,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Amenities Section --- */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <SparklesIcon className="w-3.5 h-3.5" />
@@ -752,7 +752,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                         <div className="flex flex-wrap gap-2">
                             {amenities.map(amenity => (
-                                <div key={amenity} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-xs font-bold">
+                                <div key={amenity} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-xs font-bold">
                                     {amenity}
                                     <button type="button" onClick={() => handleRemoveAmenity(amenity)} className="hover:text-rose-500 transition-colors">
                                         <XIcon className="w-3.5 h-3.5" />
@@ -872,7 +872,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         <div className="pt-4 border-t border-rose-200 dark:border-rose-800 mt-2 space-y-2 sm:space-y-3">
                             <label className={labelClass}>Linked Matter (Dispute)</label>
                             {linkedMatterId ? (
-                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
+                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
                                             <BriefcaseIcon className="w-4 h-4" />
@@ -920,7 +920,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 2. Sale Details */}
                 {isSale && (
-                    <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/50 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-blue-600 text-white rounded-lg shadow-sm ring-2 ring-blue-500/10">
                                 <CalculatorIcon className="w-3.5 h-3.5" />
@@ -1198,7 +1198,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
 
                             {/* Total Tenancy Package Summary Card */}
-                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
+                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <p className="text-2xs font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
@@ -1312,7 +1312,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 {activeUnitIndex === 0 && ownershipType !== 'owned' && ( // Management fee is property-level, only show it once
                                     <div className="space-y-2 group">
                                         <label className={labelClass}>Management Fee (%)</label>
-                                        <div className="flex bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-1.5 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
+                                        <div className="flex bg-white dark:bg-zinc-800 p-1.5 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
                                             <input autoComplete="off" data-lpignore="true" 
                                                 type="number"
                                                 value={managementFee}
@@ -1348,7 +1348,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex justify-between items-center px-1">
                         <div className="flex items-center gap-4">
                             <div className="p-1.5 bg-slate-600 text-white rounded-lg shadow-sm ring-2 ring-slate-500/10">
@@ -1377,7 +1377,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
                         {images.length > 0 ? images.map((img, idx) => (
-                            <div key={idx} className="relative group aspect-square rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 shadow-sm">
+                            <div key={idx} className="relative group aspect-square rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden bg-slate-50 dark:bg-zinc-900 shadow-sm">
                                 {img.type.startsWith('image/') ? (
                                     <img src={img.dataUrl} alt="Prop" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                 ) : (

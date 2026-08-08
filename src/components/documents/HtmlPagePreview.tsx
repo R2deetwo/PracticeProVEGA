@@ -546,7 +546,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 className={`flex items-center justify-between gap-2 px-3 py-2 border-b flex-shrink-0 ${
                     isDark
                         ? 'bg-zinc-900 border-zinc-800'
-                        : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
                 }`}
             >
                 {/* Left: file info + close */}
@@ -581,7 +581,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     <button
                         onClick={() => goToPage(0)}
                         disabled={safeCurrentPage === 0}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                         title="First page (Home)"
                     >
                         <ChevronsLeft className="w-4 h-4" />
@@ -589,7 +589,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     <button
                         onClick={prevPage}
                         disabled={safeCurrentPage === 0}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                         title="Previous page (←)"
                     >
                         <ChevronLeft className="w-4 h-4" />
@@ -600,7 +600,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     <button
                         onClick={nextPage}
                         disabled={safeCurrentPage >= pageCount - 1}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                         title="Next page (→)"
                     >
                         <ChevronRight className="w-4 h-4" />
@@ -608,7 +608,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     <button
                         onClick={() => goToPage(pageCount - 1)}
                         disabled={safeCurrentPage >= pageCount - 1}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                         title="Last page (End)"
                     >
                         <ChevronsRight className="w-4 h-4" />
@@ -618,12 +618,12 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 {/* Right: view mode, zoom, actions */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                     {/* View mode toggle */}
-                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 rounded-lg p-0.5">
+                    <div className="flex items-center bg-slate-100 dark:bg-zinc-700 rounded-lg p-0.5">
                         <button
                             onClick={() => setViewMode('fit')}
                             className={`p-1.5 rounded-md transition-all ${
                                 viewMode === 'fit'
-                                    ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow text-primary-600'
+                                    ? 'bg-white dark:bg-zinc-800 shadow text-primary-600'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'
                             }`}
                             title="Single page (centered)"
@@ -634,7 +634,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                             onClick={() => setViewMode('continuous')}
                             className={`p-1.5 rounded-md transition-all ${
                                 viewMode === 'continuous'
-                                    ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow text-primary-600'
+                                    ? 'bg-white dark:bg-zinc-800 shadow text-primary-600'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'
                             }`}
                             title="Continuous scroll"
@@ -645,7 +645,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                             onClick={() => setViewMode('reading')}
                             className={`p-1.5 rounded-md transition-all ${
                                 viewMode === 'reading'
-                                    ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 shadow text-primary-600'
+                                    ? 'bg-white dark:bg-zinc-800 shadow text-primary-600'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'
                             }`}
                             title="Reading mode (R)"
@@ -657,14 +657,14 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     {/* Zoom controls */}
                     <button
                         onClick={zoomOut}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
                         title="Zoom out (Ctrl -)"
                     >
                         <ZoomOut className="w-4 h-4" />
                     </button>
                     <button
                         onClick={zoomReset}
-                        className={`text-2xs font-bold w-12 text-center px-1 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 ${
+                        className={`text-2xs font-bold w-12 text-center px-1 py-1 rounded-lg bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 ${
                             isDark ? 'text-zinc-300' : 'text-slate-600 dark:text-zinc-300'
                         }`}
                         title="Fit to page (Ctrl 0)"
@@ -673,7 +673,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     </button>
                     <button
                         onClick={zoomIn}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
                         title="Zoom in (Ctrl +)"
                     >
                         <ZoomIn className="w-4 h-4" />
@@ -685,7 +685,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
                             showThumbnails
                                 ? 'bg-primary-600 text-white'
-                                : 'bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                                : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600'
                         }`}
                         title="Thumbnails (F)"
                     >
@@ -695,7 +695,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     {/* Print */}
                     <button
                         onClick={handlePrint}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
                         title="Print"
                     >
                         <Printer className="w-4 h-4" />
@@ -775,7 +775,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     className={`flex-shrink-0 border-t overflow-x-auto custom-scrollbar px-3 py-2 ${
                         isDark
                             ? 'bg-zinc-900 border-zinc-800'
-                            : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
                     }`}
                     style={{ maxHeight: '200px' }}
                 >
@@ -838,7 +838,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 className={`flex-shrink-0 px-4 py-1.5 border-t text-center ${
                     isDark
                         ? 'bg-zinc-900 border-zinc-800'
-                        : 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
                 }`}
             >
                 <p className={`text-3xs ${isDark ? 'text-zinc-500' : 'text-slate-400 dark:text-zinc-500'}`}>

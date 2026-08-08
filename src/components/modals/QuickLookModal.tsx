@@ -66,7 +66,7 @@ const QuickLookModal: React.FC = () => {
 
       {/* Content by type */}
       {type === 'Matter' && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
           <div>
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-0.5">CLIENT</p>
             <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">{item.clientName || 'N/A'}</p>
@@ -97,7 +97,7 @@ const QuickLookModal: React.FC = () => {
             </span>
           </div>
           
-          <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
+          <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-1">DEADLINE</p>
             <div className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-zinc-300">
               <CalendarIcon className="w-4 h-4 text-primary-500" />
@@ -117,7 +117,7 @@ const QuickLookModal: React.FC = () => {
       )}
 
       {type === 'Contact' && (
-        <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
+        <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
           <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-1">CATEGORY</p>
           <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">{item.category || 'N/A'}</p>
           {item.email && (

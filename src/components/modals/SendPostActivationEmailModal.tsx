@@ -59,7 +59,7 @@ const SendPostActivationEmailModal: React.FC = () => {
         This is the AI-drafted email ready to send to {isProperty ? 'your new tenant' : 'your new client'}, <strong>{name}</strong>. You can edit it before sending.
       </p>
 
-      <div className="border border-slate-200 dark:border-zinc-700 rounded-lg p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
+      <div className="border border-slate-200 dark:border-zinc-700 rounded-lg p-4 bg-slate-50 dark:bg-zinc-900">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <p><span className="font-semibold">From:</span> {coreState.firmDetails?.name || (isProperty ? 'Agency' : 'Firm')}</p>
           <p><span className="font-semibold">To:</span> {email}</p>

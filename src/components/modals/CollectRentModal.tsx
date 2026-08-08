@@ -327,7 +327,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Left: Input Form */}
         <div className="space-y-4">
-          <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-4">
+          <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-4">
             <div className="space-y-1.5">
               <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Rent Amount</label>
               <div className="relative">

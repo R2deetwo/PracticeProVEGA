@@ -271,7 +271,7 @@ const ActionCard: React.FC<{
     accent: string;
     onExecute: (action: ActionConfig) => void;
 }> = ({ action, accent, onExecute }) => (
-    <div className="group flex items-start gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700/60 hover:border-slate-200 dark:hover:border-zinc-600 hover:shadow-md transition-all">
+    <div className="group flex items-start gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700/60 hover:border-slate-200 dark:hover:border-zinc-600 hover:shadow-md transition-all">
         {/* Icon */}
         <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg"
             style={{ background: `${accent}15`, border: `1px solid ${accent}25` }}>
@@ -318,7 +318,7 @@ const ProcessChecklist: React.FC<{
     const done = filtered.filter(t => t.status === TaskStatus.Done).length;
 
     return (
-        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-700/50">
                 <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400">
                     Procedure Checklist
@@ -327,7 +327,7 @@ const ProcessChecklist: React.FC<{
             </div>
 
             {/* Progress bar */}
-            <div className="h-1 bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700">
+            <div className="h-1 bg-slate-100 dark:bg-zinc-700">
                 <div className="h-full transition-all duration-500 rounded-r-full"
                     style={{ width: `${filtered.length > 0 ? (done / filtered.length) * 100 : 0}%`, background: accent }} />
             </div>
@@ -401,7 +401,7 @@ const StrategicSuggestions: React.FC<{
     if (dynamicSuggestions.length === 0) return null;
 
     return (
-        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden mb-4">
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden mb-4">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-zinc-700/50 bg-amber-500/5">
                 <ShieldCheckIcon className="w-4 h-4 text-amber-500" />
                 <span className="text-2xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
@@ -447,7 +447,7 @@ const TemplateGallery: React.FC<{
     if (templates.length === 0) return null;
 
     return (
-        <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-700/50">
                 <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400">
                     Document Templates
@@ -615,7 +615,7 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
                     <button key={sec.id} onClick={() => setActiveSection(sec.id)}
                         className={`px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                             activeSection === sec.id
-                                ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
+                                ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
                                 : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
                         }`}
                     >

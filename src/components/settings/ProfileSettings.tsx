@@ -10,7 +10,7 @@ import { useProduct } from '../../contexts/ProductContext';
 import FeedbackButton from '../FeedbackButton';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -113,7 +113,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
         updateCurrentUser({ enableLiveFlashes: newVal });
     };
 
-    const commonInputClass = "mt-1 text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md p-2";
+    const commonInputClass = "mt-1 text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md p-2";
 
     return (
         <div className="space-y-6">
@@ -223,7 +223,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                 <select
                                     value={theme}
                                     onChange={(e) => setTheme(e.target.value as Theme)}
-                                    className="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 cursor-pointer shadow-sm"
+                                    className="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 cursor-pointer shadow-sm"
                                 >
                                     <optgroup label="System">
                                         <option value="system">System Auto-Match</option>
@@ -252,7 +252,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                         <button
                                             key={size}
                                             onClick={() => setFontSize(size)}
-                                            className={`w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-md text-sm font-bold transition-all capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
+                                            className={`w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-md text-sm font-bold transition-all capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
                                         >
                                             <span className="font-serif font-bold tracking-tighter opacity-70">Aa</span>
                                             {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}

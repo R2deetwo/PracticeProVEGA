@@ -65,7 +65,7 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
                 ))}
             </div>
             <div className="mt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-gray-200 dark:bg-zinc-800 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
+                <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
                 <button type="submit" className="px-6 py-2 text-sm bg-primary-600 text-white rounded-lg font-semibold">Save</button>
             </div>
         </form>

@@ -111,9 +111,9 @@ const InvoiceDetailViewContent: React.FC = () => {
     const headerTextColor = firmDetails.headerTextColor || '#111827'; // Default to slate-900
 
     return (
-        <div className="h-full flex flex-col bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-900 relative overflow-hidden">
+        <div className="h-full flex flex-col bg-slate-100 dark:bg-zinc-900 relative overflow-hidden">
             {/* Top Bar */}
-            <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 z-20">
+            <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 z-20">
                 <Breadcrumbs items={[
                     { label: 'Billing', onClick: () => navigateTo('billing') },
                     { label: invoice.invoiceNumber }
@@ -124,14 +124,14 @@ const InvoiceDetailViewContent: React.FC = () => {
                     <Tooltip text="Zoom In"><button onClick={handleZoomIn} className="p-1 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"><ZoomInIcon className="w-4 h-4 sm:w-5 sm:h-5" /></button></Tooltip>
                     <div className="hidden sm:block h-6 w-px bg-slate-200 dark:border-zinc-700 mx-1 sm:mx-2"></div>
 
-                    <button onClick={handleDownloadPdf} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm ml-1">
+                    <button onClick={handleDownloadPdf} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm ml-1">
                         <PrinterIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">PDF</span>
                     </button>
 
                     {invoice.status === InvoiceStatus.Unpaid || invoice.status === InvoiceStatus.Overdue || invoice.status === InvoiceStatus.Sent || invoice.status === InvoiceStatus.Draft ? (
                         <>
-                            <button onClick={() => handleSendInvoiceReminder(invoice.id)} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm">
+                            <button onClick={() => handleSendInvoiceReminder(invoice.id)} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm">
                                 <MailIcon className="w-4 h-4" />
                                 <span className="hidden sm:inline">Reminder</span>
                             </button>
@@ -154,7 +154,7 @@ const InvoiceDetailViewContent: React.FC = () => {
                     {!isLocked && (
                         <>
                             <div className="hidden sm:block h-6 w-px bg-slate-200 dark:border-zinc-700 mx-1 sm:mx-2"></div>
-                            <button onClick={handleDelete} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-900 dark:bg-zinc-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 border border-transparent hover:border-red-200 dark:hover:border-red-800 rounded-lg font-medium text-xs sm:text-sm transition-colors ml-1">
+                            <button onClick={handleDelete} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 border border-transparent hover:border-red-200 dark:hover:border-red-800 rounded-lg font-medium text-xs sm:text-sm transition-colors ml-1">
                                 <TrashIcon className="w-4 h-4" />
                             </button>
                         </>

@@ -209,7 +209,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
       <div className="space-y-2 sm:space-y-3 pb-6">
         {/* Task Objective Section */}
-        <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+        <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
           <div className="flex items-center gap-4 mb-2 px-1">
             <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
             <TasksIcon className="w-3.5 h-3.5" />
@@ -244,7 +244,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             </div>
             <div className="space-y-2 group">
               <label htmlFor="taskPriority" className={labelClass}>Priority Level</label>
-              <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
+              <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
                 {Object.values(TaskPriority).map(p => (
                   <button
                     key={p}
@@ -287,7 +287,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           <div className="px-1">
             <div className="bg-slate-50/50 dark:bg-zinc-800/30 p-3 sm:p-4 rounded-xl border border-slate-100 dark:border-zinc-700/50 space-y-2 sm:space-y-3 text-left">
               <div className="flex items-center gap-4">
-                  <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-sm">
+                  <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-sm">
                       <UserCircleIcon className="w-3.5 h-3.5" />
                   </div>
                   <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Assignment</h3>
@@ -347,7 +347,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         <span className="text-slate-800 dark:text-zinc-200 leading-none">{user.name || 'Unknown'}</span>
                         <span className="text-3xs text-slate-400 uppercase tracking-tight">{user.role || 'Member'}</span>
                     </div>
-                    <button type="button" onClick={() => handleUserToggle(user.id)} className="ml-2 text-slate-300 hover:text-rose-500 transition-colors bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-800 p-1.5 rounded-lg opacity-0 group-hover/user:opacity-100 transform translate-x-1 group-hover/user:translate-x-0 transition-all">
+                    <button type="button" onClick={() => handleUserToggle(user.id)} className="ml-2 text-slate-300 hover:text-rose-500 transition-colors bg-slate-50 dark:bg-zinc-800 p-1.5 rounded-lg opacity-0 group-hover/user:opacity-100 transform translate-x-1 group-hover/user:translate-x-0 transition-all">
                       <XIcon className="w-3.5 h-3.5" />
                     </button>
                   </div>

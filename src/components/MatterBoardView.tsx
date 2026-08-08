@@ -66,7 +66,7 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
                     </Tooltip>
 
                     {matter.nextDeadline ? (
-                        <div className="mb-2 text-xs bg-slate-50 dark:bg-zinc-700/50 p-1.5 rounded border border-gray-100 dark:border-zinc-800 dark:border-gray-700">
+                        <div className="mb-2 text-xs bg-slate-50 dark:bg-zinc-700/50 p-1.5 rounded border border-gray-100 dark:border-gray-700">
                             <span className="font-semibold text-2xs uppercase text-gray-400 block">Next Deadline</span>
                             <div className="flex justify-between items-center mt-0.5">
                                 <span className="truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={matter.nextDeadline.title}>{matter.nextDeadline.title}</span>
@@ -77,8 +77,8 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
                         <div className="mb-2 h-1"></div> // Spacer
                     )}
 
-                    <div className="mt-2 pt-2 border-t border-gray-100 dark:border-zinc-800 dark:border-slate-700">
-                        <div className="w-full bg-gray-200 dark:bg-zinc-800 dark:bg-slate-700 rounded-full h-1">
+                    <div className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700">
+                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1">
                             <div className="bg-primary-500 h-1 rounded-full" style={{ width: `${progressPercent}%` }}></div>
                         </div>
                     </div>
@@ -100,7 +100,7 @@ const MatterColumn: React.FC<{
             <div className="p-3 mb-2 border-b-2 border-gray-300 dark:border-slate-700">
                 <h4 className="font-bold text-lg text-gray-800 dark:text-white flex justify-between items-center">
                     {stage}
-                    <span className="text-sm font-semibold bg-gray-200 dark:bg-zinc-800 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded-full px-2 py-0.5">{matters.length}</span>
+                    <span className="text-sm font-semibold bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded-full px-2 py-0.5">{matters.length}</span>
                 </h4>
             </div>
             <Droppable droppableId={stage}>

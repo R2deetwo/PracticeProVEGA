@@ -424,7 +424,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 </div>
 
                 {/* Court process toggle */}
-                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center gap-2">
                         <GavelIconLarge className="w-4 h-4 text-slate-400" />
                         <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Court process</span>
@@ -441,7 +441,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 {isCourtProcess && (
                     <div className="pt-3 border-t border-slate-100 dark:border-zinc-700">
                         <label className={labelClass}>Stage</label>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-1.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-1.5 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800">
                             {[
                                 { id: 'draft', label: 'Drafting' },
                                 { id: 'filed', label: 'Filed' },
@@ -453,7 +453,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                     type="button"
                                     //@ts-ignore
                                     onClick={() => setLitigationStatus(step.id)}
-                                    className={`py-2 text-xs font-semibold rounded-md transition-colors ${litigationStatus === step.id ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-800 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}
+                                    className={`py-2 text-xs font-semibold rounded-md transition-colors ${litigationStatus === step.id ? 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:text-zinc-400'}`}
                                 >
                                     {step.label}
                                 </button>

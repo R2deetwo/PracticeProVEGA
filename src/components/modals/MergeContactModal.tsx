@@ -49,7 +49,7 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
           placeholder="Search target contact..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none"
         />
       </div>
 

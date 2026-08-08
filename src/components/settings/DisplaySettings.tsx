@@ -10,7 +10,7 @@ import { haptics } from '../../utils/haptics';
 import { notificationManager } from '../../utils/notifications';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -70,7 +70,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                             <select
                                 value={theme}
                                 onChange={(e) => setTheme(e.target.value as Theme)}
-                                className="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 cursor-pointer shadow-sm"
+                                className="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 cursor-pointer shadow-sm"
                             >
                                 <optgroup label="System">
                                     <option value="system">System Auto-Match</option>
@@ -103,7 +103,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                                 <button
                                     key={size}
                                     onClick={() => setFontSize(size)}
-                                    className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
+                                    className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
                                 >
                                     <span className="font-serif font-bold tracking-tighter opacity-70">Aa</span>
                                     {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}
@@ -113,7 +113,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
 
                         <div className="pt-6 border-t border-slate-100 dark:border-zinc-800">
                             <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-4">Typography Preview</label>
-                            <div className="p-6 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800 space-y-4">
+                            <div className="p-6 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800 space-y-4">
                                 <div className="space-y-1">
                                     <h4 className="text-2xl font-bold text-slate-900 dark:text-white transition-all">This is a Heading</h4>
                                     <p className="text-sm text-slate-500 dark:text-zinc-400">Subtitle or secondary text</p>

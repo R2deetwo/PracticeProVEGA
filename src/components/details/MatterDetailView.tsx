@@ -32,8 +32,8 @@ import { useMatterState } from '../../contexts/MatterContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
-import { MatterBrief } from './MatterBrief'; // NOTE: kept for now in case we want to re-mount parts of it under Endorsements later. Safe to remove after launch.
-import BacklinksPanel from '../BacklinksPanel'; // NOTE: backlinks panel is currently non-functional (no persistence layer). Kept for future wiring.
+// CRO AUDIT FIX — MatterBrief import removed (unused, dead code)
+import BacklinksPanel from '../BacklinksPanel'; // CRO AUDIT: import kept for future wiring, but render removed
 import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../toolkit/Skeleton';
 
@@ -264,9 +264,11 @@ const MatterDetailViewContent: React.FC = () => {
 
     const handleStageUpdate = async (newStage: string) => {
         setUpdatingStage(newStage);
-        // Simulate a brief delay to show the spinner/proactive feedback as requested by user
-        // This makes the interaction feel more substantial before the optimistic update takes over
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // CRO AUDIT FIX — removed fake 800ms delay. The spinner now shows
+        // only for the actual duration of the optimistic update (which is
+        // instant). If the user wants visible spinner feedback, it should
+        // be gated behind actual network latency (show spinner only if
+        // mutation hasn't resolved in 300ms), not artificial delay.
 
         onUpdateStage(matterData!.id, newStage);
         addToast(`Matter moved to ${newStage}`, { type: 'success' });
@@ -368,7 +370,7 @@ const MatterDetailViewContent: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
             <header className="sticky top-0 z-10 glass flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 shadow-sm">
                 <div className="px-4 pt-3 sm:px-6">
                     <div className="flex items-center justify-between mb-2">
@@ -434,7 +436,7 @@ const MatterDetailViewContent: React.FC = () => {
                                 {showMoreMenu && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
+                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); openModal('editMatter', matterData.id); }}
                                                 className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
@@ -506,7 +508,7 @@ const MatterDetailViewContent: React.FC = () => {
                 </nav>
             </header>
 
-            <main className="flex-grow overflow-y-auto custom-scrollbar p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900">
+            <main className="flex-grow overflow-y-auto custom-scrollbar p-4 bg-slate-50 dark:bg-zinc-900">
                 <div className="max-w-5xl mx-auto">
 
                     {activeTab === 'notes' ? (
@@ -532,13 +534,8 @@ const MatterDetailViewContent: React.FC = () => {
                             {/* Bidirectional backlinks — notes that mention this matter via [[Matter Title]].
                                 Uses real-time content-based matching: scans all notes for [[...]] patterns
                                 that match this matter's title. No schema migration needed. */}
-                            <BacklinksPanel
-                                entityId={matterData.id}
-                                entityType="matter"
-                                entityLabel={matterData.title}
-                                notes={documentState.notePages || []}
-                                navigateTo={navigateTo}
-                            />
+                            {/* CRO AUDIT FIX — BacklinksPanel render removed (non-functional, no persistence layer).
+                                Will be re-enabled when the backlinks persistence layer is implemented. */}
                         </div>
                     ) : activeTab === 'schedule_tasks' ? (
                         <TasksAndEventsTab

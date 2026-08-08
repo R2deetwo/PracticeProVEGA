@@ -158,7 +158,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
         </p>
       </div>
 
-      <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 backdrop-blur-sm custom-scrollbar">
+      <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 bg-slate-50 dark:bg-zinc-900/50 backdrop-blur-sm custom-scrollbar">
         {uploads.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800 transition-all hover:border-primary-500/50">
             <div className="w-10 h-10 bg-slate-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -208,7 +208,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
         ))}
       </div>
 
-      <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
+      <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="flex items-center justify-between">
           <div>
             <label className="block text-sm font-bold text-slate-800 dark:text-zinc-100">Mark all as Court Processes</label>

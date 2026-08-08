@@ -82,7 +82,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
             <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Strategic Objective & Matter */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <ClockIcon className="w-3.5 h-3.5" />
@@ -97,7 +97,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                         <label className={labelClass}>{hasPropertyFeatures ? 'Property' : 'Case'} Association</label>
                         <div className="relative">
                             <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <div className={`${commonInputClass} pl-11 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-900/50 flex items-center`}>
+                            <div className={`${commonInputClass} pl-11 bg-slate-50 dark:bg-zinc-900/50 flex items-center`}>
                                 {matter.title}
                             </div>
                         </div>

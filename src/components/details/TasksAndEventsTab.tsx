@@ -134,7 +134,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
             onClick={onClick}
             className={`px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                 active
-                    ? 'bg-white dark:bg-zinc-900 dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
+                    ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
                     : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
             }`}
         >
@@ -148,7 +148,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
             <div className="flex justify-between items-center mb-3">
                 <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     Tasks
-                    <span className="bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{tasks.length}</span>
+                    <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{tasks.length}</span>
                 </h4>
                 <button
                     onClick={() => openModal('newTask', null, { matterId, openedFrom: 'matterDetail' })}
@@ -157,13 +157,13 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     + Add Task
                 </button>
             </div>
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
                 {tasks.length > 0 ? (
                     <ul className="overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[500px]">
                         {tasks.map(task => {
                             const isTaskNew = isNew(task.createdAt, task.creatorId);
                             return (
-                                <li key={task.id} className="group p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 border border-slate-100 dark:border-zinc-700/50 hover:border-primary-200 dark:hover:border-primary-800 transition-all halo-hover">
+                                <li key={task.id} className="group p-3 rounded-lg bg-slate-50 dark:bg-zinc-700/30 border border-slate-100 dark:border-zinc-700/50 hover:border-primary-200 dark:hover:border-primary-800 transition-all halo-hover">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2 min-w-0">
                                             {isTaskNew && <span className="w-1.5 h-1.5 rounded-full bg-primary-500 shrink-0" />}
@@ -183,7 +183,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                                 <ChevronDownIcon className="w-2.5 h-2.5" />
                                             </button>
                                             {openDropdownId === task.id && (
-                                                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 z-[100] overflow-hidden py-1 ring-1 ring-black/5">
+                                                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 z-[100] overflow-hidden py-1 ring-1 ring-black/5">
                                                     {TaskStatusValues.map(status => (
                                                         <button
                                                             key={status}
@@ -221,7 +221,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     </ul>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[200px]">
-                        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/50 rounded-full flex items-center justify-center mb-3">
+                        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-700/50 rounded-full flex items-center justify-center mb-3">
                             <ListBulletIcon className="w-6 h-6 text-slate-400" />
                         </div>
                         <p className="text-sm font-bold text-slate-500 tracking-tight uppercase">Task list empty</p>
@@ -237,7 +237,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
             <div className="flex justify-between items-center mb-3">
                 <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     Events
-                    <span className="bg-slate-100 dark:bg-zinc-800 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{displayEvents.length}</span>
+                    <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{displayEvents.length}</span>
                 </h4>
                 <button
                     onClick={() => openModal('newEvent', null, { matterId })}
@@ -246,7 +246,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     + New Event
                 </button>
             </div>
-            <div className="bg-white dark:bg-zinc-900 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm min-h-[200px]">
                 {displayEvents.length > 0 ? (
                     <ul className="overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[500px]">
                         {displayEvents.map(event => {
@@ -254,7 +254,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                             return (
                                 <li
                                     key={event.id}
-                                    className="group p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/30 border border-slate-100 dark:border-zinc-700/50 hover:border-primary-200 dark:hover:border-primary-800 transition-all cursor-pointer halo-hover"
+                                    className="group p-3 rounded-lg bg-slate-50 dark:bg-zinc-700/30 border border-slate-100 dark:border-zinc-700/50 hover:border-primary-200 dark:hover:border-primary-800 transition-all cursor-pointer halo-hover"
                                     onClick={() => openModal('viewEvent', event.id)}
                                 >
                                     <div className="flex justify-between items-start mb-2">
@@ -292,7 +292,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     </ul>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[200px]">
-                        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-800/50 dark:bg-zinc-700/50 rounded-full flex items-center justify-center mb-3">
+                        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-700/50 rounded-full flex items-center justify-center mb-3">
                             <ClockIcon className="w-6 h-6 text-slate-400" />
                         </div>
                         <p className="text-sm font-bold text-slate-500 tracking-tight uppercase">No events scheduled</p>

@@ -337,14 +337,19 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, [clearAllNotificationsMutation, currentUser?.email]);
     
     const refreshData = React.useCallback(async () => {
-        addToast("Refreshing workspace data...", { type: 'info' });
-        // Full refresh is handled by Convex subscription, but we can trigger a re-render
-        setIsDataLoaded(false);
-        setTimeout(() => setIsDataLoaded(true), 100);
+        // CRO AUDIT FIX — was a no-op that showed a toast but didn't actually
+        // refresh anything. Now does a real page reload to force-fetch fresh
+        // data from Convex. Convex subscriptions are the primary source of
+        // truth, but a full reload ensures all caches are busted.
+        addToast("Refreshing workspace...", { type: 'info' });
+        setTimeout(() => window.location.reload(), 500);
     }, [addToast]);
 
     const forceSync = React.useCallback(async () => {
-        addToast("Syncing with cloud...", { type: 'success' });
+        // CRO AUDIT FIX — was a no-op that showed a success toast but did
+        // nothing. Now delegates to refreshData (which does a real reload).
+        addToast("Syncing with cloud...", { type: 'info' });
+        setTimeout(() => window.location.reload(), 500);
     }, [addToast]);
 
     const handleClearState = React.useCallback(() => {
