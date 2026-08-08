@@ -341,28 +341,27 @@ export const BroadcastBanner: React.FC = () => {
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${activeTheme.accentBar} z-10`} />
 
                 <div className="relative p-4 pl-5 z-10">
-                    {/* Top row: pill + title + dismiss */}
+                    {/* Top row: title + dismiss
+                        CRO AUDIT FIX — removed the category pill (Info/Success/
+                        Warning/Urgent) per user request. The left accent bar
+                        already communicates the urgency type via color. */}
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            {/* Category pill — semi-translucent white surface */}
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold ${activeTheme.pillBg} ${activeTheme.pillText} flex-shrink-0 backdrop-blur-sm`}>
-                                <span className={`w-1.5 h-1.5 rounded-full bg-white`} />
-                                {activeTheme.label}
-                            </span>
                             {persistenceMode === 'persistent' && (
-                                <span className="text-3xs font-bold text-white/70 flex-shrink-0">📌 Pinned</span>
+                                <span className="text-3xs font-bold text-slate-800/70 flex-shrink-0">📌 Pinned</span>
                             )}
-                            {/* Title — bold white, uppercase for category headers */}
-                            <p className="text-sm font-bold text-white truncate uppercase tracking-wide">
+                            {/* Title — bold DARK text, uppercase for category headers.
+                                Dark text on colored glass = high contrast + legible. */}
+                            <p className="text-sm font-bold text-slate-900 truncate uppercase tracking-wide">
                                 {activeBroadcast.title || 'Announcement'}
                             </p>
                         </div>
 
-                        {/* Dismiss button — white X icon */}
+                        {/* Dismiss button — dark X icon */}
                         {isDismissible && (
                             <button
                                 onClick={() => handleDismiss(activeBroadcast)}
-                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-white/70 hover:text-white hover:bg-white/20 transition-colors flex-shrink-0"
+                                className="flex items-center justify-center w-8 h-8 -mt-1 -mr-1 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-white/30 transition-colors flex-shrink-0"
                                 aria-label="Dismiss"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -372,8 +371,8 @@ export const BroadcastBanner: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Message body — crisp white text */}
-                    <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
+                    {/* Message body — crisp DARK text for high contrast */}
+                    <p className="text-xs text-slate-800 mt-1.5 leading-relaxed">
                         {activeBroadcast.message || ''}
                     </p>
 
@@ -386,7 +385,7 @@ export const BroadcastBanner: React.FC = () => {
                                 }
                                 if (isDismissible) handleDismiss(activeBroadcast);
                             }}
-                            className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-3xs font-bold bg-white/30 text-white hover:bg-white/40 transition-colors backdrop-blur-sm"
+                            className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-3xs font-bold bg-slate-900/20 text-slate-900 hover:bg-slate-900/30 transition-colors backdrop-blur-sm"
                         >
                             View Details →
                         </button>
@@ -410,7 +409,9 @@ export const BroadcastBanner: React.FC = () => {
                         </svg>
                     </button>
 
-                    {/* Stubs — one per banner, active one is highlighted with its theme color */}
+                    {/* Stubs — one per banner, active one is highlighted with its theme color.
+                        CRO AUDIT FIX — active stub uses dark text (matching the banner)
+                        instead of white text for consistency. */}
                     {visibleBroadcasts.map((b, i) => {
                         const theme = THEME[parseTheme(b.type || '')] || DEFAULT_THEME;
                         const isActive = i === activeIndex;
@@ -420,13 +421,13 @@ export const BroadcastBanner: React.FC = () => {
                                 onClick={() => handleStubClick(i)}
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-bold transition-all ${
                                     isActive
-                                        ? 'text-white ring-1 ring-white/40 shadow-sm'
+                                        ? 'text-slate-900 ring-1 ring-slate-900/20 shadow-sm'
                                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                                 }`}
                                 style={isActive ? { background: theme.glassBg } : undefined}
                                 title={b.title || `Banner ${i + 1}`}
                             >
-                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : theme.accentBar}`} />
+                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-slate-900' : theme.accentBar}`} />
                                 {i + 1}
                             </button>
                         );
