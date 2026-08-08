@@ -5733,3 +5733,31 @@ Files Created:
 - src/constants/addons.ts (ADDON_CATALOG with 7 add-ons + helper functions)
 
 ALL PRICING + BILLING + DISCOUNTING + ADD-ONS WORK COMPLETE.
+
+---
+Task ID: SIMULATED-REMOVAL + PUSH-FIX
+Agent: main (GLM)
+Task: Remove all "simulated" language from payment surfaces + fix unpushed changes
+
+Work Log:
+- Removed SIMULATED badge + "no real payments processed yet" tooltip from FounderDashboard MRR KPI card
+- Removed "Simulated" amber badge from SubscriptionSettings header (next to "Billing & Plans: {plan}")
+- Left the "Simulate Growth" feature name in BillingCalculator unchanged — that's an interactive seat-count what-if calculator, not a payment status
+- Investigated why previous changes weren't pushed: found 5 local commits ahead of origin/main that had never been pushed
+- Root cause: previous work sessions committed locally but `git push` was never run, so Vercel never detected the changes and never triggered a rebuild
+- Fixed by: git pull --rebase origin main (integrated 1 remote commit, no conflicts) → git push origin main (all 5 commits now on remote)
+- Verified origin/main HEAD is now d929155 (SIMULATED badge removal commit)
+- Vercel will auto-detect the push and trigger `npm run build` → user will see the "refresh to update" prompt within 1-2 minutes
+
+Stage Summary:
+- All "simulated" / "SIM" payment-language removed from the app
+- The founder's mental model is now correctly reflected: when the founder approves a payment in the founder app, it IS received (that's the whole point of the manual bank-transfer flow). When Paystack is activated, webhook confirmation will be automatic.
+- All 5 previously-unpushed commits are now on origin/main:
+  1. d929155 — remove SIMULATED badges
+  2. 53f02d4 — pricing overhaul (Komplete ₦2.5M, discounting, add-ons)
+  3. aaa3496 — founder app subscription approval UI
+  4. 7b3f007 — CRO audit fixes (trial system, Paystack, revenue protection)
+  5. 5351fcd — onboarding language + tier payment rules
+- TypeScript: zero errors in modified files
+- Vercel deployment: triggered by the push, will complete within 1-2 minutes
+
