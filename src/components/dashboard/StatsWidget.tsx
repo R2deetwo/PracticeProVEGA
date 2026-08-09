@@ -74,29 +74,39 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                 <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
             </div>
 
-            <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
-                <div className="flex items-center gap-1 min-w-0">
-                    <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase">{label}</p>
-                    {showTabs && (
-                        <div
-                            className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <button
-                                onClick={() => setActiveTab('invoices')}
-                                className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'invoices' ? 'bg-yellow-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                            >
-                                INV
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('rent')}
-                                className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'rent' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                            >
-                                RENT
-                            </button>
-                        </div>
-                    )}
+            {/* INV/RENT toggle — positioned absolute top-right, BELOW the
+                watermark icon. Previously this was inline on the same line
+                as the title, which crowded the header and caused
+                'OUTSTANDING INVOICES' to wrap to two lines. Moving it to
+                an absolute position keeps the title on a single line and
+                aligned with the other 3 card titles. */}
+            {showTabs && (
+                <div
+                    className="absolute top-9 right-3 flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0 z-20"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => setActiveTab('invoices')}
+                        className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'invoices' ? 'bg-yellow-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                    >
+                        INV
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('rent')}
+                        className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'rent' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                    >
+                        RENT
+                    </button>
                 </div>
+            )}
+
+            <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
+                {/* Title — single line, tight leading, matches StatCard spec.
+                    No inline badges on this line anymore (moved to absolute
+                    position above) so 'OUTSTANDING INVOICES' renders cleanly. */}
+                <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase leading-tight truncate">
+                    {label}
+                </p>
                 {/* Fixed h-8 baseline container — matches StatCard so all
                     4 cards have numbers on the same horizontal line. */}
                 <div className="flex items-baseline h-8 text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">

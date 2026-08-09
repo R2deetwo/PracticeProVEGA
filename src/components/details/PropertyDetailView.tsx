@@ -89,7 +89,7 @@ const calculateRentReviewDate = (leaseEnd?: string, frequency?: string) => {
 
 
 const PropertyDetailViewContent: React.FC = () => {
-    const { openEditor, navigateTo, addToast, openModal, selectedId: propertyId } = useUI();
+    const { openEditor, navigateTo, addToast, openModal, selectedId: propertyId, currentHistoryEntry } = useUI();
     const { isProperty, hasPropertyFeatures } = useProduct();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
@@ -114,6 +114,29 @@ const PropertyDetailViewContent: React.FC = () => {
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     const [showFullUnitDetail, setShowFullUnitDetail] = useState(false);
     const unitMenuInnerRef = useRef<HTMLDivElement>(null);
+
+    // ─── Deep-link context handling ───────────────────────────────────
+    // When navigated from a notification banner (e.g. "OVERDUE RENT"),
+    // the context carries `tab` (which property tab to open) and
+    // `highlight` (the ID of the specific row/item to pulse-highlight).
+    // This effect reads those params and activates the right tab + sets
+    // a temporary highlight state that pulses the target row.
+    const [highlightTarget, setHighlightTarget] = useState<string | null>(null);
+    useEffect(() => {
+        const ctx = currentHistoryEntry?.context as any;
+        if (ctx?.tab) {
+            const tab = ctx.tab as PropertyTab;
+            if (['summary', 'units', 'notices', 'financials', 'tracking'].includes(tab)) {
+                setActiveTab(tab);
+            }
+        }
+        if (ctx?.highlight) {
+            setHighlightTarget(ctx.highlight);
+            // Clear the highlight after 5 seconds
+            const timer = setTimeout(() => setHighlightTarget(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [currentHistoryEntry?.context]);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -1883,8 +1906,21 @@ const PropertyDetailViewContent: React.FC = () => {
                                             const isPaidFully = scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid';
                                             const isPartial = scStatus === 'PARTIALLY_PAID';
                                             const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
+                                            // HIGHLIGHT — if this row is the target of a notification
+                                            // deep-link (highlightTarget matches unit.id, or is 'overdue'
+                                            // and this row has an unpaid/partial status), apply a
+                                            // temporary amber pulse ring for 5 seconds.
+                                            const isHighlighted = highlightTarget && (
+                                                highlightTarget === unit.id ||
+                                                highlightTarget === String(unit.id) ||
+                                                (highlightTarget === 'overdue' && (isUnpaid || isPartial))
+                                            );
                                             return (
-                                                <tr key={unit.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                                <tr
+                                                    key={unit.id}
+                                                    data-entry-id={unit.id}
+                                                    className={`hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-all ${isHighlighted ? 'ring-2 ring-amber-500/50 animate-pulse bg-amber-50 dark:bg-amber-900/20' : ''}`}
+                                                >
                                                     <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-white">{d.name}</td>
                                                     <td className="px-4 py-2.5 text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</td>
                                                     <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>

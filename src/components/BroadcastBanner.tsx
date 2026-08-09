@@ -34,6 +34,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCoreState } from '../contexts/CoreContext';
+import { useUI } from '../contexts/UIContext';
 
 // CRO AUDIT FIX — increased from 2 to 4 max simultaneous banners.
 const MAX_BANNERS = 4;
@@ -174,6 +175,7 @@ function markSessionDismissed(broadcastId: string, notifId: string) {
 export const BroadcastBanner: React.FC = () => {
     const { currentUser, isAuthenticated } = useAuth();
     const { coreState } = useCoreState();
+    const { navigateTo } = useUI();
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
 
     const [dismissingId, setDismissingId] = useState<string | null>(null);
@@ -303,10 +305,18 @@ export const BroadcastBanner: React.FC = () => {
 
         // ── Overdue rent alert (Atrium / Komplete property firms) ──
         const ledgerEntries = (coreState as any)?.ledgerEntries || [];
-        const overdueCount = ledgerEntries.filter((e: any) =>
+        const overdueEntries = ledgerEntries.filter((e: any) =>
             e.status === 'pending' || e.status === 'defaulted'
-        ).length;
+        );
+        const overdueCount = overdueEntries.length;
         if (overdueCount > 0 && (userProduct === 'property' || userProduct === 'unified')) {
+            // DEEP-LINK FIX — navigate to the SPECIFIC property with the
+            // first overdue entry, not the generic /properties list.
+            // Pass a highlight target so the PropertyDetailView can
+            // pulse the specific overdue invoice/ledger row.
+            const firstOverdue = overdueEntries[0];
+            const targetPropertyId = firstOverdue?.propertyId || firstOverdue?.property || null;
+            const highlightId = firstOverdue?._id || firstOverdue?.id || null;
             banners.push({
                 _id: `system_overdue_rent`,
                 broadcastId: `system_overdue_rent`,
@@ -314,7 +324,11 @@ export const BroadcastBanner: React.FC = () => {
                 message: `Attention: You have ${overdueCount} overdue rent payment(s) pending review.`,
                 type: 'broadcast_warning',
                 persistenceMode: 'permanent',
-                deepLink: '/properties',
+                // If we have a specific property ID, deep-link to it with
+                // a highlight param. Otherwise fall back to the properties list.
+                deepLink: targetPropertyId
+                    ? `properties/${targetPropertyId}?tab=financials&highlight=${highlightId || 'overdue'}`
+                    : 'properties',
                 targetProduct: userProduct,
                 isSystem: true,
             });
@@ -472,9 +486,48 @@ export const BroadcastBanner: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         if (activeBroadcast.deepLink) {
-                                            // CRO AUDIT FIX — was window.location.hash which only sets
-                                            // the URL fragment, not the route. Use href for actual navigation.
-                                            window.location.href = activeBroadcast.deepLink;
+                                            // DEEP-LINK FIX — use client-side navigation instead of
+                                            // window.location.href (which causes a full hard reload,
+                                            // clearing user state and showing the splash screen again).
+                                            //
+                                            // Parse the deepLink to extract:
+                                            //   - view name (e.g. 'properties', 'messaging')
+                                            //   - entity ID (e.g. propertyId from 'properties/abc123?...')
+                                            //   - context params (e.g. tab, highlight)
+                                            const link = activeBroadcast.deepLink;
+                                            const cleanLink = link.startsWith('/') ? link.slice(1) : link;
+                                            const [pathPart, queryPart] = cleanLink.split('?');
+                                            const segments = pathPart.split('/').filter(Boolean);
+                                            const view = segments[0] || 'dashboard';
+                                            const entityId = segments[1] || null;
+
+                                            // Parse query params into context object
+                                            const context: Record<string, any> = {};
+                                            if (queryPart) {
+                                                const params = new URLSearchParams(queryPart);
+                                                params.forEach((value, key) => {
+                                                    context[key] = value;
+                                                });
+                                            }
+
+                                            // Map view names to the app's View type
+                                            const viewMap: Record<string, string> = {
+                                                'properties': 'properties',
+                                                'matters': 'matters',
+                                                'tasks': 'tasks',
+                                                'documents': 'documents',
+                                                'messaging': 'messaging',
+                                                'contacts': 'contacts',
+                                                'billing': 'billing',
+                                                'settings': 'settings',
+                                                'dashboard': 'dashboard',
+                                                'atriumEngine': 'atriumEngine',
+                                            };
+                                            const targetView = viewMap[view] || view;
+
+                                            // Use client-side navigateTo — preserves history stack
+                                            // so the back button returns the user to where they were.
+                                            navigateTo(targetView as any, entityId, context);
                                         }
                                     }}
                                     className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-3xs font-bold text-slate-900 hover:text-slate-900 bg-slate-900/15 hover:bg-slate-900/25 transition-colors backdrop-blur-sm leading-none"
