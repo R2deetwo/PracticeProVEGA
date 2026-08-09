@@ -68,3 +68,4 @@ src/app/
 # The prebuild script (scripts/generate-version-manifest.cjs) regenerates
 # it on every Vercel build with the correct GITHUB_SHA, so the committed
 # version is always slightly stale but the DEPLOYED version is always correct.
+.env*
