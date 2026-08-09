@@ -168,13 +168,18 @@ const PropertyDetailViewContent: React.FC = () => {
     // Units tab, find the matching unit and expand its drawer. Scroll it
     // into view smoothly. If targetUnitId is 'overdue' or empty, expand
     // the first unit with unpaid/partial rent status.
+    //
+    // FIX: was referencing `units` (not defined in component scope — only
+    // exists inside the useMemo at line 248). Changed to `allUnits` which
+    // IS returned from the useMemo and available in component scope.
     useEffect(() => {
         if (activeTab !== 'units' || !highlightTarget) return;
+        if (!allUnits || !Array.isArray(allUnits)) return;
 
         // Try to find the specific target unit first
         let targetUnit: Property | undefined;
         if (targetUnitId) {
-            targetUnit = units.find((u: Property) =>
+            targetUnit = allUnits.find((u: Property) =>
                 u.id === targetUnitId || String(u.id) === String(targetUnitId)
             );
         }
@@ -182,7 +187,7 @@ const PropertyDetailViewContent: React.FC = () => {
         // Fallback: if no specific unit found, find the first unit with
         // unpaid/partial rent (overdue indicator)
         if (!targetUnit && (highlightTarget === 'overdue' || !targetUnitId)) {
-            targetUnit = units.find((u: Property) => {
+            targetUnit = allUnits.find((u: Property) => {
                 const rd = (u.rentalDetails || u) as any;
                 const scStatus = rd.serviceChargeStatus || rd.serviceChargeStatus;
                 return scStatus === 'UNPAID' || scStatus === 'unpaid' || scStatus === 'PARTIALLY_PAID';
@@ -201,7 +206,7 @@ const PropertyDetailViewContent: React.FC = () => {
             // Clear after expansion so it doesn't re-trigger
             setTargetUnitId(null);
         }
-    }, [targetUnitId, activeTab, units, highlightTarget]);
+    }, [targetUnitId, activeTab, allUnits, highlightTarget]);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
