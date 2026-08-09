@@ -172,6 +172,47 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // DYNAMIC ARRAY HYDRATION — re-sync unitsData when coreState.properties
+    // changes (e.g., a new unit was added in the background). Previously the
+    // modal used a stale useState initializer that only ran once on mount,
+    // so newly created units didn't appear in the Lease & Rent Configuration
+    // tab until the modal was closed and reopened.
+    useEffect(() => {
+        if (!propertyToEdit) return;
+        // Only re-sync if the number of units at this address has changed
+        const currentUnits = (coreState.properties || [])
+            .filter(p => p.address === propertyToEdit.address);
+        if (currentUnits.length !== unitsData.length) {
+            // Rebuild unitsData from the latest coreState
+            const refreshedUnits = currentUnits.map(p => {
+                const rd = p.rentalDetails || {};
+                const rent = Number(rd.rentAmount) || 0;
+                const lf = Number(rd.legalFee) || 0;
+                const af = Number(rd.agencyFee) || 0;
+                const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
+                const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
+                return {
+                    ...rd,
+                    id: p.id,
+                    status: p.status || 'Occupied',
+                    _id: (p as any)._id,
+                    unitName: rd.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit",
+                    unitDescription: (rd as any).unitDescription || p.description?.replace(/\s*\(.*?\)\s*$/, '') || '',
+                    legalFee: lf,
+                    legalFeePercentage: legalPct,
+                    agencyFee: af,
+                    agencyFeePercentage: agencyPct
+                };
+            }) as any[];
+            if (refreshedUnits.length > 0) {
+                setUnitsData(refreshedUnits);
+                // Update numberOfUnits to match
+                setNumberOfUnits(refreshedUnits.length);
+                setUnitsInputStr(String(refreshedUnits.length));
+            }
+        }
+    }, [coreState.properties, propertyToEdit]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Keep units array in sync with numberOfUnits
     useEffect(() => {
         setUnitsData(prev => {

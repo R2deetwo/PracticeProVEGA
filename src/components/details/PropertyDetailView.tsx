@@ -1585,9 +1585,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     </span>
                                                                 </Tooltip>
                                                             ) : (
-                                                                <span className="text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
-                                                                    Vacant
-                                                                </span>
+                                                                // DEDUP FIX: when uStatus is 'Vacant', the top-right badge
+                                                                // already shows 'VACANT'. Don't show a duplicate here.
+                                                                // Only show the fallback badge for non-vacant units that
+                                                                // don't have a statusBadge (e.g. occupied but missing data).
+                                                                uStatus !== 'Vacant' ? (
+                                                                    <span className="text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+                                                                        {uStatus}
+                                                                    </span>
+                                                                ) : null
                                                             )}
                                                             <div className="relative" ref={menuOpen ? unitMenuRef : undefined}>
                                                                 <button
@@ -1607,7 +1613,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-2xs font-bold uppercase tracking-wider"
                                                                     aria-expanded={menuOpen}
                                                                 >
-                                                                    <CogIcon className="w-3.5 h-3.5" />
+                                                                    {/* Gear icon removed — replaced with a simpler 3-dot menu icon */}
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
+                                                                    </svg>
                                                                 </button>
                                                                 
                                                                 {openUnitMenuPos && menuOpen && (
@@ -1759,9 +1768,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit">
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
-                                                                    {/* More button — reveals full detail card */}
+                                                                    {/* More button — reveals full detail card.
+                                                                        Gear icon removed per user request — just text now. */}
                                                                     <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details & more actions" title="Full unit details & more actions">
-                                                                        <CogIcon className="w-3 h-3" /> {showFullUnitDetail ? 'Less' : 'More'}
+                                                                        {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
                                                                 </div>
 
@@ -1822,9 +1832,42 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                         Paused
                                                                                     </span>
                                                                                 )}
-                                                                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 dark:bg-zinc-800 text-slate-600'}`}>
-                                                                                    {String(unit.status || 'Vacant')}
-                                                                                </span>
+                                                                                {/* INTERACTIVE STATUS BADGE — clicking opens a quick
+                                                                                    status dropdown for direct occupancy editing.
+                                                                                    No need to open the full Edit Property modal. */}
+                                                                                <div className="relative">
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            // Toggle a simple status dropdown
+                                                                                            const el = e.currentTarget.nextElementSibling as HTMLElement;
+                                                                                            if (el) el.classList.toggle('hidden');
+                                                                                        }}
+                                                                                        className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide cursor-pointer hover:ring-2 hover:ring-primary-500/30 transition-all ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 dark:bg-zinc-800 text-slate-600'}`}
+                                                                                        title="Click to change status"
+                                                                                    >
+                                                                                        {String(unit.status || 'Vacant')} ▾
+                                                                                    </button>
+                                                                                    <div className="hidden absolute right-0 top-full mt-1 z-50 w-40 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg">
+                                                                                        {(['Occupied', 'Vacant', 'Maintenance', 'Listed'] as const).map(s => (
+                                                                                            <button
+                                                                                                key={s}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
+                                                                                                    updateItem('properties', { ...full, status: s }, 'Property');
+                                                                                                    addToast(`${d.name} marked as ${s}`, { type: 'success' });
+                                                                                                    // Hide dropdown
+                                                                                                    const el = e.currentTarget.parentElement as HTMLElement;
+                                                                                                    if (el) el.classList.add('hidden');
+                                                                                                }}
+                                                                                                className={`block w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-700 ${String(unit.status || 'Vacant') === s ? 'text-primary-600 dark:text-primary-400 font-bold' : 'text-slate-600 dark:text-zinc-300'}`}
+                                                                                            >
+                                                                                                {s}
+                                                                                            </button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
 
