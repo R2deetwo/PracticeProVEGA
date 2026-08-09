@@ -170,49 +170,12 @@ const PropertyDetailViewContent: React.FC = () => {
         }
     }, [currentHistoryEntry?.context]);
 
-    // AUTO-EXPAND target unit — when targetUnitId is set and we're on the
-    // Units tab, find the matching unit and expand its drawer. Scroll it
-    // into view smoothly. If targetUnitId is 'overdue' or empty, expand
-    // the first unit with unpaid/partial rent status.
-    //
-    // FIX: was referencing `units` (not defined in component scope — only
-    // exists inside the useMemo at line 248). Changed to `allUnits` which
-    // IS returned from the useMemo and available in component scope.
-    useEffect(() => {
-        if (activeTab !== 'units' || !highlightTarget) return;
-        if (!allUnits || !Array.isArray(allUnits)) return;
-
-        // Try to find the specific target unit first
-        let targetUnit: Property | undefined;
-        if (targetUnitId) {
-            targetUnit = allUnits.find((u: Property) =>
-                u.id === targetUnitId || String(u.id) === String(targetUnitId)
-            );
-        }
-
-        // Fallback: if no specific unit found, find the first unit with
-        // unpaid/partial rent (overdue indicator)
-        if (!targetUnit && (highlightTarget === 'overdue' || !targetUnitId)) {
-            targetUnit = allUnits.find((u: Property) => {
-                const rd = (u.rentalDetails || u) as any;
-                const scStatus = rd.serviceChargeStatus || rd.serviceChargeStatus;
-                return scStatus === 'UNPAID' || scStatus === 'unpaid' || scStatus === 'PARTIALLY_PAID';
-            });
-        }
-
-        if (targetUnit) {
-            setSelectedUnit(targetUnit);
-            // Scroll into view after a short delay (let the drawer expand)
-            setTimeout(() => {
-                const el = document.querySelector(`[data-unit-id="${targetUnit!.id}"]`);
-                if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 300);
-            // Clear after expansion so it doesn't re-trigger
-            setTargetUnitId(null);
-        }
-    }, [targetUnitId, activeTab, allUnits, highlightTarget]);
+    // AUTO-EXPAND target unit — MOVED to after the useMemo that defines
+    // allUnits (see below). Previously this useEffect was BEFORE the
+    // useMemo, causing a Temporal Dead Zone (TDZ) error:
+    //   ReferenceError: Cannot access 'm' before initialization
+    // because `allUnits` is a const that's accessed before its
+    // declaration is evaluated.
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -342,6 +305,51 @@ const PropertyDetailViewContent: React.FC = () => {
     const isSale = property?.category === 'Property For Sale';
     const hasMultipleUnits = allUnits.length > 1 || ((property as any)?.units?.length > 0);
     const isDisputed = property?.category === 'Disputed Property';
+
+    // AUTO-EXPAND target unit — when targetUnitId is set and we're on the
+    // Units tab, find the matching unit and expand its drawer. Scroll it
+    // into view smoothly. If targetUnitId is 'overdue' or empty, expand
+    // the first unit with unpaid/partial rent status.
+    //
+    // This MUST be placed AFTER the useMemo that defines `allUnits` (above).
+    // Previously it was placed BEFORE the useMemo, causing a TDZ error:
+    //   ReferenceError: Cannot access 'm' before initialization
+    // because `allUnits` is a const accessed before its declaration.
+    useEffect(() => {
+        if (activeTab !== 'units' || !highlightTarget) return;
+        if (!allUnits || !Array.isArray(allUnits)) return;
+
+        // Try to find the specific target unit first
+        let targetUnit: Property | undefined;
+        if (targetUnitId) {
+            targetUnit = allUnits.find((u: Property) =>
+                u.id === targetUnitId || String(u.id) === String(targetUnitId)
+            );
+        }
+
+        // Fallback: if no specific unit found, find the first unit with
+        // unpaid/partial rent (overdue indicator)
+        if (!targetUnit && (highlightTarget === 'overdue' || !targetUnitId)) {
+            targetUnit = allUnits.find((u: Property) => {
+                const rd = (u.rentalDetails || u) as any;
+                const scStatus = rd.serviceChargeStatus || rd.serviceChargeStatus;
+                return scStatus === 'UNPAID' || scStatus === 'unpaid' || scStatus === 'PARTIALLY_PAID';
+            });
+        }
+
+        if (targetUnit) {
+            setSelectedUnit(targetUnit);
+            // Scroll into view after a short delay (let the drawer expand)
+            setTimeout(() => {
+                const el = document.querySelector(`[data-unit-id="${targetUnit!.id}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 300);
+            // Clear after expansion so it doesn't re-trigger
+            setTargetUnitId(null);
+        }
+    }, [targetUnitId, activeTab, allUnits, highlightTarget]);
 
     // Reset active tab if the current tab's render condition becomes false
     // (e.g., user was on 'units' tab but property lost its leased status)
