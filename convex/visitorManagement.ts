@@ -142,7 +142,14 @@ export const generateVisitorToken = mutation({
     const expiresAt = visitStart.getTime() + args.expiryWindowHours * 60 * 60 * 1000;
 
     const now = Date.now();
-    const gracePeriodMinutes = 30; // default grace period
+    // Read grace period from portal settings (admin-configurable).
+    // Previously hardcoded to 30 minutes — now honors the admin setting
+    // from PortalAccessSettings (vmsGracePeriodMinutes).
+    const portalSettings = await ctx.db
+      .query("portal_settings")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+    const gracePeriodMinutes = portalSettings?.vmsGracePeriodMinutes ?? 30;
 
     const tokenId = await ctx.db.insert("visitor_tokens", {
       firmId: args.firmId,

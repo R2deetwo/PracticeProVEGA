@@ -361,7 +361,12 @@ const TenantPortal: React.FC = () => {
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
-    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" /> },
+    // VMS ENABLED CHECK — Visitors tab only shows when admin has enabled VMS
+    // in Portal Settings. Previously this was always shown, allowing residents
+    // to generate visitor codes even when the feature was disabled.
+    ...(portalSettings?.vmsEnabled ? [
+      { id: 'visitors' as TabId, label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" /> },
+    ] : []),
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },

@@ -123,6 +123,7 @@ import NotFoundView from './NotFoundView';
 import ClientPortalLogin from './portal/ClientPortalLogin';
 import TenantPortalLogin from './portal/TenantPortalLogin';
 import SetupPassword from './portal/SetupPassword';
+import { GatekeeperInterface } from './portal/GatekeeperInterface';
 import WhatsNew from './WhatsNew';
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
@@ -427,12 +428,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     </div>
                 )}
                 {currentUser ? renderView() : <div>Loading...</div>}
-                {/* Version refresh banner — also shown in editor mode so the
-                    user sees the "Refresh to Update" floater even when they're
-                    in DraftPro. Previously this was missing from the editor
-                    early-return, so users in DraftPro never saw the prompt. */}
-                <VersionRefreshBanner />
-                <ApkUpdateBanner />
+                {/* Banners removed from editor mode — they're already rendered
+                    in the outer wrapper (lines ~1431-1435) with proper auth
+                    gating. Having them here too caused duplicate banners. */}
                 {/* FIX: Render AloaFAB and AloaPanel in editor mode so users
                     can return to their Aloa conversation after drafting.
                     Previously these were unmounted in editor mode, leaving
@@ -714,7 +712,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password'];
+        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
 
         // TASK 15: Redirect authenticated users away from landing-page routes
         // (/vega, /atrium, /komplet) to the dashboard. These routes are for
@@ -1090,6 +1088,12 @@ export const App: React.FC = () => {
             return <TenantPortalLogin />;
         }
         if (location.pathname === '/setup-password') return <SetupPassword />;
+
+        // GATEHOUSE ROUTE — public, unauthenticated access for security
+        // guards / gate operators. The GatekeeperInterface allows verification
+        // of visitor access codes without requiring a full PracticePro login.
+        // This is the missing wiring that makes the VMS feature usable end-to-end.
+        if (location.pathname === '/gatehouse') return <GatekeeperInterface />;
 
         if (!currentUser && !isLoadingSession) {
             // Check if a portal user session is being restored — if so, show a loading
