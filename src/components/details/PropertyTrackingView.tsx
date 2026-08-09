@@ -426,7 +426,16 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                             </div>
                         </div>
 
-                        {/* ─── Days Left ────────────────────────────────────────── */}
+                        {/* ─── Days Left ──────────────────────────────────────────
+                          LAYOUT FIX per user request:
+                            • "Ends: [date]" moved ABOVE the number (was below)
+                            • Number ("401 Days") moved to the BOTTOM of the card
+                              so it aligns on the same baseline as the primary
+                              values in the other 3 cards (Next Rent Due date,
+                              Rent Review date, Maintenance count).
+                            All 4 cards use flex-col justify-between, so the
+                            top element (label) and bottom element (primary
+                            value) sit on identical baselines across the row. */}
                         <div
                             className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between cursor-pointer hover:border-blue-300 transition-colors group"
                             onClick={() => {
@@ -441,19 +450,20 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                             <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-blue-600">
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
+                            {/* Top: label */}
                             <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase flex items-center gap-1 relative z-10">
                                 Days Left <PencilSquareIcon className="w-3 h-3" />
                             </p>
-                            <div className="relative z-10">
-                                <p className={`text-base sm:text-lg font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
-                                    {daysLeft !== null ? (daysLeft < 0 ? `${Math.abs(daysLeft)} Overdue` : `${daysLeft} Days`) : 'N/A'}
+                            {/* Middle: "Ends: [date]" — moved above the number */}
+                            {property.rentalDetails?.leaseEnd && (
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400 whitespace-nowrap overflow-hidden text-ellipsis relative z-10">
+                                    Ends: {formatDateShort(property.rentalDetails.leaseEnd)}
                                 </p>
-                                {property.rentalDetails?.leaseEnd && (
-                                    <p className="text-2xs text-slate-500 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
-                                        Ends: {formatDateShort(property.rentalDetails.leaseEnd)}
-                                    </p>
-                                )}
-                            </div>
+                            )}
+                            {/* Bottom: primary number — aligns with other cards' values */}
+                            <p className={`text-base sm:text-lg font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis relative z-10 ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
+                                {daysLeft !== null ? (daysLeft < 0 ? `${Math.abs(daysLeft)} Overdue` : `${daysLeft} Days`) : 'N/A'}
+                            </p>
                         </div>
 
                         {/* ─── Rent Review ──────────────────────────────────────── */}
