@@ -453,12 +453,16 @@ export const BroadcastConsole: React.FC = () => {
                 </div>
 
                 {/* Message Composer */}
-                <div className={CARD} id="broadcast-creator">
-                    <div className="flex items-center justify-between mb-3">
+                <div className={CARD + ' w-full max-w-full overflow-hidden'} id="broadcast-creator">
+                    {/* VERTICAL STACKING FIX — label and template picker now
+                        stack vertically (was flex-row justify-between which
+                        overflowed on mobile). Per spec:
+                          Top Line: MESSAGE label (uppercase, muted)
+                          Second Line: Full-width template dropdown */}
+                    <div className="flex flex-col gap-2 items-start w-full mb-3">
                         <p className={LABEL + ' mb-0'}>Message</p>
-                        {/* CRO AUDIT FIX — TEMPLATE LIBRARY DROPDOWN.
-                            Quick-fill presets for common broadcast types. */}
-                        <div className="relative">
+                        {/* Template picker — full width, no overflow */}
+                        <div className="relative w-full">
                             <select
                                 onChange={(e) => {
                                     const val = e.target.value;
@@ -493,7 +497,7 @@ export const BroadcastConsole: React.FC = () => {
                                     }
                                     e.target.value = '';  // reset dropdown
                                 }}
-                                className="px-2 py-1 text-2xs font-bold bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-600 dark:text-slate-400 focus:ring-1 focus:ring-primary-500 cursor-pointer"
+                                className="w-full h-10 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-600 dark:text-slate-400 focus:ring-1 focus:ring-primary-500 cursor-pointer"
                                 defaultValue=""
                             >
                                 <option value="" disabled>📋 Load Template...</option>

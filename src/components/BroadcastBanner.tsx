@@ -316,6 +316,7 @@ export const BroadcastBanner: React.FC = () => {
             // pulse the specific overdue invoice/ledger row.
             const firstOverdue = overdueEntries[0];
             const targetPropertyId = firstOverdue?.propertyId || firstOverdue?.property || null;
+            const targetUnitId = firstOverdue?.unitId || firstOverdue?.unit || null;
             const highlightId = firstOverdue?._id || firstOverdue?.id || null;
             banners.push({
                 _id: `system_overdue_rent`,
@@ -324,10 +325,11 @@ export const BroadcastBanner: React.FC = () => {
                 message: `Attention: You have ${overdueCount} overdue rent payment(s) pending review.`,
                 type: 'broadcast_warning',
                 persistenceMode: 'permanent',
-                // If we have a specific property ID, deep-link to it with
-                // a highlight param. Otherwise fall back to the properties list.
+                // DEEP-LINK PAYLOAD — includes propertyId + unitId + targetUnit
+                // so PropertyDetailView can auto-expand the specific unit drawer.
+                // Routes to /properties/[id]?tab=units&targetUnit=[unitId]&highlight=[id]
                 deepLink: targetPropertyId
-                    ? `properties/${targetPropertyId}?tab=financials&highlight=${highlightId || 'overdue'}`
+                    ? `properties/${targetPropertyId}?tab=units&targetUnit=${targetUnitId || ''}&highlight=${highlightId || 'overdue'}`
                     : 'properties',
                 targetProduct: userProduct,
                 isSystem: true,

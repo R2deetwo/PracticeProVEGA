@@ -137,11 +137,15 @@ const PropertyDetailViewContent: React.FC = () => {
 
     // ─── Deep-link context handling ───────────────────────────────────
     // When navigated from a notification banner (e.g. "OVERDUE RENT"),
-    // the context carries `tab` (which property tab to open) and
-    // `highlight` (the ID of the specific row/item to pulse-highlight).
-    // This effect reads those params and activates the right tab + sets
-    // a temporary highlight state that pulses the target row.
+    // the context carries `tab` (which property tab to open),
+    // `targetUnit` (the unit ID to auto-expand), and `highlight` (the
+    // ID of the specific row/item to pulse-highlight).
+    // This effect reads those params and:
+    //   1. Activates the right tab
+    //   2. Sets highlightTarget for the pulse animation
+    //   3. Auto-expands the target unit's drawer + scrolls to it
     const [highlightTarget, setHighlightTarget] = useState<string | null>(null);
+    const [targetUnitId, setTargetUnitId] = useState<string | null>(null);
     useEffect(() => {
         const ctx = currentHistoryEntry?.context as any;
         if (ctx?.tab) {
@@ -150,13 +154,38 @@ const PropertyDetailViewContent: React.FC = () => {
                 setActiveTab(tab);
             }
         }
+        if (ctx?.targetUnit) {
+            setTargetUnitId(ctx.targetUnit);
+        }
         if (ctx?.highlight) {
             setHighlightTarget(ctx.highlight);
-            // Clear the highlight after 5 seconds
             const timer = setTimeout(() => setHighlightTarget(null), 5000);
             return () => clearTimeout(timer);
         }
     }, [currentHistoryEntry?.context]);
+
+    // AUTO-EXPAND target unit — when targetUnitId is set and we're on the
+    // Units tab, find the matching unit and expand its drawer. Scroll it
+    // into view smoothly.
+    useEffect(() => {
+        if (!targetUnitId || activeTab !== 'units') return;
+        // Find the target unit in the units list
+        const targetUnit = units.find((u: Property) =>
+            u.id === targetUnitId || String(u.id) === String(targetUnitId)
+        );
+        if (targetUnit) {
+            setSelectedUnit(targetUnit);
+            // Scroll into view after a short delay (let the drawer expand)
+            setTimeout(() => {
+                const el = document.querySelector(`[data-unit-id="${targetUnitId}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 300);
+            // Clear after expansion so it doesn't re-trigger
+            setTargetUnitId(null);
+        }
+    }, [targetUnitId, activeTab, units]);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -505,18 +534,31 @@ const PropertyDetailViewContent: React.FC = () => {
     };
 
     const handleInitializeMatter = async (unit?: any, force = false) => {
-        // If matters already exist, ask for confirmation
-        const existingCount = unit 
-            ? matterState.matters.filter(m => m.specialtyData?.realEstate?.propertyId === property.id && m.title.includes(unit.name)).length
-            : linkedMatters.length;
+        // DEDUP SAFEGUARD — check for existing active matters matching
+        // this unit or property before creating a duplicate.
+        const existingMatters = unit
+            ? matterState.matters.filter(m =>
+                m.specialtyData?.realEstate?.propertyId === property.id &&
+                (m.title.includes(unit.name) || m.specialtyData?.realEstate?.unitId === unit.id)
+              )
+            : linkedMatters;
+        const existingCount = existingMatters.length;
 
         if (existingCount > 0 && !force) {
+            const existingMatter = existingMatters[0];
+            const matterTitle = existingMatter?.title || 'Untitled';
+            const unitOrPropertyName = unit ? unit.name : property.address.split(',')[0];
             openModal('deleteConfirmation', property.id, {
-                title: "Matter Already Exists",
-                message: `There ${existingCount === 1 ? 'is' : 'are'} already ${existingCount} active matter(s) for this ${unit ? 'unit' : 'property'}. Do you want to initiate a new, separate matter?`,
+                title: "Active Legal Matter Exists",
+                message: `An active legal file (${matterTitle}) is already open for ${unitOrPropertyName}.`,
                 onConfirm: () => handleInitializeMatter(unit, true),
-                confirmText: "Initialize New Matter",
-                cancelText: "View Existing"
+                confirmText: "Create Additional Matter",
+                cancelText: "Open Existing Matter",
+                onCancel: () => {
+                    if (existingMatter) {
+                        navigateTo('matterDetail', existingMatter.id);
+                    }
+                },
             });
             return;
         }
@@ -524,7 +566,6 @@ const PropertyDetailViewContent: React.FC = () => {
         // Prepare strict context for the new matter
         const addressPart = property.address.split(',')[0];
 
-        // For embedded units, rental data lives in rentalDetails; for standalone properties it's top-level
         const unitRental = unit ? (unit.rentalDetails || unit) : null;
         const unitName = unit
             ? (unit.name || unit.address || unitRental?.unitName || '')
@@ -534,9 +575,14 @@ const PropertyDetailViewContent: React.FC = () => {
         const unitTenantEmail = unitRental?.tenantEmail || '';
         const unitLeaseEnd = unitRental?.leaseEndDate || unitRental?.leaseEnd || '';
 
+        // NAMING CONVENTION FIX — clean title without duplicate address.
+        // Format: Tenancy: [Address Short] — [Unit Name] ([Tenant Name])
+        // Example: Tenancy: No.20 Westsyde Drive — Unit 2 (Samuel Oluwasegun)
+        // Was: Tenancy: No.20 Westsyde Drive — No.20 Westsyde Drive [Samuel Oluwasegun]
+        // (duplicate address + square brackets for tenant name)
         const matterTitle = isSale
-            ? `Sale: ${addressPart} ${unitName ? `(${unitName})` : ''}`
-            : `Tenancy: ${addressPart}${unitName ? ` — ${unitName}` : ''}${unitTenantName ? ` [${unitTenantName}]` : ''}`;
+            ? `Sale: ${addressPart}${unitName ? ` — ${unitName}` : ''}${unitTenantName ? ` (${unitTenantName})` : ''}`
+            : `Tenancy: ${addressPart}${unitName ? ` — ${unitName}` : ''}${unitTenantName ? ` (${unitTenantName})` : ''}`;
 
         const matterType = 'Real Estate';
         const subCategory = isSale ? 'Acquisition' : 'Lease/Tenancy';
@@ -1341,6 +1387,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 return (
                                                     <div
                                                         key={unit.id}
+                                                        data-unit-id={unit.id}
                                                         ref={isSelected ? (el: HTMLDivElement | null) => { /* removed scrollIntoView — caused scroll bounce when expanding unit details */ } : undefined}
                                                         onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}

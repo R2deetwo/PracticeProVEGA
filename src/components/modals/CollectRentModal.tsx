@@ -54,7 +54,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
   const { financeState } = useFinanceState();
-  const { updateItem, handleGenerateInvoice, logActivity } = useDataActions();
+  const { updateItem, handleGenerateInvoice, logActivity, addItem } = useDataActions();
   const { addToast, modalContext } = useUI();
   const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
 
@@ -225,6 +225,41 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
       // 4. Automatically trigger receipt generation — FULL amount, no deductions
       handleDownloadTenantReceipt(true);
+
+      // 5. DOCUMENT CROSS-PERSISTENCE — auto-save a document record
+      // linking the receipt to both the property and any linked legal
+      // matter. Previously, receipts were only downloadable as PDFs but
+      // never persisted to the documents table, so they didn't appear
+      // in the matter's Documents tab. Now they do.
+      try {
+        const linkedMatter = matterState.matters.find(m =>
+          m.specialtyData?.realEstate?.propertyId === property.id ||
+          m.title.includes(property.address.split(',')[0])
+        );
+        const receiptDocRecord = {
+          firmId: property.firmId || coreState.firmDetails?.id || '',
+          title: `Rent Receipt — ${unitDisplayLabel} (${new Date(paymentDate).toLocaleDateString('en-GB')})`,
+          matter: linkedMatter ? { id: linkedMatter.id, title: linkedMatter.title } : undefined,
+          matterId: linkedMatter?.id,
+          propertyId: property.id,
+          categoryId: 'receipts',
+          dateFiled: paymentDate,
+          assignedUsers: [],
+          file: {
+            name: `Receipt_${receiptNumber || `REC-${Date.now()}`}.pdf`,
+            type: 'application/pdf',
+            size: 0,
+            dataUrl: '', // PDF is generated client-side; record serves as index
+          },
+          source: 'generated' as const,
+          uploadedBy: 'system',
+          createdAt: new Date().toISOString(),
+        };
+        await addItem('documents', receiptDocRecord, 'Rent Receipt');
+      } catch (docError: any) {
+        console.error('[CollectRentModal] Failed to persist receipt document record:', docError);
+        // Non-blocking — receipt PDF was still generated and downloaded
+      }
 
       addToast(`Rent receipt issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, { type: 'success' });
       onClose();

@@ -41,17 +41,20 @@ export const FeedbackInbox: React.FC = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
 
-    const feedback = useQuery(api.feedback.getFeedbackList,
+    // SAFE DATA FETCHING — useQuery can return undefined (loading),
+    // null (error on mobile APK), or an array. We guard all cases.
+    // Previously, if the query threw (e.g., auth header missing on APK),
+    // the component crashed because `feedback.map()` was called on
+    // undefined. Now we default to [] and show an error state.
+    const feedbackResult = useQuery(api.feedback.getFeedbackList,
         statusFilter === 'all'
             ? { category: categoryFilter }
             : { status: statusFilter, category: categoryFilter });
 
-    const adminReply = useMutation(api.feedback.adminReplyToFeedback);
-    const updateStatus = useMutation(api.feedback.updateFeedbackStatus);
-    const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
-
-    const isLoading = feedback === undefined;
-    const filtered = feedback || [];
+    // Safe array — never undefined, never null
+    const filtered: any[] = Array.isArray(feedbackResult) ? feedbackResult : [];
+    const isLoading = feedbackResult === undefined;
+    const hasError = feedbackResult === null || (feedbackResult && !Array.isArray(feedbackResult));
     const selected = selectedId ? filtered.find((f: any) => f._id === selectedId) : null;
 
     const handleReply = async () => {
@@ -131,7 +134,27 @@ export const FeedbackInbox: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
-                {isLoading ? (
+                {/* ERROR STATE — query returned null or threw (mobile APK auth issue).
+                    Shows a graceful fallback instead of crashing to the ErrorBoundary. */}
+                {hasError ? (
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
+                        <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-3">
+                            <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                            </svg>
+                        </div>
+                        <p className="text-sm font-bold text-slate-700 dark:text-zinc-200 mb-1">Unable to load feedback</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                            There was a problem fetching feedback. This may be a network or authentication issue.
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                ) : isLoading ? (
                     <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
                         <div className="w-8 h-8 mx-auto border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
                         <p className="text-sm text-slate-400 mt-3">Loading feedback...</p>
