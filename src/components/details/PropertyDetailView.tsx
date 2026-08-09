@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel } from '../../types';
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon, TrashIcon } from '../../constants';
-import { formatNaira, normalizeAddress } from '../../utils/formatting';
+import { formatNaira, formatNairaCompact, formatNairaFull, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
@@ -1782,12 +1782,52 @@ const PropertyDetailViewContent: React.FC = () => {
                                     return st === 'UNPAID' || st === 'unpaid';
                                 }).length;
                                 const totalAnnual = allRent + allServiceCharge;
+                                // SPEC COMPLIANCE — Financials refactor spec:
+                                //  • Card titles use the exact spec labels:
+                                //      TOTAL ANNUAL RENT, RECURRING REVENUE,
+                                //      SERVICE CHARGES, COLLECTION STATUS
+                                //    (Previously: "SERVICE CHARGE COLLECTED" — too long,
+                                //     caused truncation. Now matches spec.)
+                                //  • Monetary values use COMPACT display (₦17.4M) so
+                                //    they never overflow the card width.
+                                //  • Full-figure tooltip (₦17,400,000.00) shows on hover/tap
+                                //    via <Tooltip> wrapping the value.
+                                //  • COLLECTION STATUS uses scrollOnOverflow so the long
+                                //    status string auto-marquees when it doesn't fit.
+                                //    The card-level `title` attribute also carries the full
+                                //    text as a fallback for non-marquee users.
+                                const collectionStatusText = `${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`;
                                 return (
                                     <>
-                                        <StatCard title="TOTAL ANNUAL RENT" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<Receipt />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
-                                        <StatCard title="RECURRING REVENUE" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<Receipt />} colorClass="bg-blue-600" scrollOnOverflow={true} />
-                                        <StatCard title="SERVICE CHARGE COLLECTED" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
-                                        <StatCard title="COLLECTION STATUS" value={`${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'} scrollOnOverflow={true} />
+                                        <StatCard
+                                            title="TOTAL ANNUAL RENT"
+                                            value={formatNairaCompact(totalAnnual)}
+                                            tooltipText={formatNairaFull(totalAnnual)}
+                                            icon={<Receipt />}
+                                            colorClass="bg-emerald-600"
+                                        />
+                                        <StatCard
+                                            title="RECURRING REVENUE"
+                                            value={formatNairaCompact(allRent)}
+                                            tooltipText={formatNairaFull(allRent)}
+                                            icon={<Receipt />}
+                                            colorClass="bg-blue-600"
+                                        />
+                                        <StatCard
+                                            title="SERVICE CHARGES"
+                                            value={formatNairaCompact(allServiceCharge)}
+                                            tooltipText={formatNairaFull(allServiceCharge)}
+                                            icon={<Receipt />}
+                                            colorClass="bg-amber-600"
+                                        />
+                                        <StatCard
+                                            title="COLLECTION STATUS"
+                                            value={collectionStatusText}
+                                            tooltipText={collectionStatusText}
+                                            scrollOnOverflow={true}
+                                            icon={<CheckCircleIcon />}
+                                            colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'}
+                                        />
                                     </>
                                 );
                             })()}

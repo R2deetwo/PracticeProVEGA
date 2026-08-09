@@ -27,6 +27,98 @@ export const formatNaira = (amount: number | string): string => {
 };
 
 /**
+ * Compact Naira formatter for tight card layouts where a full
+ * "17,400,000.00" would overflow. Returns strings like:
+ *   ₦0.00, ₦1,234, ₦17.4M, ₦2.1B
+ *
+ * Use this for the *displayed* value inside StatCards; pair it with
+ * `formatNaira()` (full version) inside a <Tooltip> so the user can
+ * hover/tap to see the exact kobo figure.
+ *
+ * @param amount The number to format (accepts string inputs too).
+ * @param opts.withSymbol If true (default), prefixes with ₦.
+ */
+export const formatNairaCompact = (
+  amount: number | string,
+  opts: { withSymbol?: boolean } = {}
+): string => {
+  const { withSymbol = true } = opts;
+  const sym = withSymbol ? '₦' : '';
+  const num =
+    typeof amount === 'string' ? parseFloat(amount.replace(/[^0-9.-]/g, '')) : amount;
+  if (typeof num !== 'number' || isNaN(num)) return `${sym}0.00`;
+
+  const abs = Math.abs(num);
+  const sign = num < 0 ? '-' : '';
+
+  if (abs >= 1_000_000_000) {
+    // ₦2.13B  — 2 decimals, strip trailing .00
+    return `${sign}${sym}${(abs / 1_000_000_000).toFixed(2).replace(/\.00$/, '')}B`;
+  }
+  if (abs >= 1_000_000) {
+    // ₦17.4M  — 1 decimal, strip trailing .0
+    return `${sign}${sym}${(abs / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (abs >= 100_000) {
+    // ₦340K  — no decimals above 100K to keep width tight
+    return `${sign}${sym}${Math.round(abs / 1_000)}K`;
+  }
+  if (abs >= 1_000) {
+    // ₦1,234  — comma-separated, no decimals
+    return `${sign}${sym}${Math.round(abs).toLocaleString('en-US')}`;
+  }
+  // Below ₦1,000 — show kobo
+  return `${sign}${sym}${num.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+/**
+ * Returns the full-form Naira figure used inside tooltips — always
+ * down to the kobo, never abbreviated. e.g. "₦17,400,000.00".
+ *
+ * This is the companion to `formatNairaCompact` so the displayed
+ * compact value can always be hovered/tapped to reveal the exact
+ * untruncated amount.
+ */
+export const formatNairaFull = (amount: number | string): string => {
+  const num =
+    typeof amount === 'string' ? parseFloat(amount.replace(/[^0-9.-]/g, '')) : amount;
+  if (typeof num !== 'number' || isNaN(num)) return '₦0.00';
+  return `₦${num.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+/**
+ * Formats an ISO date string / Date as "15 Sep 2027".
+ *
+ * Spec: Activity & Tracking refactor — "Format dates as clean,
+ * untruncated strings (15 Sep 2027 instead of 15/0...)".
+ *
+ * Replaces the previous `toLocaleDateString('en-GB')` call which
+ * produced "15/09/2027" — that string truncated to "15/0..." inside
+ * the narrow activity card and was unreadable.
+ *
+ * @param date ISO date string or Date object. Empty/null returns ''.
+ */
+export const formatDateShort = (date: string | Date | null | undefined): string => {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '';
+  // "15 Sep 2027" — day numeric, month short-abbrev, year numeric.
+  // en-GB gives "15 Sep 2027" (with no leading zero on day) which
+  // matches the spec exactly.
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+/**
  * Formats naira amounts in arbitrary text (e.g., AI chat responses).
  * Finds patterns like "₦1000000" or "N1000000" or "1000000 naira" and
  * adds commas for readability: "₦1,000,000.00".

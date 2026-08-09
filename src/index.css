@@ -1829,6 +1829,35 @@ nav,
   border-radius: 0.5rem;
 }
 
+/* ── StatCard value marquee ──────────────────────────────────────────────
+   Used by StatCard when `scrollOnOverflow` is true and the inner value
+   text is wider than the card. The text is duplicated and the track
+   slides left by 50% (which equals one full copy width) creating an
+   infinite seamless scroll. Pause-on-hover lets users stop and read.
+
+   Pause-on-hover is done via the `.group:hover .stat-marquee-track`
+   selector below so the animation pauses when the entire card is
+   hovered, not just the text — this matches the user expectation that
+   "hovering the card freezes the ticker".
+
+   `prefers-reduced-motion` (defined at the bottom of this file)
+   collapses the animation to 0.01ms, so vestibular-sensitive users
+   just see the truncated text without movement. */
+@keyframes stat-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.stat-marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: stat-marquee 18s linear infinite;
+  will-change: transform;
+}
+.group:hover .stat-marquee-track,
+.stat-marquee-track:hover {
+  animation-play-state: paused;
+}
+
 /* ── Accessibility: global focus-visible + reduced-motion ───────────────
    These two rules are the user-facing half of the Phase 7 a11y pass.
    1. `:focus-visible` ensures keyboard users get a clear, high-contrast

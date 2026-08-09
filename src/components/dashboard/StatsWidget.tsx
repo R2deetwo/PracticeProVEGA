@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { MattersIcon, ContactsIcon, NairaCircleIcon } from '../../constants';
 import { Building2, ClipboardCheck } from 'lucide-react';
 import StatCard from '../StatCard';
-import { formatLargeNumber } from '../../utils/formatting';
+import Tooltip from '../Tooltip';
+import { formatLargeNumber, formatNairaFull } from '../../utils/formatting';
 import { View, UserRole, User } from '../../types';
 import { Skeleton } from '../toolkit/Skeleton';
 import { useProduct } from '../../contexts/ProductContext';
@@ -74,10 +75,14 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                 <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
             </div>
 
-            {/* Text content — flex-col justify-between, same as StatCard */}
+            {/* Text content — flex-col justify-between, same as StatCard.
+                SPEC COMPLIANCE: title is `text-[11px] font-semibold tracking-wider
+                text-slate-500 uppercase` (per Financials refactor spec) — NO truncate
+                class. Previously used `tracking-widest truncate` which caused the
+                title to render as "OUTSTANDING INVOI..." on the dashboard. */}
             <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
                 <div className="flex items-center gap-1 min-w-0">
-                    <p className="text-2xs font-bold tracking-widest text-slate-500 dark:text-zinc-400 uppercase truncate">{label}</p>
+                    <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase truncate-none">{label}</p>
                     {showTabs && (
                         <div
                             className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0"
@@ -99,7 +104,13 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                     )}
                 </div>
                 <div className="text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
-                    {isLoading ? <Skeleton width={100} height={28} /> : <span>₦{formatLargeNumber(value)}</span>}
+                    {isLoading ? (
+                        <Skeleton width={100} height={28} />
+                    ) : (
+                        <Tooltip text={formatNairaFull(value)}>
+                            <span>₦{formatLargeNumber(value)}</span>
+                        </Tooltip>
+                    )}
                 </div>
             </div>
         </div>

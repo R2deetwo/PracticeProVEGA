@@ -13,7 +13,7 @@ import {
     PencilSquareIcon,
     DownloadIcon
 } from '../../constants';
-import { formatNaira, formatNumberWithCommas, parseFormattedNumber, formatDateWithOrdinal } from '../../utils/formatting';
+import { formatNaira, formatNumberWithCommas, parseFormattedNumber, formatDateWithOrdinal, formatDateShort } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { v4 as uuidv4 } from 'uuid';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -383,30 +383,42 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {isLeased && (
                     <>
-                        {/* Next Rent Due */}
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 relative overflow-hidden min-h-[88px]">
+                        {/* ─── Next Rent Due ───────────────────────────────────────
+                          SPEC COMPLIANCE — Activity & Tracking refactor:
+                            • Container: overflow-hidden p-4 relative h-28 flex flex-col justify-between
+                            • Icon: top-right watermark (absolute top-3 right-3 opacity-20 w-5 h-5),
+                              NOT a left-side solid colored block
+                            • Date format: "15 Sep 2027" (NOT "15/0..." en-GB)
+                            • Primary date sits on the shared baseline of all 4 cards
+                            • h-28 (112px) gives enough room for title + date + status pill
+                              without truncation; previous min-h-[88px] was too tight */}
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between group">
                             {!property.rentalDetails?.leaseStart && (
                                 <button
-                                    onClick={() => { 
-                                        setAddType('lease_setup'); 
+                                    onClick={() => {
+                                        setAddType('lease_setup');
                                         setLocalRentAmount(formatNumberWithCommas(property.rentalDetails?.rentAmount || 0));
                                         setLeaseStart(property.rentalDetails?.leaseStart || '');
                                         setLeaseEnd(property.rentalDetails?.leaseEnd || '');
                                         setLeaseFrequency(property.rentalDetails?.rentFrequency || 'Annually');
-                                        setShowAddModal(true); 
+                                        setShowAddModal(true);
                                     }}
-                                    className="absolute inset-0 bg-slate-100/80 dark:bg-zinc-900/80 hover:bg-slate-100/50 flex items-center justify-center font-bold text-primary-600 transition-all z-10"
+                                    className="absolute inset-0 bg-slate-100/90 dark:bg-zinc-900/90 hover:bg-slate-100/70 flex items-center justify-center font-bold text-primary-600 transition-all z-20"
                                 >
                                     Setup Lease Terms
                                 </button>
                             )}
-                            <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600 flex-shrink-0">
+                            {/* Watermark icon — top-right, subtle */}
+                            <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-green-600">
                                 <CurrencyDollarIcon className="w-5 h-5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Next Rent Due</p>
-                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
-                                    {nextRentDueDate ? new Date(nextRentDueDate).toLocaleDateString('en-GB') : 'Not Set'}
+                            {/* Content — title at top, date+status at bottom (shared baseline) */}
+                            <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase relative z-10">
+                                Next Rent Due
+                            </p>
+                            <div className="relative z-10">
+                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                                    {nextRentDueDate ? formatDateShort(nextRentDueDate) : 'Not Set'}
                                 </p>
                                 {nextRentDueDate && daysLeft !== null && daysLeft <= 30 && (
                                     <p className="text-2xs text-orange-500 font-bold mt-0.5">Due Soon</p>
@@ -414,43 +426,47 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                             </div>
                         </div>
 
-                        {/* Days Left */}
+                        {/* ─── Days Left ────────────────────────────────────────── */}
                         <div
-                            className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 cursor-pointer hover:border-blue-300 transition-colors min-h-[88px]"
-                            onClick={() => { 
-                                setAddType('lease_setup'); 
+                            className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between cursor-pointer hover:border-blue-300 transition-colors group"
+                            onClick={() => {
+                                setAddType('lease_setup');
                                 setLocalRentAmount(formatNumberWithCommas(property.rentalDetails?.rentAmount || 0));
                                 setLeaseStart(property.rentalDetails?.leaseStart || '');
                                 setLeaseEnd(property.rentalDetails?.leaseEnd || '');
                                 setLeaseFrequency(property.rentalDetails?.rentFrequency || 'Annually');
-                                setShowAddModal(true); 
+                                setShowAddModal(true);
                             }}
                         >
-                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 flex-shrink-0">
+                            <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-blue-600">
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                    Days Left <PencilSquareIcon className="w-3 h-3" />
-                                </p>
-                                <p className={`text-base sm:text-lg font-bold mt-0.5 ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
+                            <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase flex items-center gap-1 relative z-10">
+                                Days Left <PencilSquareIcon className="w-3 h-3" />
+                            </p>
+                            <div className="relative z-10">
+                                <p className={`text-base sm:text-lg font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
                                     {daysLeft !== null ? (daysLeft < 0 ? `${Math.abs(daysLeft)} Overdue` : `${daysLeft} Days`) : 'N/A'}
                                 </p>
                                 {property.rentalDetails?.leaseEnd && (
-                                    <p className="text-2xs text-slate-500 mt-0.5">Ends: {property.rentalDetails.leaseEnd}</p>
+                                    <p className="text-2xs text-slate-500 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
+                                        Ends: {formatDateShort(property.rentalDetails.leaseEnd)}
+                                    </p>
                                 )}
                             </div>
                         </div>
 
-                        {/* Rent Review */}
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
-                            <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-600 flex-shrink-0">
+                        {/* ─── Rent Review ──────────────────────────────────────── */}
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between group">
+                            <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-amber-600">
                                 <ClockIcon className="w-5 h-5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Rent Review</p>
-                                <p className={`text-base sm:text-lg font-bold mt-0.5 ${isReviewUpcoming ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
-                                    {rentReviewDate ? new Date(rentReviewDate).toLocaleDateString('en-GB') : 'Not Set'}
+                            <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase relative z-10">
+                                Rent Review
+                            </p>
+                            <div className="relative z-10">
+                                <p className={`text-base sm:text-lg font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis ${isReviewUpcoming ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
+                                    {rentReviewDate ? formatDateShort(rentReviewDate) : 'Not Set'}
                                 </p>
                                 {isReviewUpcoming && <p className="text-2xs text-amber-500 font-black animate-pulse uppercase mt-0.5">Review Due</p>}
                             </div>
@@ -460,42 +476,42 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
 
                 {isSale && (
                     <>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
-                            <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600 flex-shrink-0">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between group">
+                            <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-green-600">
                                 <CurrencyDollarIcon className="w-5 h-5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Target Price</p>
-                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
-                                    <NairaSymbol />{formatNaira(property.saleDetails?.targetPrice || property.value || 0)}
-                                </p>
-                            </div>
+                            <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase relative z-10">
+                                Target Price
+                            </p>
+                            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis relative z-10">
+                                <NairaSymbol />{formatNaira(property.saleDetails?.targetPrice || property.value || 0)}
+                            </p>
                         </div>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
-                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 flex-shrink-0">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between group">
+                            <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-blue-600">
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Listing Age</p>
-                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
-                                    {property.saleDetails?.listingDate ? `${Math.ceil((new Date().getTime() - new Date(property.saleDetails.listingDate).getTime()) / (1000 * 3600 * 24))} Days` : 'N/A'}
-                                </p>
-                            </div>
+                            <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase relative z-10">
+                                Listing Age
+                            </p>
+                            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis relative z-10">
+                                {property.saleDetails?.listingDate ? `${Math.ceil((new Date().getTime() - new Date(property.saleDetails.listingDate).getTime()) / (1000 * 3600 * 24))} Days` : 'N/A'}
+                            </p>
                         </div>
                     </>
                 )}
 
-                {/* Maintenance — always shown */}
-                <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
-                    <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-600 flex-shrink-0">
+                {/* ─── Maintenance — always shown ───────────────────────────── */}
+                <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden relative h-28 flex flex-col justify-between group">
+                    <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-orange-600">
                         <WrenchIcon className="w-5 h-5" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Maintenance</p>
-                        <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
-                            {activeMaintenanceCount} {activeMaintenanceCount === 1 ? 'Task' : 'Tasks'}
-                        </p>
-                    </div>
+                    <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase relative z-10">
+                        Maintenance
+                    </p>
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis relative z-10">
+                        {activeMaintenanceCount} {activeMaintenanceCount === 1 ? 'Task' : 'Tasks'}
+                    </p>
                 </div>
             </div>
 
