@@ -47,9 +47,10 @@ class ErrorBoundary extends React.Component<Props, State> {
             >
                 Refresh Application
             </button>
-            {process.env.NODE_ENV === 'development' && error && (
-                <pre className="mt-8 p-4 bg-slate-200 dark:bg-black rounded text-xs text-left overflow-auto max-w-full">
+            {error && (
+                <pre className="mt-8 p-4 bg-slate-200 dark:bg-black rounded text-xs text-left overflow-auto max-w-full whitespace-pre-wrap break-all">
                     {error.toString()}
+                    {error.stack ? '\n\n' + error.stack.split('\n').slice(0, 5).join('\n') : ''}
                 </pre>
             )}
         </div>

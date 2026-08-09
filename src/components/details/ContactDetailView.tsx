@@ -38,7 +38,11 @@ const DetailItem: React.FC<{ label: string, value: React.ReactNode }> = ({ label
 const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ contactId, matters }) => {
     const { coreState } = useCoreState();
     const { documentState } = useDocumentState();
-    const { executionState } = useExecutionState();
+    // DEFENSIVE: useExecutionState() can return undefined if called outside
+    // the provider, or executionState itself could be missing properties.
+    // Optional-chain every access so this component never crashes.
+    const execCtx = useExecutionState();
+    const executionState = execCtx?.executionState ?? { tasks: [], events: [], workflows: [] };
 
     const events = React.useMemo(() => {
         const items: Array<{ id: string; type: string; title: string; subtitle?: string; timestamp: string; icon: string }> = [];
@@ -57,7 +61,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
 
         // Tasks for matters belonging to this contact
         const contactMatterIds = new Set(matters.map(m => m.id));
-        (executionState.tasks || []).forEach((t: any) => {
+        (executionState?.tasks || []).forEach((t: any) => {
             if (t.matterId && contactMatterIds.has(t.matterId)) {
                 items.push({
                     id: `task-${t.id}`,
@@ -71,7 +75,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
         });
 
         // Documents for matters belonging to this contact
-        (documentState.documents || []).forEach((d: any) => {
+        (documentState?.documents || []).forEach((d: any) => {
             if (d.matterId && contactMatterIds.has(d.matterId)) {
                 items.push({
                     id: `doc-${d.id}`,
@@ -85,8 +89,11 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
         });
 
         // Invoices for matters belonging to this contact
-        (coreState.invoices || []).forEach((inv: any) => {
-            if (inv.matter && contactMatterIds.has(inv.matter.id)) {
+        // DEFENSIVE: inv.matter could be undefined, a string, or an object
+        // depending on the data source. Guard against all cases.
+        (coreState?.invoices || []).forEach((inv: any) => {
+            const matterId = typeof inv.matter === 'object' && inv.matter ? inv.matter.id : typeof inv.matter === 'string' ? inv.matter : inv.matterId;
+            if (matterId && contactMatterIds.has(matterId)) {
                 items.push({
                     id: `invoice-${inv.id}`,
                     type: 'invoice',
@@ -100,7 +107,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
 
         // Sort by timestamp descending (most recent first)
         return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
-    }, [matters, executionState.tasks, documentState.documents, coreState.invoices]);
+    }, [matters, executionState?.tasks, documentState?.documents, coreState?.invoices]);
 
     if (events.length === 0) {
         return (
@@ -216,7 +223,7 @@ const ContactMessagesTab: React.FC<{
                                         </div>
                                         <p className="text-sm text-slate-700 dark:text-zinc-200 line-clamp-2">{msg.content}</p>
                                         <p className="text-2xs text-slate-400 mt-1">
-                                            {msg.timestamp ? new Date(msg.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                                            {(() => { try { return msg.timestamp ? new Date(msg.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : ''; } catch { return ''; } })()}
                                         </p>
                                     </div>
                                     <button
@@ -576,15 +583,25 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
 
         <div className="flex-grow overflow-y-auto p-6 custom-scrollbar bg-slate-50 dark:bg-zinc-900">
              <div className="max-w-5xl mx-auto">
-                {renderTabContent()}
-                {/* Bidirectional linking — notes that mention this contact */}
-                <BacklinksPanel
-                    entityId={contact.id}
-                    entityType="contact"
-                    entityLabel={contact.name}
-                    notes={documentState.notePages || []}
-                    navigateTo={navigateTo}
-                />
+                {/* Wrap tab content in its own ErrorBoundary so a crash in
+                    one tab (e.g. ActivityTimeline hitting unexpected data)
+                    doesn't kill the entire contact detail page. The user
+                    can still see the header, switch tabs, and use other
+                    functionality. The error is logged to console for
+                    debugging. */}
+                <ErrorBoundary>
+                    {renderTabContent()}
+                </ErrorBoundary>
+                <ErrorBoundary>
+                    {/* Bidirectional linking — notes that mention this contact */}
+                    <BacklinksPanel
+                        entityId={contact.id}
+                        entityType="contact"
+                        entityLabel={contact.name}
+                        notes={documentState.notePages || []}
+                        navigateTo={navigateTo}
+                    />
+                </ErrorBoundary>
              </div>
         </div>
       
