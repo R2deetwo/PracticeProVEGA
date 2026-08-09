@@ -488,7 +488,7 @@ const PropertyDetailViewContent: React.FC = () => {
         prompt += `- Landlord/Owner: ${owner?.name} (${owner?.address || 'Address on file'})\n`;
 
         const tenantName = display?.tenantName || property.rentalDetails?.tenantName;
-        const rentAmount = display?.rentAmount ?? property.rentalDetails?.rentAmount;
+        const rentAmount = display?.rentAmount ?? 0;
         const rentFreq = display?.rentFrequency || property.rentalDetails?.rentFrequency;
         const leaseEnd = display?.leaseEnd || property.rentalDetails?.leaseEnd;
 
@@ -531,7 +531,7 @@ const PropertyDetailViewContent: React.FC = () => {
         const addressPart = (property.address || '').split(',')[0] || 'Property';
         const display = unit ? getUnitDisplay(unit) : null;
         const tenantName = display?.tenantName || property.rentalDetails?.tenantName;
-        const rentAmount = display?.rentAmount ?? property.rentalDetails?.rentAmount;
+        const rentAmount = display?.rentAmount ?? 0;
         const leaseEnd = display?.leaseEnd || property.rentalDetails?.leaseEnd;
 
         const meta: Record<string, string> = {
@@ -979,8 +979,14 @@ const PropertyDetailViewContent: React.FC = () => {
 
                                     {(isLeased || isSale || (property.value && property.value > 0)) && (
                                         <DetailItem
-                                            label={isLeased ? "Rent Amount" : (isSale ? "Target Price" : "Valuation")}
-                                            value={<><NairaSymbol />{formatNaira((isLeased ? property.rentalDetails?.rentAmount : (isSale ? property.saleDetails?.targetPrice : property.value)) || 0)} <span className="text-xs text-slate-400 font-normal">{isLeased ? '/year' : ''}</span></>}
+                                            label={isLeased ? (hasMultipleUnits ? "Total Annual Rent" : "Rent Amount") : (isSale ? "Target Price" : "Valuation")}
+                                            value={<><NairaSymbol />{formatNaira(
+                                                isLeased
+                                                    ? (hasMultipleUnits
+                                                        ? allUnits.reduce((sum: number, u: Property) => sum + Number((u.rentalDetails as any)?.rentAmount || 0), 0)
+                                                        : (property.rentalDetails?.rentAmount || 0))
+                                                    : (isSale ? property.saleDetails?.targetPrice : property.value) || 0
+                                            )} <span className="text-xs text-slate-400 font-normal">{isLeased ? '/year' : ''}</span></>}
                                         />
                                     )}
 

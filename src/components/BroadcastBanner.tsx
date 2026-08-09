@@ -402,16 +402,26 @@ export const BroadcastBanner: React.FC = () => {
             const targetUnitId = firstOverdue?.unitId || firstOverdue?.unit || null;
             const highlightId = firstOverdue?._id || firstOverdue?.id || null;
 
-            // Look up property address and tenant name for dynamic text
+            // NULL-SAFETY GUARD — validate that the target property AND unit
+            // actually exist in the database before rendering the banner.
+            // If the referenced unit is missing (deleted, orphaned, or
+            // soft-deleted), suppress the alert rather than rendering
+            // generic placeholder text or a phantom deep-link.
             const targetProperty = allProperties.find((p: any) =>
                 p.id === targetPropertyId || (p as any)._id === targetPropertyId
             );
             const targetUnit = allUnits.find((u: any) =>
                 u.id === targetUnitId || (u as any)._id === targetUnitId
             ) || targetProperty?.units?.find?.((u: any) => u.id === targetUnitId);
-            const propertyAddress = targetProperty?.address?.split(',')[0] || 'your property';
-            const tenantName = firstOverdue?.tenantName || targetUnit?.rentalDetails?.tenantName || targetUnit?.tenantName || '';
-            const unitName = targetUnit?.rentalDetails?.unitName || targetUnit?.unitName || targetUnit?.name || '';
+
+            // SUPPRESS if property doesn't exist — phantom alert
+            if (!targetProperty) {
+                // Property was deleted or orphaned — skip this banner
+                // to avoid confusing the user with a broken deep-link
+            } else {
+                const propertyAddress = targetProperty.address?.split(',')[0] || 'your property';
+                const tenantName = firstOverdue?.tenantName || targetUnit?.rentalDetails?.tenantName || targetUnit?.tenantName || '';
+                const unitName = targetUnit?.rentalDetails?.unitName || targetUnit?.unitName || targetUnit?.name || '';
 
             // Dynamic message based on count
             let message: string;
@@ -436,6 +446,7 @@ export const BroadcastBanner: React.FC = () => {
                 targetProduct: userProduct,
                 isSystem: true,
             });
+            } // end else (property exists)
         }
 
         return banners;
