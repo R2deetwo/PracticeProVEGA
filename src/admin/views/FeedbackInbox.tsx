@@ -70,6 +70,7 @@ const FeedbackInboxInner: React.FC = () => {
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // SAFE DATA FETCHING — wrapped in try/catch. If the Convex function
     // doesn't exist or throws, we default to an empty array.
@@ -95,12 +96,23 @@ const FeedbackInboxInner: React.FC = () => {
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
     const handleReply = async () => {
-        if (!selected || !replyText.trim()) return;
+        if (!selected || !replyText.trim() || isSubmitting) return;
+        // DEBOUNCE — disable the send button immediately to prevent
+        // double-click dispatches. The button stays disabled until the
+        // mutation completes (success or error).
+        setIsSubmitting(true);
         try {
+            // IDEMPOTENCY KEY — generated client-side. If the mutation is
+            // retried (e.g., network timeout), the backend checks for a
+            // reply with the same key and returns early without inserting
+            // a duplicate. This prevents the "Response test" double-message bug.
+            const idempotencyKey = `reply_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
             await adminReply({
                 feedbackId: selected._id,
                 adminId: currentUser?.email || 'founder',
                 message: replyText.trim(),
+                channelType: 'SUPPORT',
+                idempotencyKey,
             });
             try {
                 await logAdminAction({
@@ -114,6 +126,8 @@ const FeedbackInboxInner: React.FC = () => {
             setReplyText('');
         } catch (e: any) {
             addToast(e?.message || 'Failed to send reply.', { type: 'error' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -299,10 +313,13 @@ const FeedbackInboxInner: React.FC = () => {
                                     />
                                     <button
                                         onClick={handleReply}
-                                        disabled={!replyText.trim()}
-                                        className="mt-2 w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50"
+                                        disabled={!replyText.trim() || isSubmitting}
+                                        className="mt-2 w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
-                                        Send Reply (In-App + Email Notification)
+                                        {isSubmitting && (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        )}
+                                        {isSubmitting ? 'Sending...' : 'Send Reply (In-App + Email Notification)'}
                                     </button>
                                 </div>
                                 <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-zinc-700">

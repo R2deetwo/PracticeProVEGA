@@ -30,6 +30,7 @@ import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
 import { FounderBottomNav } from './FounderBottomNav';
+import ApkUpdateBanner from '../components/ApkUpdateBanner';
 import { Settings } from './views/Settings';
 import { SystemStatus } from './views/SystemStatus';
 import { ExportCenter } from './views/ExportCenter';
@@ -264,6 +265,9 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     </div>
                 ))}
             </div>
+            {/* APK Update Banner — shows on native founder APK when a new
+                build is available. Polls /version.json for apkVersionCode. */}
+            <ApkUpdateBanner />
         </ToastContext.Provider>
     );
 };

@@ -209,16 +209,39 @@ export const adminReplyToFeedback = mutation({
     feedbackId: v.id("user_feedback"),
     adminId: v.string(),
     message: v.string(),
+    // CHANNEL TYPE — extensible field for future team channels.
+    // Defaults to 'SUPPORT'. Supports: SUPPORT, FOUNDER, OPERATIONS,
+    // BILLING, CUSTOMER_RELATIONS. Rendered as a badge on the message.
+    channelType: v.optional(v.string()),
+    // IDEMPOTENCY KEY — prevents duplicate message inserts when the
+    // client retries due to network issues. If a reply with the same
+    // idempotencyKey already exists on this feedback, the mutation
+    // returns early without inserting a duplicate.
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback not found");
 
     const replies = (feedback as any).replies || [];
+
+    // DEDUPLICATION — if idempotencyKey is provided, check if a reply
+    // with the same key already exists. If so, return early without
+    // inserting a duplicate. This prevents double-messages when the
+    // client double-clicks or retries.
+    if (args.idempotencyKey) {
+      const existing = replies.find((r: any) => r.idempotencyKey === args.idempotencyKey);
+      if (existing) {
+        return { success: true, deduplicated: true };
+      }
+    }
+
     replies.push({
       adminId: args.adminId,
       message: args.message,
       timestamp: Date.now(),
+      channelType: args.channelType || 'SUPPORT',
+      idempotencyKey: args.idempotencyKey,
     });
 
     await ctx.db.patch(args.feedbackId, {

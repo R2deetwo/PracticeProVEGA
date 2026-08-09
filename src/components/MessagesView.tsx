@@ -1644,7 +1644,7 @@ const MessagesView: React.FC = () => {
                                                             markNotificationsAsRead(systemNotifs.map(n => String(n.id || n._id || '')));
                                                         }
                                                     }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-8 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500' : 'border-l-transparent'}`}
+                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all duration-200 hover:bg-emerald-950/40 hover:border-emerald-500/30 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500' : 'border-l-transparent'}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2 min-w-0">
@@ -1652,8 +1652,8 @@ const MessagesView: React.FC = () => {
                                                                 <SparklesIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">PracticePro Team</p>
-                                                                <p className="text-2xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Official Response</p>
+                                                                <p className="text-sm font-bold text-slate-100 dark:text-slate-100 font-semibold truncate">PracticePro Team</p>
+                                                                <p className="text-2xs text-emerald-400 dark:text-emerald-400 font-medium uppercase tracking-wider">Support Channel</p>
                                                             </div>
                                                         </div>
                                                         {(coreState.notifications || []).filter(n =>
@@ -2603,7 +2603,7 @@ const MessagesView: React.FC = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-sm font-bold text-slate-900 dark:text-white">PracticePro Team</h3>
-                                            <p className="text-2xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Official Support Channel</p>
+                                            <p className="text-2xs text-emerald-400 dark:text-emerald-400 font-medium uppercase tracking-wider">Support Channel</p>
                                         </div>
                                     </div>
                                     {/* Conversation thread */}
@@ -2635,7 +2635,7 @@ const MessagesView: React.FC = () => {
                                                                         <span className="text-2xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
                                                                             Founder
                                                                         </span>
-                                                                        <span className="text-2xs text-slate-400">Official Response</span>
+                                                                        <span className="text-2xs text-slate-400">Support Channel</span>
                                                                     </div>
                                                                     <div className="bg-emerald-950/30 dark:bg-emerald-950/40 backdrop-blur-sm border border-emerald-500/20 text-emerald-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                                                                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{fb.adminReply}</p>
