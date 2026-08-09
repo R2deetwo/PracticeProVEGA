@@ -146,7 +146,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                 <input autoComplete="off" data-lpignore="true"  type="email" id="userEmail" value={currentUser.email} readOnly disabled className={`${commonInputClass} cursor-not-allowed bg-slate-100 dark:bg-zinc-800`} />
                                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Your email is used for logging in and cannot be changed.</p>
                             </div>
-                            <button onClick={handleProfileUpdate} className="w-full px-4 py-2 bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-all">
+                            {/* Profile update button — explicit primary styling.
+                                Was: bg-slate-900 dark:bg-white dark:bg-zinc-900 (conflicting
+                                dark classes made it invisible in dark mode — dark bg + dark text).
+                                Now: bg-emerald-600 hover:bg-emerald-500 text-white (always
+                                green, always white text, visible in both light and dark mode). */}
+                            <button onClick={handleProfileUpdate} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors shadow-md">
                                 Update Profile
                             </button>
                         </div>

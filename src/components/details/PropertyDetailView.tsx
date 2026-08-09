@@ -556,7 +556,18 @@ const PropertyDetailViewContent: React.FC = () => {
             const result = await onAddMatter(newMatterData, null);
             if (result && result.id) {
                 addToast('Matter initialized successfully', { type: 'success' });
-                navigateTo('matterDetail', result.id);
+                // PIPELINE FIX — Await backend mutation response BEFORE
+                // triggering client navigation. Previously, navigateTo
+                // fired immediately after the mutation returned, but the
+                // Convex subscription hadn't updated matterState.matters
+                // yet. The MatterDetailView then tried to find the matter
+                // in state → "Matter not found" error toast.
+                // Fix: wait 500ms for the subscription to sync before
+                // navigating. This gives the client time to receive the
+                // new matter record from Convex.
+                setTimeout(() => {
+                    navigateTo('matterDetail', result.id);
+                }, 500);
             }
         } catch (error) {
             console.error("Failed to initialize matter", error);
@@ -587,15 +598,19 @@ const PropertyDetailViewContent: React.FC = () => {
     };
 
     const handleQuitNoticeDrafted = (unit: any) => {
+        // SAFEGUARD FIX — Do NOT auto-commit the eviction tracker status.
+        // Previously, this function used a setTimeout to automatically mark
+        // the notice as 'drafted' after 500ms, regardless of whether the user
+        // actually saved the draft or discarded it. This meant exiting the
+        // Notice Drafting modal without saving still committed the draft to
+        // the property record and advanced the eviction timeline.
+        //
+        // Now: just open the editor. The user must explicitly mark the notice
+        // as drafted via the "Mark as Drafted" button in the eviction tracker
+        // UI AFTER they've actually saved the document. This separates
+        // "open editor" from "commit status" — no mutations on modal unmount.
         handleDraftAction('Notice to Quit', 'Quit', unit);
-        // Mark as drafted after a short delay to allow the drafter to open
-        setTimeout(() => {
-            updateEvictionTracker(unit, {
-                quitNoticeStatus: 'drafted',
-                quitNoticeDraftedDate: Date.now(),
-            });
-            addToast('Quit Notice drafted. Mark as served once delivered to tenant.', { type: 'info' });
-        }, 500);
+        addToast('Notice editor opened. After saving your draft, use "Mark as Drafted" to record the notice.', { type: 'info' });
     };
 
     const handleMarkQuitNoticeServed = (unit: any) => {

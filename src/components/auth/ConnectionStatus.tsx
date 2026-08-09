@@ -213,14 +213,16 @@ const ConnectionStatus: React.FC = () => {
         onClick={() => !firmToDelete && setShowDiagnostics(false)}
       />
 
-      {/* Modal Card */}
-      <div className="relative bg-white rounded-lg shadow-2xl border border-slate-200 w-72 overflow-hidden flex flex-col z-10 max-h-[80vh]">
-        <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wide">
+      {/* Modal Card — dark mode compliant per spec:
+          bg-slate-900 border border-slate-800 in dark mode,
+          bg-white border-slate-200 in light mode. */}
+      <div className="relative bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 w-72 overflow-hidden flex flex-col z-10 max-h-[80vh]">
+        <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60">
+          <h3 className="font-bold text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wide">
             {firmToDelete ? "Delete Workspace" : "System Status"}
           </h3>
           {!firmToDelete && (
-            <button onClick={() => setShowDiagnostics(false)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setShowDiagnostics(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
               <DismissIcon className="w-4 h-4" />
             </button>
           )}
@@ -230,21 +232,21 @@ const ConnectionStatus: React.FC = () => {
           {/* DELETION CONFIRMATION VIEW */}
           {firmToDelete ? (
             <div className="space-y-4 animate-fade-in">
-              <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
-                <p className="text-xs text-red-800 font-medium">
+              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800/50 rounded-lg">
+                <p className="text-xs text-red-800 dark:text-red-200 font-medium">
                   Are you sure you want to delete <strong>{firmToDelete.displayName}</strong>? This action cannot be undone.
                 </p>
               </div>
 
               <div>
-                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">
+                <label className="block text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
                   Type "{firmToDelete.displayName}" to confirm:
                 </label>
-                <input autoComplete="off" data-lpignore="true" 
+                <input autoComplete="off" data-lpignore="true"
                   type="text"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  className="w-full p-2 text-sm border border-slate-300 rounded bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full p-2 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   placeholder={firmToDelete.displayName}
                   autoFocus
                 />
@@ -253,7 +255,7 @@ const ConnectionStatus: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   onClick={() => { setFirmToDelete(null); setDeleteConfirmation(""); }}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded"
+                  className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
                   disabled={isDeleting}
                 >
                   Cancel
@@ -274,39 +276,39 @@ const ConnectionStatus: React.FC = () => {
               {isScanning ? (
                 <div className="flex flex-col items-center py-4">
                   <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
-                  <p className="text-xs text-slate-500">Scanning database...</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Scanning database...</p>
                 </div>
               ) : scanResult ? (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500">User Account</span>
-                    <span className={scanResult.userFound ? "text-green-600 font-bold" : "text-red-500 font-bold"}>
+                    <span className="text-slate-500 dark:text-slate-400">User Account</span>
+                    <span className={scanResult.userFound ? "text-green-600 dark:text-green-400 font-bold" : "text-red-500 dark:text-red-400 font-bold"}>
                       {scanResult.userFound ? "Verified" : "Missing"}
                     </span>
                   </div>
 
-                  <div className="border-t border-slate-100 pt-3">
-                    <p className="text-2xs font-bold text-slate-400 uppercase mb-2">Workspaces</p>
+                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <p className="text-2xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">Workspaces</p>
                     {displayFirms.length > 0 ? (
                       <div className="space-y-2">
                         {displayFirms.map((firm: any) => (
-                          <div key={firm.id} className="group relative flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 hover:border-slate-300 transition-colors">
-                            <span className="text-xs font-bold truncate max-w-[140px]" title={firm.name}>{firm.displayName}</span>
+                          <div key={firm.id} className="group relative flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 rounded-lg p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-[140px]" title={firm.name}>{firm.displayName}</span>
 
                             {firm.status === 'Linked' ? (
-                              <span className="text-2xs text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">Active</span>
+                              <span className="text-2xs text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/30 px-1.5 py-0.5 rounded">Active</span>
                             ) : (
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleConnectFirm(firm.id)}
-                                  className="text-2xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                                  className="text-2xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1.5 rounded-md"
                                 >
                                   Connect
                                 </button>
                                 {/* Delete Button (Visible on Hover) */}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setFirmToDelete(firm); }}
-                                  className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                   title="Delete Workspace"
                                 >
                                   <TrashIcon className="w-3.5 h-3.5" />
@@ -317,14 +319,14 @@ const ConnectionStatus: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500 italic text-center">No workspaces found.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center">No workspaces found.</p>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <button 
-                    onClick={runScan} 
+                  <button
+                    onClick={runScan}
                     className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-6 py-2.5 rounded-lg shadow-sm transition-all"
                   >
                     {!currentUser?.email ? "Reload to Reconnect" : "Retry Scan"}
