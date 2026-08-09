@@ -47,8 +47,22 @@ function run(cmd, fallback = '') {
 // the user's code commit. GITHUB_SHA is always the commit that triggered the
 // workflow run — exactly what we want for version comparison.
 // Fall back to `git rev-parse HEAD` for local builds.
-const sha = process.env.GITHUB_SHA || run('git rev-parse HEAD', 'unknown');
-const branch = process.env.GITHUB_REF_NAME || run('git rev-parse --abbrev-ref HEAD', 'unknown');
+//
+// VERCEL FALLBACK — Vercel's build environment is NOT a git repo (the CLI
+// uploads the working tree, not the .git directory), so `git rev-parse HEAD`
+// fails with "fatal: not a git repository". Vercel sets VERCEL_GIT_COMMIT_SHA
+// automatically when deploying from a Git integration. For CLI deploys without
+// Git integration, we also accept an explicit COMMIT_SHA env var (passed via
+// `vercel --prod --env COMMIT_SHA=...` or set in the project env vars).
+const sha =
+  process.env.GITHUB_SHA ||
+  process.env.VERCEL_GIT_COMMIT_SHA ||
+  process.env.COMMIT_SHA ||
+  run('git rev-parse HEAD', 'unknown');
+const branch =
+  process.env.GITHUB_REF_NAME ||
+  process.env.VERCEL_GIT_COMMIT_REF ||
+  run('git rev-parse --abbrev-ref HEAD', 'unknown');
 const timestamp = new Date().toISOString();
 const isoTimestamp = run('git log -1 --format=%cI', timestamp);
 
