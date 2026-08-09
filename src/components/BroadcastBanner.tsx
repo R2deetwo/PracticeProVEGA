@@ -30,6 +30,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -172,6 +173,78 @@ function markSessionDismissed(broadcastId: string, notifId: string) {
     } catch {}
 }
 
+// ─── SnoozeButton Component ──────────────────────────────────────────
+// Renders a snooze bell icon with a Portal dropdown for system banners.
+// Persists snooze state to localStorage so the banner stays hidden for
+// the chosen duration (1 day, 1 week, or until next billing cycle).
+const SnoozeButton: React.FC<{ bannerId: string }> = ({ bannerId }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const btnRef = React.useRef<HTMLButtonElement>(null);
+    const [pos, setPos] = React.useState({ top: 0, left: 0 });
+
+    React.useEffect(() => {
+        if (!isOpen) return;
+        const handler = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (btnRef.current && !btnRef.current.contains(target)) {
+                const portal = document.getElementById('banner-snooze-dropdown');
+                if (portal && portal.contains(target)) return;
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [isOpen]);
+
+    React.useEffect(() => {
+        if (isOpen && btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setPos({ top: rect.bottom + 4, left: rect.right - 160 });
+        }
+    }, [isOpen]);
+
+    const handleSnooze = (days: number) => {
+        const until = new Date();
+        until.setDate(until.getDate() + days);
+        localStorage.setItem(`snooze_${bannerId}`, JSON.stringify({
+            dismissed_until: until.toISOString(),
+        }));
+        setIsOpen(false);
+        // Force re-render of the banner by reloading the page state
+        window.dispatchEvent(new Event('storage'));
+        // Also set the session dismissed flag so it hides immediately
+        sessionStorage.setItem(`dismissed_banner_${bannerId}`, 'true');
+    };
+
+    return (
+        <>
+            <button
+                ref={btnRef}
+                onClick={(e) => { e.stopPropagation(); setIsOpen(p => !p); }}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-white/30 transition-colors flex-shrink-0"
+                aria-label="Snooze banner"
+                title="Snooze"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 15h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                </svg>
+            </button>
+            {isOpen && createPortal(
+                <div
+                    id="banner-snooze-dropdown"
+                    className="fixed z-[9999] w-40 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg animate-fade-in"
+                    style={{ top: pos.top, left: pos.left }}
+                >
+                    <button onClick={() => handleSnooze(1)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">Snooze 1 Day</button>
+                    <button onClick={() => handleSnooze(7)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">Snooze 1 Week</button>
+                    <button onClick={() => handleSnooze(30)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-b-md border-t border-gray-100 dark:border-gray-600">Dismiss Until Next Cycle</button>
+                </div>,
+                document.body
+            )}
+        </>
+    );
+};
+
 export const BroadcastBanner: React.FC = () => {
     const { currentUser, isAuthenticated } = useAuth();
     const { coreState } = useCoreState();
@@ -304,30 +377,59 @@ export const BroadcastBanner: React.FC = () => {
         }
 
         // ── Overdue rent alert (Atrium / Komplete property firms) ──
+        // ENRICHED PAYLOAD — dynamically includes tenant name, property
+        // address, and unit number so the user can identify the defaulter
+        // without clicking into multiple screens.
         const ledgerEntries = (coreState as any)?.ledgerEntries || [];
+        const allProperties = (coreState as any)?.properties || [];
+        const allUnits = allProperties.flatMap((p: any) => p.units || []);
         const overdueEntries = ledgerEntries.filter((e: any) =>
             e.status === 'pending' || e.status === 'defaulted'
         );
         const overdueCount = overdueEntries.length;
-        if (overdueCount > 0 && (userProduct === 'property' || userProduct === 'unified')) {
-            // DEEP-LINK FIX — navigate to the SPECIFIC property with the
-            // first overdue entry, not the generic /properties list.
-            // Pass a highlight target so the PropertyDetailView can
-            // pulse the specific overdue invoice/ledger row.
+
+        // SNOOZE CHECK — if the user snoozed this banner, don't show it
+        // until the snooze period expires.
+        const snoozeKey = 'snooze_overdue_rent';
+        const snoozeUntil = (() => {
+            try { return JSON.parse(localStorage.getItem(snoozeKey) || 'null'); } catch { return null; }
+        })();
+        const isSnoozed = snoozeUntil && new Date(snoozeUntil.dismissed_until) > new Date();
+
+        if (overdueCount > 0 && !isSnoozed && (userProduct === 'property' || userProduct === 'unified')) {
             const firstOverdue = overdueEntries[0];
             const targetPropertyId = firstOverdue?.propertyId || firstOverdue?.property || null;
             const targetUnitId = firstOverdue?.unitId || firstOverdue?.unit || null;
             const highlightId = firstOverdue?._id || firstOverdue?.id || null;
+
+            // Look up property address and tenant name for dynamic text
+            const targetProperty = allProperties.find((p: any) =>
+                p.id === targetPropertyId || (p as any)._id === targetPropertyId
+            );
+            const targetUnit = allUnits.find((u: any) =>
+                u.id === targetUnitId || (u as any)._id === targetUnitId
+            ) || targetProperty?.units?.find?.((u: any) => u.id === targetUnitId);
+            const propertyAddress = targetProperty?.address?.split(',')[0] || 'your property';
+            const tenantName = firstOverdue?.tenantName || targetUnit?.rentalDetails?.tenantName || targetUnit?.tenantName || '';
+            const unitName = targetUnit?.rentalDetails?.unitName || targetUnit?.unitName || targetUnit?.name || '';
+
+            // Dynamic message based on count
+            let message: string;
+            if (overdueCount === 1 && tenantName) {
+                message = `Overdue rent for ${tenantName} at ${propertyAddress}${unitName ? ` (Unit ${unitName})` : ''}.`;
+            } else if (overdueCount > 1 && tenantName) {
+                message = `Overdue rent at ${propertyAddress} for ${tenantName} and ${overdueCount - 1} other${overdueCount - 1 > 1 ? 's' : ''}.`;
+            } else {
+                message = `You have ${overdueCount} overdue rent payment${overdueCount > 1 ? 's' : ''} pending review.`;
+            }
+
             banners.push({
                 _id: `system_overdue_rent`,
                 broadcastId: `system_overdue_rent`,
                 title: 'OVERDUE RENT PAYMENTS',
-                message: `Attention: You have ${overdueCount} overdue rent payment(s) pending review.`,
+                message,
                 type: 'broadcast_warning',
                 persistenceMode: 'permanent',
-                // DEEP-LINK PAYLOAD — includes propertyId + unitId + targetUnit
-                // so PropertyDetailView can auto-expand the specific unit drawer.
-                // Routes to /properties/[id]?tab=units&targetUnit=[unitId]&highlight=[id]
                 deepLink: targetPropertyId
                     ? `properties/${targetPropertyId}?tab=units&targetUnit=${targetUnitId || ''}&highlight=${highlightId || 'overdue'}`
                     : 'properties',
@@ -539,6 +641,14 @@ export const BroadcastBanner: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
+                            )}
+
+                            {/* SNOOZE button — for system banners (overdue rent).
+                                Renders a snooze dropdown via Portal (same as ProTip).
+                                Persists to localStorage so the banner stays hidden
+                                for the chosen duration. */}
+                            {activeBroadcast.isSystem && (
+                                <SnoozeButton bannerId={activeBroadcast.broadcastId || activeBroadcast._id} />
                             )}
 
                             {/* Dismiss button — only if isDismissible.
