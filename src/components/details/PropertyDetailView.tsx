@@ -24,7 +24,6 @@ import PropertyTrackingView from './PropertyTrackingView';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
-import BacklinksPanel from '../BacklinksPanel';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
@@ -1524,7 +1523,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                                         <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" aria-label="Record Payment & Issue Receipt" title="Record Payment & Issue Receipt">
-                                                                            <Receipt className="w-3 h-3" /> Pay
+                                                                            <Receipt className="w-3 h-3" /> Receipt
                                                                         </button>
                                                                     )}
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (

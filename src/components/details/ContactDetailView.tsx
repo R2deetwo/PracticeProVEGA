@@ -15,7 +15,6 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import ErrorBoundary from '../ErrorBoundary';
-import BacklinksPanel from '../BacklinksPanel';
 
 interface ContactDetailViewProps {
   contactId: string;
@@ -585,16 +584,6 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                     debugging. */}
                 <ErrorBoundary>
                     {renderTabContent()}
-                </ErrorBoundary>
-                <ErrorBoundary>
-                    {/* Bidirectional linking — notes that mention this contact */}
-                    <BacklinksPanel
-                        entityId={contact.id}
-                        entityType="contact"
-                        entityLabel={contact.name}
-                        notes={documentState.notePages || []}
-                        navigateTo={navigateTo}
-                    />
                 </ErrorBoundary>
              </div>
         </div>

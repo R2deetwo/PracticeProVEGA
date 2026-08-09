@@ -14,7 +14,6 @@ import Tooltip from '../Tooltip';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import ErrorBoundary from '../ErrorBoundary';
-import BacklinksPanel from '../BacklinksPanel';
 import PdfViewer from '../documents/PdfViewer';
 import HtmlPagePreview from '../documents/HtmlPagePreview';
 import DocumentPreviewModal from '../documents/DocumentPreviewModal';
@@ -689,19 +688,12 @@ const DocumentDetailViewContent: React.FC = () => {
                     </div>
                 )}
 
-                {/* Mentions tab — BacklinksPanel moved here so it doesn't block the preview */}
+                {/* Mentions tab — BacklinksPanel removed per user request.
+                    The backlinks feature was not useful and added visual clutter. */}
                 {activeTab === 'mentions' && (
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                        <div className="max-w-5xl mx-auto">
-                            {document && (
-                                <BacklinksPanel
-                                    entityId={document.id}
-                                    entityType="document"
-                                    entityLabel={document.title}
-                                    notes={documentState.notePages || []}
-                                    navigateTo={navigateTo}
-                                />
-                            )}
+                        <div className="max-w-5xl mx-auto text-center py-12">
+                            <p className="text-sm text-slate-400">No mentions tab content.</p>
                         </div>
                     </div>
                 )}

@@ -33,7 +33,6 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 // CRO AUDIT FIX — MatterBrief import removed (unused, dead code)
-import BacklinksPanel from '../BacklinksPanel'; // CRO AUDIT: import kept for future wiring, but render removed
 import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../toolkit/Skeleton';
 

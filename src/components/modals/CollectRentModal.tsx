@@ -346,20 +346,28 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Date Paid</label>
                 <div className="relative">
                   <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input autoComplete="off" data-lpignore="true" 
+                  <input autoComplete="off" data-lpignore="true"
                     type="date"
                     value={paymentDate}
                     onChange={e => {
                       setPaymentDate(e.target.value);
                       if (!periodStart) setPeriodStart(e.target.value);
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-3 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
+                {/* Formatted date display — shows full "15 Sep 2027" format
+                    below the native date input so the user can always read
+                    the date clearly, even when the input is narrow. */}
+                {paymentDate && (
+                  <p className="text-2xs text-slate-500 dark:text-zinc-500 font-semibold ml-1">
+                    {new Date(paymentDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Method</label>
-                <select 
+                <select
                   value={paymentMethod}
                   onChange={e => setPaymentMethod(e.target.value)}
                   className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
@@ -377,25 +385,35 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 <label className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest ml-1">Period Start</label>
                 <div className="relative">
                   <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
-                  <input autoComplete="off" data-lpignore="true" 
+                  <input autoComplete="off" data-lpignore="true"
                     type="date"
                     value={periodStart}
                     onChange={e => setPeriodStart(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-3 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
+                {periodStart && (
+                  <p className="text-2xs text-primary-600 dark:text-primary-400 font-semibold ml-1">
+                    {new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest ml-1">Period End</label>
                 <div className="relative">
                   <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
-                  <input autoComplete="off" data-lpignore="true" 
+                  <input autoComplete="off" data-lpignore="true"
                     type="date"
                     value={periodEnd}
                     onChange={e => setPeriodEnd(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-3 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
+                {periodEnd && (
+                  <p className="text-2xs text-primary-600 dark:text-primary-400 font-semibold ml-1">
+                    {new Date(periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -419,11 +437,14 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           </div>
 
           <div className="space-y-4 flex-grow">
-            {/* Receipt amount — always the FULL amount */}
+            {/* Receipt amount — always the FULL amount.
+                CLEANED UP: reduced from text-3xl to text-2xl to prevent
+                visual overflow/overlap with surrounding text. Added
+                clear spacing. */}
             <div className="p-4 bg-white dark:bg-zinc-900/5 rounded-2xl border border-white/10">
-              <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-2">Amount Received (Full)</p>
-              <p className="text-3xl font-black text-white"><NairaSymbol />{formatNaira(amountValue)}</p>
-              <p className="text-3xs text-slate-500 mt-1">Receipt reflects full payment — no deductions</p>
+              <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-3">Amount Received (Full)</p>
+              <p className="text-2xl font-black text-white leading-tight"><NairaSymbol />{formatNaira(amountValue)}</p>
+              <p className="text-3xs text-slate-500 mt-2">Receipt reflects full payment — no deductions</p>
             </div>
 
             {/* Management fee breakdown — informational only */}

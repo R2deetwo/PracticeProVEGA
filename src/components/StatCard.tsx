@@ -1,5 +1,3 @@
-// Test commit to verify Cloudflare auto-deploy + Refresh to Update prompt.
-// If you're seeing this in the live bundle, the CI/CD pipeline is working.
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { EyeIcon, EyeOffIcon } from '../constants';
 import Tooltip from './Tooltip';
@@ -10,20 +8,11 @@ interface StatCardProps {
     icon: React.ReactElement<{ className?: string }>;
     colorClass: string;
     onClick?: () => void;
-    /**
-     * Tooltip text shown when hovering/tapping the value area.
-     * Use this for the *full-figure* companion to a compact displayed
-     * value (e.g. title="₦17.4M", tooltipText="₦17,400,000.00").
-     */
     tooltipText?: string;
-    /**
-     * If true, the value will horizontally auto-scroll (marquee) when
-     * it overflows the card width. Use this for long status strings
-     * like "0 Paid / 9 Unpaid | ₦0 Collected / ₦12,600,000 Pending".
-     */
     scrollOnOverflow?: boolean;
     isSensitive?: boolean;
-    /** Optional subtitle shown below the value */
+    /** Optional subtitle shown ABOVE the value (between title and value)
+     *  so the value always sits on the bottom baseline across all cards. */
     subtitle?: string;
 }
 
@@ -66,17 +55,8 @@ const StatCard: React.FC<StatCardProps> = ({
 
     const textClass = (colorClass || 'bg-primary-500').replace('bg-', 'text-');
 
-    // ─── Value rendering ────────────────────────────────────────────────
-    // SPEC COMPLIANCE — Pixel-Perfect Refactor §2.2:
-    //   "Place primary metric numbers inside a fixed baseline container
-    //    (flex items-baseline h-8) so all numbers sit on the exact same
-    //    horizontal baseline."
-    //
-    // The h-8 (32px) fixed-height baseline container ensures the value
-    // text sits on the same horizontal line across all 4 cards regardless
-    // of whether a card has a subtitle, status pill, or empty space below.
-    //
-    // For marquee mode, the baseline container wraps the scrolling track.
+    // Value rendering — fixed h-8 baseline container so all numbers
+    // sit on the same horizontal line across all 4 cards.
     const valueBlock = needsMarquee ? (
         <div className="overflow-hidden w-full flex items-baseline h-8" ref={valueRef}>
             <div className="stat-marquee-track">
@@ -104,32 +84,33 @@ const StatCard: React.FC<StatCardProps> = ({
             onClick={onClick}
             title={isRevealed ? (needsMarquee ? tooltipText : undefined) : 'Click eye icon to reveal'}
             className={`
-                relative overflow-hidden card-premium p-4 halo-hover h-28
+                relative card-premium p-4 halo-hover h-28
                 ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}
                 flex flex-col justify-between group
             `}
         >
-            {/* Watermark icon — top-right, subtle.
-                Spec §1: opacity-20 w-5 h-5 text-slate-400 absolute top-3 right-3 */}
+            {/* Watermark icon — top-right, subtle */}
             <div className="absolute top-3 right-3 opacity-20 pointer-events-none text-slate-400">
                 {React.cloneElement(icon, { className: `w-5 h-5 ${textClass}` })}
             </div>
 
-            {/* Text content — full width, flex column, title at top, value at bottom.
-                SPEC COMPLIANCE §2.1 — Title Header Styling:
-                  text-[11px] font-semibold tracking-wider text-slate-400
-                  uppercase leading-tight mb-2
-                The leading-tight + mb-2 eliminates the awkward vertical gap
-                that was pushing metric figures down to different heights.
-                text-slate-400 (was text-slate-500) per spec. */}
+            {/* Text content — title at top, subtitle (if any) below title,
+                value at BOTTOM on a fixed baseline.
+                This ensures all 4 cards have their numbers on the exact
+                same horizontal line, regardless of whether a card has
+                a subtitle or not. Previously the subtitle was BELOW the
+                value, which pushed the value up on cards with subtitles
+                (like "Managed Units" with "100% occupied"). */}
             <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
-                <p className="text-[11px] font-semibold tracking-wider text-slate-400 dark:text-zinc-400 uppercase leading-tight mb-2">
-                    {title}
-                </p>
+                <div>
+                    <p className="text-[11px] font-semibold tracking-wider text-slate-400 dark:text-zinc-400 uppercase leading-tight">
+                        {title}
+                    </p>
+                    {subtitle && (
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 truncate">{subtitle}</p>
+                    )}
+                </div>
                 {valueWithTooltip}
-                {subtitle && (
-                    <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 truncate">{subtitle}</p>
-                )}
             </div>
 
             {/* Sensitive data reveal toggle */}

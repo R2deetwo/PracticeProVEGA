@@ -59,30 +59,24 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     const colorClass = displayInvoices ? 'bg-yellow-500' : 'bg-amber-500';
     const textClass = displayInvoices ? 'text-yellow-500' : 'text-amber-500';
 
-    // CRO AUDIT FIX — rewritten to match StatCard layout EXACTLY:
-    // - Watermark icon top-right (not left icon circle)
-    // - Title at top, value at bottom (flex-col justify-between)
-    // - No inline NairaSymbol (just the formatted number)
-    // - No decorative background icon
-    // - Same h-24, same padding, same typography as StatCard
+    // LAYOUT FIX — match StatCard exactly:
+    // - h-28 (not h-24) to match StatCard height
+    // - NO overflow-hidden (was clipping the halo-hover glow at the bottom)
+    // - Value in fixed h-8 baseline container so it aligns with StatCards
+    // - Title + tabs at top, value at bottom (flex-col justify-between)
     return (
         <div
-            className="relative overflow-hidden card-premium p-4 halo-hover h-24 cursor-pointer active:scale-[0.98] flex flex-col justify-between group"
+            className="relative card-premium p-4 halo-hover h-28 cursor-pointer active:scale-[0.98] flex flex-col justify-between group"
             onClick={() => navigateTo(nav)}
         >
-            {/* Watermark icon in top-right — same as StatCard */}
+            {/* Watermark icon in top-right */}
             <div className="absolute top-3 right-3 opacity-20 pointer-events-none">
                 <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
             </div>
 
-            {/* Text content — flex-col justify-between, same as StatCard.
-                SPEC COMPLIANCE: title is `text-[11px] font-semibold tracking-wider
-                text-slate-500 uppercase` (per Financials refactor spec) — NO truncate
-                class. Previously used `tracking-widest truncate` which caused the
-                title to render as "OUTSTANDING INVOI..." on the dashboard. */}
             <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
                 <div className="flex items-center gap-1 min-w-0">
-                    <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase truncate-none">{label}</p>
+                    <p className="text-[11px] font-semibold tracking-wider text-slate-500 dark:text-zinc-400 uppercase">{label}</p>
                     {showTabs && (
                         <div
                             className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0"
@@ -103,7 +97,9 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                         </div>
                     )}
                 </div>
-                <div className="text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                {/* Fixed h-8 baseline container — matches StatCard so all
+                    4 cards have numbers on the same horizontal line. */}
+                <div className="flex items-baseline h-8 text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
                     {isLoading ? (
                         <Skeleton width={100} height={28} />
                     ) : (
@@ -143,7 +139,7 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
     return (
         <div className={`grid ${gridClass}`}>
             {isLegal && (
-                <div className="h-24 relative overflow-hidden rounded-2xl isolate transform-gpu">
+                <div className="h-28 relative rounded-2xl isolate transform-gpu">
                     <StatCard
                         title="Active Matters"
                         value={isLoading ? <Skeleton width={40} height={28} /> : activeMattersCount}
@@ -155,7 +151,7 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
             )}
 
             {hasPropertyFeatures && (
-                <div className="h-24 relative overflow-hidden rounded-2xl isolate transform-gpu">
+                <div className="h-28 relative rounded-2xl isolate transform-gpu">
                     <StatCard
                         title="Managed Units"
                         value={isLoading ? <Skeleton width={40} height={28} /> : propertyCount}
@@ -167,7 +163,7 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
                 </div>
             )}
 
-            <div className="h-24 relative overflow-hidden rounded-2xl isolate transform-gpu">
+            <div className="h-28 relative rounded-2xl isolate transform-gpu">
                 <StatCard
                     title="Overdue Tasks"
                     value={isLoading ? <Skeleton width={40} height={28} /> : overdueTasksCount}

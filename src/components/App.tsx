@@ -34,11 +34,32 @@ import { FounderDashboard } from './FounderDashboard'; // eslint-disable-line @t
 // They're wrapped in <React.Suspense fallback={<GenericSkeleton />}> at each
 // usage site so navigation shows a skeleton instead of a blank frame while
 // the chunk loads.
-const ReportingView = React.lazy(() => import('./ReportingView'));
-const WordProcessor = React.lazy(() => import('./documents/WordProcessor').then(m => ({ default: m.WordProcessor })));
-const ResearchView = React.lazy(() => import('./ResearchView'));
-const AloaXView = React.lazy(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
-const TimelineView = React.lazy(() => import('./TimelineView'));
+//
+// STALE CHUNK RECOVERY: when a new deploy ships, old bundles reference
+// chunk files (e.g. WordProcessor-BuK_wFdm.js) that no longer exist on
+// the server. The lazy import fails with "Failed to fetch dynamically
+// imported module". We catch this and force a page reload so the browser
+// picks up the new bundle with the correct chunk hashes.
+const lazyWithReload = (factory: () => Promise<any>) =>
+    React.lazy(() =>
+        factory().catch((err) => {
+            // Check if this is a chunk-load failure (stale bundle)
+            if (err?.message?.includes('Failed to fetch dynamically imported module') ||
+                err?.message?.includes('Loading chunk') ||
+                err?.name === 'ChunkLoadError') {
+                console.error('[lazy] Stale chunk detected — reloading page to get fresh bundle.', err);
+                // Force a hard reload to pick up the new bundle
+                window.location.reload();
+            }
+            throw err;
+        })
+    );
+
+const ReportingView = lazyWithReload(() => import('./ReportingView'));
+const WordProcessor = lazyWithReload(() => import('./documents/WordProcessor').then(m => ({ default: m.WordProcessor })));
+const ResearchView = lazyWithReload(() => import('./ResearchView'));
+const AloaXView = lazyWithReload(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
+const TimelineView = lazyWithReload(() => import('./TimelineView'));
 import ComplianceView from './ComplianceView';
 import SettingsView from './settings/SettingsView';
 import MessagesView from './MessagesView';
