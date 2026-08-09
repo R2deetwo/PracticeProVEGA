@@ -95,48 +95,54 @@ export const getFeedbackList = query({
     category: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let results;
-    if (args.status) {
-      results = await ctx.db
-        .query("user_feedback")
-        .withIndex("by_status", (s) => s.eq("status", args.status as any))
-        .order("desc")
-        .take(500);
-    } else {
-      results = await ctx.db.query("user_feedback").order("desc").take(500);
-    }
-    // STRICT ISOLATION: Only return actual user-submitted feedback.
-    const EXCLUDED_SOURCES = ["aloa_echo", "search_log", "telemetry", "system"];
-    const EXCLUDED_TYPES = ["Search Log", "ALOA Search", "Telemetry", "System Event"];
-    let filtered = results.filter((item: any) => {
-      if (EXCLUDED_SOURCES.includes(item.source)) return false;
-      if (EXCLUDED_TYPES.includes(item.type)) return false;
-      if ((item.source || '').toLowerCase().includes('aloa')) return false;
-      if ((item.type || '').toLowerCase().includes('search')) return false;
-      if (!item.message || item.message.trim().length === 0) return false;
-      return true;
-    });
-
-    // Category filtering — maps feedback type to a category bucket
-    if (args.category && args.category !== 'all') {
-      filtered = filtered.filter((item: any) => {
-        const t = (item.type || 'General Feedback').toLowerCase();
-        switch (args.category) {
-          case 'product_feedback':
-            return t.includes('feature') || t.includes('suggestion') || t.includes('general');
-          case 'technical':
-            return t.includes('bug') || t.includes('maintenance') || t.includes('technical');
-          case 'billing':
-            return t.includes('billing') || t.includes('account') || t.includes('data restoration');
-          case 'general':
-            return t.includes('support') || t.includes('general');
-          default:
-            return true;
-        }
+    try {
+      let results;
+      if (args.status) {
+        results = await ctx.db
+          .query("user_feedback")
+          .withIndex("by_status", (s) => s.eq("status", args.status as any))
+          .order("desc")
+          .take(500);
+      } else {
+        results = await ctx.db.query("user_feedback").order("desc").take(500);
+      }
+      // STRICT ISOLATION: Only return actual user-submitted feedback.
+      const EXCLUDED_SOURCES = ["aloa_echo", "search_log", "telemetry", "system"];
+      const EXCLUDED_TYPES = ["Search Log", "ALOA Search", "Telemetry", "System Event"];
+      let filtered = results.filter((item: any) => {
+        if (EXCLUDED_SOURCES.includes(item.source)) return false;
+        if (EXCLUDED_TYPES.includes(item.type)) return false;
+        if ((item.source || '').toLowerCase().includes('aloa')) return false;
+        if ((item.type || '').toLowerCase().includes('search')) return false;
+        if (!item.message || item.message.trim().length === 0) return false;
+        return true;
       });
-    }
 
-    return filtered;
+      // Category filtering — maps feedback type to a category bucket
+      if (args.category && args.category !== 'all') {
+        filtered = filtered.filter((item: any) => {
+          const t = (item.type || 'General Feedback').toLowerCase();
+          switch (args.category) {
+            case 'product_feedback':
+              return t.includes('feature') || t.includes('suggestion') || t.includes('general');
+            case 'technical':
+              return t.includes('bug') || t.includes('maintenance') || t.includes('technical');
+            case 'billing':
+              return t.includes('billing') || t.includes('account') || t.includes('data restoration');
+            case 'general':
+              return t.includes('support') || t.includes('general');
+            default:
+              return true;
+          }
+        });
+      }
+
+      return filtered;
+    } catch (error: any) {
+      console.error('[getFeedbackList] Error:', error);
+      // Return empty array on any error — never throw to the client
+      return [];
+    }
   },
 });
 

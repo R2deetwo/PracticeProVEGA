@@ -154,12 +154,18 @@ const PropertyDetailViewContent: React.FC = () => {
                 setActiveTab(tab);
             }
         }
-        if (ctx?.targetUnit) {
-            setTargetUnitId(ctx.targetUnit);
+        // Read targetUnit — handle empty string (from deep-link when
+        // ledger entry has no unitId). Empty string is falsy, so we
+        // check for undefined/null instead.
+        if (ctx?.targetUnit != null) {
+            setTargetUnitId(ctx.targetUnit || null);
         }
         if (ctx?.highlight) {
             setHighlightTarget(ctx.highlight);
-            const timer = setTimeout(() => setHighlightTarget(null), 5000);
+            // Extended to 15 seconds — allUnits might take time to load
+            // from Convex, and the highlight should persist until the
+            // target unit is found and expanded.
+            const timer = setTimeout(() => setHighlightTarget(null), 15000);
             return () => clearTimeout(timer);
         }
     }, [currentHistoryEntry?.context]);

@@ -74,12 +74,16 @@ const FeedbackInboxInner: React.FC = () => {
 
     // SAFE DATA FETCHING — wrapped in try/catch. If the Convex function
     // doesn't exist or throws, we default to an empty array.
+    // IMPORTANT: only pass `category` when it's not 'all' — passing
+    // { category: 'all' } to an older deployed Convex function (without
+    // the category arg) throws a FunctionValidationError. By omitting
+    // the arg entirely when it's 'all', we stay backward-compatible.
     let feedbackResult: any;
     try {
-        feedbackResult = useQuery(api.feedback.getFeedbackList,
-            statusFilter === 'all'
-                ? { category: categoryFilter }
-                : { status: statusFilter, category: categoryFilter });
+        const queryArgs: any = {};
+        if (statusFilter !== 'all') queryArgs.status = statusFilter;
+        if (categoryFilter !== 'all') queryArgs.category = categoryFilter;
+        feedbackResult = useQuery(api.feedback.getFeedbackList, queryArgs);
     } catch (e) {
         console.error('[FeedbackInbox] Query threw:', e);
         feedbackResult = null;
