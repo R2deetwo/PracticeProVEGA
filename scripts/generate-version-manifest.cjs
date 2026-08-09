@@ -42,8 +42,13 @@ function run(cmd, fallback = '') {
   }
 }
 
-const sha = run('git rev-parse HEAD', 'unknown');
-const branch = run('git rev-parse --abbrev-ref HEAD', 'unknown');
+// CRO AUDIT FIX — Use GITHUB_SHA when available (GitHub Actions), because
+// `git rev-parse HEAD` during CI returns the bot's version-bump commit, not
+// the user's code commit. GITHUB_SHA is always the commit that triggered the
+// workflow run — exactly what we want for version comparison.
+// Fall back to `git rev-parse HEAD` for local builds.
+const sha = process.env.GITHUB_SHA || run('git rev-parse HEAD', 'unknown');
+const branch = process.env.GITHUB_REF_NAME || run('git rev-parse --abbrev-ref HEAD', 'unknown');
 const timestamp = new Date().toISOString();
 const isoTimestamp = run('git log -1 --format=%cI', timestamp);
 

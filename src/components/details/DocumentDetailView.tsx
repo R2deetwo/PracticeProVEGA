@@ -291,6 +291,19 @@ const DocumentDetailViewContent: React.FC = () => {
     //   - Refresh with no id
     //   - Refresh with a stale/deleted id
     if (!document || !selectedId) {
+        // CRO AUDIT FIX — show loading skeleton if selectedId exists but document
+        // hasn't loaded yet. Only show "No Document Selected" if there's truly no ID.
+        if (selectedId) {
+            return (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                    <div className="w-full max-w-3xl space-y-4 animate-pulse">
+                        <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded-lg w-1/4" />
+                        <div className="h-64 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                    </div>
+                    <p className="text-sm text-slate-400 mt-4">Loading document…</p>
+                </div>
+            );
+        }
         return (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 p-8 text-center">
                 <svg className="w-16 h-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">

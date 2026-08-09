@@ -44,7 +44,13 @@ const InvoiceDetailViewContent: React.FC = () => {
 
     if (!invoice) return (
         <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-            <p className="text-lg font-medium">Invoice not found</p>
+            {/* CRO AUDIT FIX — loading skeleton instead of bare "not found" */}
+            <div className="w-full max-w-2xl space-y-4 animate-pulse">
+                <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded-lg w-1/3" />
+                <div className="h-32 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                <div className="h-48 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+            </div>
+            <p className="text-sm text-slate-400 mt-4">Loading invoice…</p>
         </div>
     );
 

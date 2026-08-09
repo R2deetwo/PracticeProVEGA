@@ -567,9 +567,14 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         navigate(path, { state: context });
         
         // Sync custom history state
+        // CRO AUDIT FIX — populate previousView so detail views know where
+        // the user came from (e.g. matterDetail opened from matters list
+        // → previousView = 'matters'). This was declared in the type but
+        // never actually set, causing back buttons to go to the wrong place.
+        const currentView = history[historyIndex]?.view || 'dashboard';
         setHistory(prev => {
             const newHistory = prev.slice(0, historyIndex + 1);
-            newHistory.push({ view: newView, selectedId: newSelectedId, context });
+            newHistory.push({ view: newView, selectedId: newSelectedId, context, previousView: currentView });
             return newHistory;
         });
         setHistoryIndex(prev => prev + 1);

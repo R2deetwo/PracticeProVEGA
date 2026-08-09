@@ -10,6 +10,21 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 function gitSha(fallback = 'unknown') {
+  // CRO AUDIT FIX — read SHA from version.json first (set by prebuild script
+  // which uses GITHUB_SHA when available). This ensures the SHA baked into
+  // the Vite bundle matches the SHA in version.json that the client fetches
+  // at runtime. Previously both used `git rev-parse HEAD` which returned
+  // the bot's version-bump commit during CI, causing a SHA mismatch.
+  try {
+    const versionFile = path.join(__dirname, 'public', 'version.json');
+    if (fs.existsSync(versionFile)) {
+      const manifest = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+      if (manifest.sha && manifest.sha !== 'unknown') {
+        return manifest.sha;
+      }
+    }
+  } catch {}
+  // Fallback to git rev-parse HEAD for local dev
   try {
     return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
   } catch {

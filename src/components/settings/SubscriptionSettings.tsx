@@ -559,22 +559,19 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
         if (isDowngrade) {
             openModal('deleteConfirmation', null, {
                 title,
-                message: `You are switching from ${firmDetails.subscriptionPlan} to ${newPlan}. Some high-tier features may be locked. ${newPlan === SubscriptionPlan.Core ? 'NOTE: Core plan is single-user only. Team access will be paused.' : ''}`,
-                confirmText: 'Confirm Switch',
+                message: `You are switching from ${firmDetails.subscriptionPlan} to ${newPlan}. Some high-tier features may be locked. ${newPlan === SubscriptionPlan.Core ? 'NOTE: Core plan is single-user only. Team access will be paused.' : ''}\n\nYour downgrade request will be reviewed by our team within 24 hours. There is no payment required for downgrading.`,
+                confirmText: 'Request Downgrade',
                 confirmButtonClass: 'bg-slate-600 hover:bg-slate-700',
                 onConfirm: () => {
-                    // CRO AUDIT FIX (Track A — A1): downgrades still go through the
-                    // secure updateItem path, BUT updateItem now strips the protected
-                    // 'subscriptionPlan' field. So we need to use a dedicated mutation
-                    // for downgrades too. For now, log the request and notify founder.
-                    // TODO: add a `requestPlanDowngrade` mutation that mirrors
-                    // createSubscriptionRequest but for downgrades.
-                    // For now, we'll route downgrades through the same pending flow
-                    // as upgrades — the founder admin can approve/reject.
+                    // CRO AUDIT FIX — downgrades route through the same
+                    // createSubscriptionRequest flow as upgrades, but with
+                    // amount=0 (no payment needed for downgrades). The
+                    // founder admin sees the request in the Subscriptions
+                    // Center and can approve it.
                     openModal('paymentGateway', null, {
-                        amount: price,
-                        title: `Switch to ${newPlan}`,
-                        description: `${isAnnual ? 'Annual' : 'Monthly'} subscription — ${firmDetails.name}`,
+                        amount: 0,  // No payment for downgrades
+                        title: `Downgrade to ${newPlan}`,
+                        description: `No payment required — your request will be reviewed within 24 hours.`,
                         forcePracticeProAccount: true,
                         subscriptionContext: {
                             requestedPlan: newPlan,
@@ -582,10 +579,10 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                             firmId: firmDetails.id,
                         },
                         onConfirm: () => {
-                            logActivity(`Requested switch to ${newPlan} plan (bank transfer)`, 'User',
+                            logActivity(`Requested downgrade to ${newPlan} plan`, 'User',
                                 coreState.users.find(u => u.role === 'Admin')?.id,
                                 coreState.users.find(u => u.role === 'Admin')?.name);
-                            addToast(`Switch request logged. Our team will verify and update your workspace within 24 hours.`, { type: 'success', duration: 6000 });
+                            addToast(`Downgrade request submitted. Our team will review and update your workspace within 24 hours. Your current plan remains active until then.`, { type: 'success', duration: 6000 });
                         }
                     });
                     closeModal();
