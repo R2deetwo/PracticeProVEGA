@@ -262,7 +262,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 <button
                     onClick={() => !isSidebarRetracted && canUseMultiFirm && setIsWorkspaceOpen(!isWorkspaceOpen)}
                     className={`
-                        w-full h-14 flex items-center ${isSidebarRetracted ? 'justify-center' : 'px-4'}
+                        w-full h-16 flex items-center ${isSidebarRetracted ? 'justify-center' : 'px-4'}
                         border-b border-slate-200 dark:border-zinc-800 
                         ${!isSidebarRetracted && canUseMultiFirm ? 'hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer' : 'cursor-default'} 
                         transition-colors focus:outline-none 

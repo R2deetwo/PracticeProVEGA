@@ -251,7 +251,7 @@ const Header: React.FC = React.memo(() => {
     if (!currentUser) return null;
 
     return (
-        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 min-h-14 flex items-center justify-between px-4 sticky top-0 pt-safe">
+        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-16 flex items-center justify-between px-4 sticky top-0 pt-safe">
             {/* Impersonation Banner — uses isImpersonating (synchronous) rather than
                 originalUser (async query) so the banner is always visible during
                 impersonation, even if the admin's DB record is still loading or
@@ -268,10 +268,15 @@ const Header: React.FC = React.memo(() => {
             <div className="flex items-center">
                 {/* Mobile: Back/Forward navigation buttons */}
                 <div className="md:hidden flex items-center -ml-1">
+                    {/* SPEC COMPLIANCE — Icon Button Hover Centering:
+                        strict flex-center container, p-0, explicit w-9 h-9.
+                        Previous `touch-target p-2` left the icon off-center
+                        inside the 44px min-size box because padding pushed
+                        it leftward without a centering flex. */}
                     <button
                         onClick={goBack}
                         disabled={!canGoBack}
-                        className={`touch-target p-2 rounded-lg transition-colors ${canGoBack ? 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 active:bg-slate-200 dark:active:bg-zinc-600' : 'text-slate-300 dark:text-zinc-600'}`}
+                        className={`flex items-center justify-center w-9 h-9 p-0 rounded-lg transition-colors ${canGoBack ? 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 active:bg-slate-200 dark:active:bg-zinc-600' : 'text-slate-300 dark:text-zinc-600'}`}
                         aria-label="Go back"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
@@ -279,7 +284,7 @@ const Header: React.FC = React.memo(() => {
                     <button
                         onClick={goForward}
                         disabled={!canGoForward}
-                        className={`touch-target p-2 rounded-lg transition-colors ${canGoForward ? 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 active:bg-slate-200 dark:active:bg-zinc-600' : 'text-slate-300 dark:text-zinc-600'}`}
+                        className={`flex items-center justify-center w-9 h-9 p-0 rounded-lg transition-colors ${canGoForward ? 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 active:bg-slate-200 dark:active:bg-zinc-600' : 'text-slate-300 dark:text-zinc-600'}`}
                         aria-label="Go forward"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
@@ -291,13 +296,13 @@ const Header: React.FC = React.memo(() => {
                 </div>
 
                 <div className="hidden md:flex items-center space-x-1">
-                    <button onClick={toggleSidebarRetraction} className="touch-target p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500">
+                    <button onClick={toggleSidebarRetraction} aria-label="Toggle sidebar" className="flex items-center justify-center w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
                     </button>
-                    <button onClick={goBack} disabled={!canGoBack} className="touch-target p-2 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500">
+                    <button onClick={goBack} disabled={!canGoBack} aria-label="Go back" className="flex items-center justify-center w-9 h-9 p-0 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <button onClick={goForward} disabled={!canGoForward} className="touch-target p-2 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500">
+                    <button onClick={goForward} disabled={!canGoForward} aria-label="Go forward" className="flex items-center justify-center w-9 h-9 p-0 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -316,7 +321,7 @@ const Header: React.FC = React.memo(() => {
                 </div>
 
                 <div className="relative hidden sm:block lg:hidden">
-                    <button onClick={() => setMobileSearchOpen(true)} className="touch-target p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500">
+                    <button onClick={() => setMobileSearchOpen(true)} aria-label="Search" className="flex items-center justify-center w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
                         <SearchIcon className="w-5 h-5" />
                     </button>
                 </div>
@@ -363,7 +368,7 @@ const Header: React.FC = React.memo(() => {
                     onMouseDown={handleThemeTouchStart}
                     onMouseUp={handleThemeTouchEnd}
                     onMouseLeave={handleThemeTouchEnd}
-                    className="touch-target p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 select-none"
+                    className="flex items-center justify-center w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 select-none transition-colors"
                     title="Click to cycle (System → Light → Dark). Long-press or right-click for full theme picker."
                     aria-label="Theme toggle — long-press for more options"
                 >
@@ -371,7 +376,7 @@ const Header: React.FC = React.memo(() => {
                 </button>
 
                 <div className="relative" ref={notificationsRef}>
-                    <button onClick={() => setNotificationsOpen(!isNotificationsOpen)} className="relative touch-target p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
+                    <button onClick={() => setNotificationsOpen(!isNotificationsOpen)} aria-label="Notifications" className="relative flex items-center justify-center w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
                         <BellIcon className="w-5 h-5" />
                         {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 animate-pulse"></span>}
                     </button>

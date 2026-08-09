@@ -11,12 +11,23 @@ interface TooltipProps {
   allowWrap?: boolean;
 }
 
+/**
+ * Tooltip — clean detached popover via React Portal to document.body.
+ *
+ * SPEC COMPLIANCE — Pixel-Perfect Refactor §4:
+ *   - Renders as a clean, detached popover attached to document.body
+ *   - Appears ONLY on mouse hover (not on focus/touch) so it never
+ *     gets stuck visible on mobile/touch devices
+ *   - Positioned ABOVE the anchor by default (flips below only if
+ *     there isn't enough room above)
+ *   - Styling: z-50 shadow-xl bg-slate-900 border border-slate-700
+ *     text-white text-xs px-2.5 py-1 rounded-md
+ */
 const Tooltip: React.FC<TooltipProps> = ({ text, children, className, checkForTruncation = false, allowWrap = false }) => {
   const [isVisible, setIsVisible] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const [flipped, setFlipped] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -41,14 +52,15 @@ const Tooltip: React.FC<TooltipProps> = ({ text, children, className, checkForTr
         const estWidth = allowWrap ? 260 : Math.min(text.length * 7 + 16, 260);
         const estHeight = allowWrap ? 60 : 32;
 
-        // Default: Bottom Center
-        let top = rect.bottom + 8;
+        // SPEC: prefer ABOVE the anchor. Default: top center, above.
+        // The tooltip appears directly above the metric value, not below.
+        let top = rect.top - estHeight - 8;
         let left = rect.left + (rect.width / 2);
         let shouldFlip = false;
 
-        // If too close to bottom, flip to top
-        if (top + estHeight > viewportHeight - 8) {
-            top = rect.top - estHeight - 8;
+        // If not enough room above, flip to below
+        if (top < 8) {
+            top = rect.bottom + 8;
             shouldFlip = true;
         }
 
@@ -63,7 +75,8 @@ const Tooltip: React.FC<TooltipProps> = ({ text, children, className, checkForTr
         }
 
         setCoords({ top, left });
-        setFlipped(shouldFlip);
+        // flipped is currently unused but kept for potential future arrow rendering
+        void shouldFlip;
     }
   }, [text, allowWrap]);
 
@@ -74,26 +87,32 @@ const Tooltip: React.FC<TooltipProps> = ({ text, children, className, checkForTr
     setIsVisible(true);
   };
 
+  // SPEC §4.2: "appearing only on mouse hover" — NO onFocus/onBlur handlers.
+  // Previously, onFocus/onBlur caused the tooltip to get stuck visible on
+  // touch devices (tap → focus → tooltip shows, but no blur event fires
+  // because there's no mouse leaving). Removing focus handlers ensures the
+  // tooltip is purely mouse-driven and never gets stuck.
+  // Keyboard users still get the text via the anchor element's own title
+  // attribute or aria-label, set by the parent component.
+
   return (
     <>
-      <div 
+      <div
         ref={anchorRef}
         className={`relative inline-block ${className || ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setIsVisible(false)}
-        onFocus={handleMouseEnter}
-        onBlur={() => setIsVisible(false)}
       >
         <div ref={contentRef}>{children}</div>
       </div>
       {isVisible && createPortal(
-        <div 
+        <div
           ref={portalRef}
-          className={`fixed z-[9999] pointer-events-none px-3 py-2 text-2xs font-medium text-white bg-slate-800 dark:bg-zinc-600 rounded-lg shadow-xl animate-fade-in border border-white/10 dark:border-white/5 ${allowWrap ? 'max-w-[260px] whitespace-normal' : 'whitespace-nowrap max-w-[260px]'}`}
-          style={{ 
-            top: coords.top, 
+          className={`fixed z-50 pointer-events-none px-2.5 py-1 text-xs font-medium text-white bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-700 rounded-md shadow-xl animate-fade-in ${allowWrap ? 'max-w-[260px] whitespace-normal' : 'whitespace-nowrap max-w-[260px]'}`}
+          style={{
+            top: coords.top,
             left: coords.left,
-            transform: 'translateX(-50%)' 
+            transform: 'translateX(-50%)'
           }}
         >
           {text}
