@@ -1192,21 +1192,52 @@ export const getSystemErrors = query({
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
 
+    // CRO AUDIT FIX — NOISE_PATTERNS filter to prevent ALOA chat content
+    // from leaking through error events. If an error event's name contains
+    // any of these patterns, it's excluded entirely. This prevents the
+    // founder from seeing user ALOA search queries or chat content that
+    // might be embedded in error properties.
+    const NOISE_PATTERNS = [
+      'aloa', 'search', 'chat_message', 'chat_conversation',
+      'draft_generated', 'ai_request', 'gemini', 'citation',
+      'research_', 'document_generated', 'form_submit',
+      'user_query', 'prompt', 'conversation',
+    ];
+
     return events
       .filter((e: any) => {
         const evt = (e.event || '').toLowerCase();
-        return (evt.includes('error') || evt.includes('fail') || evt.includes('exception')) &&
-               (e.timestamp || 0) > now - 7 * DAY;
+        // Must be an error/fail/exception event
+        if (!(evt.includes('error') || evt.includes('fail') || evt.includes('exception'))) return false;
+        // Must be within 7 days
+        if ((e.timestamp || 0) <= now - 7 * DAY) return false;
+        // CRO AUDIT FIX — exclude events that might contain ALOA/chat content
+        if (NOISE_PATTERNS.some(p => evt.includes(p))) return false;
+        return true;
       })
       .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0))
       .slice(0, 50)
-      .map((e: any) => ({
-        event: e.event,
-        firmId: e.firmId,
-        properties: e.properties,
-        timestamp: e.timestamp,
-        timeAgo: Math.floor((now - (e.timestamp || 0)) / DAY),
-      }));
+      .map((e: any) => {
+        // CRO AUDIT FIX — strip properties to only safe fields.
+        // Never return raw properties — they might contain user content.
+        const safeProps: any = {};
+        const rawProps = e.properties || {};
+        // Only keep known-safe error fields
+        if (rawProps.errorMessage) safeProps.errorMessage = rawProps.errorMessage;
+        if (rawProps.errorType) safeProps.errorType = rawProps.errorType;
+        if (rawProps.error) safeProps.error = rawProps.error;
+        if (rawProps.url) safeProps.url = rawProps.url;
+        if (rawProps.method) safeProps.method = rawProps.method;
+        if (rawProps.status) safeProps.status = rawProps.status;
+        if (rawProps.statusCode) safeProps.statusCode = rawProps.statusCode;
+        return {
+          event: e.event,
+          firmId: e.firmId,
+          properties: safeProps,
+          timestamp: e.timestamp,
+          timeAgo: Math.floor((now - (e.timestamp || 0)) / DAY),
+        };
+      });
   },
 });
 

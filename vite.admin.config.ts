@@ -24,6 +24,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function gitSha(fallback = 'unknown') {
+  // CRO AUDIT FIX — read SHA from version.json first (same fix as vite.config.ts)
+  // This ensures the founder APK bundle gets a real SHA instead of 'unknown',
+  // which was causing the version-check to never fire on the founder app.
+  try {
+    const versionFile = path.join(__dirname, 'public', 'version.json');
+    if (fs.existsSync(versionFile)) {
+      const manifest = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+      if (manifest.sha && manifest.sha !== 'unknown') {
+        return manifest.sha;
+      }
+    }
+  } catch {}
   try {
     return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
   } catch {
