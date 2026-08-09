@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Contact, Matter, ModalType, AppMode, User, MatterType, Property, ContactType } from '../../types';
 import { useHighlight } from '../../hooks/useHighlight';
 import { useAuth } from '../../contexts/AuthContext';

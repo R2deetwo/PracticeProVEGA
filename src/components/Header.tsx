@@ -251,7 +251,7 @@ const Header: React.FC = React.memo(() => {
     if (!currentUser) return null;
 
     return (
-        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-16 flex items-center justify-between px-4 sticky top-0 pt-safe">
+        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-16 flex items-center justify-between px-4 sticky top-0">
             {/* Impersonation Banner — uses isImpersonating (synchronous) rather than
                 originalUser (async query) so the banner is always visible during
                 impersonation, even if the admin's DB record is still loading or
