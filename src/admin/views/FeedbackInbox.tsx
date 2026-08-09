@@ -1,20 +1,12 @@
 /**
  * FeedbackInbox — founder dashboard view showing all user feedback.
  *
- * CATEGORIZED VIEW — feedback is organized into category tabs:
- *   All Conversations | Product Feedback | Technical Issues | General Queries | Account & Billing
- *
- * Each category maps to feedback types:
- *   - Product Feedback: Feature Requests, Suggestions, General Feedback
- *   - Technical Issues: Bug Reports, Maintenance, Technical
- *   - General Queries: Support Tickets, General
- *   - Account & Billing: Billing, Account, Data Restoration
- *
- * Status tabs (New, Replied, Resolved, Archived) now work via the
- * updateFeedbackStatus mutation.
+ * CRASH-PROOF: wrapped in a local ErrorBoundary so any render error
+ * (null property access, Convex function not found, etc.) shows a
+ * graceful fallback instead of crashing the entire admin app.
  */
 
-import React, { useState } from 'react';
+import React, { useState, Component } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
@@ -32,7 +24,45 @@ const CATEGORY_LABELS: Record<CategoryFilter, string> = {
     billing: 'Account & Billing',
 };
 
-export const FeedbackInbox: React.FC = () => {
+// LOCAL ERROR BOUNDARY — catches any render crash and shows a fallback
+// instead of propagating to the admin app's ViewErrorBoundary.
+class FeedbackErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+    state = { hasError: false, error: null as Error | null };
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error: Error) {
+        console.error('[FeedbackInbox] Render crash caught:', error);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="h-full overflow-y-auto bg-slate-50 dark:bg-zinc-900 p-8 text-center">
+                    <div className="max-w-md mx-auto bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-8">
+                        <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-3">
+                            <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                            </svg>
+                        </div>
+                        <p className="text-sm font-bold text-slate-700 dark:text-zinc-200 mb-1">Unable to load feedback</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                            {this.state.error?.message || 'An unexpected error occurred while loading the feedback inbox.'}
+                        </p>
+                        <button
+                            onClick={() => this.setState({ hasError: false, error: null })}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+const FeedbackInboxInner: React.FC = () => {
     const { addToast } = useFounderToast();
     const { currentUser } = useFounderAuth();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
@@ -41,21 +71,28 @@ export const FeedbackInbox: React.FC = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
 
-    // SAFE DATA FETCHING — useQuery can return undefined (loading),
-    // null (error on mobile APK), or an array. We guard all cases.
-    // Previously, if the query threw (e.g., auth header missing on APK),
-    // the component crashed because `feedback.map()` was called on
-    // undefined. Now we default to [] and show an error state.
-    const feedbackResult = useQuery(api.feedback.getFeedbackList,
-        statusFilter === 'all'
-            ? { category: categoryFilter }
-            : { status: statusFilter, category: categoryFilter });
+    // SAFE DATA FETCHING — wrapped in try/catch. If the Convex function
+    // doesn't exist or throws, we default to an empty array.
+    let feedbackResult: any;
+    try {
+        feedbackResult = useQuery(api.feedback.getFeedbackList,
+            statusFilter === 'all'
+                ? { category: categoryFilter }
+                : { status: statusFilter, category: categoryFilter });
+    } catch (e) {
+        console.error('[FeedbackInbox] Query threw:', e);
+        feedbackResult = null;
+    }
 
     // Safe array — never undefined, never null
     const filtered: any[] = Array.isArray(feedbackResult) ? feedbackResult : [];
     const isLoading = feedbackResult === undefined;
     const hasError = feedbackResult === null || (feedbackResult && !Array.isArray(feedbackResult));
     const selected = selectedId ? filtered.find((f: any) => f._id === selectedId) : null;
+
+    const adminReply = useMutation(api.feedback.adminReplyToFeedback);
+    const updateStatus = useMutation(api.feedback.updateFeedbackStatus);
+    const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
     const handleReply = async () => {
         if (!selected || !replyText.trim()) return;
@@ -100,7 +137,7 @@ export const FeedbackInbox: React.FC = () => {
                         <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
                         <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{isLoading ? 'Loading...' : `${filtered.length} feedback items`}</p>
                     </div>
-                    {/* Category tabs — primary organization */}
+                    {/* Category tabs */}
                     <div className="flex gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 overflow-x-auto no-scrollbar">
                         {(Object.keys(CATEGORY_LABELS) as CategoryFilter[]).map(cat => (
                             <button
@@ -114,7 +151,7 @@ export const FeedbackInbox: React.FC = () => {
                             </button>
                         ))}
                     </div>
-                    {/* Status filter tabs — secondary filter */}
+                    {/* Status filter tabs */}
                     <div className="flex gap-1 overflow-x-auto no-scrollbar">
                         {(['all', 'New', 'Replied', 'Resolved', 'Archived'] as StatusFilter[]).map(f => (
                             <button
@@ -134,8 +171,7 @@ export const FeedbackInbox: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
-                {/* ERROR STATE — query returned null or threw (mobile APK auth issue).
-                    Shows a graceful fallback instead of crashing to the ErrorBoundary. */}
+                {/* ERROR STATE */}
                 {hasError ? (
                     <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm p-12 text-center">
                         <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-3">
@@ -165,46 +201,49 @@ export const FeedbackInbox: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filtered.map((item: any) => (
-                            <div
-                                key={item._id}
-                                className={CARD}
-                                onClick={() => setSelectedId(item._id)}
-                            >
-                                <div className="flex items-start justify-between gap-3 mb-2">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${
-                                                item.status === 'New' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                item.status === 'Replied' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                                item.status === 'Resolved' ? 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400' :
-                                                'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                            }`}>{item.status || 'New'}</span>
-                                            <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">{item.type || 'General'}</span>
-                                            {/* Auto-reply indicator */}
-                                            {item.replies?.some((r: any) => r.adminId === 'system_auto_reply') && (
-                                                <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Auto-reply sent">Auto</span>
-                                            )}
+                        {/* SAFE MAP — each item wrapped with null check */}
+                        {filtered.map((item: any) => {
+                            if (!item) return null;
+                            return (
+                                <div
+                                    key={item._id || Math.random()}
+                                    className={CARD}
+                                    onClick={() => setSelectedId(item._id)}
+                                >
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${
+                                                    item.status === 'New' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                    item.status === 'Replied' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                                    item.status === 'Resolved' ? 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400' :
+                                                    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                }`}>{item.status || 'New'}</span>
+                                                <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400">{item.type || 'General'}</span>
+                                                {Array.isArray(item.replies) && item.replies.some((r: any) => r?.adminId === 'system_auto_reply') && (
+                                                    <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Auto-reply sent">Auto</span>
+                                                )}
+                                            </div>
+                                            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.title || 'Untitled'}</h3>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                                From: {item.userName || item.userEmail || 'Unknown'} · {item.timestamp ? new Date(item.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                                            </p>
                                         </div>
-                                        <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.title || 'Untitled'}</h3>
-                                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                                            From: {item.userName || item.userEmail || 'Unknown'} · {item.timestamp ? new Date(item.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}
-                                        </p>
                                     </div>
+                                    <p className="text-xs text-slate-600 dark:text-zinc-300 line-clamp-2">{item.message || ''}</p>
+                                    {item.adminReply && (
+                                        <div className="mt-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                                            <p className="text-2xs font-bold text-emerald-700 dark:text-emerald-400 mb-0.5">FOUNDER REPLY:</p>
+                                            <p className="text-xs text-slate-600 dark:text-zinc-300">{item.adminReply}</p>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-xs text-slate-600 dark:text-zinc-300 line-clamp-2">{item.message}</p>
-                                {item.adminReply && (
-                                    <div className="mt-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                                        <p className="text-2xs font-bold text-emerald-700 dark:text-emerald-400 mb-0.5">FOUNDER REPLY:</p>
-                                        <p className="text-xs text-slate-600 dark:text-zinc-300">{item.adminReply}</p>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* Reply Drawer */}
+                {/* Reply Drawer — all property accesses guarded */}
                 {selected && (
                     <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center" onClick={() => setSelectedId(null)}>
                         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -215,7 +254,7 @@ export const FeedbackInbox: React.FC = () => {
                             <div className="sticky top-0 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 p-4 flex items-center justify-between">
                                 <div className="min-w-0">
                                     <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate">{selected.title || 'Untitled'}</h3>
-                                    <p className="text-xs text-slate-500 dark:text-zinc-400">{selected.userName || selected.userEmail}</p>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400">{selected.userName || selected.userEmail || 'Unknown'}</p>
                                 </div>
                                 <button onClick={() => setSelectedId(null)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-700 flex-shrink-0">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -224,25 +263,29 @@ export const FeedbackInbox: React.FC = () => {
                             <div className="p-4 space-y-4">
                                 <div>
                                     <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-1">Feedback</p>
-                                    <p className="text-sm text-slate-700 dark:text-zinc-200 whitespace-pre-wrap">{selected.message}</p>
+                                    <p className="text-sm text-slate-700 dark:text-zinc-200 whitespace-pre-wrap">{selected.message || ''}</p>
                                 </div>
-                                {selected.replies && selected.replies.length > 0 && (
+                                {/* SAFE REPLIES — Array.isArray guard before .map() */}
+                                {Array.isArray(selected.replies) && selected.replies.length > 0 && (
                                     <div>
                                         <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-1">Conversation History</p>
-                                        {selected.replies.map((r: any, i: number) => (
-                                            <div key={i} className={`p-2 rounded-lg mb-2 ${r.adminId === 'system_auto_reply' ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900/30' : 'bg-slate-50 dark:bg-zinc-900'}`}>
-                                                <div className="flex items-center gap-1.5 mb-0.5">
-                                                    {r.adminId === 'system_auto_reply' && (
-                                                        <span className="text-3xs font-bold text-purple-600 dark:text-purple-400 uppercase">Auto-Reply</span>
-                                                    )}
-                                                    {r.adminId !== 'system_auto_reply' && (
-                                                        <span className="text-3xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Founder</span>
-                                                    )}
+                                        {selected.replies.map((r: any, i: number) => {
+                                            if (!r) return null;
+                                            return (
+                                                <div key={i} className={`p-2 rounded-lg mb-2 ${r.adminId === 'system_auto_reply' ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900/30' : 'bg-slate-50 dark:bg-zinc-900'}`}>
+                                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                                        {r.adminId === 'system_auto_reply' && (
+                                                            <span className="text-3xs font-bold text-purple-600 dark:text-purple-400 uppercase">Auto-Reply</span>
+                                                        )}
+                                                        {r.adminId !== 'system_auto_reply' && (
+                                                            <span className="text-3xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Founder</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-slate-600 dark:text-zinc-300">{r.message || ''}</p>
+                                                    <p className="text-2xs text-slate-400 mt-0.5">{r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB') : ''}</p>
                                                 </div>
-                                                <p className="text-xs text-slate-600 dark:text-zinc-300">{r.message}</p>
-                                                <p className="text-2xs text-slate-400 mt-0.5">{r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB') : ''}</p>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                                 <div>
@@ -262,7 +305,6 @@ export const FeedbackInbox: React.FC = () => {
                                         Send Reply (In-App + Email Notification)
                                     </button>
                                 </div>
-                                {/* Status actions */}
                                 <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-zinc-700">
                                     {selected.status !== 'Resolved' && (
                                         <button
@@ -297,3 +339,10 @@ export const FeedbackInbox: React.FC = () => {
         </div>
     );
 };
+
+// Export wrapped in ErrorBoundary — any crash shows a graceful fallback
+export const FeedbackInbox: React.FC = () => (
+    <FeedbackErrorBoundary>
+        <FeedbackInboxInner />
+    </FeedbackErrorBoundary>
+);

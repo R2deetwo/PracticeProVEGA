@@ -166,18 +166,34 @@ const PropertyDetailViewContent: React.FC = () => {
 
     // AUTO-EXPAND target unit — when targetUnitId is set and we're on the
     // Units tab, find the matching unit and expand its drawer. Scroll it
-    // into view smoothly.
+    // into view smoothly. If targetUnitId is 'overdue' or empty, expand
+    // the first unit with unpaid/partial rent status.
     useEffect(() => {
-        if (!targetUnitId || activeTab !== 'units') return;
-        // Find the target unit in the units list
-        const targetUnit = units.find((u: Property) =>
-            u.id === targetUnitId || String(u.id) === String(targetUnitId)
-        );
+        if (activeTab !== 'units' || !highlightTarget) return;
+
+        // Try to find the specific target unit first
+        let targetUnit: Property | undefined;
+        if (targetUnitId) {
+            targetUnit = units.find((u: Property) =>
+                u.id === targetUnitId || String(u.id) === String(targetUnitId)
+            );
+        }
+
+        // Fallback: if no specific unit found, find the first unit with
+        // unpaid/partial rent (overdue indicator)
+        if (!targetUnit && (highlightTarget === 'overdue' || !targetUnitId)) {
+            targetUnit = units.find((u: Property) => {
+                const rd = (u.rentalDetails || u) as any;
+                const scStatus = rd.serviceChargeStatus || rd.serviceChargeStatus;
+                return scStatus === 'UNPAID' || scStatus === 'unpaid' || scStatus === 'PARTIALLY_PAID';
+            });
+        }
+
         if (targetUnit) {
             setSelectedUnit(targetUnit);
             // Scroll into view after a short delay (let the drawer expand)
             setTimeout(() => {
-                const el = document.querySelector(`[data-unit-id="${targetUnitId}"]`);
+                const el = document.querySelector(`[data-unit-id="${targetUnit!.id}"]`);
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
@@ -185,7 +201,7 @@ const PropertyDetailViewContent: React.FC = () => {
             // Clear after expansion so it doesn't re-trigger
             setTargetUnitId(null);
         }
-    }, [targetUnitId, activeTab, units]);
+    }, [targetUnitId, activeTab, units, highlightTarget]);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -1391,7 +1407,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         ref={isSelected ? (el: HTMLDivElement | null) => { /* removed scrollIntoView — caused scroll bounce when expanding unit details */ } : undefined}
                                                         onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                                        className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'}`}
+                                                        className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${
+                                                            isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'
+                                                        } ${
+                                                            // HIGHLIGHT GLOW — when this unit is the target of an overdue
+                                                            // rent notification deep-link, apply a rose pulse ring for 5s.
+                                                            highlightTarget && (highlightTarget === unit.id || highlightTarget === String(unit.id) || highlightTarget === 'overdue')
+                                                                ? 'ring-2 ring-rose-500/60 animate-pulse shadow-lg shadow-rose-500/20'
+                                                                : ''
+                                                        }`}
                                                     >
                                                         {/* ── Card Header ── */}
                                                         <div className="flex items-center justify-between mb-2">
