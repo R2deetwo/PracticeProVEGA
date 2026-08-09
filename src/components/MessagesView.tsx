@@ -588,6 +588,16 @@ const MessagesView: React.FC = () => {
                 setSelectedInboxType(inboxType);
             }
         }
+        // ─── System Inbox auto-open ───────────────────────────────────
+        // When a founder-reply notification is clicked, the context carries
+        // { systemInbox: true, selectedInboxId: 'system-inbox' }. Auto-open
+        // the System Inbox thread so the user sees the reply immediately
+        // instead of landing on a generic inbox with no thread visible.
+        if (currentHistoryEntry.context?.systemInbox === true) {
+            setSelectedInboxId('system-inbox');
+            setSelectedInboxType('system' as any);
+            setActiveTab('inbox');
+        }
         // ─── Contact-initiated messaging ────────────────────────────────
         // When navigated from ContactDetailView's "Message" button, OPEN THE
         // COMPOSE MODAL with the contact pre-selected and the preferred
@@ -668,7 +678,7 @@ const MessagesView: React.FC = () => {
         if (ctx?.initialTab === 'inbox' && ctx?.selectedInboxId) return ctx.selectedInboxId;
         return null;
     });
-    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | 'team' | null>(() => {
+    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | 'team' | 'system' | null>(() => {
         const ctx = currentHistoryEntry.context;
         if (ctx?.initialTab === 'inbox' && ctx?.selectedInboxId) {
             return (ctx?.selectedInboxType as 'team' | 'conversation' | 'inbound' | 'portal') || null;
@@ -1610,6 +1620,66 @@ const MessagesView: React.FC = () => {
 
                                     return (
                                         <>
+                                            {/* ── System Inbox (Founder/PracticePro Team replies) ──────────
+                                                Shows at the TOP of the conversation list when the user has
+                                                feedback replies from the founder. Clicking opens the System
+                                                Inbox thread in the right panel showing the full conversation
+                                                with smoky-glass-green founder message bubbles.
+
+                                                This was previously dead code — filteredConversations was
+                                                built but never rendered. Now it's wired up. */}
+                                            {myFeedback.length > 0 && (
+                                                <div
+                                                    onClick={() => {
+                                                        setSelectedInboxId('system-inbox');
+                                                        setSelectedInboxType('system' as any);
+                                                        // Mark feedback reply notifications as read
+                                                        const systemNotifs = (coreState.notifications || []).filter(n =>
+                                                            n && n.userId === currentUser.id &&
+                                                            !n.isRead &&
+                                                            n.link?.view === 'messaging' &&
+                                                            n.link?.context?.systemInbox
+                                                        );
+                                                        if (systemNotifs.length > 0) {
+                                                            markNotificationsAsRead(systemNotifs.map(n => String(n.id || n._id || '')));
+                                                        }
+                                                    }}
+                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-8 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500' : 'border-l-transparent'}`}
+                                                >
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                                                                <SparklesIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">PracticePro Team</p>
+                                                                <p className="text-2xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Official Response</p>
+                                                            </div>
+                                                        </div>
+                                                        {(coreState.notifications || []).filter(n =>
+                                                            n && n.userId === currentUser.id &&
+                                                            !n.isRead &&
+                                                            n.link?.view === 'messaging' &&
+                                                            n.link?.context?.systemInbox
+                                                        ).length > 0 && (
+                                                            <span className="flex-shrink-0 bg-emerald-500 text-white text-2xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                                                {(coreState.notifications || []).filter(n =>
+                                                                    n && n.userId === currentUser.id &&
+                                                                    !n.isRead &&
+                                                                    n.link?.view === 'messaging' &&
+                                                                    n.link?.context?.systemInbox
+                                                                ).length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {myFeedback[0] && (
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-1 pl-10">
+                                                            {myFeedback[0].adminReply || myFeedback[0].message}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             {/* ── Inbound WhatsApp/Email messages (Atrium/Komplete only) ── */}
                                             {hasPropertyFeatures && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
@@ -2511,6 +2581,96 @@ const MessagesView: React.FC = () => {
                                     <p className="text-xs text-slate-400 mt-1">
                                         {isProperty ? 'WhatsApp, email, and portal messages from residents' : 'Messages from your clients on matters'}
                                     </p>
+                                </div>
+                            ) : selectedInboxId === 'system-inbox' ? (
+                                /* ─── SYSTEM INBOX THREAD (Founder ↔ User) ───────────────
+                                   Renders the full conversation between the user and the
+                                   PracticePro founder team. User's original feedback messages
+                                   appear on the right (primary-600 bubbles). Founder replies
+                                   appear on the left with smoky-glass-green styling:
+                                     bg-emerald-950/30 backdrop-blur-sm border border-emerald-500/20
+                                   Each founder message has a "FOUNDER" badge so it's
+                                   immediately distinguishable from regular team messages.
+
+                                   Previously this was dead code — the System Inbox was built
+                                   in filteredConversations but never rendered. Now it's
+                                   accessible when the user clicks the System Inbox entry. */
+                                <div className="flex-1 flex flex-col bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+                                    {/* Thread header */}
+                                    <div className="flex items-center gap-3 p-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-800">
+                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                                            <SparklesIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">PracticePro Team</h3>
+                                            <p className="text-2xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Official Support Channel</p>
+                                        </div>
+                                    </div>
+                                    {/* Conversation thread */}
+                                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                        {myFeedback.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                                <p className="text-sm text-slate-400">No messages yet</p>
+                                            </div>
+                                        ) : (
+                                            myFeedback.map((fb: any) => {
+                                                if (!fb) return null;
+                                                return (
+                                                    <div key={fb._id || fb.id} className="space-y-3">
+                                                        {/* User's original feedback — right aligned, primary bubble */}
+                                                        <div className="flex justify-end">
+                                                            <div className="max-w-[75%] bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+                                                                {fb.title && <p className="text-2xs font-bold opacity-80 uppercase tracking-wider mb-1">{fb.type || 'Feedback'}</p>}
+                                                                <p className="text-sm leading-relaxed">{fb.message}</p>
+                                                                <p className="text-2xs opacity-70 mt-1">
+                                                                    {fb.timestamp ? new Date(fb.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {/* Founder reply — left aligned, smoky glass green */}
+                                                        {fb.adminReply && (
+                                                            <div className="flex justify-start">
+                                                                <div className="max-w-[75%]">
+                                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                                                                            Founder
+                                                                        </span>
+                                                                        <span className="text-2xs text-slate-400">Official Response</span>
+                                                                    </div>
+                                                                    <div className="bg-emerald-950/30 dark:bg-emerald-950/40 backdrop-blur-sm border border-emerald-500/20 text-emerald-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{fb.adminReply}</p>
+                                                                        {fb.replies && fb.replies.length > 0 && (
+                                                                            <p className="text-2xs text-emerald-300/70 mt-1">
+                                                                                {new Date(fb.replies[fb.replies.length - 1].timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {/* Additional replies in the thread */}
+                                                        {fb.replies && fb.replies.filter((r: any) => r.adminId !== 'system_auto_reply').map((reply: any, idx: number) => (
+                                                            <div key={idx} className="flex justify-start">
+                                                                <div className="max-w-[75%]">
+                                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                                                                            Founder
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="bg-emerald-950/30 dark:bg-emerald-950/40 backdrop-blur-sm border border-emerald-500/20 text-emerald-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{reply.message}</p>
+                                                                        <p className="text-2xs text-emerald-300/70 mt-1">
+                                                                            {new Date(reply.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
                                 </div>
                             ) : selectedInboxType !== 'team' && !selectedInboundMsg && selectedInboxId ? (
                                 /* ─── LOADING STATE ──────────────────────────────────────
