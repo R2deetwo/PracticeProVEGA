@@ -778,22 +778,45 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                     // 'portal' is only for client/tenant recipients, not team
                     if (ch === 'portal' && recipientTab === 'team') return null;
                     const waAllowed = ch !== 'whatsapp' || (isGrowthOrAbove || isKompleteFirm);
+
+                    // CHANNEL AVAILABILITY — gray out WhatsApp/Email when the
+                    // recipient doesn't have a phone number / email saved.
+                    // User feedback: "if you don't have the person's phone
+                    // number, let WhatsApp be grayed out. If you don't have
+                    // the email, let the email be grayed out. When the user
+                    // hovers over it, say 'no email saved, edit contact to
+                    // add an email to send an email'."
+                    const r = selectedRecipients[0] as any;
+                    const hasPhone = !!(r?.tenantPhone || r?.phone);
+                    const hasEmail = !!(r?.tenantEmail || r?.email);
+                    let channelDisabled = !waAllowed;
+                    let disabledReason = '';
+                    if (ch === 'whatsapp' && !hasPhone && recipientTab !== 'team') {
+                      channelDisabled = true;
+                      disabledReason = 'No phone number saved. Edit the contact to add a phone number to send a WhatsApp message.';
+                    } else if (ch === 'email' && !hasEmail && recipientTab !== 'team') {
+                      channelDisabled = true;
+                      disabledReason = 'No email saved. Edit the contact to add an email to send an email message.';
+                    } else if (!waAllowed) {
+                      disabledReason = 'WhatsApp requires Growth plan or above';
+                    }
+
                     return (
                       <button
                         key={ch}
-                        onClick={() => waAllowed && setChannel(ch)}
-                        disabled={!waAllowed}
-                        title={!waAllowed ? 'WhatsApp requires Growth plan or above' : undefined}
+                        onClick={() => !channelDisabled && setChannel(ch)}
+                        disabled={channelDisabled}
+                        title={disabledReason || undefined}
                         className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                          !waAllowed
+                          channelDisabled
                             ? 'bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
-                            : channel === ch 
-                              ? 'bg-primary-600 text-white shadow-sm' 
+                            : channel === ch
+                              ? 'bg-primary-600 text-white shadow-sm'
                               : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                         }`}
                       >
                         {ch === 'in-app' ? '💬 In-App' : ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '🏠 Portal'}
-                        {!waAllowed && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
+                        {channelDisabled && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
                       </button>
                     );
                   })}

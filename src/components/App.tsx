@@ -399,7 +399,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     if (isEditorMode) {
         return (
-            <main className={`${protectionEnabled ? 'app-protected' : ''} w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900 pt-safe`}>
+            <main className={`${protectionEnabled ? 'app-protected' : ''} w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900`}>
                 {showScreenshotOverlay && (
                     <div className="screenshot-overlay visible">
                         <span>Content protected</span>
@@ -484,7 +484,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     }
 
     return (
-        <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500 pt-safe`}>
+        <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500`}>
             {/* Skip-to-main link: visually hidden until focused. Lets keyboard
                 + screen-reader users jump straight to the primary content area
                 instead of tabbing through the entire sidebar/header each time. */}

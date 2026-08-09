@@ -502,29 +502,19 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                  <p className="text-xs text-slate-500 mt-1">{contact.contactType}</p>
             </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-            <button
-                onClick={() => {
-                    if (contact) {
-                        openWithContext({
-                            entityType: 'contact',
-                            entityId: contact.id,
-                            entityName: contact.name,
-                            payload: { name: contact.name, email: contact.email, phone: contact.phone, category: contact.category },
-                        });
-                    }
-                }}
-                className="px-3 py-1.5 bg-indigo-600 border border-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
-                title="Ask ALOA about this contact"
-            >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                Ask ALOA
-            </button>
+        {/* Action buttons — arranged left-to-right in priority order.
+            Removed "Ask ALOA" per user request (not needed here).
+            Remaining: Message (primary), Edit Contact (primary),
+            Merge Contact (secondary), Delete (destructive).
+            Uses flex-wrap so on narrow/portrait screens the buttons
+            flow to a second row instead of overflowing horizontally. */}
+        <div className="flex gap-1.5 flex-wrap justify-end">
             <button
                 onClick={() => {
                     // Navigate to Messages with this contact pre-selected.
                     // Channel resolution: WhatsApp if valid phone exists,
-                    // otherwise Email.
+                    // otherwise Email. If NEITHER exists, the Message modal
+                    // will handle showing an empty-state.
                     const channel = contact.phone ? 'whatsapp' : 'email';
                     navigateTo('messaging', null, {
                         initialTab: 'inbox',
@@ -534,12 +524,25 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                         composeRecipient: channel === 'whatsapp' ? contact.phone : contact.email,
                     });
                 }}
-                className="px-3 py-1.5 bg-indigo-600 border border-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
+                className="px-3 py-1.5 bg-indigo-600 border border-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-1.5"
+                title="Send a message to this contact"
             >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                 Message
             </button>
-            <button 
+            <button
+                onClick={() => openModal('editContact', contact.id)}
+                className="px-3 py-1.5 bg-primary-600 border border-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-1.5"
+            >
+                <EditIcon className="w-3.5 h-3.5" /> Edit
+            </button>
+            <button
+                onClick={() => openModal('mergeContact', contact.id)}
+                className="px-3 py-1.5 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shadow-sm flex items-center gap-1.5"
+            >
+                <LinkIcon className="w-3.5 h-3.5" /> Merge
+            </button>
+            <button
                 onClick={() => {
                     openModal('deleteConfirmation', contact.id, {
                         title: 'Delete Contact?',
@@ -549,19 +552,10 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                             onGoBack();
                         }
                     });
-                }} 
-                className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors shadow-sm flex items-center gap-2"
+                }}
+                className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors shadow-sm flex items-center gap-1.5"
             >
                 <TrashIcon className="w-3.5 h-3.5" /> Delete
-            </button>
-            <button 
-                onClick={() => openModal('mergeContact', contact.id)} 
-                className="px-3 py-1.5 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shadow-sm"
-            >
-                Merge Contact
-            </button>
-            <button onClick={() => openModal('editContact', contact.id)} className="px-3 py-1.5 bg-primary-600 border border-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors shadow-sm">
-                Edit Contact
             </button>
         </div>
       </div>
