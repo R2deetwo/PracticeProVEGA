@@ -1,4 +1,5 @@
-
+// Test commit to verify Cloudflare auto-deploy + Refresh to Update prompt.
+// If you're seeing this in the live bundle, the CI/CD pipeline is working.
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { EyeIcon, EyeOffIcon } from '../constants';
 import Tooltip from './Tooltip';
