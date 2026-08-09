@@ -565,8 +565,7 @@ export const scanMattersForRetainerCycle = internalMutation({
       stagedCount++;
     }
 
-      `[retainerBilling.scanMattersForRetainerCycle] staged=${stagedCount} skipped=${skippedCount}`,
-    );
+    console.log(`[retainerBilling.scanMattersForRetainerCycle] staged=${stagedCount} skipped=${skippedCount}`);
     return { stagedCount, skippedCount };
   },
 });

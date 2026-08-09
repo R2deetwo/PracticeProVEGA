@@ -1855,7 +1855,16 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                                 onClick={(e) => {
                                                                                                     e.stopPropagation();
                                                                                                     const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
-                                                                                                    updateItem('properties', { ...full, status: s }, 'Property');
+                                                                                                    // FIX: pass _id (Convex internal ID) as well as id (client UUID).
+                                                                                                    // The updateItem mutation tries ctx.db.get(id) first, then falls
+                                                                                                    // back to by_custom_id index. If the unit only has a _id and no
+                                                                                                    // custom 'id' field, the update fails with 'Record not found'.
+                                                                                                    // Including _id ensures the mutation can always find the record.
+                                                                                                    const updatePayload: any = { ...full, status: s };
+                                                                                                    if ((full as any)._id) {
+                                                                                                        updatePayload._id = (full as any)._id;
+                                                                                                    }
+                                                                                                    updateItem('properties', updatePayload, 'Property');
                                                                                                     addToast(`${d.name} marked as ${s}`, { type: 'success' });
                                                                                                     // Hide dropdown
                                                                                                     const el = e.currentTarget.parentElement as HTMLElement;

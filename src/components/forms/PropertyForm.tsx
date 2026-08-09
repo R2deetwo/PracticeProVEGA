@@ -7,7 +7,7 @@ import { MapPinIcon, CurrencyDollarIcon, UserIcon, CalendarIcon, InfoIcon, XIcon
 import { Home as HomeIcon, Briefcase as BriefcaseIcon, ExternalLink as ExternalLinkIcon, Upload as UploadIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import NairaSymbol from '../NairaSymbol';
-import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/formatting';
+import { formatNumberWithCommas, parseFormattedNumber, normalizeAddress } from '../../utils/formatting';
 import { useUI } from '../../contexts/UIContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -50,14 +50,14 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [managementFee, setManagementFee] = useState<number>(propertyToEdit?.managementFeePercentage || 10);
     const [numberOfUnits, setNumberOfUnits] = useState<number>(() => {
         if (propertyToEdit) {
-            const count = (coreState.properties || []).filter(p => p.address === propertyToEdit.address).length;
+            const count = (coreState.properties || []).filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address)).length;
             return Math.max(1, count);
         }
         return 1;
     });
     const [unitsInputStr, setUnitsInputStr] = useState(() => {
         if (propertyToEdit) {
-            const count = (coreState.properties || []).filter(p => p.address === propertyToEdit.address).length;
+            const count = (coreState.properties || []).filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address)).length;
             return String(Math.max(1, count));
         }
         return '1';
@@ -80,7 +80,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [unitsData, setUnitsData] = useState<UnitRentalInput[]>(() => {
         if (propertyToEdit) {
             const allUnits = (coreState.properties || [])
-                .filter(p => p.address === propertyToEdit.address)
+                .filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address))
                 .map(p => {
                     const rd = p.rentalDetails || {};
                     const rent = Number(rd.rentAmount) || 0;
@@ -181,7 +181,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         if (!propertyToEdit) return;
         // Only re-sync if the number of units at this address has changed
         const currentUnits = (coreState.properties || [])
-            .filter(p => p.address === propertyToEdit.address);
+            .filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address));
         if (currentUnits.length !== unitsData.length) {
             // Rebuild unitsData from the latest coreState
             const refreshedUnits = currentUnits.map(p => {
@@ -558,7 +558,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const siblingsToRemove = (coreState.properties || [])
                     .filter(p => {
                         const convexId = (p as any)._id;
-                        return p.address === propertyToEdit.address &&
+                        return normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address) &&
                             !keptIds.has(p.id) &&
                             !keptIds.has(convexId);
                     });

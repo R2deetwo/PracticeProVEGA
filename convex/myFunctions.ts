@@ -5011,8 +5011,6 @@ export const createSubscriptionRequest = mutation({
       paymentProofStorageId: args.paymentProofStorageId || null,
       paymentProofNote: args.paymentProofNote || null,
       requestedAt: now.toISOString(),
-      autoRevertAt,
-      createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
 
@@ -5037,7 +5035,7 @@ export const createSubscriptionRequest = mutation({
       success: true,
       requestId,
       transactionReference: args.transactionReference,
-      autoRevertAt,
+      // eslint-disable-next-line
     };
   },
 });
@@ -5465,8 +5463,6 @@ export const createAddonRequest = mutation({
       status: 'pending_review',
       notes: args.notes || null,
       requestedAt: now.toISOString(),
-      autoRevertAt,
-      createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
 

@@ -308,8 +308,7 @@ export const batchSummarize = internalAction({
       }
     }
 
-      `[Memory] Batch summarization complete: ${summarized} summarized, ${errors} errors, ${unsummarized.length - summarized - errors} skipped.`
-    );
+    console.log(`[Memory] Batch summarization complete: ${summarized} summarized, ${errors} errors, ${unsummarized.length - summarized - errors} skipped.`);
     return { summarized, errors };
   },
 });

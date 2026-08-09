@@ -317,7 +317,7 @@ export const sendReplyEmail = internalAction({
       await ctx.runAction(api.communications.sendEmail, {
         to: args.userEmail,
         subject: `PracticePro Team replied to your feedback`,
-        html: `
+        htmlContent: `
           <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
             <div style="background: #16A34A; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
               <h2 style="margin: 0; font-size: 18px;">PracticePro Team</h2>
@@ -332,12 +332,12 @@ export const sendReplyEmail = internalAction({
                 <p style="margin: 0; font-size: 14px; color: #1e293b; line-height: 1.6;">${args.replyMessage}</p>
               </div>
               <p style="margin: 16px 0 0; font-size: 13px; color: #64748b;">
-                Open the PracticePro app → Messages → System Inbox to view the full conversation and reply.
+                Open the PracticePro app - Messages - System Inbox to view the full conversation and reply.
               </p>
             </div>
           </div>
-        `,
-      });
+        ` as any,
+      } as any);
       console.log(`[feedback] Reply email sent to ${args.userEmail}`);
     } catch (e: any) {
       console.error(`[feedback] Failed to send reply email to ${args.userEmail}:`, e.message);

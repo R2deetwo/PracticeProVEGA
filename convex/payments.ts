@@ -180,9 +180,9 @@ export const completePaystackPayment = internalMutation({
     if (subRequest && subRequest.status === 'pending_review') {
       // Activate the firm's subscription
       await ctx.runMutation(internal.myFunctions.activateFirmSubscription, {
-        firmId: subRequest.firmId,
-        plan: subRequest.requestedPlan,
-        billingInterval: subRequest.billingInterval,
+        firmId: subRequest.firmId || '',
+        plan: subRequest.requestedPlan || '',
+        billingInterval: subRequest.billingInterval || undefined,
         reference: args.reference,
       });
 
