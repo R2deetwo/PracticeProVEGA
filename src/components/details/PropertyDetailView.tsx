@@ -41,15 +41,35 @@ type PropertyTab = 'summary' | 'units' | 'notices' | 'financials' | 'tracking';
 
 // ─── Eviction Tracker Types & Helpers ───
 interface EvictionTracker {
-    quitNoticeStatus: 'none' | 'drafted' | 'served' | 'delivered';
+    // STATUTORY EVICTION STATE MACHINE (Nigerian Tenancy Law compliant)
+    // Streamlined: "Mark as Delivered" removed — "Served" is the sole
+    // statutory milestone. Countdown activates on serve.
+    //   none → drafted → served → (countdown expires) → sevenDayDue
+    //   superseded: when a fresh notice is generated while a served notice
+    //   is active, the old notice transitions to 'superseded' and the
+    //   countdown resets.
+    quitNoticeStatus: 'none' | 'drafted' | 'served' | 'superseded';
     quitNoticeDraftedDate?: number;
     quitNoticeServedDate?: number;
-    quitNoticeDeliveredDate?: number;
+    quitNoticeSupersededDate?: number;
     quitNoticeDocumentId?: string;
+    quitNoticeServiceMethod?: string; // 'personal' | 'substituted' | 'registered_post'
+    // Countdown — calculated when notice is marked served
+    quitNoticeCountdownEndDate?: number; // when the statutory period expires
     sevenDayNoticeStatus: 'none' | 'due' | 'drafted' | 'served' | 'delivered';
     sevenDayNoticeDueDate?: number;
     sevenDayNoticeDraftedDate?: number;
     sevenDayNoticeDocumentId?: string;
+    // Audit trail — immutable event log stored on the tracker
+    eventLog?: EvictionEvent[];
+}
+
+interface EvictionEvent {
+    type: 'drafted' | 'served' | 'superseded' | 'seven_day_issued' | 'seven_day_served' | 'retracted';
+    timestamp: number;
+    documentId?: string;
+    notes?: string;
+    actorId?: string;
 }
 
 /** Calculate statutory notice period in months based on tenancy frequency */
@@ -611,68 +631,124 @@ const PropertyDetailViewContent: React.FC = () => {
     };
 
     // ─── Eviction Workflow Handlers ───
+    // STATUTORY EVICTION STATE MACHINE (Nigerian Tenancy Law compliant)
+    // Streamlined per user request:
+    //   1. Draft / Generate Statutory Notice
+    //   2. Mark as Served (records timestamp + activates countdown)
+    //   3. Statutory Countdown Timer (6mo/1mo/7days based on tenancy frequency)
+    //   4. Auto-qualify for 7-Day Notice of Owner's Intention on expiry
+    //
+    // "Mark as Delivered" has been removed — "Served" is the sole statutory
+    // milestone under Lagos State Tenancy Law. The countdown activates
+    // immediately on serve.
+
+    const logEvictionEvent = (tracker: EvictionTracker, event: EvictionEvent): EvictionTracker => {
+        const eventLog = tracker.eventLog || [];
+        return { ...tracker, eventLog: [...eventLog, { ...event, actorId: currentUser?.id }] };
+    };
+
     const updateEvictionTracker = (unit: any, updates: Partial<EvictionTracker>) => {
         const tracker = getEvictionTracker(unit);
         const updatedTracker = { ...tracker, ...updates };
         const rentalDetails = { ...((unit as any).rentalDetails || {}), evictionTracker: updatedTracker };
-        // Use coreState to find the full unit record (units is not in scope at this level)
         const full = (coreState.properties || []).find((u: Property) => u.id === unit.id) || unit;
         updateItem('properties', { ...full, rentalDetails }, 'Property');
     };
 
     const handleQuitNoticeDrafted = (unit: any) => {
-        // SAFEGUARD FIX — Do NOT auto-commit the eviction tracker status.
-        // Previously, this function used a setTimeout to automatically mark
-        // the notice as 'drafted' after 500ms, regardless of whether the user
-        // actually saved the draft or discarded it. This meant exiting the
-        // Notice Drafting modal without saving still committed the draft to
-        // the property record and advanced the eviction timeline.
-        //
-        // Now: just open the editor. The user must explicitly mark the notice
-        // as drafted via the "Mark as Drafted" button in the eviction tracker
-        // UI AFTER they've actually saved the document. This separates
-        // "open editor" from "commit status" — no mutations on modal unmount.
-        handleDraftAction('Notice to Quit', 'Quit', unit);
-        addToast('Notice editor opened. After saving your draft, use "Mark as Drafted" to record the notice.', { type: 'info' });
-    };
-
-    const handleMarkQuitNoticeServed = (unit: any) => {
         const tracker = getEvictionTracker(unit);
-        if (tracker.quitNoticeStatus === 'drafted') {
-            updateEvictionTracker(unit, {
-                quitNoticeStatus: 'served',
-                quitNoticeServedDate: Date.now(),
+
+        // SUPERSEDE SAFEGUARD — if a notice is already served, generating a
+        // fresh notice requires confirmation. The old notice transitions to
+        // 'superseded' and the countdown resets.
+        if (tracker.quitNoticeStatus === 'served' || tracker.quitNoticeStatus === 'drafted') {
+            const servedDate = tracker.quitNoticeServedDate
+                ? new Date(tracker.quitNoticeServedDate).toLocaleDateString('en-GB')
+                : null;
+            openModal('deleteConfirmation', unit.id, {
+                title: 'Active Statutory Notice Detected',
+                message: `An active Quit Notice was marked as served on ${servedDate}. Generating a fresh notice will nullify the active statutory countdown and restart legal service.`,
+                confirmText: 'Generate Fresh Notice',
+                cancelText: 'Cancel',
+                onConfirm: () => {
+                    // Supersede the old notice — transition to 'superseded',
+                    // reset countdown, log the event immutably
+                    const supersededTracker = logEvictionTracker(tracker, {
+                        type: 'superseded',
+                        timestamp: Date.now(),
+                        notes: `Previous notice (served ${servedDate}) superseded by fresh draft.`,
+                    });
+                    updateEvictionTracker(unit, {
+                        ...supersededTracker,
+                        quitNoticeStatus: 'superseded',
+                        quitNoticeSupersededDate: Date.now(),
+                        quitNoticeCountdownEndDate: undefined,
+                        sevenDayNoticeStatus: 'none',
+                        sevenDayNoticeDueDate: undefined,
+                    });
+                    addToast('Previous notice superseded. Opening fresh notice editor.', { type: 'info' });
+                    handleDraftAction('Notice to Quit', 'Quit', unit);
+                },
             });
-            addToast('Quit Notice marked as served.', { type: 'success' });
+            return;
         }
+
+        // Normal flow — no active notice, just open the editor
+        handleDraftAction('Notice to Quit', 'Quit', unit);
+        // Mark as drafted + log event
+        const newTracker = logEvictionTracker(tracker, {
+            type: 'drafted',
+            timestamp: Date.now(),
+        });
+        updateEvictionTracker(unit, {
+            quitNoticeStatus: 'drafted',
+            quitNoticeDraftedDate: Date.now(),
+            eventLog: newTracker.eventLog,
+        });
+        addToast('Notice editor opened. After saving, use "Mark as Served" to activate the statutory countdown.', { type: 'info' });
     };
 
-    const handleMarkQuitNoticeDelivered = (unit: any) => {
+    const handleMarkQuitNoticeServed = (unit: any, serviceMethod: string = 'personal') => {
         const tracker = getEvictionTracker(unit);
-        if (tracker.quitNoticeStatus !== 'served') return;
+        if (tracker.quitNoticeStatus !== 'drafted') return;
 
-        const deliveryDate = Date.now();
+        const servedDate = Date.now();
         const rental = (unit as any).rentalDetails || {};
         const rentFrequency = rental.rentFrequency || 'yearly';
         const noticeMonths = getNoticePeriodMonths(rentFrequency);
-        const dueDate = new Date(deliveryDate);
-        dueDate.setMonth(dueDate.getMonth() + noticeMonths);
+        const countdownEnd = new Date(servedDate);
+        countdownEnd.setMonth(countdownEnd.getMonth() + noticeMonths);
 
-        updateEvictionTracker(unit, {
-            quitNoticeStatus: 'delivered',
-            quitNoticeDeliveredDate: deliveryDate,
-            sevenDayNoticeStatus: 'due',
-            sevenDayNoticeDueDate: dueDate.getTime(),
+        // Log the served event immutably
+        const updatedTracker = logEvictionTracker(tracker, {
+            type: 'served',
+            timestamp: servedDate,
+            notes: `Service method: ${serviceMethod}. Statutory period: ${noticeMonths} months. Countdown expires ${countdownEnd.toLocaleDateString('en-GB')}.`,
         });
 
-        addToast(`Quit Notice delivery confirmed. 7-Day Notice of Owner's Intention to Recover Premises will be due on ${dueDate.toLocaleDateString('en-GB')}.`, { type: 'success' });
+        updateEvictionTracker(unit, {
+            ...updatedTracker,
+            quitNoticeStatus: 'served',
+            quitNoticeServedDate: servedDate,
+            quitNoticeServiceMethod: serviceMethod,
+            quitNoticeCountdownEndDate: countdownEnd.getTime(),
+            // Pre-qualify the 7-Day Notice as 'due' once countdown expires.
+            // The countdown is checked client-side; when it expires, the
+            // 7-Day Notice button becomes active.
+            sevenDayNoticeStatus: 'due',
+            sevenDayNoticeDueDate: countdownEnd.getTime(),
+        });
+
+        addToast(`Quit Notice marked as served. Statutory countdown active — 7-Day Notice qualifies on ${countdownEnd.toLocaleDateString('en-GB')}.`, { type: 'success' });
     };
+
+    // handleMarkQuitNoticeDelivered REMOVED — "Served" is the sole statutory
+    // milestone under Nigerian tenancy law. The countdown activates on serve.
 
     const handleDraftSevenDayNotice = (unit: any) => {
         const d = getUnitDisplay(unit);
         const tracker = getEvictionTracker(unit);
 
-        // Build the 7-Day Notice prompt
         let prompt = `Write a formal legal document: **7-Day Notice of Owner's Intention to Recover Premises**.\n\n`;
         prompt += `**PROPERTY DETAILS:**\n`;
         prompt += `- Address: ${property.address}\n`;
@@ -681,16 +757,13 @@ const PropertyDetailViewContent: React.FC = () => {
         prompt += `- Landlord/Owner: ${owner?.name || '[LANDLORD NAME]'}\n`;
         prompt += `- Tenant: ${d.tenantName || '[TENANT NAME]'}\n`;
         prompt += `\n**CONTEXT:**\n`;
-        prompt += `- Notice to Quit was served and delivered on ${tracker.quitNoticeDeliveredDate ? new Date(tracker.quitNoticeDeliveredDate).toLocaleDateString('en-GB') : '[DATE]'}\n`;
+        prompt += `- Notice to Quit was served on ${tracker.quitNoticeServedDate ? new Date(tracker.quitNoticeServedDate).toLocaleDateString('en-GB') : '[DATE]'}\n`;
         prompt += `- The statutory notice period has expired and the tenant remains in possession\n`;
         prompt += `\n**SPECIFIC INSTRUCTION:** This is a 7-Day Notice of Owner's Intention to Recover Premises under the the applicable state Recovery of Premises Law (e.g., Lagos Tenancy Law 2011). The tenant has failed to yield possession after the quit notice period expired. Give 7 days from service of this notice for the tenant to vacate, failing which legal proceedings for recovery of premises will be commenced.\n`;
         prompt += `\n**FORMAT:** Use standard Nigerian legal formatting. Start with the Title centered.`;
 
         const draftTitle = `7-Day Notice - ${d.name || property.address.split(',')[0]}`;
         setTimeout(() => {
-            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
-            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
-
             openEditor(null, {
                 draftTitle,
                 draftPrompt: prompt,
@@ -699,7 +772,14 @@ const PropertyDetailViewContent: React.FC = () => {
             });
         }, 300);
 
+        // Log the 7-Day issued event
+        const updatedTracker = logEvictionEvent(tracker, {
+            type: 'seven_day_issued',
+            timestamp: Date.now(),
+            notes: `7-Day Notice of Owner's Intention to Recover Premises drafted.`,
+        });
         updateEvictionTracker(unit, {
+            ...updatedTracker,
             sevenDayNoticeStatus: 'drafted',
             sevenDayNoticeDraftedDate: Date.now(),
         });
@@ -1376,9 +1456,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     {eviction.quitNoticeStatus === 'served' && (
                                                                         <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Served</span>
                                                                     )}
-                                                                    {eviction.quitNoticeStatus === 'delivered' && !isSevenDayDue && !isSevenDayUpcoming && (
-                                                                        <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Delivered</span>
+                                                                    {eviction.quitNoticeStatus === 'superseded' && (
+                                                                        <span className="text-3xs font-black text-slate-400 dark:text-zinc-500 uppercase line-through">Quit: Superseded</span>
                                                                     )}
+                                                                    {/* "Quit: Delivered" badge removed — "Served" is the sole
+                                                                        statutory milestone. Countdown shows in the tracking tab. */}
                                                                     {isSevenDayDue && (
                                                                         <span className="text-3xs font-black text-rose-600 dark:text-rose-400 uppercase animate-pulse">7-Day Notice Due!</span>
                                                                     )}
@@ -1705,23 +1787,41 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     <Wallet className="w-3.5 h-3.5" /> Ledger
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400 whitespace-nowrap" aria-label="Draft Notice to Quit" title="Draft Notice to Quit">
-                                                                                <LogOut className="w-3.5 h-3.5" /> Quit Notice
+                                                                            {/* STATE GATING — when a notice is served, the "Quit Notice"
+                                                                                button transitions to a muted/secondary state (opacity-60).
+                                                                                Clicking it triggers the supersede confirmation modal
+                                                                                (handled in handleQuitNoticeDrafted). */}
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }}
+                                                                                className={`h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border whitespace-nowrap ${
+                                                                                    eviction.quitNoticeStatus === 'served'
+                                                                                        ? 'opacity-60 border-slate-300 dark:border-zinc-600 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:opacity-100'
+                                                                                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400'
+                                                                                }`}
+                                                                                aria-label={eviction.quitNoticeStatus === 'served' ? "Active notice exists — click to supersede with fresh notice" : "Draft Notice to Quit"}
+                                                                                title={eviction.quitNoticeStatus === 'served' ? "Active notice exists — click to supersede with fresh notice" : "Draft Notice to Quit"}
+                                                                            >
+                                                                                <LogOut className="w-3.5 h-3.5" /> {eviction.quitNoticeStatus === 'served' ? 'Supersede' : 'Quit Notice'}
                                                                             </button>
 
-                                                                            {/* ── Eviction Workflow Actions (Growth+/KOMPLETE only) ── */}
+                                                                            {/* ── Eviction Workflow Actions (Growth+/KOMPLETE only) ──
+                                                                                STATUTORY EVICTION STATE MACHINE:
+                                                                                  drafted → served (activates countdown)
+                                                                                  served → 7-Day Notice (when countdown expires)
+                                                                                "Mark as Delivered" removed — "Served" is the sole statutory
+                                                                                milestone under Nigerian tenancy law.
+                                                                                State gating: when a notice is served, the "Draft Notice"
+                                                                                button transitions to a muted/secondary state. Clicking it
+                                                                                triggers the supersede confirmation modal. */}
                                                                             {canUseEviction && isEvictionActive && (
                                                                                 <>
                                                                                     {eviction.quitNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" aria-label="Mark Quit Notice as Served" title="Mark Quit Notice as Served">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" aria-label="Mark Quit Notice as Served — activates statutory countdown" title="Mark Quit Notice as Served — activates statutory countdown">
                                                                                             <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Served
                                                                                         </button>
                                                                                     )}
-                                                                                    {eviction.quitNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" aria-label="Confirm delivery of Quit Notice" title="Confirm delivery of Quit Notice">
-                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Delivered
-                                                                                        </button>
-                                                                                    )}
+                                                                                    {/* "Mark Delivered" button REMOVED — "Served" is the sole
+                        statutory milestone. Countdown activates on serve. */}
                                                                                     {(isSevenDayDue || eviction.sevenDayNoticeStatus === 'due') && (
                                                                                         <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border whitespace-nowrap ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md border-rose-600' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400'}`} aria-label={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
                                                                                             <Scale className="w-3.5 h-3.5" /> {isSevenDayDue ? '7-Day Due!' : '7-Day'}
