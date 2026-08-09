@@ -886,12 +886,18 @@ html.font-size-lg .line-clamp-2 {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .pt-safe {
-  /* CRO AUDIT FIX — was env(safe-area-inset-top, 0px) which resolves to 0px
-     on notch-less devices (desktop, older Androids). This caused a ~16px
-     header height jump between admin views (which used inline style with
-     max(1rem, env())) and user-app views (which used .pt-safe).
-     Now both resolve to at least 1rem (16px) on all devices. */
-  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+  /* SAFE-AREA INSET — proper mobile-only top padding.
+     On desktop browsers: env(safe-area-inset-top) resolves to 0px,
+     so NO padding is added (no gap above the header).
+     On mobile APK / mobile browsers with a notch/status bar:
+     env(safe-area-inset-top) resolves to the actual safe area inset
+     (e.g., 24px or 44px), so the header sits below the status bar.
+
+     PREVIOUS BUG: used max(1rem, env(...)) which added at least 16px
+     on ALL devices including desktop, causing a visible gap above the
+     header on desktop browsers. Fixed by using pure env() with 0px
+     fallback — desktop gets 0, mobile gets the real inset. */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 .pl-safe {
   padding-left: env(safe-area-inset-left, 0px);

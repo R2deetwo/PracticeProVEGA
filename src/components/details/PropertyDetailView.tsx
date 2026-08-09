@@ -28,9 +28,9 @@ import ErrorBoundary from '../ErrorBoundary';
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
-    <div className="w-full min-w-0 overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+    <div className="w-full min-w-0 overflow-x-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
-        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words overflow-hidden">
+        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words">
             {value}
         </div>
         {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight break-words">{subText}</p>}
@@ -707,12 +707,12 @@ const PropertyDetailViewContent: React.FC = () => {
             {/* Tabs — horizontally scrollable on mobile */}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6">
-                    <nav className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap scrollbar-none">
+                    <nav className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap scrollbar-none touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
                         {([
                             { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
                             { id: 'notices' as PropertyTab, label: <><Megaphone className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Notice </span>Board</> },
-                            ...((isLeased || hasMultipleUnits) ? [{ id: 'financials' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Financials</span></> }] : []),
+                            ...((isLeased || hasMultipleUnits) ? [{ id: 'financials' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Finance</> }] : []),
                             { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Activity &amp; </span>Tracking</> },
                         ] as { id: PropertyTab; label: React.ReactNode }[]).map(tab => (
                             <button
@@ -745,12 +745,12 @@ const PropertyDetailViewContent: React.FC = () => {
                     lease breach) and the Property Actions menu. */}
 
                 {activeTab === 'summary' && (
-                    <div className="space-y-8 animate-fade-in overflow-hidden w-full">
+                    <div className="space-y-8 animate-fade-in overflow-x-hidden w-full">
 
                         {/* 1. Core Information & Quick Actions Row */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                             {/* Identity Card */}
-                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700 overflow-hidden w-full`}>
+                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700 overflow-x-hidden w-full`}>
                                 <div className="flex justify-between items-start border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
                                     <div className="flex items-center gap-3">
                                         <h3 className="text-sm font-bold text-slate-800 dark:text-white">Property Information</h3>
@@ -1093,7 +1093,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
                                                     if (hasTier1 && hasTier2) {
                                                         statusBorder = '#22C55E';
-                                                        statusBadge = { label: 'Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
+                                                        statusBadge = { label: 'Info Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
                                                     } else if (!hasTier1) {
                                                         statusBorder = '#EF4444';
                                                         statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400', tooltip: d.statusTooltip };
@@ -1246,9 +1246,21 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-600 flex items-center justify-center flex-shrink-0">
                                                                         <span className="text-3xs font-black text-slate-500 dark:text-zinc-300">{d.tenantName.charAt(0).toUpperCase()}</span>
                                                                     </div>
-                                                                    <p className="text-slate-800 dark:text-zinc-100 text-xs font-semibold truncate min-w-0">
-                                                                        {d.tenantName}
-                                                                    </p>
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-slate-800 dark:text-zinc-100 text-xs font-semibold truncate min-w-0">
+                                                                            {d.tenantName}
+                                                                        </p>
+                                                                        {/* Tenancy Ends date — directly beneath tenant name,
+                                                                            aligned with the avatar's left margin (pl-5 to match
+                                                                            the w-5 avatar width + gap-1.5). Previously this was
+                                                                            a separate row lower down with just "Ends" label. */}
+                                                                        {d.leaseEnd && (
+                                                                            <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                                                                <span className="font-bold text-slate-400 uppercase tracking-wider mr-1">Tenancy Ends:</span>
+                                                                                {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             )}
 
@@ -1313,13 +1325,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 );
                                                             })()}
 
-                                                            {/* Lease end — compact */}
-                                                            {d.leaseEnd && (
-                                                                <p className="text-slate-500 dark:text-zinc-400">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs mr-1">Ends</span>
-                                                                    {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
-                                                                </p>
-                                                            )}
+                                                            {/* Lease end — moved to beneath tenant name above.
+                                                                This duplicate display removed per user request. */}
 
                                                             {/* Eviction Status Badge — on collapsed card */}
                                                             {isEvictionActive && (
@@ -1516,10 +1523,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             <div className="mt-3 pt-3 border-t border-primary-200/60 dark:border-primary-700/50 animate-fade-in">
                                                                 {/* ── Tier 1: Compact Quick-Action Bar ── */}
                                                                 <div className="flex flex-wrap items-center gap-2">
-                                                                    {/* Close button — leftmost */}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedUnit(null); setShowUnitMessaging(false); setShowFullUnitDetail(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors" aria-label="Close" title="Close">
-                                                                        <XIcon className="w-4 h-4" />
-                                                                    </button>
+                                                                    {/* Close (X) button removed per user request.
+                                                                        Toggling/clicking the unit card itself handles
+                                                                        collapse and accordion state switching. */}
 
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                                         <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" aria-label="Record Payment & Issue Receipt" title="Record Payment & Issue Receipt">
