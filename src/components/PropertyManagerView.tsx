@@ -382,7 +382,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
             <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900/30 border-r border-slate-200 dark:border-zinc-800">
                 <div className="flex-shrink-0 py-4 px-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 pt-safe z-10 space-y-3">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-xl text-slate-900 dark:text-white">Properties</h3>
+                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Properties</h2>
                         <button
                             onClick={() => openModal('newProperty')}
                             className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold"
