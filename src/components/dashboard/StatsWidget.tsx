@@ -3,7 +3,6 @@ import { MattersIcon, ContactsIcon, NairaCircleIcon } from '../../constants';
 import { Building2, ClipboardCheck } from 'lucide-react';
 import StatCard from '../StatCard';
 import { formatLargeNumber } from '../../utils/formatting';
-import NairaSymbol from '../NairaSymbol';
 import { View, UserRole, User } from '../../types';
 import { Skeleton } from '../toolkit/Skeleton';
 import { useProduct } from '../../contexts/ProductContext';
@@ -59,53 +58,48 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     const colorClass = displayInvoices ? 'bg-yellow-500' : 'bg-amber-500';
     const textClass = displayInvoices ? 'text-yellow-500' : 'text-amber-500';
 
+    // CRO AUDIT FIX — rewritten to match StatCard layout EXACTLY:
+    // - Watermark icon top-right (not left icon circle)
+    // - Title at top, value at bottom (flex-col justify-between)
+    // - No inline NairaSymbol (just the formatted number)
+    // - No decorative background icon
+    // - Same h-24, same padding, same typography as StatCard
     return (
-        <div className="h-24 relative overflow-hidden rounded-2xl isolate transform-gpu">
-            <div
-                className={`relative overflow-hidden card-premium h-full flex flex-col cursor-pointer active:scale-[0.98] group`}
-                onClick={() => navigateTo(nav)}
-            >
-                {/* Decorative background icon — slightly smaller than StatCard
-                    to match the visual weight of the other cards */}
-                <div className="absolute -right-6 -top-6 opacity-[0.03] dark:opacity-[0.05] text-slate-900 dark:text-white pointer-events-none transform -rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-0">
-                    <NairaCircleIcon className="w-24 h-24" />
-                </div>
+        <div
+            className="relative overflow-hidden card-premium p-4 halo-hover h-24 cursor-pointer active:scale-[0.98] flex flex-col justify-between group"
+            onClick={() => navigateTo(nav)}
+        >
+            {/* Watermark icon in top-right — same as StatCard */}
+            <div className="absolute top-3 right-3 opacity-20 pointer-events-none">
+                <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
+            </div>
 
-                <div className="relative z-10 flex items-center justify-between flex-1 px-5">
-                    {/* Icon on LEFT — matches StatCard layout (icon left, text right).
-                        Previously the naira icon was on the RIGHT which conflicted
-                        with the monochrome naira symbol in the text on the LEFT,
-                        making both naira symbols appear on the same side. */}
-                    <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${colorClass} bg-opacity-10 flex-shrink-0 shadow-sm border border-white/10`}>
-                        <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
-                    </div>
-                    <div className="flex flex-col justify-center min-w-0 pl-3 flex-1">
-                        <div className="flex items-center gap-1 mb-0.5 min-w-0">
-                            <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider truncate">{label}</p>
-                            {showTabs && (
-                                <div
-                                    className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0"
-                                    onClick={e => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={() => setActiveTab('invoices')}
-                                        className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'invoices' ? 'bg-yellow-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                    >
-                                        INV
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('rent')}
-                                        className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'rent' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                    >
-                                        RENT
-                                    </button>
-                                </div>
-                            )}
+            {/* Text content — flex-col justify-between, same as StatCard */}
+            <div className="relative z-10 flex flex-col justify-between h-full min-w-0">
+                <div className="flex items-center gap-1 min-w-0">
+                    <p className="text-2xs font-bold tracking-widest text-slate-500 dark:text-zinc-400 uppercase truncate">{label}</p>
+                    {showTabs && (
+                        <div
+                            className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 flex-shrink-0"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setActiveTab('invoices')}
+                                className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'invoices' ? 'bg-yellow-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                            >
+                                INV
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('rent')}
+                                className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'rent' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                            >
+                                RENT
+                            </button>
                         </div>
-                        <div className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight overflow-hidden">
-                            {isLoading ? <Skeleton width={100} height={28} /> : <span className="flex items-center"><NairaSymbol />{formatLargeNumber(value)}</span>}
-                        </div>
-                    </div>
+                    )}
+                </div>
+                <div className="text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                    {isLoading ? <Skeleton width={100} height={28} /> : <span>₦{formatLargeNumber(value)}</span>}
                 </div>
             </div>
         </div>
