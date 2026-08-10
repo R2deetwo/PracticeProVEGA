@@ -70,6 +70,28 @@ export const OrganizationsHub: React.FC = () => {
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
+    // ── Presence: fetch online users for firm glow indicators ──────────
+    // Polls every 30s. Uses defensive pattern (try/catch) so the hub
+    // doesn't crash if the backend isn't deployed yet.
+    const [onlineFirmIds, setOnlineFirmIds] = useState<Set<string>>(new Set());
+    useEffect(() => {
+        if (!tokenIdentifier || !convex) return;
+        let cancelled = false;
+        const fetchPresence = async () => {
+            try {
+                const presence = await convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier });
+                if (!cancelled && Array.isArray(presence)) {
+                    setOnlineFirmIds(new Set(presence.map((p: any) => p.firmId).filter(Boolean)));
+                }
+            } catch (e: any) {
+                // Silent fail — presence is a nice-to-have, not critical
+            }
+        };
+        fetchPresence();
+        const interval = setInterval(fetchPresence, 30_000);
+        return () => { cancelled = true; clearInterval(interval); };
+    }, [tokenIdentifier, convex]);
+
     // Filter state
     const [search, setSearch] = useState('');
     const [productFilter, setProductFilter] = useState<ProductFilter>('all');
@@ -353,15 +375,26 @@ export const OrganizationsHub: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
-                                    {filtered.map((firm: any) => (
+                                    {filtered.map((firm: any) => {
+                                        const isOnline = onlineFirmIds.has(firm.id);
+                                        return (
                                         <tr
                                             key={firm.id}
                                             onClick={() => setSelectedId(firm.id)}
-                                            className={`cursor-pointer transition-colors ${selectedId === firm.id ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-slate-50 dark:hover:bg-zinc-700/30'}`}
+                                            className={`cursor-pointer transition-colors ${isOnline ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''} ${selectedId === firm.id ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-slate-50 dark:hover:bg-zinc-700/30'}`}
+                                            style={isOnline ? { borderLeft: '4px solid #10b981' } : undefined}
                                         >
                                             <td className="py-2.5 px-3">
-                                                <p className="font-semibold text-slate-700 dark:text-zinc-200 truncate max-w-[140px]">{firm.firmName}</p>
-                                                <p className="text-2xs text-slate-400 truncate max-w-[140px]">{firm.adminEmail}</p>
+                                                <div className="flex items-center gap-1.5">
+                                                    {/* Presence glow indicator */}
+                                                    {isOnline && (
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="Online Now" />
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-slate-700 dark:text-zinc-200 truncate max-w-[140px]">{firm.firmName}</p>
+                                                        <p className="text-2xs text-slate-400 truncate max-w-[140px]">{firm.adminEmail}</p>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="py-2.5 px-3">
                                                 <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${PRODUCT_COLOR[firm.product] || PRODUCT_COLOR.legal}`}>
@@ -385,7 +418,8 @@ export const OrganizationsHub: React.FC = () => {
                                                 <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${firm.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : firm.status === 'suspended' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{firm.status}</span>
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

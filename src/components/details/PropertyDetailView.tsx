@@ -954,7 +954,7 @@ const PropertyDetailViewContent: React.FC = () => {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}>
-                <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
+                <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 6rem)' }}>
 
                 {/* CRO AUDIT FIX — REMOVED the static Komplete Bridge banner.
                     Per user request: "Strip Komplete Bridge Static Banner —

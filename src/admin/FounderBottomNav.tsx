@@ -178,6 +178,13 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const [pendingCount, setPendingCount] = useState(0);
     const [expiringSoon, setExpiringSoon] = useState(0);
+    const [newSignupCount, setNewSignupCount] = useState(0);
+
+    // Shared badge formatter — caps at "9+" for counts > 9
+    const formatBadgeCount = (count: number): string | null => {
+        if (count <= 0) return null;
+        return count > 9 ? '9+' : count.toString();
+    };
 
     useEffect(() => {
         if (!tokenIdentifier || !convex) return;
@@ -190,13 +197,19 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                     setExpiringSoon(stats?.expiringSoon || 0);
                 }
             } catch (e: any) {
-                // Backend may not be deployed yet — silently leave count at 0.
-                // Console.warn for debugging but don't crash the UI.
                 console.warn('[FounderBottomNav] getSubscriptionRequestStats failed (backend may not be deployed yet):', e?.message || e);
+            }
+            // Also fetch new signup count (users registered in last 24h)
+            try {
+                const alerts = await convex.query(api.founderMetrics.getFounderAlerts, { tokenIdentifier });
+                if (!cancelled) {
+                    setNewSignupCount(alerts?.newUsers24hCount || 0);
+                }
+            } catch (e: any) {
+                console.warn('[FounderBottomNav] getFounderAlerts failed:', e?.message || e);
             }
         };
         fetchStats();
-        // Poll every 60s for fresh pending counts.
         const interval = setInterval(fetchStats, 60_000);
         return () => { cancelled = true; clearInterval(interval); };
     }, [tokenIdentifier, convex]);
@@ -224,7 +237,14 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                     {/* CRO AUDIT Track A — show pending subscription count badge on More */}
                                     {item.view === 'signals' && pendingCount > 0 && (
                                         <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-red-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
-                                            {pendingCount > 9 ? '9+' : pendingCount}
+                                            {formatBadgeCount(pendingCount)}
+                                        </span>
+                                    )}
+                                    {/* New signup badge on Dashboard — shows count of
+                                        users who registered in the last 24h. Caps at 9+. */}
+                                    {item.view === 'dashboard' && newSignupCount > 0 && (
+                                        <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
+                                            {formatBadgeCount(newSignupCount)}
                                         </span>
                                     )}
                                 </div>
@@ -285,7 +305,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                                 {React.cloneElement(item.icon, { className: "w-6 h-6" })}
                                                 {showBadge && (
                                                     <span className={`absolute -top-1 -right-1 min-w-[20px] h-5 px-1 ${isUrgent ? 'bg-red-500 animate-pulse' : 'bg-amber-500'} text-white text-2xs font-bold rounded-full flex items-center justify-center`}>
-                                                        {pendingCount > 9 ? '9+' : pendingCount}
+                                                        {formatBadgeCount(pendingCount)}
                                                     </span>
                                                 )}
                                             </div>
