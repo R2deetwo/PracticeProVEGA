@@ -3,7 +3,7 @@ import { Contact, Property, FileDetails, PropertyStatus, PropertyCategory, Conta
 import { v4 as uuidv4 } from 'uuid';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataState } from '../../contexts/DataContext';
-import { MapPinIcon, CurrencyDollarIcon, UserIcon, CalendarIcon, InfoIcon, XIcon, SaveIcon, SparklesIcon, ZapIcon, PlusIcon, TrashIcon, OfficeBuildingIcon, KeyIcon, GavelIconLarge, CalculatorIcon } from '../../constants';
+import { MapPinIcon, CurrencyDollarIcon, UserIcon, CalendarIcon, InfoIcon, XIcon, SaveIcon, SparklesIcon, ZapIcon, PlusIcon, TrashIcon, OfficeBuildingIcon, KeyIcon, GavelIconLarge, CalculatorIcon, CheckCircleIcon } from '../../constants';
 import { Home as HomeIcon, Briefcase as BriefcaseIcon, ExternalLink as ExternalLinkIcon, Upload as UploadIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import NairaSymbol from '../NairaSymbol';
@@ -20,6 +20,8 @@ import {
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { OnboardUnitLedgerModal } from '../modals/OnboardUnitLedgerModal';
+import { ServiceChargePeriod } from '../../types';
 
 // ─── AccordionSection (MODULE-LEVEL — outside PropertyForm) ──────────
 // CRITICAL: This component MUST be defined outside the PropertyForm render
@@ -839,6 +841,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // accordion auto-expands (above). This ref + effect scrolls the expanded
     // section into view so the user doesn't have to manually scroll down.
     const rentalSectionRef = useRef<HTMLDivElement>(null);
+
+    // OnboardUnitLedgerModal state — opens when user clicks "Settle Historical Ledger"
+    const [ledgerModalOpen, setLedgerModalOpen] = useState(false);
+    const [ledgerChargeType, setLedgerChargeType] = useState<'SC' | 'MV'>('SC');
     useEffect(() => {
         if (!(activeUnitId || autoExpandRental)) return;
         // Delay to allow the accordion expand animation to start before scrolling.
@@ -1455,6 +1461,34 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
+                            {/* ── Settle Historical Ledger ──────────────────────────────
+                                Quick-settle button for onboarding existing tenants. Opens
+                                the OnboardUnitLedgerModal where the user can bulk-mark all
+                                historical billing periods as Paid On Time / Paid Late /
+                                Outstanding, plus add advance pre-paid periods. */}
+                            {activeUnit.leaseStart && (Number(activeUnit.serviceChargeAmount) > 0 || Number(activeUnit.serviceCharge) > 0) && (
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setLedgerChargeType('SC'); setLedgerModalOpen(true); }}
+                                        className="px-3 py-1.5 text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg border border-emerald-200 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors flex items-center gap-1.5"
+                                    >
+                                        <CheckCircleIcon className="w-3 h-3" />
+                                        Settle SC Historical Ledger
+                                    </button>
+                                    {minimumVendEnabled && Number(minimumVendAmount) > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setLedgerChargeType('MV'); setLedgerModalOpen(true); }}
+                                            className="px-3 py-1.5 text-2xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-800/40 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1.5"
+                                        >
+                                            <CheckCircleIcon className="w-3 h-3" />
+                                            Settle MV Historical Ledger
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Total Tenancy Package Summary Card */}
                             <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
                                 <div className="flex justify-between items-center">
@@ -1707,6 +1741,46 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </button>
             </div>
             {ConfirmDialog}
+
+            {/* OnboardUnitLedgerModal — opened by "Settle Historical Ledger" buttons.
+                Lets the user bulk-settle past billing periods during onboarding. */}
+            {ledgerModalOpen && (
+                <OnboardUnitLedgerModal
+                    unit={{
+                        ...(propertyToEdit || {}),
+                        rentalDetails: {
+                            leaseStart: activeUnit.leaseStart,
+                            leaseEnd: activeUnit.leaseEnd,
+                            rentFrequency: activeUnit.rentFrequency,
+                            serviceChargeAmount: Number(activeUnit.serviceChargeAmount) || Number(activeUnit.serviceCharge) || 0,
+                            serviceCharge: Number(activeUnit.serviceCharge) || 0,
+                            scPeriods: activeUnit.scPeriods,
+                            mvPeriods: activeUnit.mvPeriods,
+                        } as any,
+                        minimumVendEnabled,
+                        minimumVendAmount: Number(minimumVendAmount) || 0,
+                    } as Property}
+                    chargeType={ledgerChargeType}
+                    onClose={() => setLedgerModalOpen(false)}
+                    onApply={(updatedPeriods: ServiceChargePeriod[]) => {
+                        const periodsKey = ledgerChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
+                        updateUnit(activeUnitIndex, periodsKey as any, updatedPeriods);
+                        // Auto-update aggregate SC status
+                        if (ledgerChargeType === 'SC') {
+                            const allSettled = updatedPeriods.every(p => p.status === 'paid' || p.status === 'advance_paid');
+                            const anyUnsettled = updatedPeriods.some(p =>
+                                p.status === 'outstanding' || (p.status === 'late' && !p.paidDate)
+                            );
+                            let aggregate: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' = 'UNPAID';
+                            if (allSettled) aggregate = 'PAID_FULLY';
+                            else if (anyUnsettled && updatedPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')) aggregate = 'PARTIALLY_PAID';
+                            else if (anyUnsettled) aggregate = 'UNPAID';
+                            else aggregate = 'PARTIALLY_PAID';
+                            updateUnit(activeUnitIndex, 'serviceChargeStatus', aggregate);
+                        }
+                    }}
+                />
+            )}
         </form>
     );
 };

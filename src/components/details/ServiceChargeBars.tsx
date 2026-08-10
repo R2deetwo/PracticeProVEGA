@@ -75,8 +75,13 @@ const getFullMonthYear = (isoDate: string): string => {
 
 /**
  * Compute the list of elapsed billing periods from leaseStart to now.
- * Each period has a dueDate (the start of that period) and an index.
- * Periods are capped at the leaseEnd if it exists.
+ * Uses calendar-month arithmetic (not fixed 30.44 days) for accurate
+ * period boundaries — a Jan 1 start with monthly frequency produces
+ * Feb 1, Mar 1, Apr 1... regardless of month length.
+ *
+ * Historical periods default to 'outstanding' (red). The auto-late engine
+ * from the previous round has been removed per the latest brief: historical
+ * periods are RED until explicitly marked as paid/late during onboarding.
  */
 function computeElapsedPeriods(
     leaseStart: string,
@@ -85,74 +90,106 @@ function computeElapsedPeriods(
     perPeriodAmount: number,
 ): ServiceChargePeriod[] {
     if (!leaseStart) return [];
-    const start = new Date(leaseStart).getTime();
-    if (isNaN(start)) return [];
-    const now = Date.now();
-    const endBoundary = leaseEnd ? Math.min(now, new Date(leaseEnd).getTime()) : now;
+    const start = new Date(leaseStart);
+    if (isNaN(start.getTime())) return [];
+    const now = new Date();
+    const endBoundary = leaseEnd ? new Date(Math.min(now.getTime(), new Date(leaseEnd).getTime())) : now;
     const periodM = periodMonths(frequency);
-    const periodMs = periodM * 30.44 * MS_PER_DAY;
 
     const periods: ServiceChargePeriod[] = [];
-    let periodStart = start;
+    let periodStart = new Date(start);
     let idx = 1;
     // Safety cap: never render more than 60 periods (5 years of monthly).
     while (periodStart < endBoundary && idx <= 60) {
-        const dueDate = new Date(periodStart).toISOString().split('T')[0];
+        const dueDate = periodStart.toISOString().split('T')[0];
         periods.push({
             index: idx,
             dueDate,
-            status: 'outstanding', // default; auto-late engine + stored data will override
+            status: 'outstanding', // default: red — user marks as paid during onboarding
             amount: perPeriodAmount,
         });
-        periodStart += periodMs;
+        // Advance by calendar months (not fixed days) for accurate boundaries
+        periodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + periodM, periodStart.getDate());
         idx++;
     }
     return periods;
 }
 
 /**
- * Merge computed periods with stored status data AND apply the auto-late engine.
+ * Compute advance pre-paid periods — future cycles that the tenant has
+ * paid for ahead of time. These are stored periods with status='advance_paid'
+ * whose index exceeds the elapsed period count. They appear as blue pills
+ * after the historical elapsed pills.
  *
- * Auto-late logic:
- *   - If a period has a stored status of 'paid' or 'late', use that (with paidOnTime flag).
- *   - If a period has NO stored status (default 'outstanding') AND its dueDate is
- *     in the past, automatically promote it to 'late' (currently past due & unpaid).
- *   - If a period's dueDate is today or in the future, keep it as 'outstanding'.
+ * Example: 6 months elapsed + 2 months paid in advance = 8 pills total
+ * (6 historical + 2 blue advance pills).
+ */
+function computeAdvancePeriods(
+    elapsedCount: number,
+    leaseStart: string,
+    frequency: string | undefined,
+    perPeriodAmount: number,
+    stored: ServiceChargePeriod[] | undefined,
+): ServiceChargePeriod[] {
+    if (!leaseStart || !stored || stored.length === 0) return [];
+    const advanceStored = stored.filter(p => p.status === 'advance_paid' && p.index > elapsedCount);
+    if (advanceStored.length === 0) return [];
+
+    const start = new Date(leaseStart);
+    const periodM = periodMonths(frequency);
+
+    return advanceStored.map(s => {
+        // Calculate the due date for this future period
+        const futureStart = new Date(start.getFullYear(), start.getMonth() + (s.index - 1) * periodM, start.getDate());
+        return {
+            index: s.index,
+            dueDate: futureStart.toISOString().split('T')[0],
+            status: 'advance_paid' as const,
+            paidDate: s.paidDate,
+            amount: s.amount || perPeriodAmount,
+            isAdvance: true,
+        };
+    });
+}
+
+/**
+ * Merge computed periods with stored status data.
  *
- * This runs on every render, so the timeline is always current without needing
- * a cron job. The auto-promotion only affects display — it does NOT write to
- * the stored data unless the user explicitly logs a payment.
+ * Per the latest brief, historical periods default to 'outstanding' (red)
+ * — the auto-late engine has been removed. Only explicitly stored statuses
+ * override the default.
+ *
+ * Advance pre-paid periods (status='advance_paid', index > elapsed count)
+ * are appended after the historical elapsed periods.
  */
 function mergePeriods(
     computed: ServiceChargePeriod[],
     stored: ServiceChargePeriod[] | undefined,
 ): ServiceChargePeriod[] {
     if (!stored || stored.length === 0) {
-        // No stored data — apply auto-late to all computed periods
-        const now = Date.now();
-        return computed.map(p => {
-            const dueMs = new Date(p.dueDate).getTime();
-            if (dueMs < now) {
-                return { ...p, status: 'late' as const }; // auto-late: past due & unpaid
-            }
-            return p;
-        });
+        // No stored data — all historical periods default to 'outstanding' (red)
+        return computed;
     }
     const storedMap = new Map(stored.map(p => [p.index, p]));
-    const now = Date.now();
-    return computed.map(p => {
+    const merged = computed.map(p => {
         const s = storedMap.get(p.index);
         if (s) {
             // Stored record exists — use its status + paidOnTime flag
-            return { ...p, status: s.status, paidDate: s.paidDate, paidOnTime: s.paidOnTime };
+            return { ...p, status: s.status, paidDate: s.paidDate, paidOnTime: s.paidOnTime, isAdvance: s.isAdvance };
         }
-        // No stored record — apply auto-late if past due
-        const dueMs = new Date(p.dueDate).getTime();
-        if (dueMs < now) {
-            return { ...p, status: 'late' as const };
-        }
+        // No stored record — keep as 'outstanding' (red) for historical periods
         return p;
     });
+
+    // Append advance pre-paid periods (future cycles beyond elapsed count)
+    const advancePeriods = computeAdvancePeriods(
+        computed.length,
+        computed[0]?.dueDate || '',
+        undefined, // frequency is passed by the caller via stored amounts
+        computed[0]?.amount || 0,
+        stored,
+    );
+    return [...merged, ...advancePeriods];
 }
 
 // ─── Status colors & metadata ───────────────────────────────────────────────
@@ -204,14 +241,25 @@ const getStatusMeta = (period: ServiceChargePeriod): StatusMeta => {
                 : 'Past due date — unpaid',
         };
     }
-    // Outstanding — red pill
+    if (period.status === 'advance_paid') {
+        // Advance Paid — blue pill, settled ahead of future billing date
+        return {
+            pill: 'bg-blue-500',
+            hover: 'hover:bg-blue-600',
+            label: 'text-blue-600 dark:text-blue-400',
+            bg: 'bg-blue-50 dark:bg-blue-900/20',
+            name: 'Advance Paid',
+            description: `Pre-paid on ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (future cycle)`,
+        };
+    }
+    // Outstanding — red pill (default for historical periods until marked)
     return {
         pill: 'bg-red-500',
         hover: 'hover:bg-red-600',
         label: 'text-red-600 dark:text-red-400',
         bg: 'bg-red-50 dark:bg-red-900/20',
         name: 'Outstanding',
-        description: 'Unpaid — not yet past due',
+        description: 'Unpaid — past due',
     };
 };
 
@@ -302,7 +350,7 @@ interface QuickPaymentDrawerProps {
      *  switches the drawer's focus to that period. */
     allPeriods: ServiceChargePeriod[];
     onClose: () => void;
-    onStatusChange: (status: 'paid' | 'late' | 'outstanding') => void;
+    onStatusChange: (status: 'paid' | 'late' | 'outstanding' | 'advance_paid') => void;
     onGenerateReceipt: () => void;
     /** Switch the drawer's focus to a different period in the historical strip. */
     onPeriodSelect: (period: ServiceChargePeriod) => void;
@@ -423,23 +471,25 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                     </div>
 
-                    {/* Toggle buttons */}
+                    {/* Toggle buttons — 4 states: Paid On Time, Paid Late, Outstanding, Advance Paid */}
                     <div>
                         <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                             Change Status
                         </p>
-                        <div className="grid grid-cols-3 gap-2">
-                            {(['paid', 'late', 'outstanding'] as const).map(s => {
+                        <div className="grid grid-cols-2 gap-2">
+                            {(['paid', 'late', 'outstanding', 'advance_paid'] as const).map(s => {
                                 // For the toggle button highlight, 'paid' with paidOnTime=false
                                 // should highlight the 'paid' button (balance is settled).
                                 const isActive = period.status === s;
                                 const colorClass =
                                     s === 'paid' ? 'bg-emerald-500' :
                                     s === 'late' ? 'bg-amber-500' :
+                                    s === 'advance_paid' ? 'bg-blue-500' :
                                     'bg-red-500';
                                 const labelName =
-                                    s === 'paid' ? 'Paid' :
-                                    s === 'late' ? 'Late' :
+                                    s === 'paid' ? 'Paid On Time' :
+                                    s === 'late' ? 'Paid Late' :
+                                    s === 'advance_paid' ? 'Advance Paid' :
                                     'Outstanding';
                                 return (
                                     <button
@@ -556,6 +606,7 @@ const PrimaryStatusPill: React.FC<PrimaryStatusPillProps> = ({ periods, chargeTy
     // - paid + paidOnTime=true  → green (Clear)
     // - paid + paidOnTime=false → orange (Late — settled but was late)
     // - late (auto or manual)   → orange (Late)
+    // - advance_paid            → blue (Advance Paid)
     // - outstanding             → red (Outstanding)
     let primaryColor: string;
     let primaryLabel: string; // kept for aria-label + tooltip only, not rendered
@@ -568,6 +619,9 @@ const PrimaryStatusPill: React.FC<PrimaryStatusPillProps> = ({ periods, chargeTy
     ) {
         primaryColor = 'bg-amber-500 hover:bg-amber-600';
         primaryLabel = 'Late';
+    } else if (currentPeriod.status === 'advance_paid') {
+        primaryColor = 'bg-blue-500 hover:bg-blue-600';
+        primaryLabel = 'Advance Paid';
     } else {
         primaryColor = 'bg-red-500 hover:bg-red-600';
         primaryLabel = 'Outstanding';
@@ -643,7 +697,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         setDrawerOpen(true);
     }, []);
 
-    const handleStatusChange = useCallback((newStatus: 'paid' | 'late' | 'outstanding') => {
+    const handleStatusChange = useCallback((newStatus: 'paid' | 'late' | 'outstanding' | 'advance_paid') => {
         if (!selectedPeriod) return;
         const periodsKey = selectedChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
         const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
@@ -653,6 +707,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         // Determine paidOnTime flag:
         // - If new status is 'paid' or 'late' (settling), check if payment date
         //   is on/before due date (paidOnTime=true) or after (paidOnTime=false).
+        // - If new status is 'advance_paid', paidOnTime is true (settled ahead).
         // - If new status is 'outstanding', clear the flag.
         let paidOnTime: boolean | undefined;
         const todayIso = new Date().toISOString().split('T')[0];
@@ -660,6 +715,8 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             const dueMs = new Date(selectedPeriod.dueDate).getTime();
             const paidMs = new Date(todayIso).getTime();
             paidOnTime = paidMs <= dueMs;
+        } else if (newStatus === 'advance_paid') {
+            paidOnTime = true; // advance payment is always "on time" (pre-paid)
         } else {
             paidOnTime = undefined;
         }
@@ -667,8 +724,9 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         const updated: ServiceChargePeriod = {
             ...selectedPeriod,
             status: newStatus,
-            paidDate: newStatus === 'paid' || newStatus === 'late' ? todayIso : undefined,
+            paidDate: newStatus === 'paid' || newStatus === 'late' || newStatus === 'advance_paid' ? todayIso : undefined,
             paidOnTime,
+            isAdvance: newStatus === 'advance_paid' ? true : undefined,
         };
 
         if (existingIdx >= 0) {
@@ -679,15 +737,16 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         }
 
         // Update the aggregate serviceChargeStatus based on all periods.
-        // A period counts as "settled" if its balance is ₦0 (status === 'paid',
-        // regardless of paidOnTime). 'late' without a paidDate is still unpaid.
-        const allSettled = updatedPeriods.every(p => p.status === 'paid');
+        // A period counts as "settled" if its balance is ₦0 (status === 'paid'
+        // regardless of paidOnTime, or 'advance_paid'). 'late' without a
+        // paidDate is still unpaid. 'outstanding' is unpaid.
+        const allSettled = updatedPeriods.every(p => p.status === 'paid' || p.status === 'advance_paid');
         const anyUnsettled = updatedPeriods.some(p =>
             p.status === 'outstanding' || (p.status === 'late' && !p.paidDate)
         );
         let aggregateStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' = 'UNPAID';
         if (allSettled) aggregateStatus = 'PAID_FULLY';
-        else if (anyUnsettled && updatedPeriods.some(p => p.status === 'paid')) aggregateStatus = 'PARTIALLY_PAID';
+        else if (anyUnsettled && updatedPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')) aggregateStatus = 'PARTIALLY_PAID';
         else if (anyUnsettled) aggregateStatus = 'UNPAID';
         else aggregateStatus = 'PARTIALLY_PAID';
 

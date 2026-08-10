@@ -30,6 +30,10 @@ export interface UnitRentalInput {
   isCautionNA?: boolean;
   status: Property['status'];
   _id?: string;
+  /** Per-period SC tracking (used by OnboardUnitLedgerModal + ServiceChargeBars) */
+  scPeriods?: import('../types').ServiceChargePeriod[];
+  /** Per-period MV tracking */
+  mvPeriods?: import('../types').ServiceChargePeriod[];
   /** Whether reminders are muted for this unit */
   remindersMuted?: boolean;
   /** Whether reminders are auto-paused (cool-off) */

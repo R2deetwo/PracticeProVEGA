@@ -223,28 +223,33 @@ export interface MaintenanceRecord { id: string; date: string; issue: string; st
 export interface RentPayment { id: string; dueDate: string; paidDate?: string; amount: number; status: 'paid' | 'overdue' | 'pending'; paymentMethod?: string; receiptNumber?: string; periodStart?: string; periodEnd?: string; }
 
 /** Per-period tracking for Service Charge (SC) and Minimum Vend (MV).
- *  One entry per elapsed billing period from leaseStart to current date.
+ *  One entry per elapsed billing period from leaseStart to current date,
+ *  plus optional advance pre-paid future periods.
  *
  *  Status semantics:
- *  - 'paid'        → balance settled (green pill)
- *  - 'late'        → paid after due date OR currently past due & unpaid (orange pill)
- *  - 'outstanding' → unpaid, not yet past due (red pill only when explicitly unpaid
- *                    and overdue; auto-late engine promotes to 'late' once past due)
+ *  - 'paid'          → balance settled (green pill)
+ *  - 'late'          → paid after due date OR currently past due & unpaid (orange pill)
+ *  - 'outstanding'   → unpaid, past due (red pill — default for historical periods)
+ *  - 'advance_paid'  → settled ahead of future billing date (blue pill)
  *
  *  The `paidOnTime` flag retains the historical audit distinction:
  *  - paidOnTime: true  → "PAID ON TIME" (settled on or before due date)
  *  - paidOnTime: false → "PAID LATE" (settled after due date — still orange
  *                        in the historical timeline even though balance is ₦0)
- *  - undefined         → no payment logged yet */
+ *  - undefined         → no payment logged yet
+ *
+ *  The `isAdvance` flag marks future pre-paid periods that haven't elapsed yet. */
 export interface ServiceChargePeriod {
     index: number;       // 1-based period number
     dueDate: string;     // ISO date when this period's charge was due
-    status: 'paid' | 'late' | 'outstanding';
-    paidDate?: string;   // ISO date when payment was recorded (if paid/late)
+    status: 'paid' | 'late' | 'outstanding' | 'advance_paid';
+    paidDate?: string;   // ISO date when payment was recorded (if paid/late/advance_paid)
     amount: number;      // per-period charge amount
     /** Whether the payment was settled on time (≤ due date) vs late (> due date).
      *  Retained permanently for historical audit even after balance settles. */
     paidOnTime?: boolean;
+    /** True for future pre-paid periods (advance cycles not yet elapsed). */
+    isAdvance?: boolean;
 }
 export enum PropertyStatus { Occupied = 'Occupied', Vacant = 'Vacant', Listed = 'Listed', Maintenance = 'Maintenance', Sold = 'Sold' }
 export enum PropertyCategory { Tenanted = 'Tenanted Property', ForSale = 'Property For Sale', Disputed = 'Disputed Property', Personal = 'Personal Residence', Other = 'Other' }
