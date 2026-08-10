@@ -65,7 +65,12 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
     const rentHistory = property.rentPaymentHistory || [];
 
     // Sorting
-    const sortedTimeline = [...timeline].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // For Management Only properties, filter out rent_collected events from
+    // the timeline — they don't apply when rent collection is disabled.
+    const filteredTimeline = isManagementOnly
+        ? timeline.filter(e => e.type !== 'rent_collected')
+        : timeline;
+    const sortedTimeline = [...filteredTimeline].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sortedRent = [...rentHistory].sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
     const sortedMaintenance = [...maintenance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const today = new Date().toISOString().split('T')[0];

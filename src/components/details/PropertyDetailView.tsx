@@ -1728,20 +1728,35 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             <Megaphone className="w-3 h-3" /> Demand
                                                                         </button>
                                                                     )}
-                                                                    <button onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        // Open the unified ComposeMessageModal with the tenant's info.
-                                                                        // The modal handles channel gating (WhatsApp needs phone, Email
-                                                                        // and Portal Invite need email) with disabled tabs + tooltips.
-                                                                        setComposeModalRecipient({
-                                                                            name: d.tenantName || 'Tenant',
-                                                                            phone: tenantPhone,
-                                                                            email: tenantEmail,
-                                                                            unitId: unit.id,
-                                                                            unitName: d.name,
-                                                                        });
-                                                                        setShowFullUnitDetail(false);
-                                                                    }} className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Resident" title="Message Resident">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            // Open the unified ComposeMessageModal with the tenant's info.
+                                                                            // The modal handles channel gating (WhatsApp needs phone, Email
+                                                                            // and Portal Invite need email) with disabled tabs + tooltips.
+                                                                            setComposeModalRecipient({
+                                                                                name: d.tenantName || 'Tenant',
+                                                                                phone: tenantPhone,
+                                                                                email: tenantEmail,
+                                                                                unitId: unit.id,
+                                                                                unitName: d.name,
+                                                                            });
+                                                                            setShowFullUnitDetail(false);
+                                                                        }}
+                                                                        onTouchEnd={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setComposeModalRecipient({
+                                                                                name: d.tenantName || 'Tenant',
+                                                                                phone: tenantPhone,
+                                                                                email: tenantEmail,
+                                                                                unitId: unit.id,
+                                                                                unitName: d.name,
+                                                                            });
+                                                                            setShowFullUnitDetail(false);
+                                                                        }}
+                                                                        className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Resident" title="Message Resident">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
                                                                     <button
@@ -1754,7 +1769,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     </button>
                                                                     {/* More button — reveals full detail card.
                                                                         Gear icon removed per user request — just text now. */}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details and more actions" title="Full unit details and more actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }}
+                                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }}
+                                                                        className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details and more actions" title="Full unit details and more actions">
                                                                         {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
                                                                 </div>

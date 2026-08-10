@@ -45,10 +45,15 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { CalendarIcon, XIcon, CheckCircleIcon, DownloadIcon } from '../../constants';
 import ReceiptModal from '../modals/ReceiptModal';
+import { useCoreState } from '../../contexts/CoreContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useUI } from '../../contexts/UIContext';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -688,6 +693,13 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     const [selectedChargeType, setSelectedChargeType] = useState<'SC' | 'MV'>('SC');
     const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
+    // Convex mutations + context for zero-touch receipt automation
+    const { coreState } = useCoreState();
+    const { currentUser } = useAuth();
+    const { addToast } = useUI();
+    const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
+    const logAutomation = useMutation(api.sentry.logAutomation);
+
     const rental = (unit.rentalDetails || unit) as Property['rentalDetails'];
     const leaseStart = rental?.leaseStart || '';
     const leaseEnd = rental?.leaseEnd;
@@ -716,6 +728,80 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         setSelectedChargeType(chargeType);
         setDrawerOpen(true);
     }, []);
+
+    // ── Zero-Touch Receipt Automation ────────────────────────────────────
+    // When a payment is marked as 'paid', 'late', or 'advance_paid', this
+    // function automatically:
+    //   1. Generates a receipt number
+    //   2. Publishes the receipt to the resident's portal (sendPortalMessage)
+    //   3. Writes an immutable activity log entry (logAutomation)
+    //   4. Persists the receipt number to the period (via onUpdate)
+    //
+    // This eliminates the manual "Generate Receipt" → "Issue to Resident"
+    // multi-click flow. The user can still click [View Issued Receipt] in
+    // the drawer to preview/download the PDF.
+    const autoIssueReceipt = useCallback(async (
+        period: ServiceChargePeriod,
+        chargeType: 'SC' | 'MV',
+        periodsKey: 'scPeriods' | 'mvPeriods',
+    ) => {
+        try {
+            const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
+            const tenantName = rental?.tenantName || 'Tenant';
+            const unitName = rental?.unitName || unit.description || 'Unit';
+            const chargeTypeLabel = chargeType === 'SC' ? 'Service Charge' : 'Minimum Vend';
+            const billingPeriod = (() => {
+                try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
+                catch { return `Period ${period.index}`; }
+            })();
+            const receiptNumber = `RC-${Date.now().toString().slice(-6)}-${period.index}`;
+            const settlementMethod = period.paidOnTime === false ? 'Paid Late' :
+                                      period.isAdvance ? 'Advance Payment' : 'Paid On Time';
+
+            // 1. Publish receipt to resident's portal
+            await sendPortalMessage({
+                firmId,
+                senderId: currentUser?.id || '',
+                senderName: currentUser?.name || 'Property Manager',
+                senderRole: 'admin',
+                subject: `Receipt ${receiptNumber} — ${chargeTypeLabel} (${billingPeriod})`,
+                content: `Your ${chargeTypeLabel} receipt for ${billingPeriod} has been automatically issued.\n\nReceipt No: ${receiptNumber}\nAmount Paid: ${formatNairaFull(period.amount)}\nPayment Date: ${formatDateShort(period.paidDate || new Date().toISOString().split('T')[0])}\nSettlement: ${settlementMethod}\n\nThis receipt was auto-generated when your payment was logged by management.`,
+                unitId: unit.id,
+            } as any);
+
+            // 2. Write immutable activity log
+            await logAutomation({
+                firmId,
+                unitId: unit.id,
+                messageType: 'receipt_issued',
+                channel: 'portal',
+                recipient: tenantName,
+                messagePreview: `Receipt #${receiptNumber} auto-issued to ${tenantName} for ${chargeTypeLabel} (${billingPeriod})`,
+                messageContent: `Receipt #${receiptNumber} auto-issued to ${tenantName} for ${chargeTypeLabel} (${billingPeriod}). Amount: ${formatNairaFull(period.amount)}. Settlement: ${settlementMethod}.`,
+                direction: 'outbound',
+                senderName: currentUser?.name || 'Property Manager',
+                status: 'sent',
+                triggeredBy: currentUser?.id,
+            } as any);
+
+            // 3. Persist receipt number to the period
+            const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
+            const updatedPeriods = currentPeriods.map(p =>
+                p.index === period.index ? { ...p, receiptNumber } : p
+            );
+            const updatedRental = {
+                ...rental,
+                [periodsKey]: updatedPeriods,
+            } as Property['rentalDetails'];
+            onUpdate(updatedRental!);
+
+            // 4. Toast confirmation
+            addToast(`Receipt ${receiptNumber} auto-issued to ${tenantName}'s portal.`, { type: 'success' });
+        } catch (err: any) {
+            console.warn('Auto-receipt issuance failed:', err);
+            addToast('Payment logged, but receipt auto-issuance failed. Use [Generate Receipt] manually.', { type: 'info' });
+        }
+    }, [coreState, currentUser, rental, unit, sendPortalMessage, logAutomation, onUpdate, addToast]);
 
     const handleStatusChange = useCallback((newStatus: 'paid' | 'late' | 'outstanding' | 'advance_paid') => {
         if (!selectedPeriod) return;
@@ -785,7 +871,17 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         onUpdate(updatedRental!);
         // Update the selected period in the drawer so the UI reflects the new status
         setSelectedPeriod(updated);
-    }, [selectedPeriod, selectedChargeType, rental, onUpdate]);
+
+        // ── ZERO-TOUCH RECEIPT AUTOMATION ───────────────────────────────
+        // When a payment is settled (paid / late / advance_paid), automatically
+        // issue the receipt to the resident's portal + activity log. This
+        // eliminates the manual "Generate Receipt" → "Issue to Resident"
+        // multi-click flow. Skip if a receipt was already issued for this period.
+        if ((newStatus === 'paid' || newStatus === 'late' || newStatus === 'advance_paid') && !updated.receiptNumber) {
+            // Fire async — don't block the UI
+            autoIssueReceipt(updated, selectedChargeType, periodsKey);
+        }
+    }, [selectedPeriod, selectedChargeType, rental, onUpdate, autoIssueReceipt]);
 
     const handleGenerateReceipt = useCallback(() => {
         if (!selectedPeriod) return;
