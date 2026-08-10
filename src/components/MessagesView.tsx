@@ -2627,20 +2627,24 @@ const MessagesView: React.FC = () => {
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        {/* Founder reply — left aligned, smoky glass green */}
+                                                        {/* Founder reply — left aligned, HIGH-CONTRAST premium styling.
+                                                            Was: bg-emerald-950/30 (30% opacity — barely visible in light mode)
+                                                            Now: bg-emerald-900 dark:bg-emerald-950 (solid dark surface)
+                                                            with white text (#FFFFFF) for WCAG AAA contrast.
+                                                            Relief: border border-emerald-600/30 ring-1 ring-white/10. */}
                                                         {fb.adminReply && (
                                                             <div className="flex justify-start">
                                                                 <div className="max-w-[75%]">
                                                                     <div className="flex items-center gap-1.5 mb-1">
-                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
                                                                             Founder
                                                                         </span>
                                                                         <span className="text-2xs text-slate-400">Support Channel</span>
                                                                     </div>
-                                                                    <div className="bg-emerald-950/30 dark:bg-emerald-950/40 backdrop-blur-sm border border-emerald-500/20 text-emerald-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-                                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{fb.adminReply}</p>
+                                                                    <div className="bg-emerald-900 dark:bg-emerald-950 border border-emerald-600/30 shadow-sm ring-1 ring-white/10 dark:ring-black/20 text-white rounded-2xl rounded-tl-sm px-4 py-3">
+                                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-white">{fb.adminReply}</p>
                                                                         {fb.replies && fb.replies.length > 0 && (
-                                                                            <p className="text-2xs text-emerald-300/70 mt-1">
+                                                                            <p className="text-2xs text-emerald-300 mt-1">
                                                                                 {new Date(fb.replies[fb.replies.length - 1].timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                                                                             </p>
                                                                         )}
@@ -2653,13 +2657,13 @@ const MessagesView: React.FC = () => {
                                                             <div key={idx} className="flex justify-start">
                                                                 <div className="max-w-[75%]">
                                                                     <div className="flex items-center gap-1.5 mb-1">
-                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
                                                                             Founder
                                                                         </span>
                                                                     </div>
-                                                                    <div className="bg-emerald-950/30 dark:bg-emerald-950/40 backdrop-blur-sm border border-emerald-500/20 text-emerald-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-                                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{reply.message}</p>
-                                                                        <p className="text-2xs text-emerald-300/70 mt-1">
+                                                                    <div className="bg-emerald-900 dark:bg-emerald-950 border border-emerald-600/30 shadow-sm ring-1 ring-white/10 dark:ring-black/20 text-white rounded-2xl rounded-tl-sm px-4 py-3">
+                                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-white">{reply.message}</p>
+                                                                        <p className="text-2xs text-emerald-300 mt-1">
                                                                             {new Date(reply.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                                                                         </p>
                                                                     </div>

@@ -5123,14 +5123,20 @@ export const approveSubscriptionRequest = mutation({
       updatedAt: now,
     } as any);
 
-    // Notify the requesting user
-    if (request.userId) {
+    // Notify ALL users in the firm (not just the requesting user) that
+    // the plan has been activated. Uses a celebratory tone.
+    const firmUsers = await ctx.db
+      .query("users")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", request.firmId))
+      .collect();
+    for (const u of firmUsers) {
       await ctx.db.insert("notifications", {
         firmId: request.firmId,
-        userId: request.userId,
-        title: 'Subscription Activated',
-        message: `Your upgrade to ${request.requestedPlan} has been confirmed. Enjoy the new features!`,
+        userId: u._id,
+        title: '🎉 Plan Activated',
+        message: `Your account has been updated to the ${request.requestedPlan} plan! All associated features, higher limits, and modules are now active.`,
         type: 'subscription_activated',
+        link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
         timestamp: now,
         isRead: false,
       } as any);
@@ -5229,6 +5235,26 @@ export const activateFirmSubscription = internalMutation({
           updatedAt: now,
         } as any);
       }
+    }
+
+    // PLAN ACTIVATION NOTIFICATION — dispatch celebratory notification to
+    // ALL users in the firm. Previously this path (Paystack webhook) didn't
+    // notify anyone — the user had to deduce the upgrade from UI changes.
+    const firmUsers = await ctx.db
+      .query("users")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+      .collect();
+    for (const u of firmUsers) {
+      await ctx.db.insert("notifications", {
+        firmId: args.firmId,
+        userId: u._id,
+        title: '🎉 Plan Activated',
+        message: `Your account has been updated to the ${args.plan} plan! All associated features, higher limits, and modules are now active.`,
+        type: 'subscription_activated',
+        link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
+        timestamp: now,
+        isRead: false,
+      } as any);
     }
 
     return { success: true };

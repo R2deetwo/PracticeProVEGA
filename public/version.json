@@ -1,14 +1,14 @@
 {
-  "sha": "b339dbe5469773c45e183def456706c3419e0a75",
+  "sha": "373fdf5649170e5d930ad832fff60bec73af33d2",
   "branch": "main",
-  "builtAt": "2026-08-10T00:08:49.924Z",
-  "commitTime": "2026-08-09T23:58:13Z",
+  "builtAt": "2026-08-10T00:33:29.413Z",
+  "commitTime": "2026-08-10T00:09:28Z",
   "status": "healthy",
-  "stableSince": "2026-08-10T00:09:09.874Z",
-  "apkVersion": "1.0.483",
-  "apkVersionCode": 10483,
-  "apkUrl": "https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-593/PracticePro-v1.0.485.apk",
+  "stableSince": "2026-08-10T00:33:50.062Z",
+  "apkVersion": "1.0.484",
+  "apkVersionCode": 10484,
+  "apkUrl": "https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-586/PracticePro-v1.0.478.apk",
   "apkBuildStatus": "healthy",
-  "apkBuiltAt": "2026-08-10T00:11:24.784Z",
-  "markedHealthyAt": "2026-08-10T00:09:09.874Z"
+  "apkBuiltAt": "2026-08-09T21:56:00.549Z",
+  "markedHealthyAt": "2026-08-10T00:33:50.062Z"
 }
