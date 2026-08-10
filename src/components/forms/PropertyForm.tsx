@@ -636,22 +636,54 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const isSale = category === 'Property For Sale';
     const isDisputed = category === 'Disputed Property';
 
+
+    // ─── Accordion State ──────────────────────────────────────────────
+    // Contextual auto-expansion: if opened from a unit card (activeUnitId
+    // is set), expand Rental Details. Otherwise, expand Primary Details.
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+        if (activeUnitId) {
+            return { 'rental': true, 'primary': false, 'amenities': false, 'fees': false, 'media': false };
+        }
+        return { 'rental': false, 'primary': true, 'amenities': false, 'fees': false, 'media': false };
+    });
+    const toggleSection = (id: string) => {
+        setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // Accordion wrapper component
+    const AccordionSection: React.FC<{ id: string; title: string; subtitle: string; icon: React.ReactNode; iconBg: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ id, title, subtitle, icon, iconBg, children }) => {
+        const isOpen = openSections[id] ?? false;
+        return (
+            <div className={`rounded-lg border shadow-sm transition-all overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}>
+                <button
+                    type="button"
+                    onClick={() => toggleSection(id)}
+                    className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
+                >
+                    <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm ring-2 ring-${isOpen ? 'primary' : 'slate'}-500/10 flex-shrink-0`}>
+                        {icon}
+                    </div>
+                    <div className="text-left flex-1 min-w-0">
+                        <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
+                    </div>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                {isOpen && (
+                    <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3 animate-fade-in">
+                        {children}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
-                {/* Core Profile Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-4 mb-2 px-1">
-                        <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
-                            <OfficeBuildingIcon className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                            <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Primary Details</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Address & Category</h3>
-                        </div>
-                    </div>
-
-                    {/* Core Info */}
+                <AccordionSection id="primary" title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
                     <div className="space-y-2 sm:space-y-3">
                         <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">
@@ -757,25 +789,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 className={commonInputClass}
-                                placeholder="e.g. Block of Flats, Victoria Island"
+                                placeholder="e.g. 8-Unit Luxury Apartment Complex or 3-Bedroom Terrace Duplex"
                             />
-                            <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Used as a fallback when individual unit descriptions are empty. Set specific descriptions per unit below.</p>
+                            <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Building-level description (e.g. "8-Unit Luxury Apartment Complex"). Do not enter individual unit names here.</p>
                         </div>
                     </div>
-                </div>
+                </AccordionSection>
 
                 {/* --- Amenities Section --- */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-4 mb-2 px-1">
-                        <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
-                            <SparklesIcon className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                            <p className="text-2xs font-bold text-emerald-600 dark:text-emerald-400/70 uppercase tracking-widest leading-none mb-0.5">Features</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Amenities</h3>
-                        </div>
-                    </div>
-
+                <AccordionSection id="amenities" title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
                     <div className="space-y-3 sm:space-y-4">
                         <div className="flex gap-2">
                             <input autoComplete="off" data-lpignore="true" 
@@ -809,19 +831,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             )}
                         </div>
                     </div>
-                </div>
+                </AccordionSection>
 
                 {/* --- Automation Settings --- */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-4 px-1">
-                        <div className="p-1.5 bg-amber-500 text-white rounded-lg shadow-sm ring-2 ring-amber-400/10">
-                            <ZapIcon className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                            <p className="text-2xs font-bold text-amber-600 dark:text-amber-400/70 uppercase tracking-widest leading-none mb-0.5">Alerts</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Automation</h3>
-                        </div>
-                    </div>
+                <AccordionSection id="automation" title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
@@ -838,19 +851,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Maintenance Tasks</span>
                         </label>
                     </div>
-                </div>
+                </AccordionSection>
 
                 {/* --- Minimum Vend / Estate Fees --- */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-4 px-1">
-                        <div className="p-1.5 bg-teal-500 text-white rounded-lg shadow-sm ring-2 ring-teal-400/10">
-                            <CalculatorIcon className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                            <p className="text-2xs font-bold text-teal-600/70 uppercase tracking-widest leading-none mb-0.5">Fees</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Minimum Vend / Estate Fees</h3>
-                        </div>
-                    </div>
+                <AccordionSection id="fees" title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
                     <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
                         <input autoComplete="off" data-lpignore="true" type="checkbox" checked={minimumVendEnabled} onChange={e => setMinimumVendEnabled(e.target.checked)} className="mt-1 rounded border-slate-200 text-teal-500 focus:ring-teal-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Enable Minimum Vend Tracking</span>
@@ -882,7 +886,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
                         </div>
                     )}
-                </div>
+                </AccordionSection>
 
                 {/* --- Conditional Sections --- */}
 
@@ -1000,16 +1004,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 3. Rental Details */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
-                    <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3 sm:space-y-4 animate-fade-in">
-                         <div className="flex items-center gap-4 px-1">
-                            <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
-                                <CalendarIcon className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                                <p className="text-2xs font-bold text-primary-600 dark:text-primary-300/70 uppercase tracking-widest leading-none mb-0.5">Rental Details</p>
-                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lease & Rent Configuration</h3>
-                            </div>
-                        </div>
+                    <AccordionSection id="rental" title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
 
                         {unitsData.length > 1 && (
                             <div className="flex flex-wrap gap-2 px-1 mb-2">
@@ -1389,21 +1384,11 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </AccordionSection>
                 )}
 
                 {/* Image Upload Section */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex justify-between items-center px-1">
-                        <div className="flex items-center gap-4">
-                            <div className="p-1.5 bg-slate-600 text-white rounded-lg shadow-sm ring-2 ring-slate-500/10">
-                                <UploadIcon className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                                <p className="text-2xs font-bold text-slate-600/70 uppercase tracking-widest leading-none mb-0.5">Media</p>
-                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Photos & Documents</h3>
-                            </div>
-                        </div>
+                <AccordionSection id="media" title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
@@ -1418,7 +1403,6 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             className="hidden"
                             accept="image/*,application/pdf"
                         />
-                    </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
                         {images.length > 0 ? images.map((img, idx) => (
@@ -1446,7 +1430,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
                         )}
                     </div>
-                </div>
+                </AccordionSection>
             </div>
 
             <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 sm:pb-5 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50 mt-4 rounded-b-2xl">
