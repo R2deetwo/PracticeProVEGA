@@ -137,7 +137,28 @@ const Header: React.FC = React.memo(() => {
 
     }, [notifications, clientMessages, currentUser, inboundTenantMessages]);
 
-    const unreadCount = aggregatedNotifications.filter(n => !n.isRead).length;
+    // UNREAD BADGE FIX — filter out dismissed notice IDs so deleted notices
+    // don't artificially inflate the unread count. Checks both localStorage
+    // (permanent dismissals) and sessionStorage (session dismissals).
+    const unreadCount = aggregatedNotifications.filter(n => {
+        if (n.isRead) return false;
+        // Check if this notice was dismissed via the BroadcastBanner X button
+        const notifId = String(n.id || '');
+        const broadcastId = (n as any).broadcastId || (n as any).link?.context?.broadcastId || '';
+        if (notifId) {
+            try {
+                if (localStorage.getItem(`dismissed_banner_${notifId}`) === 'true') return false;
+                if (sessionStorage.getItem(`dismissed_banner_${notifId}`) === 'true') return false;
+            } catch {}
+        }
+        if (broadcastId) {
+            try {
+                if (localStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return false;
+                if (sessionStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return false;
+            } catch {}
+        }
+        return true;
+    }).length;
 
     // --- Toast Alert Logic (Only for non-message system alerts) ---
     useEffect(() => {

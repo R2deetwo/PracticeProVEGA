@@ -420,7 +420,64 @@ export const updateFirmAdminSettings = mutation({
     Object.entries(args.settings).forEach(([k, v]) => {
       if (v !== undefined) cleanSettings[k] = v;
     });
+
+    // PLAN CHANGE DETECTION — compare old plan vs new plan to determine
+    // if this is an UPGRADE or DOWNGRADE, then dispatch the appropriate
+    // celebratory or warning notification to all firm users.
+    let planChangeType: 'upgrade' | 'downgrade' | null = null;
+    let newPlan: string | undefined;
+    let oldPlan: string | undefined;
+
+    if (cleanSettings.subscriptionPlan) {
+      newPlan = cleanSettings.subscriptionPlan;
+      const firm: any = await ctx.db.get(args.firmId as any);
+      oldPlan = firm?.subscriptionPlan;
+
+      if (oldPlan && oldPlan !== newPlan) {
+        // Plan rank hierarchy: core < growth < komplete (arbitrary names
+        // may vary, so we use a simple rank map)
+        const PLAN_RANK: Record<string, number> = {
+          'core': 1, 'starter': 1, 'free': 1,
+          'growth': 2, 'pro': 2, 'atrium': 2, 'vega': 2,
+          'komplete': 3, 'unified': 3, 'enterprise': 4,
+        };
+        const oldRank = PLAN_RANK[(oldPlan || '').toLowerCase()] || 0;
+        const newRank = PLAN_RANK[(newPlan || '').toLowerCase()] || 0;
+        planChangeType = newRank > oldRank ? 'upgrade' : 'downgrade';
+      }
+    }
+
     await ctx.db.patch(args.firmId as any, cleanSettings);
+
+    // DISPATCH PLAN CHANGE NOTIFICATION to all firm users
+    if (planChangeType && newPlan) {
+      const now = new Date().toISOString();
+      const firmUsers = await ctx.db
+        .query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+        .collect();
+
+      const title = planChangeType === 'upgrade'
+        ? '🎉 Plan Upgraded'
+        : '⚠️ Plan Updated';
+      const message = planChangeType === 'upgrade'
+        ? `Your account has been upgraded to the ${newPlan} plan! All premium features and expanded limits are now unlocked.`
+        : `Your account has been transitioned to the ${newPlan} plan. Some higher-tier features may now be restricted.`;
+
+      for (const u of firmUsers) {
+        await ctx.db.insert("notifications", {
+          firmId: args.firmId,
+          userId: u._id,
+          title,
+          message,
+          type: planChangeType === 'upgrade' ? 'subscription_activated' : 'subscription_changed',
+          link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
+          timestamp: now,
+          isRead: false,
+        } as any);
+      }
+    }
+
     return { success: true };
   },
 });

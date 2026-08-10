@@ -330,11 +330,19 @@ export const BroadcastBanner: React.FC = () => {
         const DAY = 24 * 60 * 60 * 1000;
 
         // ── Trial countdown banners ──
+        // ENHANCED: 5-day granular countdown with days + hours.
+        // Shows: 7d (blue) → 5d (blue, granular) → 3d (amber, granular)
+        // → 1d (amber, granular) → expired (red, non-dismissible).
+        // Also: post-downgrade banner when trial has expired but user
+        // is on a downgraded plan.
         const trialEndsAt = (coreState?.firmDetails as any)?.trialEndsAt;
         const trialPlan = (coreState?.firmDetails as any)?.trialPlan;
         if (trialEndsAt && trialPlan) {
-            const daysRemaining = Math.ceil((trialEndsAt - now) / DAY);
-            if (daysRemaining <= 0) {
+            const msRemaining = trialEndsAt - now;
+            const daysRemaining = Math.ceil(msRemaining / DAY);
+            const hoursRemaining = Math.floor((msRemaining % DAY) / (60 * 60 * 1000));
+
+            if (msRemaining <= 0) {
                 // Expired — non-dismissible Red Urgent
                 banners.push({
                     _id: `system_trial_expired`,
@@ -342,19 +350,46 @@ export const BroadcastBanner: React.FC = () => {
                     title: 'TRIAL EXPIRED',
                     message: 'Your workspace trial has expired. Please select a plan to restore full access.',
                     type: 'broadcast_urgent',
-                    persistenceMode: 'persistent',  // non-dismissible
+                    persistenceMode: 'persistent',
+                    deepLink: '/settings/billing',
+                    targetProduct: 'all',
+                    isSystem: true,
+                });
+            } else if (daysRemaining <= 1) {
+                // 1 day or less — granular hours countdown, Amber Warning
+                const timeStr = hoursRemaining > 0 ? `${hoursRemaining} hour${hoursRemaining > 1 ? 's' : ''}` : 'less than 1 hour';
+                banners.push({
+                    _id: `system_trial_1day`,
+                    broadcastId: `system_trial_1day`,
+                    title: '⏳ TRIAL ENDS TODAY',
+                    message: `Your trial ends in ${timeStr}. Upgrade now to retain high-fidelity features.`,
+                    type: 'broadcast_warning',
+                    persistenceMode: 'permanent',
                     deepLink: '/settings/billing',
                     targetProduct: 'all',
                     isSystem: true,
                 });
             } else if (daysRemaining <= 3) {
-                // 3 days — Amber Warning
+                // 3 days — Amber Warning with granular countdown
                 banners.push({
                     _id: `system_trial_3days`,
                     broadcastId: `system_trial_3days`,
-                    title: 'TRIAL ENDING SOON',
-                    message: `Your workspace trial ends in ${daysRemaining} day(s). Select a plan to avoid service interruption.`,
+                    title: '⏳ TRIAL ENDING SOON',
+                    message: `Your trial ends in ${daysRemaining} days, ${hoursRemaining} hours. Upgrade now to retain high-fidelity features.`,
                     type: 'broadcast_warning',
+                    persistenceMode: 'permanent',
+                    deepLink: '/settings/billing',
+                    targetProduct: 'all',
+                    isSystem: true,
+                });
+            } else if (daysRemaining <= 5) {
+                // 5 days — Blue Info with granular countdown
+                banners.push({
+                    _id: `system_trial_5days`,
+                    broadcastId: `system_trial_5days`,
+                    title: '⏳ TRIAL ENDING',
+                    message: `Your trial ends in ${daysRemaining} days, ${hoursRemaining} hours. Upgrade now to retain high-fidelity features.`,
+                    type: 'broadcast_info',
                     persistenceMode: 'permanent',
                     deepLink: '/settings/billing',
                     targetProduct: 'all',
@@ -374,6 +409,28 @@ export const BroadcastBanner: React.FC = () => {
                     isSystem: true,
                 });
             }
+        }
+
+        // ── Post-downgrade banner ──
+        // If the trial has expired AND the firm is on a downgraded plan
+        // (e.g., 'core' after being on 'komplete' during trial), show
+        // a supportive banner explaining how to restore full features.
+        const firmPlan = (coreState?.firmDetails as any)?.subscriptionPlan;
+        const trialExpired = trialEndsAt && trialEndsAt < now;
+        const isDowngraded = trialExpired && firmPlan && firmPlan !== 'komplete' && firmPlan !== 'growth';
+        if (isDowngraded && !trialPlan) {
+            // Only show if trial fields are cleared (post-downgrade state)
+            banners.push({
+                _id: `system_downgraded`,
+                broadcastId: `system_downgraded`,
+                title: 'PLAN UPDATED',
+                message: `Your account is on the ${firmPlan} plan. Some higher-tier features may be restricted. Upgrade to restore full access.`,
+                type: 'broadcast_info',
+                persistenceMode: 'permanent',
+                deepLink: '/settings/billing',
+                targetProduct: 'all',
+                isSystem: true,
+            });
         }
 
         // ── Overdue rent alert (Atrium / Komplete property firms) ──
@@ -491,7 +548,14 @@ export const BroadcastBanner: React.FC = () => {
         const persistenceMode = broadcast.persistenceMode || broadcast.link?.context?.persistenceMode || 'permanent';
         if (!notifId) return;
 
+        // OPTIMISTIC LOCAL STATE UPDATE — increment dismissTick IMMEDIATELY
+        // (before the animation delay) so the useMemo re-evaluates and
+        // filters out the dismissed banner right away. Previously the
+        // tick was only incremented after a 300ms setTimeout, which meant
+        // a Convex subscription refetch during that window could re-render
+        // the banner before the dismissal was picked up.
         setDismissingId(notifId);
+        setDismissTick(t => t + 1); // ← immediate, not delayed
 
         // ISOLATED dismissal — only this broadcastId
         if (persistenceMode === 'session') {
@@ -500,8 +564,8 @@ export const BroadcastBanner: React.FC = () => {
             markDismissed(broadcastId, notifId);
         }
 
+        // Clear the dismissing animation state after the slide-out
         setTimeout(() => {
-            setDismissTick(t => t + 1);
             setDismissingId(null);
         }, 300);
 
