@@ -6280,3 +6280,33 @@ Verification:
 - Build: succeeded in 21.00s
 - Git: committed as 34a8aeb, pushed to origin/main + synced to origin/master
 - Cloudflare: NOT yet deployed (requires manual `npx wrangler deploy` from user's machine)
+
+---
+Task ID: 18
+Agent: Main Agent
+Task: Management-only rent hiding + keyboard accordion focus + decouple descriptions
+
+Work Log:
+1. Hide Rent Collection Module for Management Only Properties:
+   - PropertyTrackingView: isManagementOnly flag gates Quick Stats cards + rent tab.
+   - LeaseProgressBars: isManagementOnly check hides rent collection bar.
+   - Management-only properties show ONLY lease timeline + service charge + maintenance.
+
+2. Keyboard Focus-Driven Accordion Switching:
+   - handleSectionFocus callback: Tab key into a collapsed section → auto-expand + collapse others.
+   - onFocusSection prop + onFocusCapture handler on AccordionSection container.
+   - Wired to all 6 AccordionSection instances.
+   - Manual mouse clicks still use toggleSection() (multi-expansion allowed).
+
+3. Decouple Property Description from Unit Description:
+   - Broke data-binding that seeded unitName + unitDescription from property.description.
+   - unitName defaults to 'Unit', unitDescription defaults to ''.
+   - Updated labels + helper text to clarify building-level vs unit-specific.
+
+4. Mobile + pill color (already fixed in previous round, verified still in place).
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 20.48s
+- Git: committed as e5211c8, pushed to origin/main + synced to origin/master
+- Cloudflare: requires manual `npx wrangler deploy` from user's machine
