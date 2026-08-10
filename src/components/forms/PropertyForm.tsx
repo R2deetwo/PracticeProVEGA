@@ -739,7 +739,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     // No existing contact found — create a new one
                     const newContactData = {
                         firmId,
-                        name: tenantName || 'Unknown Tenant',
+                        name: tenantName || 'Unknown Resident',
                         phone: tenantPhone,
                         email: tenantEmail,
                         contactType: ContactType.Individual,
@@ -1548,7 +1548,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group col-span-1 md:col-span-2">
-                                    <label className={labelClass}>Tenant Name</label>
+                                    <label className={labelClass}>Resident Name</label>
                                     <div className="grid grid-cols-1 sm:grid-cols-[minmax(5.5rem,auto)_1fr_1fr] gap-2">
                                         <select 
                                             value={unitsData[activeUnitIndex].occupantTitle || ''} 
@@ -1567,7 +1567,6 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                             <option value="Ms.">Ms.</option>
                                             <option value="Dr.">Dr.</option>
                                             <option value="Chief">Chief</option>
-                                            <option value="Barr.">Barr.</option>
                                             <option value="Engr.">Engr.</option>
                                             <option value="Pastor">Pastor</option>
                                             <option value="Rev.">Rev.</option>
@@ -1604,7 +1603,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     )}
                                 </div>
                                 <div className="space-y-2 group">
-                                    <label className={labelClass}>Tenant Phone</label>
+                                    <label className={labelClass}>Resident Phone</label>
                                     <input autoComplete="off" data-lpignore="true"  type="tel" value={unitsData[activeUnitIndex].tenantPhone} onChange={e => updateUnit(activeUnitIndex, 'tenantPhone', e.target.value)} className={commonInputClass} placeholder="+234..." />
                                 </div>
                             </div>

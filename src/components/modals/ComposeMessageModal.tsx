@@ -9,7 +9,7 @@
  *      Dispatches via api.communications.sendEmail.
  *   3. Portal Invite — requires a valid email. If email is missing, the tab is
  *      disabled (grayed out) with a hover tooltip:
- *      "Please update resident's email address to send a Tenant Portal invite."
+ *      "Please update resident's email address to send a Resident Portal invite."
  *
  * All sends are logged to the contact activity timeline via api.communications.logAuto
  * (if available) so there's a real audit trail instead of a fake "Message Sent" toast.
@@ -91,7 +91,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
             label: 'Portal Invite',
             icon: <UserCircleIcon className="w-4 h-4" />,
             enabled: hasEmail,
-            disabledReason: hasEmail ? undefined : "Please update resident's email address to send a Tenant Portal invite.",
+            disabledReason: hasEmail ? undefined : "Please update resident's email address to send a Resident Portal invite.",
         },
     ];
 
@@ -329,7 +329,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                                 rows={3}
                                 value={message}
                                 onChange={e => setMessage(e.target.value)}
-                                placeholder={`Hello ${recipient.name}, you've been invited to access the tenant portal...`}
+                                placeholder={`Hello ${recipient.name}, you've been invited to access the resident portal...`}
                                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-slate-900 dark:text-white placeholder-slate-400 resize-none"
                             />
                         </div>

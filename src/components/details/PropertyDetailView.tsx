@@ -1028,7 +1028,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     {/* Consolidated Rental Info */}
                                     {isLeased && property.rentalDetails && (
                                         <>
-                                            <DetailItem label="Tenant" value={property.rentalDetails.tenantName || 'Unknown'} subText={property.rentalDetails.tenantPhone} />
+                                            <DetailItem label="Resident" value={property.rentalDetails.tenantName || 'Unknown'} subText={property.rentalDetails.tenantPhone} />
                                             <DetailItem
                                                 label="Lease Expiry"
                                                 value={property.rentalDetails.leaseEnd ? new Date(property.rentalDetails.leaseEnd).toLocaleDateString('en-GB') : 'N/A'}
@@ -1077,7 +1077,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 <ActionButton onClick={() => handleDraftAction('Rent Demand Notice', 'Demand')} label="Rent Demand" />
                                                 <ActionButton onClick={() => handleDraftAction('Notice to Quit', 'Quit')} label="Notice to Quit" />
                                                 <ActionButton onClick={() => handleDraftAction('Tenancy Agreement', 'Agreement')} label="Tenancy Agreement" />
-                                                <ActionButton onClick={() => openModal('composeEmail', null, { to: property.rentalDetails?.tenantEmail || owner?.email || '', subject: `Property Update: ${property.address}` })} label="Email Tenant" />
+                                                <ActionButton onClick={() => openModal('composeEmail', null, { to: property.rentalDetails?.tenantEmail || owner?.email || '', subject: `Property Update: ${property.address}` })} label="Email Resident" />
                                             </>
                                         ) : isSale ? (
                                             <>
@@ -1448,7 +1448,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     // don't prepend another "Unit" — that would create "regarding Unit Unit 2".
                                                     const unitName = d.name || '';
                                                     const unitRef = unitName.toLowerCase().startsWith('unit') ? unitName : `Unit ${unitName}`;
-                                                    const msg = encodeURIComponent(`Hello ${d.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding ${unitRef} at ${property.address}.`);
+                                                    const msg = encodeURIComponent(`Hello ${d.tenantName || 'Resident'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding ${unitRef} at ${property.address}.`);
                                                     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
                                                 };
 
@@ -1482,8 +1482,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             senderId: currentUser?.id || '',
                                                             senderName: currentUser?.name || 'Property Manager',
                                                             senderRole: 'admin',
-                                                            subject: `Message for ${d.tenantName || 'Tenant'}`,
-                                                            content: `Hello ${d.tenantName || 'Tenant'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding ${(d.name || '').toLowerCase().startsWith('unit') ? d.name : `Unit ${d.name}`} at ${property.address}.`,
+                                                            subject: `Message for ${d.tenantName || 'Resident'}`,
+                                                            content: `Hello ${d.tenantName || 'Resident'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding ${(d.name || '').toLowerCase().startsWith('unit') ? d.name : `Unit ${d.name}`} at ${property.address}.`,
                                                             unitId: unit.id,
                                                         });
                                                         addToast('Portal message sent!', { type: 'success' });
@@ -1736,7 +1736,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             // The modal handles channel gating (WhatsApp needs phone, Email
                                                                             // and Portal Invite need email) with disabled tabs + tooltips.
                                                                             setComposeModalRecipient({
-                                                                                name: d.tenantName || 'Tenant',
+                                                                                name: d.tenantName || 'Resident',
                                                                                 phone: tenantPhone,
                                                                                 email: tenantEmail,
                                                                                 unitId: unit.id,
@@ -1748,7 +1748,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
                                                                             setComposeModalRecipient({
-                                                                                name: d.tenantName || 'Tenant',
+                                                                                name: d.tenantName || 'Resident',
                                                                                 phone: tenantPhone,
                                                                                 email: tenantEmail,
                                                                                 unitId: unit.id,
@@ -1782,7 +1782,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 {showUnitMessaging && (
                                                                     <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-3 animate-fade-in">
                                                                         <p className="text-3xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">
-                                                                            Contact {d.tenantName || 'Tenant'}
+                                                                            Contact {d.tenantName || 'Resident'}
                                                                         </p>
                                                                         <div className="flex flex-wrap items-center gap-1.5">
                                                                             {tenantPhone && (isGrowthOrAbove || isKompleteFirm) && (
@@ -1885,7 +1885,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                                                                         {/* Details grid — compact 3-col metadata */}
                                                                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 mb-3">
-                                                                            {d.tenantName && <DetailItem label="Tenant" value={d.tenantName} />}
+                                                                            {d.tenantName && <DetailItem label="Resident" value={d.tenantName} />}
                                                                             {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
                                                                                 <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-2xs text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
                                                                             )}
@@ -2084,6 +2084,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                     const sc = Number((rd as any).serviceChargeAmount || (rd as any).serviceCharge || 0);
                                     return sum + sc;
                                 }, 0);
+                                // Minimum Vend aggregator — sums MV across all units
+                                const allMinVend = property.minimumVendEnabled
+                                    ? units.reduce((sum: number) => sum + Number(property.minimumVendAmount || 0), 0)
+                                    : 0;
                                 const paidCount = units.filter(u => {
                                     const rd = u.rentalDetails || {};
                                     const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
@@ -2144,6 +2148,17 @@ const PropertyDetailViewContent: React.FC = () => {
                                             icon={<Receipt />}
                                             colorClass="bg-amber-600"
                                         />
+                                        {/* MINIMUM VEND — shown when property has MV enabled.
+                                            Mirrors the Service Charge card but for Minimum Vend / estate fees. */}
+                                        {property.minimumVendEnabled && (
+                                            <StatCard
+                                                title="MINIMUM VEND"
+                                                value={formatNairaCompact(allMinVend)}
+                                                tooltipText={formatNairaFull(allMinVend)}
+                                                icon={<Wallet />}
+                                                colorClass="bg-teal-600"
+                                            />
+                                        )}
                                         {/* COLLECTION STATUS — hidden when property is
                                             Management Only (no rent collection tracking). */}
                                         {property.rentCollectionMode !== 'Management Only (No Rent)' && (
@@ -2174,7 +2189,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     <thead className="bg-slate-50 dark:bg-zinc-900/50">
                                         <tr>
                                             <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Unit</th>
-                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Tenant</th>
+                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Resident</th>
                                             {/* RENT column — hidden for Management Only properties */}
                                             {property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                 <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Rent</th>

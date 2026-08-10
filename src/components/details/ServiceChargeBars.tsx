@@ -747,7 +747,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     ) => {
         try {
             const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
-            const tenantName = rental?.tenantName || 'Tenant';
+            const tenantName = rental?.tenantName || 'Resident';
             const unitName = rental?.unitName || unit.description || 'Unit';
             const chargeTypeLabel = chargeType === 'SC' ? 'Service Charge' : 'Minimum Vend';
             const billingPeriod = (() => {
@@ -1001,7 +1001,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
                     period={selectedPeriod}
                     chargeType={selectedChargeType}
                     unitName={rental?.unitName || unit.description || 'Unit'}
-                    tenantName={rental?.tenantName || 'Tenant'}
+                    tenantName={rental?.tenantName || 'Resident'}
                     unitId={unit.id}
                     onClose={() => setReceiptModalOpen(false)}
                     onIssued={handleReceiptIssued}

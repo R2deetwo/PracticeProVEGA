@@ -20,6 +20,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatDateShort } from '../../utils/formatting';
 import { XIcon, CheckCircleIcon, PlusIcon, DownloadIcon } from '../../constants';
@@ -194,7 +195,7 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
     const advanceCount = periods.filter(p => p.isAdvance || p.status === 'advance_paid').length;
     const settledCount = periods.filter(p => p.status === 'paid' || p.status === 'late' || p.status === 'advance_paid').length;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[4600] flex items-center justify-center p-4" role="dialog" aria-modal="true">
             {/* Backdrop */}
             <div
@@ -341,7 +342,8 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 
