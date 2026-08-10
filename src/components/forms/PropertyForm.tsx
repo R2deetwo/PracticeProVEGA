@@ -695,7 +695,6 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     className={`${commonInputClass} resize-none`}
                                     placeholder="Enter the full property address..."
                                     required
-                                    autoFocus
                                 />
                             </div>
                             {!activeUnitId && (
@@ -1006,24 +1005,73 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
                     <AccordionSection id="rental" title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
 
-                        {unitsData.length > 1 && (
-                            <div className="flex flex-wrap gap-2 px-1 mb-2">
-                                {unitsData.map((unit, index) => (
-                                    <button
-                                        key={unit.id}
-                                        type="button"
-                                        onClick={() => setActiveUnitIndex(index)}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${
-                                            activeUnitIndex === index 
-                                            ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20' 
-                                            : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 dark:hover:bg-primary-900/10'
-                                        }`}
-                                    >
-                                        {unit.unitName}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        {/* UNIT TABS — always show (even for single unit) + inline Add Unit button */}
+                        <div className="flex flex-wrap gap-2 px-1 mb-2 items-center">
+                            {unitsData.map((unit, index) => (
+                                <button
+                                    key={unit.id}
+                                    type="button"
+                                    onClick={() => setActiveUnitIndex(index)}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border flex items-center gap-1.5 ${
+                                        activeUnitIndex === index
+                                        ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20'
+                                        : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/10'
+                                    }`}
+                                >
+                                    {unit.unitName}
+                                    {/* MUTED badge for deactivated units */}
+                                    {(unit as any).status === 'Muted' && (
+                                        <span className="text-3xs font-black uppercase bg-slate-400 text-white px-1 py-0.5 rounded">MUTED</span>
+                                    )}
+                                </button>
+                            ))}
+                            {/* INLINE ADD UNIT button — appends a new unit tab immediately */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const newUnitNum = unitsData.length + 1;
+                                    const newUnit: UnitRentalInput = {
+                                        id: `unit-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                                        unitName: `Unit ${newUnitNum}`,
+                                        unitDescription: '',
+                                        rentAmount: 0,
+                                        rentFrequency: 'Annually',
+                                        leaseStart: '',
+                                        leaseEnd: '',
+                                        tenantName: '',
+                                        occupantTitle: '',
+                                        occupantFirstName: '',
+                                        occupantLastName: '',
+                                        tenantPhone: '',
+                                        nextRentReview: '',
+                                        isPeriodicReviewEnabled: false,
+                                        tenancyPeriod: '',
+                                        serviceCharge: 0,
+                                        serviceChargeAmount: 0,
+                                        serviceChargeStatus: 'UNPAID' as const,
+                                        outstandingServiceChargeBalance: 0,
+                                        legalFee: 0,
+                                        legalFeePercentage: 10,
+                                        isLegalNA: false,
+                                        agencyFee: 0,
+                                        agencyFeePercentage: 10,
+                                        isAgencyNA: false,
+                                        cautionDeposit: 0,
+                                        isCautionNA: false,
+                                        status: 'Vacant' as PropertyStatus,
+                                    };
+                                    setUnitsData(prev => [...prev, newUnit]);
+                                    setNumberOfUnits(prev => prev + 1);
+                                    setUnitsInputStr(String(unitsData.length + 1));
+                                    setActiveUnitIndex(unitsData.length);
+                                    formTouched.current = true;
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border border-dashed border-primary-300 dark:border-primary-700/50 text-primary-600 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-500 flex items-center gap-1"
+                                title="Add a new unit"
+                            >
+                                <PlusIcon className="w-3 h-3" /> Add Unit
+                            </button>
+                        </div>
 
                         {unitsData.length > 1 && (
                             <div className="flex items-center gap-3 px-1 mb-4 mt-2">
@@ -1043,15 +1091,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                         <div className="space-y-3 sm:space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
                             <div className="space-y-2 group">
-                                <label className={labelClass}>Unit Description</label>
-                                <input autoComplete="off" data-lpignore="true" 
+                                <label className={labelClass}>Unit Description <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(structural notes — not the unit number)</span></label>
+                                <input autoComplete="off" data-lpignore="true"
                                     type="text"
                                     value={unitsData[activeUnitIndex].unitDescription || ''}
                                     onChange={e => updateUnit(activeUnitIndex, 'unitDescription', e.target.value)}
                                     className={commonInputClass}
-                                    placeholder="e.g. 4-Bedroom Maisonette with BQ"
+                                    placeholder="e.g. Ground Floor Corner Unit with Terrace"
                                 />
-                                <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Describe this specific unit's style, layout, or features. {autoSyncUnits && activeUnitIndex === 0 && unitsData.length > 1 ? 'Auto-copied to other units.' : ''}</p>
+                                <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Structural features or notes (e.g. "Penthouse Suite", "3-Bedroom with BQ"). The unit tab label ({unitsData[activeUnitIndex].unitName}) is separate and won't change.</p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
@@ -1383,6 +1431,40 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].nextRentReview} onChange={e => updateUnit(activeUnitIndex, 'nextRentReview', e.target.value)} className={commonInputClass} />
                                 </div>
                             )}
+
+                            {/* MUTE / DEACTIVATE UNIT toggle — replaces hard delete.
+                                Muted units are hidden from the workspace grid but
+                                remain in the Edit Modal with a MUTED badge.
+                                Preserves sequential integrity and ledger history. */}
+                            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800 mt-3">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-600 dark:text-zinc-300">
+                                        {(unitsData[activeUnitIndex] as any).status === 'Muted' ? 'Unit Muted' : 'Mute Unit'}
+                                    </p>
+                                    <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-0.5">
+                                        {(unitsData[activeUnitIndex] as any).status === 'Muted'
+                                            ? 'Hidden from workspace. Ledger history preserved.'
+                                            : 'Hide from daily workspace without deleting. History preserved.'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const currentStatus = (unitsData[activeUnitIndex] as any).status;
+                                        updateUnit(activeUnitIndex, 'status' as any,
+                                            currentStatus === 'Muted' ? 'Vacant' : 'Muted'
+                                        );
+                                        formTouched.current = true;
+                                    }}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                        (unitsData[activeUnitIndex] as any).status === 'Muted'
+                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50'
+                                            : 'bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-300 dark:hover:bg-zinc-600'
+                                    }`}
+                                >
+                                    {(unitsData[activeUnitIndex] as any).status === 'Muted' ? 'Unmute / Reactivate' : 'Mute / Pause'}
+                                </button>
+                            </div>
                         </div>
                     </AccordionSection>
                 )}

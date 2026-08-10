@@ -296,11 +296,13 @@ const PropertyDetailViewContent: React.FC = () => {
                     return true;
                 });
 
-                // SOFT-DELETE FILTER — hide units with status 'Deleted'
-                // from the display layer. The records remain in the DB
-                // for historical/audit purposes (ledger entries, receipts,
-                // legal matters are all preserved).
-                units = units.filter(u => u.status !== 'Deleted');
+                // SOFT-DELETE + MUTE FILTER — hide units with status 'Deleted'
+                // or 'Muted' from the workspace display layer. Muted units
+                // (e.g. private owner use, self-management) don't need to
+                // clutter daily operations but remain in the Edit Modal
+                // for future reactivation. Deleted units are archived.
+                // Both preserve ledger entries, receipts, and legal history.
+                units = units.filter(u => u.status !== 'Deleted' && u.status !== 'Muted');
 
                 // SORT by unitName for stable ordering
                 units.sort((a, b) => {
