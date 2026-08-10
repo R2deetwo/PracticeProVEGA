@@ -6383,3 +6383,38 @@ Verification:
 - Build: succeeded in 20.87s
 - Git: committed as 65cbefe, pushed to origin/main + synced to origin/master
 - Cloudflare: requires manual `npx wrangler deploy` from user's machine
+
+---
+Task ID: 21
+Agent: Main Agent
+Task: OnboardUnitLedgerModal portal fix + MV dashboard card + remove Barr. + tenant→resident labels
+
+Work Log:
+1. CRITICAL BUG FIX — 'Settle SC Historical Ledger' Button:
+   - Root cause: OnboardUnitLedgerModal rendered inside PropertyForm → inside Modal.
+     Modal uses CSS 'transform' for animation → creates stacking context → breaks
+     'position: fixed' for descendants. Modal was constrained to parent Modal's
+     dimensions instead of covering viewport.
+   - Fix: createPortal(…, document.body) — escapes parent Modal's stacking context.
+   - Buttons now correctly open the modal.
+
+2. Minimum Vend Dashboard Item:
+   - Added allMinVend aggregator.
+   - New 'MINIMUM VEND' StatCard (teal, Wallet icon) shown when minimumVendEnabled.
+
+3. Removed 'Barr.' from title dropdown (PropertyForm.tsx).
+
+4. Tenant → Resident UI Labels (visible strings only, field names unchanged):
+   - 'Tenant Name' → 'Resident Name'
+   - 'Tenant Phone' → 'Resident Phone'
+   - 'Unknown Tenant' → 'Unknown Resident'
+   - 'Email Tenant' → 'Email Resident'
+   - 'Tenant' (DetailItem/table header) → 'Resident'
+   - 'Tenant Portal' → 'Resident Portal'
+   - Applied across PropertyForm, PropertyDetailView, ServiceChargeBars, ComposeMessageModal.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 20.50s
+- Git: committed as 65b2426, pushed to origin/main + synced to origin/master
+- Cloudflare: requires manual `npx wrangler deploy` from user's machine
