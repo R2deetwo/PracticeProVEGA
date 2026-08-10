@@ -6310,3 +6310,45 @@ Verification:
 - Build: succeeded in 20.48s
 - Git: committed as e5211c8, pushed to origin/main + synced to origin/master
 - Cloudflare: requires manual `npx wrangler deploy` from user's machine
+
+---
+Task ID: 19
+Agent: Main Agent
+Task: Receipt pipeline + button alignment + management-only finance filtering + MV column
+
+Work Log:
+1. ReceiptModal (new component):
+   - Preview receipt with Receipt #, Resident, Unit, Amount Paid, Charge Type, Payment Date, Settlement Method.
+   - [Download PDF] generates printable HTML receipt (print dialog → save as PDF).
+   - [Issue to Resident Portal] pushes via sendPortalMessage + activity log via logAutomation.
+   - Dynamic button toggle: [Generate Receipt] → [View Issued Receipt] when receiptNumber set.
+   - Wired into ServiceChargeBars — opens instead of dead toast.
+   - Added receiptNumber field to ServiceChargePeriod type.
+
+2. Button Alignment + Tooltip Copy:
+   - All 3 buttons (Message, Edit, More): h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer.
+   - Message tooltip: 'Message Resident' (was 'Message Tenant').
+   - More tooltip: 'Full unit details and more actions' (was '& more actions').
+   - Added onTouchEnd to Message + More buttons.
+
+3. Management-Only Finance Filtering:
+   - TOTAL ANNUAL RENT + RECURRING REVENUE StatCards hidden for Management Only.
+   - RENT column header + cell hidden in Revenue Breakdown table.
+
+4. Minimum Vend Column:
+   - New 'Min Vend' column shown when property.minimumVendEnabled.
+   - Dynamic column expansion: Rent (if rent collection) + Service Charge + Min Vend (if MV enabled) + Status + Outstanding.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 20.53s
+- Git: committed as 9aa1f07, pushed to origin/main + synced to origin/master
+- Cloudflare: requires manual `npx wrangler deploy` from user's machine
+
+Files Created:
+- src/components/modals/ReceiptModal.tsx (~250 lines)
+
+Files Modified:
+- src/types.ts (added receiptNumber to ServiceChargePeriod)
+- src/components/details/ServiceChargeBars.tsx (ReceiptModal wiring + dynamic button toggle)
+- src/components/details/PropertyDetailView.tsx (button alignment + tooltip copy + finance filtering + MV column)
