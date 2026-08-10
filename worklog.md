@@ -5952,3 +5952,59 @@ Files Modified:
 - src/components/forms/PropertyForm.tsx (added resident-to-contact auto-sync)
 - src/components/details/PropertyDetailView.tsx (replaced SC/MV badges with ServiceChargeBars, wired ComposeMessageModal to [Message] button)
 - src/types.ts (added ServiceChargePeriod interface, scPeriods/mvPeriods/tenantContactId on rentalDetails)
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Quick Payment Drawer overlay fix, double Naira cleanup, automated late tracking, monthly status pills
+
+Work Log:
+- Confirmed formatNairaCompact() already injects the ₦ symbol by default (line 46: `const sym = withSymbol ? '₦' : ''`). The old drawer code used `<NairaSymbol />{formatNairaCompact(period.amount)}` which produced `₦₦120K`.
+
+1. Double Naira Symbol Removal:
+   - Removed the hardcoded <NairaSymbol /> prefix from the Quick Payment Drawer's Charge Amount display. Now reads cleanly as `₦120K` (single symbol from formatNairaCompact).
+
+2. Backdrop Pointer Interactivity Fix:
+   - Backdrop upgraded: `fixed inset-0 z-[4500] bg-black/50 sm:backdrop-blur-sm pointer-events-auto` with explicit onClick={onClose}.
+   - Drawer on `z-[4501]` with `pointer-events-auto` — sits above backdrop, enables interaction on drawer itself.
+   - Added Escape key handler (useEffect + document.addEventListener) to close the drawer.
+   - Background unit cards and buttons are now fully blocked while the drawer is open.
+
+3. Automated Late-Status Engine:
+   - Rewrote mergePeriods() to apply an auto-late rule: if a period has no stored payment record AND its dueDate is in the past, it's automatically promoted from 'outstanding' to 'late'. This runs on every render — no cron job needed.
+   - Added `paidOnTime` flag to the ServiceChargePeriod type:
+     * true  = settled on or before due date (PAID ON TIME)
+     * false = settled after due date (PAID LATE — retained permanently)
+     * undefined = no payment logged
+   - handleStatusChange now computes paidOnTime by comparing today's date to the due date when status becomes 'paid' or 'late'.
+   - When a late period is marked as Paid, the balance settles (status='paid') but paidOnTime=false is retained, so the pill stays orange in the historical timeline. This is the "permanent historical record" behavior.
+   - Aggregate serviceChargeStatus correctly treats 'paid' (regardless of paidOnTime) as settled.
+
+4. Monthly Status Pills (Visual Ledger):
+   - Replaced thin colored bars with rounded status pills labeled by month abbreviation (Jan, Feb, Mar, Apr...). Each pill is h-6 with min-w-[28px] and white text.
+   - Color logic via getStatusMeta():
+     * Green  = Paid On Time (status=paid, paidOnTime=true)
+     * Orange = Paid Late (status=paid, paidOnTime=false) OR Currently Late (status=late, auto-flagged)
+     * Red    = Outstanding (status=outstanding, not yet past due)
+   - Rich hover tooltip (PillTooltip component) on each pill shows:
+     * Month + year (e.g. "March 2026")
+     * Amount (compact Naira)
+     * Status name (Paid On Time / Paid Late / Outstanding / Late)
+     * Settled date (if applicable)
+     * Action hint (View/Issue Receipt or Click to log payment)
+   - Tooltip has dark slate-900 background with arrow pointing to pill.
+
+5. Quick Payment Drawer Enhancements:
+   - Header now shows the full month+year (e.g. "SC · March 2026") instead of "Period N".
+   - Current Status box shows the human-readable name + description (e.g. "Paid Late — Settled on 14 Apr 2026 (after due date)").
+   - Toggle button section has a hint: "Marking a late period as Paid settles the balance but retains the Paid Late flag in the historical timeline."
+   - Receipt prompt shows "(Late)" suffix when paidOnTime=false.
+
+Verification:
+- TypeScript: zero new errors
+- Build: succeeded in 20.75s
+- Git: committed as f2c513e, pushed to origin/main
+
+Files Modified:
+- src/types.ts (added paidOnTime flag to ServiceChargePeriod)
+- src/components/details/ServiceChargeBars.tsx (full rewrite: monthly pills, rich tooltips, auto-late engine, paidOnTime logic, backdrop fix, double Naira fix, Escape key handler)
