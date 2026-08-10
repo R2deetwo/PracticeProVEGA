@@ -25,6 +25,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
 import { ServiceChargeBars } from './ServiceChargeBars';
+import { ComposeMessageModal, ComposeRecipient } from '../modals/ComposeMessageModal';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
@@ -131,6 +132,10 @@ const PropertyDetailViewContent: React.FC = () => {
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
     const [showUnitMessaging, setShowUnitMessaging] = useState(false);
+
+    // ComposeMessageModal recipient — when set, the unified compose modal opens.
+    // Set by clicking [Message] on any unit card.
+    const [composeModalRecipient, setComposeModalRecipient] = useState<ComposeRecipient | null>(null);
     const [showCompose, setShowCompose] = useState(false);
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     const [showFullUnitDetail, setShowFullUnitDetail] = useState(false);
@@ -1736,7 +1741,20 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             <Megaphone className="w-3 h-3" /> Demand
                                                                         </button>
                                                                     )}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Tenant" title="Message Tenant">
+                                                                    <button onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        // Open the unified ComposeMessageModal with the tenant's info.
+                                                                        // The modal handles channel gating (WhatsApp needs phone, Email
+                                                                        // and Portal Invite need email) with disabled tabs + tooltips.
+                                                                        setComposeModalRecipient({
+                                                                            name: d.tenantName || 'Tenant',
+                                                                            phone: tenantPhone,
+                                                                            email: tenantEmail,
+                                                                            unitId: unit.id,
+                                                                            unitName: d.name,
+                                                                        });
+                                                                        setShowFullUnitDetail(false);
+                                                                    }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Tenant" title="Message Tenant">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
                                                                     <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit">
@@ -2383,6 +2401,16 @@ const PropertyDetailViewContent: React.FC = () => {
                     prefill={composePrefill}
                     onClose={() => { setShowCompose(false); setComposePrefill(undefined); }}
                     onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') || msg.includes('requires') ? 'error' : 'success' })}
+                />
+            )}
+
+            {/* Unified ComposeMessageModal — opened by [Message] button on unit cards.
+                Handles WhatsApp (Chakra API + Web fallback), Email, and Portal Invite
+                with email gating + tooltip. */}
+            {composeModalRecipient && (
+                <ComposeMessageModal
+                    recipient={composeModalRecipient}
+                    onClose={() => setComposeModalRecipient(null)}
                 />
             )}
         </div>

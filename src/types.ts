@@ -276,6 +276,8 @@ export interface Property {
         scPeriods?: ServiceChargePeriod[];
         /** Per-period minimum vend tracking — one entry per elapsed billing period. */
         mvPeriods?: ServiceChargePeriod[];
+        /** Linked contact ID for the tenant (auto-synced to /contacts). */
+        tenantContactId?: string;
     };
     disputeDetails?: { caseNumber?: string; court?: string; opposingParty?: string; status?: string; };
     saleDetails?: { listingAgent?: string; listingDate?: string; targetPrice?: number; };

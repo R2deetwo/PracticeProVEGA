@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Contact, Property, FileDetails, PropertyStatus, PropertyCategory } from '../../types';
+import { Contact, Property, FileDetails, PropertyStatus, PropertyCategory, ContactType } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataState } from '../../contexts/DataContext';
@@ -16,6 +16,7 @@ import { api } from '../../../convex/_generated/api';
 import {
     buildPropertyRecord,
     propertyExistsInDb,
+    composeTenantName,
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -676,11 +677,84 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             !keptIds.has(p.id) &&
                             !keptIds.has(convexId);
                     });
-                
+
                 await Promise.all(siblingsToRemove.map(p =>
                     deleteItem('properties', p.id, 'Property')
                 ));
             }
+
+            // 3. Auto-Sync Residents to Central Contacts Database
+            // For each unit that has a tenant (tenantName or tenantPhone or tenantEmail),
+            // check if a Contact with the same phone or email already exists.
+            // If exists: link contactId to the unit's rentalDetails.tenantContactId.
+            // If not exists: create a new Contact with category='Tenant' and link it.
+            // This ensures every resident appears in /contacts for unified profiling.
+            await Promise.all(currentUnits.map(async (unit) => {
+                const tenantName = composeTenantName(unit).trim();
+                const tenantPhone = (unit.tenantPhone || '').trim();
+                const tenantEmail = ''; // UnitRentalInput doesn't have tenantEmail; would come from rentalDetails
+                if (!tenantName && !tenantPhone) return; // No tenant data to sync
+
+                const unitId = unit.id || '';
+                if (!unitId) return;
+
+                try {
+                    // Search existing contacts by phone (primary matcher)
+                    const existingByPhone = tenantPhone
+                        ? (appState.contacts || []).find(c =>
+                            c.phone?.replace(/\D/g, '') === tenantPhone.replace(/\D/g, ''))
+                        : null;
+
+                    if (existingByPhone) {
+                        // Link existing contact to this unit
+                        const existing = (coreState.properties || []).find(p => p.id === unitId);
+                        if (existing) {
+                            await updateItem('properties', {
+                                ...existing,
+                                rentalDetails: {
+                                    ...existing.rentalDetails,
+                                    tenantContactId: existingByPhone.id,
+                                } as any,
+                            }, 'Property');
+                        }
+                        return;
+                    }
+
+                    // No existing contact found — create a new one
+                    const newContactData = {
+                        firmId,
+                        name: tenantName || 'Unknown Tenant',
+                        phone: tenantPhone,
+                        email: tenantEmail,
+                        contactType: ContactType.Individual,
+                        category: 'Tenant',
+                        // Link back to the property/unit for traceability
+                        properties: [{
+                            id: unitId,
+                            address: address,
+                            unitName: unit.unitName,
+                        } as any],
+                    };
+
+                    const created = await addItem('contacts', newContactData, 'Contact');
+                    if (created) {
+                        // Link the new contactId back to the unit
+                        const existing = (coreState.properties || []).find(p => p.id === unitId);
+                        if (existing) {
+                            await updateItem('properties', {
+                                ...existing,
+                                rentalDetails: {
+                                    ...existing.rentalDetails,
+                                    tenantContactId: created.id,
+                                } as any,
+                            }, 'Property');
+                        }
+                    }
+                } catch (syncErr) {
+                    // Auto-sync is best-effort — don't fail the property save
+                    console.warn(`Tenant auto-sync failed for unit ${unit.unitName}:`, syncErr);
+                }
+            }));
 
             // Note: We no longer pass empty [] to onSave — that wipes the contact's property references.
             // Instead, just close the modal. The individual updateItem calls above already persisted each unit.
