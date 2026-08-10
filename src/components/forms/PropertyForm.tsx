@@ -24,11 +24,13 @@ interface PropertyFormProps {
     contact: Contact;
     propertyToEdit?: Property;
     activeUnitId?: string;
-    onSave?: (contactId: string, properties: Property[]) => void; // Keeping for legacy support if needed
+    autoExpandRental?: boolean;
+    autoAddUnit?: boolean;
+    onSave?: (contactId: string, properties: Property[]) => void;
     onClose: () => void;
 }
 
-const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, activeUnitId, onSave, onClose }) => {
+const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, activeUnitId, autoExpandRental, autoAddUnit, onSave, onClose }) => {
     const { coreState, isDataLoaded } = useCoreState();
     const { appState } = useDataState();
     const { addItem, updateItem, deleteItem, onAddMatter } = useDataActions();
@@ -171,6 +173,49 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             if (idx >= 0) setActiveUnitIndex(idx);
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // AUTO-ADD UNIT — when triggered from the "+ Add Unit" button on the
+    // workspace page, automatically append a new unit tab and select it.
+    // Runs once on mount after unitsData is initialized.
+    useEffect(() => {
+        if (!autoAddUnit) return;
+        const newUnitNum = unitsData.length + 1;
+        const newUnit: UnitRentalInput = {
+            id: `unit-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            unitName: `Unit ${newUnitNum}`,
+            unitDescription: '',
+            rentAmount: 0,
+            rentFrequency: 'Annually',
+            leaseStart: '',
+            leaseEnd: '',
+            tenantName: '',
+            occupantTitle: '',
+            occupantFirstName: '',
+            occupantLastName: '',
+            tenantPhone: '',
+            nextRentReview: '',
+            isPeriodicReviewEnabled: false,
+            tenancyPeriod: '',
+            serviceCharge: 0,
+            serviceChargeAmount: 0,
+            serviceChargeStatus: 'UNPAID' as const,
+            outstandingServiceChargeBalance: 0,
+            legalFee: 0,
+            legalFeePercentage: 10,
+            isLegalNA: false,
+            agencyFee: 0,
+            agencyFeePercentage: 10,
+            isAgencyNA: false,
+            cautionDeposit: 0,
+            isCautionNA: false,
+            status: 'Vacant' as PropertyStatus,
+        };
+        setUnitsData(prev => [...prev, newUnit]);
+        setNumberOfUnits(prev => prev + 1);
+        setUnitsInputStr(String(unitsData.length + 1));
+        setActiveUnitIndex(unitsData.length);
+        formTouched.current = true;
+    }, [autoAddUnit]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // DYNAMIC ARRAY HYDRATION — re-sync unitsData when coreState.properties
     // changes (e.g., a new unit was added in the background). Previously the
@@ -641,7 +686,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // Contextual auto-expansion: if opened from a unit card (activeUnitId
     // is set), expand Rental Details. Otherwise, expand Primary Details.
     const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-        if (activeUnitId) {
+        if (activeUnitId || autoExpandRental) {
             return { 'rental': true, 'primary': false, 'amenities': false, 'fees': false, 'media': false };
         }
         return { 'rental': false, 'primary': true, 'amenities': false, 'fees': false, 'media': false };
@@ -653,14 +698,30 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // Accordion wrapper component
     const AccordionSection: React.FC<{ id: string; title: string; subtitle: string; icon: React.ReactNode; iconBg: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ id, title, subtitle, icon, iconBg, children }) => {
         const isOpen = openSections[id] ?? false;
+        const headerRef = useRef<HTMLButtonElement>(null);
         return (
-            <div className={`rounded-lg border shadow-sm transition-all overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}>
+            <div
+                className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
+                style={{ willChange: 'height', contain: 'layout style' }}
+            >
                 <button
+                    ref={headerRef}
                     type="button"
-                    onClick={() => toggleSection(id)}
+                    onClick={() => {
+                        toggleSection(id);
+                        // SMOOTH SCROLL: after toggling, scroll the header into view
+                        // so the user sees the section they just opened. Uses
+                        // 'nearest' so it doesn't scroll if already visible.
+                        // Delay to allow DOM to update with the expanded content.
+                        if (!isOpen) {
+                            setTimeout(() => {
+                                headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 50);
+                        }
+                    }}
                     className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
                 >
-                    <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm ring-2 ring-${isOpen ? 'primary' : 'slate'}-500/10 flex-shrink-0`}>
+                    <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
                         {icon}
                     </div>
                     <div className="text-left flex-1 min-w-0">
@@ -672,7 +733,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     </svg>
                 </button>
                 {isOpen && (
-                    <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3" style={{ containIntrinsicSize: 'auto' }}>
                         {children}
                     </div>
                 )}

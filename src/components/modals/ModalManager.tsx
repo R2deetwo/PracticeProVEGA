@@ -429,7 +429,7 @@ const ModalManager: React.FC = () => {
                  (contact?.properties || []).find(p => p.id === propertyId);
 
       if (contact) {
-        content = <PropertyForm contact={contact} propertyToEdit={propertyToEdit} activeUnitId={modalContext?.activeUnitId} onSave={dataHandlers.onUpdateContactProperties} onClose={closeModal} />;
+        content = <PropertyForm contact={contact} propertyToEdit={propertyToEdit} activeUnitId={modalContext?.activeUnitId} autoExpandRental={modalContext?.autoExpandRental} autoAddUnit={modalContext?.autoAddUnit} onSave={dataHandlers.onUpdateContactProperties} onClose={closeModal} />;
       } else {
         // If no contact selected yet, show a selector
         content = (
