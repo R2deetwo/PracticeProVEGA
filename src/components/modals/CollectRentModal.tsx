@@ -77,7 +77,13 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   });
   const lastPayment = sortedHistory[0];
 
-  const initialAmount = overrideRentAmount || property.rentalDetails?.rentAmount || property.value || lastPayment?.amount || 0;
+  // FIX: removed property.value and lastPayment?.amount from the fallback
+  // chain. Falling back to property.value (the property valuation) is
+  // semantically wrong — if rent was never configured but the property is
+  // valued at ₦50M, the rent-collection modal would open pre-filled with
+  // ₦50M. lastPayment?.amount conflates "what was paid last time" with
+  // "what is owed this time." Now falls back to 0 if no rent is configured.
+  const initialAmount = overrideRentAmount || property.rentalDetails?.rentAmount || 0;
   const [amountValue, setAmountValue] = useState(initialAmount);
   const [displayAmount, setDisplayAmount] = useState(initialAmount.toLocaleString());
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);

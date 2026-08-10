@@ -295,6 +295,19 @@ const PropertyDetailViewContent: React.FC = () => {
                     seen.add(id);
                     return true;
                 });
+
+                // SOFT-DELETE FILTER — hide units with status 'Deleted'
+                // from the display layer. The records remain in the DB
+                // for historical/audit purposes (ledger entries, receipts,
+                // legal matters are all preserved).
+                units = units.filter(u => u.status !== 'Deleted');
+
+                // SORT by unitName for stable ordering
+                units.sort((a, b) => {
+                    const nameA = (a.rentalDetails as any)?.unitName || a.name || '';
+                    const nameB = (b.rentalDetails as any)?.unitName || b.name || '';
+                    return nameA.localeCompare(nameB, undefined, { numeric: true });
+                });
             }
         }
         return { property: selectedProperty, owner: propertyOwner, allUnits: units };
@@ -1177,13 +1190,35 @@ const PropertyDetailViewContent: React.FC = () => {
 
                     const handleAddUnitSubmit = async () => {
                         if (!newUnitName.trim()) { addToast('Unit name is required', { type: 'error' }); return; }
+                        // FIX: include a rentalDetails object so the unit is
+                        // immediately recognized by getUnitDisplay() and
+                        // financial aggregations. Previously, new units had
+                        // only a bare rentAmount field, which meant they
+                        // contributed ₦0 to "Total Annual Rent" until the
+                        // user opened the Edit modal and saved.
                         const newUnit = {
-                            id: `unit-${Date.now()}`,
+                            id: `unit-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
                             unitName: newUnitName.trim(),
                             name: newUnitName.trim(),
                             propertyType: newUnitType,
                             status: 'Vacant',
                             rentAmount: 0,
+                            rentalDetails: {
+                                unitName: newUnitName.trim(),
+                                rentAmount: 0,
+                                rentFrequency: 'Annually',
+                                leaseStart: '',
+                                leaseEnd: '',
+                                tenantName: '',
+                                tenantPhone: '',
+                                tenantEmail: '',
+                                serviceCharge: 0,
+                                serviceChargeAmount: 0,
+                                serviceChargeStatus: 'UNPAID',
+                                legalFee: 0,
+                                agencyFee: 0,
+                                cautionDeposit: 0,
+                            },
                         };
                         try {
                             await addUnit(property.id, newUnit);
@@ -1196,20 +1231,24 @@ const PropertyDetailViewContent: React.FC = () => {
                     const handleRemoveUnit = (unit: any, d: ReturnType<typeof getUnitDisplay>) => {
                         openModal('deleteConfirmation', unit.id, {
                             title: 'Remove Unit',
-                            message: `Remove "${d.name}" from this property? This action cannot be undone.`,
+                            message: `Remove "${d.name}" from this property? The unit will be archived — ledger entries, receipts, and historical records will be preserved.`,
                             onConfirm: async () => {
                                 try {
-                                    if (isEmbeddedUnit(unit)) {
-                                        await removeUnit(property.id, unit.id);
-                                        addToast(`Unit "${d.name}" removed.`, { type: 'success' });
-                                    } else {
-                                        await handleDeleteProperty(unit.id, d.name, true);
-                                        addToast(`Unit "${d.name}" removed.`, { type: 'success' });
-                                    }
+                                    // SOFT-DELETE FIX — instead of hard-deleting the property
+                                    // record (which destroys rentPaymentHistory) or splicing
+                                    // the units array (which orphans ledger entries), we mark
+                                    // the unit as 'Deleted' with a timestamp. The unit is
+                                    // filtered out of the display layer but all financial
+                                    // and legal history is preserved in the database.
+                                    const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
+                                    const updatePayload: any = { ...full, status: 'Deleted', deletedAt: new Date().toISOString() };
+                                    if ((full as any)._id) updatePayload._id = (full as any)._id;
+                                    await updateItem('properties', updatePayload, 'Property');
+                                    addToast(`Unit "${d.name}" archived. Historical records preserved.`, { type: 'success' });
                                     setSelectedUnit(null);
-                                } catch (e) { addToast('Failed to remove unit.', { type: 'error' }); }
+                                } catch (e) { addToast('Failed to archive unit.', { type: 'error' }); }
                             },
-                            confirmText: 'Remove Unit',
+                            confirmText: 'Archive Unit',
                         });
                     };
 

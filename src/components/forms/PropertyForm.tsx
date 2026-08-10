@@ -177,11 +177,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // modal used a stale useState initializer that only ran once on mount,
     // so newly created units didn't appear in the Lease & Rent Configuration
     // tab until the modal was closed and reopened.
+    // GATED behind formTouched: don't clobber unsaved user edits.
     useEffect(() => {
         if (!propertyToEdit) return;
+        // GATE: don't clobber unsaved user edits
+        if (formTouched.current) return;
         // Only re-sync if the number of units at this address has changed
         const currentUnits = (coreState.properties || [])
-            .filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address));
+            .filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address)
+                && p.status !== 'Deleted');
         if (currentUnits.length !== unitsData.length) {
             // Rebuild unitsData from the latest coreState
             const refreshedUnits = currentUnits.map(p => {
