@@ -6352,3 +6352,34 @@ Files Modified:
 - src/types.ts (added receiptNumber to ServiceChargePeriod)
 - src/components/details/ServiceChargeBars.tsx (ReceiptModal wiring + dynamic button toggle)
 - src/components/details/PropertyDetailView.tsx (button alignment + tooltip copy + finance filtering + MV column)
+
+---
+Task ID: 20
+Agent: Main Agent
+Task: Zero-touch receipt automation + activity timeline filter + touch handlers
+
+Work Log:
+CRITICAL: Zero-Touch Payment-to-Receipt Pipeline:
+- When admin marks payment as Paid/Late/Advance Paid, system now AUTOMATICALLY:
+  1. Generates receipt number
+  2. Publishes to resident portal via sendPortalMessage
+  3. Writes activity log via logAutomation
+  4. Persists receipt number to period
+  5. Shows success toast
+- Eliminates manual 3-click flow → single click with background processing
+- Fallback toast if auto-issuance fails
+- ReceiptModal still available via [View Issued Receipt]
+- Added Convex mutations + context hooks to ServiceChargeBars
+
+Activity Timeline Filter:
+- filteredTimeline excludes 'rent_collected' events for Management Only properties
+
+Touch Handlers:
+- Message + More buttons now have type='button' + onTouchEnd with preventDefault
+- All 3 unit card buttons have consistent touch handling
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 20.87s
+- Git: committed as 65cbefe, pushed to origin/main + synced to origin/master
+- Cloudflare: requires manual `npx wrangler deploy` from user's machine
