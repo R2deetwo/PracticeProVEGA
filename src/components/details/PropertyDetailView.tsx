@@ -1602,21 +1602,19 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 </div>
                                                             )}
 
-                                                            {/* Service Charge & Minimum Vend — interactive per-period bars.
-                                                                Replaces the old static SC/MV badges. Each colored bar represents
-                                                                one billing period: Green=Paid, Orange=Late, Red=Outstanding.
-                                                                Clicking a bar opens the Quick Payment Drawer. */}
+                                                            {/* Service Charge & Minimum Vend — unexpanded card shows a single
+                                                                primary status pill (CLEAR / LATE / OUTSTANDING) for the current
+                                                                billing cycle. The full multi-period history appears in the
+                                                                expanded detail section below. */}
                                                             <ServiceChargeBars
                                                                 unit={unit}
+                                                                expanded={false}
                                                                 onUpdate={(updatedRental) => {
                                                                     const full = units.find((u: Property) => u.id === unit.id) || unit;
                                                                     updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
                                                                 }}
                                                                 onGenerateReceipt={(period, chargeType) => {
                                                                     addToast(`${chargeType} Period ${period.index} receipt generation queued.`, { type: 'info' });
-                                                                    // TODO: wire to the existing receipt PDF generator once the
-                                                                    // itemized receipt refactor is done. For now this is a placeholder
-                                                                    // that acknowledges the user's action.
                                                                 }}
                                                             />
 
@@ -1913,6 +1911,30 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     </div>
                                                                                 } />
                                                                             )}
+                                                                        </div>
+
+                                                                        {/* ── Expanded SC/MV History Pills ──────────────────────────
+                                                                            When the unit card is expanded ("More"), show the full
+                                                                            multi-period history: one pill per elapsed tenancy period,
+                                                                            labeled by month (Jan, Feb, Mar...). Each pill is color-coded
+                                                                            (Green=Paid On Time, Orange=Paid Late/Currently Late,
+                                                                            Red=Outstanding) with a rich hover tooltip. */}
+                                                                        <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3 space-y-2">
+                                                                            <p className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                                                Payment History
+                                                                            </p>
+                                                                            <ServiceChargeBars
+                                                                                unit={unit}
+                                                                                expanded={true}
+                                                                                onUpdate={(updatedRental) => {
+                                                                                    const full = units.find((u: Property) => u.id === unit.id) || unit;
+                                                                                    updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
+                                                                                }}
+                                                                                onGenerateReceipt={(period, chargeType) => {
+                                                                                    const monthYear = (() => { try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch { return `Period ${period.index}`; } })();
+                                                                                    addToast(`${chargeType} ${monthYear} receipt generation queued.`, { type: 'info' });
+                                                                                }}
+                                                                            />
                                                                         </div>
 
                                                                         {/* Secondary actions — single-row uniform chips.

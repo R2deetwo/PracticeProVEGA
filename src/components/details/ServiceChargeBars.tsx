@@ -1,41 +1,46 @@
 /**
- * ServiceChargeBars — Interactive per-period status pills for Service Charge (SC)
+ * ServiceChargeBars — Interactive status pills for Service Charge (SC)
  * and Minimum Vend (MV).
  *
- * Renders one colored "status pill" per elapsed billing period from leaseStart
- * to now. Pills are labeled with month abbreviations (Jan, Feb, Mar...) so
- * property managers can immediately identify chronic defaulters.
+ * Two display modes controlled by the `expanded` prop:
  *
- * Pill colors:
- *   🟢 Green  = Paid On Time (settled on or before due date)
- *   🟠 Orange = Paid Late (settled after due date — historical audit retained)
- *               OR Currently Late (past due date & unpaid — auto-flagged)
- *   🔴 Red    = Outstanding (unpaid, not yet past due)
+ * 1. Unexpanded (default — small unit cards):
+ *    Renders ONE single primary status pill per charge indicating the unit's
+ *    overall standing for the CURRENT billing cycle:
+ *      🟢 CLEAR       — current cycle settled on time
+ *      🟠 LATE        — current cycle paid late or past due within grace
+ *      🟥 OUTSTANDING — current cycle unpaid and past due
+ *    No month text is shown — just the status word. Clicking opens the
+ *    Quick Payment Drawer for the current period.
+ *
+ * 2. Expanded (full unit detail):
+ *    Renders a horizontal sequence of compact monthly status pills for ALL
+ *    elapsed tenancy periods to date:
+ *      🟢 Green  = Paid On Time
+ *      🟠 Orange = Paid Late (retained permanently in history)
+ *                  OR Currently Late (past due & unpaid — auto-flagged)
+ *      🔴 Red    = Outstanding (not yet past due)
+ *    Each pill is labeled with a month abbreviation (Jan, Feb, Mar...).
+ *    Hovering shows a rich tooltip with period details.
  *
  * Automated Late-Status Engine:
  *   When the current calendar date exceeds a period's due date AND no payment
- *   has been logged, the system automatically flags the period as 'late' (orange).
- *   This runs on every render via the mergePeriods() function — no cron needed.
+ *   has been logged, the system automatically flags the period as 'late'.
+ *   This runs on every render via mergePeriods() — no cron needed.
  *
  * Permanent Historical Record:
- *   Marking a LATE period as PAID settles the financial balance (allowing
- *   receipt generation) but retains the `paidOnTime: false` flag. The pill
- *   stays orange in the historical timeline (PAID LATE), even though the
- *   balance is ₦0. A period marked on or before its due date gets
- *   `paidOnTime: true` (PAID ON TIME — green pill).
- *
- * Hover Tooltip:
- *   Hovering any pill shows: month name, amount, status (Paid On Time /
- *   Paid Late / Outstanding), settled date (if applicable), and a link to
- *   view/issue a receipt.
+ *   Marking a LATE period as PAID settles the balance (allowing receipt
+ *   generation) but retains the `paidOnTime: false` flag. The pill stays
+ *   orange in the historical timeline (PAID LATE), even though balance is ₦0.
  *
  * Quick Payment Drawer:
- *   Clicking any pill opens a slide-in drawer with 3 toggle buttons
- *   (Paid / Late / Outstanding) and a [Generate & Issue Receipt] prompt.
+ *   A slide-in drawer with 3 toggle buttons (Paid / Late / Outstanding) and
+ *   a [Generate & Issue Receipt] prompt. The backdrop is bg-black/60 and
+ *   blocks all background pointer events while open.
  *
  * Integration:
- *   Shown on unit cards in PropertyDetailView, replacing the old static
- *   SC/MV badges. Vertically aligned with the Term Progress row (Calendar icon).
+ *   Shown on unit cards in PropertyDetailView. The `expanded` prop is wired
+ *   to the card's expand/collapse state.
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
@@ -276,11 +281,13 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
 
     return (
         <>
-            {/* Backdrop — fixed inset-0, dark overlay, pointer-events-auto
-                ensures background buttons/cards are NOT clickable while drawer
-                is open. z-[4500] sits above all unit card content. */}
+            {/* Backdrop — fixed inset-0, dark overlay (bg-black/60 per spec),
+                pointer-events-auto ensures background buttons/cards are NOT
+                clickable while drawer is open. z-[4500] sits above all unit
+                card content so the PAID/LATE/OUTSTANDING buttons don't bleed
+                into floating page widgets. */}
             <div
-                className="fixed inset-0 z-[4500] bg-black/50 sm:backdrop-blur-sm pointer-events-auto"
+                className="fixed inset-0 z-[4500] bg-black/60 sm:backdrop-blur-sm pointer-events-auto"
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -444,6 +451,68 @@ const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) 
     );
 };
 
+// ─── Primary Status Pill (for unexpanded cards) ─────────────────────────────
+// Renders ONE single pill showing the unit's overall standing for the CURRENT
+// billing cycle. No month text — just the status word:
+//   CLEAR (green) / LATE (orange) / OUTSTANDING (red)
+// Clicking opens the Quick Payment Drawer for the current (most recent) period.
+interface PrimaryStatusPillProps {
+    periods: ServiceChargePeriod[];
+    chargeType: 'SC' | 'MV';
+    onClick: (period: ServiceChargePeriod) => void;
+}
+
+const PrimaryStatusPill: React.FC<PrimaryStatusPillProps> = ({ periods, chargeType, onClick }) => {
+    const [hovered, setHovered] = useState(false);
+    if (periods.length === 0) return null;
+
+    // The "current" period is the most recent elapsed period (last in the array).
+    const currentPeriod = periods[periods.length - 1];
+
+    // Map the detailed status to the 3-bucket primary label:
+    // - paid + paidOnTime=true  → CLEAR (green)
+    // - paid + paidOnTime=false → LATE (orange — settled but was late)
+    // - late (auto or manual)   → LATE (orange)
+    // - outstanding             → OUTSTANDING (red)
+    let primaryLabel: string;
+    let primaryColor: string;
+    if (currentPeriod.status === 'paid' && currentPeriod.paidOnTime === true) {
+        primaryLabel = 'CLEAR';
+        primaryColor = 'bg-emerald-500 hover:bg-emerald-600';
+    } else if (
+        (currentPeriod.status === 'paid' && currentPeriod.paidOnTime === false) ||
+        currentPeriod.status === 'late'
+    ) {
+        primaryLabel = 'LATE';
+        primaryColor = 'bg-amber-500 hover:bg-amber-600';
+    } else {
+        primaryLabel = 'OUTSTANDING';
+        primaryColor = 'bg-red-500 hover:bg-red-600';
+    }
+
+    return (
+        <div
+            className="relative inline-block"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+        >
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClick(currentPeriod);
+                }}
+                className={`h-5 px-2 rounded-md ${primaryColor} transition-all hover:scale-105 hover:shadow-sm cursor-pointer flex items-center justify-center text-3xs font-black text-white uppercase tracking-wider`}
+                aria-label={`${chargeType} — ${primaryLabel}`}
+            >
+                {primaryLabel}
+            </button>
+            {hovered && (
+                <PillTooltip period={currentPeriod} chargeType={chargeType} />
+            )}
+        </div>
+    );
+};
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 interface ServiceChargeBarsProps {
     /** The unit (Property) to render pills for. */
@@ -452,9 +521,13 @@ interface ServiceChargeBarsProps {
     onUpdate: (updatedRentalDetails: Property['rentalDetails']) => void;
     /** Callback to generate a receipt for a paid period. */
     onGenerateReceipt?: (period: ServiceChargePeriod, chargeType: 'SC' | 'MV') => void;
+    /** When true (expanded card), shows the full multi-period history pills.
+     *  When false (unexpanded card), shows a single primary status pill
+     *  (CLEAR / LATE / OUTSTANDING) for the current billing cycle. */
+    expanded?: boolean;
 }
 
-export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUpdate, onGenerateReceipt }) => {
+export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUpdate, onGenerateReceipt, expanded = false }) => {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState<ServiceChargePeriod | null>(null);
     const [selectedChargeType, setSelectedChargeType] = useState<'SC' | 'MV'>('SC');
@@ -569,38 +642,56 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
 
     return (
         <>
-            {/* SC Pills */}
+            {/* SC — single primary pill (unexpanded) or full history (expanded) */}
             {scAmount > 0 && scPeriods.length > 0 && (
                 <div className="flex items-center gap-1.5">
                     <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs w-6 flex-shrink-0">SC</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                        {scPeriods.map(period => (
-                            <StatusPill
-                                key={period.index}
-                                period={period}
-                                chargeType="SC"
-                                onClick={() => handleBarClick(period, 'SC')}
-                            />
-                        ))}
-                    </div>
+                    {expanded ? (
+                        <div className="flex items-center gap-1 flex-wrap">
+                            {scPeriods.map(period => (
+                                <StatusPill
+                                    key={period.index}
+                                    period={period}
+                                    chargeType="SC"
+                                    onClick={() => handleBarClick(period, 'SC')}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <PrimaryStatusPill
+                            periods={scPeriods}
+                            chargeType="SC"
+                            onClick={(period) => handleBarClick(period, 'SC')}
+                        />
+                    )}
                 </div>
             )}
 
-            {/* MV Pills */}
+            {/* MV — single primary pill (unexpanded) or full history (expanded) */}
             {mvEnabled && mvAmount > 0 && mvPeriods.length > 0 && (
                 <div className="flex items-center gap-1.5">
                     <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs w-6 flex-shrink-0">MV</span>
-                    <span className="text-3xs font-bold text-slate-500 dark:text-zinc-400 mr-0.5">{mvLabel}</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                        {mvPeriods.map(period => (
-                            <StatusPill
-                                key={period.index}
-                                period={period}
-                                chargeType="MV"
-                                onClick={() => handleBarClick(period, 'MV')}
-                            />
-                        ))}
-                    </div>
+                    {expanded ? (
+                        <>
+                            <span className="text-3xs font-bold text-slate-500 dark:text-zinc-400 mr-0.5">{mvLabel}</span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                                {mvPeriods.map(period => (
+                                    <StatusPill
+                                        key={period.index}
+                                        period={period}
+                                        chargeType="MV"
+                                        onClick={() => handleBarClick(period, 'MV')}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <PrimaryStatusPill
+                            periods={mvPeriods}
+                            chargeType="MV"
+                            onClick={(period) => handleBarClick(period, 'MV')}
+                        />
+                    )}
                 </div>
             )}
 
