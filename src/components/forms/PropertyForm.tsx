@@ -20,6 +20,64 @@ import {
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+// ─── AccordionSection (MODULE-LEVEL — outside PropertyForm) ──────────
+// CRITICAL: This component MUST be defined outside the PropertyForm render
+// function. When defined inside (as a closure), React treats it as a new
+// component type on every render, causing all children to unmount/remount
+// on every keystroke — which causes input focus loss.
+// By defining it at module level with React.memo, the component identity
+// is stable across re-renders, preserving DOM focus.
+interface AccordionSectionProps {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    iconBg: string;
+    children: React.ReactNode;
+    isOpen: boolean;
+    onToggle: (id: string) => void;
+}
+const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle }) => {
+    const headerRef = useRef<HTMLButtonElement>(null);
+    return (
+        <div
+            className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
+            style={{ willChange: 'height', contain: 'layout style' }}
+        >
+            <button
+                ref={headerRef}
+                type="button"
+                onClick={() => {
+                    onToggle(id);
+                    if (!isOpen) {
+                        setTimeout(() => {
+                            headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 50);
+                    }
+                }}
+                className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
+            >
+                <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
+                    {icon}
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                    <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
+                    <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
+                </div>
+                <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            {isOpen && (
+                <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+};
+const AccordionSection = React.memo(AccordionSectionInner);
+
 interface PropertyFormProps {
     contact: Contact;
     propertyToEdit?: Property;
@@ -691,60 +749,14 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         }
         return { 'rental': false, 'primary': true, 'amenities': false, 'fees': false, 'media': false };
     });
-    const toggleSection = (id: string) => {
+    const toggleSection = React.useCallback((id: string) => {
         setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
-    };
-
-    // Accordion wrapper component
-    const AccordionSection: React.FC<{ id: string; title: string; subtitle: string; icon: React.ReactNode; iconBg: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ id, title, subtitle, icon, iconBg, children }) => {
-        const isOpen = openSections[id] ?? false;
-        const headerRef = useRef<HTMLButtonElement>(null);
-        return (
-            <div
-                className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
-                style={{ willChange: 'height', contain: 'layout style' }}
-            >
-                <button
-                    ref={headerRef}
-                    type="button"
-                    onClick={() => {
-                        toggleSection(id);
-                        // SMOOTH SCROLL: after toggling, scroll the header into view
-                        // so the user sees the section they just opened. Uses
-                        // 'nearest' so it doesn't scroll if already visible.
-                        // Delay to allow DOM to update with the expanded content.
-                        if (!isOpen) {
-                            setTimeout(() => {
-                                headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            }, 50);
-                        }
-                    }}
-                    className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
-                >
-                    <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
-                        {icon}
-                    </div>
-                    <div className="text-left flex-1 min-w-0">
-                        <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
-                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
-                    </div>
-                    <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-                {isOpen && (
-                    <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3" style={{ containIntrinsicSize: 'auto' }}>
-                        {children}
-                    </div>
-                )}
-            </div>
-        );
-    };
+    }, []);
 
     return (
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
-                <AccordionSection id="primary" title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
+                <AccordionSection id="primary" isOpen={openSections.primary} onToggle={toggleSection} title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
                     <div className="space-y-2 sm:space-y-3">
                         <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">
@@ -857,7 +869,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Amenities Section --- */}
-                <AccordionSection id="amenities" title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
+                <AccordionSection id="amenities" isOpen={openSections.amenities} onToggle={toggleSection} title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
                     <div className="space-y-3 sm:space-y-4">
                         <div className="flex gap-2">
                             <input autoComplete="off" data-lpignore="true" 
@@ -894,7 +906,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Automation Settings --- */}
-                <AccordionSection id="automation" title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
+                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
@@ -914,7 +926,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Minimum Vend / Estate Fees --- */}
-                <AccordionSection id="fees" title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
+                <AccordionSection id="fees" isOpen={openSections.fees} onToggle={toggleSection} title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
                     <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
                         <input autoComplete="off" data-lpignore="true" type="checkbox" checked={minimumVendEnabled} onChange={e => setMinimumVendEnabled(e.target.checked)} className="mt-1 rounded border-slate-200 text-teal-500 focus:ring-teal-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Enable Minimum Vend Tracking</span>
@@ -1064,7 +1076,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 3. Rental Details */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
-                    <AccordionSection id="rental" title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
+                    <AccordionSection id="rental" isOpen={openSections.rental} onToggle={toggleSection} title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
 
                         {/* UNIT TABS — always show (even for single unit) + inline Add Unit button */}
                         <div className="flex flex-wrap gap-2 px-1 mb-2 items-center">
@@ -1150,7 +1162,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
                         )}
 
-                        <div className="space-y-3 sm:space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
+                        <div className="space-y-3 sm:space-y-4 pt-1 animate-fade-in" key={unitsData[activeUnitIndex]?.id || activeUnitIndex}>
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Unit Description <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(structural notes — not the unit number)</span></label>
                                 <input autoComplete="off" data-lpignore="true"
@@ -1531,7 +1543,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <AccordionSection id="media" title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
+                <AccordionSection id="media" isOpen={openSections.media} onToggle={toggleSection} title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
