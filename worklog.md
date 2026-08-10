@@ -6243,3 +6243,40 @@ Files Modified:
 - src/utils/propertyPayload.ts (added scPeriods/mvPeriods to UnitRentalInput)
 - src/components/details/ServiceChargeBars.tsx (calendar-month math, removed auto-late, advance period support, 4th toggle button)
 - src/components/forms/PropertyForm.tsx (OnboardUnitLedgerModal wiring + Settle Ledger buttons)
+
+---
+Task ID: 17
+Agent: Main Agent
+Task: Mobile text layout + touch handlers + pill color matrix + rent collection gating + swipe carousel
+
+DEPLOY NOTE: Cloudflare Workers requires manual `npx wrangler deploy` from an authenticated machine. The GitHub Action only syncs main→master for Vercel. The Cloudflare URL (practiceprovega.prototypechigo.workers.dev) is currently behind because the last manual deploy was at commit 53bddfa8. User needs to run `npx wrangler deploy` from their machine to push the latest changes (sha 34a8aeb) to Cloudflare.
+
+Work Log:
+1. Mobile Text Layout Corruption Fix:
+   - DetailItem component: added break-words whitespace-normal text-left max-w-full.
+   - Property Information header: flex flex-wrap items-center justify-between gap-2.
+   - Added whitespace-nowrap flex-shrink-0 to badge/pill.
+   - Removed '+ Add Unit' button from mobile Units tab per user request.
+
+2. Touch Event & Modal Trigger Fixes (Capacitor/WebView):
+   - Edit pencil: added type='button', onTouchEnd handler, min-h-[40px] min-w-[44px], touch-manipulation cursor-pointer.
+
+3. Strict Pill Status Color Matrix Fix (CRITICAL):
+   - Root cause: handleStatusChange auto-calculated paidOnTime by date comparison. Clicking 'Paid On Time' on a past-due period set paidOnTime=false → orange.
+   - Fix: paidOnTime now set by USER INTENT: 'paid'→true (green), 'late'→false (orange), 'advance_paid'→true (blue), 'outstanding'→undefined (red).
+   - Applied to ServiceChargeBars + OnboardUnitLedgerModal (both handleStatusChange + handleBulkSettle).
+
+4. Conditional Rent Collection Module Visibility:
+   - COLLECTION STATUS StatCard hidden when rentCollectionMode === 'Management Only (No Rent)'.
+
+5. Touch/Swipe Banner Carousel:
+   - Added onTouchStart/onTouchEnd swipe handlers to BroadcastBanner active card.
+   - Swipe left → next, swipe right → prev (50px threshold).
+   - touch-pan-y class allows vertical scroll while capturing horizontal swipes.
+   - Existing pagination dots update automatically.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 21.00s
+- Git: committed as 34a8aeb, pushed to origin/main + synced to origin/master
+- Cloudflare: NOT yet deployed (requires manual `npx wrangler deploy` from user's machine)
