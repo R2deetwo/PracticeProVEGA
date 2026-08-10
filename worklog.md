@@ -5820,3 +5820,38 @@ Stage Summary:
 
 Files Modified:
 - src/components/forms/SmartMatterModal.tsx (full rewrite: 935 → ~1130 lines)
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Build visual payment progress bars for lease/rent tracking
+
+Work Log:
+- Inspected PropertyTrackingView.tsx (982 lines) to map the existing financial calculations: daysLeft (from leaseEnd), nextRentDueDate (from last paid period + frequency), rentReviewDate (from leaseEnd − noticeMonths).
+- Inspected types.ts to confirm the data shape: Property.rentalDetails { rentAmount, rentFrequency, leaseStart, leaseEnd, ... } and Property.rentPaymentHistory: RentPayment[] { dueDate, paidDate?, amount, status: 'paid'|'overdue'|'pending', ... }.
+- Created new file src/components/details/LeaseProgressBars.tsx — a self-contained, reusable component that renders TWO stacked progress bars:
+  1. Lease Timeline — horizontal bar showing elapsed vs total lease duration. A vertical "today" marker line is overlaid on the bar. Color states: emerald (active, >60 days remaining) / amber (≤60 days remaining) / red (expired). Footer shows formatted start/end dates.
+  2. Rent Collection — horizontal bar showing collectedSoFar / expectedSoFar. expectedSoFar is computed as periodsElapsed × rentPerPeriod (where periodsElapsed = floor(elapsedMonths / periodMonths)). Color states: emerald (≥100%) / amber (50-99%) / red (<50%). Footer shows collected amount, expected amount, period count, and a per-period rate chip so the math is auditable.
+- Component props accept optional unitRental + unitPayments overrides so it can be reused for unit-level views (Property[] units are also Property objects with their own rentalDetails).
+- Returns null when neither leaseTimeline nor rentCollection can be computed (missing leaseStart/leaseEnd/rentAmount) — safe to mount unconditionally on tenanted properties.
+- Integrated LeaseProgressBars into PropertyTrackingView.tsx: imported the component and placed it between the Quick Stats Row (Next Rent Due / Days Left / Rent Review / Maintenance cards) and the tab switcher (Activity Timeline / Rent History / Maintenance). Renders only for tenanted properties (isLeased === true).
+- Used formatNairaCompact for inline bar labels (₦17.4M, ₦340K) and formatNairaFull for the per-period rate chip (₦17,400,000.00). Used formatDateShort for date markers (15 Sep 2027).
+- Used NairaSymbol component for the ₦ glyph (consistent with the rest of the property UI).
+
+Verification:
+- TypeScript: zero errors in LeaseProgressBars.tsx or PropertyTrackingView.tsx (`npx tsc --noEmit | grep -E "LeaseProgressBars|PropertyTrackingView"` → no output)
+- Build: succeeded in 20.08s
+- Git: committed as 29d2ad7, pushed to origin/main (after resolving a version.json rebase conflict)
+- Cloudflare Workers deploy: NOT executed in this session — wrangler is not authenticated in the build environment. The user will need to run `npx wrangler login && npx wrangler deploy` from their machine, OR set CLOUDFLARE_API_TOKEN env var. The build artifacts are at /home/z/my-project/dist/ ready to deploy.
+
+Stage Summary:
+- Two new visual progress bars now appear on every tenanted property's Activity & Tracking tab, immediately above the tab switcher.
+- The Lease Timeline bar gives an instant visual answer to "how much of this lease is left?" without making the user do mental date math.
+- The Rent Collection bar gives an instant visual answer to "is rent collection on track?" — the color coding (green/amber/red) communicates status at a glance, and the per-period rate chip makes the calculation auditable.
+- Both bars share the same visual language (rounded-lg card, slate/zinc surface, primary-600 header icon, color-coded states) so they look native to the existing UI.
+
+Files Created:
+- src/components/details/LeaseProgressBars.tsx (~260 lines)
+
+Files Modified:
+- src/components/details/PropertyTrackingView.tsx (1 import + 5-line mount block)
