@@ -422,11 +422,37 @@ const ModalManager: React.FC = () => {
     case 'newProperty':
     case 'editProperty': {
       const propertyId = modal === 'editProperty' ? (editingId as string) : undefined;
-      const contactId = modal === 'editProperty' ? modalContext?.contactId : (editingId || modalContext?.contactId);
-      
-      const contact = matterState.contacts.find(c => c.id === contactId);
-      const propertyToEdit = coreState.properties.find(p => p.id === propertyId) || 
+      let contactId = modal === 'editProperty' ? modalContext?.contactId : (editingId || modalContext?.contactId);
+
+      // FIX: if no contactId was passed, try to find the property's owner
+      // from the property record itself. Properties store a `contactId` field
+      // that links to the owner. Without this, the modal shows "Select Owner"
+      // instead of the PropertyForm when owner?.id is undefined.
+      if (!contactId && propertyId) {
+        const prop = coreState.properties.find(p => p.id === propertyId);
+        contactId = prop?.contactId || (prop as any)?._id || undefined;
+      }
+
+      let contact = matterState.contacts.find(c => c.id === contactId || (c as any)._id === contactId);
+      const propertyToEdit = coreState.properties.find(p => p.id === propertyId) ||
                  (contact?.properties || []).find(p => p.id === propertyId);
+
+      // FIX: if still no contact but we have a property to edit, create a
+      // minimal fallback contact object so the PropertyForm can render.
+      // This handles the case where a property exists without a linked owner
+      // (e.g. standalone multi-unit properties).
+      if (!contact && propertyToEdit) {
+        contact = {
+          id: propertyToEdit.contactId || 'standalone',
+          name: 'Property Owner',
+          email: '',
+          phone: '',
+          category: 'Client',
+          contactType: 'Individual' as any,
+          firmId: propertyToEdit.firmId || '',
+          properties: [],
+        } as any;
+      }
 
       if (contact) {
         content = <PropertyForm contact={contact} propertyToEdit={propertyToEdit} activeUnitId={modalContext?.activeUnitId} autoExpandRental={modalContext?.autoExpandRental} autoAddUnit={modalContext?.autoAddUnit} onSave={dataHandlers.onUpdateContactProperties} onClose={closeModal} />;
