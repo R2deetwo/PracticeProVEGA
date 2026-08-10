@@ -626,14 +626,17 @@ export const App: React.FC = () => {
     const serverTermsRecord = useQuery(api.myFunctions.getTermsAcceptance,
         currentUser?.email ? { userEmail: currentUser.email } : "skip");
 
-    // The user has accepted if EITHER:
+    // VERSION-GATED: The user has accepted if EITHER:
     //   - localStorage has the current version (fast path), OR
     //   - The server has ANY acceptance record for this user (durable path).
     //     This handles the case where localStorage was cleared (APK reinstall)
     //     but the user already accepted in a previous session.
+    // The acceptance gate triggers ONLY when the LEGAL_TERMS_VERSION
+    // explicitly increments. Routine code updates/refreshes do NOT
+    // re-trigger the gate.
     const hasAcceptedTerms =
         hasAcceptedCurrentTerms() ||
-        (serverTermsRecord !== undefined && serverTermsRecord !== null);
+        (serverTermsRecord !== undefined && serverTermsRecord !== null && serverTermsRecord !== '');
 
     const isEditorMode = view === 'editor';
 
@@ -1359,9 +1362,18 @@ export const App: React.FC = () => {
     }, [splashAnimationComplete, isDataLoaded, currentUser, hasAcceptedTerms, serverTermsRecord]);
 
     // Also check on login (when currentUser changes from null to a value)
+    // PERSISTENCE FIX: only trigger once per session — if the user already
+    // has a server record OR localStorage, don't re-trigger on every refresh.
+    const termsCheckedRef = useRef(false);
     useEffect(() => {
-        if (currentUser && hasInitialSplashFinished && !hasAcceptedTerms && serverTermsRecord !== undefined) {
+        if (currentUser && hasInitialSplashFinished && !hasAcceptedTerms && serverTermsRecord !== undefined && !termsCheckedRef.current) {
+            termsCheckedRef.current = true;
             setNeedsTermsAcceptance(true);
+        }
+        // If terms are accepted, clear the flag so it can re-check on next login
+        if (hasAcceptedTerms) {
+            termsCheckedRef.current = true;
+            setNeedsTermsAcceptance(false);
         }
     }, [currentUser, hasInitialSplashFinished, hasAcceptedTerms, serverTermsRecord]);
 

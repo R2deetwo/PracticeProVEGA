@@ -22,11 +22,12 @@ export const useProperties = (appState: AppState, actions: any) => {
     const handleDeleteProperty = useCallback(async (id: string, name: string, silent = false) => {
         try {
             await deletePropertyCascadeMutation({ propertyId: id, firmId: currentUser?.firmId || '' });
-            // Remove from local state immediately so the UI reflects the deletion
-            // without waiting for the Convex subscription to re-fire.
             actions.removeItemFromState('properties', id);
             if (!silent) {
-                addToast(`Property "${name}" deleted.`, { type: 'success' });
+                // SINGLE SUMMARY TOAST — one message for the entire property
+                // (including all its units). Previously, deleting a multi-unit
+                // property triggered cascading toasts for each child unit.
+                addToast(`Property "${name}" and its associated units were removed successfully.`, { type: 'success', duration: 4000 });
             }
         } catch (e) {
             console.error("Property delete failed:", e);

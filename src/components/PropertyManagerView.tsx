@@ -323,8 +323,11 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                     next.delete(propertyId);
                     return next;
                 });
-                addToast('Property deleted.', { type: 'success' });
+                // SINGLE SUMMARY TOAST — one message for the entire property
+                addToast(`"${propertyAddress}" and its ${unitCount > 1 ? unitCount + ' units' : 'unit'} were removed.`, { type: 'success', duration: 4000 });
                 closeModal();
+                // REDIRECT to /properties so the detail panel unmounts
+                navigateTo('properties');
             },
             confirmText: 'Delete',
             confirmButtonClass: 'bg-red-600 hover:bg-red-700'

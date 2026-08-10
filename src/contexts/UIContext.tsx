@@ -503,10 +503,16 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
 
     const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => {
         const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type: options?.type || 'info', link: options?.link }]);
-        // Haptic feedback matching the toast type — gives the user a
-        // physical confirmation that something happened. Success = happy
-        // rising taps, error = strong buzz, warning = cautionary pattern.
+        setToasts(prev => {
+            // CAP: maximum 3 visible toasts at any time. Older toasts
+            // are dropped so the screen doesn't fill up with a cascade
+            // of alerts (e.g. when deleting a multi-unit property).
+            const newToasts = [...prev, { id, message, type: options?.type || 'info', link: options?.link }];
+            if (newToasts.length > 3) {
+                return newToasts.slice(-3);
+            }
+            return newToasts;
+        });
         try {
             const type = options?.type || 'info';
             if (type === 'success') {
@@ -517,11 +523,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 import('../utils/haptics').then(m => m.haptics.light());
             }
         } catch {}
-        // Respect the `duration` option if provided (in ms). Default 5000ms.
-        // Previously this was hardcoded to 5000ms and the `duration` option
-        // was silently ignored — callers thought they were showing 6-second
-        // toasts for important messages but they vanished in 5s.
-        const duration = options?.duration || 5000;
+        const duration = options?.duration || 4000;
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
         }, duration);
