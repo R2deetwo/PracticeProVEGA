@@ -1,9 +1,10 @@
 /**
- * LeaseProgressBars — Visual progress visualization for lease & rent collection.
+ * LeaseProgressBars — Visual progress visualization for lease, rent & service charge.
  *
- * Renders two stacked horizontal progress bars:
+ * Renders up to three stacked horizontal progress bars:
  *   1. Lease Timeline — where "today" sits between leaseStart and leaseEnd
  *   2. Rent Collection — paid vs expected (so far) based on payment history
+ *   3. Service Charge — paid vs expected for the current service charge cycle
  *
  * Design goals:
  *   - Mirror the visual language of the rest of the property detail UI
@@ -114,8 +115,50 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
         };
     }, [rental?.rentAmount, rental?.rentFrequency, rental?.leaseStart, rental?.leaseEnd, payments]);
 
+    // ── 3. Service Charge progress ───────────────────────────────────────────
+    // Service charge is a per-cycle fee (e.g. annual vend/estate fee) tracked
+    // separately from rent. The data model stores:
+    //   - serviceCharge / serviceChargeAmount: the expected total for the cycle
+    //   - serviceChargeStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID'
+    //   - outstandingServiceChargeBalance: remaining amount when partially paid
+    //
+    // When the expected amount is 0 or undefined, we render nothing for this bar.
+    const serviceCharge = useMemo(() => {
+        const expected = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
+        if (!expected || expected <= 0) return null;
+
+        const status = (rental?.serviceChargeStatus || 'UNPAID').toUpperCase();
+        const outstandingBalance = Number(rental?.outstandingServiceChargeBalance ?? 0);
+
+        let paid = 0;
+        if (status === 'PAID_FULLY' || status === 'PAID') {
+            paid = expected;
+        } else if (status === 'PARTIALLY_PAID') {
+            // If we have an explicit outstanding balance, derive paid from it.
+            // Otherwise fall back to 0 (treat as nothing collected yet).
+            paid = Math.max(0, expected - outstandingBalance);
+        }
+        // UNPAID → paid stays 0.
+
+        const pct = expected > 0 ? clampPct((paid / expected) * 100) : 0;
+        const remaining = Math.max(0, expected - paid);
+
+        let state: 'on-track' | 'behind' | 'critical' = 'on-track';
+        if (pct < 50) state = 'critical';
+        else if (pct < 100) state = 'behind';
+
+        return {
+            expected,
+            paid,
+            remaining,
+            pct,
+            state,
+            status,
+        };
+    }, [rental?.serviceChargeAmount, rental?.serviceCharge, rental?.serviceChargeStatus, rental?.outstandingServiceChargeBalance]);
+
     // If we have nothing to show, render nothing.
-    if (!leaseTimeline && !rentCollection) return null;
+    if (!leaseTimeline && !rentCollection && !serviceCharge) return null;
 
     // ─── Color tokens ────────────────────────────────────────────────────────
     const timelineColor =
@@ -142,6 +185,19 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
     const collectionLabel =
         rentCollection?.state === 'critical' ? 'text-red-600 dark:text-red-400' :
         rentCollection?.state === 'behind' ? 'text-amber-600 dark:text-amber-400' :
+        'text-emerald-600 dark:text-emerald-400';
+
+    const scColor =
+        serviceCharge?.state === 'critical' ? 'bg-red-500' :
+        serviceCharge?.state === 'behind' ? 'bg-amber-500' :
+        'bg-emerald-500';
+    const scTrack =
+        serviceCharge?.state === 'critical' ? 'bg-red-100 dark:bg-red-900/30' :
+        serviceCharge?.state === 'behind' ? 'bg-amber-100 dark:bg-amber-900/30' :
+        'bg-emerald-100 dark:bg-emerald-900/30';
+    const scLabel =
+        serviceCharge?.state === 'critical' ? 'text-red-600 dark:text-red-400' :
+        serviceCharge?.state === 'behind' ? 'text-amber-600 dark:text-amber-400' :
         'text-emerald-600 dark:text-emerald-400';
 
     return (
@@ -247,6 +303,48 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
                             </svg>
                             <span className="text-2xs font-semibold text-slate-600 dark:text-zinc-300">
                                 <NairaSymbol />{formatNairaFull(rentCollection.rentPerPeriod)} per {rental?.rentFrequency || 'period'}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Service Charge ── */}
+                {serviceCharge && (
+                    <div>
+                        <div className="flex items-baseline justify-between mb-1.5">
+                            <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                                Service Charge
+                            </p>
+                            <p className={`text-xs font-bold ${scLabel}`}>
+                                {serviceCharge.pct.toFixed(0)}% collected
+                                {serviceCharge.remaining > 0 && (
+                                    <> · <NairaSymbol />{formatNairaCompact(serviceCharge.remaining)} outstanding</>
+                                )}
+                            </p>
+                        </div>
+
+                        <div className={`h-2.5 rounded-full overflow-hidden ${scTrack}`}>
+                            <div
+                                className={`h-full ${scColor} rounded-full transition-all duration-500`}
+                                style={{ width: `${serviceCharge.pct}%` }}
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 mt-1.5">
+                            <span className="text-2xs text-slate-500 dark:text-zinc-400">
+                                Paid: <span className="font-semibold text-emerald-600 dark:text-emerald-400"><NairaSymbol />{formatNairaCompact(serviceCharge.paid)}</span>
+                            </span>
+                            <span className="text-2xs text-slate-500 dark:text-zinc-400">
+                                Expected: <span className="font-semibold text-slate-700 dark:text-zinc-200"><NairaSymbol />{formatNairaCompact(serviceCharge.expected)}</span>
+                            </span>
+                            <span className={`text-2xs font-bold uppercase tracking-wider ${
+                                serviceCharge.status === 'PAID_FULLY' || serviceCharge.status === 'PAID' ? 'text-emerald-600 dark:text-emerald-400' :
+                                serviceCharge.status === 'PARTIALLY_PAID' ? 'text-amber-600 dark:text-amber-400' :
+                                'text-red-600 dark:text-red-400'
+                            }`}>
+                                {serviceCharge.status === 'PAID_FULLY' || serviceCharge.status === 'PAID' ? 'Paid Fully' :
+                                 serviceCharge.status === 'PARTIALLY_PAID' ? 'Partially Paid' :
+                                 'Unpaid'}
                             </span>
                         </div>
                     </div>

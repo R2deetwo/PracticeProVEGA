@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -7,11 +7,12 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useFeatures } from '../../hooks/useFeatures';
-import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon } from '../../constants';
+import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon, DocumentTextIcon } from '../../constants';
 import { UserAssignment } from './UserAssignment';
 import { formatNaira, formatNumberWithCommas, parseFormattedNumber, autoFormatSuitTitle } from '../../utils/formatting';
 import { analyzePartyName, analyzeMatterIntelligence } from '../../utils/defenseUtils';
 import { inputModern } from '../../utils/formStyles';
+import { getInitials, getUserColor } from '../../utils/colorUtils';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { MatterIntakeWizard } from './MatterIntakeWizard';
@@ -19,6 +20,87 @@ import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
 import { translateError } from '../../utils/errorTranslator';
 
 const commonInputClass = inputModern;
+
+// ─── AccordionSection (MODULE-LEVEL — outside MatterForm) ──────────
+// CRITICAL: This component MUST be defined outside the component render
+// function. When defined inside (as a closure), React treats it as a new
+// component type on every render, causing all children to unmount/remount
+// on every keystroke — which causes input focus loss.
+// By defining it at module level with React.memo, the component identity
+// is stable across re-renders, preserving DOM focus.
+// (Mirrors the pattern used in PropertyForm.tsx and SmartMatterModal.tsx.)
+interface AccordionSectionProps {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    iconBg: string;
+    children: React.ReactNode;
+    isOpen: boolean;
+    onToggle: (id: string) => void;
+    badge?: React.ReactNode;
+    /** Optional right-side accessory rendered inline with the chevron (e.g. a toggle switch). */
+    accessory?: React.ReactNode;
+    /** When true, clicking the header does NOT toggle — used when the header has its own toggle (e.g. litigation). */
+    disableHeaderToggle?: boolean;
+}
+const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle, badge, accessory, disableHeaderToggle }) => {
+    const headerRef = useRef<HTMLButtonElement>(null);
+    return (
+        <div
+            className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
+            style={{ willChange: 'height', contain: 'layout style' }}
+        >
+            <div
+                className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
+            >
+                <button
+                    ref={headerRef}
+                    type="button"
+                    tabIndex={0}
+                    onClick={() => {
+                        if (disableHeaderToggle) return;
+                        onToggle(id);
+                        if (!isOpen) {
+                            setTimeout(() => {
+                                headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 50);
+                        }
+                    }}
+                    onKeyDown={(e) => {
+                        if (disableHeaderToggle) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onToggle(id);
+                        }
+                    }}
+                    className={`flex items-center gap-4 flex-1 min-w-0 text-left focus:outline-none ${disableHeaderToggle ? 'cursor-default' : 'focus:ring-2 focus:ring-primary-500/30'}`}
+                >
+                    <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
+                        {icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
+                    </div>
+                    {badge}
+                </button>
+                {accessory}
+                {!disableHeaderToggle && (
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                )}
+            </div>
+            {isOpen && (
+                <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+};
+const AccordionSection = React.memo(AccordionSectionInner);
 
 interface MatterFormProps {
     matters: Matter[];
@@ -684,18 +766,72 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const cRole = isApplicant ? 'Applicant' : 'Claimant';
     const dRole = isApplicant ? 'Respondent' : 'Defendant';
 
+    // ─── Accordion State ──────────────────────────────────────────────
+    // Auto-expand: Practice Area + Client on initial mount. When editing
+    // an existing matter with litigation, expand litigation too.
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
+        classification: true,
+        title: false,
+        client: true,
+        assignedTeam: false,
+        billing: false,
+        litigation: isLitigation,
+    }));
+    // Re-sync litigation accordion state when isLitigation flips on via
+    // initialContext or matterToEdit load (the useState initializer only
+    // runs once on mount, so we need this effect to catch late loads).
+    useEffect(() => {
+        if (isLitigation && !openSections.litigation) {
+            setOpenSections(prev => ({ ...prev, litigation: true }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLitigation]);
+    const toggleSection = useCallback((id: string) => {
+        setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+    }, []);
+
+    // Avatar-stack badge for Assigned Team (shown when section is collapsed).
+    // Renders up to 3 user avatars + an overflow "+N" pill.
+    const assignedTeamBadge = useMemo(() => {
+        if (openSections.assignedTeam) return null;
+        const list = (props.users || []).filter(u => assignedUsers.has(u.id));
+        if (list.length === 0) return null;
+        const shown = list.slice(0, 3);
+        const extra = list.length - shown.length;
+        return (
+            <div className="flex items-center -space-x-1.5 mr-1">
+                {shown.map(u => (
+                    <div
+                        key={u.id}
+                        className={`h-6 w-6 rounded-full flex items-center justify-center text-white font-bold text-[10px] ring-2 ring-white dark:ring-zinc-800 ${getUserColor(u.name)}`}
+                        title={u.name}
+                    >
+                        {getInitials(u.name)}
+                    </div>
+                ))}
+                {extra > 0 && (
+                    <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-[10px] ring-2 ring-white dark:ring-zinc-800">
+                        +{extra}
+                    </div>
+                )}
+            </div>
+        );
+    }, [props.users, assignedUsers, openSections.assignedTeam]);
+
     return (
         <form onSubmit={handleSubmit} className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-4 pb-40 space-y-2 sm:space-y-3">
-                
-                {/* CLASSIFICATION */}
-                <div className="space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-3 px-1">
-                        <div className="p-1 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
-                            <BriefcaseIcon className="w-3.5 h-3.5" />
-                        </div>
-                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice area'}</h3>
-                    </div>
+
+                {/* ── CLASSIFICATION (accordion) ── */}
+                <AccordionSection
+                    id="classification"
+                    isOpen={!!openSections.classification}
+                    onToggle={toggleSection}
+                    title={isProperty ? 'Category' : 'Practice Area'}
+                    subtitle="Classification"
+                    icon={<BriefcaseIcon className="w-3.5 h-3.5" />}
+                    iconBg="bg-indigo-600"
+                >
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
                         <div className="space-y-1.5">
@@ -804,28 +940,36 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         </div>
                     )}
 
-                </div>
+                </AccordionSection>
 
-                {/* MATTER INFORMATION */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800/80 glass-premium rounded-2xl border border-slate-200 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
+                {/* ── MATTER TITLE (accordion) ── */}
+                <AccordionSection
+                    id="title"
+                    isOpen={!!openSections.title}
+                    onToggle={toggleSection}
+                    title="Matter Title"
+                    subtitle="Identification"
+                    icon={<DocumentTextIcon className="w-3.5 h-3.5" />}
+                    iconBg="bg-slate-600"
+                >
                     <div className="space-y-1.5">
                         <label className={labelClass}>Matter Title</label>
                         <div className="relative">
-                            <input autoComplete="off" data-lpignore="true"  
-                                type="text" 
-                                value={title} 
+                            <input autoComplete="off" data-lpignore="true"
+                                type="text"
+                                value={title}
                                 onChange={e => {
                                     setTitle(e.target.value);
                                     if (isLitigation) setTitleAutoGenerated(false);
-                                }} 
+                                }}
                                 disabled={isLitigation && titleAutoGenerated}
-                                className={`${commonInputClass} ${isLitigation && titleAutoGenerated ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 italic' : ''}`} 
-                                placeholder="e.g. In the Matter of Land Recovery at Lekki Phase I" 
-                                required 
+                                className={`${commonInputClass} ${isLitigation && titleAutoGenerated ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 italic' : ''}`}
+                                placeholder="e.g. In the Matter of Land Recovery at Lekki Phase I"
+                                required
                             />
                             {isLitigation && (
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={() => {
                                         if (!titleAutoGenerated) {
                                             setTitleAutoGenerated(true);
@@ -841,7 +985,18 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             )}
                         </div>
                     </div>
+                </AccordionSection>
 
+                {/* ── CLIENT (accordion) ── */}
+                <AccordionSection
+                    id="client"
+                    isOpen={!!openSections.client}
+                    onToggle={toggleSection}
+                    title="Client"
+                    subtitle="Engagement"
+                    icon={<UserIcon className="w-3.5 h-3.5" />}
+                    iconBg="bg-indigo-600"
+                >
                     <div className="space-y-2 sm:space-y-3">
                         <div className="flex justify-between items-center mb-1">
                             <label className={labelClass}>{clientLabel}</label>
@@ -887,7 +1042,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         {matterType === 'Real Estate' && clientId && (
                             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <label className={labelClass}>Link to Property Portfolio</label>
-                                <select 
+                                <select
                                     value={linkedPropertyId}
                                     onChange={e => setLinkedPropertyId(e.target.value)}
                                     className={commonInputClass}
@@ -903,28 +1058,39 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             </div>
                         )}
                     </div>
+                </AccordionSection>
 
-                    {appMode === 'multi' && (
-                        <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
-                            <UserAssignment
-                                allUsers={props.users}
-                                assignedUserIds={assignedUsers}
-                                onToggle={handleUserToggle}
-                                appMode={appMode}
-                            />
-                        </div>
-                    )}
-                </div>
+                {/* ── ASSIGNED TEAM (separate accordion — multi-user mode only) ── */}
+                {appMode === 'multi' && (
+                    <AccordionSection
+                        id="assignedTeam"
+                        isOpen={!!openSections.assignedTeam}
+                        onToggle={toggleSection}
+                        title="Assigned Team"
+                        subtitle="Matter Access"
+                        icon={<UserIcon className="w-3.5 h-3.5" />}
+                        iconBg="bg-violet-600"
+                        badge={assignedTeamBadge}
+                    >
+                        <UserAssignment
+                            allUsers={props.users}
+                            assignedUserIds={assignedUsers}
+                            onToggle={handleUserToggle}
+                            appMode={appMode}
+                        />
+                    </AccordionSection>
+                )}
 
-                {/* BILLING */}
-                <div className="space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-3 px-1">
-                        <div className="p-1 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
-                            <CurrencyDollarIcon className="w-3.5 h-3.5" />
-                        </div>
-                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Billing settings</h3>
-                    </div>
-
+                {/* ── BILLING (accordion) ── */}
+                <AccordionSection
+                    id="billing"
+                    isOpen={!!openSections.billing}
+                    onToggle={toggleSection}
+                    title="Billing Settings"
+                    subtitle="Fee Structure"
+                    icon={<CurrencyDollarIcon className="w-3.5 h-3.5" />}
+                    iconBg="bg-emerald-600"
+                >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
                         <div className="space-y-1.5">
                             <label className={labelClass}>Billing Model</label>
@@ -1085,27 +1251,35 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             )}
                         </div>
                     </div>
-                </div>
+                </AccordionSection>
 
-                {/* LITIGATION */}
-                <div className="p-3 sm:p-4 bg-slate-100/30 dark:bg-zinc-800/20 rounded-2xl border border-slate-200 dark:border-zinc-700/50 space-y-2 sm:space-y-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className={`p-1 rounded-lg shadow-sm transition-all ${isLitigation ? 'bg-rose-600 text-white ring-2 ring-rose-500/10' : 'bg-slate-200 dark:bg-zinc-700 text-slate-500 opacity-50'}`}>
-                                <GavelIconLarge className="w-3 h-3" />
-                            </div>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Property details' : 'Case details'}</h3>
-                        </div>
+                {/* ── CASE DETAILS / LITIGATION (accordion with toggle accessory) ── */}
+                <AccordionSection
+                    id="litigation"
+                    isOpen={!!openSections.litigation}
+                    onToggle={toggleSection}
+                    title={isProperty ? 'Property Details' : 'Case Details'}
+                    subtitle="Litigation"
+                    icon={<GavelIconLarge className="w-3 h-3" />}
+                    iconBg={isLitigation ? 'bg-rose-600' : 'bg-slate-400'}
+                    disableHeaderToggle={true}
+                    accessory={
                         <button
                             type="button"
-                            onClick={() => setIsLitigation(!isLitigation)}
-                            className={`w-14 h-7 rounded-full p-1 transition-all duration-500 ease-in-out ${isLitigation ? 'bg-rose-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
+                            onClick={() => {
+                                const next = !isLitigation;
+                                setIsLitigation(next);
+                                // Auto-expand when turning litigation on, auto-collapse when off.
+                                setOpenSections(prev => ({ ...prev, litigation: next }));
+                            }}
+                            className={`w-14 h-7 rounded-full p-1 transition-all duration-500 ease-in-out shrink-0 ${isLitigation ? 'bg-rose-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
+                            aria-label="Toggle litigation details"
                         >
                             <div className={`w-5 h-5 bg-white dark:bg-zinc-900 rounded-full shadow-sm transform transition-transform duration-300 ${isLitigation ? 'translate-x-7' : 'translate-x-0'}`} />
                         </button>
-                    </div>
-
-                    {isLitigation && (
+                    }
+                >
+                    {isLitigation ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
                             <div className="space-y-1.5">
                                 <label className={labelClass}>Jurisdiction / Court</label>
@@ -1139,7 +1313,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                                         key={r} type="button"
                                                         onClick={() => setRepresentingSide(r as any)}
                                                         className={`px-2 py-1 text-3xs font-bold rounded transition-colors ${
-                                                            representingSide === r 
+                                                            representingSide === r
                                                             ? 'bg-primary-500 text-white shadow-sm'
                                                             : 'bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
                                                         }`}
@@ -1184,8 +1358,12 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before). <span className="font-semibold text-primary-600 dark:text-primary-300">Pro plan feature.</span></p>
                             </div>
                         </div>
+                    ) : (
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 italic px-1 py-2">
+                            Toggle on to add court details, suit number, parties, and hearing dates for this matter.
+                        </p>
                     )}
-                </div>
+                </AccordionSection>
             </div>
 
             {/* ACTION FOOTER */}
