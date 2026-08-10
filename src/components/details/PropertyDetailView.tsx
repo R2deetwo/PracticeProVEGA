@@ -1741,20 +1741,20 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             unitName: d.name,
                                                                         });
                                                                         setShowFullUnitDetail(false);
-                                                                    }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Tenant" title="Message Tenant">
+                                                                    }} className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Resident" title="Message Resident">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
                                                                     <button
                                                                         type="button"
                                                                         onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }}
                                                                         onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }}
-                                                                        className="px-3 py-1.5 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit"
+                                                                        className="h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit"
                                                                     >
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
                                                                     {/* More button — reveals full detail card.
                                                                         Gear icon removed per user request — just text now. */}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details & more actions" title="Full unit details & more actions">
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details and more actions" title="Full unit details and more actions">
                                                                         {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
                                                                 </div>
@@ -2098,20 +2098,26 @@ const PropertyDetailViewContent: React.FC = () => {
                                 const collectionStatusText = `${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Outstanding`;
                                 return (
                                     <>
-                                        <StatCard
-                                            title="TOTAL ANNUAL RENT"
-                                            value={formatNairaCompact(totalAnnual)}
-                                            tooltipText={formatNairaFull(totalAnnual)}
-                                            icon={<Receipt />}
-                                            colorClass="bg-emerald-600"
-                                        />
-                                        <StatCard
-                                            title="RECURRING REVENUE"
-                                            value={formatNairaCompact(allRent)}
-                                            tooltipText={formatNairaFull(allRent)}
-                                            icon={<Receipt />}
-                                            colorClass="bg-blue-600"
-                                        />
+                                        {/* TOTAL ANNUAL RENT + RECURRING REVENUE — hidden for
+                                            Management Only properties (no rent collection). */}
+                                        {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                            <>
+                                                <StatCard
+                                                    title="TOTAL ANNUAL RENT"
+                                                    value={formatNairaCompact(totalAnnual)}
+                                                    tooltipText={formatNairaFull(totalAnnual)}
+                                                    icon={<Receipt />}
+                                                    colorClass="bg-emerald-600"
+                                                />
+                                                <StatCard
+                                                    title="RECURRING REVENUE"
+                                                    value={formatNairaCompact(allRent)}
+                                                    tooltipText={formatNairaFull(allRent)}
+                                                    icon={<Receipt />}
+                                                    colorClass="bg-blue-600"
+                                                />
+                                            </>
+                                        )}
                                         <StatCard
                                             title="SERVICE CHARGES"
                                             value={formatNairaCompact(allServiceCharge)}
@@ -2120,9 +2126,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             colorClass="bg-amber-600"
                                         />
                                         {/* COLLECTION STATUS — hidden when property is
-                                            Management Only (no rent collection tracking).
-                                            Avoids UI clutter for properties that don't
-                                            require rent collection. */}
+                                            Management Only (no rent collection tracking). */}
                                         {property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                             <StatCard
                                                 title="COLLECTION STATUS"
@@ -2152,8 +2156,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                         <tr>
                                             <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Unit</th>
                                             <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Tenant</th>
-                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Rent</th>
+                                            {/* RENT column — hidden for Management Only properties */}
+                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Rent</th>
+                                            )}
                                             <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
+                                            {/* MINIMUM VEND column — shown when property has MV enabled */}
+                                            {property.minimumVendEnabled && (
+                                                <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Min Vend</th>
+                                            )}
                                             <th className="text-center px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">SC Status</th>
                                             <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Outstanding</th>
                                         </tr>
@@ -2165,6 +2176,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             const scAmount = d.serviceChargeAmount || Number(rd.serviceCharge || 0);
                                             const scStatus = d.serviceChargeStatus || rd.serviceChargeStatus || '';
                                             const outstanding = d.outstandingServiceChargeBalance || rd.outstandingServiceChargeBalance || 0;
+                                            const mvAmount = property.minimumVendEnabled ? Number(property.minimumVendAmount || 0) : 0;
                                             const isPaidFully = scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid';
                                             const isPartial = scStatus === 'PARTIALLY_PAID';
                                             const isOutstanding = scStatus === 'UNPAID' || scStatus === 'unpaid';
@@ -2185,8 +2197,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 >
                                                     <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-white">{d.name}</td>
                                                     <td className="px-4 py-2.5 text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</td>
-                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
+                                                    {/* RENT cell — hidden for Management Only */}
+                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                        <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
+                                                    )}
                                                     <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
+                                                    {/* MINIMUM VEND cell — shown when MV enabled */}
+                                                    {property.minimumVendEnabled && (
+                                                        <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{mvAmount > 0 ? `₦${mvAmount.toLocaleString()}` : '—'}</td>
+                                                    )}
                                                     <td className="px-4 py-2.5 text-center">
                                                         {isPaidFully && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
                                                         {isPartial && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}

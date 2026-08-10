@@ -250,6 +250,9 @@ export interface ServiceChargePeriod {
     paidOnTime?: boolean;
     /** True for future pre-paid periods (advance cycles not yet elapsed). */
     isAdvance?: boolean;
+    /** Receipt number if a receipt has been issued for this period.
+     *  When set, the UI shows [View Issued Receipt] instead of [Generate Receipt]. */
+    receiptNumber?: string;
 }
 export enum PropertyStatus { Occupied = 'Occupied', Vacant = 'Vacant', Listed = 'Listed', Maintenance = 'Maintenance', Sold = 'Sold' }
 export enum PropertyCategory { Tenanted = 'Tenanted Property', ForSale = 'Property For Sale', Disputed = 'Disputed Property', Personal = 'Personal Residence', Other = 'Other' }

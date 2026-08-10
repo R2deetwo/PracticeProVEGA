@@ -48,6 +48,7 @@ import { createPortal } from 'react-dom';
 import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { CalendarIcon, XIcon, CheckCircleIcon, DownloadIcon } from '../../constants';
+import ReceiptModal from '../modals/ReceiptModal';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -512,7 +513,10 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                     </div>
 
-                    {/* Receipt prompt — shown when status is 'paid' (balance settled) */}
+                    {/* Receipt prompt — shown when status is 'paid' (balance settled).
+                        Dynamic button toggle:
+                        - No receipt issued → [Generate Receipt]
+                        - Receipt already issued → [View Issued Receipt] */}
                     {period.status === 'paid' && (
                         <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="flex items-start gap-3">
@@ -524,14 +528,29 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                                         Payment Recorded{period.paidOnTime === false ? ' (Late)' : ''}
                                     </p>
                                     <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                                        Generate an itemized receipt for this {chargeType} payment.
+                                        {period.receiptNumber
+                                            ? `Receipt ${period.receiptNumber} already issued for this ${chargeType} payment.`
+                                            : `Generate an itemized receipt for this ${chargeType} payment.`}
                                     </p>
                                     <button
                                         onClick={onGenerateReceipt}
-                                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+                                        className={`mt-3 inline-flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-lg shadow-sm transition-colors ${
+                                            period.receiptNumber
+                                                ? 'bg-slate-600 hover:bg-slate-700'
+                                                : 'bg-emerald-600 hover:bg-emerald-700'
+                                        }`}
                                     >
-                                        <DownloadIcon className="w-3.5 h-3.5" />
-                                        Generate & Issue Receipt
+                                        {period.receiptNumber ? (
+                                            <>
+                                                <DownloadIcon className="w-3.5 h-3.5" />
+                                                View Issued Receipt
+                                            </>
+                                        ) : (
+                                            <>
+                                                <DownloadIcon className="w-3.5 h-3.5" />
+                                                Generate Receipt
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -667,6 +686,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState<ServiceChargePeriod | null>(null);
     const [selectedChargeType, setSelectedChargeType] = useState<'SC' | 'MV'>('SC');
+    const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
     const rental = (unit.rentalDetails || unit) as Property['rentalDetails'];
     const leaseStart = rental?.leaseStart || '';
@@ -768,11 +788,29 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     }, [selectedPeriod, selectedChargeType, rental, onUpdate]);
 
     const handleGenerateReceipt = useCallback(() => {
-        if (selectedPeriod && onGenerateReceipt) {
-            onGenerateReceipt(selectedPeriod, selectedChargeType);
-        }
-        setDrawerOpen(false);
-    }, [selectedPeriod, selectedChargeType, onGenerateReceipt]);
+        if (!selectedPeriod) return;
+        // Open the ReceiptModal instead of firing a dead toast.
+        // The modal handles PDF download + portal issuance + activity log.
+        setReceiptModalOpen(true);
+    }, [selectedPeriod]);
+
+    // Called when the ReceiptModal successfully issues a receipt — persists
+    // the receipt number to the period so the button toggles to [View Issued Receipt].
+    const handleReceiptIssued = useCallback((receiptNumber: string) => {
+        if (!selectedPeriod) return;
+        const periodsKey = selectedChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
+        const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
+        const updatedPeriods = currentPeriods.map(p =>
+            p.index === selectedPeriod.index ? { ...p, receiptNumber } : p
+        );
+        const updatedRental = {
+            ...rental,
+            [periodsKey]: updatedPeriods,
+        } as Property['rentalDetails'];
+        onUpdate(updatedRental!);
+        // Update selectedPeriod so the drawer reflects the issued state
+        setSelectedPeriod(prev => prev ? { ...prev, receiptNumber } : prev);
+    }, [selectedPeriod, selectedChargeType, rental, onUpdate]);
 
     // Close drawer on Escape key
     useEffect(() => {
@@ -856,6 +894,21 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
                     onStatusChange={handleStatusChange}
                     onGenerateReceipt={handleGenerateReceipt}
                     onPeriodSelect={(p) => setSelectedPeriod(p)}
+                />
+            )}
+
+            {/* ReceiptModal — opened by [Generate Receipt] / [View Issued Receipt]
+                in the Quick Payment Drawer. Handles PDF download + portal issuance
+                + activity log + dynamic button toggle. */}
+            {receiptModalOpen && selectedPeriod && (
+                <ReceiptModal
+                    period={selectedPeriod}
+                    chargeType={selectedChargeType}
+                    unitName={rental?.unitName || unit.description || 'Unit'}
+                    tenantName={rental?.tenantName || 'Tenant'}
+                    unitId={unit.id}
+                    onClose={() => setReceiptModalOpen(false)}
+                    onIssued={handleReceiptIssued}
                 />
             )}
         </>
