@@ -24,6 +24,7 @@ import PropertyTrackingView from './PropertyTrackingView';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
+import { ServiceChargeBars } from './ServiceChargeBars';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
@@ -1596,26 +1597,23 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 </div>
                                                             )}
 
-                                                            {/* Service Charge — always show if amount > 0 */}
-                                                            {scAmount > 0 && (
-                                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs">SC</span>
-                                                                    <span className="text-slate-700 dark:text-zinc-200">₦{scAmount.toLocaleString()}</span>
-                                                                    {renderScBadge()}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Minimum Vend — if property has MV enabled */}
-                                                            {minimumVendEnabled && uStatus === 'Occupied' && (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs">MV</span>
-                                                                    <span className="text-3xs font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
-                                                                    {(d.serviceChargeStatus as string) === 'PAID_FULLY' || (d.serviceChargeStatus as string) === 'PAID'
-                                                                        ? <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
-                                                                        : <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>
-                                                                    }
-                                                                </div>
-                                                            )}
+                                                            {/* Service Charge & Minimum Vend — interactive per-period bars.
+                                                                Replaces the old static SC/MV badges. Each colored bar represents
+                                                                one billing period: Green=Paid, Orange=Late, Red=Outstanding.
+                                                                Clicking a bar opens the Quick Payment Drawer. */}
+                                                            <ServiceChargeBars
+                                                                unit={unit}
+                                                                onUpdate={(updatedRental) => {
+                                                                    const full = units.find((u: Property) => u.id === unit.id) || unit;
+                                                                    updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
+                                                                }}
+                                                                onGenerateReceipt={(period, chargeType) => {
+                                                                    addToast(`${chargeType} Period ${period.index} receipt generation queued.`, { type: 'info' });
+                                                                    // TODO: wire to the existing receipt PDF generator once the
+                                                                    // itemized receipt refactor is done. For now this is a placeholder
+                                                                    // that acknowledges the user's action.
+                                                                }}
+                                                            />
 
                                                             {/* Statutory Timeline Milestone */}
                                                             {renderTermMilestone()}

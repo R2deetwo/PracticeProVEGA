@@ -221,6 +221,19 @@ export interface ContactCategory { id: string; firmId: string; name: string; pro
 export interface PropertyEvent { id: string; type: 'rent_collected' | 'lease_signed' | 'maintenance' | 'inspection' | 'renewal' | 'tenant_change' | 'offer'; date: string; description: string; amount?: number; relatedTaskId?: string; }
 export interface MaintenanceRecord { id: string; date: string; issue: string; status: 'reported' | 'in_progress' | 'escalated' | 'fulfilled' | 'cancelled'; cost?: number; resolvedDate?: string; notes?: string; priority?: 'low' | 'medium' | 'high' | 'emergency'; vendorId?: string; vendorName?: string; vendorPhone?: string; taskId?: string; }
 export interface RentPayment { id: string; dueDate: string; paidDate?: string; amount: number; status: 'paid' | 'overdue' | 'pending'; paymentMethod?: string; receiptNumber?: string; periodStart?: string; periodEnd?: string; }
+
+/** Per-period tracking for Service Charge (SC) and Minimum Vend (MV).
+ *  One entry per elapsed billing period from leaseStart to current date.
+ *  - paid: settled on time (green)
+ *  - late: paid after the due date (orange — default warning)
+ *  - outstanding: not yet paid past due date (red) */
+export interface ServiceChargePeriod {
+    index: number;       // 1-based period number
+    dueDate: string;     // ISO date when this period's charge was due
+    status: 'paid' | 'late' | 'outstanding';
+    paidDate?: string;   // ISO date when payment was recorded (if paid/late)
+    amount: number;      // per-period charge amount
+}
 export enum PropertyStatus { Occupied = 'Occupied', Vacant = 'Vacant', Listed = 'Listed', Maintenance = 'Maintenance', Sold = 'Sold' }
 export enum PropertyCategory { Tenanted = 'Tenanted Property', ForSale = 'Property For Sale', Disputed = 'Disputed Property', Personal = 'Personal Residence', Other = 'Other' }
 export interface Property {
@@ -259,6 +272,10 @@ export interface Property {
         legalFee?: number;
         agencyFee?: number;
         cautionDeposit?: number;
+        /** Per-period service charge tracking — one entry per elapsed billing period. */
+        scPeriods?: ServiceChargePeriod[];
+        /** Per-period minimum vend tracking — one entry per elapsed billing period. */
+        mvPeriods?: ServiceChargePeriod[];
     };
     disputeDetails?: { caseNumber?: string; court?: string; opposingParty?: string; status?: string; };
     saleDetails?: { listingAgent?: string; listingDate?: string; targetPrice?: number; };
