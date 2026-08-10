@@ -99,8 +99,8 @@ const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClo
                 >
                     <div className="flex items-center gap-2">
                         <option.icon className={`w-3.5 h-3.5 ${option.colorClass}`} />
-                        {/* Title Case — labels are already "High"/"Medium"/"Low" */}
-                        <span>{option.label}</span>
+                        {/* UPPERCASE to match the trigger pill styling */}
+                        <span className="uppercase tracking-wide">{option.label}</span>
                     </div>
                     {task.priority === option.level && <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>}
                 </button>

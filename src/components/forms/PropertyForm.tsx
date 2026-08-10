@@ -217,6 +217,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             occupantFirstName: '',
             occupantLastName: '',
             tenantPhone: '',
+            tenantEmail: '',
             nextRentReview: '',
             isPeriodicReviewEnabled: false,
             tenancyPeriod: '',
@@ -273,6 +274,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             occupantFirstName: '',
             occupantLastName: '',
             tenantPhone: '',
+            tenantEmail: '',
             nextRentReview: '',
             isPeriodicReviewEnabled: false,
             tenancyPeriod: '',
@@ -364,6 +366,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         occupantFirstName: '',
                         occupantLastName: '',
                         tenantPhone: '',
+            tenantEmail: '',
                         nextRentReview: '',
                         isPeriodicReviewEnabled: false,
                         tenancyPeriod: '',
@@ -873,8 +876,16 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
     // ─── Auto-scroll to Rental section when editing from a unit card ──────
     // When the modal opens with activeUnitId or autoExpandRental, the rental
-    // accordion auto-expands (above). This ref + effect scrolls the expanded
-    // section into view so the user doesn't have to manually scroll down.
+    // accordion auto-expands (via the useState initializer above). This ref +
+    // effect scrolls the expanded section into view so the user doesn't have
+    // to manually scroll down.
+    //
+    // CRITICAL: The scroll must happen AFTER:
+    //   1. The accordion state is set to expanded (done in useState initializer)
+    //   2. The DOM has rendered the expanded content (requires double rAF)
+    //   3. The active unit tab has been selected (useEffect at line ~250)
+    // We use requestAnimationFrame nested twice to ensure the DOM has fully
+    // painted the expanded accordion content before scrolling.
     const rentalSectionRef = useRef<HTMLDivElement>(null);
 
     // OnboardUnitLedgerModal state — opens when user clicks "Settle Historical Ledger"
@@ -882,11 +893,25 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [ledgerChargeType, setLedgerChargeType] = useState<'SC' | 'MV'>('SC');
     useEffect(() => {
         if (!(activeUnitId || autoExpandRental)) return;
-        // Delay to allow the accordion expand animation to start before scrolling.
-        const timer = setTimeout(() => {
-            rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 150);
-        return () => clearTimeout(timer);
+
+        // Force the rental section to be expanded (in case the useState
+        // initializer didn't catch it — e.g. if the modal was re-opened).
+        setOpenSections(prev => {
+            if (prev.rental) return prev; // already open, no-op
+            return { ...prev, rental: true };
+        });
+
+        // Double rAF ensures the browser has painted the expanded DOM content
+        // before we try to scroll to it. A single rAF only guarantees the
+        // layout pass has run, not that the content is visible.
+        const raf1 = requestAnimationFrame(() => {
+            const raf2 = requestAnimationFrame(() => {
+                rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            // Fallback cleanup if component unmounts between rAFs
+            return () => cancelAnimationFrame(raf2);
+        });
+        return () => cancelAnimationFrame(raf1);
     }, [activeUnitId, autoExpandRental]);
 
     return (
@@ -1254,6 +1279,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         occupantFirstName: '',
                                         occupantLastName: '',
                                         tenantPhone: '',
+            tenantEmail: '',
                                         nextRentReview: '',
                                         isPeriodicReviewEnabled: false,
                                         tenancyPeriod: '',
@@ -1605,6 +1631,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Resident Phone</label>
                                     <input autoComplete="off" data-lpignore="true"  type="tel" value={unitsData[activeUnitIndex].tenantPhone} onChange={e => updateUnit(activeUnitIndex, 'tenantPhone', e.target.value)} className={commonInputClass} placeholder="+234..." />
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Resident Email <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(required for portal invite)</span></label>
+                                    <input autoComplete="off" data-lpignore="true"  type="email" value={unitsData[activeUnitIndex].tenantEmail || ''} onChange={e => updateUnit(activeUnitIndex, 'tenantEmail', e.target.value)} className={commonInputClass} placeholder="resident@example.com" />
                                 </div>
                             </div>
 

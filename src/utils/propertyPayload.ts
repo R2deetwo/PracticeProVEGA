@@ -13,6 +13,7 @@ export interface UnitRentalInput {
   occupantFirstName?: string;
   occupantLastName?: string;
   tenantPhone: string;
+  tenantEmail?: string;
   nextRentReview: string;
   isPeriodicReviewEnabled: boolean;
   tenancyPeriod?: string;
