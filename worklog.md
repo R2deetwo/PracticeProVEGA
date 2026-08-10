@@ -6053,3 +6053,43 @@ Verification:
 Files Modified:
 - src/components/details/ServiceChargeBars.tsx (added expanded prop, PrimaryStatusPill component, backdrop bg-black/60)
 - src/components/details/PropertyDetailView.tsx (wired expanded={false} on unexpanded card, added expanded={true} ServiceChargeBars in the Full Detail Card section)
+
+---
+Task ID: 12
+Agent: Main Agent
+Task: Slim color-only pills + portal tooltip + drawer historical strip
+
+Work Log:
+1. Remove Text Labels from Status Pills & Slim Dimensions:
+   - Removed all text labels ('LATE', 'PAID', 'OUTSTANDING') from both StatusPill (expanded) and PrimaryStatusPill (unexpanded).
+   - Slimmed pills to h-2 w-7 rounded-full (compact bar shape, pure color encoding).
+   - Color logic: Green=Paid On Time, Orange=Paid Late/Currently Late, Red=Outstanding.
+   - Removed unused getMonthLabel + MONTH_ABBR helpers.
+   - PrimaryStatusPill keeps label string only for aria-label + tooltip, not for visible rendering.
+
+2. Tooltip Clipping Fix (React Portal):
+   - ROOT CAUSE: The old tooltip used absolute positioning inside the pill's parent div. The unit card containers have overflow-hidden, which clipped the tooltip text (e.g. "o log payment" instead of "Click to log payment").
+   - FIX: Rewrote PillTooltip to use createPortal(…, document.body). The tooltip now renders at the document body level, floating above ALL card containers regardless of their overflow settings.
+   - Positioning: measures the pill's bounding rect via getBoundingClientRect() on hover, centers the tooltip (w-56 = 224px) above the pill, clamps to viewport horizontally, and flips below when the pill is near the top of the viewport.
+   - Re-measures on window scroll (capture: true, so nested scrolls trigger) + resize so the tooltip tracks the pill.
+   - z-[9999] ensures it sits above everything including the Quick Payment Drawer backdrop.
+   - Pills now pass a targetRef (useRef<HTMLButtonElement>) to the tooltip so it knows which element to position against.
+
+3. Unexpanded vs Expanded Card Pill Behavior:
+   - Unexpanded (closed square): ONE single slim color-only bar (h-2 w-7) representing the latest active billing cycle status. No text, no stacking.
+   - Expanded (opened card): horizontal sequence of slim pills matching the exact number of elapsed billing periods (3 months → 3 pills, 11 months → 11 pills). Each pill independently colored by its period status.
+
+4. Quick Payment Drawer Historical Pill Strip:
+   - Added allPeriods + onPeriodSelect props to QuickPaymentDrawer.
+   - Renders a horizontal strip of slim color-only pills at the TOP of the drawer body, above the Charge Amount. Shows a "Payment History · N periods" label.
+   - The currently-focused period is highlighted with a ring-2 ring-offset-1 ring-slate-400 scale-110.
+   - Clicking any pill in the strip calls onPeriodSelect → setSelectedPeriod, which updates the drawer's focus to that period (amount, status, and receipt prompt all update).
+   - The main ServiceChargeBars component passes the correct periods array (scPeriods or mvPeriods) based on which charge type opened the drawer.
+
+Verification:
+- TypeScript: zero errors in ServiceChargeBars
+- Build: succeeded in 19.14s
+- Git: committed as 57d7be0, pushed to origin/main
+
+Files Modified:
+- src/components/details/ServiceChargeBars.tsx (portal tooltip, slim pills, drawer historical strip, removed unused helpers)
