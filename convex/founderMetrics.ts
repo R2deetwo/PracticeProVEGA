@@ -2020,3 +2020,99 @@ export const rejectAddonRequestAsFounder = mutation({
     return { success: true };
   },
 });
+
+// ── Real-Time Presence for Admin Dashboard ──────────────────────────────
+// Returns all currently-online users across ALL firms, for the founder's
+// admin dashboard. Each entry includes the user's name, email, firm name,
+// and how long ago their last heartbeat was.
+export const getAllPresenceForAdmin = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const ACTIVE_THRESHOLD = 90 * 1000; // 90 seconds — heartbeat fires every 20s
+    const cutoff = Date.now() - ACTIVE_THRESHOLD;
+
+    // Fetch all presence records updated within the active window
+    const activePresence = await ctx.db
+      .query("presence")
+      .filter((q: any) => q.gte(q.field("updatedAt"), cutoff))
+      .collect();
+
+    if (activePresence.length === 0) return [];
+
+    // Enrich with user + firm details
+    const result: any[] = [];
+    for (const p of activePresence) {
+      let userName = p.userName || 'Unknown';
+      let userEmail = '';
+      let firmName = '';
+      let product = '';
+
+      // Fetch user details
+      try {
+        const user: any = await ctx.db.get(p.userId as any);
+        if (user) {
+          userName = user.name || userName;
+          userEmail = user.email || '';
+          product = user.product || '';
+        }
+      } catch {}
+
+      // Fetch firm name
+      if (p.firmId) {
+        try {
+          const firm: any = await ctx.db.get(p.firmId as any);
+          if (firm) firmName = firm.name || '';
+        } catch {}
+      }
+
+      result.push({
+        userId: p.userId,
+        userName,
+        userEmail,
+        firmId: p.firmId,
+        firmName,
+        product,
+        lastSeen: p.updatedAt,
+        secondsAgo: Math.round((Date.now() - (p.updatedAt || Date.now())) / 1000),
+        isOnline: true,
+      });
+    }
+
+    // Group by firm for the admin dashboard
+    return result.sort((a, b) => b.lastSeen - a.lastSeen);
+  },
+});
+
+// ── Security Events Log ─────────────────────────────────────────────────
+// Returns recent security-relevant events for the admin Security Center.
+export const getSecurityEventsForAdmin = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    // Fetch recent security-relevant events from analytics_events
+    const recentEvents = await ctx.db
+      .query("analytics_events")
+      .filter((q: any) =>
+        q.or(
+          q.eq(q.field("event"), "login_failed"),
+          q.eq(q.field("event"), "disposable_email_blocked"),
+          q.eq(q.field("event"), "unauthorized_access"),
+          q.eq(q.field("event"), "signup_blocked"),
+        )
+      )
+      .order("desc")
+      .take(50);
+
+    return recentEvents.map((e: any) => ({
+      id: e._id,
+      eventType: e.event,
+      email: e.properties?.email || '',
+      ip: e.properties?.ip || '',
+      details: e.properties?.details || e.event,
+      timestamp: e.timestamp,
+    }));
+  },
+});

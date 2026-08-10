@@ -1240,6 +1240,38 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
     const token: string = args.email.toLowerCase().trim();
     const code: string = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // ── Disposable / Temporary Email Blocking ──────────────────────────
+    // Block signups from known disposable email providers to prevent
+    // automated abuse, spam registrations, and trial farming.
+    const DISPOSABLE_DOMAINS = [
+      'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
+      'throwaway.email', 'trashmail.com', 'yopmail.com', 'getnada.com',
+      'temp-mail.org', 'sharklasers.com', 'guerrillamail.info', 'grr.la',
+      'dispostable.com', 'maildrop.cc', 'mintemail.com', 'tempinbox.com',
+      'fakeinbox.com', 'mailnesia.com', 'spam4.me', 'tempr.email',
+      'emailondeck.com', 'moakt.com', 'tmpmail.org', 'tmpmail.net',
+      'burnermail.io', 'inboxbear.com', 'mohmal.com', 'netmail.net',
+      'mailcatch.com', 'tempmailo.com', 'mytemp.email', 'discard.email',
+    ];
+    const emailDomain = token.split('@')[1] || '';
+    if (DISPOSABLE_DOMAINS.includes(emailDomain)) {
+      // Log as a security event for the admin Security Center
+      try {
+        await ctx.db.insert("analytics_events", {
+          firmId: 'security',
+          userId: 'system',
+          event: "disposable_email_blocked",
+          properties: { email: token, domain: emailDomain },
+          timestamp: Date.now(),
+        } as any);
+      } catch {}
+      return {
+        success: false,
+        code: 'DISPOSABLE_EMAIL',
+        message: 'Please use a valid business or personal email address. Disposable/temporary email services are not allowed.'
+      };
+    }
+
     let selectedProduct: 'legal' | 'property' | 'unified' = 'legal';
     if (args.product === 'property') selectedProduct = 'property';
     if (args.product === 'unified') selectedProduct = 'unified';
