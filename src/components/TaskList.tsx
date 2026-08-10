@@ -120,10 +120,10 @@ const TaskRow: React.FC<{
                 </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap overflow-visible">
-                {/* Priority Pill - Styled like Status */}
+                {/* Priority Pill - Styled like Status (Title Case, no uppercase) */}
                 <button
                     onClick={(e) => { e.stopPropagation(); onPriorityClick(e, task); }}
-                    className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getPriorityColorClass(task.priority)}`}
+                    className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getPriorityColorClass(task.priority)}`}
                 >
                     {task.priority || 'Medium'}
                     <ChevronDownIcon className="w-3 h-3" />

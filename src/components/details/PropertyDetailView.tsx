@@ -146,6 +146,7 @@ const PropertyDetailViewContent: React.FC = () => {
     //   3. Auto-expands the target unit's drawer + scrolls to it
     const [highlightTarget, setHighlightTarget] = useState<string | null>(null);
     const [targetUnitId, setTargetUnitId] = useState<string | null>(null);
+    const [dismissTick, setDismissTick] = useState(0);
     useEffect(() => {
         const ctx = currentHistoryEntry?.context as any;
         if (ctx?.tab) {
@@ -1388,20 +1389,47 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 };
 
                                                 // ── Statutory timeline milestone ──
+                                                // DISMISSIBLE + SUPPRESSED if quit notice has been served.
+                                                // Users with their own agreements outside the app can dismiss
+                                                // this advisory. If a quit notice is active (served/drafted),
+                                                // the advisory is suppressed — the user has already taken action.
                                                 const renderTermMilestone = () => {
                                                     if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
+                                                    // SUPPRESS if quit notice has been served or drafted
+                                                    const eviction = getEvictionTracker(unit);
+                                                    if (eviction.quitNoticeStatus === 'served' || eviction.quitNoticeStatus === 'drafted') return null;
+                                                    // Check if user dismissed this advisory for this unit
+                                                    const dismissKey = `dismiss_term_milestone_${unit.id}`;
+                                                    const isDismissed = (() => {
+                                                        try { return localStorage.getItem(dismissKey) === 'true'; } catch { return false; }
+                                                    })();
+                                                    if (isDismissed) return null;
+
                                                     const pct = Math.round((d.termProgress ?? 0) * 100);
-                                                    // REFINED ADVISORY — no longer recommends serving Notice to Quit.
-                                                    // Before compression: "Statutory notice window is active."
-                                                    // During/after compression: "Statutory notice window compressed—review lease terms or engage tenant for waiver."
                                                     const isCompressed = pct >= 75;
                                                     const tooltipText = isCompressed
                                                         ? `Tenancy ${pct}% elapsed. Statutory notice window compressed—review lease terms or engage tenant for waiver.`
                                                         : `Tenancy ${pct}% elapsed. Statutory notice window is active.`;
                                                     return (
-                                                        <div className="flex items-center gap-1 mt-1" title={tooltipText}>
+                                                        <div className="flex items-center gap-1 mt-1 group" title={tooltipText}>
                                                             <CalendarIcon className="w-3 h-3 text-orange-500" />
                                                             <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">{pct}% Elapsed</span>
+                                                            {/* Dismiss button — fades in on hover */}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    try { localStorage.setItem(dismissKey, 'true'); } catch {}
+                                                                    // Force re-render by toggling a state
+                                                                    setDismissTick(t => t + 1);
+                                                                }}
+                                                                className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                                                                title="Dismiss this advisory"
+                                                                aria-label="Dismiss"
+                                                            >
+                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
                                                         </div>
                                                     );
                                                 };

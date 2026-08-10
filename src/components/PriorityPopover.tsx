@@ -36,17 +36,17 @@ const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClo
             const popoverRect = popoverRef.current.getBoundingClientRect();
             const margin = 10;
 
-            let top, left;
-            left = anchorRect.left;
+            // ANCHOR DIRECTLY BELOW the trigger button (matching Status dropdown)
+            let top = anchorRect.bottom + 4;
+            let left = anchorRect.left;
             
+            // Flip above if not enough space below
             const spaceBelow = window.innerHeight - anchorRect.bottom;
-            if (spaceBelow > popoverRect.height + margin) {
-                top = anchorRect.bottom + 4;
-            } else {
+            if (spaceBelow < popoverRect.height + margin) {
                 top = anchorRect.top - popoverRect.height - 4;
             }
             
-            // Boundary checks
+            // Boundary checks — keep within viewport
             if (left < margin) {
                 left = margin;
             }
@@ -67,21 +67,23 @@ const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClo
         <div
             ref={popoverRef}
             style={{ position: 'fixed', top: `${position.top}px`, left: `${position.left}px`, opacity: position.opacity, transition: 'opacity 0.15s ease-in-out' }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-1.5 min-w-[140px] z-[9999]"
+            // STYLING MATCHES Status dropdown: same padding, border, shadow, radius
+            className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl z-[50] py-1 w-32 animate-fade-in-up"
         >
-            <div className="space-y-0.5">
-                {priorityOptions.map(option => (
-                    <button
-                        key={option.level}
-                        onClick={() => handleSelect(option.level)}
-                        className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${task.priority === option.level ? 'bg-slate-100 dark:bg-slate-800/60' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
-                    >
-                        <option.icon className={`w-4 h-4 ${option.colorClass}`} />
-                        <span className="uppercase tracking-wide">{option.label}</span>
-                        {task.priority === option.level && <div className="w-1.5 h-1.5 rounded-full bg-slate-400 ml-auto"></div>}
-                    </button>
-                ))}
-            </div>
+            {priorityOptions.map(option => (
+                <button
+                    key={option.level}
+                    onClick={() => handleSelect(option.level)}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 flex items-center justify-between gap-2`}
+                >
+                    <div className="flex items-center gap-2">
+                        <option.icon className={`w-3.5 h-3.5 ${option.colorClass}`} />
+                        {/* TITLE CASE — no uppercase class */}
+                        <span className="capitalize">{option.label}</span>
+                    </div>
+                    {task.priority === option.level && <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>}
+                </button>
+            ))}
         </div>
     );
 };
