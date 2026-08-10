@@ -3179,7 +3179,7 @@ ${allCites.map((c: any) => {
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-2xs text-slate-400">{uniqueLabels.length} placeholder{uniqueLabels.length !== 1 ? 's' : ''}</span>
                                             <button type="button" onClick={handleAutoFill} className="text-2xs font-bold px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
-                                                ⚡ Auto-fill from matter
+                                                Auto-fill from matter
                                             </button>
                                         </div>
                                         <div className="max-h-[55vh] overflow-y-auto space-y-4 custom-scrollbar pr-2">
@@ -3688,7 +3688,7 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
 
                             {/* Citation Completeness Indicator — muted orange dot */}
                             {issues.length > 0 && (
-                                <Tooltip text={issues.map(i => `⚠️ ${i.message}`).join('\n')}>
+                                <Tooltip text={issues.map(i => `${i.message}`).join('\n')}>
                                     <span
                                         className="inline-flex items-center justify-center w-3 h-3 cursor-help"
                                         title={issues.map(i => i.message).join('\n')}

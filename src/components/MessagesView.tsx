@@ -77,9 +77,9 @@ const CHANNEL_LABELS: Record<string, string> = {
 // in the inbox list so practitioners can scan and prioritise at a glance.
 //
 // The prefix emojis are set by the backend when a ticket/request is created:
-//   🔧 = maintenance ticket (Atrium resident portal)
-//   📋 = service request (Vega client portal)
-//   ✅ = admin resolution/update reply
+//   T: = maintenance ticket (Atrium resident portal)
+//   R: = service request (Vega client portal)
+//   A: = admin resolution/update reply
 // Falls back to "portal" (regular 2-way chat) for everything else.
 // 'team' = internal direct message between team members (not a portal convo)
 type ConversationType = 'maintenance' | 'service_request' | 'portal' | 'admin_reply' | 'team';
@@ -122,20 +122,20 @@ function detectConversationType(conv: any): ConversationType {
     // A conversation's type is determined by its ORIGIN, not just the
     // latest message. If the conversation EVER had a ticket or request
     // (detected by the preview prefix at any point), it stays that type
-    // even after the admin replies. The admin reply prefix (✅) indicates
+    // even after the admin replies. The admin reply prefix (A:) indicates
     // the latest message is from admin, but the conversation's nature
     // doesn't change.
     //
     // Priority: ticket/request origin > admin reply > plain portal
-    if (preview.startsWith('🔧')) return 'maintenance';
-    if (preview.startsWith('📋')) return 'service_request';
-    // ✅ prefix means admin replied — but we need to check if this
+    if (preview.startsWith('T:')) return 'maintenance';
+    if (preview.startsWith('R:')) return 'service_request';
+    // A: prefix means admin replied — but we need to check if this
     // conversation ORIGINATED as a ticket/request. We can't know that
-    // from just the preview, so we treat ✅ as 'admin_reply' ONLY if
+    // from just the preview, so we treat A: as 'admin_reply' ONLY if
     // it's not a known ticket/request conversation. In practice, the
     // admin reply message includes the ticket type in its content, so
     // we also check for ticket/request keywords in the preview.
-    if (preview.startsWith('✅')) {
+    if (preview.startsWith('A:')) {
         // Check if the reply mentions a ticket/request context
         const lowerPreview = preview.toLowerCase();
         if (lowerPreview.includes('maintenance') || lowerPreview.includes('ticket')) return 'maintenance';
@@ -1569,9 +1569,9 @@ const MessagesView: React.FC = () => {
                                     // shown only when the firm has legal practice.
                                     //
                                     // Each conversation gets a color-coded badge based on its type:
-                                    //   🔧 → amber "Ticket" (maintenance)
-                                    //   📋 → red   "Request" (client service request)
-                                    //   ✅ → blue  "Replied" (admin's last reply)
+                                    //   T: → amber "Ticket" (maintenance)
+                                    //   R: → red   "Request" (client service request)
+                                    //   A: → blue  "Replied" (admin's last reply)
                                     //   (default) → emerald "Portal"
 
                                     const hasAnyMessages =
@@ -2252,7 +2252,7 @@ const MessagesView: React.FC = () => {
                                                                     {(msg.linkedTicketId || msg.linkedRequestId) && (
                                                                         <div className="mb-1.5">
                                                                             <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-2xs font-bold ${msg.linkedTicketId ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
-                                                                                {msg.linkedTicketId ? '🔧' : '📋'} {msg.requestTypeLabel || (msg.linkedTicketId ? 'Ticket' : 'Request')}
+                                                                                {msg.linkedTicketId ? 'T:' : 'R:'} {msg.requestTypeLabel || (msg.linkedTicketId ? 'Ticket' : 'Request')}
                                                                             </span>
                                                                         </div>
                                                                     )}

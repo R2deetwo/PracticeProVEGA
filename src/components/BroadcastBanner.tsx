@@ -361,7 +361,7 @@ export const BroadcastBanner: React.FC = () => {
                 banners.push({
                     _id: `system_trial_1day`,
                     broadcastId: `system_trial_1day`,
-                    title: '⏳ TRIAL ENDS TODAY',
+                    title: 'TRIAL ENDS TODAY',
                     message: `Your trial ends in ${timeStr}. Upgrade now to retain high-fidelity features.`,
                     type: 'broadcast_warning',
                     persistenceMode: 'permanent',
@@ -374,7 +374,7 @@ export const BroadcastBanner: React.FC = () => {
                 banners.push({
                     _id: `system_trial_3days`,
                     broadcastId: `system_trial_3days`,
-                    title: '⏳ TRIAL ENDING SOON',
+                    title: 'TRIAL ENDING SOON',
                     message: `Your trial ends in ${daysRemaining} days, ${hoursRemaining} hours. Upgrade now to retain high-fidelity features.`,
                     type: 'broadcast_warning',
                     persistenceMode: 'permanent',
@@ -387,7 +387,7 @@ export const BroadcastBanner: React.FC = () => {
                 banners.push({
                     _id: `system_trial_5days`,
                     broadcastId: `system_trial_5days`,
-                    title: '⏳ TRIAL ENDING',
+                    title: 'TRIAL ENDING',
                     message: `Your trial ends in ${daysRemaining} days, ${hoursRemaining} hours. Upgrade now to retain high-fidelity features.`,
                     type: 'broadcast_info',
                     persistenceMode: 'permanent',
@@ -648,7 +648,7 @@ export const BroadcastBanner: React.FC = () => {
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
                             {persistenceMode === 'persistent' && (
-                                <span className="text-3xs font-bold text-slate-800/70 flex-shrink-0 leading-none">📌 Pinned</span>
+                                <span className="text-3xs font-bold text-slate-800/70 flex-shrink-0 leading-none">Pinned</span>
                             )}
                             {/* Title — bold DARK text, uppercase, leading-none for uniform height */}
                             <p className="text-sm font-bold text-slate-900 truncate uppercase tracking-wide leading-none">

@@ -5133,7 +5133,7 @@ export const approveSubscriptionRequest = mutation({
       await ctx.db.insert("notifications", {
         firmId: request.firmId,
         userId: u._id,
-        title: '🎉 Plan Activated',
+        title: 'Plan Activated',
         message: `Your account has been updated to the ${request.requestedPlan} plan! All associated features, higher limits, and modules are now active.`,
         type: 'subscription_activated',
         link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
@@ -5248,7 +5248,7 @@ export const activateFirmSubscription = internalMutation({
       await ctx.db.insert("notifications", {
         firmId: args.firmId,
         userId: u._id,
-        title: '🎉 Plan Activated',
+        title: 'Plan Activated',
         message: `Your account has been updated to the ${args.plan} plan! All associated features, higher limits, and modules are now active.`,
         type: 'subscription_activated',
         link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },

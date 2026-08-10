@@ -1487,9 +1487,41 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
                                                                 {d.floor && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
                                                             </div>
-                                                            <span className={`px-2 py-0.5 rounded-md text-2xs font-bold uppercase tracking-wide flex-shrink-0 border ${statusColors[uStatus] || 'bg-slate-50 dark:bg-zinc-800/50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}>
-                                                                {uStatus}
-                                                            </span>
+                                                            {/* DIRECT STATUS BADGE — clickable to open a quick status
+                                                                selector without expanding the card or opening edit modal. */}
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const el = e.currentTarget.nextElementSibling as HTMLElement;
+                                                                        if (el) el.classList.toggle('hidden');
+                                                                    }}
+                                                                    className={`px-2 py-0.5 rounded-md text-2xs font-bold uppercase tracking-wide flex-shrink-0 border cursor-pointer hover:ring-2 hover:ring-primary-500/30 transition-all ${statusColors[uStatus] || 'bg-slate-50 dark:bg-zinc-800/50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}
+                                                                    title="Click to change status"
+                                                                >
+                                                                    {uStatus}
+                                                                </button>
+                                                                <div className="hidden absolute right-0 top-full mt-1 z-50 w-36 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg">
+                                                                    {(['Occupied', 'Vacant', 'Maintenance', 'Listed'] as const).map(s => (
+                                                                        <button
+                                                                            key={s}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
+                                                                                const updatePayload: any = { ...full, status: s };
+                                                                                if ((full as any)._id) updatePayload._id = (full as any)._id;
+                                                                                updateItem('properties', updatePayload, 'Property');
+                                                                                addToast(`${d.name} marked as ${s}`, { type: 'success' });
+                                                                                const el = e.currentTarget.parentElement as HTMLElement;
+                                                                                if (el) el.classList.add('hidden');
+                                                                            }}
+                                                                            className={`block w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-700 ${uStatus === s ? 'text-primary-600 dark:text-primary-400 font-bold' : 'text-slate-600 dark:text-zinc-300'}`}
+                                                                        >
+                                                                            {s}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {/* ── Micro-Profile: Operational dynamics only ── */}
@@ -1634,149 +1666,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     </span>
                                                                 ) : null
                                                             )}
-                                                            <div className="relative" ref={menuOpen ? unitMenuRef : undefined}>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (menuOpen) {
-                                                                            setOpenUnitMenuId(null);
-                                                                            setOpenUnitMenuPos(null);
-                                                                        } else {
-                                                                            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                                                            // Start menu below the button; smart repositioning effect will adjust if it overflows
-                                                                            setOpenUnitMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                                                            setOpenUnitMenuId(unit.id);
-                                                                        }
-                                                                    }}
-                                                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-2xs font-bold uppercase tracking-wider"
-                                                                    aria-expanded={menuOpen}
-                                                                >
-                                                                    {/* Gear icon removed — replaced with a simpler 3-dot menu icon */}
-                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
-                                                                    </svg>
-                                                                </button>
-                                                                
-                                                                {openUnitMenuPos && menuOpen && (
-                                                                <div
-                                                                    ref={unitMenuInnerRef}
-                                                                    style={{ position: 'fixed', top: openUnitMenuPos.top, right: openUnitMenuPos.right, zIndex: 99999 }}
-                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl z-[99999] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
-                                                                >
-                                                                    <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
-                                                                        <p className="text-3xs font-black text-slate-400 uppercase tracking-tight">{d.name} — actions</p>
-                                                                    </div>
-                                                                    
-                                                                    {!isFloor ? (
-                                                                        <>
-                                                                            {unit.status === 'Occupied' ? (
-                                                                                <>
-                                                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                                        <>
-                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
-                                                                                                <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
-                                                                                            </button>
-                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-2xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
-                                                                                                <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
-                                                                                            </button>
-                                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
-                                                                                                <Megaphone className="w-3.5 h-3.5 shrink-0" /> Rent Demand
-                                                                                            </button>
-                                                                                        </>
-                                                                                    )}
-                                                                                    <button onClick={() => { setOpenUnitMenuId(null); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-3 py-2.5 text-2xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
-                                                                                        <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
-                                                                                    </button>
-                                                                                </>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                                        <Megaphone className="w-3.5 h-3.5 shrink-0" /> List Unit
-                                                                                    </button>
-                                                                                    <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                                        <Eye className="w-3.5 h-3.5 shrink-0" /> Record Viewing
-                                                                                    </button>
-                                                                                </>
-                                                                            )}
-                                                                            
-                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
-                                                                                <Wrench className="w-3.5 h-3.5 shrink-0" /> Log Maintenance
-                                                                            </button>
-                                                                            
-                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-2xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
-                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize {isProperty ? 'Management File' : 'Legal File'}
-                                                                            </button>
-
-                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && coreState.documentTemplates && coreState.documentTemplates.length > 0 && (
-                                                                                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-zinc-700/50">
-                                                                                    <p className="px-3 py-1 text-3xs font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
-                                                                                    {coreState.documentTemplates.slice(0, 3).map((template: any) => (
-                                                                                        <button 
-                                                                                            key={template.id} 
-                                                                                            onClick={() => { setOpenUnitMenuId(null); handleApplyTemplate(template, unit); }} 
-                                                                                            className="px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
-                                                                                        >
-                                                                                            <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{template.name}</span>
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                                    <Radio className="w-3.5 h-3.5 shrink-0" /> Manage Floor Assets
-                                                                            </button>
-                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-2xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
-                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize Floor Legal File
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                    {/* Status toggle */}
-                                                                    <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
-                                                                        {uStatus !== 'Vacant' && (
-                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                                <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
-                                                                            </button>
-                                                                        )}
-                                                                        {uStatus === 'Vacant' && (
-                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
-                                                                                <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
-                                                                            </button>
-                                                                        )}
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setOpenUnitMenuId(null);
-                                                                                try {
-                                                                                    sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({ unitId: unit.id, unitName: d.name, tenantName: d.tenantName, tenantPhone: rental.tenantPhone || '', tenantEmail: rental.tenantEmail || '', rentAmount: d.rentAmount, propertyAddress: property.address }));
-                                                                                    sessionStorage.setItem('atrium_open_tab', 'inbox');
-                                                                                } catch (_) {}
-                                                                                navigateTo('atriumEngine');
-                                                                            }}
-                                                                            className="px-3 py-2.5 text-2xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
-                                                                        >
-                                                                            <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
-                                                                        </button>
-                                                                        {/* CRO AUDIT FIX — Export Unit Report dead code removed.
-                                                                            Was wrapped in {false && (...}) — tracked in roadmap. */}
-                                                                    </div>
-
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setOpenUnitMenuId(null);
-                                                                            setOpenUnitMenuPos(null);
-                                                                            handleRemoveUnit(unit, d);
-                                                                        }}
-                                                                        className="px-3 py-2.5 text-2xs font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
-                                                                    >
-                                                                        <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
-                                                                    </button>
-                                                                </div>
-                                                                )}
-                                                            </div>
+                                                            {/* THREE-DOT MENU REMOVED — all actions available in expanded view. Status badge is directly clickable. */}
                                                         </div>
 
                                                         {/* ── Inline Expanded View: Two-tier design ── 

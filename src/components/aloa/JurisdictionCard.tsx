@@ -118,7 +118,7 @@ export function JurisdictionCard({
             <circle cx="12" cy="9" r="2.5" />
           </svg>
           Applicable Framework
-          {locked && <span className="text-3xs">🔒</span>}
+          {locked && <span className="text-3xs">(L)</span>}
         </button>
         <span className="px-2 py-0.5 text-2xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 whitespace-nowrap truncate max-w-[180px]" title={forum}>
           {forum}
@@ -140,7 +140,7 @@ export function JurisdictionCard({
       {/* ─── Conditional Warning (only if genuine risk) ─── */}
       {warning && (
         <div className="p-2.5 rounded bg-amber-50 border border-amber-200 text-2xs text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400 flex items-start gap-1.5">
-          <span className="flex-shrink-0">⚠️</span>
+          <span className="flex-shrink-0">!:</span>
           <span><strong>Note:</strong> {warning}</span>
         </div>
       )}

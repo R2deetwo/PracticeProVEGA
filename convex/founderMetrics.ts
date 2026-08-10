@@ -458,8 +458,8 @@ export const updateFirmAdminSettings = mutation({
         .collect();
 
       const title = planChangeType === 'upgrade'
-        ? '🎉 Plan Upgraded'
-        : '⚠️ Plan Updated';
+        ? 'Plan Upgraded'
+        : 'Plan Updated';
       const message = planChangeType === 'upgrade'
         ? `Your account has been upgraded to the ${newPlan} plan! All premium features and expanded limits are now unlocked.`
         : `Your account has been transitioned to the ${newPlan} plan. Some higher-tier features may now be restricted.`;

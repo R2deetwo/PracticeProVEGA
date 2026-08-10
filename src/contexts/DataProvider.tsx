@@ -321,18 +321,27 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, [markNotificationsMutation, currentUser?.email]);
 
     const handleClearAllNotifications = React.useCallback(async () => {
-        // Optimistic update — immediately clear all notifications from local state
-        // so the bell badge drops to 0 instantly without waiting for Convex.
+        // OPTIMISTIC UI — immediately mark all notifications as read + clear
+        // the local array so the bell badge drops to 0 instantly.
+        // Previously: only cleared the array (setNotifications([])) but the
+        // Convex subscription immediately pushed back the real data (with
+        // notifications still unread), causing them to flash back.
+        // Fix: mark all as read in the optimistic update so when Convex
+        // pushes back, they're already isRead=true and won't show as unread.
         setAppState(prev => ({
             ...prev,
-            notifications: [],
+            notifications: (prev.notifications || []).map((n: any) => ({
+                ...n,
+                isRead: true,
+            })),
         }));
         try {
             await clearAllNotificationsMutation({ userEmail: currentUser?.email });
+            // After the mutation completes, the Convex subscription will
+            // push the updated data (all isRead=true). The local state
+            // already matches, so no flash-back.
         } catch (err: any) {
             console.warn('[handleClearAllNotifications] Failed:', err?.message);
-            // On failure, the Convex subscription will push the real data back
-            // (no revert needed — the next query refresh restores the true state)
         }
     }, [clearAllNotificationsMutation, currentUser?.email]);
     

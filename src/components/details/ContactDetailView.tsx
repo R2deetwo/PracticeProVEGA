@@ -54,7 +54,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
                 title: `Matter: ${m.title}`,
                 subtitle: `${m.type || 'General'} · ${m.stage || '—'}`,
                 timestamp: m.createdAt || new Date().toISOString(),
-                icon: '📋',
+                icon: 'M',
             });
         });
 
@@ -68,7 +68,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
                     title: `Task: ${t.title}`,
                     subtitle: t.status === 'done' ? 'Completed' : t.status === 'in_progress' ? 'In Progress' : 'To Do',
                     timestamp: t.createdAt || new Date().toISOString(),
-                    icon: '✓',
+                    icon: 'C',
                 });
             }
         });
@@ -99,7 +99,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
                     title: `Invoice: ${inv.invoiceNumber || '—'}`,
                     subtitle: `${inv.status} · ₦${(inv.total_amount || 0).toLocaleString()}`,
                     timestamp: inv.issueDate || inv.createdAt || new Date().toISOString(),
-                    icon: '💰',
+                    icon: 'I',
                 });
             }
         });

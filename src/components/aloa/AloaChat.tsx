@@ -1057,7 +1057,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         const apiKey = getGeminiApiKey();
         if (!apiKey) {
-            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. Here's how to get one:\n\n1. **Get your free key** at [Google AI Studio](https://aistudio.google.com/app/apikey)\n2. **Paste it** in **Settings → Agents → API Key Configuration**\n\n> 💡 The key is stored locally on your device and never sent to our servers.", actions: [{ type: 'navigate', target: '/settings?tab=agents', label: 'Go to API Settings' }] }]);
+            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. Here's how to get one:\n\n1. **Get your free key** at [Google AI Studio](https://aistudio.google.com/app/apikey)\n2. **Paste it** in **Settings → Agents → API Key Configuration**\n\n> The key is stored locally on your device and never sent to our servers.", actions: [{ type: 'navigate', target: '/settings?tab=agents', label: 'Go to API Settings' }] }]);
             return;
         }
 
@@ -1212,7 +1212,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 }, {
                     id: uuidv4(),
                     role: 'model',
-                    content: `**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. It's free and takes 30 seconds:\n\n**1. Get your free key** → [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**2. Paste it** in **Settings → AI Settings → API Key Configuration**\n\n> 💡 The key is stored locally on your device and never sent to our servers.\n\nClick the button below to go straight to your AI Settings →`,
+                    content: `**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. It's free and takes 30 seconds:\n\n**1. Get your free key** → [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**2. Paste it** in **Settings → AI Settings → API Key Configuration**\n\n> The key is stored locally on your device and never sent to our servers.\n\nClick the button below to go straight to your AI Settings →`,
                     isError: true,
                     toolAction: {
                         type: 'navigate',

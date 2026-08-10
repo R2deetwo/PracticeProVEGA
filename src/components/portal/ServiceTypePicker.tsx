@@ -142,7 +142,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                     {selectedOption ? (
                         <>
-                            <span className="text-lg flex-shrink-0">{selectedOption.icon || '📋'}</span>
+                            <span className="text-lg flex-shrink-0">{selectedOption.icon || 'M'}</span>
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">
                                     {selectedOption.label}
@@ -207,7 +207,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                                                     : 'hover:bg-slate-50 dark:hover:bg-zinc-700/50'
                                             }`}
                                         >
-                                            <span className="text-lg flex-shrink-0">{opt.icon || '📋'}</span>
+                                            <span className="text-lg flex-shrink-0">{opt.icon || 'M'}</span>
                                             <div className="flex-1 min-w-0">
                                                 <p className={`text-sm font-semibold truncate ${
                                                     isSelected
@@ -279,7 +279,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                                                     : 'hover:bg-slate-50 dark:hover:bg-zinc-800'
                                             }`}
                                         >
-                                            <span className="text-2xl flex-shrink-0">{opt.icon || '📋'}</span>
+                                            <span className="text-2xl flex-shrink-0">{opt.icon || 'M'}</span>
                                             <div className="flex-1 min-w-0">
                                                 <p className={`text-sm font-semibold truncate ${
                                                     isSelected
