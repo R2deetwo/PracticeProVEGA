@@ -224,15 +224,27 @@ export interface RentPayment { id: string; dueDate: string; paidDate?: string; a
 
 /** Per-period tracking for Service Charge (SC) and Minimum Vend (MV).
  *  One entry per elapsed billing period from leaseStart to current date.
- *  - paid: settled on time (green)
- *  - late: paid after the due date (orange — default warning)
- *  - outstanding: not yet paid past due date (red) */
+ *
+ *  Status semantics:
+ *  - 'paid'        → balance settled (green pill)
+ *  - 'late'        → paid after due date OR currently past due & unpaid (orange pill)
+ *  - 'outstanding' → unpaid, not yet past due (red pill only when explicitly unpaid
+ *                    and overdue; auto-late engine promotes to 'late' once past due)
+ *
+ *  The `paidOnTime` flag retains the historical audit distinction:
+ *  - paidOnTime: true  → "PAID ON TIME" (settled on or before due date)
+ *  - paidOnTime: false → "PAID LATE" (settled after due date — still orange
+ *                        in the historical timeline even though balance is ₦0)
+ *  - undefined         → no payment logged yet */
 export interface ServiceChargePeriod {
     index: number;       // 1-based period number
     dueDate: string;     // ISO date when this period's charge was due
     status: 'paid' | 'late' | 'outstanding';
     paidDate?: string;   // ISO date when payment was recorded (if paid/late)
     amount: number;      // per-period charge amount
+    /** Whether the payment was settled on time (≤ due date) vs late (> due date).
+     *  Retained permanently for historical audit even after balance settles. */
+    paidOnTime?: boolean;
 }
 export enum PropertyStatus { Occupied = 'Occupied', Vacant = 'Vacant', Listed = 'Listed', Maintenance = 'Maintenance', Sold = 'Sold' }
 export enum PropertyCategory { Tenanted = 'Tenanted Property', ForSale = 'Property For Sale', Disputed = 'Disputed Property', Personal = 'Personal Residence', Other = 'Other' }

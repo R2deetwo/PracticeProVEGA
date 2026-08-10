@@ -1,30 +1,46 @@
 /**
- * ServiceChargeBars — Interactive per-period progress bars for Service Charge (SC)
+ * ServiceChargeBars — Interactive per-period status pills for Service Charge (SC)
  * and Minimum Vend (MV).
  *
- * Renders one colored bar per elapsed billing period from leaseStart to now:
- *   🟩 Green  = Paid / Clear (settled on time)
- *   🟧 Orange = Late Payment / Default Warning (paid after due date)
- *   🟥 Red    = Outstanding / Overdue (unpaid past due date)
+ * Renders one colored "status pill" per elapsed billing period from leaseStart
+ * to now. Pills are labeled with month abbreviations (Jan, Feb, Mar...) so
+ * property managers can immediately identify chronic defaulters.
  *
- * Clicking any bar opens the Quick Payment Drawer where the user can toggle
- * the period's status between Paid / Late / Outstanding. When a period is
- * marked as Paid, an inline "[Generate & Issue Receipt]" prompt appears.
+ * Pill colors:
+ *   🟢 Green  = Paid On Time (settled on or before due date)
+ *   🟠 Orange = Paid Late (settled after due date — historical audit retained)
+ *               OR Currently Late (past due date & unpaid — auto-flagged)
+ *   🔴 Red    = Outstanding (unpaid, not yet past due)
  *
- * Data model:
- *   Periods are computed from leaseStart + rentFrequency. The per-period
- *   status is persisted in rentalDetails.scPeriods / rentalDetails.mvPeriods.
- *   When no stored status exists for a period, it defaults to 'outstanding'.
+ * Automated Late-Status Engine:
+ *   When the current calendar date exceeds a period's due date AND no payment
+ *   has been logged, the system automatically flags the period as 'late' (orange).
+ *   This runs on every render via the mergePeriods() function — no cron needed.
+ *
+ * Permanent Historical Record:
+ *   Marking a LATE period as PAID settles the financial balance (allowing
+ *   receipt generation) but retains the `paidOnTime: false` flag. The pill
+ *   stays orange in the historical timeline (PAID LATE), even though the
+ *   balance is ₦0. A period marked on or before its due date gets
+ *   `paidOnTime: true` (PAID ON TIME — green pill).
+ *
+ * Hover Tooltip:
+ *   Hovering any pill shows: month name, amount, status (Paid On Time /
+ *   Paid Late / Outstanding), settled date (if applicable), and a link to
+ *   view/issue a receipt.
+ *
+ * Quick Payment Drawer:
+ *   Clicking any pill opens a slide-in drawer with 3 toggle buttons
+ *   (Paid / Late / Outstanding) and a [Generate & Issue Receipt] prompt.
  *
  * Integration:
  *   Shown on unit cards in PropertyDetailView, replacing the old static
  *   SC/MV badges. Vertically aligned with the Term Progress row (Calendar icon).
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Property, ServiceChargePeriod } from '../../types';
-import { formatNairaCompact, formatDateShort } from '../../utils/formatting';
-import NairaSymbol from '../NairaSymbol';
+import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { CalendarIcon, XIcon, CheckCircleIcon, DownloadIcon } from '../../constants';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -38,6 +54,27 @@ const periodMonths = (freq?: string): number => {
     if (f.includes('quarter')) return 3;
     if (f.includes('month')) return 1;
     return 12;
+};
+
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const FULL_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const getMonthLabel = (isoDate: string): string => {
+    try {
+        const d = new Date(isoDate);
+        return MONTH_ABBR[d.getMonth()] || '';
+    } catch {
+        return '';
+    }
+};
+
+const getFullMonthYear = (isoDate: string): string => {
+    try {
+        const d = new Date(isoDate);
+        return `${FULL_MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    } catch {
+        return '';
+    }
 };
 
 /**
@@ -68,7 +105,7 @@ function computeElapsedPeriods(
         periods.push({
             index: idx,
             dueDate,
-            status: 'outstanding', // default; will be overridden by stored data
+            status: 'outstanding', // default; auto-late engine + stored data will override
             amount: perPeriodAmount,
         });
         periodStart += periodMs;
@@ -78,28 +115,148 @@ function computeElapsedPeriods(
 }
 
 /**
- * Merge computed periods with stored status data.
- * Stored periods are matched by index. If no stored data exists, the period
- * defaults to 'outstanding'.
+ * Merge computed periods with stored status data AND apply the auto-late engine.
+ *
+ * Auto-late logic:
+ *   - If a period has a stored status of 'paid' or 'late', use that (with paidOnTime flag).
+ *   - If a period has NO stored status (default 'outstanding') AND its dueDate is
+ *     in the past, automatically promote it to 'late' (currently past due & unpaid).
+ *   - If a period's dueDate is today or in the future, keep it as 'outstanding'.
+ *
+ * This runs on every render, so the timeline is always current without needing
+ * a cron job. The auto-promotion only affects display — it does NOT write to
+ * the stored data unless the user explicitly logs a payment.
  */
 function mergePeriods(
     computed: ServiceChargePeriod[],
     stored: ServiceChargePeriod[] | undefined,
 ): ServiceChargePeriod[] {
-    if (!stored || stored.length === 0) return computed;
+    if (!stored || stored.length === 0) {
+        // No stored data — apply auto-late to all computed periods
+        const now = Date.now();
+        return computed.map(p => {
+            const dueMs = new Date(p.dueDate).getTime();
+            if (dueMs < now) {
+                return { ...p, status: 'late' as const }; // auto-late: past due & unpaid
+            }
+            return p;
+        });
+    }
     const storedMap = new Map(stored.map(p => [p.index, p]));
+    const now = Date.now();
     return computed.map(p => {
         const s = storedMap.get(p.index);
-        return s ? { ...p, status: s.status, paidDate: s.paidDate } : p;
+        if (s) {
+            // Stored record exists — use its status + paidOnTime flag
+            return { ...p, status: s.status, paidDate: s.paidDate, paidOnTime: s.paidOnTime };
+        }
+        // No stored record — apply auto-late if past due
+        const dueMs = new Date(p.dueDate).getTime();
+        if (dueMs < now) {
+            return { ...p, status: 'late' as const };
+        }
+        return p;
     });
 }
 
-// ─── Status colors ──────────────────────────────────────────────────────────
-const STATUS_COLORS = {
-    paid:        { bar: 'bg-emerald-500', hover: 'hover:bg-emerald-600', label: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', name: 'Paid' },
-    late:        { bar: 'bg-amber-500',   hover: 'hover:bg-amber-600',   label: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-900/20',   name: 'Late' },
-    outstanding: { bar: 'bg-red-500',     hover: 'hover:bg-red-600',     label: 'text-red-600 dark:text-red-400',       bg: 'bg-red-50 dark:bg-red-900/20',       name: 'Outstanding' },
-} as const;
+// ─── Status colors & metadata ───────────────────────────────────────────────
+// Note: a 'paid' period with paidOnTime=false is displayed as ORANGE (Paid Late)
+// in the historical timeline, even though its balance is ₦0. This is the
+// "permanent historical record" behavior the user requested.
+interface StatusMeta {
+    pill: string;       // pill background color
+    hover: string;      // hover state
+    label: string;      // text color for status label
+    bg: string;         // soft background for drawer status box
+    name: string;       // human-readable name
+    description: string;// long-form description for tooltip
+}
+
+const getStatusMeta = (period: ServiceChargePeriod): StatusMeta => {
+    if (period.status === 'paid') {
+        if (period.paidOnTime === false) {
+            // Paid Late — orange pill, balance settled but history retained
+            return {
+                pill: 'bg-amber-500',
+                hover: 'hover:bg-amber-600',
+                label: 'text-amber-600 dark:text-amber-400',
+                bg: 'bg-amber-50 dark:bg-amber-900/20',
+                name: 'Paid Late',
+                description: `Settled on ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (after due date)`,
+            };
+        }
+        // Paid On Time — green pill
+        return {
+            pill: 'bg-emerald-500',
+            hover: 'hover:bg-emerald-600',
+            label: 'text-emerald-600 dark:text-emerald-400',
+            bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+            name: 'Paid On Time',
+            description: `Settled on ${period.paidDate ? formatDateShort(period.paidDate) : '—'}`,
+        };
+    }
+    if (period.status === 'late') {
+        // Currently late (past due & unpaid) OR explicitly marked late
+        return {
+            pill: 'bg-amber-500',
+            hover: 'hover:bg-amber-600',
+            label: 'text-amber-600 dark:text-amber-400',
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            name: 'Late',
+            description: period.paidDate
+                ? `Settled on ${formatDateShort(period.paidDate)} (after due date)`
+                : 'Past due date — unpaid',
+        };
+    }
+    // Outstanding — red pill
+    return {
+        pill: 'bg-red-500',
+        hover: 'hover:bg-red-600',
+        label: 'text-red-600 dark:text-red-400',
+        bg: 'bg-red-50 dark:bg-red-900/20',
+        name: 'Outstanding',
+        description: 'Unpaid — not yet past due',
+    };
+};
+
+// ─── Rich Hover Tooltip ─────────────────────────────────────────────────────
+interface PillTooltipProps {
+    period: ServiceChargePeriod;
+    chargeType: 'SC' | 'MV';
+}
+
+const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType }) => {
+    const meta = getStatusMeta(period);
+    return (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-lg bg-slate-900 dark:bg-zinc-800 text-white shadow-xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+            {/* Arrow */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px w-2 h-2 bg-slate-900 dark:bg-zinc-800 rotate-45" />
+            <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                    <CalendarIcon className="w-3 h-3 text-slate-400" />
+                    <span className="text-2xs font-bold text-slate-300 uppercase tracking-wider">
+                        {getFullMonthYear(period.dueDate)}
+                    </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-2xs text-slate-400 w-12">Amount</span>
+                    <span className="text-sm font-bold text-white">{formatNairaCompact(period.amount)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-2xs text-slate-400 w-12">Status</span>
+                    <span className={`text-xs font-bold ${meta.label}`}>{meta.name}</span>
+                </div>
+                <p className="text-2xs text-slate-400 italic">{meta.description}</p>
+                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-700/50">
+                    <DownloadIcon className="w-3 h-3 text-emerald-400" />
+                    <span className="text-2xs font-bold text-emerald-400">
+                        {period.status === 'paid' ? 'View/Issue Receipt' : 'Click to log payment'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // ─── Quick Payment Drawer ───────────────────────────────────────────────────
 interface QuickPaymentDrawerProps {
@@ -115,18 +272,23 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     period, chargeType, unitName, onClose, onStatusChange, onGenerateReceipt,
 }) => {
     if (!period) return null;
-    const colors = STATUS_COLORS[period.status];
+    const meta = getStatusMeta(period);
 
     return (
         <>
-            {/* Backdrop */}
+            {/* Backdrop — fixed inset-0, dark overlay, pointer-events-auto
+                ensures background buttons/cards are NOT clickable while drawer
+                is open. z-[4500] sits above all unit card content. */}
             <div
-                className="fixed inset-0 z-[4500] bg-black/40 sm:backdrop-blur-sm"
+                className="fixed inset-0 z-[4500] bg-black/50 sm:backdrop-blur-sm pointer-events-auto"
                 onClick={onClose}
+                aria-hidden="true"
             />
-            {/* Drawer — slides in from the right */}
+            {/* Drawer — slides in from the right.
+                z-[4501] sits above the backdrop. pointer-events-auto explicitly
+                enables interaction on the drawer itself. */}
             <div
-                className="fixed top-0 right-0 bottom-0 z-[4501] w-full sm:max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+                className="fixed top-0 right-0 bottom-0 z-[4501] w-full sm:max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 pointer-events-auto"
                 role="dialog"
                 aria-modal="true"
             >
@@ -134,7 +296,7 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800 flex-shrink-0">
                     <div>
                         <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">
-                            {chargeType} · Period {period.index}
+                            {chargeType} · {getFullMonthYear(period.dueDate)}
                         </p>
                         <h2 className="text-lg font-black text-slate-900 dark:text-white">
                             Quick Payment
@@ -153,29 +315,28 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                    {/* Amount */}
+                    {/* Amount — single Naira symbol via formatNairaCompact (which
+                        already injects ₦). No hardcoded ₦ prefix here. */}
                     <div className="p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-700/60">
                         <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                             Charge Amount
                         </p>
                         <p className="text-2xl font-black text-slate-900 dark:text-white">
-                            <NairaSymbol />{formatNairaCompact(period.amount)}
+                            {formatNairaCompact(period.amount)}
                         </p>
                     </div>
 
                     {/* Current status */}
-                    <div className={`p-3 rounded-lg ${colors.bg} border border-transparent`}>
+                    <div className={`p-3 rounded-lg ${meta.bg} border border-transparent`}>
                         <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                             Current Status
                         </p>
-                        <p className={`text-sm font-black uppercase ${colors.label}`}>
-                            {colors.name}
+                        <p className={`text-sm font-black uppercase ${meta.label}`}>
+                            {meta.name}
                         </p>
-                        {period.paidDate && (
-                            <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1">
-                                Paid on {formatDateShort(period.paidDate)}
-                            </p>
-                        )}
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1">
+                            {meta.description}
+                        </p>
                     </div>
 
                     {/* Toggle buttons */}
@@ -185,26 +346,39 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                         <div className="grid grid-cols-3 gap-2">
                             {(['paid', 'late', 'outstanding'] as const).map(s => {
-                                const c = STATUS_COLORS[s];
+                                // For the toggle button highlight, 'paid' with paidOnTime=false
+                                // should highlight the 'paid' button (balance is settled).
                                 const isActive = period.status === s;
+                                const colorClass =
+                                    s === 'paid' ? 'bg-emerald-500' :
+                                    s === 'late' ? 'bg-amber-500' :
+                                    'bg-red-500';
+                                const labelName =
+                                    s === 'paid' ? 'Paid' :
+                                    s === 'late' ? 'Late' :
+                                    'Outstanding';
                                 return (
                                     <button
                                         key={s}
                                         onClick={() => onStatusChange(s)}
                                         className={`px-3 py-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all border-2 ${
                                             isActive
-                                                ? `${c.bar} text-white border-transparent shadow-md`
+                                                ? `${colorClass} text-white border-transparent shadow-md`
                                                 : `bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600`
                                         }`}
                                     >
-                                        {c.name}
+                                        {labelName}
                                     </button>
                                 );
                             })}
                         </div>
+                        <p className="text-2xs text-slate-400 mt-2 italic">
+                            Marking a late period as Paid settles the balance but retains the
+                            &ldquo;Paid Late&rdquo; flag in the historical timeline.
+                        </p>
                     </div>
 
-                    {/* Receipt prompt — shown when status is 'paid' */}
+                    {/* Receipt prompt — shown when status is 'paid' (balance settled) */}
                     {period.status === 'paid' && (
                         <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="flex items-start gap-3">
@@ -213,7 +387,7 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-                                        Payment Recorded
+                                        Payment Recorded{period.paidOnTime === false ? ' (Late)' : ''}
                                     </p>
                                     <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
                                         Generate an itemized receipt for this {chargeType} payment.
@@ -235,9 +409,44 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     );
 };
 
+// ─── Status Pill (with hover tooltip) ───────────────────────────────────────
+interface StatusPillProps {
+    period: ServiceChargePeriod;
+    chargeType: 'SC' | 'MV';
+    onClick: () => void;
+}
+
+const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) => {
+    const [hovered, setHovered] = useState(false);
+    const meta = getStatusMeta(period);
+    const monthLabel = getMonthLabel(period.dueDate);
+
+    return (
+        <div
+            className="relative inline-block"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+        >
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClick();
+                }}
+                className={`h-6 px-1.5 rounded-md ${meta.pill} ${meta.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer flex items-center justify-center text-3xs font-black text-white min-w-[28px]`}
+                aria-label={`${meta.name} — ${getFullMonthYear(period.dueDate)}`}
+            >
+                {monthLabel}
+            </button>
+            {hovered && (
+                <PillTooltip period={period} chargeType={chargeType} />
+            )}
+        </div>
+    );
+};
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 interface ServiceChargeBarsProps {
-    /** The unit (Property) to render bars for. */
+    /** The unit (Property) to render pills for. */
     unit: Property;
     /** Called when period status changes, with the updated rentalDetails. */
     onUpdate: (updatedRentalDetails: Property['rentalDetails']) => void;
@@ -263,7 +472,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     // SC amount
     const scAmount = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
 
-    // Compute periods
+    // Compute periods (with auto-late engine applied in mergePeriods)
     const scPeriods = useMemo(
         () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, frequency, scAmount), rental?.scPeriods),
         [leaseStart, leaseEnd, frequency, scAmount, rental?.scPeriods],
@@ -285,26 +494,46 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
         const updatedPeriods = [...currentPeriods];
         const existingIdx = updatedPeriods.findIndex(p => p.index === selectedPeriod.index);
+
+        // Determine paidOnTime flag:
+        // - If new status is 'paid' or 'late' (settling), check if payment date
+        //   is on/before due date (paidOnTime=true) or after (paidOnTime=false).
+        // - If new status is 'outstanding', clear the flag.
+        let paidOnTime: boolean | undefined;
+        const todayIso = new Date().toISOString().split('T')[0];
+        if (newStatus === 'paid' || newStatus === 'late') {
+            const dueMs = new Date(selectedPeriod.dueDate).getTime();
+            const paidMs = new Date(todayIso).getTime();
+            paidOnTime = paidMs <= dueMs;
+        } else {
+            paidOnTime = undefined;
+        }
+
         const updated: ServiceChargePeriod = {
             ...selectedPeriod,
             status: newStatus,
-            paidDate: newStatus === 'paid' || newStatus === 'late'
-                ? new Date().toISOString().split('T')[0]
-                : undefined,
+            paidDate: newStatus === 'paid' || newStatus === 'late' ? todayIso : undefined,
+            paidOnTime,
         };
+
         if (existingIdx >= 0) {
             updatedPeriods[existingIdx] = updated;
         } else {
             updatedPeriods.push(updated);
             updatedPeriods.sort((a, b) => a.index - b.index);
         }
-        // Update the aggregate serviceChargeStatus based on all periods
-        const allPaid = updatedPeriods.every(p => p.status === 'paid');
-        const anyOutstanding = updatedPeriods.some(p => p.status === 'outstanding');
+
+        // Update the aggregate serviceChargeStatus based on all periods.
+        // A period counts as "settled" if its balance is ₦0 (status === 'paid',
+        // regardless of paidOnTime). 'late' without a paidDate is still unpaid.
+        const allSettled = updatedPeriods.every(p => p.status === 'paid');
+        const anyUnsettled = updatedPeriods.some(p =>
+            p.status === 'outstanding' || (p.status === 'late' && !p.paidDate)
+        );
         let aggregateStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' = 'UNPAID';
-        if (allPaid) aggregateStatus = 'PAID_FULLY';
-        else if (anyOutstanding && updatedPeriods.some(p => p.status !== 'outstanding')) aggregateStatus = 'PARTIALLY_PAID';
-        else if (anyOutstanding) aggregateStatus = 'UNPAID';
+        if (allSettled) aggregateStatus = 'PAID_FULLY';
+        else if (anyUnsettled && updatedPeriods.some(p => p.status === 'paid')) aggregateStatus = 'PARTIALLY_PAID';
+        else if (anyUnsettled) aggregateStatus = 'UNPAID';
         else aggregateStatus = 'PARTIALLY_PAID';
 
         const updatedRental = {
@@ -314,7 +543,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             ...(selectedChargeType === 'SC' ? { serviceChargeStatus: aggregateStatus } : {}),
         } as Property['rentalDetails'];
         onUpdate(updatedRental!);
-        // Update the selected period in the drawer
+        // Update the selected period in the drawer so the UI reflects the new status
         setSelectedPeriod(updated);
     }, [selectedPeriod, selectedChargeType, rental, onUpdate]);
 
@@ -325,59 +554,58 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         setDrawerOpen(false);
     }, [selectedPeriod, selectedChargeType, onGenerateReceipt]);
 
+    // Close drawer on Escape key
+    useEffect(() => {
+        if (!drawerOpen) return;
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setDrawerOpen(false);
+        };
+        document.addEventListener('keydown', handleEsc);
+        return () => document.removeEventListener('keydown', handleEsc);
+    }, [drawerOpen]);
+
     // Render nothing if no SC and no MV
     if (scAmount <= 0 && (!mvEnabled || mvAmount <= 0)) return null;
 
     return (
         <>
-            {/* SC Bars */}
+            {/* SC Pills */}
             {scAmount > 0 && scPeriods.length > 0 && (
                 <div className="flex items-center gap-1.5">
                     <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs w-6 flex-shrink-0">SC</span>
                     <div className="flex items-center gap-1 flex-wrap">
-                        {scPeriods.map(period => {
-                            const c = STATUS_COLORS[period.status];
-                            return (
-                                <button
-                                    key={period.index}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleBarClick(period, 'SC');
-                                    }}
-                                    title={`Period ${period.index} · ${c.name} · Due ${formatDateShort(period.dueDate)}`}
-                                    className={`h-2.5 w-8 rounded-full ${c.bar} ${c.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer`}
-                                />
-                            );
-                        })}
+                        {scPeriods.map(period => (
+                            <StatusPill
+                                key={period.index}
+                                period={period}
+                                chargeType="SC"
+                                onClick={() => handleBarClick(period, 'SC')}
+                            />
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* MV Bars */}
+            {/* MV Pills */}
             {mvEnabled && mvAmount > 0 && mvPeriods.length > 0 && (
                 <div className="flex items-center gap-1.5">
                     <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs w-6 flex-shrink-0">MV</span>
                     <span className="text-3xs font-bold text-slate-500 dark:text-zinc-400 mr-0.5">{mvLabel}</span>
                     <div className="flex items-center gap-1 flex-wrap">
-                        {mvPeriods.map(period => {
-                            const c = STATUS_COLORS[period.status];
-                            return (
-                                <button
-                                    key={period.index}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleBarClick(period, 'MV');
-                                    }}
-                                    title={`Period ${period.index} · ${c.name} · Due ${formatDateShort(period.dueDate)}`}
-                                    className={`h-2.5 w-8 rounded-full ${c.bar} ${c.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer`}
-                                />
-                            );
-                        })}
+                        {mvPeriods.map(period => (
+                            <StatusPill
+                                key={period.index}
+                                period={period}
+                                chargeType="MV"
+                                onClick={() => handleBarClick(period, 'MV')}
+                            />
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* Quick Payment Drawer */}
+            {/* Quick Payment Drawer — rendered via portal-free fixed overlay.
+                The backdrop blocks all background pointer events. */}
             {drawerOpen && (
                 <QuickPaymentDrawer
                     period={selectedPeriod}
