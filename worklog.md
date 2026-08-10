@@ -6197,3 +6197,49 @@ Files Modified:
 - src/components/details/PropertyDetailView.tsx (emerald glow highlight class)
 - src/index.css (emerald-pulse keyframes + .unit-card-highlight class)
 - convex/myFunctions.ts (deep-link context on lease_expiry + lease_expired notifications)
+
+---
+Task ID: 16
+Agent: Main Agent
+Task: Historical ledger engine + advance payment tracking + onboarding bulk settle
+
+Work Log:
+1. Dynamic Period Calculation Engine (ServiceChargeBars.tsx):
+   - Fixed calendar math: now uses calendar-month arithmetic (new Date(year, month+periodM, day)) instead of fixed 30.44 days. A Jan 1 start with monthly frequency now correctly produces Feb 1, Mar 1, Apr 1... regardless of month length.
+   - Removed auto-late engine: historical periods now default to OUTSTANDING (red) per the latest brief, instead of being auto-promoted to LATE (orange).
+   - Added computeAdvancePeriods(): generates future pre-paid period pills for stored periods with status='advance_paid' whose index exceeds the elapsed count.
+   - mergePeriods() now appends advance periods after historical elapsed periods.
+
+2. ADVANCE_PAID Status Type (new):
+   - Added 'advance_paid' to ServiceChargePeriod.status union + isAdvance flag.
+   - Blue pill color (bg-blue-500) for advance-paid future cycles.
+   - getStatusMeta() returns blue color + 'Advance Paid' name.
+   - Quick Payment Drawer toggle now has 4 buttons (grid-cols-2): Paid On Time, Paid Late, Outstanding, Advance Paid.
+   - Aggregate status treats advance_paid as settled.
+
+3. OnboardUnitLedgerModal (new component):
+   - Quick-settle interface for onboarding existing tenants.
+   - Lists all elapsed billing periods with individual status toggle dots.
+   - Bulk controls: [All Paid On Time] / [All Paid Late] / [Reset All].
+   - [Add Advance Pre-Paid Period] button creates future blue periods.
+   - [Apply Ledger] saves to rentalDetails.scPeriods/mvPeriods.
+
+4. Wiring into PropertyForm:
+   - Added "Settle SC Historical Ledger" + "Settle MV Historical Ledger" buttons in the Lease & Rent Configuration section.
+   - onApply writes periods to activeUnit + auto-updates aggregate SC status.
+   - Added scPeriods/mvPeriods to UnitRentalInput interface.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 21.02s
+- Convex: deployed successfully
+- Cloudflare Workers: sha abdf88ee, status healthy ✅
+
+Files Created:
+- src/components/modals/OnboardUnitLedgerModal.tsx (~280 lines)
+
+Files Modified:
+- src/types.ts (added 'advance_paid' status + isAdvance flag to ServiceChargePeriod)
+- src/utils/propertyPayload.ts (added scPeriods/mvPeriods to UnitRentalInput)
+- src/components/details/ServiceChargeBars.tsx (calendar-month math, removed auto-late, advance period support, 4th toggle button)
+- src/components/forms/PropertyForm.tsx (OnboardUnitLedgerModal wiring + Settle Ledger buttons)
