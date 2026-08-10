@@ -6418,3 +6418,31 @@ Verification:
 - Build: succeeded in 20.50s
 - Git: committed as 65b2426, pushed to origin/main + synced to origin/master
 - Cloudflare: requires manual `npx wrangler deploy` from user's machine
+
+---
+Task ID: 22
+Agent: Main Agent
+Task: SecurityCenter admin view + online presence + disposable email blocking
+
+ADMIN APK CHANGES — triggers build-admin-apk.yml workflow:
+
+1. SecurityCenter View (new file: src/admin/views/SecurityCenter.tsx):
+   - Live Session Feed: all online users across all firms, auto-refresh 30s
+   - Active Firms: emerald tint bar + ONLINE NOW badge
+   - Security Alerts Panel: disposable email blocks, failed logins, unauthorized access
+   - KPI row: Online Now / Active Firms / Security Events
+   - Defensive query pattern (try/catch)
+
+2. AdminApp.tsx: added 'security' to AdminView + render case + import
+3. FounderBottomNav.tsx: added Security to More menu
+
+4. Backend (already deployed to Convex in previous commit):
+   - getAllPresenceForAdmin query
+   - getSecurityEventsForAdmin query
+   - Disposable email domain blocking (32 domains) on signup
+
+Verification:
+- Admin build: succeeded (5.12s)
+- Convex: deployed
+- Git: committed as f8317c0, pushed to main + synced master
+- Admin APK Action: should trigger (src/admin/** files changed)
