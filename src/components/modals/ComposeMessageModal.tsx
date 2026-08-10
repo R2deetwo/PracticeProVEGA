@@ -16,6 +16,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useConvex, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -201,10 +202,10 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-            <div className="absolute inset-0 bg-black/50 sm:backdrop-blur-sm" onClick={handleClose} />
-            <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-700/60">
+    return createPortal(
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/60 sm:backdrop-blur-sm" onClick={handleClose} />
+            <div className="relative z-[9999] w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-700/60">
                 {/* Accent */}
                 <div className="h-1 w-full flex-shrink-0 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500" />
 
@@ -401,7 +402,8 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 

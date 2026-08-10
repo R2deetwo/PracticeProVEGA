@@ -270,14 +270,14 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                             return (
                                 <div
                                     key={period.index}
-                                    className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border ${
+                                    className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] items-center gap-2 sm:gap-3 p-2.5 rounded-lg border ${
                                         period.isAdvance
                                             ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200/50 dark:border-blue-800/30'
                                             : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
                                     }`}
                                 >
-                                    {/* Period info */}
-                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                    {/* Period / Month + Amount */}
+                                    <div className="flex items-center gap-2.5 min-w-0">
                                         <div className={`h-2.5 w-2.5 rounded-full ${meta.color} flex-shrink-0`} />
                                         <div className="min-w-0">
                                             <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">
@@ -285,13 +285,12 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                                             </p>
                                             <p className="text-2xs text-slate-400">
                                                 {formatNairaCompact(period.amount)}
-                                                {period.paidDate && ` · Paid ${formatDateShort(period.paidDate)}`}
                                             </p>
                                         </div>
                                     </div>
 
-                                    {/* Status toggle buttons */}
-                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                    {/* Payment Status — labeled segmented selectors */}
+                                    <div className="flex items-center gap-1 flex-shrink-0 col-span-2 sm:col-span-1">
                                         {(['paid', 'late', 'outstanding', 'advance_paid'] as const).map(s => {
                                             const sm = STATUS_META[s];
                                             const isActive = period.status === s;
@@ -299,16 +298,23 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                                                 <button
                                                     key={s}
                                                     onClick={() => handleStatusChange(period.index, s)}
-                                                    className={`h-6 w-6 rounded-md transition-all ${
+                                                    className={`px-2 py-1 rounded-md text-3xs font-bold uppercase tracking-wide transition-all whitespace-nowrap ${
                                                         isActive
-                                                            ? `${sm.color} ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-800 ring-slate-400`
-                                                            : 'bg-slate-100 dark:bg-zinc-700 hover:opacity-70'
+                                                            ? `${sm.color} text-white ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-800 ring-slate-400 shadow-sm`
+                                                            : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:opacity-70'
                                                     }`}
                                                     title={sm.name}
                                                     aria-label={sm.name}
-                                                />
+                                                >
+                                                    {s === 'paid' ? 'On Time' : s === 'late' ? 'Late' : s === 'advance_paid' ? 'Advance' : 'Outstanding'}
+                                                </button>
                                             );
                                         })}
+                                    </div>
+
+                                    {/* Settlement Date */}
+                                    <div className="hidden sm:block text-2xs text-slate-400 flex-shrink-0">
+                                        {period.paidDate ? formatDateShort(period.paidDate) : '—'}
                                     </div>
                                 </div>
                             );

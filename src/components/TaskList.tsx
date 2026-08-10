@@ -73,8 +73,14 @@ const TaskRow: React.FC<{
             id={`list-item-${index}`}
             data-context-type="task"
             data-item-id={task.id}
-            className={`
-                relative overflow-visible transition-colors border-b border-gray-100 dark:border-zinc-800 last:border-0
+            onClick={(e) => {
+                // Prevent triggering row click when clicking inline controls
+                // (checkbox, priority/status/assignee dropdowns, action buttons)
+                const target = e.target as HTMLElement;
+                if (target.closest('button') || target.closest('input') || target.closest('.interactive-cell')) return;
+                onViewDetails(task.id, {});
+            }}
+            className={`cursor-pointer relative overflow-visible transition-colors border-b border-gray-100 dark:border-zinc-800 last:border-0
                 ${isKeyboardSelected ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-inset ring-primary-300 dark:ring-primary-700 z-10' : (isSelected ? 'bg-blue-50 dark:bg-zinc-800' : 'hover:bg-slate-50 dark:hover:bg-zinc-800/50')}
             `}
         >

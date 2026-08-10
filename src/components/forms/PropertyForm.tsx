@@ -703,15 +703,17 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             }
 
             // 3. Auto-Sync Residents to Central Contacts Database
-            // For each unit that has a tenant (tenantName or tenantPhone or tenantEmail),
+            // For each unit that has a resident (tenantName or tenantPhone or tenantEmail),
             // check if a Contact with the same phone or email already exists.
             // If exists: link contactId to the unit's rentalDetails.tenantContactId.
-            // If not exists: create a new Contact with category='Tenant' and link it.
+            // If not exists: create a new Contact with category='Resident' and link it.
             // This ensures every resident appears in /contacts for unified profiling.
+            // Skipped when the user unchecks "Save resident details to Contacts directory".
+            if (saveToContacts) {
             await Promise.all(currentUnits.map(async (unit) => {
                 const tenantName = composeTenantName(unit).trim();
                 const tenantPhone = (unit.tenantPhone || '').trim();
-                const tenantEmail = ''; // UnitRentalInput doesn't have tenantEmail; would come from rentalDetails
+                const tenantEmail = (unit.tenantEmail || '').trim();
                 if (!tenantName && !tenantPhone) return; // No tenant data to sync
 
                 const unitId = unit.id || '';
@@ -746,7 +748,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         phone: tenantPhone,
                         email: tenantEmail,
                         contactType: ContactType.Individual,
-                        category: 'Tenant',
+                        category: 'Resident',
                         // Link back to the property/unit for traceability
                         properties: [{
                             id: unitId,
@@ -771,9 +773,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     }
                 } catch (syncErr) {
                     // Auto-sync is best-effort — don't fail the property save
-                    console.warn(`Tenant auto-sync failed for unit ${unit.unitName}:`, syncErr);
+                    console.warn(`Resident auto-sync failed for unit ${unit.unitName}:`, syncErr);
                 }
             }));
+            } // end if (saveToContacts)
 
             // Note: We no longer pass empty [] to onSave — that wipes the contact's property references.
             // Instead, just close the modal. The individual updateItem calls above already persisted each unit.
@@ -891,24 +894,25 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // OnboardUnitLedgerModal state — opens when user clicks "Settle Historical Ledger"
     const [ledgerModalOpen, setLedgerModalOpen] = useState(false);
     const [ledgerChargeType, setLedgerChargeType] = useState<'SC' | 'MV'>('SC');
+    // Save-to-Contacts toggle — default ON. When checked, resident details
+    // are auto-synced to the global Contacts directory on save.
+    const [saveToContacts, setSaveToContacts] = useState(true);
     useEffect(() => {
         if (!(activeUnitId || autoExpandRental)) return;
 
-        // Force the rental section to be expanded (in case the useState
-        // initializer didn't catch it — e.g. if the modal was re-opened).
-        setOpenSections(prev => {
-            if (prev.rental) return prev; // already open, no-op
-            return { ...prev, rental: true };
-        });
+        // NOTE: Do NOT call setOpenSections here — the useState initializer
+        // already sets rental:true when activeUnitId/autoExpandRental is set.
+        // Calling setOpenSections again causes a double-render flash where
+        // the accordion appears to open then close then open again.
+        // The useState initializer is the single source of truth for the
+        // initial expanded state.
 
         // Double rAF ensures the browser has painted the expanded DOM content
-        // before we try to scroll to it. A single rAF only guarantees the
-        // layout pass has run, not that the content is visible.
+        // before we try to scroll to it.
         const raf1 = requestAnimationFrame(() => {
             const raf2 = requestAnimationFrame(() => {
                 rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
-            // Fallback cleanup if component unmounts between rAFs
             return () => cancelAnimationFrame(raf2);
         });
         return () => cancelAnimationFrame(raf1);
@@ -1637,6 +1641,22 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <input autoComplete="off" data-lpignore="true"  type="email" value={unitsData[activeUnitIndex].tenantEmail || ''} onChange={e => updateUnit(activeUnitIndex, 'tenantEmail', e.target.value)} className={commonInputClass} placeholder="resident@example.com" />
                                 </div>
                             </div>
+
+                            {/* Save to Contacts toggle — default ON. When checked, the
+                                resident's details are auto-synced to the global Contacts
+                                directory on save, creating/updating a contact record with
+                                category='Resident' linked to this property + unit. */}
+                            <label className="flex items-center gap-2 cursor-pointer mt-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={saveToContacts}
+                                    onChange={e => setSaveToContacts(e.target.checked)}
+                                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 w-4 h-4"
+                                />
+                                <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                                    Save resident details to Contacts directory
+                                </span>
+                            </label>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
