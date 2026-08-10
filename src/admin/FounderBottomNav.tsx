@@ -242,7 +242,11 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                     )}
                                     {/* New signup badge on Dashboard — shows count of
                                         users who registered in the last 24h. Caps at 9+. */}
+<<<<<<< HEAD
                                     {item.view === 'notifications' && newSignupCount > 0 && (
+=======
+                                    {item.view === 'dashboard' && newSignupCount > 0 && (
+>>>>>>> dd3c4b9 (feat: property safe-area + signup badge 9+ cap + presence glow in OrgsHub)
                                         <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                                             {formatBadgeCount(newSignupCount)}
                                         </span>
