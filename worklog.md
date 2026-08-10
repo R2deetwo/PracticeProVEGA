@@ -5789,3 +5789,34 @@ Verification:
 Stage Summary:
 - The user's spec is now implemented verbatim, not paraphrased.
 - Going forward, the Request Fulfillment Protocol will be applied to every multi-part request to prevent the kind of silent spec-substitution that caused this rework.
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Refactor SmartMatterModal to use accordion layout (matching PropertyForm) + add Assigned Team as a separate accordion section
+
+Work Log:
+- Inspected PropertyForm.tsx to extract the canonical AccordionSection pattern (module-level component + React.memo + useRef header + scrollIntoView + toggleSection wrapped in useCallback).
+- Read full SmartMatterModal.tsx (935 lines) to map every existing field/state/effect so nothing would be lost in the rewrite.
+- Rewrote SmartMatterModal.tsx with the following structure for Step 1 (detail form):
+  * AccordionSection component defined at module level (mirrors PropertyForm exactly) — prevents input focus loss on keystroke.
+  * Sections (in order): Process Details (litigation only, auto-open) → Property Intake (RE only, auto-open) → Corporate Details (corporate only, auto-open) → Matter Title (auto-open for "Other" types) → Client → Billing → Assigned Team → Drafting Options (litigation only).
+  * Contextual auto-expand: a useEffect on [step, matterType, isLitigation] seeds openSections with the most-relevant section open for the chosen matter type. All other sections start collapsed.
+  * Each section uses a colored icon badge matching the section semantic (red=gavel for process, emerald=building for property, blue=briefcase for corporate, slate=document for title, indigo=user for client, emerald=dollar for billing, violet=user-circle for assigned team, primary=sparkles for drafting).
+  * Assigned Team section: integrated the existing UserAssignment component (already used by MatterForm). User set state initialized with currentUser.id. handleUserToggle prevents unassigning the creator (id === currentUser.id returns the previous set unchanged). When collapsed, the section header shows an avatar stack badge (up to 3 avatars + "+N" overflow) so the team is visible at a glance.
+  * Submit handler now writes `assignedUsers: Array.from(assignedUsers)` instead of the previous hardcoded `[currentUser.id]`.
+- Type fixes: imported AppMode enum and passed AppMode.Multi to UserAssignment (the modal is only rendered for Enterprise firms so multi-user mode is always correct).
+- Preserved every existing behavior: real-estate multi-unit logic, percentage-fee auto-calc, ALOA drafting hint, suit-number auto-formatting, litigation toggle on RE matters, "Open in DraftPro after creating" toggle, contextual back button on step 1.
+
+Verification:
+- TypeScript: zero errors in SmartMatterModal.tsx (verified with `npx tsc --noEmit | grep SmartMatterModal` → no output)
+- Build: succeeded in 20.14s, no warnings related to the change.
+
+Stage Summary:
+- New Matter modal now uses the exact same accordion visual language as the New/Edit Property modal — consistent module-level AccordionSection component, same colored icon badges, same collapse animation, same contextual auto-expand behavior.
+- "Assigned Team" is its own dedicated accordion section (the 6th of 7), positioned after Billing and before Drafting Options — exactly as requested.
+- The team summary is now visible even when the section is collapsed thanks to the avatar-stack badge in the section header.
+- All team members selected in the modal are persisted to the matter record on submit (previously the modal always wrote only [currentUser.id] regardless of UI state).
+
+Files Modified:
+- src/components/forms/SmartMatterModal.tsx (full rewrite: 935 → ~1130 lines)

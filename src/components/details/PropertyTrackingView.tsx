@@ -26,6 +26,7 @@ import { InvoiceStatus, Contact } from '../../types';
 import ErrorBoundary from '../ErrorBoundary';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { LeaseProgressBars } from './LeaseProgressBars';
 
 interface PropertyTrackingViewProps {
     property: Property;
@@ -524,6 +525,11 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                     </p>
                 </div>
             </div>
+
+            {/* Visual Progress Bars — lease timeline + rent collection */}
+            {isLeased && (
+                <LeaseProgressBars property={property} />
+            )}
 
             {/* Navigation Tabs */}
             <div className="flex space-x-2 bg-slate-100 dark:bg-zinc-800/50 p-1 rounded-lg w-fit">

@@ -1,10 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
     Matter, User, Contact, MatterType, BillingModel, MatterStatus,
-    ContactType, CourtType, LitigationParty, ModalType
+    ContactType, CourtType, LitigationParty, ModalType, AppMode
 } from '../../types';
 import { useUI } from '../../contexts/UIContext';
-import { XIcon, ChevronRightIcon } from '../../constants';
+import {
+    XIcon, ChevronRightIcon, GavelIconLarge, OfficeBuildingIcon,
+    UserIcon, CurrencyDollarIcon, SparklesIcon, BriefcaseIcon,
+    DocumentTextIcon, UserCircleIcon
+} from '../../constants';
 import {
     MATTER_PROCESS_CONFIGS,
     LITIGATION_PROCESS_OPTIONS,
@@ -12,13 +16,15 @@ import {
     MatterProcessConfig,
 } from '../../config/matterProcessConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { 
-    autoFormatSuitTitle, 
-    formatNumberWithCommas, 
-    parseFormattedNumber 
+import {
+    autoFormatSuitTitle,
+    formatNumberWithCommas,
+    parseFormattedNumber
 } from '../../utils/formatting';
 import { RealEstateUnit } from '../../types';
 import { recordActionUsed } from './MatterIntakeWizard';
+import { UserAssignment } from './UserAssignment';
+import { getInitials, getUserColor } from '../../utils/colorUtils';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const Icon: React.FC<{ d: string; className?: string }> = ({ d, className = 'w-5 h-5' }) => (
@@ -60,6 +66,74 @@ const COURTS = [
 const inp = 'w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-slate-900 dark:text-white placeholder-slate-400';
 const lbl = 'block text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1';
 
+// ─── AccordionSection (MODULE-LEVEL — outside SmartMatterModal) ──────────
+// CRITICAL: This component MUST be defined outside the component render
+// function. When defined inside (as a closure), React treats it as a new
+// component type on every render, causing all children to unmount/remount
+// on every keystroke — which causes input focus loss.
+// By defining it at module level with React.memo, the component identity
+// is stable across re-renders, preserving DOM focus.
+// (Mirrors the pattern used in PropertyForm.tsx.)
+interface AccordionSectionProps {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    iconBg: string;
+    children: React.ReactNode;
+    isOpen: boolean;
+    onToggle: (id: string) => void;
+    badge?: React.ReactNode;
+}
+const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle, badge }) => {
+    const headerRef = useRef<HTMLButtonElement>(null);
+    return (
+        <div
+            className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
+            style={{ willChange: 'height', contain: 'layout style' }}
+        >
+            <button
+                ref={headerRef}
+                type="button"
+                tabIndex={0}
+                onClick={() => {
+                    onToggle(id);
+                    if (!isOpen) {
+                        setTimeout(() => {
+                            headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 50);
+                    }
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onToggle(id);
+                    }
+                }}
+                className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            >
+                <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
+                    {icon}
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                    <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
+                    <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
+                </div>
+                {badge}
+                <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            {isOpen && (
+                <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+};
+const AccordionSection = React.memo(AccordionSectionInner);
+
 interface SmartMatterModalProps {
     contacts: Contact[];
     users: User[];
@@ -93,6 +167,24 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
     const [startDrafting, setStartDrafting] = useState(false);
     const [isSubmitting, setIsSubmitting]   = useState(false);
 
+    // ── Assigned Team ──
+    // Multi-select set of user IDs. Defaults to current user (so the creator
+    // is always assigned). Rendered as its own accordion section below billing.
+    const [assignedUsers, setAssignedUsers] = useState<Set<string>>(() => new Set([currentUser.id]));
+    const handleUserToggle = useCallback((id: string) => {
+        setAssignedUsers(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                // Prevent unassigning the current user (always assigned)
+                if (id === currentUser.id) return newSet;
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    }, [currentUser.id]);
+
     // Litigation fields
     const [legalAction, setLegalAction]           = useState(MATTER_PROCESS_CONFIGS[0].processCategoryName);
     const [court, setCourt]                       = useState<string>(CourtType.FederalHighCourt);
@@ -122,7 +214,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
     const [disputeCourt, setDisputeCourt]         = useState('');
     const [disputeSuitNo, setDisputeSuitNo]       = useState('');
     const [adverseParty, setAdverseParty]         = useState('');
-    
+
     // Multi-unit support
     const [numberOfUnits, setNumberOfUnits]       = useState(1);
     const [activeUnitIndex, setActiveUnitIndex]   = useState(0);
@@ -159,7 +251,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
             }
         });
     }, [numberOfUnits]);
-    
+
     // Auto-calculate Percentage Fee
     React.useEffect(() => {
         if (billingModel === BillingModel.Percentage) {
@@ -176,12 +268,12 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
         setUnitsData(prev => {
             const newUnits = [...prev];
             const updatedUnit = { ...newUnits[index], [field]: value };
-            
+
             // Auto-calculate lease end if start or period changed
             if (field === 'leaseStart' || field === 'tenancyPeriod') {
                 const start = field === 'leaseStart' ? value : updatedUnit.leaseStart;
                 const period = field === 'tenancyPeriod' ? value : updatedUnit.tenancyPeriod;
-                
+
                 if (start && period) {
                     const date = new Date(start);
                     if (period === '1 Year') date.setFullYear(date.getFullYear() + 1);
@@ -189,12 +281,12 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                     else if (period === '3 Years') date.setFullYear(date.getFullYear() + 3);
                     else if (period === '6 Months') date.setMonth(date.getMonth() + 6);
                     else if (period === 'Monthly') date.setMonth(date.getMonth() + 1);
-                    
+
                     date.setDate(date.getDate() - 1);
                     updatedUnit.leaseEnd = date.toISOString().split('T')[0];
                 }
             }
-            
+
             newUnits[index] = updatedUnit;
             return newUnits;
         });
@@ -239,6 +331,43 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
         } catch { return defendant ? `${claimant} v ${defendant}` : claimant; }
     }, [matterType, propertyAddress, isNewClient, newClientName, clientId, contacts, isLitigation, claimant, defendant, activeProcessConfig]);
 
+    // ─── Accordion State ──────────────────────────────────────────────
+    // Contextual auto-expansion: when entering step 1, open the section that
+    // is most relevant for the chosen matter type.
+    //   - Litigation → process (the dynamic intake fields)
+    //   - Real Estate → property
+    //   - Corporate → corporate
+    //   - Other → title
+    // All other sections start collapsed.
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+    React.useEffect(() => {
+        if (step !== 1 || !matterType) return;
+        const initial: Record<string, boolean> = {
+            process: false,
+            property: false,
+            corporate: false,
+            title: false,
+            client: false,
+            billing: false,
+            assignedTeam: false,
+            drafting: false,
+        };
+        if (isLitigation) {
+            initial.process = true;
+        } else if (matterType === MatterType.RealEstate) {
+            initial.property = true;
+        } else if (matterType === MatterType.CorporateCommercial) {
+            initial.corporate = true;
+        } else {
+            initial.title = true;
+        }
+        setOpenSections(initial);
+    }, [step, matterType, isLitigation]);
+
+    const toggleSection = useCallback((id: string) => {
+        setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+    }, []);
+
     const handleSubmit = async () => {
         if (!title && !autoTitle) { addToast('Please enter a matter title.', { type: 'error' }); return; }
         if (!isNewClient && !clientId) { addToast('Please select or create a client.', { type: 'error' }); return; }
@@ -248,6 +377,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
         setIsSubmitting(true);
         try {
             const finalTitle = title || autoTitle;
+
             const parties: LitigationParty[] = [];
             if (isLitigation) {
                 if (claimant) parties.push({ id: `p-${Date.now()}-1`, name: claimant, role: activeProcessConfig.primaryPartyLabel, isRepresented: false });
@@ -264,7 +394,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 fixedFeeAmount: (billingModel === BillingModel.FixedFee || billingModel === BillingModel.Retainer || billingModel === BillingModel.Percentage) ? fixedFeeAmount : 0,
                 billingPercentage: billingModel === BillingModel.Percentage ? billingPercentage : undefined,
                 billingBase: billingModel === BillingModel.Percentage ? billingBase : undefined,
-                assignedUsers: [currentUser.id],
+                // Use the user-selected assigned team (always includes currentUser.id).
+                assignedUsers: Array.from(assignedUsers),
                 status: MatterStatus.Active,
                 createdAt: new Date().toISOString(),
                 stageLastUpdated: new Date().toISOString(),
@@ -279,11 +410,11 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 rcNumber: matterType === MatterType.CorporateCommercial ? rcNumber : '',
                 shareCapital: matterType === MatterType.CorporateCommercial ? shareCapital : 0,
                 specialtyData: {
-                    realEstate: matterType === MatterType.RealEstate ? { 
-                        purchasePrice: propertyValue, 
-                        titleDocument: titleDoc as any, 
+                    realEstate: matterType === MatterType.RealEstate ? {
+                        purchasePrice: propertyValue,
+                        titleDocument: titleDoc as any,
                         propertyId: linkedPropertyId,
-                        units: unitsData 
+                        units: unitsData
                     } : undefined,
                     firmRepresentingRole: activeProcessConfig.primaryPartyLabel,
                     processIntakeFields: processFields,
@@ -301,9 +432,6 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
             const res = await onAddMatter(matterData, clientPayload);
 
             // Handle both { id } and bare string returns from onAddMatter.
-            // Previously, if res was a bare string (Convex _id) or undefined,
-            // the `if (res?.id)` block was skipped entirely — leaving
-            // isSubmitting stuck true and the modal permanently disabled.
             const matterId = res?.id || (typeof res === 'string' ? res : null);
             if (matterId) {
                 addToast(`Matter "${finalTitle}" created.`, { type: 'success' });
@@ -314,9 +442,6 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                     onNavigate('matterDetail', matterId);
                 }
             } else {
-                // onAddMatter returned falsy — the matter may or may not have
-                // been created. Show a generic success since no error was thrown,
-                // and close the modal so the user isn't stuck.
                 addToast(`Matter "${finalTitle}" created.`, { type: 'success' });
                 onClose();
             }
@@ -326,6 +451,32 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
             setIsSubmitting(false);
         }
     };
+
+    // ── Assigned-team summary chip (shown when section is collapsed) ──
+    const assignedTeamBadge = useMemo(() => {
+        const list = users.filter(u => assignedUsers.has(u.id));
+        if (list.length === 0) return null;
+        const shown = list.slice(0, 3);
+        const extra = list.length - shown.length;
+        return (
+            <div className="flex items-center -space-x-1.5 mr-1">
+                {shown.map(u => (
+                    <div
+                        key={u.id}
+                        className={`h-6 w-6 rounded-full flex items-center justify-center text-white font-bold text-[10px] ring-2 ring-white dark:ring-zinc-800 ${getUserColor(u.name)}`}
+                        title={u.name}
+                    >
+                        {getInitials(u.name)}
+                    </div>
+                ))}
+                {extra > 0 && (
+                    <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-[10px] ring-2 ring-white dark:ring-zinc-800">
+                        +{extra}
+                    </div>
+                )}
+            </div>
+        );
+    }, [users, assignedUsers]);
 
     return (
         <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="smart-matter-title">
@@ -344,13 +495,13 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                             </button>
                         )}
                         <div>
-                            <p className="text-2xs font-black text-primary-600 dark:text-primary-300 dark:text-primary-400 uppercase tracking-wide-label">New Matter</p>
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-wide-label">New Matter</p>
                             <h1 id="smart-matter-title" className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                                 {step === 0 ? 'What type of matter is this?' : MATTER_TYPES.find(m => m.type === matterType)?.label + ' Matter'}
                             </h1>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 dark:hover:text-white transition-colors">
+                    <button onClick={onClose} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
                         <XIcon className="w-4 h-4" />
                     </button>
                 </div>
@@ -377,12 +528,21 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                         </div>
                     )}
 
-                    {/* Step 1 — Detail form */}
+                    {/* Step 1 — Detail form (accordion layout, mirrors PropertyForm) */}
                     {step === 1 && (
-                        <div className="space-y-5">
-                            {/* ── Litigation: Dynamic Process-Driven Fields ── */}
+                        <div className="space-y-2 sm:space-y-3">
+
+                            {/* ── Process Details (Litigation only) ── */}
                             {isLitigation && (
-                                <>
+                                <AccordionSection
+                                    id="process"
+                                    isOpen={!!openSections.process}
+                                    onToggle={toggleSection}
+                                    title="Originating Process & Parties"
+                                    subtitle="Process Details"
+                                    icon={<GavelIconLarge className="w-3.5 h-3.5" />}
+                                    iconBg="bg-red-600"
+                                >
                                     {/* Process selector */}
                                     <div>
                                         <label className={lbl}>Originating Process / Action</label>
@@ -448,8 +608,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* ── Process-specific dynamic intake fields ── */}
                                     {activeProcessConfig.keyIntakeFields.length > 0 && (
-                                        <div className="space-y-2 sm:space-y-3 pt-1 border-t border-slate-100 dark:border-zinc-800">
-                                            <p className="text-2xs font-black text-primary-500 uppercase tracking-eyebrow">Process-Specific Details</p>
+                                        <div className="space-y-2 sm:space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                                            <p className="text-2xs font-black text-primary-500 uppercase tracking-eyebrow pt-2">Process-Specific Details</p>
                                             {activeProcessConfig.keyIntakeFields.map(field => (
                                                 <div key={field.fieldId}>
                                                     <label className={lbl}>
@@ -465,7 +625,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                             placeholder={field.placeholder ?? ''}
                                                         />
                                                     ) : field.type === 'date' ? (
-                                                        <input autoComplete="off" data-lpignore="true" 
+                                                        <input autoComplete="off" data-lpignore="true"
                                                             type="date"
                                                             className={inp}
                                                             value={processFields[field.fieldId] ?? ''}
@@ -474,7 +634,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                     ) : field.type === 'number' ? (
                                                         <div className="relative">
                                                             {field.isCurrency && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₦</span>}
-                                                            <input autoComplete="off" data-lpignore="true" 
+                                                            <input autoComplete="off" data-lpignore="true"
                                                                 type={field.isCurrency ? 'text' : 'number'}
                                                                 className={inp + (field.isCurrency ? ' pl-7' : '')}
                                                                 value={field.isCurrency ? formatNumberWithCommas(processFields[field.fieldId]) : (processFields[field.fieldId] ?? '')}
@@ -483,7 +643,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                             />
                                                         </div>
                                                     ) : (
-                                                        <input autoComplete="off" data-lpignore="true" 
+                                                        <input autoComplete="off" data-lpignore="true"
                                                             type="text"
                                                             className={inp}
                                                             value={processFields[field.fieldId] ?? ''}
@@ -497,35 +657,27 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     )}
 
                                     {/* ALOA hint */}
-                                    <div className="flex items-start gap-2 p-3 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-lg">
+                                    <div className="flex items-start gap-2 p-3 bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-lg">
                                         <svg className="w-4 h-4 text-primary-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.75 3.75 0 01-5.3 0l-.347-.347z" /></svg>
                                         <p className="text-2xs text-primary-700 dark:text-primary-300 leading-snug">
                                             <span className="font-bold">ALOA will draft: </span>
                                             {activeProcessConfig.draftingExpectations}
                                         </p>
                                     </div>
-                                </>
+                                </AccordionSection>
                             )}
 
-                            {/* Matter title */}
-                            <div>
-                                <label className={lbl}>Matter Title</label>
-                                {autoTitle ? (
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/30 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-primary-800 dark:text-primary-200">
-                                            <span className="text-2xs font-bold text-primary-500 uppercase tracking-wide flex-shrink-0">Auto</span>
-                                            {autoTitle}
-                                        </div>
-                                        <input autoComplete="off" data-lpignore="true"  className={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="Override auto-title (optional)" />
-                                    </div>
-                                ) : (
-                                    <input autoComplete="off" data-lpignore="true"  className={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Adeyemi v Okafor — Breach of Contract" />
-                                )}
-                            </div>
-
-                            {/* ── Real Estate: Full Property Intake ── */}
+                            {/* ── Property Intake (Real Estate only) ── */}
                             {matterType === MatterType.RealEstate && (
-                                <>
+                                <AccordionSection
+                                    id="property"
+                                    isOpen={!!openSections.property}
+                                    onToggle={toggleSection}
+                                    title="Property Intake"
+                                    subtitle="Real Estate Details"
+                                    icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />}
+                                    iconBg="bg-emerald-600"
+                                >
                                     {/* Link to existing property */}
                                     {allProperties.length > 0 && (
                                         <div>
@@ -583,12 +735,12 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div>
                                             <label className={lbl}>Valuation (₦)</label>
-                                            <input autoComplete="off" data-lpignore="true"  
-                                                type="text" 
-                                                className={inp} 
-                                                value={formatNumberWithCommas(propertyValue)} 
-                                                onChange={e => setPropertyValue(parseFormattedNumber(e.target.value))} 
-                                                placeholder="0.00" 
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="text"
+                                                className={inp}
+                                                value={formatNumberWithCommas(propertyValue)}
+                                                onChange={e => setPropertyValue(parseFormattedNumber(e.target.value))}
+                                                placeholder="0.00"
                                             />
                                         </div>
                                         <div>
@@ -600,13 +752,13 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                         </div>
                                         <div>
                                             <label className={lbl}>Total Units</label>
-                                            <input autoComplete="off" data-lpignore="true"  
-                                                type="number" 
-                                                min={1} 
-                                                className={inp} 
-                                                value={numberOfUnits} 
-                                                onChange={e => setNumberOfUnits(Math.max(1, parseInt(e.target.value) || 1))} 
-                                                placeholder="1" 
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="number"
+                                                min={1}
+                                                className={inp}
+                                                value={numberOfUnits}
+                                                onChange={e => setNumberOfUnits(Math.max(1, parseInt(e.target.value) || 1))}
+                                                placeholder="1"
                                             />
                                         </div>
                                     </div>
@@ -633,13 +785,13 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* Tenanted / Rental sub-section */}
                                     {(propertyCategory === 'Tenanted Property' || propertyCategory === 'Personal Residence' || propertyCategory === 'Other') && (
-                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/40/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-lg animate-fade-in">
+                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-lg animate-fade-in">
                                             <div className="flex justify-between items-center">
                                                 <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-eyebrow">
                                                     {numberOfUnits > 1 ? `${unitsData[activeUnitIndex].unitName} Details` : 'Rental / Lease Details'}
                                                 </p>
                                                 {numberOfUnits > 1 && (
-                                                    <input autoComplete="off" data-lpignore="true"  
+                                                    <input autoComplete="off" data-lpignore="true"
                                                         className="text-2xs font-bold bg-transparent border-none text-emerald-600 dark:text-emerald-400 focus:ring-0 p-0 text-right w-24"
                                                         value={unitsData[activeUnitIndex].unitName}
                                                         onChange={e => updateUnit(activeUnitIndex, 'unitName', e.target.value)}
@@ -650,39 +802,39 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Tenant Name</label>
-                                                    <input autoComplete="off" data-lpignore="true"  
-                                                        className={inp} 
-                                                        value={unitsData[activeUnitIndex].tenantName || ''} 
-                                                        onChange={e => updateUnit(activeUnitIndex, 'tenantName', e.target.value)} 
-                                                        placeholder="Full name / entity" 
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        className={inp}
+                                                        value={unitsData[activeUnitIndex].tenantName || ''}
+                                                        onChange={e => updateUnit(activeUnitIndex, 'tenantName', e.target.value)}
+                                                        placeholder="Full name / entity"
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className={lbl}>Rent Amount (₦)</label>
-                                                    <input autoComplete="off" data-lpignore="true"  
-                                                        type="text" 
-                                                        className={inp} 
-                                                        value={formatNumberWithCommas(unitsData[activeUnitIndex].rentAmount)} 
-                                                        onChange={e => updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value))} 
-                                                        placeholder="0.00" 
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="text"
+                                                        className={inp}
+                                                        value={formatNumberWithCommas(unitsData[activeUnitIndex].rentAmount)}
+                                                        onChange={e => updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value))}
+                                                        placeholder="0.00"
                                                     />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-3 gap-3">
                                                 <div>
                                                     <label className={lbl}>Lease Start</label>
-                                                    <input autoComplete="off" data-lpignore="true"  
-                                                        type="date" 
-                                                        className={inp} 
-                                                        value={unitsData[activeUnitIndex].leaseStart || ''} 
-                                                        onChange={e => updateUnit(activeUnitIndex, 'leaseStart', e.target.value)} 
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="date"
+                                                        className={inp}
+                                                        value={unitsData[activeUnitIndex].leaseStart || ''}
+                                                        onChange={e => updateUnit(activeUnitIndex, 'leaseStart', e.target.value)}
                                                      />
                                                  </div>
                                                  <div>
                                                      <label className={lbl}>Period</label>
-                                                     <select 
-                                                         className={inp} 
-                                                         value={unitsData[activeUnitIndex].tenancyPeriod || ''} 
+                                                     <select
+                                                         className={inp}
+                                                         value={unitsData[activeUnitIndex].tenancyPeriod || ''}
                                                          onChange={e => updateUnit(activeUnitIndex, 'tenancyPeriod', e.target.value)}
                                                      >
                                                          <option value="">Manual</option>
@@ -695,11 +847,11 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                 </div>
                                                 <div>
                                                     <label className={lbl}>Lease End</label>
-                                                    <input autoComplete="off" data-lpignore="true"  
-                                                        type="date" 
-                                                        className={inp} 
-                                                        value={unitsData[activeUnitIndex].leaseEnd || ''} 
-                                                        onChange={e => updateUnit(activeUnitIndex, 'leaseEnd', e.target.value)} 
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="date"
+                                                        className={inp}
+                                                        value={unitsData[activeUnitIndex].leaseEnd || ''}
+                                                        onChange={e => updateUnit(activeUnitIndex, 'leaseEnd', e.target.value)}
                                                     />
                                                 </div>
                                             </div>
@@ -708,17 +860,17 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* For Sale sub-section */}
                                     {propertyCategory === 'Property For Sale' && (
-                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/40/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-lg animate-fade-in">
+                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-lg animate-fade-in">
                                             <p className="text-2xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-eyebrow">Listing Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Target Price (₦)</label>
-                                                    <input autoComplete="off" data-lpignore="true"  
-                                                        type="text" 
-                                                        className={inp} 
-                                                        value={formatNumberWithCommas(targetPrice)} 
-                                                        onChange={e => setTargetPrice(parseFormattedNumber(e.target.value))} 
-                                                        placeholder="0.00" 
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="text"
+                                                        className={inp}
+                                                        value={formatNumberWithCommas(targetPrice)}
+                                                        onChange={e => setTargetPrice(parseFormattedNumber(e.target.value))}
+                                                        placeholder="0.00"
                                                     />
                                                 </div>
                                                 <div>
@@ -753,7 +905,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* Add litigation toggle for non-disputed categories */}
                                     {propertyCategory !== 'Disputed Property' && (
                                         <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
-                                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={reHasLitigation} onChange={e => setReHasLitigation(e.target.checked)} className="w-4 h-4 rounded text-primary-600 dark:text-primary-300 accent-primary-600" />
+                                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={reHasLitigation} onChange={e => setReHasLitigation(e.target.checked)} className="w-4 h-4 rounded text-primary-600 accent-primary-600" />
                                             <div>
                                                 <p className="text-sm font-bold text-slate-800 dark:text-white">This property is also in litigation</p>
                                                 <p className="text-xs text-slate-500 dark:text-zinc-400">Check to add court & dispute details</p>
@@ -779,134 +931,216 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                             </div>
                                         </div>
                                     )}
-                                </>
+                                </AccordionSection>
                             )}
 
-                             {/* Corporate fields */}
-                             {matterType === MatterType.CorporateCommercial && (
-                                 <div className="grid grid-cols-2 gap-3">
-                                     <div>
-                                         <label className={lbl}>RC Number</label>
-                                         <input autoComplete="off" data-lpignore="true"  className={inp} value={rcNumber} onChange={e => setRcNumber(e.target.value)} placeholder="e.g. RC 1234567" />
-                                     </div>
-                                     <div>
-                                         <label className={lbl}>Share Capital (₦)</label>
-                                         <input autoComplete="off" data-lpignore="true"  
-                                             type="text" 
-                                             className={inp} 
-                                             value={formatNumberWithCommas(shareCapital)} 
-                                             onChange={e => setShareCapital(parseFormattedNumber(e.target.value))} 
-                                             placeholder="0.00" 
-                                         />
-                                     </div>
-                                 </div>
-                             )}
+                            {/* ── Corporate Details (Corporate only) ── */}
+                            {matterType === MatterType.CorporateCommercial && (
+                                <AccordionSection
+                                    id="corporate"
+                                    isOpen={!!openSections.corporate}
+                                    onToggle={toggleSection}
+                                    title="Corporate Details"
+                                    subtitle="Entity Information"
+                                    icon={<BriefcaseIcon className="w-3.5 h-3.5" />}
+                                    iconBg="bg-blue-600"
+                                >
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={lbl}>RC Number</label>
+                                            <input autoComplete="off" data-lpignore="true"  className={inp} value={rcNumber} onChange={e => setRcNumber(e.target.value)} placeholder="e.g. RC 1234567" />
+                                        </div>
+                                        <div>
+                                            <label className={lbl}>Share Capital (₦)</label>
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="text"
+                                                className={inp}
+                                                value={formatNumberWithCommas(shareCapital)}
+                                                onChange={e => setShareCapital(parseFormattedNumber(e.target.value))}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                </AccordionSection>
+                            )}
 
-                            {/* Client */}
-                            <div>
-                                <label className={lbl}>Client</label>
+                            {/* ── Matter Title ── */}
+                            <AccordionSection
+                                id="title"
+                                isOpen={!!openSections.title}
+                                onToggle={toggleSection}
+                                title="Matter Title"
+                                subtitle="Identification"
+                                icon={<DocumentTextIcon className="w-3.5 h-3.5" />}
+                                iconBg="bg-slate-600"
+                            >
+                                {autoTitle ? (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-primary-800 dark:text-primary-200">
+                                            <span className="text-2xs font-bold text-primary-500 uppercase tracking-wide flex-shrink-0">Auto</span>
+                                            <span className="truncate">{autoTitle}</span>
+                                        </div>
+                                        <input autoComplete="off" data-lpignore="true"  className={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="Override auto-title (optional)" />
+                                    </div>
+                                ) : (
+                                    <input autoComplete="off" data-lpignore="true"  className={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Adeyemi v Okafor — Breach of Contract" />
+                                )}
+                            </AccordionSection>
+
+                            {/* ── Client ── */}
+                            <AccordionSection
+                                id="client"
+                                isOpen={!!openSections.client}
+                                onToggle={toggleSection}
+                                title="Client"
+                                subtitle="Engagement"
+                                icon={<UserIcon className="w-3.5 h-3.5" />}
+                                iconBg="bg-indigo-600"
+                            >
                                 {!isNewClient ? (
                                     <div className="flex gap-2">
                                         <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${inp} flex-1`}>
                                             <option value="">Select existing client...</option>
                                             {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
-                                        <button onClick={() => setIsNewClient(true)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 transition-colors whitespace-nowrap">
+                                        <button onClick={() => setIsNewClient(true)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors whitespace-nowrap">
                                             + New
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="flex gap-2">
                                         <input autoComplete="off" data-lpignore="true"  className={`${inp} flex-1`} value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="New client name..." autoFocus />
-                                        <button onClick={() => setIsNewClient(false)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 transition-colors">
+                                        <button onClick={() => setIsNewClient(false)} className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">
                                             Pick
                                         </button>
                                     </div>
                                 )}
-                            </div>
+                            </AccordionSection>
 
-                            {/* Billing */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className={lbl}>Billing Model</label>
-                                    <select value={billingModel} onChange={e => setBillingModel(e.target.value as BillingModel)} className={inp}>
-                                        {Object.values(BillingModel).map(b => <option key={b}>{b}</option>)}
-                                    </select>
-                                </div>
-                                {(billingModel === BillingModel.FixedFee || billingModel === BillingModel.Retainer) && (
+                            {/* ── Billing ── */}
+                            <AccordionSection
+                                id="billing"
+                                isOpen={!!openSections.billing}
+                                onToggle={toggleSection}
+                                title="Billing"
+                                subtitle="Fee Structure"
+                                icon={<CurrencyDollarIcon className="w-3.5 h-3.5" />}
+                                iconBg="bg-emerald-600"
+                            >
+                                <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className={lbl}>{billingModel} Amount (₦)</label>
-                                        <input autoComplete="off" data-lpignore="true"  
-                                            type="text" 
-                                            className={inp} 
-                                            value={formatNumberWithCommas(fixedFeeAmount)} 
-                                            onChange={e => setFixedFeeAmount(parseFormattedNumber(e.target.value))} 
-                                            placeholder="0.00"
-                                        />
+                                        <label className={lbl}>Billing Model</label>
+                                        <select value={billingModel} onChange={e => setBillingModel(e.target.value as BillingModel)} className={inp}>
+                                            {Object.values(BillingModel).map(b => <option key={b}>{b}</option>)}
+                                        </select>
                                     </div>
-                                )}
-                                {billingModel === BillingModel.Percentage && (
-                                    <div className="space-y-2 sm:space-y-3 col-span-2">
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div>
-                                                <label className={lbl}>Percentage (%)</label>
-                                                <input autoComplete="off" data-lpignore="true"  
-                                                    type="number" 
-                                                    className={inp} 
-                                                    value={billingPercentage || ''} 
-                                                    onChange={e => setBillingPercentage(parseFloat(e.target.value) || 0)} 
-                                                    placeholder="2.5"
-                                                    step="0.1"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={lbl}>Based On</label>
-                                                <select 
-                                                    className={inp} 
-                                                    value={billingBase} 
-                                                    onChange={e => setBillingBase(e.target.value as any)}
-                                                >
-                                                    <option value="Rent">Total Rent</option>
-                                                    <option value="Value">Property Value</option>
-                                                    <option value="Outcome">Dispute Outcome</option>
-                                                    <option value="Custom">Custom Amount</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className={lbl}>Calculated Fee (₦)</label>
-                                                <input autoComplete="off" data-lpignore="true"  
-                                                    type="text" 
-                                                    className={inp + " font-bold text-primary-600 bg-primary-50/30"} 
-                                                    value={formatNumberWithCommas(fixedFeeAmount)} 
-                                                    onChange={e => setFixedFeeAmount(parseFormattedNumber(e.target.value))} 
-                                                    placeholder="0.00"
-                                                />
+                                    {(billingModel === BillingModel.FixedFee || billingModel === BillingModel.Retainer) && (
+                                        <div>
+                                            <label className={lbl}>{billingModel} Amount (₦)</label>
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="text"
+                                                className={inp}
+                                                value={formatNumberWithCommas(fixedFeeAmount)}
+                                                onChange={e => setFixedFeeAmount(parseFormattedNumber(e.target.value))}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    )}
+                                    {billingModel === BillingModel.Percentage && (
+                                        <div className="space-y-2 sm:space-y-3 col-span-2">
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div>
+                                                    <label className={lbl}>Percentage (%)</label>
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="number"
+                                                        className={inp}
+                                                        value={billingPercentage || ''}
+                                                        onChange={e => setBillingPercentage(parseFloat(e.target.value) || 0)}
+                                                        placeholder="2.5"
+                                                        step="0.1"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className={lbl}>Based On</label>
+                                                    <select
+                                                        className={inp}
+                                                        value={billingBase}
+                                                        onChange={e => setBillingBase(e.target.value as any)}
+                                                    >
+                                                        <option value="Rent">Total Rent</option>
+                                                        <option value="Value">Property Value</option>
+                                                        <option value="Outcome">Dispute Outcome</option>
+                                                        <option value="Custom">Custom Amount</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className={lbl}>Calculated Fee (₦)</label>
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="text"
+                                                        className={inp + " font-bold text-primary-600 bg-primary-50/30"}
+                                                        value={formatNumberWithCommas(fixedFeeAmount)}
+                                                        onChange={e => setFixedFeeAmount(parseFormattedNumber(e.target.value))}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-                                 {billingModel === BillingModel.Hourly && (
-                                     <div>
-                                         <label className={lbl}>Hourly Rate (₦)</label>
-                                         <input autoComplete="off" data-lpignore="true"  
-                                             type="text" 
-                                             className={inp} 
-                                             value={formatNumberWithCommas(hourlyRate)} 
-                                             onChange={e => setHourlyRate(parseFormattedNumber(e.target.value))} 
-                                         />
-                                     </div>
-                                 )}
-                            </div>
+                                    )}
+                                     {billingModel === BillingModel.Hourly && (
+                                         <div>
+                                             <label className={lbl}>Hourly Rate (₦)</label>
+                                             <input autoComplete="off" data-lpignore="true"
+                                                 type="text"
+                                                 className={inp}
+                                                 value={formatNumberWithCommas(hourlyRate)}
+                                                 onChange={e => setHourlyRate(parseFormattedNumber(e.target.value))}
+                                             />
+                                         </div>
+                                     )}
+                                </div>
+                            </AccordionSection>
 
-                            {/* Start drafting toggle (only for litigation) */}
+                            {/* ── Assigned Team (always rendered — separate section) ── */}
+                            <AccordionSection
+                                id="assignedTeam"
+                                isOpen={!!openSections.assignedTeam}
+                                onToggle={toggleSection}
+                                title="Assigned Team"
+                                subtitle="Matter Access"
+                                icon={<UserCircleIcon className="w-3.5 h-3.5" />}
+                                iconBg="bg-violet-600"
+                                badge={!openSections.assignedTeam ? assignedTeamBadge : undefined}
+                            >
+                                <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                                    Select the team members who should have access to this matter. The creating user (<span className="font-semibold text-slate-700 dark:text-zinc-200">{currentUser.name}</span>) is always assigned and cannot be removed.
+                                </p>
+                                <UserAssignment
+                                    allUsers={users}
+                                    assignedUserIds={assignedUsers}
+                                    onToggle={handleUserToggle}
+                                    appMode={AppMode.Multi}
+                                />
+                            </AccordionSection>
+
+                            {/* ── Drafting Options (Litigation only) ── */}
                             {isLitigation && (
-                                <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
-                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={startDrafting} onChange={e => setStartDrafting(e.target.checked)} className="w-4 h-4 rounded text-primary-600 dark:text-primary-300 accent-primary-600" />
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-800 dark:text-white">Open in DraftPro after creating</p>
-                                        <p className="text-xs text-slate-500 dark:text-zinc-400">Jump straight to AI-assisted document drafting</p>
-                                    </div>
-                                </label>
+                                <AccordionSection
+                                    id="drafting"
+                                    isOpen={!!openSections.drafting}
+                                    onToggle={toggleSection}
+                                    title="Drafting Options"
+                                    subtitle="Post-Create Action"
+                                    icon={<SparklesIcon className="w-3.5 h-3.5" />}
+                                    iconBg="bg-primary-600"
+                                >
+                                    <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
+                                        <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={startDrafting} onChange={e => setStartDrafting(e.target.checked)} className="w-4 h-4 rounded text-primary-600 accent-primary-600" />
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 dark:text-white">Open in DraftPro after creating</p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">Jump straight to AI-assisted document drafting</p>
+                                        </div>
+                                    </label>
+                                </AccordionSection>
                             )}
                         </div>
                     )}
