@@ -704,21 +704,27 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         const updatedPeriods = [...currentPeriods];
         const existingIdx = updatedPeriods.findIndex(p => p.index === selectedPeriod.index);
 
-        // Determine paidOnTime flag:
-        // - If new status is 'paid' or 'late' (settling), check if payment date
-        //   is on/before due date (paidOnTime=true) or after (paidOnTime=false).
-        // - If new status is 'advance_paid', paidOnTime is true (settled ahead).
-        // - If new status is 'outstanding', clear the flag.
+        // Determine paidOnTime flag based on USER INTENT (not auto-calculated):
+        // - 'paid' (user clicked "Paid On Time") → paidOnTime = TRUE (green pill)
+        // - 'late' (user clicked "Paid Late") → paidOnTime = FALSE (orange pill)
+        // - 'advance_paid' → paidOnTime = TRUE (blue pill, pre-paid)
+        // - 'outstanding' → clear the flag
+        //
+        // CRITICAL FIX: The previous code auto-calculated paidOnTime by comparing
+        // today's date to the due date. This meant clicking "Paid On Time" on a
+        // past-due period would silently override the user's intent and set
+        // paidOnTime=false → orange pill instead of green. Now we respect the
+        // user's explicit selection.
         let paidOnTime: boolean | undefined;
         const todayIso = new Date().toISOString().split('T')[0];
-        if (newStatus === 'paid' || newStatus === 'late') {
-            const dueMs = new Date(selectedPeriod.dueDate).getTime();
-            const paidMs = new Date(todayIso).getTime();
-            paidOnTime = paidMs <= dueMs;
+        if (newStatus === 'paid') {
+            paidOnTime = true;  // User explicitly marked as Paid On Time → green
+        } else if (newStatus === 'late') {
+            paidOnTime = false; // User explicitly marked as Paid Late → orange
         } else if (newStatus === 'advance_paid') {
-            paidOnTime = true; // advance payment is always "on time" (pre-paid)
+            paidOnTime = true;  // Advance payment is always "on time" (pre-paid)
         } else {
-            paidOnTime = undefined;
+            paidOnTime = undefined; // Outstanding → clear flag
         }
 
         const updated: ServiceChargePeriod = {

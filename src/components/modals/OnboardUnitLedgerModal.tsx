@@ -118,11 +118,13 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
         setPeriods(prev => prev.map(p => {
             if (p.index !== index) return p;
             const todayIso = new Date().toISOString().split('T')[0];
+            // USER INTENT (not auto-calculated): 'paid' → on time (green),
+            // 'late' → late (orange), 'advance_paid' → on time (blue).
             let paidOnTime: boolean | undefined;
-            if (newStatus === 'paid' || newStatus === 'late') {
-                const dueMs = new Date(p.dueDate).getTime();
-                const paidMs = new Date(todayIso).getTime();
-                paidOnTime = paidMs <= dueMs;
+            if (newStatus === 'paid') {
+                paidOnTime = true;
+            } else if (newStatus === 'late') {
+                paidOnTime = false;
             } else if (newStatus === 'advance_paid') {
                 paidOnTime = true;
             } else {
@@ -143,11 +145,12 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
         setPeriods(prev => prev.map(p => {
             // Only bulk-settle non-advance periods
             if (p.isAdvance || p.status === 'advance_paid') return p;
+            // USER INTENT: 'paid' → on time (green), 'late' → late (orange)
             let paidOnTime: boolean | undefined;
-            if (status === 'paid' || status === 'late') {
-                const dueMs = new Date(p.dueDate).getTime();
-                const paidMs = new Date(todayIso).getTime();
-                paidOnTime = paidMs <= dueMs;
+            if (status === 'paid') {
+                paidOnTime = true;
+            } else if (status === 'late') {
+                paidOnTime = false;
             } else {
                 paidOnTime = undefined;
             }

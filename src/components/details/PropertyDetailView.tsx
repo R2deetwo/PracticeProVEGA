@@ -30,12 +30,12 @@ import { ComposeMessageModal, ComposeRecipient } from '../modals/ComposeMessageM
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
-    <div className="w-full min-w-0 overflow-x-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-        <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
-        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words">
+    <div className="w-full min-w-0 overflow-x-hidden break-words whitespace-normal text-left max-w-full" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+        <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5 whitespace-normal">{label}</p>
+        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words whitespace-normal">
             {value}
         </div>
-        {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight break-words">{subText}</p>}
+        {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight break-words whitespace-normal">{subText}</p>}
     </div>
 );
 
@@ -973,19 +973,19 @@ const PropertyDetailViewContent: React.FC = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                             {/* Identity Card */}
                             <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700 overflow-x-hidden w-full`}>
-                                <div className="flex justify-between items-start border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="text-sm font-bold text-slate-800 dark:text-white">Property Information</h3>
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
+                                    <div className="flex flex-wrap items-center gap-3 min-w-0">
+                                        <h3 className="text-sm font-bold text-slate-800 dark:text-white whitespace-normal">Property Information</h3>
                                         {allUnits.length > 1 && (
-                                            <button 
+                                            <button
                                                 onClick={() => setActiveTab('units')}
-                                                className="px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-2xs font-black text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800 hover:bg-primary-100 transition-all flex items-center gap-1"
+                                                className="px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-2xs font-black text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800 hover:bg-primary-100 transition-all flex items-center gap-1 whitespace-nowrap flex-shrink-0"
                                             >
                                                 {allUnits.length} Units Found <span className="opacity-50">&rarr;</span>
                                             </button>
                                         )}
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${property.status === 'Occupied' ? 'bg-green-100 text-green-800' : 'bg-slate-100 dark:bg-zinc-800 text-slate-800'}`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase whitespace-nowrap flex-shrink-0 ${property.status === 'Occupied' ? 'bg-green-100 text-green-800' : 'bg-slate-100 dark:bg-zinc-800 text-slate-800'}`}>
                                         {property.status}
                                     </span>
                                 </div>
@@ -1280,22 +1280,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                         <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Maintenance</span>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        // ROUTE TO EDIT MODAL — opens EditPropertyModal
-                                        // with auto-expand of Lease & Rent Configuration
-                                        // and auto-trigger of the [+ Add Unit] tab.
-                                        // This replaces the inline form approach.
-                                        openModal('editProperty', property.id, {
-                                            contactId: owner?.id,
-                                            autoExpandRental: true,
-                                            autoAddUnit: true,
-                                        });
-                                    }}
-                                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-colors"
-                                >
-                                    <Plus className="w-4 h-4" /> Add Unit
-                                </button>
+                                {/* Add Unit button removed per user request —
+                                    adding units is done via the Edit Property
+                                    modal's "Lease & Rent Configuration" section. */}
                             </div>
 
                             {/* Add Unit inline form */}
@@ -1757,7 +1744,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Tenant" title="Message Tenant">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }}
+                                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }}
+                                                                        className="px-3 py-1.5 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit"
+                                                                    >
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
                                                                     {/* More button — reveals full detail card.
@@ -2127,14 +2119,20 @@ const PropertyDetailViewContent: React.FC = () => {
                                             icon={<Receipt />}
                                             colorClass="bg-amber-600"
                                         />
-                                        <StatCard
-                                            title="COLLECTION STATUS"
-                                            value={collectionStatusText}
-                                            tooltipText={collectionStatusText}
-                                            scrollOnOverflow={true}
-                                            icon={<CheckCircleIcon />}
-                                            colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'}
-                                        />
+                                        {/* COLLECTION STATUS — hidden when property is
+                                            Management Only (no rent collection tracking).
+                                            Avoids UI clutter for properties that don't
+                                            require rent collection. */}
+                                        {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                            <StatCard
+                                                title="COLLECTION STATUS"
+                                                value={collectionStatusText}
+                                                tooltipText={collectionStatusText}
+                                                scrollOnOverflow={true}
+                                                icon={<CheckCircleIcon />}
+                                                colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'}
+                                            />
+                                        )}
                                     </>
                                 );
                             })()}

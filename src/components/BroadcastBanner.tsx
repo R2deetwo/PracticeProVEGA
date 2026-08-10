@@ -29,7 +29,7 @@
  *   - Badges use identical line-heights and flex alignment
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -590,6 +590,30 @@ export const BroadcastBanner: React.FC = () => {
         setActiveIndex(prev => (prev + 1) % allVisibleBanners.length);
     }, [allVisibleBanners.length]);
 
+    // ── Swipe gesture handlers (mobile-native carousel) ──────────────────
+    // Track touch start X position on touchstart, then on touchend calculate
+    // the delta. If |delta| > 50px, swipe left → next, swipe right → prev.
+    const touchStartX = useRef<number | null>(null);
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0]?.clientX ?? null;
+    }, []);
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (touchStartX.current === null) return;
+        const endX = e.changedTouches[0]?.clientX ?? touchStartX.current;
+        const delta = endX - touchStartX.current;
+        const threshold = 50; // px — minimum swipe distance
+        if (Math.abs(delta) > threshold) {
+            if (delta < 0) {
+                // Swipe left → next
+                setActiveIndex(prev => (prev + 1) % allVisibleBanners.length);
+            } else {
+                // Swipe right → prev
+                setActiveIndex(prev => (prev - 1 + allVisibleBanners.length) % allVisibleBanners.length);
+            }
+        }
+        touchStartX.current = null;
+    }, [allVisibleBanners.length]);
+
     // CRASH-SAFE
     if (!allVisibleBanners || allVisibleBanners.length === 0) return null;
 
@@ -613,11 +637,13 @@ export const BroadcastBanner: React.FC = () => {
                 - Left color accent bar
                 - Smooth horizontal slide transition */}
             <div
-                className={`relative overflow-hidden rounded-2xl transition-all duration-300 ease-out shadow-lg ${
+                className={`relative overflow-hidden rounded-2xl transition-all duration-300 ease-out shadow-lg touch-pan-y ${
                     isDismissing
                         ? 'opacity-0 -translate-x-8 max-h-0'
                         : 'opacity-100 translate-x-0'
                 }`}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
                 style={{
                     background: activeTheme.glassBg,
                     backdropFilter: 'blur(16px) saturate(180%)',
