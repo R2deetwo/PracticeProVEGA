@@ -6093,3 +6093,35 @@ Verification:
 
 Files Modified:
 - src/components/details/ServiceChargeBars.tsx (portal tooltip, slim pills, drawer historical strip, removed unused helpers)
+
+---
+Task ID: 13
+Agent: Main Agent
+Task: Deploy sync (master←main) + Quick Payment drawer event isolation + auto-scroll rental accordion
+
+Work Log:
+- DEPLOY FIX: Discovered that origin/master (which Vercel deploys from) was behind origin/main. Force-synced main→master via `git push origin origin/main:refs/heads/master --force`. This triggered Vercel's native GitHub integration to auto-deploy. Verified both Vercel and Cloudflare Workers are healthy with the latest sha.
+- Previous changes (slim pills, portal tooltip, drawer historical strip, etc.) are now LIVE on both deployment targets.
+
+1. Quick Payment Drawer Pointer Event & Click Propagation Fix:
+   - Added stopPropagation on onClick + onMouseDown + onTouchStart on the drawer container div. Prevents clicks inside the drawer from bleeding through to the backdrop (which would close the drawer) or to background unit cards (which would trigger accidental card expansions).
+   - Backdrop onClick now calls stopPropagation before onClose.
+   - Backdrop onMouseDown stopPropagation prevents mouse-down events from reaching background cards.
+
+2. Auto-Expand & Auto-Scroll on Unit/Property Editing:
+   - The auto-expand logic for the Lease & Rent Configuration accordion already existed (openSections initializer checks activeUnitId || autoExpandRental).
+   - Added rentalSectionRef (useRef<HTMLDivElement>) wrapping the rental AccordionSection.
+   - Added useEffect that scrolls the rental section into view with smooth behavior when activeUnitId or autoExpandRental is set. 150ms delay allows the accordion expand animation to start first.
+   - Updated the [Edit] button on unit cards in PropertyDetailView to pass autoExpandRental: true in the modal context.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 20.46s
+- Vercel: sha b4b60abe, status healthy ✅
+- Cloudflare Workers: sha b4b60abe, status healthy ✅
+- Git: committed as b4b60ab, pushed to origin/main + synced to origin/master
+
+Files Modified:
+- src/components/details/ServiceChargeBars.tsx (stopPropagation on drawer + backdrop)
+- src/components/forms/PropertyForm.tsx (rentalSectionRef + auto-scroll useEffect)
+- src/components/details/PropertyDetailView.tsx (autoExpandRental: true on Edit button)
