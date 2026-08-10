@@ -6008,3 +6008,48 @@ Verification:
 Files Modified:
 - src/types.ts (added paidOnTime flag to ServiceChargePeriod)
 - src/components/details/ServiceChargeBars.tsx (full rewrite: monthly pills, rich tooltips, auto-late engine, paidOnTime logic, backdrop fix, double Naira fix, Escape key handler)
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Remove month text, restore primary status badge, multi-period history on expand, backdrop fix
+
+Work Log:
+- ROOT CAUSE: The previous round's ServiceChargeBars showed monthly pills (Jan, Feb, Mar...) on ALL cards — including unexpanded small cards. The user saw "Oct" because that was the month abbreviation on the most recent pill. The user wants unexpanded cards to show a single clean status pill (CLEAR/LATE/OUTSTANDING), with the full multi-period history only appearing when the card is expanded.
+
+1. Remove Hardcoded Month Text & Restore Main Status Badge:
+   - Added new `expanded` prop to ServiceChargeBars (default: false).
+   - New PrimaryStatusPill component for unexpanded cards: renders ONE single pill per charge showing the current billing cycle status:
+     * 🟢 CLEAR (green) — current cycle settled on time
+     * 🟠 LATE (orange) — current cycle paid late or past due
+     * 🟥 OUTSTANDING (red) — current cycle unpaid and past due
+   - Maps the detailed period status to the 3-bucket primary label:
+     * paid + paidOnTime=true  → CLEAR
+     * paid + paidOnTime=false → LATE (settled but was late — retained)
+     * late (auto or manual)   → LATE
+     * outstanding             → OUTSTANDING
+   - No month text shown — just the status word. Clicking opens the Quick Payment Drawer for the current (most recent) period.
+
+2. Multi-Period History Pills on Expanded Cards:
+   - When `expanded={true}`: renders the full horizontal sequence of compact monthly status pills for ALL elapsed tenancy periods, labeled by month abbreviation (Jan, Feb, Mar...).
+   - Each pill color-coded: Green=Paid On Time, Orange=Paid Late/Currently Late, Red=Outstanding. Hover shows rich tooltip with period details.
+   - Wired the expanded ServiceChargeBars into the "Tier 2: Full Detail Card" section in PropertyDetailView, under a "Payment History" heading, right after the Term Progress DetailItem.
+   - The unexpanded card's ServiceChargeBars now explicitly passes expanded={false}.
+
+3. Quick Payment Drawer Backdrop Fix:
+   - Backdrop upgraded from bg-black/50 to bg-black/60 (darker, per spec).
+   - z-[4500] ensures the PAID/LATE/OUTSTANDING buttons don't bleed into floating page widgets.
+   - pointer-events-auto on both backdrop and drawer — background is fully blocked while drawer is open.
+   - Escape key handler closes the drawer (added in previous round).
+
+4. Single Currency Symbol:
+   - Already fixed in previous round — the drawer's Charge Amount uses formatNairaCompact() which injects a single ₦ symbol. No hardcoded <NairaSymbol /> prefix. Verified clean as "₦120K" (not "₦₦120K").
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors introduced)
+- Build: succeeded in 20.54s
+- Git: committed as c3218d5, pushed to origin/main
+
+Files Modified:
+- src/components/details/ServiceChargeBars.tsx (added expanded prop, PrimaryStatusPill component, backdrop bg-black/60)
+- src/components/details/PropertyDetailView.tsx (wired expanded={false} on unexpanded card, added expanded={true} ServiceChargeBars in the Full Detail Card section)
