@@ -5855,3 +5855,48 @@ Files Created:
 
 Files Modified:
 - src/components/details/PropertyTrackingView.tsx (1 import + 5-line mount block)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix non-Enterprise MatterForm accordion refactor + add service charge progress bar
+
+Work Log:
+- USER FEEDBACK: Previous session's SmartMatterModal accordion refactor was correct, but the user's screenshot showed the non-Enterprise MatterForm (which is what most firms see). The ModalManager only renders SmartMatterModal for Enterprise firms; everyone else gets MatterForm.tsx. So the accordion treatment needed to be applied to MatterForm as well.
+- VLM-analyzed the uploaded screenshot to confirm: the modal in the screenshot is MatterForm (not SmartMatterModal), with flat sections for Matter Title, Client, ASSIGNED TEAM, and Billing settings.
+
+MatterForm.tsx refactor:
+- Added module-level AccordionSection component (same pattern as PropertyForm/SmartMatterModal): React.memo + useRef header + scrollIntoView + useCallback toggle. Preserves input focus on every keystroke.
+- Added two new props to AccordionSection beyond the canonical pattern: `badge` (right-side accessory, used for the avatar-stack on Assigned Team) and `accessory` (inline element, used for the litigation toggle switch). Also added `disableHeaderToggle` for sections where the header has its own toggle behavior.
+- Refactored the 4 flat sections into 6 accordion sections:
+  1. Practice Area / Category (indigo, auto-open on mount) — includes workflow stages preview
+  2. Matter Title (slate) — with the Auto/Unlock toggle for litigation
+  3. Client (indigo, auto-open on mount) — with property link for Real Estate
+  4. Assigned Team (violet, separate section, multi-user mode only) — with avatar-stack badge showing up to 3 users + overflow when collapsed
+  5. Billing Settings (emerald) — billing model buttons + retainer auto-billing sub-config
+  6. Case Details / Litigation (rose) — uses disableHeaderToggle + accessory toggle switch; auto-expands when litigation is turned on, auto-collapses when off; shows hint message when off
+- Added openSections state with auto-expand logic: Practice Area + Client open on mount; litigation auto-opens via useEffect when isLitigation flips on (catches late loads from initialContext/matterToEdit).
+- Added assignedTeamBadge useMemo that renders an avatar stack (up to 3 user avatars + "+N" overflow pill) when the Assigned Team section is collapsed.
+
+LeaseProgressBars service charge bar:
+- Added a third progress bar for Service Charge Collection.
+- Reads from rentalDetails: serviceChargeAmount (or serviceCharge as fallback) for expected total, serviceChargeStatus ('PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID'), and outstandingServiceChargeBalance.
+- Paid amount derived from status: PAID_FULLY → full expected; PARTIALLY_PAID → expected − outstandingBalance; UNPAID → 0.
+- Same color logic as the other bars: emerald (≥100%) / amber (50-99%) / red (<50%).
+- Footer shows Paid / Expected amounts + a status pill (Paid Fully / Partially Paid / Unpaid) in matching colors.
+- Bar is hidden when no service charge is configured (expected ≤ 0), so it only appears when relevant.
+
+Verification:
+- TypeScript: zero NEW errors introduced. 4 pre-existing errors in MatterForm (about `effectiveStages.map` implicit any + `openModal?.()` possibly-undefined) were verified via `git stash` to exist in the original code — they just shifted line numbers because I added the AccordionSection component at the top of the file.
+- Build: succeeded in 20.41s.
+- Git: committed as f00582f, pushed to origin/main after resolving a version.json rebase conflict.
+
+Stage Summary:
+- The New Matter modal now uses the accordion layout for ALL firms (Enterprise uses SmartMatterModal which was already accordion; non-Enterprise now uses MatterForm which is now also accordion). The visual language is identical across both: same AccordionSection component, same colored icon badges, same collapse animation, same auto-expand behavior.
+- Assigned Team is now its own dedicated accordion section in MatterForm (was previously buried at the bottom of the Matter Information block). The avatar-stack badge makes the team visible at a glance even when the section is collapsed.
+- The litigation toggle is preserved but moved into the accordion header as an accessory — turning it on auto-expands the section, turning it off auto-collapses. When off, the section shows a hint message instead of the form fields.
+- Service charge progress bar now appears alongside the lease timeline and rent collection bars on every tenanted property's tracking tab. Gives an instant visual answer to "is service charge collection on track?" with color-coded states and a status pill.
+
+Files Modified:
+- src/components/forms/MatterForm.tsx (added AccordionSection module-level component + accordion state + refactored 4 flat sections into 6 accordion sections)
+- src/components/details/LeaseProgressBars.tsx (added service charge progress bar — third bar in the stack)
