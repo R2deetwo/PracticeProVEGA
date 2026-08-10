@@ -44,6 +44,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { CalendarIcon, XIcon, CheckCircleIcon, DownloadIcon } from '../../constants';
@@ -61,17 +62,7 @@ const periodMonths = (freq?: string): number => {
     return 12;
 };
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FULL_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-const getMonthLabel = (isoDate: string): string => {
-    try {
-        const d = new Date(isoDate);
-        return MONTH_ABBR[d.getMonth()] || '';
-    } catch {
-        return '';
-    }
-};
 
 const getFullMonthYear = (isoDate: string): string => {
     try {
@@ -224,18 +215,55 @@ const getStatusMeta = (period: ServiceChargePeriod): StatusMeta => {
     };
 };
 
-// ─── Rich Hover Tooltip ─────────────────────────────────────────────────────
+// ─── Rich Hover Tooltip (Portal-rendered to avoid clipping) ─────────────────
+// The tooltip is rendered via React Portal at document.body level, so it
+// floats above ALL card containers — even those with overflow-hidden. The
+// parent card's overflow clipping was causing the tooltip text to be cut off
+// (e.g. "o log payment" instead of "Click to log payment").
+//
+// Positioning: we measure the pill's bounding rect on hover and position the
+// tooltip centered above it. A re-measure runs on window scroll/resize.
 interface PillTooltipProps {
     period: ServiceChargePeriod;
     chargeType: 'SC' | 'MV';
+    targetRef: React.RefObject<HTMLElement>;
 }
 
-const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType }) => {
+const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType, targetRef }) => {
     const meta = getStatusMeta(period);
-    return (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-lg bg-slate-900 dark:bg-zinc-800 text-white shadow-xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-            {/* Arrow */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px w-2 h-2 bg-slate-900 dark:bg-zinc-800 rotate-45" />
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+    useEffect(() => {
+        const measure = () => {
+            const el = targetRef.current;
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            // Center the tooltip (w-56 = 224px) above the pill.
+            // If the pill is near the top of the viewport, flip below.
+            const tooltipWidth = 224;
+            const left = rect.left + rect.width / 2 - tooltipWidth / 2;
+            // Clamp to viewport so the tooltip never overflows horizontally
+            const clampedLeft = Math.max(8, Math.min(window.innerWidth - tooltipWidth - 8, left));
+            const showBelow = rect.top < 200; // near top → flip below
+            const top = showBelow ? rect.bottom + 8 : rect.top - 8;
+            setPos({ top, left: clampedLeft });
+        };
+        measure();
+        window.addEventListener('scroll', measure, true);
+        window.addEventListener('resize', measure);
+        return () => {
+            window.removeEventListener('scroll', measure, true);
+            window.removeEventListener('resize', measure);
+        };
+    }, [targetRef]);
+
+    if (!pos) return null;
+
+    return createPortal(
+        <div
+            className="fixed w-56 p-3 rounded-lg bg-slate-900 dark:bg-zinc-800 text-white shadow-xl z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+            style={{ top: pos.top, left: pos.left }}
+        >
             <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
                     <CalendarIcon className="w-3 h-3 text-slate-400" />
@@ -259,7 +287,8 @@ const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType }) => {
                     </span>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 
@@ -268,13 +297,19 @@ interface QuickPaymentDrawerProps {
     period: ServiceChargePeriod | null;
     chargeType: 'SC' | 'MV';
     unitName: string;
+    /** Full list of elapsed periods — rendered as a historical pill strip
+     *  at the top of the drawer, above the Charge Amount. Clicking a pill
+     *  switches the drawer's focus to that period. */
+    allPeriods: ServiceChargePeriod[];
     onClose: () => void;
     onStatusChange: (status: 'paid' | 'late' | 'outstanding') => void;
     onGenerateReceipt: () => void;
+    /** Switch the drawer's focus to a different period in the historical strip. */
+    onPeriodSelect: (period: ServiceChargePeriod) => void;
 }
 
 const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
-    period, chargeType, unitName, onClose, onStatusChange, onGenerateReceipt,
+    period, chargeType, unitName, allPeriods, onClose, onStatusChange, onGenerateReceipt, onPeriodSelect,
 }) => {
     if (!period) return null;
     const meta = getStatusMeta(period);
@@ -322,6 +357,38 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                    {/* ── Historical Pill Strip ──────────────────────────────
+                        Renders the full timeline of elapsed periods at the top
+                        of the drawer, above the Charge Amount. Each pill is a
+                        slim color-only bar (no text). Clicking a pill switches
+                        the drawer's focus to that period — updating the amount,
+                        status, and receipt prompt below. */}
+                    {allPeriods.length > 0 && (
+                        <div>
+                            <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                                Payment History · {allPeriods.length} period{allPeriods.length === 1 ? '' : 's'}
+                            </p>
+                            <div className="flex items-center gap-1 flex-wrap p-2 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700/60">
+                                {allPeriods.map(p => {
+                                    const m = getStatusMeta(p);
+                                    const isActive = p.index === period.index;
+                                    return (
+                                        <button
+                                            key={p.index}
+                                            onClick={() => onPeriodSelect(p)}
+                                            title={`${getFullMonthYear(p.dueDate)} — ${m.name}`}
+                                            className={`h-2 w-7 rounded-full ${m.pill} transition-all cursor-pointer ${
+                                                isActive
+                                                    ? 'ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-800 ring-slate-400 scale-110'
+                                                    : 'opacity-80 hover:opacity-100 hover:scale-105'
+                                            }`}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Amount — single Naira symbol via formatNairaCompact (which
                         already injects ₦). No hardcoded ₦ prefix here. */}
                     <div className="p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-700/60">
@@ -416,7 +483,11 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     );
 };
 
-// ─── Status Pill (with hover tooltip) ───────────────────────────────────────
+// ─── Status Pill (slim color-only bar with portal tooltip) ──────────────────
+// Renders a slim color-only bar (h-2 w-7 rounded-full) — NO text label.
+// Pure color encoding: Green=Paid On Time, Orange=Paid Late/Currently Late,
+// Red=Outstanding. Hover shows a portal-rendered tooltip that floats above
+// all card containers (avoids overflow clipping).
 interface StatusPillProps {
     period: ServiceChargePeriod;
     chargeType: 'SC' | 'MV';
@@ -426,7 +497,7 @@ interface StatusPillProps {
 const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) => {
     const [hovered, setHovered] = useState(false);
     const meta = getStatusMeta(period);
-    const monthLabel = getMonthLabel(period.dueDate);
+    const pillRef = useRef<HTMLButtonElement>(null);
 
     return (
         <div
@@ -435,26 +506,27 @@ const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) 
             onMouseLeave={() => setHovered(false)}
         >
             <button
+                ref={pillRef}
                 onClick={(e) => {
                     e.stopPropagation();
                     onClick();
                 }}
-                className={`h-6 px-1.5 rounded-md ${meta.pill} ${meta.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer flex items-center justify-center text-3xs font-black text-white min-w-[28px]`}
+                className={`h-2 w-7 rounded-full ${meta.pill} ${meta.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer`}
                 aria-label={`${meta.name} — ${getFullMonthYear(period.dueDate)}`}
-            >
-                {monthLabel}
-            </button>
-            {hovered && (
-                <PillTooltip period={period} chargeType={chargeType} />
+            />
+            {hovered && pillRef.current && (
+                <PillTooltip period={period} chargeType={chargeType} targetRef={pillRef} />
             )}
         </div>
     );
 };
 
 // ─── Primary Status Pill (for unexpanded cards) ─────────────────────────────
-// Renders ONE single pill showing the unit's overall standing for the CURRENT
-// billing cycle. No month text — just the status word:
-//   CLEAR (green) / LATE (orange) / OUTSTANDING (red)
+// Renders ONE single slim color-only bar showing the unit's overall standing
+// for the CURRENT billing cycle. NO text label — pure color encoding:
+//   Green  = Clear (current cycle settled on time)
+//   Orange = Late (current cycle paid late or past due)
+//   Red    = Outstanding (current cycle unpaid and past due)
 // Clicking opens the Quick Payment Drawer for the current (most recent) period.
 interface PrimaryStatusPillProps {
     periods: ServiceChargePeriod[];
@@ -464,30 +536,31 @@ interface PrimaryStatusPillProps {
 
 const PrimaryStatusPill: React.FC<PrimaryStatusPillProps> = ({ periods, chargeType, onClick }) => {
     const [hovered, setHovered] = useState(false);
+    const pillRef = useRef<HTMLButtonElement>(null);
     if (periods.length === 0) return null;
 
     // The "current" period is the most recent elapsed period (last in the array).
     const currentPeriod = periods[periods.length - 1];
 
-    // Map the detailed status to the 3-bucket primary label:
-    // - paid + paidOnTime=true  → CLEAR (green)
-    // - paid + paidOnTime=false → LATE (orange — settled but was late)
-    // - late (auto or manual)   → LATE (orange)
-    // - outstanding             → OUTSTANDING (red)
-    let primaryLabel: string;
+    // Map the detailed status to the 3-bucket primary color:
+    // - paid + paidOnTime=true  → green (Clear)
+    // - paid + paidOnTime=false → orange (Late — settled but was late)
+    // - late (auto or manual)   → orange (Late)
+    // - outstanding             → red (Outstanding)
     let primaryColor: string;
+    let primaryLabel: string; // kept for aria-label + tooltip only, not rendered
     if (currentPeriod.status === 'paid' && currentPeriod.paidOnTime === true) {
-        primaryLabel = 'CLEAR';
         primaryColor = 'bg-emerald-500 hover:bg-emerald-600';
+        primaryLabel = 'Clear';
     } else if (
         (currentPeriod.status === 'paid' && currentPeriod.paidOnTime === false) ||
         currentPeriod.status === 'late'
     ) {
-        primaryLabel = 'LATE';
         primaryColor = 'bg-amber-500 hover:bg-amber-600';
+        primaryLabel = 'Late';
     } else {
-        primaryLabel = 'OUTSTANDING';
         primaryColor = 'bg-red-500 hover:bg-red-600';
+        primaryLabel = 'Outstanding';
     }
 
     return (
@@ -497,17 +570,16 @@ const PrimaryStatusPill: React.FC<PrimaryStatusPillProps> = ({ periods, chargeTy
             onMouseLeave={() => setHovered(false)}
         >
             <button
+                ref={pillRef}
                 onClick={(e) => {
                     e.stopPropagation();
                     onClick(currentPeriod);
                 }}
-                className={`h-5 px-2 rounded-md ${primaryColor} transition-all hover:scale-105 hover:shadow-sm cursor-pointer flex items-center justify-center text-3xs font-black text-white uppercase tracking-wider`}
+                className={`h-2 w-7 rounded-full ${primaryColor} transition-all hover:scale-110 hover:shadow-sm cursor-pointer`}
                 aria-label={`${chargeType} — ${primaryLabel}`}
-            >
-                {primaryLabel}
-            </button>
-            {hovered && (
-                <PillTooltip period={currentPeriod} chargeType={chargeType} />
+            />
+            {hovered && pillRef.current && (
+                <PillTooltip period={currentPeriod} chargeType={chargeType} targetRef={pillRef} />
             )}
         </div>
     );
@@ -696,15 +768,19 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             )}
 
             {/* Quick Payment Drawer — rendered via portal-free fixed overlay.
-                The backdrop blocks all background pointer events. */}
+                The backdrop blocks all background pointer events.
+                Passes the full allPeriods array so the drawer can render the
+                historical pill strip at the top. */}
             {drawerOpen && (
                 <QuickPaymentDrawer
                     period={selectedPeriod}
                     chargeType={selectedChargeType}
+                    allPeriods={selectedChargeType === 'SC' ? scPeriods : mvPeriods}
                     unitName={rental?.unitName || unit.description || 'Unit'}
                     onClose={() => setDrawerOpen(false)}
                     onStatusChange={handleStatusChange}
                     onGenerateReceipt={handleGenerateReceipt}
+                    onPeriodSelect={(p) => setSelectedPeriod(p)}
                 />
             )}
         </>
