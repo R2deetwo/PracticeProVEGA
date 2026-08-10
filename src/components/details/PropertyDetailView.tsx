@@ -169,9 +169,10 @@ const PropertyDetailViewContent: React.FC = () => {
         }
         if (ctx?.highlight) {
             setHighlightTarget(ctx.highlight);
-            // Extended to 15 seconds — allUnits might take time to load
-            // from Convex, and the highlight should persist until the
-            // target unit is found and expanded.
+            // Keep the highlight active for 3 seconds after the target unit
+            // is found and expanded — the emerald glow pulses for 2.5s via
+            // the CSS animation, then fades out. The 15s fallback timeout
+            // covers the case where allUnits takes time to load from Convex.
             const timer = setTimeout(() => setHighlightTarget(null), 15000);
             return () => clearTimeout(timer);
         }
@@ -1527,10 +1528,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${
                                                             isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'
                                                         } ${
-                                                            // HIGHLIGHT GLOW — when this unit is the target of an overdue
-                                                            // rent notification deep-link, apply a rose pulse ring for 5s.
+                                                            // EMERALD GLOW HIGHLIGHT — when this unit is the target of a
+                                                            // critical lease notification deep-link, apply a high-visibility
+                                                            // emerald glow + pulse animation for 3 seconds to draw focus.
                                                             highlightTarget && (highlightTarget === unit.id || highlightTarget === String(unit.id) || highlightTarget === 'overdue')
-                                                                ? 'ring-2 ring-rose-500/60 animate-pulse shadow-lg shadow-rose-500/20'
+                                                                ? 'unit-card-highlight ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/30'
                                                                 : ''
                                                         }`}
                                                     >

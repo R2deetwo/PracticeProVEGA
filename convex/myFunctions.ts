@@ -4865,7 +4865,7 @@ export const scanLeaseExpiries = internalMutation({
               title: `Lease Expiring in ${daysRemaining} days`,
               message: `${property.name || property.address || 'Property'} — Tenant: ${rentalDetails.tenantName || 'Unknown'}. Lease ends ${new Date(leaseEnd).toLocaleDateString('en-GB')}.`,
               type: 'lease_expiry',
-              link: { view: 'propertyDetail', id: property._id, context: {} },
+              link: { view: 'propertyDetail', id: property._id, context: { tab: 'units', targetUnit: property._id, highlight: property._id } },
               timestamp: new Date().toISOString(),
               isRead: false,
             } as any);
@@ -4912,7 +4912,7 @@ export const scanLeaseExpiries = internalMutation({
             title: 'Lease Has Expired',
             message: `${property.name || property.address || 'Property'} — Tenant: ${rentalDetails.tenantName || 'Unknown'}. Lease expired ${Math.abs(daysRemaining)} day(s) ago. Action required.`,
             type: 'lease_expired',
-            link: { view: 'propertyDetail', id: property._id, context: {} },
+            link: { view: 'propertyDetail', id: property._id, context: { tab: 'units', targetUnit: property._id, highlight: property._id } },
             timestamp: new Date().toISOString(),
             isRead: false,
           } as any);

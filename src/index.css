@@ -1889,3 +1889,26 @@ nav,
     scroll-behavior: auto !important;
   }
 }
+
+/* ─── Unit Card Highlight Glow ──────────────────────────────────────────
+   Used by PropertyDetailView when a critical lease notification deep-links
+   to a specific unit. The emerald pulse runs for 2.5s then fades out,
+   drawing immediate visual focus to the target card. */
+@keyframes emerald-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    border-color: #10b981;
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.4);
+    border-color: #10b981;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    border-color: #10b981;
+  }
+}
+.unit-card-highlight {
+  animation: emerald-pulse 2.5s ease-in-out;
+  border-color: #10b981 !important;
+}

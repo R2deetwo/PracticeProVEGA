@@ -93,6 +93,7 @@ import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import ApkUpdateBanner from './ApkUpdateBanner';
+import CriticalLeaseBanner from './CriticalLeaseBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
 
 import { LandingPage } from './LandingPage';
@@ -518,6 +519,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
             <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full overflow-hidden`}>
                 {currentUser && !isPortalUser && <Header />}
+                {/* Critical Lease Banner — pinned between Header and main content.
+                    Shows high-priority lease alerts (expiration, defaulter, etc.)
+                    as interactive broadcast banners with [View Unit] deep-linking. */}
+                {currentUser && !isPortalUser && <CriticalLeaseBanner />}
                 {/* Main content area: on desktop, fills remaining height.
                     On mobile, the BottomNav is position:fixed and overlays
                     the content. We add paddingBottom on mobile to ensure
