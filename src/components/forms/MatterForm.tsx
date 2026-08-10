@@ -819,8 +819,14 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     }, [props.users, assignedUsers, openSections.assignedTeam]);
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col">
-            <div className="space-y-2 sm:space-y-3 pb-4">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            {/* 2. SCROLLABLE FORM BODY — only this section scrolls.
+                flex-1 + min-h-0 + overflow-y-auto makes it the scroll
+                container. The footer below is a flex-shrink-0 sibling
+                that always pins to the bottom of the modal.
+                -mt-3 sm:-mt-5 cancels the Modal body's top padding so
+                the form content starts flush at the top. */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 -mt-3 sm:-mt-5 pb-4">
 
                 {/* ── CLASSIFICATION (accordion) ── */}
                 <AccordionSection
@@ -1366,13 +1372,14 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 </AccordionSection>
             </div>
 
-            {/* ACTION FOOTER — sticky to the Modal's scroll viewport.
-                The Modal body has px-3 py-3 sm:px-6 sm:py-5 padding; the
-                negative margins below cancel that padding so the footer
-                spans the full width and sits flush at the bottom.
-                bg-white + shadow-lg + border-t ensures content doesn't
-                bleed under the buttons when scrolling. */}
-            <div className="sticky bottom-0 left-0 right-0 z-20 -mx-3 -mb-3 sm:-mx-6 sm:-mb-5 px-3 py-3 sm:px-6 sm:py-4 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)] flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3">
+            {/* 3. PINNED BOTTOM FOOTER — flex-shrink-0 sibling of the scroll
+                body. Always locks to the absolute bottom of the modal.
+                No sticky positioning needed — the flex column layout keeps
+                it pinned. Negative margins (-mx-3 -mb-3 sm:-mx-6 sm:-mb-5)
+                cancel the Modal body's padding so the footer spans the full
+                width edge-to-edge. bg-white + border-t + shadow ensures
+                content doesn't bleed under the buttons when scrolling. */}
+            <div className="flex-shrink-0 z-20 -mx-3 -mb-3 sm:-mx-6 sm:-mb-5 px-3 py-3 sm:px-6 sm:py-4 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)] flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3">
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-3.5 h-3.5" /> Cancel
                 </button>
