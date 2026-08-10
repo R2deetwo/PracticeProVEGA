@@ -5900,3 +5900,55 @@ Stage Summary:
 Files Modified:
 - src/components/forms/MatterForm.tsx (added AccordionSection module-level component + accordion state + refactored 4 flat sections into 6 accordion sections)
 - src/components/details/LeaseProgressBars.tsx (added service charge progress bar — third bar in the stack)
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Architectural Master Brief — Modal fixes, SC/MV bars, auto-sync, compose modal, notice text
+
+Work Log:
+- VLM-analyzed user's screenshot to confirm which modal was broken (non-Enterprise MatterForm, not SmartMatterModal).
+
+Stage 1 — MatterForm accordion + footer fixes:
+- ROOT CAUSE: MatterForm had a NESTED scroll container (flex-1 overflow-y-auto inside h-full form) competing with the Modal wrapper's own scroll container. This caused: (a) the sticky footer stuck to the wrong scroll viewport, (b) event/scroll ownership conflicts that could block accordion toggles, (c) content bleeding under the footer.
+- FIX: Removed the nested scroll container entirely. The form is now just flex flex-col with a space-y div for content + a sticky bottom-0 footer. The Modal body is the sole scroll container.
+- Footer now uses negative margins (-mx-3 -mb-3 sm:-mx-6 sm:-mb-5) to cancel the Modal body's padding and span the full width. Solid bg-white/dark:bg-zinc-900, border-t, shadow-lg, z-20, pb-safe-extra. No more content bleed.
+
+Stage 2 — Interactive SC/MV Progress Bars:
+- New ServiceChargeBars component with per-period colored bars: Green=Paid, Orange=Late, Red=Outstanding.
+- Bars computed from leaseStart + rentFrequency — only elapsed periods rendered (capped at 60).
+- Per-period status persisted in rentalDetails.scPeriods / mvPeriods (new ServiceChargePeriod type).
+- Quick Payment Drawer (slide-in from right): shows period #, due date, amount, current status; 3 toggle buttons (Paid/Late/Outstanding); '[Generate & Issue Receipt]' prompt when Paid.
+- Aggregate serviceChargeStatus auto-updates based on all periods.
+- Replaced old static SC/MV badges on unit cards. SC and MV share uniform left alignment (w-6 label prefix) with Term Progress (Calendar icon).
+
+Stage 3 — Auto-Sync Residents to Contacts:
+- Added auto-sync to PropertyForm.handleSubmit. After each unit saves, checks if tenant has name or phone. Searches existing contacts by normalized phone. If found: links tenantContactId. If not: creates new Contact (category='Tenant') and links it.
+- Best-effort — failures logged to console, don't block property save.
+- Added tenantContactId to rentalDetails type.
+
+Stage 4 — ComposeMessageModal:
+- New unified modal with 3 channel tabs: WhatsApp, Email, Portal Invite.
+- WhatsApp: dispatches via api.communications.sendWhatsApp (Chakra Chat API). If API fails/unconfigured, offers 'Fallback: Open in WhatsApp Web' button (https://wa.me/...).
+- Email: requires valid email. Subject + body. Dispatches via api.communications.sendEmail.
+- Portal Invite: requires valid email. If email missing, tab is grayed out with hover tooltip: 'Please update resident's email address to send a Tenant Portal invite.'
+- All sends logged to activity timeline via api.sentry.logAutomation (best-effort).
+- [Message] button on unit cards now opens this modal instead of the old inline strip.
+
+Stage 5 — Statutory Notice Advisory Text:
+- Already correct in existing code (line 1411): 'Tenancy {pct}% elapsed. Statutory notice window compressed—review lease terms or engage tenant for waiver.' No change needed.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors introduced)
+- Build: succeeded in 20.77s
+- Git: committed as 56edfa3, pushed to origin/main
+
+Files Created:
+- src/components/details/ServiceChargeBars.tsx (~400 lines)
+- src/components/modals/ComposeMessageModal.tsx (~300 lines)
+
+Files Modified:
+- src/components/forms/MatterForm.tsx (removed nested scroll container, fixed sticky footer)
+- src/components/forms/PropertyForm.tsx (added resident-to-contact auto-sync)
+- src/components/details/PropertyDetailView.tsx (replaced SC/MV badges with ServiceChargeBars, wired ComposeMessageModal to [Message] button)
+- src/types.ts (added ServiceChargePeriod interface, scPeriods/mvPeriods/tenantContactId on rentalDetails)
