@@ -834,6 +834,20 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
     }, []);
 
+    // ─── Auto-scroll to Rental section when editing from a unit card ──────
+    // When the modal opens with activeUnitId or autoExpandRental, the rental
+    // accordion auto-expands (above). This ref + effect scrolls the expanded
+    // section into view so the user doesn't have to manually scroll down.
+    const rentalSectionRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!(activeUnitId || autoExpandRental)) return;
+        // Delay to allow the accordion expand animation to start before scrolling.
+        const timer = setTimeout(() => {
+            rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+        return () => clearTimeout(timer);
+    }, [activeUnitId, autoExpandRental]);
+
     return (
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
@@ -1155,8 +1169,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     </div>
                 )}
 
-                {/* 3. Rental Details */}
+                {/* 3. Rental Details — wrapped in a ref div for auto-scroll
+                    when the modal opens from a unit card Edit button. */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
+                    <div ref={rentalSectionRef}>
                     <AccordionSection id="rental" isOpen={openSections.rental} onToggle={toggleSection} title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
 
                         {/* UNIT TABS — always show (even for single unit) + inline Add Unit button */}
@@ -1621,6 +1637,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
                         </div>
                     </AccordionSection>
+                    </div>
                 )}
 
                 {/* Image Upload Section */}

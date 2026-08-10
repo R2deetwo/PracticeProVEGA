@@ -316,23 +316,33 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
 
     return (
         <>
-            {/* Backdrop — fixed inset-0, dark overlay (bg-black/60 per spec),
-                pointer-events-auto ensures background buttons/cards are NOT
-                clickable while drawer is open. z-[4500] sits above all unit
-                card content so the PAID/LATE/OUTSTANDING buttons don't bleed
-                into floating page widgets. */}
+            {/* Backdrop — fixed inset-0, dark overlay (bg-black/60 per spec).
+                pointer-events-auto catches ALL background interactions so they
+                don't bleed through to underlying unit cards. onClick closes
+                the drawer. */}
             <div
                 className="fixed inset-0 z-[4500] bg-black/60 sm:backdrop-blur-sm pointer-events-auto"
-                onClick={onClose}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
                 aria-hidden="true"
             />
             {/* Drawer — slides in from the right.
                 z-[4501] sits above the backdrop. pointer-events-auto explicitly
-                enables interaction on the drawer itself. */}
+                enables interaction on the drawer itself.
+                CRITICAL: onClick + onMouseDown stopPropagation prevents clicks
+                inside the drawer from bleeding through to the backdrop (which
+                would close the drawer) or to background unit cards (which
+                would trigger accidental card expansions). */}
             <div
                 className="fixed top-0 right-0 bottom-0 z-[4501] w-full sm:max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 pointer-events-auto"
                 role="dialog"
                 aria-modal="true"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800 flex-shrink-0">
