@@ -6125,3 +6125,29 @@ Files Modified:
 - src/components/details/ServiceChargeBars.tsx (stopPropagation on drawer + backdrop)
 - src/components/forms/PropertyForm.tsx (rentalSectionRef + auto-scroll useEffect)
 - src/components/details/PropertyDetailView.tsx (autoExpandRental: true on Edit button)
+
+---
+Task ID: 14
+Agent: Main Agent
+Task: NewMatterModal 3-tier flexbox layout refactor — pinned footer, no content bleed
+
+Work Log:
+- ROOT CAUSE: MatterForm's footer used 'sticky bottom-0' with negative margins inside the Modal's scrollable body. Sticky positioning inside a flex-1 overflow-y-auto container is fragile — the footer floated over content instead of pinning to the container's bottom edge, and form elements (Case Details) slid out below the action bar when scrolling.
+
+Fix — 3-tier flexbox layout per the architectural brief:
+  1. Form is now 'flex flex-col h-full' — fills the Modal body exactly.
+  2. Scrollable body: 'flex-1 min-h-0 overflow-y-auto' — only this section scrolls. -mt-3 sm:-mt-5 cancels the Modal body's top padding so content starts flush at the top.
+  3. Footer: 'flex-shrink-0' sibling of the scroll body — always locks to the absolute bottom of the modal. No sticky positioning needed; the flex column layout keeps it pinned. Negative margins (-mx-3 -mb-3 sm:-mx-6 sm:-mb-5) cancel the Modal body's horizontal + bottom padding so the footer spans full width edge-to-edge.
+  4. bg-white + border-t + shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)] ensures content doesn't bleed under the buttons when scrolling.
+
+SmartMatterModal (Enterprise) already had the correct 3-tier layout (max-h-[90vh] flex flex-col + flex-shrink-0 header + flex-1 overflow-y-auto body + flex-shrink-0 footer) — no changes needed.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 21.06s
+- Git: committed as d6de762, pushed to origin/main + synced to origin/master
+- Cloudflare Workers: sha d6de762, status healthy ✅ (fully up to date)
+- Vercel: deploy may be slightly behind (GitHub integration latency) — Cloudflare is the primary deployment target
+
+Files Modified:
+- src/components/forms/MatterForm.tsx (3-tier flexbox: h-full form + flex-1 min-h-0 overflow-y-auto body + flex-shrink-0 footer)
