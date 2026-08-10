@@ -39,13 +39,21 @@ interface AccordionSectionProps {
     children: React.ReactNode;
     isOpen: boolean;
     onToggle: (id: string) => void;
+    /** Optional: called when any input inside this section receives focus
+     *  (via Tab key). Enables keyboard focus-driven accordion switching. */
+    onFocusSection?: (id: string) => void;
 }
-const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle }) => {
+const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle, onFocusSection }) => {
     const headerRef = useRef<HTMLButtonElement>(null);
     return (
         <div
             className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
             style={{ willChange: 'height', contain: 'layout style' }}
+            // Focus capture: when any child input receives focus (via Tab key),
+            // notify the parent so it can auto-expand this section + collapse others.
+            // This enables keyboard-driven accordion switching without disrupting
+            // manual mouse-click toggles.
+            onFocusCapture={onFocusSection ? () => onFocusSection(id) : undefined}
         >
             <button
                 ref={headerRef}
@@ -163,8 +171,12 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         id: p.id,
                         status: p.status || 'Occupied',
                         _id: (p as any)._id,
-                        unitName: rd.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit",
-                        unitDescription: (rd as any).unitDescription || p.description?.replace(/\s*\(.*?\)\s*$/, '') || '',
+                        // DECOUPLED: unitName + unitDescription are no longer
+                        // seeded from property.description. The property
+                        // description is building-level only; unit description
+                        // is unit-specific and must remain independent.
+                        unitName: rd.unitName || "Unit",
+                        unitDescription: (rd as any).unitDescription || '',
                         legalFee: lf,
                         legalFeePercentage: legalPct,
                         agencyFee: af,
@@ -313,8 +325,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     id: p.id,
                     status: p.status || 'Occupied',
                     _id: (p as any)._id,
-                    unitName: rd.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit",
-                    unitDescription: (rd as any).unitDescription || p.description?.replace(/\s*\(.*?\)\s*$/, '') || '',
+                    // DECOUPLED: unitName + unitDescription are no longer
+                    // seeded from property.description.
+                    unitName: rd.unitName || "Unit",
+                    unitDescription: (rd as any).unitDescription || '',
                     legalFee: lf,
                     legalFeePercentage: legalPct,
                     agencyFee: af,
@@ -836,6 +850,27 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
     }, []);
 
+    // ─── Keyboard Focus-Driven Accordion Switching ────────────────────────
+    // When keyboard focus (Tab key) moves to an input inside a collapsed
+    // accordion section, automatically expand that section AND collapse all
+    // others — keeping the form clean and single-section focused during
+    // sequential keyboard entry.
+    //
+    // Manual mouse clicks on accordion headers still use toggleSection()
+    // (above) which allows custom open/close toggles without restricting
+    // multi-expansion.
+    const handleSectionFocus = React.useCallback((sectionId: string) => {
+        setOpenSections(prev => {
+            // If the focused section is already open, no-op (don't disrupt
+            // the user mid-typing).
+            if (prev[sectionId]) return prev;
+            // Open the focused section, close all others.
+            const next: Record<string, boolean> = {};
+            Object.keys(prev).forEach(key => { next[key] = key === sectionId; });
+            return next;
+        });
+    }, []);
+
     // ─── Auto-scroll to Rental section when editing from a unit card ──────
     // When the modal opens with activeUnitId or autoExpandRental, the rental
     // accordion auto-expands (above). This ref + effect scrolls the expanded
@@ -857,7 +892,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     return (
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
-                <AccordionSection id="primary" isOpen={openSections.primary} onToggle={toggleSection} title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
+                <AccordionSection id="primary" isOpen={openSections.primary} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
                     <div className="space-y-2 sm:space-y-3">
                         <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">
@@ -956,21 +991,21 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         </div>
 
                         <div className="space-y-2 group">
-                            <label className={labelClass}>Property Description <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(shared fallback)</span></label>
-                            <input autoComplete="off" data-lpignore="true" 
+                            <label className={labelClass}>Property Description <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(building-level only)</span></label>
+                            <input autoComplete="off" data-lpignore="true"
                                 type="text"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 className={commonInputClass}
-                                placeholder="e.g. 8-Unit Luxury Apartment Complex or 3-Bedroom Terrace Duplex"
+                                placeholder="e.g. 8-Unit Luxury Apartment Complex with Swimming Pool"
                             />
-                            <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Building-level description (e.g. "8-Unit Luxury Apartment Complex"). Do not enter individual unit names here.</p>
+                            <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Building or estate-level description only. This does NOT fill individual unit descriptions — those are set independently under Lease & Rent Configuration.</p>
                         </div>
                     </div>
                 </AccordionSection>
 
                 {/* --- Amenities Section --- */}
-                <AccordionSection id="amenities" isOpen={openSections.amenities} onToggle={toggleSection} title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
+                <AccordionSection id="amenities" isOpen={openSections.amenities} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
                     <div className="space-y-3 sm:space-y-4">
                         <div className="flex gap-2">
                             <input autoComplete="off" data-lpignore="true" 
@@ -1007,7 +1042,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Automation Settings --- */}
-                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
+                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
@@ -1027,7 +1062,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Minimum Vend / Estate Fees --- */}
-                <AccordionSection id="fees" isOpen={openSections.fees} onToggle={toggleSection} title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
+                <AccordionSection id="fees" isOpen={openSections.fees} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
                     <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
                         <input autoComplete="off" data-lpignore="true" type="checkbox" checked={minimumVendEnabled} onChange={e => setMinimumVendEnabled(e.target.checked)} className="mt-1 rounded border-slate-200 text-teal-500 focus:ring-teal-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Enable Minimum Vend Tracking</span>
@@ -1179,7 +1214,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     when the modal opens from a unit card Edit button. */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
                     <div ref={rentalSectionRef}>
-                    <AccordionSection id="rental" isOpen={openSections.rental} onToggle={toggleSection} title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
+                    <AccordionSection id="rental" isOpen={openSections.rental} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
 
                         {/* UNIT TABS — always show (even for single unit) + inline Add Unit button */}
                         <div className="flex flex-wrap gap-2 px-1 mb-2 items-center">
@@ -1675,7 +1710,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <AccordionSection id="media" isOpen={openSections.media} onToggle={toggleSection} title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
+                <AccordionSection id="media" isOpen={openSections.media} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}

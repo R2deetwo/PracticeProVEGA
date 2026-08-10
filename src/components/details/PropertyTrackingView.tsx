@@ -42,6 +42,10 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
     const isLeased = property.category === 'Tenanted Property';
     const isSale = property.category === 'Property For Sale';
+    // Management Only properties don't collect rent via the system — hide all
+    // rent collection modules (Quick Stats cards, rent tab, rent history table,
+    // rent collection progress bar). Only show lease timeline + service charge.
+    const isManagementOnly = property.rentCollectionMode === 'Management Only (No Rent)';
     const [activeSection, setActiveSection] = useState<'timeline' | 'rent' | 'maintenance'>(isLeased ? 'timeline' : 'timeline');
     const [showAddModal, setShowAddModal] = useState(false);
     const [addType, setAddType] = useState<'rent' | 'maintenance' | 'event' | 'lease_setup'>('event');
@@ -382,7 +386,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Quick Stats Row — Platinum UI: uniform heights, anchored icons, fluid text */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {isLeased && (
+                {isLeased && !isManagementOnly && (
                     <>
                         {/* ─── Next Rent Due ───────────────────────────────────────
                           SPEC COMPLIANCE — Activity & Tracking refactor:
@@ -526,15 +530,20 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                 </div>
             </div>
 
-            {/* Visual Progress Bars — lease timeline + rent collection */}
+            {/* Visual Progress Bars — lease timeline + rent collection.
+                For Management Only properties, the LeaseProgressBars component
+                internally hides the rent collection bar (it checks
+                rentCollectionMode). So we can always mount it for leased
+                properties — only the lease timeline + service charge bars
+                will show for management-only properties. */}
             {isLeased && (
                 <LeaseProgressBars property={property} />
             )}
 
-            {/* Navigation Tabs */}
+            {/* Navigation Tabs — hide 'rent' tab for Management Only properties */}
             <div className="flex space-x-2 bg-slate-100 dark:bg-zinc-800/50 p-1 rounded-lg w-fit">
                 {(['timeline', 'rent', 'maintenance'] as const)
-                    .filter(tab => isLeased || tab !== 'rent')
+                    .filter(tab => (isLeased && !isManagementOnly) || tab !== 'rent')
                     .map(tab => (
                     <button
                         key={tab}

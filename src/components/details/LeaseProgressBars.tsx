@@ -49,6 +49,10 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
     const rental = unitRental || property.rentalDetails;
     const payments = unitPayments || property.rentPaymentHistory || [];
 
+    // Management Only properties don't collect rent via the system — hide the
+    // rent collection bar entirely. Only lease timeline + service charge show.
+    const isManagementOnly = property.rentCollectionMode === 'Management Only (No Rent)';
+
     // ── 1. Lease Timeline progress ───────────────────────────────────────────
     const leaseTimeline = useMemo(() => {
         if (!rental?.leaseStart || !rental?.leaseEnd) return null;
@@ -79,6 +83,8 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
 
     // ── 2. Rent Collection progress ──────────────────────────────────────────
     const rentCollection = useMemo(() => {
+        // Hide rent collection bar for Management Only properties
+        if (isManagementOnly) return null;
         if (!rental?.rentAmount || !rental?.leaseStart) return null;
         const rentPerPeriod = rental.rentAmount;
         const periodM = periodMonths(rental.rentFrequency);
@@ -113,7 +119,7 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
             state,
             hasPayments: payments.length > 0,
         };
-    }, [rental?.rentAmount, rental?.rentFrequency, rental?.leaseStart, rental?.leaseEnd, payments]);
+    }, [isManagementOnly, rental?.rentAmount, rental?.rentFrequency, rental?.leaseStart, rental?.leaseEnd, payments]);
 
     // ── 3. Service Charge progress ───────────────────────────────────────────
     // Service charge is a per-cycle fee (e.g. annual vend/estate fee) tracked
