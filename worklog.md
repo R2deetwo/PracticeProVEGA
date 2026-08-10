@@ -6151,3 +6151,49 @@ Verification:
 
 Files Modified:
 - src/components/forms/MatterForm.tsx (3-tier flexbox: h-full form + flex-1 min-h-0 overflow-y-auto body + flex-shrink-0 footer)
+
+---
+Task ID: 15
+Agent: Main Agent
+Task: Critical lease banners + deep-link unit focus + emerald glow highlight
+
+DEPLOY NOTE: Vercel's GitHub integration is broken (stalled at sha b4b60abe from 12:48). Cloudflare Workers is the primary deployment target and is fully up to date. User should use https://practiceprovega.prototypechigo.workers.dev/ as the primary URL.
+
+Work Log:
+1. CriticalLeaseBanner Component (Globally Pinned):
+   - New component at src/components/CriticalLeaseBanner.tsx.
+   - Renders critical lease notifications as interactive broadcast banners pinned between Header and main content in App.tsx.
+   - Shows up to 3 banners with format: [!] CRITICAL ALERT: <message> [View Unit] [X]
+   - Critical types: lease_expiry, lease_expired, defaulter, rent_overdue, statutory_notice, notice_window.
+   - [View Unit] deep-links via navigateTo('propertyDetail', propertyId, { tab: 'units', targetUnit, highlight }).
+   - [Dismiss] persists per-notification to localStorage.
+   - Reads from coreState.notifications (same source as Header bell).
+
+2. Deep-Link Unit Focus Pipeline:
+   - Updated backend cron (scanLeaseExpiries in convex/myFunctions.ts) to pass proper context: { tab: 'units', targetUnit: property._id, highlight: property._id } instead of empty {}.
+   - Applied to both lease_expiry (30/60/90 day) and lease_expired alerts.
+   - PropertyDetailView already had the context handler + auto-scroll + auto-expand logic.
+   - Convex backend deployed via `npx convex dev --once`.
+
+3. Emerald Glow Pulse Highlight:
+   - Changed from rose pulse (ring-rose-500/60 animate-pulse) to emerald glow (unit-card-highlight class).
+   - Added @keyframes emerald-pulse CSS animation: box-shadow 0→20px→0 + border-color #10b981.
+   - .unit-card-highlight: animation: emerald-pulse 2.5s ease-in-out + border-color: #10b981 !important.
+   - Glow fades out automatically after 2.5s via CSS animation.
+   - Respects prefers-reduced-motion.
+
+Verification:
+- TypeScript: 298 errors (same as baseline — zero new errors)
+- Build: succeeded in 21.38s
+- Convex: deployed successfully
+- Cloudflare Workers: sha 2fe1793e, status healthy ✅
+- Vercel: stalled (broken GitHub integration) — use Cloudflare URL
+
+Files Created:
+- src/components/CriticalLeaseBanner.tsx (~130 lines)
+
+Files Modified:
+- src/components/App.tsx (import + mount CriticalLeaseBanner between Header and main)
+- src/components/details/PropertyDetailView.tsx (emerald glow highlight class)
+- src/index.css (emerald-pulse keyframes + .unit-card-highlight class)
+- convex/myFunctions.ts (deep-link context on lease_expiry + lease_expired notifications)
