@@ -47,6 +47,7 @@ const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, sub
             <button
                 ref={headerRef}
                 type="button"
+                tabIndex={0}
                 onClick={() => {
                     onToggle(id);
                     if (!isOpen) {
@@ -55,7 +56,13 @@ const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, sub
                         }, 50);
                     }
                 }}
-                className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onToggle(id);
+                    }
+                }}
+                className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             >
                 <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
                     {icon}

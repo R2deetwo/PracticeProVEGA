@@ -1382,7 +1382,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         </>;
                                                     }
                                                     if (scStatus === 'UNPAID') {
-                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>;
                                                     }
                                                     return null;
                                                 };
@@ -1391,10 +1391,17 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 const renderTermMilestone = () => {
                                                     if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
                                                     const pct = Math.round((d.termProgress ?? 0) * 100);
+                                                    // REFINED ADVISORY — no longer recommends serving Notice to Quit.
+                                                    // Before compression: "Statutory notice window is active."
+                                                    // During/after compression: "Statutory notice window compressed—review lease terms or engage tenant for waiver."
+                                                    const isCompressed = pct >= 75;
+                                                    const tooltipText = isCompressed
+                                                        ? `Tenancy ${pct}% elapsed. Statutory notice window compressed—review lease terms or engage tenant for waiver.`
+                                                        : `Tenancy ${pct}% elapsed. Statutory notice window is active.`;
                                                     return (
-                                                        <div className="flex items-center gap-1 mt-1" title={`Tenancy ${pct}% elapsed — statutory notice window compressing. Consider serving Notice to Quit.`}>
-                                                            <Scale className="w-3 h-3 text-orange-500" />
-                                                            <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
+                                                        <div className="flex items-center gap-1 mt-1" title={tooltipText}>
+                                                            <CalendarIcon className="w-3 h-3 text-orange-500" />
+                                                            <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">{pct}% Elapsed</span>
                                                         </div>
                                                     );
                                                 };
@@ -1577,7 +1584,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     <span className="text-3xs font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
                                                                     {(d.serviceChargeStatus as string) === 'PAID_FULLY' || (d.serviceChargeStatus as string) === 'PAID'
                                                                         ? <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
-                                                                        : <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
+                                                                        : <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>
                                                                     }
                                                                 </div>
                                                             )}
@@ -1836,9 +1843,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                         ₦{Number((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
                                                                                         {(() => {
                                                                                             const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+                                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Clear</span>;
                                                                                             if (scSt === 'PARTIALLY_PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
-                                                                                            if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                                                            if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>;
                                                                                             return null;
                                                                                         })()}
                                                                                     </>
@@ -2028,7 +2035,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                 //    status string auto-marquees when it doesn't fit.
                                 //    The card-level `title` attribute also carries the full
                                 //    text as a fallback for non-marquee users.
-                                const collectionStatusText = `${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`;
+                                const collectionStatusText = `${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Outstanding`;
                                 return (
                                     <>
                                         <StatCard
@@ -2094,7 +2101,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             const outstanding = d.outstandingServiceChargeBalance || rd.outstandingServiceChargeBalance || 0;
                                             const isPaidFully = scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid';
                                             const isPartial = scStatus === 'PARTIALLY_PAID';
-                                            const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
+                                            const isOutstanding = scStatus === 'UNPAID' || scStatus === 'unpaid';
                                             // HIGHLIGHT — if this row is the target of a notification
                                             // deep-link (highlightTarget matches unit.id, or is 'overdue'
                                             // and this row has an unpaid/partial status), apply a
@@ -2102,7 +2109,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             const isHighlighted = highlightTarget && (
                                                 highlightTarget === unit.id ||
                                                 highlightTarget === String(unit.id) ||
-                                                (highlightTarget === 'overdue' && (isUnpaid || isPartial))
+                                                (highlightTarget === 'overdue' && (isOutstanding || isPartial))
                                             );
                                             return (
                                                 <tr
@@ -2117,8 +2124,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     <td className="px-4 py-2.5 text-center">
                                                         {isPaidFully && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
                                                         {isPartial && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}
-                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>}
-                                                        {!isPaidFully && !isPartial && !isUnpaid && <span className="text-2xs text-slate-400">—</span>}
+                                                        {isOutstanding && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>}
+                                                        {!isPaidFully && !isPartial && !isOutstanding && <span className="text-2xs text-slate-400">—</span>}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-right">
                                                         {isPartial && outstanding > 0 ? <span className="text-xs font-bold text-red-600 dark:text-red-400">₦{outstanding.toLocaleString()}</span> : <span className="text-2xs text-slate-400">—</span>}
