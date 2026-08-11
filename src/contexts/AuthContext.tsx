@@ -736,10 +736,26 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // confirmed sign-out.
         removeAllBeforeUnloadGuards();
 
-        // Small delay to let React flush the state change before navigating
+        // SIGN-OUT LOOP FIX: Previously 50ms was too short — React could
+        // re-render the portal dashboard before the navigation fired,
+        // and App.tsx's /portal/tenant/login redirect (which checks
+        // `currentUser`) would see the stale authenticated user and
+        // redirect BACK to /portal/tenant, trapping the user in the portal.
+        // Fix: Use 200ms delay + clear currentUser cache synchronously
+        // by also removing the cached user key BEFORE navigation.
         setTimeout(() => {
+            // Double-check: ensure all session keys are gone before navigating
+            try {
+                sessionStorage.removeItem(PORTAL_SESSION_KEY);
+                localStorage.removeItem(PORTAL_SESSION_KEY);
+                sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                localStorage.removeItem('practicepro_cached_user');
+                sessionStorage.removeItem('practicepro_portal_type');
+                localStorage.removeItem('practicepro_portal_type');
+            } catch {}
             window.location.replace(redirectUrl);
-        }, 50);
+        }, 200);
     };
 
     const markOnboardingComplete = (firmId: string) => {

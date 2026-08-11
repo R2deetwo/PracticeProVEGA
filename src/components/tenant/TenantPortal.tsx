@@ -33,6 +33,7 @@ import { VisitorPortal } from '../portal/VisitorPortal';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
+import VersionRefreshBanner from '../VersionRefreshBanner';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const ReceiptIconLocal: React.FC<{ className?: string }> = ({ className }) => (
@@ -144,12 +145,15 @@ const TenantPortal: React.FC = () => {
 
   // VMS Request Handler — sends an automated message to the property manager
   // requesting that VMS be enabled for the resident's property.
+  // Includes unit number so the PM knows which unit the request is from.
   const handleRequestVmsEnable = async () => {
     if (isRequestingVms) return;
     setIsRequestingVms(true);
     try {
       const residentName = tenantInfo?.tenantName || currentUser?.name || 'Resident';
       const propertyName = tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name || 'my property';
+      const unitName = tenantInfo?.primaryUnitName || tenantInfo?.units?.[0]?.name || '';
+      const unitLabel = unitName ? `Unit ${unitName} at ${propertyName}` : propertyName;
       await sendPortalMessage({
         firmId: effectiveFirmId,
         senderId: userId,
@@ -157,7 +161,7 @@ const TenantPortal: React.FC = () => {
         senderEmail: currentUser?.email,
         senderRole: 'Tenant',
         subject: 'VMS Enablement Request',
-        content: `Hello,\n\nI would like to request that the Visitor Management System (VMS) be enabled for ${propertyName}. This will allow me to generate 6-digit access codes for my visitors, contractors, and delivery personnel.\n\nPlease enable this feature in Portal Access Settings at your earliest convenience.\n\nThank you,\n${residentName}`,
+        content: `Hello,\n\nI would like to request that the Visitor Management System (VMS) be enabled for ${unitLabel}. This will allow me to generate 6-digit access codes for my visitors, contractors, and delivery personnel.\n\nPlease enable this feature in Portal Access Settings at your earliest convenience.\n\nThank you,\n${residentName}${unitName ? ` (Unit ${unitName})` : ''}`,
         propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || undefined,
         unitId: tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id || undefined,
       });
@@ -562,6 +566,10 @@ const TenantPortal: React.FC = () => {
           </>
         )}
       </div>
+      {/* Version refresh banner — shows when a new deploy is detected.
+          Portal routes early-return before App.tsx renders this, so we
+          include it here to ensure portal users get update prompts too. */}
+      <VersionRefreshBanner />
     </div>
   );
 };
@@ -633,7 +641,9 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
 
   const getInitials = (name?: string) => {
     if (!name) return 'R';
-    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
   // Quick services — actionable tiles. These are the things a resident
@@ -652,41 +662,61 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
   return (
     <div className="space-y-4 pb-8">
       {/* ─── Hero Card with merged Outstanding Balance ─────────────── */}
-      {/* LEGIBILITY FIX: Merged outstanding balance INTO the hero card to
-          save ~110px of vertical space, bringing Quick Services + Notices
-          above the fold on phones. Also bumped white opacity from /50,/60
-          to /85,/90 for WCAG AA contrast on the emerald background. */}
+      {/* FIXES:
+          - Resident name now text-2xl (was text-xl) for legibility
+          - Removed duplicate address (was showing in both the unit line AND
+            a separate address section below — now only one address line)
+          - Unit number always shown with icon (falls back to '—' if missing)
+          - Kept the building icon in front of the address
+          - Bumped white opacity to /90 for WCAG AA contrast */}
       <div className="bg-brand-primary text-white rounded-premium p-4 shadow-premium">
         <div className="flex items-start justify-between mb-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-2xs font-bold text-white/85 uppercase tracking-widest mb-1">
               Residents' Portal
             </p>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
+            <h2 className="text-2xl font-bold tracking-tight leading-tight">
               {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
             </h2>
-            {tenantInfo?.primaryPropertyName && (
-              <p className="text-xs text-white/85 mt-0.5 truncate font-medium">
-                {tenantInfo?.primaryUnitName ? `Unit ${tenantInfo.primaryUnitName} · ` : ''}
-                {tenantInfo.primaryPropertyName}
-              </p>
-            )}
           </div>
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold">
+          <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 ml-2">
+            <span className="text-base font-bold">
               {getInitials(tenantInfo?.tenantName || currentUser?.name)}
             </span>
           </div>
         </div>
-        {/* Property address */}
-        {tenantInfo?.primaryPropertyAddress && (
-          <div className="flex items-center gap-2 mb-3">
-            <OfficeBuildingIcon className="w-3.5 h-3.5 text-white/85 flex-shrink-0" />
-            <p className="text-xs text-white/90 truncate">
-              {tenantInfo.primaryPropertyAddress}
-            </p>
-          </div>
-        )}
+        {/* Unit + Property + Address — single line with icons, no duplicates */}
+        <div className="space-y-1.5 mb-3">
+          {tenantInfo?.primaryUnitName && (
+            <div className="flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-white/85 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9-4 9 4M3 7v10l9 4 9-4V7M3 7l9 4 9-4M12 11v10" />
+              </svg>
+              <p className="text-xs text-white/90 font-medium truncate">
+                Unit {tenantInfo.primaryUnitName}
+              </p>
+            </div>
+          )}
+          {tenantInfo?.primaryPropertyName && (
+            <div className="flex items-center gap-2">
+              <OfficeBuildingIcon className="w-3.5 h-3.5 text-white/85 flex-shrink-0" />
+              <p className="text-xs text-white/90 font-medium truncate">
+                {tenantInfo.primaryPropertyName}
+              </p>
+            </div>
+          )}
+          {tenantInfo?.primaryPropertyAddress && (
+            <div className="flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-white/85 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <p className="text-xs text-white/90 truncate">
+                {tenantInfo.primaryPropertyAddress}
+              </p>
+            </div>
+          )}
+        </div>
         {/* Merged Outstanding Balance — tap to view ledger */}
         <button
           onClick={() => onNavigate('ledger')}

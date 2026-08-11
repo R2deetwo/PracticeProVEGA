@@ -19,6 +19,7 @@ import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
+import VersionRefreshBanner from '../VersionRefreshBanner';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -2010,6 +2011,8 @@ const ClientDashboard: React.FC = () => {
 
             {/* Tab Content */}
             {renderTabContent()}
+            {/* Version refresh banner — shows when a new deploy is detected */}
+            <VersionRefreshBanner />
         </div>
     );
 };
