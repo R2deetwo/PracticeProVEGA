@@ -142,10 +142,14 @@ function resolveUserProduct(currentUser: any, firmDetails: any): string {
     return 'unified';
 }
 
-// Per-broadcast-ID dismissal via localStorage.
+// Per-notification-ID dismissal via localStorage.
+// CRITICAL FIX: Only dismiss by the unique notifId (Convex document _id),
+// NOT by the shared broadcastId. The broadcastId is a template ID shared
+// across multiple notification records — dismissing one banner with that
+// broadcastId would incorrectly suppress all other notifications from the
+// same broadcast template.
 function isDismissed(broadcastId: string, notifId: string): boolean {
     try {
-        if (broadcastId && localStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return true;
         if (notifId && localStorage.getItem(`dismissed_banner_${notifId}`) === 'true') return true;
     } catch {}
     return false;
@@ -153,14 +157,12 @@ function isDismissed(broadcastId: string, notifId: string): boolean {
 
 function markDismissed(broadcastId: string, notifId: string) {
     try {
-        if (broadcastId) localStorage.setItem(`dismissed_banner_${broadcastId}`, 'true');
         if (notifId) localStorage.setItem(`dismissed_banner_${notifId}`, 'true');
     } catch {}
 }
 
 function isSessionDismissed(broadcastId: string, notifId: string): boolean {
     try {
-        if (broadcastId && sessionStorage.getItem(`dismissed_banner_${broadcastId}`) === 'true') return true;
         if (notifId && sessionStorage.getItem(`dismissed_banner_${notifId}`) === 'true') return true;
     } catch {}
     return false;
@@ -168,7 +170,6 @@ function isSessionDismissed(broadcastId: string, notifId: string): boolean {
 
 function markSessionDismissed(broadcastId: string, notifId: string) {
     try {
-        if (broadcastId) sessionStorage.setItem(`dismissed_banner_${broadcastId}`, 'true');
         if (notifId) sessionStorage.setItem(`dismissed_banner_${notifId}`, 'true');
     } catch {}
 }

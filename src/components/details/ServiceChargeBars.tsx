@@ -703,7 +703,11 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     const rental = (unit.rentalDetails || unit) as Property['rentalDetails'];
     const leaseStart = rental?.leaseStart || '';
     const leaseEnd = rental?.leaseEnd;
-    const frequency = rental?.rentFrequency;
+    const rentFrequency = rental?.rentFrequency;
+    // SC frequency: use serviceChargeFrequency if set, otherwise fall back
+    // to rentFrequency. This fixes the bug where monthly SC was stepping
+    // yearly because it used the rent frequency (which might be Annual).
+    const scFrequency = rental?.serviceChargeFrequency ?? rentFrequency;
 
     // Property-level minimum vend config
     const mvEnabled = (unit as any).minimumVendEnabled || false;
@@ -713,14 +717,15 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     // SC amount
     const scAmount = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
 
-    // Compute periods (with auto-late engine applied in mergePeriods)
+    // Compute periods — SC uses its own frequency (with rent fallback),
+    // MV uses rent frequency (no separate MV frequency field exists yet).
     const scPeriods = useMemo(
-        () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, frequency, scAmount), rental?.scPeriods),
-        [leaseStart, leaseEnd, frequency, scAmount, rental?.scPeriods],
+        () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, scFrequency, scAmount), rental?.scPeriods),
+        [leaseStart, leaseEnd, scFrequency, scAmount, rental?.scPeriods],
     );
     const mvPeriods = useMemo(
-        () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, frequency, mvAmount), rental?.mvPeriods),
-        [leaseStart, leaseEnd, frequency, mvAmount, rental?.mvPeriods],
+        () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, rentFrequency, mvAmount), rental?.mvPeriods),
+        [leaseStart, leaseEnd, rentFrequency, mvAmount, rental?.mvPeriods],
     );
 
     const handleBarClick = useCallback((period: ServiceChargePeriod, chargeType: 'SC' | 'MV') => {

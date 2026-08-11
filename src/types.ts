@@ -289,6 +289,8 @@ export interface Property {
         serviceChargeAmount?: number;
         serviceChargeStatus?: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID';
         outstandingServiceChargeBalance?: number;
+        /** Billing frequency for service charge (defaults to rentFrequency if unset). */
+        serviceChargeFrequency?: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
         legalFee?: number;
         agencyFee?: number;
         cautionDeposit?: number;

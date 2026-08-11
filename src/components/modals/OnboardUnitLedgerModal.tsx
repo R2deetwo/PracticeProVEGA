@@ -91,7 +91,12 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
     const rental = (unit.rentalDetails || unit) as Property['rentalDetails'];
     const leaseStart = rental?.leaseStart || '';
     const leaseEnd = rental?.leaseEnd;
-    const frequency = rental?.rentFrequency;
+    // Use SC-specific frequency when available, fall back to rent frequency.
+    // This fixes the bug where monthly SC stepped yearly because it used
+    // the rent frequency (which might be Annual).
+    const frequency = chargeType === 'SC'
+        ? (rental?.serviceChargeFrequency ?? rental?.rentFrequency)
+        : rental?.rentFrequency;
 
     const scAmount = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
     const mvAmount = Number((unit as any).minimumVendAmount || 0);
