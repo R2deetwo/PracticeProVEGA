@@ -86,9 +86,15 @@ export function useVersionCheck(): VersionCheckState {
         if (cancelled || !data?.sha) return;
 
         const local = localShaRef.current;
-        // If local is 'unknown' (e.g. built without git), skip — we can't
-        // meaningfully compare.
-        if (!local || local === 'unknown') return;
+        // If local SHA is missing entirely, skip — we can't compare.
+        // NOTE: We NO LONGER skip on 'unknown' — the build system now
+        // generates a unique timestamp-based SHA as fallback, so every
+        // build has a comparable identifier. This ensures the "Refresh
+        // to Update" prompt always works on Vercel and Cloudflare.
+        if (!local) return;
+
+        // Debug logging — helps diagnose why the prompt may not show
+        console.log('[useVersionCheck]', { local: local?.slice(0, 12), remote: data.sha?.slice(0, 12), status: data.status });
 
         // Same SHA → no update needed.
         if (data.sha === local) {
@@ -121,7 +127,8 @@ export function useVersionCheck(): VersionCheckState {
     };
 
     // Initial check after a short delay (let the app settle first).
-    const initialTimer = setTimeout(check, 15_000);
+    // Reduced from 15s to 5s so users see the prompt faster after a deploy.
+    const initialTimer = setTimeout(check, 5_000);
     const interval = setInterval(check, POLL_INTERVAL_MS);
 
     const onFocus = () => { check(); };

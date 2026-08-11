@@ -9,7 +9,7 @@ import fs from 'fs'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-function gitSha(fallback = 'unknown') {
+function gitSha(fallback = '') {
   // CRO AUDIT FIX — read SHA from version.json first (set by prebuild script
   // which uses GITHUB_SHA when available). This ensures the SHA baked into
   // the Vite bundle matches the SHA in version.json that the client fetches
@@ -28,7 +28,10 @@ function gitSha(fallback = 'unknown') {
   try {
     return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
   } catch {
-    return fallback
+    // Final fallback: unique per-build timestamp so version check always works.
+    // NEVER return 'unknown' — that causes useVersionCheck to skip entirely,
+    // meaning users never see the "Refresh to Update" prompt.
+    return fallback || `build-${Date.now()}`
   }
 }
 

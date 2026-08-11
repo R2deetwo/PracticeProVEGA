@@ -58,7 +58,8 @@ const sha =
   process.env.GITHUB_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.COMMIT_SHA ||
-  run('git rev-parse HEAD', 'unknown');
+  run('git rev-parse HEAD', '') ||
+  `build-${Date.now()}`;  // Fallback: unique per-build timestamp so version check always works
 const branch =
   process.env.GITHUB_REF_NAME ||
   process.env.VERCEL_GIT_COMMIT_REF ||
