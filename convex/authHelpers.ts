@@ -67,9 +67,6 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
 
   if (!user || !user.firmId) {
     // ── RLS Audit: Log unauthorized access attempt ───────────────────
-    // This fires when someone tries to access firm data without a valid
-    // user/firm association. Repeated attempts from the same email are
-    // surfaced in the Security Center.
     try {
       await ctx.db.insert("securityEvents", {
         eventType: "unauthorized_access",
@@ -79,6 +76,26 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
       });
     } catch {}
     throw new Error("User account not found or not associated with an active firm.");
+  }
+
+  // ── RLS: Block portal users from firm-level operations ────────────
+  // Tenant/Client roles should ONLY access portal-scoped endpoints
+  // (getTenantInfo, getTenantLedger, sendPortalMessage, etc.).
+  // They must NOT pass requireFirmUser, which guards firm-wide CRUD
+  // (createItem, updateItem, deleteItem, getFirmData, etc.).
+  // This is the backend enforcement layer — the frontend redirect in
+  // App.tsx is the UI layer, but the backend must enforce independently.
+  if (user.role === "Tenant" || user.role === "Client") {
+    try {
+      await ctx.db.insert("securityEvents", {
+        eventType: "unauthorized_access",
+        userId: String(user._id),
+        email: email,
+        details: `requireFirmUser: portal role (${user.role}) attempted firm-level operation`,
+        timestamp: Date.now(),
+      });
+    } catch {}
+    throw new Error("Portal users do not have access to this feature.");
   }
 
   // 6. Check if user is suspended

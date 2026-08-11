@@ -238,7 +238,10 @@ export const getFirmData = query({
     userEmail: v.optional(v.string())
   },
   handler: async (ctx, args) => {
-    let targetFirmId = args.firmId;
+    // RLS: Require firm user authentication. This prevents portal users
+    // and unauthenticated callers from reading the entire firm dataset.
+    const { firmId: authFirmId } = await requireFirmUser(ctx, args.userEmail);
+    let targetFirmId = args.firmId || authFirmId;
     const userEmail = args.userEmail;
 
     // Recovery logic: find firm from email if firmId is missing
@@ -1407,6 +1410,20 @@ export const verifyLogin = action({
       };
     }
 
+    // REVERSE GUARD: If the user logged in via the MAIN APP (no portalType)
+    // but their role is Tenant or Client, block them. Portal users must
+    // log in through the portal login page, not the main app login.
+    // This prevents portal users from accessing firm-wide data through
+    // the main app's Convex subscriptions.
+    if (!args.portalType && (user.role === "Tenant" || user.role === "Client")) {
+      const portalUrl = user.role === "Client" ? "/portal/client/login" : "/portal/tenant/login";
+      return {
+        success: false,
+        message: `This email is a portal account. Please log in through the portal: ${portalUrl}`,
+        redirect: portalUrl,
+      };
+    }
+
     // Distinguish between "email not confirmed" (never verified) and "account revoked/deactivated"
     // Portal users who were deleted via deletePortalInviteAndCleanup get role="Pending" + isVerified=false
     if (!user.isVerified) {
@@ -1552,8 +1569,10 @@ export const verifyLogin = action({
 });
 
 export const updateUserSecurity = mutation({
-  args: { userId: v.id("users"), isMfaEnabled: v.boolean() },
+  args: { userId: v.id("users"), isMfaEnabled: v.boolean(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // RLS: Require firm user — only authenticated firm members can update security
+    await requireFirmUser(ctx, args.userEmail);
     await ctx.db.patch(args.userId, { isMfaEnabled: args.isMfaEnabled });
     return { success: true };
   }
@@ -1997,6 +2016,8 @@ export const joinFirm = mutation({
 export const removeUserFromFirm = mutation({
   args: { userId: v.id("users"), firmId: v.string() },
   handler: async (ctx, args) => {
+    // RLS: Require admin — only firm admins can remove users
+    await requireAdmin(ctx, undefined as any);
     const user = await ctx.db.get(args.userId) as any;
     if (!user) return;
 
@@ -2019,8 +2040,10 @@ export const removeUserFromFirm = mutation({
 });
 
 export const updateFirmSettings = mutation({
-  args: { firmId: v.string(), settings: v.any() },
+  args: { firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // RLS: Require admin — only firm admins can update firm settings
+    await requireAdmin(ctx, args.userEmail);
     await ctx.db.patch(args.firmId as any, args.settings);
   }
 });
@@ -3283,7 +3306,14 @@ export const deleteItem = mutation({
 });
 
 
-export const generateUploadUrl = mutation(async (ctx) => await ctx.storage.generateUploadUrl());
+export const generateUploadUrl = mutation({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // RLS: Require firm user — only authenticated users can generate upload URLs
+    await requireFirmUser(ctx, args.userEmail);
+    return await ctx.storage.generateUploadUrl();
+  }
+});
 export const getFileUrl = query({
   args: { storageId: v.string() },
   handler: async (ctx, args) => await ctx.storage.getUrl(args.storageId),
