@@ -380,8 +380,8 @@ export const getAllFirmsForAdmin = query({
           trialDaysRemaining: firm.trialEndsAt
             ? Math.max(0, Math.ceil((firm.trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000)))
             : 0,
-          joinedAt: new Date(firm._creationTime).toISOString().split('T')[0],
-          lastActive: firm.lastActive || new Date(firm._creationTime).toISOString().split('T')[0],
+          joinedAt: firm._creationTime ? new Date(firm._creationTime).toISOString().split('T')[0] : 'Unknown',
+          lastActive: firm.lastActive || (firm._creationTime ? new Date(firm._creationTime).toISOString().split('T')[0] : 'Unknown'),
           ingestionAccess: firm.ingestionAccess !== false,
           matterCount: firmMatters.length,
           notes: firm.adminNotes || '',
@@ -392,7 +392,9 @@ export const getAllFirmsForAdmin = query({
       });
     } catch (error) {
       console.error("Critical error in getAllFirmsForAdmin:", error);
-      throw new Error(`Convex Backend Error: ${error}`);
+      // Return empty array instead of throwing — prevents the admin APK
+      // from crashing when a single firm record has bad data.
+      return [];
     }
   },
 });
@@ -521,8 +523,13 @@ export const getFounderAlerts = query({
     ]);
 
     // ─── New users / firms ────────────────────────────────────────────
-    // Filter out Founder users — they're platform staff, not customers.
-    const customerUsersAlerts = users.filter((u: any) => u.role !== 'Founder');
+    // ONLY count firm team signups (Admin, Lawyer, Paralegal) — NOT portal
+    // users (Tenant, Client, Resident, Portal User). Portal user activity
+    // is attributed to the firm/org level for engagement tracking, but the
+    // founder should NOT see individual portal user PII (names, emails).
+    // This protects client/resident privacy while still tracking adoption.
+    const FIRM_TEAM_ROLES = ['Admin', 'Lawyer', 'Paralegal'];
+    const customerUsersAlerts = users.filter((u: any) => FIRM_TEAM_ROLES.includes(u.role));
     const newUsers24h = customerUsersAlerts.filter((u: any) => (u._creationTime || 0) > now - DAY);
     const newUsers7d  = customerUsersAlerts.filter((u: any) => (u._creationTime || 0) > now - (7 * DAY));
     const newFirms24h = firms.filter((f: any) => (f._creationTime || 0) > now - DAY);
@@ -1087,7 +1094,7 @@ export const getFirmHealthDetails = query({
       recentActivityCount: recentEvents.length,
       churnRiskScore,
       totalMatters: matters.length,
-      joinedAt: new Date((firm as any)?._creationTime || 0).toISOString(),
+      joinedAt: (firm as any)?._creationTime ? new Date((firm as any)._creationTime).toISOString() : 'Unknown',
 
       // ─── USAGE LIMITS (tier-based) ───────────────────────────────
       tierLimits: {
@@ -1330,7 +1337,7 @@ export const getExportData = query({
         matterCount: matters.filter((m: any) => m.firmId === f._id).length,
         monthlySubscription: calcMonthlySubscription(f),
         annualSubscription: calcPlatformRevenue(f),
-        joinedAt: new Date(f._creationTime).toISOString().split('T')[0],
+        joinedAt: f._creationTime ? new Date(f._creationTime).toISOString().split('T')[0] : 'Unknown',
       }));
     }
 
@@ -1363,7 +1370,7 @@ export const getExportData = query({
         userCount: firmUsers.length,
         daysSinceActive,
         churnRisk: daysSinceActive > 30 ? 'HIGH' : daysSinceActive > 14 ? 'MEDIUM' : 'LOW',
-        lastActive: new Date(lastActivity).toISOString().split('T')[0],
+        lastActive: lastActivity > 0 ? new Date(lastActivity).toISOString().split('T')[0] : 'Unknown',
       };
     }).sort((a: any, b: any) => b.daysSinceActive - a.daysSinceActive);
   },
