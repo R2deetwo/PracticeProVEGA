@@ -3899,25 +3899,68 @@ export const sendPortalMessage = mutation({
     const now = Date.now();
     let conversation: any;
 
+    // ── ADMIN → RESIDENT MESSAGE FIX ──────────────────────────────────
+    // When an admin sends a portal message (receipt, broadcast, etc.),
+    // the conversation's participantId must be the RESIDENT's userId,
+    // NOT the admin's userId. Otherwise the resident never sees the
+    // message (they query by their own userId).
+    // We detect admin-originated messages by senderRole and resolve
+    // the resident's userId from the unitId.
+    let effectiveParticipantId = args.senderId;
+    let effectiveParticipantName = args.senderName;
+    let effectiveParticipantEmail = args.senderEmail;
+    let effectiveParticipantRole = args.senderRole;
+    const isAdminMessage = args.senderRole === 'admin' || args.senderRole === 'Admin';
+
+    if (isAdminMessage && args.unitId) {
+      // Look up the property/unit to find the tenant's userId
+      try {
+        const unit: any = await ctx.db
+          .query("properties")
+          .filter((q: any) => q.eq(q.field("id"), args.unitId))
+          .first();
+        if (unit) {
+          // Check if there's a portal user linked to this unit
+          const rd = unit.rentalDetails || {};
+          const tenantEmail = rd.tenantEmail;
+          if (tenantEmail) {
+            // Find the portal user by email
+            const portalUser: any = await ctx.db
+              .query("users")
+              .filter((q: any) => q.eq(q.field("email"), tenantEmail.toLowerCase().trim()))
+              .first();
+            if (portalUser) {
+              effectiveParticipantId = String(portalUser._id);
+              effectiveParticipantName = portalUser.name || rd.tenantName || args.senderName;
+              effectiveParticipantEmail = portalUser.email || tenantEmail;
+              effectiveParticipantRole = portalUser.role || 'Tenant';
+            }
+          }
+        }
+      } catch (e) {
+        // Best-effort — if lookup fails, fall back to senderId
+        console.warn("[sendPortalMessage] Failed to resolve tenant userId from unitId:", e);
+      }
+    }
+
     // If a conversationId was provided, use it directly (threading fix)
     if (args.conversationId) {
       const existing = await ctx.db.get(args.conversationId as any);
       if (!existing) throw new Error("Conversation not found");
       conversation = existing;
-      // Update participant info in case it changed
       await ctx.db.patch(existing._id, {
-        participantName: args.senderName ?? (existing as any).participantName,
-        participantEmail: args.senderEmail ?? (existing as any).participantEmail,
+        participantName: effectiveParticipantName ?? (existing as any).participantName,
+        participantEmail: effectiveParticipantEmail ?? (existing as any).participantEmail,
         updatedAt: now,
       } as any);
     } else {
-      // No conversation specified — get or create one
+      // No conversation specified — get or create one using the RESIDENT's id
       conversation = await getOrCreateConversation(ctx, {
         firmId: args.firmId,
-        participantId: args.senderId,
-        participantName: args.senderName,
-        participantEmail: args.senderEmail,
-        participantRole: args.senderRole,
+        participantId: effectiveParticipantId,
+        participantName: effectiveParticipantName,
+        participantEmail: effectiveParticipantEmail,
+        participantRole: effectiveParticipantRole,
         propertyId: args.propertyId,
         unitId: args.unitId,
         matterId: args.matterId,
@@ -3933,7 +3976,9 @@ export const sendPortalMessage = mutation({
       senderId: args.senderId,
       senderName: args.senderName,
       senderEmail: args.senderEmail,
-      senderRole: args.senderRole,
+      // Normalize senderRole casing: 'admin' → 'Admin' for consistent
+      // filtering in mark-as-read queries (which compare === 'Admin')
+      senderRole: isAdminMessage ? "Admin" : args.senderRole,
       subject: args.subject,
       content: args.content,
       attachments: args.attachments ?? [],
@@ -3971,13 +4016,27 @@ export const sendPortalMessage = mutation({
     }
 
     // Update conversation metadata
-    await ctx.db.patch(conversation._id, {
-      lastMessageAt: now,
-      lastMessagePreview: args.content.substring(0, 80),
-      lastMessageBy: "participant",
-      unreadByAdmin: (conversation.unreadByAdmin || 0) + 1,
-      updatedAt: now,
-    });
+    // For admin-originated messages: lastMessageBy = 'admin', increment
+    // unreadByParticipant (so the resident sees a badge).
+    // For resident-originated messages: lastMessageBy = 'participant',
+    // increment unreadByAdmin (so the PM sees a badge).
+    if (isAdminMessage) {
+      await ctx.db.patch(conversation._id, {
+        lastMessageAt: now,
+        lastMessagePreview: args.content.substring(0, 80),
+        lastMessageBy: "admin",
+        unreadByParticipant: (conversation.unreadByParticipant || 0) + 1,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.patch(conversation._id, {
+        lastMessageAt: now,
+        lastMessagePreview: args.content.substring(0, 80),
+        lastMessageBy: "participant",
+        unreadByAdmin: (conversation.unreadByAdmin || 0) + 1,
+        updatedAt: now,
+      });
+    }
 
     // Notify firm admins that a portal user sent a new message — creates
     // in-app notification (header bell) + email if enabled. (Tickets and

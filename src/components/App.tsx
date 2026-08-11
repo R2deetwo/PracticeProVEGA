@@ -833,12 +833,18 @@ export const App: React.FC = () => {
     // - URL query param: /messaging?app=atrium (shows in address bar)
     useEffect(() => {
         if (!currentUser) return;
-        // Use the canonical `product` from ProductContext — it already applies
-        // the Komplete/Enterprise safety net (forces 'unified' regardless of
-        // whatever raw value firmDetails.product contains). Previously this
-        // used `currentUser.product` directly, which meant Komplete (unified)
-        // firms got ?app=vega in the URL — causing confusion and making it
-        // look like the app was in legal-only mode.
+        // Portal users get a different title: "Atrium — Residents' Portal" or
+        // "Vega — Client Portal" based on their role, NOT the firm's product.
+        // A Komplete firm's resident sees "Atrium" (the property product),
+        // and a Komplete firm's client sees "Vega" (the legal product).
+        if (isTenant) {
+            document.title = "Atrium — Residents' Portal";
+            return;
+        }
+        if (isClient) {
+            document.title = "Vega — Client Portal";
+            return;
+        }
         const productName = product === 'atrium' ? 'Atrium'
             : product === 'vega' ? 'Vega'
             : product === 'unified' ? 'Komplete'
