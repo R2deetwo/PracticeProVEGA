@@ -35,6 +35,7 @@ import { Settings } from './views/Settings';
 import { SystemStatus } from './views/SystemStatus';
 import { ExportCenter } from './views/ExportCenter';
 import SecurityCenter from './views/SecurityCenter';
+import FounderNotificationsCenter from './views/FounderNotificationsCenter';
 
 // ─── Early-init: apply persisted screen capture preference ──────────
 // The Java default for FLAG_SECURE is now OFF (screenshots allowed).
@@ -89,7 +90,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -152,6 +153,7 @@ const FounderApp: React.FC = () => {
             case 'analytics': return <ViewErrorBoundary viewName="Analytics"><AnalyticsView /></ViewErrorBoundary>;
             case 'subscriptions': return <ViewErrorBoundary viewName="Subscriptions"><SubscriptionRequestsCenter /></ViewErrorBoundary>;
             case 'security': return <ViewErrorBoundary viewName="Security"><SecurityCenter /></ViewErrorBoundary>;
+            case 'notifications': return <ViewErrorBoundary viewName="Notifications"><FounderNotificationsCenter /></ViewErrorBoundary>;
             default: return null;
         }
     };

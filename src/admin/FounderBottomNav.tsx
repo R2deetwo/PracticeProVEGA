@@ -56,11 +56,11 @@ const NAV_ITEMS: NavItem[] = [
         ),
     },
     {
-        view: 'signals',
-        label: 'Signals',
+        view: 'notifications',
+        label: 'Alerts',
         icon: (
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
             </svg>
         ),
     },
@@ -235,14 +235,14 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                 <div className="relative">
                                     {React.cloneElement(item.icon, { className: 'w-5 h-5 mb-0.5' })}
                                     {/* CRO AUDIT Track A — show pending subscription count badge on More */}
-                                    {item.view === 'signals' && pendingCount > 0 && (
+                                    {item.view === 'notifications' && pendingCount > 0 && (
                                         <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-red-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                                             {formatBadgeCount(pendingCount)}
                                         </span>
                                     )}
                                     {/* New signup badge on Dashboard — shows count of
                                         users who registered in the last 24h. Caps at 9+. */}
-                                    {item.view === 'dashboard' && newSignupCount > 0 && (
+                                    {item.view === 'notifications' && newSignupCount > 0 && (
                                         <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                                             {formatBadgeCount(newSignupCount)}
                                         </span>
