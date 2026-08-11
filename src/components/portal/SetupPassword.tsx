@@ -360,43 +360,23 @@ const SetupPassword: React.FC = () => {
             </div>
 
             {/* Form card */}
-            <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-6 pb-20 sm:pb-6 overflow-y-auto">
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
                 <div className="relative z-10 w-full max-w-md">
-                    {/* Header */}
-                    <div className="text-center mb-6 sm:mb-8">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
-                            <LockClosedIcon className="w-6 h-6 text-amber-400" />
+                    {/* Header — condensed */}
+                    <div className="text-center mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-3">
+                            <LockClosedIcon className="w-5 h-5 text-amber-400" />
                         </div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                        <h1 className="text-lg sm:text-xl font-bold text-white mb-1">
                             Create Your Password
                         </h1>
-                        <p className="text-sm text-slate-400 leading-relaxed">
+                        <p className="text-xs text-slate-400 leading-relaxed">
                             Set up your secure password to access the {portalLabel}
                         </p>
                     </div>
 
-                    {/* Invite info */}
-                    {inviteData?.invite && (
-                        <div className="mb-4 px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
-                            <div className="flex items-start gap-2">
-                                <ShieldCheckIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-semibold">Invitation Verified</p>
-                                    <p className="text-violet-400/80 text-xs mt-0.5">
-                                        {inviteData.invite.inviteeName
-                                            ? `Welcome, ${inviteData.invite.inviteeName}. `
-                                            : ''}
-                                        {inviteData.hasAccount
-                                            ? 'Your account has been located — setting your password will activate portal access.'
-                                            : 'Your account will be created automatically.'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Form */}
-                    <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">
+                    {/* Form — condensed padding */}
+                    <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-2xl">
                         <div className="space-y-4">
                             {error && (
                                 <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
@@ -497,8 +477,8 @@ const SetupPassword: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Terms & Conditions */}
-                            <div className={`mt-4 p-3 rounded-lg bg-white/[0.04] border ${termsError ? 'border-rose-500/50' : 'border-white/[0.08]'} transition-colors`}>
+                            {/* Terms & Conditions — condensed */}
+                            <div className={`mt-2 p-2.5 rounded-lg bg-white/[0.04] border ${termsError ? 'border-rose-500/50' : 'border-white/[0.08]'} transition-colors`}>
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input
                                         type="checkbox"
@@ -535,7 +515,7 @@ const SetupPassword: React.FC = () => {
                             <button
                                 onClick={handleSubmit}
                                 disabled={step === 'submitting' || !password || !confirmPassword || password !== confirmPassword || !agreedToTerms}
-                                className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {step === 'submitting' ? (
                                     <>
@@ -548,14 +528,6 @@ const SetupPassword: React.FC = () => {
                                         Set Up Password & Activate
                                     </>
                                 )}
-                            </button>
-
-                            <button
-                                onClick={() => { navigate('/'); }}
-                                disabled={step === 'submitting'}
-                                className="w-full py-3 rounded-lg text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all disabled:opacity-50"
-                            >
-                                Back to PracticePro
                             </button>
                         </div>
                     </div>
@@ -644,20 +616,9 @@ const SetupPassword: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Trust badges */}
-                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <ShieldCheckIcon className="w-3.5 h-3.5" />
-                            <span className="text-2xs font-semibold uppercase tracking-wider">NDPA 2023</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <LockClosedIcon className="w-3.5 h-3.5" />
-                            <span className="text-2xs font-semibold uppercase tracking-wider">AES-256</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <ShieldCheckIcon className="w-3.5 h-3.5" />
-                            <span className="text-2xs font-semibold uppercase tracking-wider">PBKDF2</span>
-                        </div>
+                    {/* Trust badges — condensed inline */}
+                    <div className="flex items-center justify-center gap-3 mt-4">
+                        <span className="text-2xs text-slate-600 font-semibold uppercase tracking-wider">NDPA 2023 · AES-256 · PBKDF2</span>
                     </div>
                 </div>
             </div>

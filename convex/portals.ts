@@ -1164,7 +1164,7 @@ export const createPortalInvite = action({
   },
   handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; emailError: string; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean; whatsappError: string }> => {
     const now = Date.now();
-    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days — gives tenants ample time to set up
+    const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days — security: shorter window reduces risk of wrong-recipient access
     const token = generateToken();
     const channel = args.channel || "email";
 
@@ -1271,7 +1271,13 @@ export const createPortalInvite = action({
                 return {
                   ...u,
                   tenantName: resolvedInviteeName || u.tenantName,
-                  tenantEmail: args.inviteeEmail ? args.inviteeEmail.toLowerCase().trim() : u.tenantEmail,
+                  // SECURITY: Only set tenantEmail if the property record
+                  // doesn't already have one. This prevents an admin typo
+                  // from overwriting the correct email with a wrong one.
+                  // The invite email is sent to args.inviteeEmail, but the
+                  // property record keeps its original tenantEmail unless
+                  // it was empty.
+                  tenantEmail: u.tenantEmail || (args.inviteeEmail ? args.inviteeEmail.toLowerCase().trim() : undefined),
                   tenantPhone: args.inviteePhone || u.tenantPhone,
                   // Don't set currentTenantId yet — that's set when the user accepts
                 };
@@ -1290,7 +1296,8 @@ export const createPortalInvite = action({
               propertyId: property._id,
               updates: {
                 tenantName: resolvedInviteeName || (property as any).tenantName,
-                tenantEmail: args.inviteeEmail ? args.inviteeEmail.toLowerCase().trim() : (property as any).tenantEmail,
+                // SECURITY: Same pattern — don't overwrite existing tenantEmail
+                tenantEmail: (property as any).tenantEmail || (args.inviteeEmail ? args.inviteeEmail.toLowerCase().trim() : undefined),
               },
             });
           }
@@ -1370,7 +1377,7 @@ export const createPortalInvite = action({
                 <tr>
                   <td style="background:#f1f5f9;border-radius:8px;padding:12px 16px;">
                     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#64748b;margin:0;line-height:1.5;">
-                      This invitation expires in 30 days. If you did not expect this invitation, you can safely ignore this email.
+                      This invitation expires in 7 days. If you did not expect this invitation, you can safely ignore this email.
                     </p>
                   </td>
                 </tr>
@@ -1707,7 +1714,7 @@ export const resendPortalInvite = action({
     // Refresh token + expiry on the existing record
     const newToken = generateToken();
     const now = Date.now();
-    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+    const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
     await ctx.runMutation(api.portals.updateInviteRecord, {
       inviteId: args.inviteId,
       updates: { token: newToken, status: "pending", expiresAt, updatedAt: now },
