@@ -27,8 +27,8 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                         <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Systems Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
                             <span>Effective Date: January 1, 2026</span>
-                            <span>Last Updated: April 10, 2026</span>
-                            <span>Version: 2.0</span>
+                            <span>Last Updated: August 11, 2026</span>
+                            <span>Version: 2.1</span>
                         </div>
                     </div>
 
@@ -184,6 +184,11 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <h3 className="text-xl font-bold">3.3 Subscription Tiers</h3>
                                     <p>The Platform is offered in multiple subscription tiers (Free, Standard, Professional, and Enterprise), each providing different levels of functionality, capacity, and support. The specific features available at each tier are detailed on the Platform's pricing page and may be updated from time to time.</p>
                                 </div>
+
+                                <div id="3-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">3.4 Visitor Management System</h3>
+                                    <p>The Platform includes a Visitor Management System (VMS) that allows residents to generate 6-digit numeric access codes for their visitors. By using VMS, you agree that: (a) you are responsible for all access codes you generate; (b) you will only generate codes for visitors authorized to enter your property; (c) you will not sell, share, or transfer access codes outside their intended use window; (d) codes expire automatically and cannot be reused after expiry; (e) all code generation, verification, check-in, check-out, and revocation events are logged in an audit trail accessible to your property manager.</p>
+                                </div>
                             </div>
                         </section>
 
@@ -219,7 +224,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <h2 className="text-3xl font-bold mb-8 transition-colors">5. ARTIFICIAL INTELLIGENCE SERVICES</h2>
                             <div className="space-y-16">
                                 <div id="5-1" className="space-y-8">
-                                    <p>Provides conversational AI assistance, research, document drafting, voice control, and proactive intelligence. ARIA™ processes matter context and team data to provide personalized assistance.</p>
+                                    <p>Provides conversational AI assistance, research, document drafting, voice control, and proactive intelligence. {isVega ? 'ALOA™' : 'ARIA™'} processes matter context and team data to provide personalized assistance.</p>
                                 </div>
                                 <div id="5-2" className="space-y-8">
                                     <h3 className="text-xl font-bold">5.2 ALDIA — Document Intelligence Agent</h3>
@@ -256,6 +261,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <p>5.8.1 Prior to first use of any AI Agent, you will be presented with a granular AI Processing Consent modal, which clearly discloses: (a) what data is transmitted to the AI processor (Google Gemini API); (b) the data minimization measures in place; (c) confirmation that your data is not used for AI model training; and (d) your right to decline and disable AI features.</p>
                                     <p>5.8.2 Your consent decision is recorded with a timestamp to your user profile in our database for audit trail purposes under NDPA 2023 Section 25.</p>
                                     <p>5.8.3 You may withdraw AI processing consent at any time via the AI Settings panel in your account settings. Withdrawal of consent will disable all AI Agent features for your account.</p>
+                                    <p>5.8.4 <strong>AI Conversation Persistence:</strong> Your interactions with the AI Assistant (ALOA™/ARIA™) are stored in a firm-scoped database for the purposes of maintaining conversation context across sessions, enabling you to review past AI-assisted research and drafting, and improving AI response quality within your firm. These conversations are NOT used to train AI models. You may request deletion of your AI conversation history at any time by contacting your firm administrator or dpo@practicepro.ng.</p>
                                 </div>
                             </div>
                         </section>
@@ -356,6 +362,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <p>11.4 <strong>Account Termination and Post-Termination Retention:</strong> Upon account termination, you will have a 60-day window to export your firm's data. After this period, we will securely delete your User Data from our systems in accordance with our data retention policy.</p>
                                 <p>11.5 <strong>Right to Erasure (Right to Be Forgotten):</strong> Under NDPA 2023 Section 35, you have the right to request deletion of your personal data. Account deletion can be initiated via Settings &gt; Data Management &gt; Delete Account. If you are the sole administrator of a firm, deleting your account will also trigger deletion of the firm record and all associated data.</p>
                                 <p>11.6 <strong>Exceptions:</strong> Certain data may be retained beyond the above periods where required by applicable Nigerian law, for the resolution of disputes, or for fraud prevention purposes.</p>
+                                <p>11.7 <strong>Leaked Data Remediation:</strong> PracticePro reserves the right to purge, re-tag, or quarantine any data that is confirmed to have leaked outside its intended scope boundaries due to software defects, system misconfiguration, or other technical incidents. Such remediation actions are logged in the security audit trail and notified to affected Firm administrators within 24 hours.</p>
                             </div>
                         </section>
 

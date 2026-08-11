@@ -22,8 +22,8 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Data Processing Agreement</h1>
                         <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 uppercase tracking-tight">PracticePro Systems Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic mb-6">
-                            <span>Effective Date: July 19, 2026</span>
-                            <span>Version: 1.0</span>
+                            <span>Effective Date: August 11, 2026</span>
+                            <span>Version: 1.1</span>
                         </div>
                         <div className="p-5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
                             <strong>Important:</strong> This Data Processing Agreement ("DPA") governs the processing of personal data by PracticePro Systems Limited ("Processor") on behalf of the {isVega ? 'law firm or legal practitioner' : 'property manager or real estate agency'} ("Controller") that has agreed to the PracticePro Terms of Service. This DPA is incorporated by reference into and forms part of the main Service Agreement.
@@ -66,7 +66,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <h3>2.1 Subject Matter</h3>
                             <p>This DPA applies to all Personal Data processed by the Processor in connection with the provision of the Services to the Controller, including {isVega ? 'client data, matter information' : 'tenant data, property information'}, documents, time entries, financial records, and communications entered into or generated through the Platform.</p>
                             <h3>2.2 Nature of Processing</h3>
-                            <p>The Processor shall process Personal Data only to the extent necessary to provide the Services, including hosting, storage, AI-powered analysis (via ARIA®), billing, and technical support.</p>
+                            <p>The Processor shall process Personal Data only to the extent necessary to provide the Services, including hosting, storage, AI-powered analysis (via ALOA™/ARIA™), billing, and technical support.</p>
                             <h3>2.3 Duration</h3>
                             <p>This DPA shall remain in force for the duration of the Service Agreement and shall terminate automatically upon the conclusion of all Services, subject to the data return and deletion obligations in Clause 13.</p>
                         </section>
@@ -108,6 +108,10 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <p>The Processor shall not use Personal Data or {isVega ? 'Privileged Data' : 'Confidential Data'} for any purpose other than the provision of the Services. {isVega ? 'Client' : 'Tenant'} data shall not be used to train AI models or for any commercial purpose beyond the scope of this DPA.</p>
                             <h3>5.5 Assistance</h3>
                             <p>The Processor shall provide reasonable assistance to the Controller in ensuring compliance with Data Subject rights requests, security obligations, breach notification duties, and data protection impact assessments.</p>
+                            <h3>5.6 Leaked Data Remediation</h3>
+                            <p>In the event that Personal Data is confirmed to have leaked outside its intended storage location or scope boundaries, the Processor shall: (a) identify and quarantine the leaked data within 24 hours of discovery; (b) re-tag or delete the leaked records to prevent further unauthorized access; (c) notify the Controller of the incident, the scope of affected data, and the remediation actions taken; (d) log the remediation action in the security audit trail; (e) implement preventive measures to avoid recurrence. The Processor retains the right to execute emergency data purge operations without prior Controller approval when the leak poses an ongoing privacy risk, provided post-incident notification is given within 24 hours.</p>
+                            <h3>5.7 Founder Administrative Access</h3>
+                            <p>PracticePro's founder team maintains emergency administrative access via a separate administrative application for incident response, system monitoring, security investigations, leaked data remediation, and platform health diagnostics. This access is role-restricted to Founder accounts only, logged in the security audit trail, and used exclusively for operational and security purposes — NOT for reading user content, AI conversations, or feedback submissions (except where leaked data remediation requires it).</p>
                         </section>
 
                         {/* 6 */}
@@ -127,7 +131,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                                     <tbody>
                                         {[
                                             ['Google Cloud Platform','USA / Multi-region','Cloud hosting, database, and storage infrastructure'],
-                                            ['Google Gemini API','USA','AI language model processing (ARIA® engine)'],
+                                            ['Google Gemini API','USA','AI language model processing (ALOA™/ARIA™ engine)'],
                                             ['Convex Inc.','USA','Real-time database and backend infrastructure'],
                                             
                                         ].map(([sp, loc, purpose], i) => (

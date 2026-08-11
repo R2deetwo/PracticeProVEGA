@@ -26,7 +26,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Cookie Policy</h1>
                     <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
                     <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
-                        <span>Last Updated: May 2026</span>
+                        <span>Last Updated: August 2026</span>
                     </div>
                 </div>
 
@@ -106,7 +106,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <h2>4. Third-Party Cookies</h2>
                     <p>
                         The Vega platform does not currently serve third-party advertising cookies. Where we integrate
-                        third-party services (such as Google AI APIs for the ARIA™ engine), those services may set
+                        third-party services (such as Google AI APIs for the PracticePro AI engine), those services may set
                         their own cookies governed by their respective privacy policies. We recommend reviewing the
                         privacy documentation of any third-party service you interact with through our platform.
                     </p>
@@ -161,7 +161,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <p className="text-xs text-slate-400 dark:text-zinc-600 italic">
                         This Cookie Policy is issued by PracticePro Systems Limited and applies exclusively
                         to the Vega Legal Operations OS and Atrium Property OS platforms operated under the
-                        PracticePro brand. Last reviewed: May 2026.
+                        PracticePro brand. Last reviewed: August 2026.
                     </p>
                 </div>
             </div>

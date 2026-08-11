@@ -510,6 +510,42 @@ const InlineTicketReply: React.FC<{
     );
 };
 
+// ─── Slack-style collapsible section header ──────────────────────────────────
+// Renders a category header with icon, label, unread count badge, and a
+// chevron that rotates when collapsed. Clicking toggles the section.
+const SectionHeader: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    count?: number;
+    unreadCount?: number;
+    isCollapsed: boolean;
+    onToggle: () => void;
+    accentColor?: string;
+}> = ({ icon, label, count, unreadCount, isCollapsed, onToggle, accentColor = 'text-slate-500' }) => (
+    <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border-b border-slate-100 dark:border-zinc-800 group"
+    >
+        <svg className={`w-3 h-3 text-slate-400 transition-transform flex-shrink-0 ${isCollapsed ? '' : 'rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        <span className={`flex-shrink-0 ${accentColor}`}>{icon}</span>
+        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex-1 text-left">
+            {label}
+        </span>
+        {unreadCount !== undefined && unreadCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-2xs font-bold flex-shrink-0">
+                {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+        )}
+        {count !== undefined && count > 0 && (
+            <span className="text-2xs text-slate-400 font-medium flex-shrink-0">
+                {count}
+            </span>
+        )}
+    </button>
+);
+
 // ══════════════════════════════════════════════════════════════════════════
 // Unified MessagesView — Conversations / Notices / Scheduled
 // ══════════════════════════════════════════════════════════════════════════
@@ -706,6 +742,17 @@ const MessagesView: React.FC = () => {
         portal: boolean;
         team: boolean;
     }>({ request: true, ticket: true, replied: true, portal: true, team: true });
+
+    // Slack-style collapsible section state — each category can be expanded/collapsed
+    const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+    const toggleSection = (sectionId: string) => {
+        setCollapsedSections(prev => {
+            const next = new Set(prev);
+            if (next.has(sectionId)) next.delete(sectionId);
+            else next.add(sectionId);
+            return next;
+        });
+    };
 
     // Role filter: All / Client / Resident.
     // Product-aware: Vega only shows All+Clients, Atrium only shows All+Residents,
@@ -1434,9 +1481,9 @@ const MessagesView: React.FC = () => {
             <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
                 {/* ═══ INBOX TAB ═══ */}
                 {activeTab === 'inbox' && (
-                    <div className="flex w-full h-full">
+                    <div className="flex w-full h-full min-h-0">
                         {/* Inbox Threads List */}
-                        <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden`}>
+                        <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col min-h-0 border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden`}>
                             {/* ── Merged header: title + type filters in one row ──
                                 Saves vertical space by combining the "All Conversations" title
                                 bar with the type filter checkboxes into a single compact row.
@@ -1551,7 +1598,7 @@ const MessagesView: React.FC = () => {
                                     )}
                                 </div>
                             )}
-<div className="flex-1 overflow-y-auto custom-scrollbar">
+<div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                                 {isInboxLoading ? (
                                     <div className="p-3">
                                         <ListItemSkeleton count={6} />
@@ -1623,15 +1670,19 @@ const MessagesView: React.FC = () => {
 
                                     return (
                                         <>
-                                            {/* ── System Inbox (Founder/PracticePro Team replies) ──────────
-                                                Shows at the TOP of the conversation list when the user has
-                                                feedback replies from the founder. Clicking opens the System
-                                                Inbox thread in the right panel showing the full conversation
-                                                with smoky-glass-green founder message bubbles.
-
-                                                This was previously dead code — filteredConversations was
-                                                built but never rendered. Now it's wired up. */}
+                                            {/* ── Section: PracticePro Team (System Inbox) ──────────────────
+                                                Pinned at the top — founder replies to user feedback. */}
                                             {myFeedback.length > 0 && (
+                                                <>
+                                                    <SectionHeader
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>}
+                                                        label="PracticePro Team"
+                                                        count={myFeedback.length}
+                                                        isCollapsed={collapsedSections.has('system')}
+                                                        onToggle={() => toggleSection('system')}
+                                                        accentColor="text-emerald-500"
+                                                    />
+                                                    {!collapsedSections.has('system') && (
                                                 <div
                                                     onClick={() => {
                                                         setSelectedInboxId('system-inbox');
@@ -1681,10 +1732,23 @@ const MessagesView: React.FC = () => {
                                                         </p>
                                                     )}
                                                 </div>
+                                                    )}
+                                                </>
                                             )}
 
-                                            {/* ── Inbound WhatsApp/Email messages (Atrium/Komplete only) ── */}
-                                            {hasPropertyFeatures && (atriumInbound as any[]).map((msg: any) => (
+                                            {/* ── Section: Inbound WhatsApp & Email (Atrium/Komplete only) ── */}
+                                            {hasPropertyFeatures && (atriumInbound as any[]).length > 0 && (
+                                                <>
+                                                    <SectionHeader
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>}
+                                                        label="WhatsApp & Email"
+                                                        count={(atriumInbound as any[]).length}
+                                                        unreadCount={(atriumInbound as any[]).filter((m: any) => !m.isRead).length}
+                                                        isCollapsed={collapsedSections.has('inbound')}
+                                                        onToggle={() => toggleSection('inbound')}
+                                                        accentColor="text-amber-500"
+                                                    />
+                                                    {!collapsedSections.has('inbound') && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
                                                     key={msg._id}
                                                     onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id }); }}
@@ -1709,15 +1773,23 @@ const MessagesView: React.FC = () => {
                                                     </div>
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                 </div>
-                                            ))}
+                                                    ))}
+                                                </>
+                                            )}
 
-                                            {/* ── Team direct messages (internal) ──────────────────────────
-                                                Shown inline in the unified Conversations list with an indigo
-                                                "Team" badge. Clicking opens the team chat thread in the right
-                                                panel (same as the Team tab does). Online status is shown via
-                                                a green dot on the avatar — the presence "moniker".
-                                                Respects the 'team' type filter checkbox. */}
-                                            {typeFilters.team && teamConversationsForInbox.map((tc: any) => {
+                                            {/* ── Section: Team Direct Messages ────────────────────────── */}
+                                            {typeFilters.team && teamConversationsForInbox.length > 0 && (
+                                                <>
+                                                    <SectionHeader
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}
+                                                        label="Team DMs"
+                                                        count={teamConversationsForInbox.length}
+                                                        unreadCount={teamConversationsForInbox.reduce((sum: number, tc: any) => sum + (tc.unreadCount || 0), 0)}
+                                                        isCollapsed={collapsedSections.has('team')}
+                                                        onToggle={() => toggleSection('team')}
+                                                        accentColor="text-indigo-500"
+                                                    />
+                                                    {!collapsedSections.has('team') && teamConversationsForInbox.map((tc: any) => {
                                                 const convId = String(tc.conversationId);
                                                 const isThisSelected = selectedInboxId === convId && selectedInboxType === 'team';
                                                 const typeStyle = CONVERSATION_TYPE_STYLES.team;
@@ -1804,11 +1876,23 @@ const MessagesView: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 );
-                                            })}
+                                                    })}
+                                                </>
+                                            )}
 
-                                            {/* ── ALL portal conversations (clients AND residents) ──
-                                                Filtered by the type checkboxes in the inbox header. */}
-                                            {filteredPortalConversations.map((conv: any) => {
+                                            {/* ── Section: Portal Conversations (Clients & Residents) ── */}
+                                            {filteredPortalConversations.length > 0 && (
+                                                <>
+                                                    <SectionHeader
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>}
+                                                        label={isUnified ? "Clients & Residents" : isProperty ? "Residents" : "Clients"}
+                                                        count={filteredPortalConversations.length}
+                                                        unreadCount={filteredPortalConversations.reduce((sum: number, conv: any) => sum + (conv.unreadByAdmin || 0), 0)}
+                                                        isCollapsed={collapsedSections.has('portal')}
+                                                        onToggle={() => toggleSection('portal')}
+                                                        accentColor="text-emerald-500"
+                                                    />
+                                                    {!collapsedSections.has('portal') && filteredPortalConversations.map((conv: any) => {
                                                 const convId = String(conv._id);
                                                 const isSelected = selectedConvIds.has(convId);
                                                 const convType = detectConversationType(conv);
@@ -1889,10 +1973,22 @@ const MessagesView: React.FC = () => {
                                                         <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
                                                     </div>
                                                 );
-                                            })}
+                                                    })}
+                                                </>
+                                            )}
 
-                                            {/* ── Internal client messages (legacy matter-scoped messages, Vega only) ── */}
-                                            {!isProperty && clientMessages
+                                            {/* ── Section: Client Messages (Legacy, Vega only) ── */}
+                                            {!isProperty && clientMessages.filter((m: any) => !m.isRead).length > 0 && (
+                                                <>
+                                                    <SectionHeader
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>}
+                                                        label="Matter Messages"
+                                                        count={clientMessages.filter((m: any) => !m.isRead).length}
+                                                        isCollapsed={collapsedSections.has('client')}
+                                                        onToggle={() => toggleSection('client')}
+                                                        accentColor="text-violet-500"
+                                                    />
+                                                    {!collapsedSections.has('client') && clientMessages
                                                 .filter((m: any) => !m.isRead)
                                                 .map((msg: any) => (
                                                     <div
@@ -1907,6 +2003,8 @@ const MessagesView: React.FC = () => {
                                                         <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                     </div>
                                                 ))}
+                                                </>
+                                            )}
                                         </>
                                     );
                                 })()}
@@ -2016,7 +2114,7 @@ const MessagesView: React.FC = () => {
                                             )}
                                         </div>
                                         {/* Messages */}
-                                        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                                        <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 custom-scrollbar">
                                             {convMessages.length === 0 ? (
                                                 <div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>
                                             ) : convMessages.map((msg: any) => {
@@ -2926,7 +3024,7 @@ const MessagesView: React.FC = () => {
                                             )}
                                         </div>
                                         {/* Messages */}
-                                        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                                        <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 custom-scrollbar">
                                             {convMessages.length === 0 ? (
                                                 <div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>
                                             ) : convMessages.map((msg: any) => {

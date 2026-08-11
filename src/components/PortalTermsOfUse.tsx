@@ -31,8 +31,8 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                         <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Systems Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
                             <span>Effective Date: January 1, 2026</span>
-                            <span>Last Updated: April 10, 2026</span>
-                            <span>Version: 1.0</span>
+                            <span>Last Updated: August 11, 2026</span>
+                            <span>Version: 1.1</span>
                         </div>
                     </div>
 
@@ -147,6 +147,9 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                                         <p>6.3 <strong>File Requirements:</strong> Documents submitted through the Portal must comply with any file size, format, or content restrictions displayed at the point of upload. PracticePro reserves the right to reject or remove files that violate these restrictions or that contain malicious content.</p>
                                     </>
                                 )}
+                                {!isVega && (
+                                    <p>6.6 <strong>Visitor Access Codes:</strong> Residents may generate 6-digit access codes for expected visitors. Codes expire automatically based on the selected expiry window. Gatekeepers verify codes at the gatehouse terminal. All code generation and gate entry events are logged in an audit trail. Residents are responsible for codes they generate and must not share or sell codes outside their intended use window.</p>
+                                )}
                             </div>
                         </section>
 
@@ -162,7 +165,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                                     <li>Remove, alter, or obscure any proprietary notices on the Portal.</li>
                                 </ul>
                                 <p>7.3 <strong>User Content:</strong> You retain ownership of any content you submit through the Portal. By submitting content, you grant PracticePro and your {firmLabel} a non-exclusive, royalty-free license to use, store, and process that content for the purposes of providing the Portal services.</p>
-                                <p>7.4 <strong>Feedback:</strong> If you provide suggestions, feedback, or ideas regarding the Portal or PracticePro platform, you agree that PracticePro may use such feedback without restriction and without any obligation of attribution or compensation.</p>
+                                <p>7.4 <strong>Feedback:</strong> If you provide suggestions, feedback, or ideas regarding the Portal or PracticePro platform, you agree that PracticePro may use such feedback without restriction and without any obligation of attribution or compensation. If you submit feedback through the Portal, your feedback will be stored securely, automatically acknowledged with an auto-reply message, and visible to PracticePro's founder team via the administrative application for product improvement and support purposes. You grant PracticePro a non-exclusive, royalty-free license to use your feedback for product improvement.</p>
                             </div>
                         </section>
 

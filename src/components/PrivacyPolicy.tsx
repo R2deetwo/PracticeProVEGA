@@ -29,8 +29,9 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Privacy Policy</h1>
                         <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
-                            <span>Effective Date: July 19, 2026</span>
-                            <span>Last Updated: February 24, 2026</span>
+                            <span>Effective Date: August 11, 2026</span>
+                            <span>Last Updated: August 11, 2026</span>
+                            <span>Version: 2.0</span>
                         </div>
                     </div>
 
@@ -71,7 +72,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}), a comprehensive cloud-based {isVega ? 'Litigation System' : 'Property OS'} designed specifically for Nigerian {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}. PracticePro Systems Limited ("PracticePro," "we," "us," or "our") is committed to protecting the privacy and security of your personal data in accordance with the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and all applicable Nigerian data protection laws and regulations.
                                 </p>
                                 <p>
-                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including {isProperty ? 'our AI-powered property assistant ARIA™' : 'our AI-powered legal assistant ARIA™'}. By using PracticePro, you consent to the data practices described in this Privacy Policy.
+                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including {isProperty ? 'our AI-powered property assistant ALOA™' : 'our AI-powered legal assistant ALOA™'}. By using PracticePro, you consent to the data practices described in this Privacy Policy.
                                 </p>
                                 <p>
                                     <strong>Important Note:</strong> As a {isVega ? 'Litigation System' : 'Property Management System'}, PracticePro processes sensitive personal data and confidential {isVega ? 'client' : 'tenant'} information on behalf of {isVega ? 'legal practitioners' : 'property managers'}. Users ({isVega ? 'lawyers and law firms' : 'property managers and real estate firms'}) are Data Controllers for their {isVega ? 'clients\'' : 'tenants\''} data, while PracticePro acts as a Data Processor. This Privacy Policy governs our data processing practices and your rights as a data subject.
@@ -153,6 +154,11 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     </ul>
                                     <p>You can manage your cookie preferences through your browser settings. However, disabling essential cookies may affect Platform functionality.</p>
                                 </div>
+
+                                <div className="space-y-8">
+                                    <h3 className="text-xl font-bold">3.6 Visitor & Access Code Data</h3>
+                                    <p>We collect and process the following personal data when you use the Visitor Management System (VMS): (a) visitor name and phone number, provided by the resident when generating an access code; (b) the resident's name, unit number, and property address, used to verify the visitor at the gatehouse; (c) access code metadata including generation timestamp, expiry time, check-in/check-out times, and revocation status. This data is scoped to your property and unit — other residents cannot see your access codes, and you cannot see theirs. The gatekeeper sees only the minimum information needed for entry verification. Access codes expire automatically based on the configured expiry window (default: 6 hours) and are retained in an audit log for security investigations.</p>
+                                </div>
                             </div>
                         </section>
 
@@ -176,7 +182,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">4.2 To Provide AI-Powered Services (Consent)</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>{isProperty ? 'Process documents and property information through ARIA™ for analysis, document drafting, and insights' : 'Process documents and case information through ARIA™ for legal research, document drafting, and analysis'}</li>
+                                        <li>{isProperty ? 'Process documents and property information through ALOA™ for analysis, document drafting, and insights' : 'Process documents and case information through ALOA™ for legal research, document drafting, and analysis'}</li>
                                         <li>Generate automated summaries, risk assessments, and legal document drafts</li>
                                         {isVega && <li>Calculate filing deadlines based on Nigerian court rules</li>}
                                         <li>Extract metadata and key information from uploaded documents</li>
@@ -244,6 +250,11 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <li>Enforce our Terms of Service and other agreements</li>
                                     </ul>
                                 </div>
+
+                                <div className="space-y-8">
+                                    <h3 className="text-xl font-bold">4.9 To Process User Feedback</h3>
+                                    <p>When you submit feedback through the in-app feedback form, we process your name, email address, feedback type, title, and message content. Feedback is stored securely and is visible to PracticePro's founder team via the administrative application. Feedback is auto-replied to immediately upon submission. You should not include sensitive personal data in feedback submissions.</p>
+                                </div>
                             </div>
                         </section>
 
@@ -251,15 +262,16 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">5. AI Processing and Third-Party Service Providers</h2>
                             <div className="space-y-12">
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">5.1 ARIA™ AI Processing</h3>
-                                    <p>ARIA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting capabilities' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities'}. The Platform uses a <strong>Bring Your Own Key (BYOK)</strong> model for AI processing, which means:</p>
+                                    <h3 className="text-xl font-bold">5.1 ALOA™ AI Processing</h3>
+                                    <p>ALOA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting capabilities' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities'}. The Platform uses a <strong>Bring Your Own Key (BYOK)</strong> model for AI processing, which means:</p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Your Own API Key:</strong> To use ARIA™'s AI features, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. This key is stored locally in your browser and is used to authenticate directly with the AI provider of your choice.</li>
+                                        <li><strong>Your Own API Key:</strong> To use ALOA™'s AI features, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. This key is stored locally in your browser and is used to authenticate directly with the AI provider of your choice.</li>
                                         <li><strong>Direct Browser-to-Provider Transmission:</strong> When you submit a query, upload a document for analysis, or request AI-generated content, your data is transmitted <strong>directly from your browser to the AI provider</strong> (Google or OpenAI). PracticePro does not intercept, store, or route your AI query data through our servers.</li>
                                         <li><strong>You Are the Data Controller for AI Inputs:</strong> Because you provide your own API key and your data goes directly to the AI provider, you (not PracticePro) are the Data Controller for all data you submit to the AI provider. Your use of the AI provider is governed by the provider's own Terms of Service and Privacy Policy. PracticePro is not a sub-processor for your AI processing activities.</li>
                                         <li><strong>No Model Training by PracticePro:</strong> PracticePro does not use your AI inputs or outputs to train any models. Whether the AI provider uses your data for model training is governed by your agreement with the provider — we recommend reviewing the provider's terms and configuring data retention settings in your provider account.</li>
                                         <li><strong>Privacy Shield Agent:</strong> Before processing data through AI, our Privacy Shield Agent identifies and flags Personally Identifiable Information (PII), giving you the option to redact sensitive information before submission to the AI provider.</li>
                                         <li><strong>API Key Security:</strong> Your API key is stored in your browser's local storage and is transmitted only to the AI provider's authentication endpoint. It is never sent to PracticePro's servers. You should ensure your browser and device are secured (password lock, screen lock) to protect your API key.</li>
+                                        <li><strong>AI Conversation Retention:</strong> When you interact with ALOA™ (Vega) or ARIA™ (Atrium), your AI assistant conversations are persisted and scoped to your firm. This allows you to review past conversations and enables the AI to maintain context across sessions. Conversations are visible to the user who created them and firm administrators within the same firm. PracticePro's founder team does NOT have read access to your AI conversations — they are isolated from the admin and feedback systems.</li>
                                     </ul>
                                 </div>
 
@@ -358,7 +370,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold transition-colors">10.2 PracticePro as Data Processor</h3>
                                     <p>
-                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ARIA™ queries that you input into the Platform, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro acts as your Data Processor, handling this information only under your instruction and strictly for the provision of the Platform's services.
+                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ALOA™ queries that you input into the Platform, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro acts as your Data Processor, handling this information only under your instruction and strictly for the provision of the Platform's services.
                                     </p>
                                 </div>
                             </div>
