@@ -145,6 +145,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [remindLeaseExpiry, setRemindLeaseExpiry] = useState(propertyToEdit?.automationSettings?.remindLeaseExpiry || false);
     const [remindRentDue, setRemindRentDue] = useState(propertyToEdit?.automationSettings?.remindRentDue || false);
     const [autoCreateMaintenanceTask, setAutoCreateMaintenanceTask] = useState(propertyToEdit?.automationSettings?.autoCreateMaintenanceTask || false);
+    // Per-property VMS override — AND-gated with firm-level portal_settings.vmsEnabled.
+    // When true AND firm VMS is on, residents of THIS property can generate access codes.
+    // When false, residents see "Feature Not Yet Active" even if firm VMS is on.
+    const [vmsEnabled, setVmsEnabled] = useState(propertyToEdit?.automationSettings?.vmsEnabled ?? true);
     const [activeUnitIndex, setActiveUnitIndex] = useState(0);
     const [autoSyncUnits, setAutoSyncUnits] = useState(true);
     const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
@@ -599,7 +603,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             automationSettings: {
                 remindLeaseExpiry,
                 remindRentDue,
-                autoCreateMaintenanceTask
+                autoCreateMaintenanceTask,
+                vmsEnabled
             },
             minimumVendEnabled,
             minimumVendAmount: Number(minimumVendAmount) || 0,
@@ -1083,7 +1088,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Automation Settings --- */}
-                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
+                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} title="Automation" subtitle="Alerts & VMS" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
@@ -1099,6 +1104,21 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={autoCreateMaintenanceTask} onChange={e => setAutoCreateMaintenanceTask(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Maintenance Tasks</span>
                         </label>
+                    </div>
+                    {/* Per-property VMS toggle — AND-gated with firm-level portal_settings.vmsEnabled */}
+                    <div className="mt-4 p-4 bg-emerald-50/30 dark:bg-emerald-900/5 rounded-2xl border border-emerald-100 dark:border-emerald-900/20">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <input autoComplete="off" data-lpignore="true" type="checkbox" checked={vmsEnabled} onChange={e => setVmsEnabled(e.target.checked)} className="mt-1 rounded border-emerald-200 text-emerald-500 focus:ring-emerald-500" />
+                                <div>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-zinc-200 uppercase tracking-tight block">Enable Visitor Management System (VMS) & Access Codes</span>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                                        When enabled, residents of this property can generate 6-digit access codes
+                                        for their visitors. Also requires firm-level VMS to be enabled in Portal Access Settings.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </AccordionSection>
 

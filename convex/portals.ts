@@ -3275,6 +3275,10 @@ export const getTenantInfo = query({
       primaryPropertyName: primaryProperty?.name || (primaryProperty?.address ? primaryProperty.address.split(',')[0] : null),
       primaryUnitName: primaryUnit?.unitName || primaryUnit?.name || primaryUnit?.label || null,
       primaryPropertyAddress: primaryProperty?.address || null,
+      // Per-property VMS override — AND-gated with firm-level portal_settings.vmsEnabled.
+      // When false, residents of THIS property see "Feature Not Yet Active" even if
+      // firm VMS is on. Defaults to true (backward compat for properties without the field).
+      primaryPropertyVmsEnabled: primaryProperty?.automationSettings?.vmsEnabled ?? true,
       // Canonical tenant name from the property record (source of truth)
       tenantName: resolvedTenantName,
     };

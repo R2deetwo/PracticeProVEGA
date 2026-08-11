@@ -284,6 +284,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       tenantEmail: u.tenantEmail,
       rentAmount: u.rentAmount,
       propertyAddress: u.address,
+      propertyId: u.propertyId,  // ← needed for portal messaging thread resolution
       serviceCharge: u.serviceCharge,
       legalFee: u.legalFee,
       agencyFee: u.agencyFee,
@@ -636,7 +637,12 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               sendResult = { success: false, error: inAppErr.message };
             }
           } else if (channel === 'portal') {
-            // Send message to tenant's portal inbox
+            // Send message to tenant's portal inbox.
+            // MESSAGING SYNC FIX: Pass propertyId alongside unitId so the
+            // backend's getOrCreateConversation can correctly resolve the
+            // resident's conversation thread. Previously only unitId was
+            // passed, which could cause duplicate threads if the participantId
+            // lookup via unit.tenantEmail failed.
             try {
               await convex.mutation(api.portals.sendPortalMessage, {
                 firmId,
@@ -645,6 +651,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 senderRole: 'admin',
                 subject: getMsgTypeLabel(msgType),
                 content: personalizedMessage,
+                propertyId: r.propertyId || undefined,
                 unitId: r.id || undefined,
               });
               sendResult = { success: true, simulated: false };

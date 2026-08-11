@@ -26,6 +26,7 @@ import {
   MailIcon,
   BellIcon,
   VisitorIcon,
+  HelpCircleIcon,
 } from '../../constants';
 import { Receipt as ReceiptIcon, Home as HomeIcon, Zap as ZapIcon, Wifi as WifiIcon, PlugZap as BoltIcon, Shield as ShieldIcon } from 'lucide-react';
 import { VisitorPortal } from '../portal/VisitorPortal';
@@ -135,9 +136,38 @@ const TenantPortal: React.FC = () => {
   // Repair mutation for fixing missing firmId on portal user records
   const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
   const relinkToProperty = useMutation(api.portals.relinkPortalUserToProperty);
+  const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
   const [isRepairing, setIsRepairing] = useState(false);
   const [hasAttemptedRelink, setHasAttemptedRelink] = useState(false);
   const [hasAttemptedFirmRepair, setHasAttemptedFirmRepair] = useState(false);
+  const [isRequestingVms, setIsRequestingVms] = useState(false);
+
+  // VMS Request Handler — sends an automated message to the property manager
+  // requesting that VMS be enabled for the resident's property.
+  const handleRequestVmsEnable = async () => {
+    if (isRequestingVms) return;
+    setIsRequestingVms(true);
+    try {
+      const residentName = tenantInfo?.tenantName || currentUser?.name || 'Resident';
+      const propertyName = tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name || 'my property';
+      await sendPortalMessage({
+        firmId: effectiveFirmId,
+        senderId: userId,
+        senderName: residentName,
+        senderEmail: currentUser?.email,
+        senderRole: 'Tenant',
+        subject: 'VMS Enablement Request',
+        content: `Hello,\n\nI would like to request that the Visitor Management System (VMS) be enabled for ${propertyName}. This will allow me to generate 6-digit access codes for my visitors, contractors, and delivery personnel.\n\nPlease enable this feature in Portal Access Settings at your earliest convenience.\n\nThank you,\n${residentName}`,
+        propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || undefined,
+        unitId: tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id || undefined,
+      });
+      addToast('Request sent to your property manager. They will enable VMS from Portal Access Settings.', { type: 'success' });
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to send request. Please try again or contact your property manager directly.', { type: 'error' });
+    } finally {
+      setIsRequestingVms(false);
+    }
+  };
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -361,10 +391,11 @@ const TenantPortal: React.FC = () => {
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number; disabled?: boolean }[] = [
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
-    // VISITORS TAB — always visible. When VMS is disabled, the tab shows
-    // but renders a "contact your property manager" message instead of
-    // the code generation UI. This makes the feature discoverable.
-    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" />, disabled: !portalSettings?.vmsEnabled },
+    // VISITORS TAB — always visible. VMS is AND-gated:
+    //   1. Firm-level: portalSettings.vmsEnabled
+    //   2. Property-level: tenantInfo.primaryPropertyVmsEnabled (defaults true)
+    // When either is off, the tab shows a "Feature Not Yet Active" message.
+    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" />, disabled: !portalSettings?.vmsEnabled || !(tenantInfo?.primaryPropertyVmsEnabled ?? true) },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
@@ -373,7 +404,7 @@ const TenantPortal: React.FC = () => {
     ] : []),
     { id: 'payments', label: 'Payments', icon: <NairaSymbol className="w-4 h-4 inline" /> },
     { id: 'documents', label: 'Documents', icon: <DocumentIcon className="w-4 h-4" /> },
-    { id: 'security', label: 'Security', icon: <ShieldIcon className="w-4 h-4" /> },
+    { id: 'security', label: 'Help', icon: <HelpCircleIcon className="w-4 h-4" /> },
   ];
 
   return (
@@ -456,7 +487,7 @@ const TenantPortal: React.FC = () => {
               {tab.icon}
               <span className="text-xs sm:text-sm">{tab.label}</span>
               {tab.badge && tab.badge > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
+                <span className="min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-2xs font-bold rounded-full flex items-center justify-center ml-0.5">
                   {tab.badge > 99 ? '99+' : tab.badge}
                 </span>
               )}
@@ -521,13 +552,13 @@ const TenantPortal: React.FC = () => {
             {activeTab === 'payments' && <TabErrorBoundary tabName="Payments"><PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'documents' && <TabErrorBoundary tabName="Documents"><DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'visitors' && <TabErrorBoundary tabName="Visitors">
-              {portalSettings?.vmsEnabled ? (
+              {(portalSettings?.vmsEnabled && (tenantInfo?.primaryPropertyVmsEnabled ?? true)) ? (
                 <VisitorPortal firmId={effectiveFirmId} propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''} propertyName={tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name} propertyAddress={tenantInfo?.primaryPropertyAddress || tenantInfo?.properties?.[0]?.address} unitId={tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id} unitName={tenantInfo?.primaryUnitName || tenantInfo?.units?.[0]?.name} residentName={tenantInfo?.tenantName} />
               ) : (
-                <VisitorDisabledState />
+                <VisitorDisabledState onRequestEnable={handleRequestVmsEnable} isRequesting={isRequestingVms} />
               )}
             </TabErrorBoundary>}
-            {activeTab === 'security' && <TabErrorBoundary tabName="Security"><SecurityAccessTab tenantInfo={tenantInfo} portalSettings={portalSettings} /></TabErrorBoundary>}
+            {activeTab === 'security' && <TabErrorBoundary tabName="Help"><HelpAndSupportTab tenantInfo={tenantInfo} portalSettings={portalSettings} onNavigate={handleTabChange} /></TabErrorBoundary>}
           </>
         )}
       </div>
@@ -3168,7 +3199,9 @@ export default TenantPortal;
 // ─── Visitor Disabled State ──────────────────────────────────────────────────
 // Shown when VMS is not enabled by the property manager. Makes the feature
 // discoverable instead of hidden, so residents know it exists.
-const VisitorDisabledState: React.FC = () => (
+// Also provides a "Request Manager to Enable VMS" button that dispatches
+// an automated request message to the property manager.
+const VisitorDisabledState: React.FC<{ onRequestEnable?: () => void; isRequesting?: boolean }> = ({ onRequestEnable, isRequesting }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
       <VisitorIcon className="w-8 h-8 text-slate-400 dark:text-zinc-500" />
@@ -3178,23 +3211,55 @@ const VisitorDisabledState: React.FC = () => (
       Generate 6-digit access codes for your visitors, contractors, and delivery
       personnel. Codes are verified at the gatehouse for seamless entry.
     </p>
-    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 max-w-sm">
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 max-w-sm mb-4">
       <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">
         Feature Not Yet Active
       </p>
       <p className="text-xs text-amber-600 dark:text-amber-500">
-        Your property manager hasn't enabled visitor access codes yet. Contact
-        them to request this feature be turned on for your property.
+        Your property manager hasn't enabled visitor access codes yet. Use the
+        button below to send an automated request.
       </p>
     </div>
+    {onRequestEnable && (
+      <button
+        onClick={onRequestEnable}
+        disabled={isRequesting}
+        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      >
+        {isRequesting ? (
+          <>
+            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Sending Request...
+          </>
+        ) : (
+          <>
+            <ChatIcon className="w-4 h-4" />
+            Request Manager to Enable VMS
+          </>
+        )}
+      </button>
+    )}
   </div>
 );
 
-// ─── Security & Access Tab ───────────────────────────────────────────────────
-// Explains the security architecture behind access code generation, verification,
-// and the overall security model. Helps residents understand how their data is
-// protected and how access codes work end-to-end.
-const SecurityAccessTab: React.FC<{ tenantInfo: any; portalSettings: any }> = ({ tenantInfo, portalSettings }) => {
+// ─── Help & Support Tab ──────────────────────────────────────────────────────
+// Replaces the old standalone "Security" tab. Organizes content into three
+// accordion sections: Security & Privacy, Resident Guide & FAQs, and
+// Contact Property Manager. Provides quick navigation to Messages tab.
+const HelpAndSupportTab: React.FC<{
+  tenantInfo: any;
+  portalSettings: any;
+  onNavigate: (tab: TabId) => void;
+}> = ({ tenantInfo, portalSettings, onNavigate }) => {
+  const [openSection, setOpenSection] = useState<string | null>('security');
+
+  const toggleSection = (section: string) => {
+    setOpenSection(openSection === section ? null : section);
+  };
+
   const securityFeatures = [
     {
       icon: <ShieldIcon className="w-5 h-5" />,
@@ -3234,91 +3299,227 @@ const SecurityAccessTab: React.FC<{ tenantInfo: any; portalSettings: any }> = ({
     },
   ];
 
+  const faqs = [
+    {
+      q: 'How do I make a payment?',
+      a: 'Go to the Payments tab, upload your payment proof (bank transfer receipt, POS slip, or cash deposit confirmation). Your property manager will verify and issue a receipt automatically. You can track payment status in the Ledger tab.',
+    },
+    {
+      q: 'How do I log a maintenance ticket?',
+      a: 'Open the Maintenance tab, tap "New Request", describe the issue, attach photos if needed, and submit. Your property manager will be notified instantly. You can track the status of all your maintenance requests in the same tab.',
+    },
+    {
+      q: 'How do I generate a visitor pass?',
+      a: 'Go to the Visitors tab, tap "Generate Access Code", enter your visitor\'s name and phone number, choose how long the code should be valid (2, 6, 12, or 24 hours), and share the code with your visitor via WhatsApp or SMS. The gatekeeper will verify the code at the gatehouse.',
+    },
+    {
+      q: 'How do I view my receipts?',
+      a: 'Open the Receipts tab to see all your payment receipts. You can download or print any receipt as a PDF. Receipts are generated automatically when your property manager confirms your payment.',
+    },
+    {
+      q: 'How do I check my outstanding balance?',
+      a: 'Your outstanding balance is shown on the Home dashboard at the top. Tap it to see a full breakdown in the Ledger tab, including service charges, rent, and minimum vend if applicable.',
+    },
+    {
+      q: 'How do I contact my property manager?',
+      a: 'If messaging is enabled, use the Messages tab to send a direct message. You can also find their contact details in the "Contact Property Manager" section below.',
+    },
+  ];
+
   return (
     <div className="space-y-4 pb-8">
       {/* Header */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-black dark:to-zinc-950 text-white rounded-premium p-5 shadow-premium">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
-            <ShieldIcon className="w-5 h-5" />
+            <HelpCircleIcon className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">Security & Access</p>
-            <h2 className="text-xl font-bold tracking-tight">How Access Codes Work</h2>
+            <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">Help & Support</p>
+            <h2 className="text-xl font-bold tracking-tight">How can we help?</h2>
           </div>
         </div>
         <p className="text-sm text-white/85 leading-relaxed">
-          PracticePro uses a secure, verifiable access code system to manage
-          visitor entry to your property. Here's how it works end-to-end —
-          from code generation to gatehouse verification.
+          Find answers to common questions, learn about our security architecture,
+          and get in touch with your property manager.
         </p>
       </div>
 
-      {/* Security Features */}
-      <div className="space-y-3">
-        {securityFeatures.map((feature, idx) => (
-          <div key={idx} className="bg-white dark:bg-zinc-800 rounded-2xl p-4 shadow-soft">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                {feature.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">{feature.title}</h3>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                    feature.status === 'Active'
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                      : feature.status === 'Always Active'
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                  }`}>
-                    {feature.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
+      {/* ─── Section 1: Security & Privacy ─── */}
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft overflow-hidden">
+        <button
+          onClick={() => toggleSection('security')}
+          className="w-full flex items-center justify-between p-4 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <ShieldIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Security & Privacy</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">How access codes work and your data is protected</p>
             </div>
           </div>
-        ))}
+          <svg className={`w-5 h-5 text-slate-400 transition-transform ${openSection === 'security' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'security' && (
+          <div className="px-4 pb-4 space-y-3 border-t border-slate-100 dark:border-zinc-700/50 pt-3">
+            {securityFeatures.map((feature, idx) => (
+              <div key={idx} className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                  {feature.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{feature.title}</h4>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      feature.status === 'Active'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                        : feature.status === 'Always Active'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                    }`}>
+                      {feature.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {/* Privacy Note */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-3 mt-2">
+              <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 mb-1">Your Privacy</h4>
+              <p className="text-xs text-blue-800 dark:text-blue-400 leading-relaxed">
+                Your personal data — financial ledger, payment history, messages — is
+                never visible to the gatekeeper or other residents. The access code
+                system only shares the minimum information needed for visitor entry.
+                All data is encrypted in transit and at rest.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* How It Works Flow */}
-      <div className="bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">End-to-End Flow</h3>
-        <div className="space-y-3">
-          {[
-            { step: 1, title: 'You Generate a Code', desc: 'Open the Visitors tab, enter your visitor\'s name and phone, choose an expiry window (2/6/12/24 hours).' },
-            { step: 2, title: 'Code is Shared', desc: 'The code is sent to your visitor via WhatsApp (you share it, or the system sends it on your behalf).' },
-            { step: 3, title: 'Visitor Arrives', desc: 'The visitor gives the code to the gatekeeper at the gatehouse terminal.' },
-            { step: 4, title: 'Gatekeeper Verifies', desc: 'The gatekeeper enters the code. The system checks validity and shows the visitor\'s name, host (you), and unit.' },
-            { step: 5, title: 'Entry Approved', desc: 'The gatekeeper approves entry. The check-in is logged. You receive a WhatsApp notification (if enabled).' },
-            { step: 6, title: 'Check-Out', desc: 'When the visitor leaves, the gatekeeper checks them out. The full visit is recorded in the audit trail.' },
-          ].map((item) => (
-            <div key={item.step} className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                {item.step}
+      {/* ─── Section 2: Resident Guide & FAQs ─── */}
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft overflow-hidden">
+        <button
+          onClick={() => toggleSection('faqs')}
+          className="w-full flex items-center justify-between p-4 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+              <HelpCircleIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Resident Guide & FAQs</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">Quick guides on payments, maintenance, visitors, and receipts</p>
+            </div>
+          </div>
+          <svg className={`w-5 h-5 text-slate-400 transition-transform ${openSection === 'faqs' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'faqs' && (
+          <div className="px-4 pb-4 space-y-3 border-t border-slate-100 dark:border-zinc-700/50 pt-3">
+            {/* Quick action buttons */}
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <button onClick={() => onNavigate('payments')} className="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors">
+                <NairaSymbol className="w-4 h-4 inline" /> Make Payment
+              </button>
+              <button onClick={() => onNavigate('maintenance')} className="flex items-center gap-2 p-2.5 bg-rose-50 dark:bg-rose-900/20 rounded-lg text-rose-700 dark:text-rose-400 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors">
+                <WrenchIcon className="w-4 h-4" /> Log Maintenance
+              </button>
+              <button onClick={() => onNavigate('visitors')} className="flex items-center gap-2 p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-700 dark:text-blue-400 text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                <VisitorIcon className="w-4 h-4" /> Visitor Pass
+              </button>
+              <button onClick={() => onNavigate('receipts')} className="flex items-center gap-2 p-2.5 bg-teal-50 dark:bg-teal-900/20 rounded-lg text-teal-700 dark:text-teal-400 text-xs font-bold hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors">
+                <DownloadIcon className="w-4 h-4" /> View Receipts
+              </button>
+            </div>
+            {/* FAQ list */}
+            {faqs.map((faq, idx) => (
+              <div key={idx} className="border-b border-slate-100 dark:border-zinc-700/50 pb-3 last:border-0">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">{faq.q}</h4>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">{faq.a}</p>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</p>
-                <p className="text-xs text-slate-600 dark:text-zinc-400">{item.desc}</p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ─── Section 3: Contact Property Manager ─── */}
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft overflow-hidden">
+        <button
+          onClick={() => toggleSection('contact')}
+          className="w-full flex items-center justify-between p-4 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+              <ChatIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Contact Property Manager</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">Direct contact details and quick message</p>
+            </div>
+          </div>
+          <svg className={`w-5 h-5 text-slate-400 transition-transform ${openSection === 'contact' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'contact' && (
+          <div className="px-4 pb-4 space-y-3 border-t border-slate-100 dark:border-zinc-700/50 pt-3">
+            {/* Contact details */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
+                <MailIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Email</p>
+                  <p className="text-sm text-slate-900 dark:text-white truncate">
+                    {tenantInfo?.propertyManagerEmail || tenantInfo?.firmEmail || 'Contact via Messages tab'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
+                <OfficeBuildingIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Office Phone</p>
+                  <p className="text-sm text-slate-900 dark:text-white">
+                    {tenantInfo?.propertyManagerPhone || tenantInfo?.firmPhone || 'Contact via Messages tab'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
+                <VisitorIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Gatehouse Desk</p>
+                  <p className="text-sm text-slate-900 dark:text-white">
+                    {tenantInfo?.gatehousePhone || 'Available at the property entrance'}
+                  </p>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Privacy Note */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-4">
-        <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300 mb-1">Your Privacy</h3>
-        <p className="text-xs text-blue-800 dark:text-blue-400 leading-relaxed">
-          Your personal data — financial ledger, payment history, messages — is
-          never visible to the gatekeeper or other residents. The access code
-          system only shares the minimum information needed for visitor entry:
-          visitor name, host name, and unit number. All data is encrypted in
-          transit and at rest.
-        </p>
+            {/* Quick message button */}
+            {portalSettings?.tenantMessagingEnabled ? (
+              <button
+                onClick={() => onNavigate('messages')}
+                className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors"
+              >
+                <ChatIcon className="w-4 h-4" />
+                Open Messages
+              </button>
+            ) : (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3">
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  Messaging is not enabled for your property. Please contact your property manager directly using the details above.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

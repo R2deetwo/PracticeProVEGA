@@ -14,6 +14,8 @@ export interface UnitOption {
   address: string;
   /** Shortened address (first line before comma) */
   shortAddress: string;
+  /** The parent property ID — needed for portal messaging thread resolution */
+  propertyId?: string;
   tenantName?: string;
   tenantPhone?: string;
   tenantEmail?: string;
@@ -117,6 +119,7 @@ export function usePropertyGroups(properties: Property[]): {
             unitName,
             address: p.address,
             shortAddress: p.address?.split(',')[0] || 'Property',
+            propertyId: p.id,
             tenantName,
             tenantPhone: unit.tenantPhone || (p as any).rentalDetails?.tenantPhone || '',
             tenantEmail: unit.tenantEmail || (p as any).rentalDetails?.tenantEmail || '',
@@ -140,6 +143,7 @@ export function usePropertyGroups(properties: Property[]): {
           unitName,
           address: p.address,
           shortAddress: p.address?.split(',')[0] || 'Property',
+          propertyId: p.id,
           tenantName: rental.tenantName || (p as any).tenantName,
           tenantPhone: rental.tenantPhone || (p as any).tenantPhone,
           tenantEmail: rental.tenantEmail || (p as any).tenantEmail,
