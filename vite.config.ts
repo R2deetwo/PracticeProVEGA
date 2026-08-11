@@ -35,6 +35,24 @@ function gitSha(fallback = '') {
   }
 }
 
+// BULLETPROOF build timestamp — read from version.json (set by prebuild).
+// This is the PRIMARY version identifier used by useVersionCheck. Unlike
+// SHA, a timestamp is ALWAYS available (just Date.now() at build time)
+// and guaranteed unique per build. Falls back to Date.now() if version.json
+// doesn't exist yet.
+function buildTimestamp() {
+  try {
+    const versionFile = path.join(__dirname, 'public', 'version.json');
+    if (fs.existsSync(versionFile)) {
+      const manifest = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+      if (manifest.buildTimestamp && typeof manifest.buildTimestamp === 'number') {
+        return manifest.buildTimestamp;
+      }
+    }
+  } catch {}
+  return Date.now()
+}
+
 // Vite plugin that generates public/version.json BEFORE the build runs.
 // This ensures version.json always exists — whether the build is triggered
 // via `npm run build` (which runs prebuild) or `npx vite build` (which
@@ -195,6 +213,10 @@ export default defineConfig(({ mode }) => {
       // Bake the build SHA into the bundle so the client can compare it
       // against /version.json at runtime to detect new deploys.
       'import.meta.env.VITE_BUILD_SHA': JSON.stringify(gitSha()),
+      // BULLETPROOF: Bake the build timestamp into the bundle. This is the
+      // PRIMARY version identifier — always available, always unique per build.
+      // The useVersionCheck hook compares this against version.json's buildTimestamp.
+      'import.meta.env.VITE_BUILD_TIMESTAMP': JSON.stringify(buildTimestamp()),
     }
   }
 })

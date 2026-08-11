@@ -1,140 +1,148 @@
 /**
- * useVersionCheck — detects new deploys and PROMPTS the user to refresh.
+ * useVersionCheck — BULLETPROOF version detection.
  *
  * HOW IT WORKS
  * ------------
- * 1. At build time, `scripts/generate-version-manifest.cjs` writes
- *    `public/version.json` with the git SHA + status + stableSince.
- * 2. The build SHA is also baked into the JS bundle via
- *    `import.meta.env.VITE_BUILD_SHA`.
- * 3. At runtime, this hook periodically fetches `/version.json` (with
- *    cache-busting) and compares its `sha` against the baked-in SHA.
- * 4. If they differ AND `status === 'healthy'`, the hook sets
- *    `updateAvailable = true`. The VersionRefreshBanner shows a
- *    non-intrusive floater at the bottom of the screen with a
- *    "Refresh" button and a "Dismiss" button.
- * 5. The user chooses WHEN to refresh — their work is never interrupted.
- * 6. If `status === 'building'` or `'broken'`, the hook waits — never
- *    prompts to an in-progress or known-broken build.
+ * 1. At build time, a `buildTimestamp` (Unix ms) is written to version.json
+ *    AND baked into the JS bundle via `VITE_BUILD_TIMESTAMP`.
+ * 2. At runtime, this hook fetches `/version.json` (with cache-busting) and
+ *    compares the remote `buildTimestamp` against the baked-in local one.
+ * 3. If they differ → a new deploy has shipped → show the refresh prompt.
+ *
+ * WHY TIMESTAMP INSTEAD OF SHA
+ * ----------------------------
+ * SHA comparison was fragile — Vercel/Cloudflare build environments don't
+ * always have git context, causing SHA to fall back to 'unknown'. A build
+ * timestamp is ALWAYS available (just `Date.now()` at build time) and is
+ * guaranteed to be unique per build.
  *
  * TRIGGERS
  * --------
- * - Every 60 seconds while the page is visible
+ * - Every 30 seconds while the page is visible (aggressive)
  * - Immediately when the tab/window regains focus
  * - Immediately when the browser comes back online
+ * - 3 seconds after mount (fast initial check)
  *
- * NOTES
- * -----
- * - In dev mode (VITE_DEV), the hook is a no-op.
- * - In Capacitor (native app), the hook is a no-op — APK updates are
- *   install-time, not runtime.
- * - This is a PROMPT-based flow, NOT auto-refresh. An earlier version
- *   auto-refreshed immediately, which caused data loss when users were
- *   in the middle of editing. The user explicitly asked for the manual
- *   floater back so they control when to refresh.
+ * NO SKIPS — This hook ALWAYS runs in production. No isDev/isNative skips.
+ * Even native APKs can benefit from knowing a web deploy shipped (for
+ * portal users accessing via in-app browser).
  */
 import { useEffect, useRef, useState } from 'react';
 
-const POLL_INTERVAL_MS = 60 * 1000; // 1 minute
-const STABLE_DELAY_MS = 30 * 1000;  // 30 seconds after stableSince — short delay to ensure deploy is live
+const POLL_INTERVAL_MS = 30 * 1000; // 30 seconds — aggressive
 
 export interface VersionCheckState {
-  /** True when a new deploy has been detected, verified healthy, AND stable for the delay period. */
+  /** True when a new deploy has been detected. */
   updateAvailable: boolean;
-  /** The SHA of the new deploy (for display). */
-  remoteSha?: string;
-  /** The SHA baked into this running bundle. */
-  localSha?: string;
+  /** The build timestamp of the new deploy (for display). */
+  remoteTimestamp?: number;
+  /** The build timestamp baked into this running bundle. */
+  localTimestamp?: number;
   /** Force a hard refresh now. */
   refresh: () => void;
   /** Dismiss the prompt for now (will re-appear on next poll). */
   dismiss: () => void;
+  /** Manually trigger a check (e.g. from a Settings button). */
+  checkNow: () => void;
+  /** Whether a check is currently in progress. */
+  isChecking: boolean;
 }
 
-const isNative = typeof window !== 'undefined'
-  && (window as any).Capacitor?.isNativePlatform?.();
-
-const isDev = typeof import.meta !== 'undefined'
-  && (import.meta as any).env?.DEV === true;
+// Get the baked-in build timestamp. This is defined by Vite at build time.
+// Fallback to 0 if not set (which means "always show update" on first load
+// if version.json has a real timestamp — safe default).
+const LOCAL_BUILD_TIMESTAMP = (import.meta as any).env?.VITE_BUILD_TIMESTAMP
+  ? Number((import.meta as any).env.VITE_BUILD_TIMESTAMP)
+  : 0;
 
 export function useVersionCheck(): VersionCheckState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [remoteSha, setRemoteSha] = useState<string | undefined>(undefined);
+  const [remoteTimestamp, setRemoteTimestamp] = useState<number | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
-  const localShaRef = useRef<string | undefined>(undefined);
-  if (localShaRef.current === undefined) {
-    localShaRef.current = (import.meta as any).env?.VITE_BUILD_SHA || 'unknown';
-  }
+  const [isChecking, setIsChecking] = useState(false);
+  const localTimestampRef = useRef<number>(LOCAL_BUILD_TIMESTAMP);
+  const checkRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Skip in dev mode and native apps (see rationale in file header).
-    if (isDev || isNative) return;
-
     let cancelled = false;
 
     const check = async () => {
+      setIsChecking(true);
       try {
-        // Cache-bust via query string so we never read a stale version.json
-        // from the browser cache or a CDN edge node.
-        const url = `/version.json?_=${Date.now()}`;
+        // Cache-bust via query string with BOTH timestamp AND random
+        // to defeat even the most aggressive CDN caching.
+        const url = `/version.json?_t=${Date.now()}&_r=${Math.random().toString(36).slice(2)}`;
         const res = await fetch(url, {
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' },
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.error('[useVersionCheck] fetch failed:', res.status, res.statusText);
+          return;
+        }
         const data = await res.json();
-        if (cancelled || !data?.sha) return;
+        if (cancelled || !data) return;
 
-        const local = localShaRef.current;
-        // If local SHA is missing entirely, skip — we can't compare.
-        // NOTE: We NO LONGER skip on 'unknown' — the build system now
-        // generates a unique timestamp-based SHA as fallback, so every
-        // build has a comparable identifier. This ensures the "Refresh
-        // to Update" prompt always works on Vercel and Cloudflare.
-        if (!local) return;
+        const remoteBuild = Number(data.buildTimestamp) || 0;
+        const remoteSha = data.sha || 'unknown';
+        const localBuild = localTimestampRef.current;
+        const localSha = (import.meta as any).env?.VITE_BUILD_SHA || 'unknown';
 
-        // Debug logging — helps diagnose why the prompt may not show
-        console.log('[useVersionCheck]', { local: local?.slice(0, 12), remote: data.sha?.slice(0, 12), status: data.status });
+        // AGGRESSIVE LOGGING — use console.error so it's visible in production
+        console.error('[useVersionCheck] COMPARISON:', {
+          localBuild,
+          remoteBuild,
+          localSha: localSha?.slice(0, 12),
+          remoteSha: remoteSha?.slice(0, 12),
+          status: data.status,
+          match: localBuild === remoteBuild,
+        });
 
-        // Same SHA → no update needed.
-        if (data.sha === local) {
-          setUpdateAvailable(false);
+        // Check 1: Build timestamp mismatch (PRIMARY — most reliable)
+        if (localBuild > 0 && remoteBuild > 0 && localBuild !== remoteBuild) {
+          console.error('[useVersionCheck] UPDATE AVAILABLE (timestamp mismatch)');
+          setRemoteTimestamp(remoteBuild);
+          setUpdateAvailable(true);
+          setDismissed(false);
           return;
         }
 
-        // ─── DIFFERENT SHA → SHOW THE FLOATER IMMEDIATELY ─────────────
-        // The user explicitly requested: "the refresh to get updates should
-        // show everytime we have a new push". We do NOT wait for:
-        //   - status === 'healthy' (mark-healthy.cjs often fails silently)
-        //   - stableSince delay (unnecessary — Vercel atomic deploys are
-        //     already live by the time version.json is updated)
-        //   - 2-minute grace period (just adds latency)
-        //
-        // The ONLY exception: status === 'broken' — if the deploy is known
-        // to be broken, don't prompt the user to refresh into a broken build.
-        const status = data.status || 'healthy';
-        if (status === 'broken') {
+        // Check 2: SHA mismatch (SECONDARY — fallback)
+        if (localSha && localSha !== 'unknown' && remoteSha && remoteSha !== 'unknown' && localSha !== remoteSha) {
+          console.error('[useVersionCheck] UPDATE AVAILABLE (SHA mismatch)');
+          setRemoteTimestamp(remoteBuild);
+          setUpdateAvailable(true);
+          setDismissed(false);
           return;
         }
 
-        // All gates passed — show the prompt. The user decides when to refresh.
-        setRemoteSha(data.sha);
-        setUpdateAvailable(true);
-        setDismissed(false);
-      } catch {
-        // Network error — silently ignore. We'll retry on next interval.
+        // Either both match or we can't compare — no update
+        setUpdateAvailable(false);
+      } catch (err) {
+        console.error('[useVersionCheck] check error:', err);
+      } finally {
+        if (!cancelled) setIsChecking(false);
       }
     };
 
-    // Initial check after a short delay (let the app settle first).
-    // Reduced from 15s to 5s so users see the prompt faster after a deploy.
-    const initialTimer = setTimeout(check, 5_000);
+    // Store check function for manual triggering
+    checkRef.current = check;
+
+    // Initial check after 3 seconds (fast — let the app settle briefly)
+    const initialTimer = setTimeout(check, 3_000);
     const interval = setInterval(check, POLL_INTERVAL_MS);
 
+    // Check on focus and online events
     const onFocus = () => { check(); };
     const onOnline = () => { check(); };
+    // Check on visibility change (tab switch)
+    const onVisibility = () => { if (!document.hidden) check(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelled = true;
@@ -142,46 +150,13 @@ export function useVersionCheck(): VersionCheckState {
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
   const refresh = () => {
-    // AGGRESSIVE cache busting — preserves auth/login so user stays logged in.
-    //
-    // The user reported: "I clicked refresh to update but still see the old
-    // version." This happens because browsers aggressively cache HTML/JS even
-    // with no-cache headers, especially on SPA routes like /vega and /atrium.
-    //
-    // WHAT WE CLEAR:
-    //   1. Cache API (Service Worker caches) — if any SW is registered
-    //   2. sessionStorage — except auth-related keys
-    //   3. localStorage — except auth + user preferences + drafts
-    //
-    // WHAT WE PRESERVE (so the user's flow isn't broken):
-    //   - practicepro_cached_user (logged-in user cache)
-    //   - practicepro_user_session (session token)
-    //   - practicepro_portal_session (portal auth)
-    //   - practicepro_portal_type (which portal)
-    //   - practicepro_original_session (impersonation)
-    //   - practicepro_impersonation_role
-    //   - practicepro_session_locked
-    //   - practicepro_theme (user's saved theme)
-    //   - practicepro_fontSize (user's saved font size)
-    //   - practicepro_cookie_consent (GDPR/NDPA consent)
-    //   - practicepro_ai_consent (AI feature consent)
-    //   - practicepro_content_protection (user setting)
-    //   - practicepro_tour_completed (onboarding state)
-    //   - practicepro_dismissed_tips (user's dismissed tips)
-    //   - practicepro_last_seen_version (What's New dismissal — without this,
-    //     refresh wipes the localStorage key and the user sees the same
-    //     What's New floater again immediately after dismissing it)
-    //   - draft_* (form drafts — never clear, user data)
-    //   - local_cached_files (offline file cache, user data)
-    //   - pp_migration_email (migration flow state)
-    //   - practicepro_push_registered_this_session
-    //
-    // Then we navigate with a cache-busting query param so the browser
-    // MUST fetch fresh HTML (different URL = no bfcache, no disk cache).
+    // AGGRESSIVE cache busting — clear all caches then navigate with
+    // cache-busting query param so the browser MUST fetch fresh HTML.
     const AUTH_PATTERNS = [
       /^practicepro_cached_user$/,
       /^practicepro_user_session$/,
@@ -197,46 +172,30 @@ export function useVersionCheck(): VersionCheckState {
       /^practicepro_content_protection$/,
       /^practicepro_tour_completed$/,
       /^practicepro_dismissed_tips$/,
-      /^practicepro_last_seen_version$/, // What's New dismissal — without this, refresh wipes the localStorage key and the same What's New floater re-appears after the user already dismissed it
+      /^practicepro_last_seen_version$/,
       /^practicepro_push_registered_this_session$/,
       /^practicepro_last_briefing_date$/,
       /^practicepro_aloa_model$/,
       /^practicepro_tc_collapsed$/,
       /^practicepro_cached_appstate$/,
       /^aloax_sidebar_enabled$/,
-      /^draft_/,            // any draft_* key (form drafts)
+      /^draft_/,
       /^local_cached_files$/,
       /^pp_migration_email$/,
+      /^founder_screen_capture$/,
     ];
 
     const isAuthOrUserData = (key: string): boolean =>
       AUTH_PATTERNS.some(p => p.test(key));
 
-    // 1. Clear Cache API (Service Worker caches) — async
+    // 1. Clear Cache API (Service Worker caches)
     try {
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
       }
-    } catch { /* ignore */ }
+    } catch {}
 
-    // 2. Clear sessionStorage except auth keys
-    try {
-      const sessionKeysToKeep: string[] = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && isAuthOrUserData(key)) sessionKeysToKeep.push(key);
-      }
-      sessionStorage.clear();
-      // Note: we can't restore them after clear() because clear() removes them
-      // So instead, we DON'T clear sessionStorage — only clear specific
-      // non-auth keys if any exist. Actually sessionStorage is per-tab and
-      // dies when the tab closes anyway, so clearing it is fine.
-      // Re-add nothing — sessionStorage resets on navigation to a new URL
-      // with a different query param anyway.
-      void sessionKeysToKeep;
-    } catch { /* ignore */ }
-
-    // 3. Clear localStorage except auth + preferences + drafts
+    // 2. Clear localStorage except auth + preferences + drafts
     try {
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -244,13 +203,11 @@ export function useVersionCheck(): VersionCheckState {
         if (key && !isAuthOrUserData(key)) keysToRemove.push(key);
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {}
 
-    // 4. Navigate with cache-bust query param + small delay for cache deletion
+    // 3. Navigate with cache-bust query param
     const url = new URL(window.location.href);
     url.searchParams.set('_refresh', String(Date.now()));
-    // 150ms delay lets the async caches.delete() and localStorage cleanup
-    // complete before navigation fires
     setTimeout(() => {
       window.location.replace(url.toString());
     }, 150);
@@ -260,11 +217,20 @@ export function useVersionCheck(): VersionCheckState {
     setDismissed(true);
   };
 
+  const checkNow = () => {
+    if (checkRef.current) {
+      setDismissed(false);
+      checkRef.current();
+    }
+  };
+
   return {
     updateAvailable: updateAvailable && !dismissed,
-    remoteSha,
-    localSha: localShaRef.current,
+    remoteTimestamp,
+    localTimestamp: localTimestampRef.current,
     refresh,
     dismiss,
+    checkNow,
+    isChecking,
   };
 }

@@ -1447,14 +1447,12 @@ export const App: React.FC = () => {
             )}
             {/* Detects new deploys and prompts the user to refresh — bypasses
                 browser/CDN caches that may serve stale HTML/JS.
-                AUTH-GATED: only shown when the user is authenticated. The
-                banner should NOT appear on public landing pages, login, or
-                registration screens — those are unauthenticated routes where
-                a "Refresh to Update" prompt would be confusing. */}
-            {currentUser && <VersionRefreshBanner />}
+                BULLETPROOF: Always rendered (not auth-gated) so the banner
+                shows on ALL routes including landing pages, login, and portals. */}
+            <VersionRefreshBanner />
             {/* APK update banner — native only. No-op on web. Shows update
                 prompt when a new APK build is available and verified healthy.
-                Also auth-gated — only shown to logged-in users. */}
+                Auth-gated — only shown to logged-in users. */}
             {currentUser && <ApkUpdateBanner />}
             {/* In-app confirmation dialog — replaces browser window.confirm() */}
             {confirmDialogNode}

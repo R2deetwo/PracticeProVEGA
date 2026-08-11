@@ -117,6 +117,7 @@ const manifest = {
   sha,
   branch,
   builtAt: timestamp,
+  buildTimestamp: Date.now(), // Unix ms — BULLETPROOF version identifier, always available
   commitTime: isoTimestamp,
   status: 'building',        // 'building' | 'healthy' | 'broken'
   stableSince: null,         // ISO timestamp when status became 'healthy'
