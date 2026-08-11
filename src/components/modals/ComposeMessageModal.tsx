@@ -156,17 +156,37 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                 }
             } else if (activeChannel === 'portal' && hasEmail) {
                 try {
-                    await convex.mutation(api.portals.sendPortalMessage, {
+                    // Call createPortalInvite (not sendPortalMessage) — this is the
+                    // REAL invite-sending action that:
+                    //   1. Generates a secure portal access token
+                    //   2. Creates a portal_invites record
+                    //   3. Sends an actual email via Brevo with a magic link
+                    //   4. Optionally sends a WhatsApp message
+                    // sendPortalMessage only creates an in-app chat message — it
+                    // does NOT send an email or create a portal invite.
+                    const result = await convex.action(api.portals.createPortalInvite, {
                         firmId,
-                        senderId: currentUser?.id || '',
-                        senderName,
-                        senderRole: 'admin',
-                        subject: subject.trim() || `Portal Invite from ${coreState.firmDetails?.name || 'Management'}`,
-                        content: finalMessage,
-                        unitId: recipient.unitId,
+                        inviterId: currentUser?.id || '',
+                        inviteeEmail: recipient.email,
+                        inviteeName: recipient.name,
+                        inviteePhone: recipient.phone,
+                        portalType: 'resident',
+                        relatedId: recipient.unitId,
+                        channel: 'email',
+                        message: finalMessage,
                     });
-                    setSendResult({ success: true, channel: 'portal' });
-                    addToast('Portal invite sent successfully.', { type: 'success' });
+                    if (result?.emailSimulated) {
+                        addToast('Portal invite email was simulated — Brevo API key may not be configured. Check Convex environment variables.', { type: 'info' });
+                    } else if (result?.emailSent) {
+                        setSendResult({ success: true, channel: 'portal' });
+                        addToast('Portal invite sent! Check your email for the setup link.', { type: 'success' });
+                    } else if (result?.emailError) {
+                        setSendResult({ success: false, channel: 'portal' });
+                        addToast(`Portal invite failed: ${result.emailError}`, { type: 'error' });
+                    } else {
+                        setSendResult({ success: true, channel: 'portal' });
+                        addToast('Portal invite processed.', { type: 'success' });
+                    }
                 } catch (err: any) {
                     setSendResult({ success: false, channel: 'portal' });
                     addToast(err.message || 'Failed to send portal invite.', { type: 'error' });

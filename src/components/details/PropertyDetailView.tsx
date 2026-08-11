@@ -1476,19 +1476,47 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 };
 
                                                 const handleSendPortalMessage = async () => {
-                                                    try {
-                                                        await convex.mutation(api.portals.sendPortalMessage, {
-                                                            firmId: coreState.firmDetails?.id || '',
-                                                            senderId: currentUser?.id || '',
-                                                            senderName: currentUser?.name || 'Property Manager',
-                                                            senderRole: 'admin',
-                                                            subject: `Message for ${d.tenantName || 'Resident'}`,
-                                                            content: `Hello ${d.tenantName || 'Resident'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding ${(d.name || '').toLowerCase().startsWith('unit') ? d.name : `Unit ${d.name}`} at ${property.address}.`,
-                                                            unitId: unit.id,
-                                                        });
-                                                        addToast('Portal message sent!', { type: 'success' });
-                                                    } catch (err: any) {
-                                                        addToast(err.message || 'Failed to send portal message', { type: 'error' });
+                                                    // If resident has an email, send a REAL portal invite
+                                                    // (generates token + sends email via Brevo). If no email,
+                                                    // fall back to in-app portal message only.
+                                                    if (tenantEmail) {
+                                                        try {
+                                                            const result = await convex.action(api.portals.createPortalInvite, {
+                                                                firmId: coreState.firmDetails?.id || '',
+                                                                inviterId: currentUser?.id || '',
+                                                                inviteeEmail: tenantEmail,
+                                                                inviteeName: d.tenantName || 'Resident',
+                                                                inviteePhone: tenantPhone || '',
+                                                                portalType: 'resident',
+                                                                relatedId: unit.id,
+                                                                channel: 'email',
+                                                            });
+                                                            if (result?.emailSimulated) {
+                                                                addToast('Portal invite email simulated — Brevo API key may not be configured.', { type: 'info' });
+                                                            } else if (result?.emailSent) {
+                                                                addToast('Portal invite sent! The resident will receive an email with setup instructions.', { type: 'success' });
+                                                            } else {
+                                                                addToast('Portal invite processed.', { type: 'success' });
+                                                            }
+                                                        } catch (err: any) {
+                                                            addToast(err.message || 'Failed to send portal invite', { type: 'error' });
+                                                        }
+                                                    } else {
+                                                        // No email — send in-app portal message as fallback
+                                                        try {
+                                                            await convex.mutation(api.portals.sendPortalMessage, {
+                                                                firmId: coreState.firmDetails?.id || '',
+                                                                senderId: currentUser?.id || '',
+                                                                senderName: currentUser?.name || 'Property Manager',
+                                                                senderRole: 'admin',
+                                                                subject: `Message for ${d.tenantName || 'Resident'}`,
+                                                                content: `Hello ${d.tenantName || 'Resident'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding ${(d.name || '').toLowerCase().startsWith('unit') ? d.name : `Unit ${d.name}`} at ${property.address}.`,
+                                                                unitId: unit.id,
+                                                            });
+                                                            addToast('Portal message sent (no email on file — in-app message only).', { type: 'success' });
+                                                        } catch (err: any) {
+                                                            addToast(err.message || 'Failed to send portal message', { type: 'error' });
+                                                        }
                                                     }
                                                 };
 
