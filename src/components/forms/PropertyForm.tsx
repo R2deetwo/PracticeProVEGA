@@ -709,17 +709,27 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             // If not exists: create a new Contact with category='Resident' and link it.
             // This ensures every resident appears in /contacts for unified profiling.
             // Skipped when the user unchecks "Save resident details to Contacts directory".
+            //
+            // CRITICAL: We build the property patch from the CURRENT unit being
+            // iterated (which has the fresh tenantEmail), NOT from coreState.properties
+            // (which is a stale snapshot that doesn't have the email just saved).
+            // Using the stale snapshot would overwrite the just-saved email with the
+            // old/missing value — this was the root cause of the email persistence bug.
             if (saveToContacts) {
             await Promise.all(currentUnits.map(async (unit) => {
                 const tenantName = composeTenantName(unit).trim();
                 const tenantPhone = (unit.tenantPhone || '').trim();
                 const tenantEmail = (unit.tenantEmail || '').trim();
-                if (!tenantName && !tenantPhone) return; // No tenant data to sync
+                if (!tenantName && !tenantPhone) return; // No resident data to sync
 
                 const unitId = unit.id || '';
                 if (!unitId) return;
 
                 try {
+                    // Build a fresh property record from the current unit — this has
+                    // the latest tenantEmail, rentAmount, etc. that were just entered.
+                    const freshPd = buildPropertyRecord(unit, propertyData, unitId);
+
                     // Search existing contacts by phone (primary matcher)
                     const existingByPhone = tenantPhone
                         ? (appState.contacts || []).find(c =>
@@ -727,17 +737,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         : null;
 
                     if (existingByPhone) {
-                        // Link existing contact to this unit
-                        const existing = (coreState.properties || []).find(p => p.id === unitId);
-                        if (existing) {
-                            await updateItem('properties', {
-                                ...existing,
-                                rentalDetails: {
-                                    ...existing.rentalDetails,
-                                    tenantContactId: existingByPhone.id,
-                                } as any,
-                            }, 'Property');
-                        }
+                        // Link existing contact to this unit — patch ONLY tenantContactId
+                        // onto the fresh rentalDetails (not the stale coreState snapshot).
+                        await updateItem('properties', {
+                            ...freshPd,
+                            rentalDetails: {
+                                ...freshPd.rentalDetails,
+                                tenantContactId: existingByPhone.id,
+                            } as any,
+                        }, 'Property');
                         return;
                     }
 
@@ -759,17 +767,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                     const created = await addItem('contacts', newContactData, 'Contact');
                     if (created) {
-                        // Link the new contactId back to the unit
-                        const existing = (coreState.properties || []).find(p => p.id === unitId);
-                        if (existing) {
-                            await updateItem('properties', {
-                                ...existing,
-                                rentalDetails: {
-                                    ...existing.rentalDetails,
-                                    tenantContactId: created.id,
-                                } as any,
-                            }, 'Property');
-                        }
+                        // Link the new contactId back to the unit — patch ONLY
+                        // tenantContactId onto the fresh rentalDetails.
+                        await updateItem('properties', {
+                            ...freshPd,
+                            rentalDetails: {
+                                ...freshPd.rentalDetails,
+                                tenantContactId: created.id,
+                            } as any,
+                        }, 'Property');
                     }
                 } catch (syncErr) {
                     // Auto-sync is best-effort — don't fail the property save
