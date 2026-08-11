@@ -78,7 +78,7 @@ function calcMonthlySubscription(firm: any): number {
  *   2. Verifies their role is exactly 'Founder'.
  *   3. Throws an Authorization error if not.
  */
-async function requireFounder(ctx: any, tokenIdentifier: string): Promise<any> {
+export async function requireFounder(ctx: any, tokenIdentifier: string): Promise<any> {
   if (!tokenIdentifier || typeof tokenIdentifier !== 'string') {
     throw new Error("Unauthorized: authentication required.");
   }

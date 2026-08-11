@@ -159,7 +159,10 @@ function getRoleLabel(conv: any): string {
     const role: string = conv?.participantRole || '';
     if (role === 'Client') return 'Client';
     if (role === 'Tenant') return 'Resident';
-    return 'Portal User';
+    return ''; // Return empty string instead of 'Portal User' to avoid
+               // duplicate label with the 'Portal' type badge. The type
+               // badge already says 'Portal' — showing 'Portal User' next
+               // to it is redundant and confusing.
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -816,7 +819,7 @@ const MessagesView: React.FC = () => {
             if (conv) return {
                 _id: conv._id,
                 _inboxType: 'conversation' as const,
-                senderName: conv.participantName || 'Portal User',
+                senderName: conv.participantName || 'Unknown',
                 senderContact: conv.participantEmail || conv.participantId,
                 channel: 'portal',
                 content: conv.lastMessagePreview || '',
@@ -841,7 +844,7 @@ const MessagesView: React.FC = () => {
             if (portal) return {
                 ...portal,
                 _inboxType: 'portal' as const,
-                senderName: portal.senderName || 'Portal User',
+                senderName: portal.senderName || 'Unknown',
                 senderContact: portal.senderEmail || portal.senderId,
                 channel: 'portal',
                 content: portal.content || portal.subject,
@@ -1853,7 +1856,7 @@ const MessagesView: React.FC = () => {
                                                                     ? <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />
                                                                     : (conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />)}
                                                                 <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
-                                                                    {conv.participantName || 'Portal User'}
+                                                                    {conv.participantName || 'Unknown'}
                                                                 </span>
                                                             </div>
                                                             <span className="text-2xs text-slate-400 flex-shrink-0">
@@ -1865,9 +1868,10 @@ const MessagesView: React.FC = () => {
                                                             <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
                                                                 {typeStyle.label}
                                                             </span>
-                                                            {/* Role chip — only show for unified firms where the
-                                                                inbox mixes clients and residents. */}
-                                                            {isUnified && (
+                                                            {/* Role chip — only show for unified firms AND only when
+                                                                the role is explicitly 'Client' or 'Resident'. Skip when
+                                                                roleLabel is empty (avoids duplicate 'Portal User' badge). */}
+                                                            {isUnified && roleLabel && (
                                                                 <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${
                                                                     roleLabel === 'Client'
                                                                         ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'

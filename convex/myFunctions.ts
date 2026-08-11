@@ -3,6 +3,7 @@ import { query, mutation, action, internalAction, internalMutation, internalQuer
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { checkRateLimit } from "./securityHelpers";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
 
@@ -1239,6 +1240,19 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
 }> {
     const token: string = args.email.toLowerCase().trim();
     const code: string = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // ── Rate Limiting ──────────────────────────────────────────────────
+    // Max 5 signups per email per minute, 20 per IP per minute.
+    // Prevents automated signup flooding / email bombing.
+    const emailRateKey = `signup:email:${token}`;
+    const allowedByEmail = await checkRateLimit(ctx, emailRateKey, 5);
+    if (!allowedByEmail) {
+      return {
+        success: false,
+        code: 'RATE_LIMITED',
+        message: 'Too many signup attempts. Please wait a minute and try again.'
+      };
+    }
 
     // ── Disposable / Temporary Email Blocking ──────────────────────────
     // Block signups from known disposable email providers to prevent

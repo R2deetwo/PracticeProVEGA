@@ -35,22 +35,29 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
   } catch {}
 
   // 2. If no Convex Auth session, fall back to client-supplied userEmail.
-  //    This app uses custom auth (not Convex Auth), so userEmail IS the
-  //    auth token. It's validated against the users table below.
   const email = sessionEmail || userEmail?.toLowerCase();
 
   if (!email) {
     throw new Error("Unauthenticated. Please log in to continue.");
   }
 
-  // 3. Lookup user by email (tokenIdentifier field)
+  // 3. Check if user's session is suspended
+  try {
+    const suspended = await ctx.db
+      .query("suspendedUsers")
+      .withIndex("by_user", (q: any) => null)
+      .collect();
+    // Note: we can't check by email here since we don't have the userId yet.
+    // Suspension is checked after user lookup below.
+  } catch {}
+
+  // 4. Lookup user by email (tokenIdentifier field)
   let user = await ctx.db
     .query("users")
     .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email!))
     .first();
 
-  // 4. Fallback lookup by the `email` field directly (some legacy users
-  //    may have email in a different field than tokenIdentifier)
+  // 5. Fallback lookup by the `email` field directly
   if (!user) {
     user = await ctx.db
       .query("users")
@@ -59,7 +66,32 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
   }
 
   if (!user || !user.firmId) {
+    // ── RLS Audit: Log unauthorized access attempt ───────────────────
+    // This fires when someone tries to access firm data without a valid
+    // user/firm association. Repeated attempts from the same email are
+    // surfaced in the Security Center.
+    try {
+      await ctx.db.insert("securityEvents", {
+        eventType: "unauthorized_access",
+        email: email,
+        details: "requireFirmUser: no user or firmId found",
+        timestamp: Date.now(),
+      });
+    } catch {}
     throw new Error("User account not found or not associated with an active firm.");
+  }
+
+  // 6. Check if user is suspended
+  try {
+    const suspension = await ctx.db
+      .query("suspendedUsers")
+      .withIndex("by_user", (q: any) => q.eq("userId", user!._id))
+      .first();
+    if (suspension) {
+      throw new Error(`Account suspended: ${suspension.reason || "Contact support."}`);
+    }
+  } catch (e: any) {
+    if (e.message?.includes("suspended")) throw e;
   }
 
   return {

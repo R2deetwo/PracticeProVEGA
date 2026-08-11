@@ -36,6 +36,7 @@ import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
 import type * as retainerBilling from "../retainerBilling.js";
 import type * as salesInquiries from "../salesInquiries.js";
+import type * as securityHelpers from "../securityHelpers.js";
 import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
 import type * as sentry from "../sentry.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   proactive: typeof proactive;
   retainerBilling: typeof retainerBilling;
   salesInquiries: typeof salesInquiries;
+  securityHelpers: typeof securityHelpers;
   seedLegalRepo: typeof seedLegalRepo;
   seedSentry: typeof seedSentry;
   sentry: typeof sentry;

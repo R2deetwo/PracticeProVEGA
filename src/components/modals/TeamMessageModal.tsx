@@ -6,20 +6,16 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { XIcon, SendIcon } from '../../constants';
+import { getInitials, getUserColor } from '../../utils/colorUtils';
 
 /**
- * TeamMessageModal — dedicated, simple modal for sending in-app messages
- * to team members. Clear and separate from the ComposeModal (which handles
- * external channels like WhatsApp/Email/Portal).
+ * TeamMessageModal — multi-recipient team messaging with Select All.
  *
- * Uses the server-side `sendChatMessage` mutation which atomically creates
- * the chat message AND notifications for the recipient in a single Convex
- * transaction. This is the reliable path — if the message is saved, the
- * notification is guaranteed to be saved too.
- *
- * Note: This is NOT a webhook. Webhooks are for cross-system events
- * (e.g. Paystack → PracticePro). Internal chat notifications are a
- * server-side mutation called directly by the sender's client.
+ * Supports:
+ *   - Multi-select recipient list with checkboxes + avatars
+ *   - "Select All" / "Deselect All" toggle
+ *   - Sends to each recipient individually (creates/reuses direct conversations)
+ *   - Progress feedback during multi-send
  */
 interface TeamMessageModalProps {
     onClose: () => void;
@@ -29,14 +25,12 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
     const { currentUser } = useAuth();
     const { coreState } = useCoreState();
     const { addToast } = useUI();
-    const [recipientId, setRecipientId] = useState('');
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
 
-    // Server-side mutation: atomically creates chat message + notification.
     const sendChatMessage = useMutation(api.myFunctions.sendChatMessage);
 
-    // Get team members (exclude self, clients, tenants, external counsel)
     const teamMembers = (coreState.users || []).filter(
         (u: any) => u.id !== currentUser?.id &&
         u.role !== 'Client' &&
@@ -45,9 +39,25 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
         u.role !== 'Pending'
     );
 
+    const allSelected = teamMembers.length > 0 && teamMembers.every((u: any) => selectedIds.includes(u.id));
+
+    const handleSelectAll = () => {
+        if (allSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(teamMembers.map((u: any) => u.id));
+        }
+    };
+
+    const toggleRecipient = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
+        );
+    };
+
     const handleSend = async () => {
-        if (!recipientId) {
-            addToast('Please select a recipient.', { type: 'error' });
+        if (selectedIds.length === 0) {
+            addToast('Please select at least one recipient.', { type: 'error' });
             return;
         }
         if (!message.trim()) {
@@ -60,58 +70,60 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
         }
 
         setSending(true);
-        try {
-            const now = new Date().toISOString();
+        const myIdForStorage = currentUser?._id || currentUser?.id || '';
+        let successCount = 0;
+        let failCount = 0;
 
-            // Resolve the recipient user (to get their _id for the conversation membership)
-            const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
-            const recipientIdForStorage = recipientUser?._id || recipientUser?.id || recipientId;
-            const myIdForStorage = currentUser?._id || currentUser?.id || '';
+        for (const recipientId of selectedIds) {
+            try {
+                const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
+                const recipientIdForStorage = recipientUser?._id || recipientUser?.id || recipientId;
 
-            // Check if a direct conversation already exists between these two users.
-            // We check both id and _id formats since different parts of the app use different ones.
-            const existingConv = (coreState.chatConversations || []).find((c: any) =>
-                c.type === 'direct' &&
-                c.memberIds &&
-                (c.memberIds.includes(myIdForStorage) || c.memberIds.includes(currentUser?._id || '')) &&
-                (c.memberIds.includes(recipientIdForStorage) || c.memberIds.includes(recipientUser?._id || ''))
-            );
+                const existingConv = (coreState.chatConversations || []).find((c: any) =>
+                    c.type === 'direct' &&
+                    c.memberIds &&
+                    (c.memberIds.includes(myIdForStorage) || c.memberIds.includes(currentUser?._id || '')) &&
+                    (c.memberIds.includes(recipientIdForStorage) || c.memberIds.includes(recipientUser?._id || ''))
+                );
 
-            let conversationId: string;
-            let createConversationIfMissing = false;
-            let conversationMembers: string[] | undefined;
+                let conversationId: string;
+                let createConversationIfMissing = false;
+                let conversationMembers: string[] | undefined;
 
-            if (existingConv) {
-                // Reuse existing conversation — server will look it up by id.
-                conversationId = existingConv.id || existingConv._id;
-            } else {
-                // Tell the server to create a new conversation inline.
-                conversationId = uuidv4();
-                createConversationIfMissing = true;
-                conversationMembers = [myIdForStorage, recipientIdForStorage];
+                if (existingConv) {
+                    conversationId = existingConv.id || existingConv._id;
+                } else {
+                    conversationId = uuidv4();
+                    createConversationIfMissing = true;
+                    conversationMembers = [myIdForStorage, recipientIdForStorage];
+                }
+
+                await sendChatMessage({
+                    conversationId,
+                    content: message.trim(),
+                    authorId: myIdForStorage || undefined,
+                    authorName: currentUser?.name || undefined,
+                    userEmail: currentUser?.email,
+                    createConversationIfMissing,
+                    conversationMembers,
+                    conversationName: 'Direct Message',
+                });
+                successCount++;
+            } catch (e) {
+                console.error('[TeamMessageModal] Send to', recipientId, 'failed:', e);
+                failCount++;
             }
+        }
 
-            // Single server-side call — atomically creates the message + notification(s).
-            // If this succeeds, the recipient is GUARANTEED to get a notification.
-            await sendChatMessage({
-                conversationId,
-                content: message.trim(),
-                authorId: myIdForStorage || undefined,
-                authorName: currentUser?.name || undefined,
-                userEmail: currentUser?.email,
-                createConversationIfMissing,
-                conversationMembers,
-                conversationName: 'Direct Message',
-            });
-
-            void now; // (kept for potential future use — e.g. local optimistic timestamp)
-            addToast('Message sent!', { type: 'success' });
+        setSending(false);
+        if (successCount > 0 && failCount === 0) {
+            addToast(`Message sent to ${successCount} recipient${successCount === 1 ? '' : 's'}!`, { type: 'success' });
             onClose();
-        } catch (e: any) {
-            console.error('[TeamMessageModal] Send failed:', e);
-            addToast(e?.message || 'Failed to send message. Please try again.', { type: 'error' });
-        } finally {
-            setSending(false);
+        } else if (successCount > 0 && failCount > 0) {
+            addToast(`Sent to ${successCount}, but ${failCount} failed. Check console for details.`, { type: 'info' });
+            onClose();
+        } else {
+            addToast('Failed to send message. Please try again.', { type: 'error' });
         }
     };
 
@@ -129,7 +141,9 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                 <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100 dark:border-zinc-800">
                     <div>
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white">New Team Message</h2>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send a direct message to a team member</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                            {selectedIds.length > 0 ? `${selectedIds.length} recipient${selectedIds.length === 1 ? '' : 's'} selected` : 'Select recipients to message'}
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -142,21 +156,47 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
 
                 {/* Body */}
                 <div className="px-4 sm:px-6 py-5 space-y-4">
-                    {/* Recipient selector */}
+                    {/* Recipient selector — multi-select with Select All */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">To</label>
-                        <select
-                            value={recipientId}
-                            onChange={e => setRecipientId(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-                        >
-                            <option value="">Select a team member...</option>
-                            {teamMembers.map((u: any) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.name} ({u.role})
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300">Recipients</label>
+                            {teamMembers.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={handleSelectAll}
+                                    className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                                >
+                                    {allSelected ? 'Deselect All' : 'Select All'}
+                                </button>
+                            )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-700/50">
+                            {teamMembers.length === 0 ? (
+                                <p className="text-sm text-slate-400 text-center py-4">No team members available</p>
+                            ) : teamMembers.map((u: any) => {
+                                const isSelected = selectedIds.includes(u.id);
+                                return (
+                                    <label
+                                        key={u.id}
+                                        className="flex items-center gap-3 p-2.5 hover:bg-slate-100 dark:hover:bg-zinc-700/30 cursor-pointer transition-colors"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => toggleRecipient(u.id)}
+                                            className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                                        />
+                                        <div className={`h-7 w-7 rounded-full flex items-center justify-center text-white font-bold text-xs ${getUserColor(u.name)}`}>
+                                            {getInitials(u.name)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{u.name}</p>
+                                            <p className="text-2xs text-slate-400">{u.role}</p>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
                     </div>
 
                     {/* Message input */}
@@ -176,17 +216,17 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                 <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2.5 rounded-lg text-sm font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+                        className="px-4 py-2.5 rounded-lg text-sm font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSend}
-                        disabled={sending || !recipientId || !message.trim()}
+                        disabled={sending || selectedIds.length === 0 || !message.trim()}
                         className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-primary-600 to-primary-600 hover:from-primary-700 hover:to-primary-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         <SendIcon className="w-4 h-4" />
-                        {sending ? 'Sending...' : 'Send'}
+                        {sending ? `Sending (${selectedIds.length})...` : `Send to ${selectedIds.length || ''}`}
                     </button>
                 </div>
             </div>

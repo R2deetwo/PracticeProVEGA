@@ -1773,4 +1773,42 @@ export default defineSchema({
     .index("by_addon", ["addonId"])
     .index("by_custom_id", ["id"]),
 
+  // ── Security Tables ──────────────────────────────────────────────────
+  // Rate limiting: tracks request counts per IP + per user for throttling.
+  rateLimits: defineTable({
+    key: v.string(),           // e.g. "signup:ip:1.2.3.4" or "signup:user:abc"
+    count: v.number(),
+    windowStart: v.number(),   // timestamp when the current window started
+  }).index("by_key", ["key"]),
+
+  // Security events: login failures, unauthorized access, disposable emails,
+  // impossible travel, rate limit violations, etc.
+  securityEvents: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    eventType: v.string(),     // 'login_failed' | 'unauthorized_access' | 'disposable_email' | 'rate_limit_exceeded' | 'impossible_travel' | 'suspended_session'
+    email: nullableString,
+    ip: nullableString,
+    details: nullableString,
+    timestamp: v.number(),
+  }).index("by_type", ["eventType"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_user", ["userId"]),
+
+  // Blocked IPs: admin can block IPs that show malicious behavior.
+  blockedIps: defineTable({
+    ip: v.string(),
+    reason: nullableString,
+    blockedBy: nullableString,  // founder email
+    blockedAt: v.number(),
+  }).index("by_ip", ["ip"]),
+
+  // Suspended sessions: admin can suspend user sessions.
+  suspendedUsers: defineTable({
+    userId: v.string(),
+    reason: nullableString,
+    suspendedBy: nullableString,  // founder email
+    suspendedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
 }, { schemaValidation: false });
