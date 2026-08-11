@@ -44,6 +44,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -589,13 +590,16 @@ const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) 
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
-            <button
+            <motion.button
                 ref={pillRef}
                 onClick={(e) => {
                     e.stopPropagation();
                     onClick();
                 }}
-                className={`h-2 w-7 rounded-full ${meta.pill} ${meta.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer`}
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={{ scaleX: 1, opacity: 1 }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                className={`h-2 w-7 rounded-full ${meta.pill} ${meta.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer origin-left`}
                 aria-label={`${meta.name} — ${getFullMonthYear(period.dueDate)}`}
             />
             {hovered && pillRef.current && (

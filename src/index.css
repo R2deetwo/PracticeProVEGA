@@ -4,6 +4,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Glass-Functional Design System ──────────────────────────────────
+   Best-in-class 2026 mobile UI patterns: glassmorphism + depth layering.
+   Applied to StatCards, modals, accordions, and navigation surfaces. */
+
+@layer components {
+  .glass {
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+  .dark .glass {
+    background: rgba(24, 24, 27, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .glass-card {
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(226, 232, 240, 0.5);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  }
+  .dark .glass-card {
+    background: rgba(39, 39, 42, 0.85);
+    border: 1px solid rgba(63, 63, 70, 0.5);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  }
+}
+
+/* ─── Animation Utilities ───────────────────────────────────────────── */
+@layer utilities {
+  .animate-scale-in {
+    animation: scale-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .animate-slide-up {
+    animation: slide-up 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .animate-fade-scale {
+    animation: fade-scale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-scale {
+  from { opacity: 0; transform: scale(0.98) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 :root {
   /* ===== Brand Design Tokens (Landing Page System) ===== */
   /* The 6 named colors from the design plan + 1 derived tint.

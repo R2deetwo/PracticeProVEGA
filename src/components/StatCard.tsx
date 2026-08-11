@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
+import { motion } from 'framer-motion';
 import { EyeIcon, EyeOffIcon } from '../constants';
 import Tooltip from './Tooltip';
 
@@ -80,12 +81,16 @@ const StatCard: React.FC<StatCardProps> = ({
     ) : valueBlock;
 
     return (
-        <div
+        <motion.div
             onClick={onClick}
             title={isRevealed ? (needsMarquee ? tooltipText : undefined) : 'Click eye icon to reveal'}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            whileTap={onClick ? { scale: 0.98 } : undefined}
             className={`
-                relative card-premium p-4 halo-hover h-28
-                ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}
+                relative glass-card p-4 rounded-lg h-28
+                ${onClick ? 'cursor-pointer' : ''}
                 flex flex-col justify-between group
             `}
         >
@@ -123,7 +128,7 @@ const StatCard: React.FC<StatCardProps> = ({
                     {isRevealed ? <EyeOffIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
                 </button>
             )}
-        </div>
+        </motion.div>
     );
 };
 
