@@ -1492,9 +1492,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 channel: 'email',
                                                             });
                                                             if (result?.emailSimulated) {
-                                                                addToast('Portal invite email simulated — Brevo API key may not be configured.', { type: 'info' });
+                                                                addToast('Portal invite email simulated — Brevo API key may not be configured on Convex.', { type: 'info' });
                                                             } else if (result?.emailSent) {
-                                                                addToast('Portal invite sent! The resident will receive an email with setup instructions.', { type: 'success' });
+                                                                addToast(`Portal invite email sent to ${tenantEmail}.`, { type: 'success' });
                                                             } else {
                                                                 addToast('Portal invite processed.', { type: 'success' });
                                                             }

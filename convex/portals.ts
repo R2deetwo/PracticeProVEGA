@@ -1311,9 +1311,11 @@ export const createPortalInvite = action({
     const personalMsg = args.message ? `\n\nPersonal message: ${args.message}` : "";
 
     // 3. Send via email (skip if no email address provided)
-    // ROBUSTNESS: Wrap in try/catch so email failures never crash the action.
-    // The invite record is already created (step 1) — losing it because email
-    // sending failed is unacceptable.
+    // The email is a CLEAN INVITE ONLY — it does NOT include the admin's
+    // personal message. The admin's message (if any) is delivered as an
+    // in-app portal message AFTER the resident logs in and sets up their
+    // password. This keeps the email professional and focused on the
+    // single call-to-action: set up your password.
     const shouldSendEmail = (channel === "email" || channel === "both") && args.inviteeEmail;
     let emailResult: any = { success: true, simulated: true };
     let emailError = "";
@@ -1322,60 +1324,53 @@ export const createPortalInvite = action({
       const htmlBody = `<!DOCTYPE html>
 <html lang="en" style="margin:0;padding:0;">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#0c1222;-webkit-text-size-adjust:100%;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c1222;min-height:100vh;">
+<body style="margin:0;padding:0;background:#f8fafc;-webkit-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;min-height:100vh;">
     <tr>
-      <td align="center" style="padding:40px 16px;">
+      <td align="center" style="padding:32px 16px;">
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
 
-          <!-- Header bar -->
+          <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border-radius:16px 16px 0 0;padding:28px 32px 20px;text-align:center;border-bottom:3px solid #f59e0b;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="text-align:center;">
-                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:#f59e0b;">Pro</span></span>
-                    <span style="display:inline-block;margin-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.15);padding:3px 10px;border-radius:6px;letter-spacing:1.5px;vertical-align:middle;">${productName}</span>
-                  </td>
-                </tr>
-              </table>
+            <td style="background:#ffffff;border-radius:12px 12px 0 0;padding:32px 40px 24px;text-align:center;border-bottom:3px solid #0ea5e9;">
+              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">Practice<span style="color:#0ea5e9;">Pro</span></span>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="background:#0f172a;padding:32px 32px 24px;border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
-              <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:700;color:#ffffff;margin:0 0 8px;line-height:1.3;">You're Invited to the ${portalLabel}</h1>
-              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#94a3b8;margin:0 0 24px;">
+            <td style="background:#ffffff;padding:36px 40px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:800;color:#0f172a;margin:0 0 12px;line-height:1.3;">Set Up Your Portal Access</h1>
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#475569;margin:0 0 28px;">
                 Hello ${inviteeGreeting},<br/><br/>
-                You have been invited to access the <strong style="color:#e2e8f0;">${portalLabel}</strong> on PracticePro. Set up your secure password to get started.
-                ${args.message ? `<br/><br/><span style="display:inline-block;margin-top:8px;padding:12px 16px;background:rgba(255,255,255,0.04);border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;color:#cbd5e1;font-style:italic;">"${args.message}"</span>` : ""}
+                Your property manager has invited you to access the <strong style="color:#0f172a;">${portalLabel}</strong> on PracticePro.<br/><br/>
+                Through the portal, you can view your lease details, payment history, important notices, and communicate directly with your property management team.
               </p>
 
               <!-- CTA Button -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="padding:8px 0 24px;">
-                    <a href="${inviteUrl}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:15px;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(245,158,11,0.35),0 0 0 1px rgba(245,158,11,0.1);letter-spacing:0.2px;">
-                      Set Up Your Password
+                  <td align="center" style="padding:4px 0 28px;">
+                    <a href="${inviteUrl}" style="display:inline-block;padding:16px 48px;background:#0ea5e9;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:15px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;">
+                      Set Up My Password
                     </a>
                   </td>
                 </tr>
               </table>
 
-              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#64748b;line-height:1.6;margin:0 0 6px;">
-                Or copy and paste this link into your browser:
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#94a3b8;line-height:1.6;margin:0 0 8px;">
+                Or copy and paste this link:
               </p>
-              <p style="font-family:monospace;font-size:12px;color:#60a5fa;word-break:break-all;margin:0 0 20px;">
-                <a href="${inviteUrl}" style="color:#60a5fa;">${inviteUrl}</a>
+              <p style="font-family:monospace;font-size:12px;color:#0ea5e9;word-break:break-all;margin:0 0 24px;">
+                <a href="${inviteUrl}" style="color:#0ea5e9;text-decoration:none;">${inviteUrl}</a>
               </p>
 
               <!-- Expiry notice -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 14px;">
-                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#fbbf24;margin:0;line-height:1.5;">
-                      &#9888;&#65039; This invitation expires in <strong>30 days</strong>. If you did not expect this invitation, you can safely ignore it.
+                  <td style="background:#f1f5f9;border-radius:8px;padding:12px 16px;">
+                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#64748b;margin:0;line-height:1.5;">
+                      This invitation expires in 30 days. If you did not expect this invitation, you can safely ignore this email.
                     </p>
                   </td>
                 </tr>
@@ -1385,19 +1380,13 @@ export const createPortalInvite = action({
 
           <!-- Footer -->
           <tr>
-            <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid rgba(255,255,255,0.04);border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="text-align:center;">
-                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">
-                      PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
-                    </p>
-                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#334155;margin:0;">
-                      NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <td style="background:#ffffff;border-radius:0 0 12px 12px;padding:20px 40px;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94a3b8;text-align:center;margin:0 0 4px;">
+                PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
+              </p>
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#cbd5e1;text-align:center;margin:0;">
+                NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted
+              </p>
             </td>
           </tr>
 

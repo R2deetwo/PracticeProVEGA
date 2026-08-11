@@ -176,10 +176,10 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                         message: finalMessage,
                     });
                     if (result?.emailSimulated) {
-                        addToast('Portal invite email was simulated — Brevo API key may not be configured. Check Convex environment variables.', { type: 'info' });
+                        addToast('Portal invite email was simulated — Brevo API key may not be configured on Convex.', { type: 'info' });
                     } else if (result?.emailSent) {
                         setSendResult({ success: true, channel: 'portal' });
-                        addToast('Portal invite sent! Check your email for the setup link.', { type: 'success' });
+                        addToast(`Portal invite email sent to ${recipient.email}.`, { type: 'success' });
                     } else if (result?.emailError) {
                         setSendResult({ success: false, channel: 'portal' });
                         addToast(`Portal invite failed: ${result.emailError}`, { type: 'error' });
