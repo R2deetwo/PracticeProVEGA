@@ -207,6 +207,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         // This was the root cause of "Residents portal stuck on skeleton" — the skeleton
         // gate ran before the portal-user checks, so TenantPortal never rendered.
         if (isClient) {
+            document.title = "Vega — Client Portal";
             if (view === 'matterDetail' && selectedId) {
                 return <ViewWrapper><ClientMatterDetailView /></ViewWrapper>;
             }
@@ -218,6 +219,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         }
 
         if (isTenant) {
+            document.title = "Atrium — Residents' Portal";
             return <ViewWrapper><TenantPortal /></ViewWrapper>;
         }
 
@@ -833,18 +835,8 @@ export const App: React.FC = () => {
     // - URL query param: /messaging?app=atrium (shows in address bar)
     useEffect(() => {
         if (!currentUser) return;
-        // Portal users get a different title: "Atrium — Residents' Portal" or
-        // "Vega — Client Portal" based on their role, NOT the firm's product.
-        // A Komplete firm's resident sees "Atrium" (the property product),
-        // and a Komplete firm's client sees "Vega" (the legal product).
-        if (isTenant) {
-            document.title = "Atrium — Residents' Portal";
-            return;
-        }
-        if (isClient) {
-            document.title = "Vega — Client Portal";
-            return;
-        }
+        // Portal user titles are set at the early-return points above
+        // (lines 210/222) — this useEffect only runs for non-portal users.
         const productName = product === 'atrium' ? 'Atrium'
             : product === 'vega' ? 'Vega'
             : product === 'unified' ? 'Komplete'
