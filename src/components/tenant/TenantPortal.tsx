@@ -406,7 +406,7 @@ const TenantPortal: React.FC = () => {
       <div className="flex-shrink-0 sticky top-0 z-20 border-b border-slate-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">
+            <p className="text-xs text-slate-600 dark:text-zinc-300 font-medium">
               {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 17 ? 'Good Afternoon' : 'Good Evening'},
             </p>
             <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
@@ -424,7 +424,7 @@ const TenantPortal: React.FC = () => {
               {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
             {/* Font-size control */}
-            <PortalFontSizeControl className="hidden md:inline-flex" />
+            <PortalFontSizeControl className="inline-flex" />
             {/* Sign Out */}
             <button
               onClick={() => logout()}
@@ -455,7 +455,7 @@ const TenantPortal: React.FC = () => {
               }`}
             >
               {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="text-xs sm:text-sm">{tab.label}</span>
               {tab.badge && tab.badge > 0 && (
                 <span className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                   {tab.badge > 99 ? '99+' : tab.badge}
@@ -613,76 +613,78 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
   ];
 
   return (
-    <div className="space-y-5 pb-8">
-      {/* ─── Hero Card (brand-primary green) ────────────────────────── */}
-      <div className="bg-brand-primary text-white rounded-premium p-5 shadow-premium">
-        <div className="flex items-start justify-between mb-4">
+    <div className="space-y-4 pb-8">
+      {/* ─── Hero Card with merged Outstanding Balance ─────────────── */}
+      {/* LEGIBILITY FIX: Merged outstanding balance INTO the hero card to
+          save ~110px of vertical space, bringing Quick Services + Notices
+          above the fold on phones. Also bumped white opacity from /50,/60
+          to /85,/90 for WCAG AA contrast on the emerald background. */}
+      <div className="bg-brand-primary text-white rounded-premium p-4 shadow-premium">
+        <div className="flex items-start justify-between mb-3">
           <div className="min-w-0">
-            <p className="text-2xs font-bold text-white/60 uppercase tracking-widest mb-1">
+            <p className="text-2xs font-bold text-white/85 uppercase tracking-widest mb-1">
               Residents' Portal
             </p>
-            <h2 className="text-xl sm:text-3xl font-bold tracking-tight truncate">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
               {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
             </h2>
             {tenantInfo?.primaryPropertyName && (
-              <p className="text-2xs text-white/50 mt-0.5 truncate">
+              <p className="text-xs text-white/85 mt-0.5 truncate font-medium">
                 {tenantInfo?.primaryUnitName ? `Unit ${tenantInfo.primaryUnitName} · ` : ''}
                 {tenantInfo.primaryPropertyName}
               </p>
             )}
           </div>
-          <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-bold">
               {getInitials(tenantInfo?.tenantName || currentUser?.name)}
             </span>
           </div>
         </div>
-        {/* Property / Unit badges */}
+        {/* Property address */}
         {tenantInfo?.primaryPropertyAddress && (
-          <div className="flex items-center gap-2 pt-3 border-t border-white/15">
-            <OfficeBuildingIcon className="w-4 h-4 text-white/60 flex-shrink-0" />
-            <p className="text-2xs text-white/70 truncate">
+          <div className="flex items-center gap-2 mb-3">
+            <OfficeBuildingIcon className="w-3.5 h-3.5 text-white/85 flex-shrink-0" />
+            <p className="text-xs text-white/90 truncate">
               {tenantInfo.primaryPropertyAddress}
             </p>
           </div>
         )}
+        {/* Merged Outstanding Balance — tap to view ledger */}
+        <button
+          onClick={() => onNavigate('ledger')}
+          className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">
+                Outstanding Balance
+              </p>
+              <p className={`text-lg font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
+                {formatNaira(outstandingBalance)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-white/90 font-semibold">
+                {hasOutstanding ? 'View Breakdown' : 'All Caught Up'}
+              </p>
+              <ReceiptIcon className="w-4 h-4 text-white/85 ml-auto mt-1" />
+            </div>
+          </div>
+        </button>
       </div>
-
-      {/* ─── Outstanding Balance Card (light mint) ──────────────────── */}
-      <button
-        onClick={() => onNavigate('ledger')}
-        className="w-full text-left bg-emerald-50 dark:bg-emerald-900/15 rounded-2xl p-5 shadow-soft active:scale-[0.98] transition-transform"
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-2xs font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-widest">
-              Outstanding Balance
-            </p>
-            <p className={`text-2xl font-black mt-1 ${hasOutstanding ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-300'}`}>
-              {formatNaira(outstandingBalance)}
-            </p>
-            <p className="text-2xs text-emerald-600/60 dark:text-emerald-400/60 mt-1">
-              {hasOutstanding ? 'Tap to view breakdown' : 'All caught up'}
-            </p>
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold flex-shrink-0">
-            <ReceiptIcon className="w-3.5 h-3.5" />
-            Ledger
-          </div>
-        </div>
-      </button>
 
       {/* ─── Quick Services Grid ────────────────────────────────────── */}
       <div>
-        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Quick Services</h3>
-        <div className="grid grid-cols-4 gap-3">
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2.5">Quick Services</h3>
+        <div className="grid grid-cols-4 gap-2.5">
           {services.map(service => (
             <button
               key={service.label}
               onClick={() => onNavigate(service.tab)}
-              className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-1.5 p-2.5 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${service.color}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${service.color}`}>
                 {service.icon}
               </div>
               <span className="text-2xs font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
@@ -696,16 +698,16 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
       {/* ─── Recent Notices Preview ─────────────────────────────────── */}
       <button
         onClick={() => onNavigate('notices')}
-        className="w-full text-left bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft active:scale-[0.98] transition-transform"
+        className="w-full text-left bg-white dark:bg-zinc-800 rounded-2xl p-4 shadow-soft active:scale-[0.98] transition-transform"
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <BellIcon className="w-4 h-4 text-amber-500" />
             Notices
           </h3>
-          <span className="text-2xs font-bold text-emerald-600 dark:text-emerald-400">View All →</span>
+          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">View All →</span>
         </div>
-        <p className="text-xs text-slate-500 dark:text-zinc-400">
+        <p className="text-xs text-slate-600 dark:text-zinc-300 font-medium">
           Tap to see notices from your property manager
         </p>
       </button>

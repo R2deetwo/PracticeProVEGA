@@ -70,8 +70,11 @@ export default {
         },
       },
       fontSize: {
-        '2xs': ['10px', { lineHeight: '14px', letterSpacing: '0.02em' }],
-        '3xs': ['9px', { lineHeight: '12px', letterSpacing: '0.03em' }],
+        // LEGIBILITY FIX: Bumped from 10px→12px (2xs) and 9px→11px (3xs).
+        // Switched to rem so PortalFontSizeControl (A−/A+) can scale them.
+        // 10px/9px failed WCAG AA contrast when paired with muted text colors.
+        '2xs': ['0.75rem', { lineHeight: '1rem', letterSpacing: '0.02em' }],     // 12px
+        '3xs': ['0.6875rem', { lineHeight: '0.875rem', letterSpacing: '0.03em' }], // 11px
       },
       // CRO AUDIT FIX — named letter-spacing values to replace 13+ arbitrary
       // tracking-[Nem] values used across the codebase for eyebrow labels.
