@@ -98,6 +98,8 @@ const FeedbackInboxInner: React.FC = () => {
     const adminReply = useMutation(api.feedback.adminReplyToFeedback);
     const updateStatus = useMutation(api.feedback.updateFeedbackStatus);
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
+    const purgeLeaked = useMutation(api.feedback.purgeLeakedAloaEchoes);
+    const [isPurging, setIsPurging] = useState(false);
 
     const handleReply = async () => {
         if (!selected || !replyText.trim() || isSubmitting) return;
@@ -145,15 +147,40 @@ const FeedbackInboxInner: React.FC = () => {
         }
     };
 
+    const handlePurgeLeaked = async () => {
+        if (isPurging) return;
+        if (!confirm('This will re-tag all leaked ALOA chat echoes in the feedback table as archived (data is preserved for audit but hidden from views). Continue?')) return;
+        setIsPurging(true);
+        try {
+            const result: any = await purgeLeaked({ tokenIdentifier, action: 'retag' });
+            addToast(result?.message || `Purged ${result?.purgedCount || 0} leaked rows.`, { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to purge leaked data.', { type: 'error' });
+        } finally {
+            setIsPurging(false);
+        }
+    };
+
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20 overflow-x-hidden">
             {/* Header */}
             <div style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
             className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
-                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{isLoading ? 'Loading...' : `${filtered.length} feedback items`}</p>
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Inbox</h2>
+                            <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{isLoading ? 'Loading...' : `${filtered.length} feedback items`}</p>
+                        </div>
+                        {/* Privacy cleanup — purge leaked ALOA echoes from the feedback table */}
+                        <button
+                            onClick={handlePurgeLeaked}
+                            disabled={isPurging}
+                            className="flex-shrink-0 px-3 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors disabled:opacity-50"
+                            title="Re-tag leaked ALOA chat echoes as archived (privacy cleanup)"
+                        >
+                            {isPurging ? 'Cleaning...' : 'Clean Leaked Data'}
+                        </button>
                     </div>
                     {/* Category tabs */}
                     <div className="flex gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 overflow-x-auto no-scrollbar">

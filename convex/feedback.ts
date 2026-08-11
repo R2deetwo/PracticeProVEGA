@@ -106,15 +106,35 @@ export const getFeedbackList = query({
       } else {
         results = await ctx.db.query("user_feedback").order("desc").take(500);
       }
-      // STRICT ISOLATION: Only return actual user-submitted feedback.
-      const EXCLUDED_SOURCES = ["aloa_echo", "search_log", "telemetry", "system"];
-      const EXCLUDED_TYPES = ["Search Log", "ALOA Search", "Telemetry", "System Event"];
+      // ─── STRICT ISOLATION (v2) — Inverted Allowlist ───────────────────
+      // The previous blocklist filter was BROKEN against leaked ALOA rows:
+      // the old saveAloaMessage echo inserted rows with source=undefined,
+      // type=undefined, title=undefined — which passed through the blocklist
+      // because none of the excluded strings matched undefined.
+      //
+      // FIX: Use an allowlist. Only rows that look like legitimate feedback
+      // are returned. A row is legitimate if:
+      //   1. source === "feedback" (explicitly tagged), OR
+      //   2. source === undefined BUT title AND type are set (legacy real
+      //      feedback from before the source field existed), OR
+      //   3. source is a known-good value ("feedback_form", etc.)
+      //
+      // A row is REJECTED if:
+      //   - source is any non-feedback value (aloa_echo, search_log, etc.)
+      //   - source is undefined AND title is undefined AND type is undefined
+      //     (this is the fingerprint of a leaked ALOA echo)
+      //   - message is empty
+      const ALLOWED_SOURCES = ["feedback", "feedback_form", "data_restore"];
       let filtered = results.filter((item: any) => {
-        if (EXCLUDED_SOURCES.includes(item.source)) return false;
-        if (EXCLUDED_TYPES.includes(item.type)) return false;
-        if ((item.source || '').toLowerCase().includes('aloa')) return false;
-        if ((item.type || '').toLowerCase().includes('search')) return false;
+        // Empty message → reject
         if (!item.message || item.message.trim().length === 0) return false;
+        // Explicitly tagged non-feedback → reject
+        if (item.source && !ALLOWED_SOURCES.includes(item.source)) return false;
+        // Leaked ALOA echo fingerprint: no source, no title, no type → reject
+        if (!item.source && !item.title && !item.type) return false;
+        // Rows whose source contains 'aloa' or 'search' → reject (defense)
+        if (item.source && (item.source.toLowerCase().includes('aloa') || item.source.toLowerCase().includes('search'))) return false;
+        if (item.type && (item.type.toLowerCase().includes('aloa') || item.type.toLowerCase().includes('search log'))) return false;
         return true;
       });
 
@@ -158,7 +178,16 @@ export const getMyFeedbackReplies = query({
       .filter((q) => q.eq(q.field("userId"), args.userId))
       .order("desc")
       .take(100);
-    return all.filter((item: any) => item.source !== "aloa_echo");
+    // Same inverted allowlist as getFeedbackList — blocks leaked ALOA
+    // echoes (which have source=undefined, title=undefined, type=undefined)
+    const ALLOWED_SOURCES = ["feedback", "feedback_form", "data_restore"];
+    return all.filter((item: any) => {
+      if (!item.message || item.message.trim().length === 0) return false;
+      if (item.source && !ALLOWED_SOURCES.includes(item.source)) return false;
+      if (!item.source && !item.title && !item.type) return false;
+      if (item.source && (item.source.toLowerCase().includes('aloa') || item.source.toLowerCase().includes('search'))) return false;
+      return true;
+    });
   },
 });
 
@@ -361,5 +390,87 @@ export const updateFeedbackStatus = mutation({
     if (!feedback) throw new Error("Feedback not found");
     await ctx.db.patch(args.feedbackId, { status: args.status } as any);
     return { success: true };
+  },
+});
+
+/**
+ * mutation: purgeLeakedAloaEchoes
+ *
+ * PRIVACY REMEDIATION — One-time cleanup of orphaned ALOA chat messages
+ * that were leaked into the user_feedback table by the old saveAloaMessage
+ * echo code. Those rows have:
+ *   - source === undefined (not tagged)
+ *   - title === undefined
+ *   - type === undefined
+ *   - status === "New"
+ *
+ * This mutation either DELETES them or re-tags them as "aloa_echo_purged"
+ * (which the getFeedbackList filter hides). Default action: re-tag (safe,
+ * preserves the data for audit without showing it to admins/users).
+ *
+ * Should be called ONCE from an authenticated admin context. After running,
+ * the leaked rows will no longer appear in the Feedback Inbox or in users'
+ * feedback reply lists.
+ *
+ * Args:
+ *   - tokenIdentifier: founder auth token (verified against users table)
+ *   - action: "retag" (default) or "delete"
+ */
+export const purgeLeakedAloaEchoes = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    action: v.optional(v.string()), // "retag" | "delete", default "retag"
+  },
+  handler: async (ctx, args) => {
+    // Verify caller is a Founder
+    const founder = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier.toLowerCase()))
+      .first();
+    if (!founder || founder.role !== "Founder") {
+      throw new Error("Unauthorized. Only Founders can purge leaked data.");
+    }
+
+    const action = args.action === "delete" ? "delete" : "retag";
+
+    // Fetch all user_feedback rows — we need to scan for the leaked fingerprint
+    const allFeedback = await ctx.db.query("user_feedback").take(2000);
+
+    // Identify leaked ALOA echoes: no source, no title, no type
+    const leakedRows = allFeedback.filter((item: any) =>
+      !item.source && !item.title && !item.type
+    );
+
+    let processed = 0;
+    for (const row of leakedRows) {
+      if (action === "delete") {
+        await ctx.db.delete(row._id);
+      } else {
+        // Re-tag as aloa_echo_purged — the filter will hide these
+        await ctx.db.patch(row._id, {
+          source: "aloa_echo_purged",
+          status: "Archived",
+        } as any);
+      }
+      processed++;
+    }
+
+    // Log the purge action to securityEvents for audit trail
+    try {
+      await ctx.db.insert("securityEvents", {
+        eventType: "data_purge",
+        userId: String(founder._id),
+        email: args.tokenIdentifier,
+        details: `purgeLeakedAloaEchoes: ${action} ${processed} rows`,
+        timestamp: Date.now(),
+      });
+    } catch {}
+
+    return {
+      success: true,
+      action,
+      purgedCount: processed,
+      message: `Successfully ${action === "delete" ? "deleted" : "re-tagged"} ${processed} leaked ALOA echo rows.`,
+    };
   },
 });

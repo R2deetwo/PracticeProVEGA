@@ -80,6 +80,7 @@ import {
 import { NotesView } from './NotesView';
 import HelpView from './HelpView';
 import ArchiveView from './ArchiveView';
+import SecurityAccessView from './SecurityAccessView';
 import ModalManager from './modals/ModalManager';
 import { DockedModal } from './modals/DockedModal';
 import { MatterDetailView } from './details/MatterDetailView';
@@ -416,6 +417,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'portalTermsOfUse': return <PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
             case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
+            case 'securityAccess': return <SecurityAccessView onBack={goBack} />;
             default: return <NotFoundView />;
         }
     };
@@ -1099,7 +1101,13 @@ export const App: React.FC = () => {
         // guards / gate operators. The GatekeeperInterface allows verification
         // of visitor access codes without requiring a full PracticePro login.
         // This is the missing wiring that makes the VMS feature usable end-to-end.
-        if (location.pathname === '/gatehouse') return <GatekeeperInterface />;
+        if (location.pathname === '/gatehouse') {
+          // Read firmId from URL query string so the gatekeeper can load
+          // the correct property list. e.g. /gatehouse?firmId=abc123
+          const params = new URLSearchParams(window.location.search);
+          const firmId = params.get('firmId') || '';
+          return <GatekeeperInterface firmId={firmId} />;
+        }
 
         if (!currentUser && !isLoadingSession) {
             // Check if a portal user session is being restored — if so, show a loading

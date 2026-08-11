@@ -8,7 +8,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { getAssistantName, getAssistantFullName } from '../utils/assistantIdentity';
 
 const HelpView: React.FC = () => {
-    const { currentHistoryEntry } = useUI();
+    const { currentHistoryEntry, navigateTo } = useUI();
     const [searchQuery, setSearchQuery] = useState('');
     const [isAskingAloa, setIsAskingAloa] = useState(false);
     const [activeSection, setActiveSection] = useState<string | null>(currentHistoryEntry.context?.activeSection || 'getting-started');
@@ -238,6 +238,28 @@ const HelpView: React.FC = () => {
                         </div>
                         <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">DraftPro</h3>
                         <p className="text-sm text-slate-600 dark:text-zinc-400">AI-powered document editor with watermarks, focus mode, and legal formatting.</p>
+                    </button>
+                </div>
+
+                {/* Security & Access Architecture — quick link to the dedicated page */}
+                <div className="mb-12">
+                    <button
+                        onClick={() => navigateTo('securityAccess')}
+                        className="w-full bg-gradient-to-r from-slate-800 to-slate-900 dark:from-black dark:to-zinc-950 text-white p-6 rounded-lg border border-slate-700 dark:border-zinc-800 hover:shadow-xl transition-all text-left group hover:-translate-y-0.5 flex items-center gap-4"
+                    >
+                        <div className="w-12 h-12 bg-white/15 rounded-full flex items-center justify-center text-white flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <ShieldCheckIcon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-bold text-lg mb-1 text-white">Security & Access Architecture</h3>
+                            <p className="text-sm text-white/80">
+                                Learn how access codes are generated, verified, and shipped as a product.
+                                Understand the security model behind visitor management, data isolation, and audit trails.
+                            </p>
+                        </div>
+                        <svg className="w-5 h-5 text-white/50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
                     </button>
                 </div>
 

@@ -58,12 +58,13 @@ import AccountRecoverySettings from './AccountRecoverySettings';
 import IntegrationSettings from './IntegrationSettings';
 import { PortalAccessSettings } from './PortalAccessSettings';
 import { NotificationSettings } from './NotificationSettings';
+import SecurityAccessView from '../SecurityAccessView';
 
 import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';
 import { useProduct } from '../../contexts/ProductContext';
 
-type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal';
+type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal' | 'securityAccess';
 
 const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' }> = {
     'my-profile': { main: 'profile' },
@@ -274,6 +275,14 @@ const SidebarContents: React.FC<{
                         id="portal-access"
                         isActive={activeTab === 'portal'}
                         onClick={() => handleNav('portal')}
+                        onCloseDrawer={onCloseDrawer}
+                    />
+                    <NavItem
+                        label="Security & Access"
+                        description="Access code architecture & data protection"
+                        icon={<ShieldCheckIcon className="text-slate-500" />}
+                        isActive={activeTab === 'securityAccess'}
+                        onClick={() => handleNav('securityAccess')}
                         onCloseDrawer={onCloseDrawer}
                     />
                     {permissions.canManageTemplates && (
@@ -531,6 +540,7 @@ export const SettingsView: React.FC = () => {
             case 'communications': return <IntegrationSettings />;
             case 'notifications': return <NotificationSettings />;
             case 'portal': return <PortalAccessSettings />;
+            case 'securityAccess': return <SecurityAccessView onBack={() => setActiveSubTab('')} />;
             default: return null;
         }
     };
@@ -551,6 +561,7 @@ export const SettingsView: React.FC = () => {
         communications: 'Communications',
         notifications: 'Notifications',
         portal: isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal',
+        securityAccess: 'Security & Access',
     };
 
     return (

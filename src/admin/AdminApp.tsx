@@ -90,7 +90,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'health' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -147,7 +147,6 @@ const FounderApp: React.FC = () => {
             case 'broadcast': return <ViewErrorBoundary viewName="Broadcast"><BroadcastConsole /></ViewErrorBoundary>;
             case 'audit': return <ViewErrorBoundary viewName="Audit"><AuditLogs /></ViewErrorBoundary>;
             case 'settings': return <ViewErrorBoundary viewName="Settings"><Settings /></ViewErrorBoundary>;
-            case 'health': return <ViewErrorBoundary viewName="Organizations"><OrganizationsHub /></ViewErrorBoundary>;
             case 'system': return <ViewErrorBoundary viewName="System"><SystemStatus /></ViewErrorBoundary>;
             case 'export': return <ViewErrorBoundary viewName="Export"><ExportCenter /></ViewErrorBoundary>;
             case 'analytics': return <ViewErrorBoundary viewName="Analytics"><AnalyticsView /></ViewErrorBoundary>;

@@ -27,7 +27,7 @@ import {
   BellIcon,
   VisitorIcon,
 } from '../../constants';
-import { Receipt as ReceiptIcon, Home as HomeIcon, Zap as ZapIcon, Wifi as WifiIcon, PlugZap as BoltIcon } from 'lucide-react';
+import { Receipt as ReceiptIcon, Home as HomeIcon, Zap as ZapIcon, Wifi as WifiIcon, PlugZap as BoltIcon, Shield as ShieldIcon } from 'lucide-react';
 import { VisitorPortal } from '../portal/VisitorPortal';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
@@ -102,7 +102,7 @@ const formatDate = (ts: number) => {
 };
 
 // ─── Tab Type ─────────────────────────────────────────────────────────────────
-type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents' | 'visitors';
+type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents' | 'visitors' | 'security';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
@@ -358,15 +358,13 @@ const TenantPortal: React.FC = () => {
     return count;
   }, [portalConversations, unresolvedInboundMsgs]);
 
-  const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
+  const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number; disabled?: boolean }[] = [
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
-    // VMS ENABLED CHECK — Visitors tab only shows when admin has enabled VMS
-    // in Portal Settings. Previously this was always shown, allowing residents
-    // to generate visitor codes even when the feature was disabled.
-    ...(portalSettings?.vmsEnabled ? [
-      { id: 'visitors' as TabId, label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" /> },
-    ] : []),
+    // VISITORS TAB — always visible. When VMS is disabled, the tab shows
+    // but renders a "contact your property manager" message instead of
+    // the code generation UI. This makes the feature discoverable.
+    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" />, disabled: !portalSettings?.vmsEnabled },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
@@ -375,6 +373,7 @@ const TenantPortal: React.FC = () => {
     ] : []),
     { id: 'payments', label: 'Payments', icon: <NairaSymbol className="w-4 h-4 inline" /> },
     { id: 'documents', label: 'Documents', icon: <DocumentIcon className="w-4 h-4" /> },
+    { id: 'security', label: 'Security', icon: <ShieldIcon className="w-4 h-4" /> },
   ];
 
   return (
@@ -521,7 +520,14 @@ const TenantPortal: React.FC = () => {
             {activeTab === 'messages' && <TabErrorBoundary tabName="Messages"><MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'payments' && <TabErrorBoundary tabName="Payments"><PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'documents' && <TabErrorBoundary tabName="Documents"><DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
-            {activeTab === 'visitors' && <TabErrorBoundary tabName="Visitors"><VisitorPortal firmId={effectiveFirmId} propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''} propertyName={tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name} propertyAddress={tenantInfo?.primaryPropertyAddress || tenantInfo?.properties?.[0]?.address} unitId={tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id} unitName={tenantInfo?.primaryUnitName || tenantInfo?.units?.[0]?.name} residentName={tenantInfo?.tenantName} /></TabErrorBoundary>}
+            {activeTab === 'visitors' && <TabErrorBoundary tabName="Visitors">
+              {portalSettings?.vmsEnabled ? (
+                <VisitorPortal firmId={effectiveFirmId} propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''} propertyName={tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name} propertyAddress={tenantInfo?.primaryPropertyAddress || tenantInfo?.properties?.[0]?.address} unitId={tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id} unitName={tenantInfo?.primaryUnitName || tenantInfo?.units?.[0]?.name} residentName={tenantInfo?.tenantName} />
+              ) : (
+                <VisitorDisabledState />
+              )}
+            </TabErrorBoundary>}
+            {activeTab === 'security' && <TabErrorBoundary tabName="Security"><SecurityAccessTab tenantInfo={tenantInfo} portalSettings={portalSettings} /></TabErrorBoundary>}
           </>
         )}
       </div>
@@ -3158,3 +3164,162 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
 };
 
 export default TenantPortal;
+
+// ─── Visitor Disabled State ──────────────────────────────────────────────────
+// Shown when VMS is not enabled by the property manager. Makes the feature
+// discoverable instead of hidden, so residents know it exists.
+const VisitorDisabledState: React.FC = () => (
+  <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
+      <VisitorIcon className="w-8 h-8 text-slate-400 dark:text-zinc-500" />
+    </div>
+    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Visitor Access Codes</h3>
+    <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-sm mb-4">
+      Generate 6-digit access codes for your visitors, contractors, and delivery
+      personnel. Codes are verified at the gatehouse for seamless entry.
+    </p>
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 max-w-sm">
+      <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">
+        Feature Not Yet Active
+      </p>
+      <p className="text-xs text-amber-600 dark:text-amber-500">
+        Your property manager hasn't enabled visitor access codes yet. Contact
+        them to request this feature be turned on for your property.
+      </p>
+    </div>
+  </div>
+);
+
+// ─── Security & Access Tab ───────────────────────────────────────────────────
+// Explains the security architecture behind access code generation, verification,
+// and the overall security model. Helps residents understand how their data is
+// protected and how access codes work end-to-end.
+const SecurityAccessTab: React.FC<{ tenantInfo: any; portalSettings: any }> = ({ tenantInfo, portalSettings }) => {
+  const securityFeatures = [
+    {
+      icon: <ShieldIcon className="w-5 h-5" />,
+      title: 'Code Generation',
+      description: 'Access codes are 6-digit numeric tokens generated using a cryptographically-informed algorithm with collision detection. Each code is unique within a 24-hour window for your property, preventing duplicate or guessed codes.',
+      status: portalSettings?.vmsEnabled ? 'Active' : 'Available on Request',
+    },
+    {
+      icon: <VisitorIcon className="w-5 h-5" />,
+      title: 'Code Verification',
+      description: 'When a visitor arrives, the gatekeeper enters the code at the gatehouse terminal. The system verifies the code against active tokens, checks validity (not expired, not revoked, not already used), and logs the check-in with a timestamp.',
+      status: portalSettings?.vmsEnabled ? 'Active' : 'Available on Request',
+    },
+    {
+      icon: <ShieldIcon className="w-5 h-5" />,
+      title: 'Data Isolation',
+      description: 'Your access codes are scoped to your property and unit. Other residents cannot see your codes, and you cannot see theirs. The gatekeeper only sees the visitor name, host (you), and unit — never your financial data or personal information beyond what is needed for entry.',
+      status: 'Always Active',
+    },
+    {
+      icon: <ShieldIcon className="w-5 h-5" />,
+      title: 'Code Revocation',
+      description: 'You can revoke any active access code at any time from the Visitors tab. Revoked codes are immediately rejected at the gatehouse. This gives you full control over who can enter, even after a code has been shared.',
+      status: portalSettings?.vmsEnabled ? 'Active' : 'Available on Request',
+    },
+    {
+      icon: <ShieldIcon className="w-5 h-5" />,
+      title: 'Audit Trail',
+      description: 'Every access code generation, verification, check-in, check-out, and revocation is logged with a timestamp. This audit trail is available to your property manager for security investigations and dispute resolution.',
+      status: 'Always Active',
+    },
+    {
+      icon: <ShieldIcon className="w-5 h-5" />,
+      title: 'Grace Period',
+      description: `Codes have a configurable grace period (default: ${portalSettings?.vmsGracePeriodMinutes || 30} minutes) to accommodate slight delays. A code valid until 6:00 PM will still work at 6:25 PM, preventing unnecessary turn-aways at the gate.`,
+      status: portalSettings?.vmsEnabled ? 'Active' : 'Available on Request',
+    },
+  ];
+
+  return (
+    <div className="space-y-4 pb-8">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-black dark:to-zinc-950 text-white rounded-premium p-5 shadow-premium">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+            <ShieldIcon className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">Security & Access</p>
+            <h2 className="text-xl font-bold tracking-tight">How Access Codes Work</h2>
+          </div>
+        </div>
+        <p className="text-sm text-white/85 leading-relaxed">
+          PracticePro uses a secure, verifiable access code system to manage
+          visitor entry to your property. Here's how it works end-to-end —
+          from code generation to gatehouse verification.
+        </p>
+      </div>
+
+      {/* Security Features */}
+      <div className="space-y-3">
+        {securityFeatures.map((feature, idx) => (
+          <div key={idx} className="bg-white dark:bg-zinc-800 rounded-2xl p-4 shadow-soft">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                {feature.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">{feature.title}</h3>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                    feature.status === 'Active'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                      : feature.status === 'Always Active'
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                  }`}>
+                    {feature.status}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* How It Works Flow */}
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">End-to-End Flow</h3>
+        <div className="space-y-3">
+          {[
+            { step: 1, title: 'You Generate a Code', desc: 'Open the Visitors tab, enter your visitor\'s name and phone, choose an expiry window (2/6/12/24 hours).' },
+            { step: 2, title: 'Code is Shared', desc: 'The code is sent to your visitor via WhatsApp (you share it, or the system sends it on your behalf).' },
+            { step: 3, title: 'Visitor Arrives', desc: 'The visitor gives the code to the gatekeeper at the gatehouse terminal.' },
+            { step: 4, title: 'Gatekeeper Verifies', desc: 'The gatekeeper enters the code. The system checks validity and shows the visitor\'s name, host (you), and unit.' },
+            { step: 5, title: 'Entry Approved', desc: 'The gatekeeper approves entry. The check-in is logged. You receive a WhatsApp notification (if enabled).' },
+            { step: 6, title: 'Check-Out', desc: 'When the visitor leaves, the gatekeeper checks them out. The full visit is recorded in the audit trail.' },
+          ].map((item) => (
+            <div key={item.step} className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                {item.step}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-400">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Privacy Note */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-4">
+        <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300 mb-1">Your Privacy</h3>
+        <p className="text-xs text-blue-800 dark:text-blue-400 leading-relaxed">
+          Your personal data — financial ledger, payment history, messages — is
+          never visible to the gatekeeper or other residents. The access code
+          system only shares the minimum information needed for visitor entry:
+          visitor name, host name, and unit number. All data is encrypted in
+          transit and at rest.
+        </p>
+      </div>
+    </div>
+  );
+};
