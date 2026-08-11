@@ -720,7 +720,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const tenantName = composeTenantName(unit).trim();
                 const tenantPhone = (unit.tenantPhone || '').trim();
                 const tenantEmail = (unit.tenantEmail || '').trim();
-                if (!tenantName && !tenantPhone) return; // No resident data to sync
+                if (!tenantName && !tenantPhone && !tenantEmail) return; // No resident data to sync
 
                 const unitId = unit.id || '';
                 if (!unitId) return;
@@ -730,20 +730,25 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     // the latest tenantEmail, rentAmount, etc. that were just entered.
                     const freshPd = buildPropertyRecord(unit, propertyData, unitId);
 
-                    // Search existing contacts by phone (primary matcher)
+                    // Search existing contacts by phone (primary matcher) or email
                     const existingByPhone = tenantPhone
                         ? (appState.contacts || []).find(c =>
-                            c.phone?.replace(/\D/g, '') === tenantPhone.replace(/\D/g, ''))
+                            c.phone && c.phone.replace(/\D/g, '') === tenantPhone.replace(/\D/g, ''))
                         : null;
+                    const existingByEmail = tenantEmail
+                        ? (appState.contacts || []).find(c =>
+                            c.email && c.email.toLowerCase().trim() === tenantEmail.toLowerCase().trim())
+                        : null;
+                    const existingContact = existingByPhone || existingByEmail;
 
-                    if (existingByPhone) {
+                    if (existingContact) {
                         // Link existing contact to this unit — patch ONLY tenantContactId
                         // onto the fresh rentalDetails (not the stale coreState snapshot).
                         await updateItem('properties', {
                             ...freshPd,
                             rentalDetails: {
                                 ...freshPd.rentalDetails,
-                                tenantContactId: existingByPhone.id,
+                                tenantContactId: existingContact.id,
                             } as any,
                         }, 'Property');
                         return;
@@ -780,6 +785,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 } catch (syncErr) {
                     // Auto-sync is best-effort — don't fail the property save
                     console.warn(`Resident auto-sync failed for unit ${unit.unitName}:`, syncErr);
+                    addToast(`Resident contact sync failed: ${syncErr?.message || 'Unknown error'}. The resident's details were saved on the unit but not synced to Contacts.`, { type: 'info' });
                 }
             }));
             } // end if (saveToContacts)
@@ -854,9 +860,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // is set), expand Rental Details. Otherwise, expand Primary Details.
     const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
         if (activeUnitId || autoExpandRental) {
-            return { 'rental': true, 'primary': false, 'amenities': false, 'fees': false, 'media': false };
+            return { 'rental': true, 'primary': false, 'amenities': false, 'fees': false, 'media': false, 'automation': false };
         }
-        return { 'rental': false, 'primary': true, 'amenities': false, 'fees': false, 'media': false };
+        return { 'rental': false, 'primary': true, 'amenities': false, 'fees': false, 'media': false, 'automation': false };
     });
     const toggleSection = React.useCallback((id: string) => {
         setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -927,7 +933,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     return (
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-2 sm:space-y-3 pb-6">
-                <AccordionSection id="primary" isOpen={openSections.primary} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
+                <AccordionSection id="primary" isOpen={openSections.primary} onToggle={toggleSection} title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
                     <div className="space-y-2 sm:space-y-3">
                         <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">
@@ -1040,7 +1046,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Amenities Section --- */}
-                <AccordionSection id="amenities" isOpen={openSections.amenities} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
+                <AccordionSection id="amenities" isOpen={openSections.amenities} onToggle={toggleSection} title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
                     <div className="space-y-3 sm:space-y-4">
                         <div className="flex gap-2">
                             <input autoComplete="off" data-lpignore="true" 
@@ -1077,7 +1083,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Automation Settings --- */}
-                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
+                <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} title="Automation" subtitle="Alerts" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
@@ -1097,7 +1103,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </AccordionSection>
 
                 {/* --- Minimum Vend / Estate Fees --- */}
-                <AccordionSection id="fees" isOpen={openSections.fees} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
+                <AccordionSection id="fees" isOpen={openSections.fees} onToggle={toggleSection} title="Minimum Vend / Estate Fees" subtitle="Fees" icon={<CalculatorIcon className="w-3.5 h-3.5" />} iconBg="bg-teal-500">
                     <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
                         <input autoComplete="off" data-lpignore="true" type="checkbox" checked={minimumVendEnabled} onChange={e => setMinimumVendEnabled(e.target.checked)} className="mt-1 rounded border-slate-200 text-teal-500 focus:ring-teal-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Enable Minimum Vend Tracking</span>
@@ -1249,7 +1255,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     when the modal opens from a unit card Edit button. */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
                     <div ref={rentalSectionRef}>
-                    <AccordionSection id="rental" isOpen={openSections.rental} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
+                    <AccordionSection id="rental" isOpen={openSections.rental} onToggle={toggleSection} title="Lease & Rent Configuration" subtitle="Rental Details" icon={<CalendarIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
 
                         {/* UNIT TABS — always show (even for single unit) + inline Add Unit button */}
                         <div className="flex flex-wrap gap-2 px-1 mb-2 items-center">
@@ -1765,7 +1771,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <AccordionSection id="media" isOpen={openSections.media} onToggle={toggleSection} onFocusSection={handleSectionFocus} title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
+                <AccordionSection id="media" isOpen={openSections.media} onToggle={toggleSection} title="Photos & Documents" subtitle="Media" icon={<UploadIcon className="w-3.5 h-3.5" />} iconBg="bg-slate-600">
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
