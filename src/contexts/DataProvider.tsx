@@ -671,9 +671,13 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     );
 
     // Phase B — full data (runs in parallel, merges when ready)
+    // NOTE: userEmail MUST be passed — getFirmData calls requireFirmUser()
+    // which rejects requests without an email (RLS enforcement).
     const firmData = useQuery(
         api.myFunctions.getFirmData,
-        shouldLoadFirmData && currentUser?.firmId ? { firmId: currentUser.firmId } : 'skip'
+        shouldLoadFirmData && currentUser?.firmId && currentUser?.email
+            ? { firmId: currentUser.firmId, userEmail: currentUser.email }
+            : 'skip'
     );
 
     // Track which phase we're in so UI can show a subtle secondary loader

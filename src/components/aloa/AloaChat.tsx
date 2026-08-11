@@ -849,16 +849,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         try {
                             if (action === 'update_status') {
                                 if (targetType === 'matters') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'matters', id: targetId, data: { status: value } });
+                                    await convex.mutation(api.myFunctions.updateItem, { table: 'matters', id: targetId, data: { status: value }, userEmail: currentUser?.email });
                                 } else if (targetType === 'tasks') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { status: value } });
+                                    await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { status: value }, userEmail: currentUser?.email });
                                 } else if (targetType === 'properties') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'properties', id: targetId, data: { status: value } });
+                                    await convex.mutation(api.myFunctions.updateItem, { table: 'properties', id: targetId, data: { status: value }, userEmail: currentUser?.email });
                                 }
                             } else if (action === 'set_priority' && targetType === 'tasks') {
-                                await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { priority: value } });
+                                await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { priority: value }, userEmail: currentUser?.email });
                             } else if (action === 'assign_user') {
-                                await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { assignedUserId: value } });
+                                await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { assignedUserId: value }, userEmail: currentUser?.email });
                             } else if (action === 'delete_item') {
                                 await deleteItem(targetType as any, targetId, 'Item');
                             }

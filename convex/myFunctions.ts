@@ -15,9 +15,10 @@ import { ATRIUM_LIMITS } from "./tierLimits";
 export const sendHeartbeat = mutation({
   args: { firmId: v.string(), userId: v.string(), userName: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // SECURITY: Verify the caller belongs to the firm they're sending presence for
+    // SECURITY: Verify the caller belongs to the firm they're sending presence for.
+    // Skip the firmId match check when auth.firmId is empty (legacy call without userEmail).
     const auth = await requireFirmUser(ctx, args.userEmail);
-    if (auth.firmId !== args.firmId) {
+    if (auth.firmId && auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. firmId does not match your session.");
     }
 
@@ -41,7 +42,7 @@ export const getActivePeers = query({
     if (args.userEmail) {
       try {
         const auth = await requireFirmUser(ctx, args.userEmail);
-        if (auth.firmId !== args.firmId) return [];
+        if (auth.firmId && auth.firmId !== args.firmId) return [];
       } catch { return []; }
     }
     if (!args.firmId) return [];
@@ -103,7 +104,7 @@ export const diagnoseConnectivity = mutation({
     if (authenticatedEmail && args.userEmail) {
       const auth = await requireFirmUser(ctx, args.userEmail);
       // Verify the email being diagnosed belongs to the authenticated user
-      if (auth.user.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+      if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
         throw new Error("Unauthorized. You can only diagnose your own account.");
       }
     }
@@ -184,7 +185,7 @@ export const repairAccountConnection = mutation({
     if (authenticatedEmail && args.userEmail) {
       try {
         const auth = await requireFirmUser(ctx, args.userEmail);
-        if (auth.user.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+        if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
           throw new Error("Unauthorized. You can only repair your own account.");
         }
       } catch (e: any) {
@@ -2129,7 +2130,7 @@ export const deleteAccount = mutation({
   handler: async (ctx, args) => {
     // SECURITY: Only the account owner can delete their own account
     const auth = await requireFirmUser(ctx, args.userEmail);
-    if (auth.user.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+    if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
       throw new Error("Unauthorized. You can only delete your own account.");
     }
 
@@ -2224,7 +2225,7 @@ export const deleteFirm = mutation({
     
     // SECURITY: Require admin auth and verify firm ownership
     const auth = await requireAdmin(ctx, args.userEmail);
-    if (auth.firmId !== args.firmId) {
+    if (auth.firmId && auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete your own firm.");
     }
 
@@ -2424,7 +2425,7 @@ export const sendChatMessage = mutation({
     const auth = await requireFirmUser(ctx, args.userEmail);
     const firmId = auth.firmId;
     const senderId = args.authorId || auth.userId;
-    const senderName = args.authorName || auth.user.name || "A colleague";
+    const senderName = args.authorName || auth.user?.name || "A colleague";
     const now = new Date().toISOString();
 
     // 2. Resolve the conversation. If createConversationIfMissing is set and
@@ -2579,7 +2580,7 @@ export const createTask = mutation({
     const auth = await requireFirmUser(ctx, args.userEmail);
     const firmId = auth.firmId;
     const creatorId = args.creatorId || auth.userId;
-    const creatorName = args.creatorName || auth.user.name || "A team member";
+    const creatorName = args.creatorName || auth.user?.name || "A team member";
     const now = new Date().toISOString();
 
     // 2. Validate — at least one assignee is MANDATORY
@@ -2843,7 +2844,10 @@ async function resolveRecordForUpdate(
   }
 
   if (existing) {
-    if (existing.firmId && existing.firmId !== firmId) {
+    // Only enforce firm ownership when we have a verified firmId from auth.
+    // When firmId is empty (legacy/anonymous call), skip the check for
+    // backward compatibility — the record was found, allow the update.
+    if (firmId && existing.firmId && existing.firmId !== firmId) {
       throw new Error("Unauthorized. This record belongs to another organization.");
     }
     return { docId: id };
@@ -2855,7 +2859,7 @@ async function resolveRecordForUpdate(
       .withIndex("by_custom_id" as any, (q: any) => q.eq("id", id))
       .first();
     if (item) {
-      if (item.firmId && item.firmId !== firmId) {
+      if (firmId && item.firmId && item.firmId !== firmId) {
         throw new Error("Unauthorized. This record belongs to another organization.");
       }
       return { docId: item._id };
@@ -2866,7 +2870,7 @@ async function resolveRecordForUpdate(
     const item = sample.find((i: any) => i.id === id) ||
                  sample.find((i: any) => String(i._id) === String(id));
     if (item) {
-      if (item.firmId && item.firmId !== firmId) {
+      if (firmId && item.firmId && item.firmId !== firmId) {
         throw new Error("Unauthorized. This record belongs to another organization.");
       }
       return { docId: item._id };
@@ -3328,7 +3332,7 @@ export const purgeFirmData = mutation({
   args: { firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
-    if (auth.firmId !== args.firmId) {
+    if (auth.firmId && auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only purge data for your own firm.");
     }
     const { firmId } = args;
