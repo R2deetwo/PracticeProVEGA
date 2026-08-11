@@ -6501,3 +6501,66 @@ Stage Summary:
 - Portal text legibility FIXED globally via tailwind config (9-10px → 11-12px)
 - Portal layout compacted — key elements now above the fold on phones
 - All changes pushed; Vercel deploying; user needs to deploy to Cloudflare + Convex
+
+---
+Task ID: 24
+Agent: Main Agent
+Task: Multi-issue fix — admin nav, feedback leak, portal access, security page, property overview
+
+Work Log:
+1. ADMIN ORGANIZATIONS/FIRMHEALTH CLEANUP:
+   - Both 'organizations' and 'health' routes rendered the same OrganizationsHub
+   - Removed duplicate 'Firm Health' from FounderBottomNav MORE_ITEMS
+   - Removed 'health' from AdminView type union + switch case
+   - Deleted dead code: FirmHealth.tsx (305 lines), OrganizationsCenter.tsx (328 lines), AdminSidebar.tsx (89 lines, had TS errors)
+
+2. FEEDBACK DATA LEAKAGE FIX (critical privacy):
+   - Root cause: old saveAloaMessage echoed ALOA chat to user_feedback with source=undefined
+   - Blocklist filter checked source='aloa_echo' but leaked rows had source=undefined → passed through
+   - FIX: Inverted allowlist in getFeedbackList + getMyFeedbackReplies
+     - Allow: source='feedback' OR (source=undefined BUT title+type set)
+     - Reject: no source + no title + no type (leaked ALOA fingerprint)
+   - Added purgeLeakedAloaEchoes mutation (founder-only, re-tags orphans as 'aloa_echo_purged')
+   - Added 'Clean Leaked Data' button to FeedbackInbox header
+   - Logs to securityEvents for audit trail
+
+3. RESIDENT PORTAL VISITORS TAB:
+   - Was hidden when VMS disabled (portalSettings.vmsEnabled=false)
+   - Now always visible — shows 'Feature Not Yet Active' message when disabled
+   - Makes feature discoverable instead of invisible
+
+4. SECURITY & ACCESS PAGE (new):
+   - Created SecurityAccessView.tsx for user app (src/components/)
+   - Added SecurityAccessTab to resident portal (TenantPortal.tsx)
+   - Explains: code generation, verification, data isolation, audit trail,
+     backend security, product shipping, deployment steps, privacy
+   - Wired into: App.tsx switch, SettingsView (new nav item), HelpView (quick link)
+   - Added 'securityAccess' to View type union
+
+5. PROPERTY OVERVIEW OBSCURING FIX:
+   - Root cause: commit 4132e7b added inline style paddingBottom: 6rem
+   - This overrode md:pb-8 Tailwind class → 6rem bottom padding on desktop
+   - Fix: Removed inline style override; mobile keeps pb-24, desktop keeps md:pb-8
+
+6. GATEHOUSE ROUTE FIX:
+   - /gatehouse was rendering GatekeeperInterface without firmId prop
+   - Fix: Read firmId from URL query string (?firmId=xxx)
+
+Verification:
+- Vite build (consumer): passes (22s)
+- Vite build (admin): passes (5s)
+- Git: pushed to main + synced to master
+
+DEPLOYMENT NOTES:
+- Vercel: Auto-deploys from master (triggered)
+- Convex: Requires manual deploy (feedback filter fix + purge mutation)
+- Cloudflare: Requires manual wrangler deploy
+- Admin APK: Will trigger build-admin-apk.yml (src/admin/** changed)
+
+Stage Summary:
+- Admin nav cleaned up — Organizations is the single unified view
+- Feedback privacy leak FIXED — inverted allowlist blocks leaked ALOA echoes
+- Resident portal Visitors tab now discoverable even when VMS is off
+- Security & Access page created for both user app and resident portal
+- Property overview no longer obscured by inline padding override
+- Gatehouse route now accepts firmId from URL query string
