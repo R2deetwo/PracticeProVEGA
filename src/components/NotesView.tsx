@@ -137,7 +137,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
     return (
         <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-900 overflow-hidden">
             {!noBox && (
-                <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
+                <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Firm Knowledge</h2>
                 </header>
             )}

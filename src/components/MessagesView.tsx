@@ -1374,7 +1374,7 @@ const MessagesView: React.FC = () => {
     return (
         <div className="flex flex-col h-full w-full bg-white dark:bg-zinc-900 border-x border-slate-200 dark:border-zinc-800">
             {/* ── Page Header (matches Documents/Contacts pattern) ── */}
-            <div className="flex-shrink-0 sticky top-0 pt-safe z-30 glass py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
+            <div className="flex-shrink-0 sticky top-0 pt-safe z-30 glass py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
                     <div className="flex items-center gap-2">
@@ -1489,12 +1489,7 @@ const MessagesView: React.FC = () => {
                                 bar with the type filter checkboxes into a single compact row.
                                 The mark-all-read button was removed per user request — users
                                 can mark individual messages as read by opening them. */}
-                            <div className="flex-shrink-0 px-3 py-2 border-b border-slate-200 dark:border-zinc-800">
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                        {isUnified ? 'All Conversations' : 'Conversations'}
-                                    </h3>
-                                </div>
+                            <div className="flex-shrink-0 px-3 py-1.5 border-b border-slate-200 dark:border-zinc-800">
                                 {/* Type filter checkboxes — compact pills that fit the panel width */}
                                 {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
                                     <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar whitespace-nowrap">
@@ -1698,7 +1693,7 @@ const MessagesView: React.FC = () => {
                                                             markNotificationsAsRead(systemNotifs.map(n => String(n.id || n._id || '')));
                                                         }
                                                     }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all duration-200 hover:bg-emerald-950/40 hover:border-emerald-500/30 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500' : 'border-l-transparent'}`}
+                                                    className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all duration-200 hover:bg-emerald-950/40 hover:border-emerald-500/30 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500' : 'border-l-transparent'}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2 min-w-0">
@@ -1752,7 +1747,7 @@ const MessagesView: React.FC = () => {
                                                 <div
                                                     key={msg._id}
                                                     onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id }); }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
+                                                    className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2">
@@ -1808,7 +1803,7 @@ const MessagesView: React.FC = () => {
                                                                 .map((n: any) => n.id);
                                                             if (notifIds.length > 0) handleMarkNotificationsRead(notifIds);
                                                         }}
-                                                        className={`group relative p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''}`}
+                                                        className={`group relative py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''}`}
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <div className="flex items-center gap-2 min-w-0">
@@ -1915,7 +1910,7 @@ const MessagesView: React.FC = () => {
                                                             setSelectedInboxType('conversation');
                                                             if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
                                                         }}
-                                                        className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
+                                                        className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <div className="flex items-center gap-2 min-w-0">
@@ -1994,7 +1989,7 @@ const MessagesView: React.FC = () => {
                                                     <div
                                                         key={msg.id}
                                                         onClick={() => { navigateTo('matterDetail', msg.matterId, { initialTab: 'messages' }); }}
-                                                        className="p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800"
+                                                        className="py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800"
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <span className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">Client Message</span>
@@ -2864,7 +2859,7 @@ const MessagesView: React.FC = () => {
                                                     <div
                                                         key={conv.id}
                                                         onClick={() => setSelectedId(conv.id)}
-                                                        className={`group relative w-full flex items-start gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left cursor-pointer ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
+                                                        className={`group relative w-full flex items-start gap-3 py-2.5 px-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left cursor-pointer ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
                                                     >
                                                         <div className="relative flex-shrink-0">
                                                             <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">

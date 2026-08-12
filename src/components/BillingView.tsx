@@ -160,7 +160,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
 
     return (
         <div ref={containerRef}>
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-2">
                 <StatCard title="Total Outstanding" value={<><NairaSymbol />{formatNaira(financialSummary.outstanding)}</>} icon={<Clock className="w-full h-full" />} colorClass="bg-yellow-500" scrollOnOverflow={true} />
                 <StatCard title="Total Overdue" value={<><NairaSymbol />{formatNaira(financialSummary.overdue)}</>} icon={<AlertCircle className="w-full h-full" />} colorClass="bg-red-500" scrollOnOverflow={true} />
                 <StatCard title="Total Paid (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalPaid)}</>} icon={<CheckCircle className="w-full h-full" />} colorClass="bg-green-500" scrollOnOverflow={true} />
@@ -342,7 +342,7 @@ export const BillingView: React.FC = () => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
+            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-2">
                 <div className="min-w-0">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
                     <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
@@ -383,7 +383,7 @@ export const BillingView: React.FC = () => {
 
             <div className="px-4 sm:px-6 lg:px-8">
                 {/* KPI Strip — unified across legal + property */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
                     <div className="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-800/30 shadow-sm">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Collected</p>
                         <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{formatNaira(kpiData.collected)}</p>
