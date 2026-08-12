@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "738464564911",
+    "project_id": "practicepro-42178",
+    "storage_bucket": "practicepro-42178.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:738464564911:android:9a0a3708a933d51d2d365a",
+        "android_client_info": {
+          "package_name": "com.practicepro.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCT8mGDEdBoCjy0hMcWzVNGUmMSUokAiRk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
