@@ -1,0 +1,277 @@
+{
+  "generatedAt": "2026-08-12T17:12:37.385Z",
+  "buildVersion": {
+    "sha": "9a00394d02d92fbd306574edaedde13b49359d79",
+    "branch": "main",
+    "builtAt": "2026-08-12T17:10:19.751Z",
+    "buildTimestamp": 1786554619756,
+    "status": "healthy"
+  },
+  "auditSummary": {
+    "overallScore": 75,
+    "totalChecks": 44,
+    "passed": 33,
+    "failed": 0,
+    "warnings": 11,
+    "domainScores": [
+      {
+        "domain": "Multi-Tenant Data Isolation & RBAC",
+        "score": 80,
+        "status": "warn"
+      },
+      {
+        "domain": "Form Hydration & Persistence",
+        "score": 67,
+        "status": "warn"
+      },
+      {
+        "domain": "Mobile Viewport & Touch",
+        "score": 50,
+        "status": "warn"
+      },
+      {
+        "domain": "Interactive Dead-Ends",
+        "score": 50,
+        "status": "warn"
+      },
+      {
+        "domain": "Real-Time & Notifications",
+        "score": 33,
+        "status": "warn"
+      },
+      {
+        "domain": "Subscription Tiers & Feature Gating",
+        "score": 75,
+        "status": "warn"
+      },
+      {
+        "domain": "AI Backbone & Prompt Safety",
+        "score": 100,
+        "status": "pass"
+      },
+      {
+        "domain": "Security & Threat Detection",
+        "score": 80,
+        "status": "warn"
+      },
+      {
+        "domain": "Performance & Bundle",
+        "score": 83,
+        "status": "warn"
+      },
+      {
+        "domain": "Data Export & Compliance",
+        "score": 100,
+        "status": "pass"
+      }
+    ],
+    "criticalIssues": []
+  },
+  "recentCommits": [
+    {
+      "hash": "9a00394",
+      "message": "d4e06764-4e8a-4ae5-94cf-640102c55503",
+      "date": "2026-08-12 16:45:27 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "eda6304",
+      "message": "dbbb9654-9af1-42b9-87ed-3ef0ac6c1e77",
+      "date": "2026-08-12 16:09:24 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "b5041d7",
+      "message": "0685aa40-1db1-4adc-b198-f5baaca1d995",
+      "date": "2026-08-12 01:16:03 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "ce3f5d6",
+      "message": "3692863c-c258-460e-95fa-4dfbe91c9667",
+      "date": "2026-08-11 16:00:19 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "dd3c4b9",
+      "message": "feat: property safe-area + signup badge 9+ cap + presence glow in OrgsHub",
+      "date": "2026-08-11 15:28:34 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "6d33f73",
+      "message": "4c389e23-c032-45f8-b6f5-7c7e3c474b5f",
+      "date": "2026-08-10 23:24:25 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "2979e5b",
+      "message": "chore: update version.json with APK release info [build-625]",
+      "date": "2026-08-10 19:35:00 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "4f25608",
+      "message": "chore: bump patch version to 1.0.517 [skip ci]",
+      "date": "2026-08-10 19:33:52 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "f8317c0",
+      "message": "feat: SecurityCenter admin view + online presence + disposable email blocking",
+      "date": "2026-08-10 19:33:00 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "15a34f9",
+      "message": "chore: update version.json with APK release info [build-624]",
+      "date": "2026-08-10 19:06:15 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "f7cf99b",
+      "message": "chore: bump patch version to 1.0.516 [skip ci]",
+      "date": "2026-08-10 19:05:02 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "00b9a92",
+      "message": "feat: presence engine + disposable email blocking + security queries",
+      "date": "2026-08-10 19:04:07 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "a1a7003",
+      "message": "chore: update version.json with APK release info [build-623]",
+      "date": "2026-08-10 18:52:20 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "98e3913",
+      "message": "chore: bump patch version to 1.0.515 [skip ci]",
+      "date": "2026-08-10 18:51:03 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "2ea4e53",
+      "message": "fix: accordion flash + email persistence + contacts checkbox + task row click + modal portal + ledger table layout",
+      "date": "2026-08-10 18:49:59 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "db8e5b9",
+      "message": "chore: update version.json with APK release info [build-622]",
+      "date": "2026-08-10 18:14:08 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "251eb63",
+      "message": "chore: bump patch version to 1.0.514 [skip ci]",
+      "date": "2026-08-10 18:12:58 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "74b960d",
+      "message": "fix: priority pill UPPERCASE + accordion expand-before-scroll + resident email field",
+      "date": "2026-08-10 18:11:59 +0000",
+      "author": "Z User"
+    },
+    {
+      "hash": "50042cf",
+      "message": "chore: update version.json with APK release info [build-621]",
+      "date": "2026-08-10 18:00:34 +0000",
+      "author": "github-actions[bot]"
+    },
+    {
+      "hash": "5d8fb1b",
+      "message": "chore: bump patch version to 1.0.513 [skip ci]",
+      "date": "2026-08-10 17:59:19 +0000",
+      "author": "github-actions[bot]"
+    }
+  ],
+  "featureInventory": {
+    "totalRoutes": 39,
+    "totalComponents": 339,
+    "totalConvexFunctions": 423,
+    "totalSchemaTables": 79,
+    "products": [
+      "Vega (Legal)",
+      "Atrium (Property)",
+      "Komplete (Unified)"
+    ]
+  },
+  "deploymentStatus": {
+    "vercel": {
+      "url": "https://practice-pro-vega.vercel.app",
+      "status": "healthy",
+      "lastChecked": "2026-08-12T17:12:37.401Z"
+    },
+    "cloudflare": {
+      "url": "https://practice-pro-vega.prototypechigo.workers.dev",
+      "status": "healthy",
+      "lastChecked": "2026-08-12T17:12:37.401Z"
+    }
+  },
+  "knownIssues": [
+    {
+      "severity": "warning",
+      "issue": "Convex API returned 200 for unauthenticated request",
+      "domain": "Multi-Tenant Data Isolation & RBAC"
+    },
+    {
+      "severity": "warning",
+      "issue": "0 form elements found on dashboard",
+      "domain": "Form Hydration & Persistence"
+    },
+    {
+      "severity": "warning",
+      "issue": "2/15 clickable elements below 32px height",
+      "domain": "Mobile Viewport & Touch"
+    },
+    {
+      "severity": "warning",
+      "issue": "No mobile-specific navigation found",
+      "domain": "Mobile Viewport & Touch"
+    },
+    {
+      "severity": "warning",
+      "issue": "1 potential dead-end buttons out of 14 total",
+      "domain": "Interactive Dead-Ends"
+    },
+    {
+      "severity": "warning",
+      "issue": "0 ARIA tab elements found",
+      "domain": "Interactive Dead-Ends"
+    },
+    {
+      "severity": "warning",
+      "issue": "No WebSocket detected — app may not be using real-time sync",
+      "domain": "Real-Time & Notifications"
+    },
+    {
+      "severity": "warning",
+      "issue": "0 notification badge elements found",
+      "domain": "Real-Time & Notifications"
+    },
+    {
+      "severity": "warning",
+      "issue": "0 guard elements, 0 upgrade mentions",
+      "domain": "Subscription Tiers & Feature Gating"
+    },
+    {
+      "severity": "warning",
+      "issue": "No disposable email blocking detected",
+      "domain": "Security & Threat Detection"
+    },
+    {
+      "severity": "warning",
+      "issue": "64 font faces loaded",
+      "domain": "Performance & Bundle"
+    }
+  ],
+  "metrics": {
+    "bundleSizeKB": 8167,
+    "totalFiles": 52,
+    "linterErrors": 0
+  }
+}

@@ -1,0 +1,338 @@
+{
+  "timestamp": "2026-08-12T17:11:35.230Z",
+  "targetUrl": "https://practice-pro-vega.vercel.app",
+  "totalDomains": 10,
+  "domains": [
+    {
+      "domain": "Multi-Tenant Data Isolation & RBAC",
+      "status": "warn",
+      "checks": 5,
+      "passed": 4,
+      "failed": 0,
+      "warnings": 1,
+      "details": [
+        {
+          "check": "Unauthenticated access to /?view=matters",
+          "status": "pass",
+          "message": "Route properly redirects to login"
+        },
+        {
+          "check": "Unauthenticated access to /?view=billing",
+          "status": "pass",
+          "message": "Route properly redirects to login"
+        },
+        {
+          "check": "Unauthenticated access to /?view=settings",
+          "status": "pass",
+          "message": "Route properly redirects to login"
+        },
+        {
+          "check": "Portal route isolation",
+          "status": "pass",
+          "message": "Portal properly gated"
+        },
+        {
+          "check": "API endpoint auth check",
+          "status": "warn",
+          "message": "Convex API returned 200 for unauthenticated request"
+        }
+      ]
+    },
+    {
+      "domain": "Form Hydration & Persistence",
+      "status": "warn",
+      "checks": 3,
+      "passed": 2,
+      "failed": 0,
+      "warnings": 1,
+      "details": [
+        {
+          "check": "localStorage draft system",
+          "status": "pass",
+          "message": "7 localStorage keys found (draft system active)"
+        },
+        {
+          "check": "Form elements present",
+          "status": "warn",
+          "message": "0 form elements found on dashboard"
+        },
+        {
+          "check": "Input field accessibility",
+          "status": "pass",
+          "message": "0/0 inputs have labels or aria attributes"
+        }
+      ]
+    },
+    {
+      "domain": "Mobile Viewport & Touch",
+      "status": "warn",
+      "checks": 4,
+      "passed": 2,
+      "failed": 0,
+      "warnings": 2,
+      "details": [
+        {
+          "check": "No horizontal scroll",
+          "status": "pass",
+          "message": "scrollWidth: 412, innerWidth: 412 "
+        },
+        {
+          "check": "Touch target sizes (min 32px)",
+          "status": "warn",
+          "message": "2/15 clickable elements below 32px height"
+        },
+        {
+          "check": "Viewport meta tag",
+          "status": "pass",
+          "message": "Viewport meta tag present"
+        },
+        {
+          "check": "Mobile navigation",
+          "status": "warn",
+          "message": "No mobile-specific navigation found"
+        }
+      ]
+    },
+    {
+      "domain": "Interactive Dead-Ends",
+      "status": "warn",
+      "checks": 4,
+      "passed": 2,
+      "failed": 0,
+      "warnings": 2,
+      "details": [
+        {
+          "check": "Dead-end button detection",
+          "status": "warn",
+          "message": "1 potential dead-end buttons out of 14 total"
+        },
+        {
+          "check": "Accordion components",
+          "status": "pass",
+          "message": "0 accordion components found"
+        },
+        {
+          "check": "Modal accessibility",
+          "status": "pass",
+          "message": "0 accessible dialog patterns found"
+        },
+        {
+          "check": "Tab navigation",
+          "status": "warn",
+          "message": "0 ARIA tab elements found"
+        }
+      ]
+    },
+    {
+      "domain": "Real-Time & Notifications",
+      "status": "warn",
+      "checks": 3,
+      "passed": 1,
+      "failed": 0,
+      "warnings": 2,
+      "details": [
+        {
+          "check": "WebSocket connection",
+          "status": "warn",
+          "message": "No WebSocket detected — app may not be using real-time sync"
+        },
+        {
+          "check": "Notification badge UI",
+          "status": "warn",
+          "message": "0 notification badge elements found"
+        },
+        {
+          "check": "Push notification capability",
+          "status": "pass",
+          "message": "Notification API + Service Worker available"
+        }
+      ]
+    },
+    {
+      "domain": "Subscription Tiers & Feature Gating",
+      "status": "warn",
+      "checks": 4,
+      "passed": 3,
+      "failed": 0,
+      "warnings": 1,
+      "details": [
+        {
+          "check": "Feature gating UI",
+          "status": "warn",
+          "message": "0 guard elements, 0 upgrade mentions"
+        },
+        {
+          "check": "Tier configuration file",
+          "status": "pass",
+          "message": "tiers.ts configuration found"
+        },
+        {
+          "check": "Feature hook",
+          "status": "pass",
+          "message": "useFeatures hook found"
+        },
+        {
+          "check": "Storage metering",
+          "status": "pass",
+          "message": "Storage limit enforcement checked in backend (Convex) — manual verification needed"
+        }
+      ]
+    },
+    {
+      "domain": "AI Backbone & Prompt Safety",
+      "status": "pass",
+      "checks": 4,
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0,
+      "details": [
+        {
+          "check": "AI streaming endpoint",
+          "status": "pass",
+          "message": "AI stream endpoint returned 200"
+        },
+        {
+          "check": "Prompt injection guardrails",
+          "status": "pass",
+          "message": "Identity guardrails found"
+        },
+        {
+          "check": "API key exposure",
+          "status": "pass",
+          "message": "No API keys found in page source"
+        },
+        {
+          "check": "AI consent mechanism",
+          "status": "pass",
+          "message": "AI consent modal found"
+        }
+      ]
+    },
+    {
+      "domain": "Security & Threat Detection",
+      "status": "warn",
+      "checks": 5,
+      "passed": 4,
+      "failed": 0,
+      "warnings": 1,
+      "details": [
+        {
+          "check": "HTTPS enforcement",
+          "status": "pass",
+          "message": "Target URL: https://practice-pro-vega.vercel.app"
+        },
+        {
+          "check": "Content Security Policy",
+          "status": "pass",
+          "message": "CSP meta tag found"
+        },
+        {
+          "check": "Disposable email blocking",
+          "status": "warn",
+          "message": "No disposable email blocking detected"
+        },
+        {
+          "check": "Rate limiting",
+          "status": "pass",
+          "message": "AI request queue (rate limiter) found"
+        },
+        {
+          "check": "Content protection",
+          "status": "pass",
+          "message": "Content protection hook found"
+        }
+      ]
+    },
+    {
+      "domain": "Performance & Bundle",
+      "status": "warn",
+      "checks": 6,
+      "passed": 5,
+      "failed": 0,
+      "warnings": 1,
+      "details": [
+        {
+          "check": "Page load time",
+          "status": "pass",
+          "message": "Page loaded in 609ms (target: <3000ms)"
+        },
+        {
+          "check": "DOM node count",
+          "status": "pass",
+          "message": "150 DOM nodes (healthy: <1500, warning: <3000, critical: >3000)"
+        },
+        {
+          "check": "JavaScript bundles",
+          "status": "pass",
+          "message": "1 JS bundles loaded"
+        },
+        {
+          "check": "Image accessibility",
+          "status": "pass",
+          "message": "0/0 images missing alt text"
+        },
+        {
+          "check": "Image lazy loading",
+          "status": "pass",
+          "message": "0/0 images use lazy loading"
+        },
+        {
+          "check": "Font loading",
+          "status": "warn",
+          "message": "64 font faces loaded"
+        }
+      ]
+    },
+    {
+      "domain": "Data Export & Compliance",
+      "status": "pass",
+      "checks": 6,
+      "passed": 6,
+      "failed": 0,
+      "warnings": 0,
+      "details": [
+        {
+          "check": "Privacy policy page",
+          "status": "pass",
+          "message": "Privacy policy page has 16622 chars of content"
+        },
+        {
+          "check": "Terms of service page",
+          "status": "pass",
+          "message": "Terms page has 37572 chars of content"
+        },
+        {
+          "check": "Cookie consent",
+          "status": "pass",
+          "message": "Cookie consent component found"
+        },
+        {
+          "check": "Data Processing Agreement",
+          "status": "pass",
+          "message": "DPA page has 12094 chars of content"
+        },
+        {
+          "check": "Data export utility",
+          "status": "pass",
+          "message": "Export center found"
+        },
+        {
+          "check": "Audit trail",
+          "status": "pass",
+          "message": "Audit logs view found"
+        }
+      ]
+    }
+  ],
+  "overallScore": 75,
+  "summary": {
+    "totalChecks": 44,
+    "totalPassed": 33,
+    "totalFailed": 0,
+    "totalWarnings": 11
+  },
+  "criticalIssues": [],
+  "screenshots": [
+    "master-screenshots/mobile-landing.png"
+  ]
+}

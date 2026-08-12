@@ -13,6 +13,8 @@
     "prebuild": "node scripts/generate-version-manifest.cjs",
     "build": "vite build && node scripts/mark-healthy.cjs",
     "audit:app": "npx tsx scripts/agent-audit.ts",
+    "audit:all": "npx tsx scripts/audit-master-suite.ts",
+    "dev-report": "npx tsx scripts/generate-dev-report.ts",
     "build:staging": "vite build --mode staging",
     "build:prod": "vite build --mode production",
     "deploy": "npx convex deploy && vite build",
