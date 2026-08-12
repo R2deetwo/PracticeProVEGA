@@ -1,0 +1,105 @@
+{
+  "timestamp": "2026-08-12T16:08:01.009Z",
+  "targetUrl": "https://practice-pro-vega.vercel.app",
+  "totalRoutesCrawled": 5,
+  "routes": [
+    {
+      "route": "/",
+      "status": "ok",
+      "loadTimeMs": 2670,
+      "hasContent": true,
+      "consoleErrors": 0,
+      "networkErrors": 0
+    },
+    {
+      "route": "/portal/tenant/login",
+      "status": "ok",
+      "loadTimeMs": 581,
+      "hasContent": true,
+      "consoleErrors": 0,
+      "networkErrors": 0
+    },
+    {
+      "route": "/portal/client/login",
+      "status": "ok",
+      "loadTimeMs": 575,
+      "hasContent": true,
+      "consoleErrors": 0,
+      "networkErrors": 0
+    },
+    {
+      "route": "/privacy-policy",
+      "status": "ok",
+      "loadTimeMs": 557,
+      "hasContent": true,
+      "consoleErrors": 0,
+      "networkErrors": 0
+    },
+    {
+      "route": "/terms-of-service",
+      "status": "ok",
+      "loadTimeMs": 639,
+      "hasContent": true,
+      "consoleErrors": 0,
+      "networkErrors": 0
+    }
+  ],
+  "consoleErrors": [
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:08:10.252Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:08:24.743Z"
+    }
+  ],
+  "networkErrors": [
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:08:10.251Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:08:10.252Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:08:24.743Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:08:24.743Z"
+    }
+  ],
+  "uiDefects": [
+    {
+      "route": "/login",
+      "component": "login-flow",
+      "issue": "Demo login failed: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button[type=\"submit\"], button:has-text(\"Sign in\"), button:has-text(\"Log in\")').first()\n    - locator resolved to <button cla"
+    }
+  ],
+  "summary": {
+    "healthyRoutes": 5,
+    "errorRoutes": 0,
+    "totalConsoleErrors": 2,
+    "totalNetworkErrors": 4,
+    "totalUiDefects": 1
+  }
+}

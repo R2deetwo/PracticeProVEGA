@@ -425,11 +425,15 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 // connection that's actually working.
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
-                await fetch('https://gregarious-malamute-537.convex.cloud/health', {
-                    method: 'GET',
+                // Use Convex's query endpoint (valid HTTP path) instead of /health
+                // which doesn't exist. This hits a real Convex API endpoint.
+                await fetch('https://gregarious-malamute-537.convex.cloud/api/query', {
+                    method: 'POST',
                     mode: 'no-cors',
                     signal: controller.signal,
                     cache: 'no-store',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: 'myFunctions:getServerTime', args: {} }),
                 });
                 clearTimeout(timeoutId);
                 // If we got here, the request succeeded (or opaque response)

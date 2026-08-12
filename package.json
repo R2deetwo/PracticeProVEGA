@@ -12,6 +12,7 @@
     "dev:prod": "vite --host --mode production",
     "prebuild": "node scripts/generate-version-manifest.cjs",
     "build": "vite build && node scripts/mark-healthy.cjs",
+    "audit:app": "npx tsx scripts/agent-audit.ts",
     "build:staging": "vite build --mode staging",
     "build:prod": "vite build --mode production",
     "deploy": "npx convex deploy && vite build",
@@ -89,6 +90,7 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20.10.0",
     "@types/react": "^18.3.1",
     "@types/react-beautiful-dnd": "^13.1.8",
@@ -100,6 +102,8 @@
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "ts-morph": "^28.0.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.12",
     "typescript": "^5.3.0",
     "vite": "^5.0.0"
   }
