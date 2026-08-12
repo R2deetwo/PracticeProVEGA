@@ -1,105 +1,2230 @@
 {
-  "timestamp": "2026-08-12T16:08:01.009Z",
+  "timestamp": "2026-08-12T16:42:41.581Z",
   "targetUrl": "https://practice-pro-vega.vercel.app",
-  "totalRoutesCrawled": 5,
+  "totalRoutesCrawled": 20,
   "routes": [
     {
       "route": "/",
-      "status": "ok",
-      "loadTimeMs": 2670,
+      "status": "partial",
+      "loadTimeMs": 5519,
       "hasContent": true,
-      "consoleErrors": 0,
-      "networkErrors": 0
+      "consoleErrors": 1,
+      "networkErrors": 2
     },
     {
       "route": "/portal/tenant/login",
-      "status": "ok",
-      "loadTimeMs": 581,
+      "status": "partial",
+      "loadTimeMs": 3115,
       "hasContent": true,
-      "consoleErrors": 0,
-      "networkErrors": 0
+      "consoleErrors": 1,
+      "networkErrors": 2
     },
     {
       "route": "/portal/client/login",
-      "status": "ok",
-      "loadTimeMs": 575,
+      "status": "partial",
+      "loadTimeMs": 3100,
       "hasContent": true,
-      "consoleErrors": 0,
-      "networkErrors": 0
+      "consoleErrors": 1,
+      "networkErrors": 2
     },
     {
       "route": "/privacy-policy",
-      "status": "ok",
-      "loadTimeMs": 557,
+      "status": "partial",
+      "loadTimeMs": 3100,
       "hasContent": true,
-      "consoleErrors": 0,
-      "networkErrors": 0
+      "consoleErrors": 1,
+      "networkErrors": 2
     },
     {
       "route": "/terms-of-service",
-      "status": "ok",
-      "loadTimeMs": 639,
+      "status": "partial",
+      "loadTimeMs": 3104,
       "hasContent": true,
-      "consoleErrors": 0,
-      "networkErrors": 0
+      "consoleErrors": 1,
+      "networkErrors": 2
+    },
+    {
+      "route": "/",
+      "status": "partial",
+      "loadTimeMs": 3641,
+      "hasContent": true,
+      "consoleErrors": 2,
+      "networkErrors": 4
+    },
+    {
+      "route": "/?view=matters",
+      "status": "partial",
+      "loadTimeMs": 3110,
+      "hasContent": true,
+      "consoleErrors": 3,
+      "networkErrors": 6
+    },
+    {
+      "route": "/?view=properties",
+      "status": "partial",
+      "loadTimeMs": 3103,
+      "hasContent": true,
+      "consoleErrors": 4,
+      "networkErrors": 8
+    },
+    {
+      "route": "/?view=tasks",
+      "status": "partial",
+      "loadTimeMs": 3090,
+      "hasContent": true,
+      "consoleErrors": 5,
+      "networkErrors": 10
+    },
+    {
+      "route": "/?view=calendar",
+      "status": "partial",
+      "loadTimeMs": 3099,
+      "hasContent": true,
+      "consoleErrors": 6,
+      "networkErrors": 12
+    },
+    {
+      "route": "/?view=billing",
+      "status": "partial",
+      "loadTimeMs": 3116,
+      "hasContent": true,
+      "consoleErrors": 7,
+      "networkErrors": 14
+    },
+    {
+      "route": "/?view=documents",
+      "status": "partial",
+      "loadTimeMs": 3090,
+      "hasContent": true,
+      "consoleErrors": 8,
+      "networkErrors": 16
+    },
+    {
+      "route": "/?view=messaging",
+      "status": "partial",
+      "loadTimeMs": 3097,
+      "hasContent": true,
+      "consoleErrors": 9,
+      "networkErrors": 18
+    },
+    {
+      "route": "/?view=notes",
+      "status": "partial",
+      "loadTimeMs": 3098,
+      "hasContent": true,
+      "consoleErrors": 10,
+      "networkErrors": 20
+    },
+    {
+      "route": "/?view=reporting",
+      "status": "partial",
+      "loadTimeMs": 3235,
+      "hasContent": true,
+      "consoleErrors": 11,
+      "networkErrors": 22
+    },
+    {
+      "route": "/?view=settings",
+      "status": "partial",
+      "loadTimeMs": 3093,
+      "hasContent": true,
+      "consoleErrors": 12,
+      "networkErrors": 24
+    },
+    {
+      "route": "/?view=help",
+      "status": "partial",
+      "loadTimeMs": 3114,
+      "hasContent": true,
+      "consoleErrors": 13,
+      "networkErrors": 26
+    },
+    {
+      "route": "/portal/tenant",
+      "status": "partial",
+      "loadTimeMs": 4244,
+      "hasContent": true,
+      "consoleErrors": 1,
+      "networkErrors": 2
+    },
+    {
+      "route": "/portal/client",
+      "status": "partial",
+      "loadTimeMs": 3090,
+      "hasContent": true,
+      "consoleErrors": 1,
+      "networkErrors": 2
+    },
+    {
+      "route": "/gatehouse",
+      "status": "partial",
+      "loadTimeMs": 3090,
+      "hasContent": true,
+      "consoleErrors": 1,
+      "networkErrors": 2
     }
   ],
   "consoleErrors": [
     {
-      "route": "login",
+      "route": "public",
       "type": "error",
       "text": "Failed to load resource: the server responded with a status of 400 ()",
-      "timestamp": "2026-08-12T16:08:10.252Z"
+      "timestamp": "2026-08-12T16:42:46.407Z"
+    },
+    {
+      "route": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:42:49.669Z"
+    },
+    {
+      "route": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:42:52.935Z"
+    },
+    {
+      "route": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:42:56.257Z"
+    },
+    {
+      "route": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:42:59.437Z"
     },
     {
       "route": "login",
       "type": "error",
       "text": "Failed to load resource: the server responded with a status of 400 ()",
-      "timestamp": "2026-08-12T16:08:24.743Z"
+      "timestamp": "2026-08-12T16:43:03.255Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:11.397Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:11.397Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:15.157Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:15.157Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:15.157Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:18.423Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:18.423Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:18.423Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:18.423Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=documents",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=documents",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=documents",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=notes",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=documents",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=notes",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=documents",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=notes",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=settings",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "login",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=matters",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=properties",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=billing",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=documents",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=notes",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=settings",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=help",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "portal",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:55.987Z"
+    },
+    {
+      "route": "portal",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:43:59.312Z"
+    },
+    {
+      "route": "portal",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:44:02.609Z"
+    },
+    {
+      "route": "uiux",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "timestamp": "2026-08-12T16:44:09.163Z"
     }
   ],
   "networkErrors": [
     {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:46.406Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:46.407Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:49.669Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:49.670Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:52.935Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:52.935Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:56.257Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:56.257Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:59.437Z"
+    },
+    {
+      "route": "public",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:42:59.437Z"
+    },
+    {
       "route": "login",
       "url": "https://gregarious-malamute-537.convex.cloud/api/query",
       "status": 400,
       "method": "POST",
-      "timestamp": "2026-08-12T16:08:10.251Z"
+      "timestamp": "2026-08-12T16:43:03.255Z"
     },
     {
       "route": "login",
       "url": "https://gregarious-malamute-537.convex.cloud/api/query",
       "status": 0,
       "method": "POST",
-      "timestamp": "2026-08-12T16:08:10.252Z"
+      "timestamp": "2026-08-12T16:43:03.255Z"
     },
     {
       "route": "login",
       "url": "https://gregarious-malamute-537.convex.cloud/api/query",
       "status": 400,
       "method": "POST",
-      "timestamp": "2026-08-12T16:08:24.743Z"
+      "timestamp": "2026-08-12T16:43:11.397Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:11.397Z"
     },
     {
       "route": "login",
       "url": "https://gregarious-malamute-537.convex.cloud/api/query",
       "status": 0,
       "method": "POST",
-      "timestamp": "2026-08-12T16:08:24.743Z"
+      "timestamp": "2026-08-12T16:43:11.398Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:11.398Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:15.157Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:15.157Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:15.157Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:15.158Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:15.158Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:15.158Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.422Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.422Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.422Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.422Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.424Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.424Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.424Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:18.424Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:21.597Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.802Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.802Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.802Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.802Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.802Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.802Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:24.803Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.020Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:28.021Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.229Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:31.230Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:34.420Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:37.618Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.987Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:40.988Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=settings",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "/?view=settings",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:44.176Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=settings",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "/?view=help",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.393Z"
+    },
+    {
+      "route": "login",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=matters",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=properties",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=tasks",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=calendar",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=billing",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=documents",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=messaging",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=notes",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=reporting",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=settings",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "/?view=help",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:47.394Z"
+    },
+    {
+      "route": "portal",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:55.987Z"
+    },
+    {
+      "route": "portal",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:55.987Z"
+    },
+    {
+      "route": "portal",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:59.312Z"
+    },
+    {
+      "route": "portal",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:43:59.312Z"
+    },
+    {
+      "route": "portal",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:44:02.609Z"
+    },
+    {
+      "route": "portal",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:44:02.609Z"
+    },
+    {
+      "route": "uiux",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 400,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:44:09.163Z"
+    },
+    {
+      "route": "uiux",
+      "url": "https://gregarious-malamute-537.convex.cloud/api/query",
+      "status": 0,
+      "method": "POST",
+      "timestamp": "2026-08-12T16:44:09.164Z"
     }
   ],
   "uiDefects": [
     {
-      "route": "/login",
-      "component": "login-flow",
-      "issue": "Demo login failed: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button[type=\"submit\"], button:has-text(\"Sign in\"), button:has-text(\"Log in\")').first()\n    - locator resolved to <button cla"
+      "route": "/dashboard",
+      "component": "layout-overflow",
+      "issue": "Fixed/absolute element extends beyond viewport"
+    },
+    {
+      "route": "/dashboard",
+      "component": "touch-target",
+      "issue": "Clickable \"Procedural OS LogoPracticePro\" is 28px tall (min 32px)"
+    },
+    {
+      "route": "/dashboard",
+      "component": "touch-target",
+      "issue": "Clickable \"Privacy Policy\" is 16px tall (min 32px)"
+    },
+    {
+      "route": "/matters",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"matters\""
+    },
+    {
+      "route": "/tasks",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"tasks\""
+    },
+    {
+      "route": "/calendar",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"calendar\""
+    },
+    {
+      "route": "/billing",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"billing\""
+    },
+    {
+      "route": "/documents",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"documents\""
+    },
+    {
+      "route": "/messaging",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"messaging\""
+    },
+    {
+      "route": "/settings",
+      "component": "navigation",
+      "issue": "Could not find nav item for \"settings\""
     }
   ],
   "summary": {
-    "healthyRoutes": 5,
+    "healthyRoutes": 0,
     "errorRoutes": 0,
-    "totalConsoleErrors": 2,
-    "totalNetworkErrors": 4,
-    "totalUiDefects": 1
+    "totalConsoleErrors": 100,
+    "totalNetworkErrors": 200,
+    "totalUiDefects": 10
   }
 }

@@ -313,14 +313,14 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 {/* Company — always on the far right (column 4) */}
                 <div className={productChosen ? '' : 'md:col-start-4'}>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
-                    <div className="flex flex-col gap-2.5">
-                        <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Privacy Policy</span>
-                        <span onClick={onTermsClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Terms of Service</span>
-                        <span onClick={onCookieClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Cookie Policy</span>
-                        <span onClick={onUsageClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Usage Policy</span>
-                        <span onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Contact Sales</span>
-                        <a href="mailto:dpo@practicepro.ng" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Email Us</a>
-                        <span onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Security</span>
+                    <div className="flex flex-col gap-1">
+                        <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Privacy Policy</span>
+                        <span onClick={onTermsClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Terms of Service</span>
+                        <span onClick={onCookieClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Cookie Policy</span>
+                        <span onClick={onUsageClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Usage Policy</span>
+                        <span onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Contact Sales</span>
+                        <a href="mailto:dpo@practicepro.ng" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Email Us</a>
+                        <span onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Security</span>
                     </div>
                 </div>
             </div>
@@ -473,17 +473,17 @@ const HubHero: React.FC<{
                     </button>
                 </div>
 
-                {/* Auth link — single, quiet */}
+                {/* Auth link — single, quiet. Min 32px touch target. */}
                 <button
                     onClick={onLogin}
-                    className="text-sm transition-colors text-slate-500 hover:text-slate-700"
+                    className="text-sm transition-colors text-slate-500 hover:text-slate-700 min-h-[2rem] py-1"
                 >
                     Already have an account?{' '}
                     <span className="font-semibold hover:underline" style={{ color: 'var(--color-moss)' }}>Sign in →</span>
                 </button>
 
                 {/* Compliance note — quiet, bottom */}
-                <p className="text-2xs mt-10 tracking-wide text-slate-400">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
+                <p className="text-xs mt-10 tracking-wide text-slate-500">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );

@@ -16,8 +16,11 @@ const __dirname = path.dirname(__filename);
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const TARGET_URL = process.env.AUDIT_URL || 'https://practice-pro-vega.vercel.app';
-const DEMO_EMAIL = 'demo@practicepro.ng';
+// Test against local dev server (demo login only works in dev mode)
+// Use 127.0.0.1 instead of localhost (Playwright sandbox issue)
+const TARGET_URL = process.env.AUDIT_URL || 'http://127.0.0.1:5173';
+const DEMO_LOGIN_URL = `${TARGET_URL}/?impersonate=demo@practicepro.ng`;
+const ATRIUM_DEMO_LOGIN_URL = `${TARGET_URL}/?impersonate=demo@practicepro.ng&product=atrium`;
 const SCREENSHOT_DIR = path.join(__dirname, '..', 'audit-results', 'screenshots');
 const REPORT_PATH = path.join(__dirname, '..', 'audit-results', 'report.json');
 
@@ -97,7 +100,7 @@ async function runAudit() {
     },
   };
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
   try {
     // ─── Phase 1: Test public routes (no login) ──────────────────────────────
@@ -112,14 +115,18 @@ async function runAudit() {
       // ─── Phase 4: Test interactive elements (modals, accordions, forms) ─────
       await testInteractiveElements(loggedInPage, report);
 
-      // ─── Phase 5: Test portal routes ────────────────────────────────────────
-      await testPortalRoutes(browser, report);
-
+      // Close the logged-in page to free resources before opening new ones
       await loggedInPage.close();
     }
 
+    // ─── Phase 5: Test portal routes ────────────────────────────────────────
+    await testPortalRoutes(browser, report);
+
     // ─── Phase 6: Test dead-end detection (buttons without handlers) ──────────
     await testDeadEnds(browser, report);
+
+    // ─── Phase 7: UI/UX quality audit ───────────────────────────────────────
+    await testUIUXQuality(browser, report);
 
   } catch (err: any) {
     console.error('[audit] Fatal error:', err.message);
@@ -227,7 +234,20 @@ async function testRoute(
   const networkErrorCountBefore = report.networkErrors.length;
 
   try {
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+    // Wait for content to appear (up to 8 seconds)
+    await page.waitForTimeout(3000);
+
+    // Try to dismiss cookie banner if present (so it doesn't block screenshots)
+    try {
+      const cookieBtn = page.locator('button:has-text("Acknowledge")').first();
+      if (await cookieBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await cookieBtn.click();
+        await page.waitForTimeout(500);
+      }
+    } catch {}
+
     result.loadTimeMs = Date.now() - startTime;
 
     // Check if page has content (not blank)
@@ -296,51 +316,53 @@ async function testPublicRoutes(browser: any, report: AuditReport) {
 // ─── Phase 2: Test demo login ────────────────────────────────────────────────
 
 async function testDemoLogin(browser: any, report: AuditReport): Promise<Page | null> {
-  console.log('\n[audit] Phase 2: Testing demo login...');
+  console.log('\n[audit] Phase 2: Logging in via URL bypass (?impersonate=demo@practicepro.ng)...');
   const page = await browser.newPage();
   attachErrorListeners(page, 'login', report);
 
   try {
-    // Go to landing page
-    await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    // Use the URL bypass — no form interaction needed
+    await page.goto(DEMO_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000); // Give the app time to load demo data
 
-    // Look for "Try Demo" or "Login" button
-    const demoButton = await page.locator('text=Demo').first();
-    const loginButton = await page.locator('text=Sign In').first();
+    // Check if we're logged in by looking for dashboard content
+    const bodyText = await page.evaluate(() => document.body?.innerText || '');
+    const isLoggedIn = bodyText.includes('Dashboard') || bodyText.includes('Good Morning') || 
+                       bodyText.includes('Good Afternoon') || bodyText.includes('Welcome') ||
+                       bodyText.includes('Matters') || bodyText.includes('Properties');
 
-    if (await demoButton.isVisible().catch(() => false)) {
-      await demoButton.click();
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
-      console.log('  ✓ Demo login successful');
+    if (isLoggedIn) {
+      console.log('  ✓ Demo login successful via URL bypass');
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'dashboard-loaded.png'), fullPage: false });
       return page;
-    } else if (await loginButton.isVisible().catch(() => false)) {
-      await loginButton.click();
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
+    } else {
+      // Maybe the app is still loading — wait longer
+      await page.waitForTimeout(5000);
+      const bodyText2 = await page.evaluate(() => document.body?.innerText || '');
+      const isLoggedIn2 = bodyText2.length > 500;
 
-      // Fill login form
-      const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-      if (await emailInput.isVisible().catch(() => false)) {
-        await emailInput.fill(DEMO_EMAIL);
-        const submitBtn = page.locator('button[type="submit"], button:has-text("Sign in"), button:has-text("Log in")').first();
-        if (await submitBtn.isVisible().catch(() => false)) {
-          await submitBtn.click();
-          await page.waitForLoadState('networkidle', { timeout: 15000 });
-          console.log('  ✓ Login form submitted');
-          return page;
-        }
+      if (isLoggedIn2) {
+        console.log('  ✓ Demo login successful (delayed load)');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'dashboard-loaded.png'), fullPage: false });
+        return page;
       }
-    }
 
-    // If no login button found, try direct demo URL
-    await page.goto(`${TARGET_URL}/?demo=vega`, { waitUntil: 'networkidle', timeout: 30000 });
-    console.log('  ✓ Demo mode via URL param');
-    return page;
+      console.log('  ✗ Login appears to have failed — no dashboard content found');
+      report.uiDefects.push({
+        route: '/?impersonate=demo@practicepro.ng',
+        component: 'login-flow',
+        issue: 'URL bypass login did not load the dashboard. Demo mode may not be working.',
+      });
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'login-failed.png'), fullPage: true });
+      await page.close();
+      return null;
+    }
   } catch (err: any) {
     console.log(`  ✗ Login failed: ${err.message.slice(0, 100)}`);
     report.uiDefects.push({
-      route: '/login',
+      route: '/?impersonate=demo@practicepro.ng',
       component: 'login-flow',
-      issue: `Demo login failed: ${err.message.slice(0, 200)}`,
+      issue: `URL bypass login failed: ${err.message.slice(0, 200)}`,
     });
     await page.close();
     return null;
@@ -380,7 +402,7 @@ async function testInteractiveElements(page: any, report: AuditReport) {
 
   // Test: Open and close modals
   try {
-    await page.goto(`${TARGET_URL}/?view=matters`, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(`${TARGET_URL}/?view=matters`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
 
     // Look for "New Matter" button
@@ -421,7 +443,7 @@ async function testInteractiveElements(page: any, report: AuditReport) {
 
   // Test: Settings accordions
   try {
-    await page.goto(`${TARGET_URL}/?view=settings`, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(`${TARGET_URL}/?view=settings`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
 
     // Look for accordion items
@@ -472,7 +494,7 @@ async function testDeadEnds(browser: any, report: AuditReport) {
   attachErrorListeners(page, 'dead-ends', report);
 
   try {
-    await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
 
     // Find all buttons that might be dead-ends
@@ -518,6 +540,150 @@ async function testDeadEnds(browser: any, report: AuditReport) {
     console.log(`  ✓ Found ${deadEnds.length} potential dead-end buttons`);
   } catch (err: any) {
     // Non-critical
+  }
+
+  await page.close();
+}
+
+// ─── Phase 7: UI/UX Quality Audit ────────────────────────────────────────────
+
+async function testUIUXQuality(browser: any, report: AuditReport) {
+  console.log('\n[audit] Phase 7: Auditing UI/UX quality...');
+
+  const page = await browser.newPage();
+  attachErrorListeners(page, 'uiux', report);
+
+  try {
+    await page.goto(DEMO_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+
+    // ─── Check 1: Text legibility (font sizes, opacity) ─────────────────────
+    const legibilityIssues = await page.evaluate(() => {
+      const issues: { component: string; issue: string }[] = [];
+      const allElements = document.querySelectorAll('p, span, h1, h2, h3, h4, h5, h6, label, button, a, div');
+
+      for (const el of allElements) {
+        const style = window.getComputedStyle(el);
+        const fontSize = parseFloat(style.fontSize);
+
+        if (fontSize > 0 && fontSize < 12) {
+          const text = el.textContent?.trim().slice(0, 50) || '';
+          if (text) {
+            issues.push({
+              component: 'text-legibility',
+              issue: `Text "${text}" is ${fontSize}px (below 12px minimum)`,
+            });
+          }
+        }
+
+        const opacity = parseFloat(style.opacity);
+        if (opacity > 0 && opacity < 0.5 && el.textContent?.trim()) {
+          issues.push({
+            component: 'text-opacity',
+            issue: `Text "${el.textContent?.trim().slice(0, 30)}" has opacity ${opacity} (too transparent)`,
+          });
+        }
+      }
+
+      return issues.slice(0, 15);
+    });
+
+    for (const issue of legibilityIssues) {
+      report.uiDefects.push({ route: '/dashboard', ...issue });
+    }
+    console.log(`  ✓ Found ${legibilityIssues.length} text legibility issues`);
+
+    // ─── Check 2: Layout overflow ───────────────────────────────────────────
+    const overlapIssues = await page.evaluate(() => {
+      const issues: { component: string; issue: string }[] = [];
+      const fixedElements = Array.from(document.querySelectorAll('[class*="fixed"], [class*="sticky"], [class*="absolute"]'));
+
+      for (const el of fixedElements) {
+        const rect = el.getBoundingClientRect();
+        if (rect.right > window.innerWidth + 10 || rect.bottom > window.innerHeight + 10) {
+          issues.push({
+            component: 'layout-overflow',
+            issue: `Fixed/absolute element extends beyond viewport`,
+          });
+        }
+      }
+
+      return issues.slice(0, 10);
+    });
+
+    for (const issue of overlapIssues) {
+      report.uiDefects.push({ route: '/dashboard', ...issue });
+    }
+    console.log(`  ✓ Found ${overlapIssues.length} layout overflow issues`);
+
+    // ─── Check 3: Touch target sizes ────────────────────────────────────────
+    const touchTargetIssues = await page.evaluate(() => {
+      const issues: { component: string; issue: string }[] = [];
+      const clickables = document.querySelectorAll('button, a, [role="button"], [onclick]');
+
+      for (const el of clickables) {
+        const rect = el.getBoundingClientRect();
+        const text = el.textContent?.trim().slice(0, 30) || '';
+        if (rect.height > 0 && rect.height < 32 && text) {
+          issues.push({
+            component: 'touch-target',
+            issue: `Clickable "${text}" is ${rect.height}px tall (min 32px)`,
+          });
+        }
+      }
+
+      return issues.slice(0, 10);
+    });
+
+    for (const issue of touchTargetIssues) {
+      report.uiDefects.push({ route: '/dashboard', ...issue });
+    }
+    console.log(`  ✓ Found ${touchTargetIssues.length} touch target issues`);
+
+    // ─── Check 4: Navigate to key routes and screenshot ─────────────────────
+    const routes = [
+      { name: 'matters', navText: ['Matters', 'Cases'] },
+      { name: 'properties', navText: ['Properties', 'Portfolio'] },
+      { name: 'tasks', navText: ['Tasks'] },
+      { name: 'calendar', navText: ['Calendar'] },
+      { name: 'billing', navText: ['Billing', 'Finance'] },
+      { name: 'documents', navText: ['Documents'] },
+      { name: 'messaging', navText: ['Messages', 'Inbox'] },
+      { name: 'settings', navText: ['Settings'] },
+    ];
+
+    for (const route of routes) {
+      try {
+        let found = false;
+        for (const text of route.navText) {
+          const navItem = page.locator(`nav button:has-text("${text}"), nav a:has-text("${text}"), [role="tab"]:has-text("${text}"), button:has-text("${text}")`).first();
+          if (await navItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await navItem.click();
+            await page.waitForTimeout(2000);
+            await page.screenshot({ path: path.join(SCREENSHOT_DIR, `route-${route.name}.png`), fullPage: false });
+            found = true;
+            console.log(`  ✓ Navigated to ${route.name}`);
+            break;
+          }
+        }
+        if (!found) {
+          report.uiDefects.push({
+            route: `/${route.name}`,
+            component: 'navigation',
+            issue: `Could not find nav item for "${route.name}"`,
+          });
+        }
+      } catch (err: any) {
+        // Non-critical
+      }
+    }
+
+  } catch (err: any) {
+    report.uiDefects.push({
+      route: '/uiux',
+      component: 'uiux-audit',
+      issue: `UI/UX audit error: ${err.message.slice(0, 200)}`,
+    });
   }
 
   await page.close();

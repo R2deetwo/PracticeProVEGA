@@ -181,6 +181,27 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
     };
 
     // ─── Render ─────────────────────────────────────────────────────────
+
+    // If no firmId provided, show a setup message
+    if (!firmId) {
+        return (
+            <div className="min-h-[100dvh] bg-slate-100 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-4">
+                    <GateIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Gatehouse Terminal</h1>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md mb-4">
+                    This terminal verifies visitor access codes. To activate it,
+                    your property manager needs to provide the gatehouse URL with
+                    a firm identifier.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-zinc-500">
+                    The URL should look like: <code className="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded">/gatehouse?firmId=YOUR_FIRM_ID</code>
+                </p>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-[100dvh] bg-slate-100 dark:bg-zinc-950 flex flex-col">
             {/* Header */}

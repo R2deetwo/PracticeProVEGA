@@ -7,7 +7,12 @@ const CookieConsent: React.FC = () => {
     useEffect(() => {
         const consent = localStorage.getItem('practicepro_cookie_consent');
         if (!consent) {
-            setIsVisible(true);
+            // DELAY the cookie banner by 2.5 seconds so the app content
+            // loads first. Previously the banner appeared immediately on
+            // page load, making the app look broken (blank page with only
+            // a cookie banner visible).
+            const timer = setTimeout(() => setIsVisible(true), 2500);
+            return () => clearTimeout(timer);
         }
     }, []);
 
@@ -19,15 +24,15 @@ const CookieConsent: React.FC = () => {
     if (!isVisible) return null;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-slate-800 text-white z-[9999] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xl animate-slide-up">
-            <div className="flex-1 text-sm text-slate-300 max-w-5xl mx-auto">
-                <strong className="text-white text-base">We Value Your Privacy</strong><br />
-                We use cookies and similar technologies to enhance your experience, analyze usage, and support our operations in accordance with the NDPA 2023. By continuing to use our platform, you agree to our <button onClick={() => openLegalDocument('privacy')} className="text-primary-400 hover:text-primary-300 underline font-medium">Privacy Policy</button>.
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-700 text-white z-[9999] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl animate-slide-up">
+            <div className="flex-1 text-xs text-slate-300 max-w-5xl mx-auto pl-4">
+                We use cookies to enhance your experience and analyze usage in accordance with the NDPA 2023.{' '}
+                <button onClick={() => openLegalDocument('privacy')} className="text-primary-400 hover:text-primary-300 underline font-medium">Privacy Policy</button>
             </div>
             <div className="flex gap-3 w-full sm:w-auto shrink-0 pr-4">
-                <button 
-                    onClick={handleAccept} 
-                    className="flex-1 sm:flex-none px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-lg transition-colors shadow-lg"
+                <button
+                    onClick={handleAccept}
+                    className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg"
                 >
                     Acknowledge
                 </button>
