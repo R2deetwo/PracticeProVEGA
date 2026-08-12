@@ -2123,3 +2123,240 @@ export const getSecurityEventsForAdmin = query({
     }));
   },
 });
+
+/**
+ * query: getAloaUsageStats
+ *
+ * PRIVACY-SAFE ALOA usage analytics for the founder app.
+ *
+ * Returns AGGREGATE COUNTS ONLY — never returns message content,
+ * tool results, or error details. The founder can see:
+ *   - Total AI messages across the platform (today/7d/30d)
+ *   - Per-firm breakdown (message count, conversation count, error rate,
+ *     last activity timestamp, top tool actions, models used)
+ *   - Platform-wide tool-action distribution
+ *   - Platform-wide error rate
+ *
+ * This fixes the issue where ALOA usage was completely invisible to the
+ * founder after the privacy lockdown. The lockdown correctly stopped
+ * exposing message CONTENT — but it also accidentally blocked all
+ * aggregate usage stats. This query restores visibility without
+ * compromising privacy.
+ */
+export const getAloaUsageStats = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    // Fetch all ALOA messages (indexed by firm)
+    // We take a large batch to aggregate — this is fine for a few thousand messages
+    const allMessages = await ctx.db
+      .query("aloaMessages")
+      .order("desc")
+      .take(5000);
+
+    // Fetch all ALOA conversations for conversation counts
+    const allConversations = await ctx.db
+      .query("aloaConversations")
+      .take(2000);
+
+    // ─── Platform-wide stats ──────────────────────────────────────────────
+    const totalMessages = allMessages.length;
+    const messagesToday = allMessages.filter((m: any) => m.createdAt > oneDayAgo).length;
+    const messages7d = allMessages.filter((m: any) => m.createdAt > sevenDaysAgo).length;
+    const messages30d = allMessages.filter((m: any) => m.createdAt > thirtyDaysAgo).length;
+    const errorCount = allMessages.filter((m: any) => m.isError).length;
+    const errorRate = totalMessages > 0 ? (errorCount / totalMessages) * 100 : 0;
+
+    // Tool action distribution (aggregate, no content)
+    const toolActionCounts: Record<string, number> = {};
+    for (const msg of allMessages) {
+      if (msg.toolAction) {
+        toolActionCounts[msg.toolAction] = (toolActionCounts[msg.toolAction] || 0) + 1;
+      }
+    }
+
+    // Model distribution
+    const modelCounts: Record<string, number> = {};
+    for (const msg of allMessages) {
+      if (msg.modelUsed) {
+        modelCounts[msg.modelUsed] = (modelCounts[msg.modelUsed] || 0) + 1;
+      }
+    }
+
+    // ─── Per-firm breakdown ───────────────────────────────────────────────
+    const firmStatsMap: Record<string, {
+      firmId: string;
+      messageCount: number;
+      conversationCount: number;
+      errorCount: number;
+      lastActivity: number;
+      toolActions: Record<string, number>;
+    }> = {};
+
+    // Aggregate messages by firm
+    for (const msg of allMessages) {
+      const firmId = msg.firmId || 'unknown';
+      if (!firmStatsMap[firmId]) {
+        firmStatsMap[firmId] = {
+          firmId,
+          messageCount: 0,
+          conversationCount: 0,
+          errorCount: 0,
+          lastActivity: 0,
+          toolActions: {},
+        };
+      }
+      firmStatsMap[firmId].messageCount++;
+      if (msg.isError) firmStatsMap[firmId].errorCount++;
+      if (msg.createdAt > firmStatsMap[firmId].lastActivity) {
+        firmStatsMap[firmId].lastActivity = msg.createdAt;
+      }
+      if (msg.toolAction) {
+        firmStatsMap[firmId].toolActions[msg.toolAction] =
+          (firmStatsMap[firmId].toolActions[msg.toolAction] || 0) + 1;
+      }
+    }
+
+    // Aggregate conversations by firm
+    for (const conv of allConversations) {
+      const firmId = conv.firmId || 'unknown';
+      if (!firmStatsMap[firmId]) {
+        firmStatsMap[firmId] = {
+          firmId,
+          messageCount: 0,
+          conversationCount: 0,
+          errorCount: 0,
+          lastActivity: 0,
+          toolActions: {},
+        };
+      }
+      firmStatsMap[firmId].conversationCount++;
+    }
+
+    // Fetch firm names for display
+    const firmIds = Object.keys(firmStatsMap).filter(id => id !== 'unknown');
+    const firmNames: Record<string, { name: string; product: string }> = {};
+    for (const firmId of firmIds) {
+      try {
+        const firm = await ctx.db.get(firmId as any);
+        if (firm) {
+          firmNames[firmId] = {
+            name: (firm as any).name || 'Unknown Firm',
+            product: (firm as any).product || 'vega',
+          };
+        }
+      } catch {}
+    }
+
+    // Build per-firm array (sorted by message count desc)
+    const perFirm = Object.values(firmStatsMap)
+      .map(stat => ({
+        firmId: stat.firmId,
+        firmName: firmNames[stat.firmId]?.name || 'Unknown Firm',
+        product: firmNames[stat.firmId]?.product || 'unknown',
+        messageCount: stat.messageCount,
+        conversationCount: stat.conversationCount,
+        errorCount: stat.errorCount,
+        errorRate: stat.messageCount > 0 ? (stat.errorCount / stat.messageCount) * 100 : 0,
+        lastActivity: stat.lastActivity,
+        lastActivityAgo: stat.lastActivity > 0 ? Math.round((now - stat.lastActivity) / 1000 / 60) : null, // minutes ago
+        topToolActions: Object.entries(stat.toolActions)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([action, count]) => ({ action, count })),
+      }))
+      .sort((a, b) => b.messageCount - a.messageCount);
+
+    // Active AI firms (used ALOA in last 7 days)
+    const activeAiFirms = perFirm.filter(f => f.lastActivity > sevenDaysAgo).length;
+
+    return {
+      platform: {
+        totalMessages,
+        messagesToday,
+        messages7d,
+        messages30d,
+        totalConversations: allConversations.length,
+        errorCount,
+        errorRate: Math.round(errorRate * 100) / 100,
+        activeAiFirms,
+        totalAiFirms: perFirm.length,
+      },
+      toolActionDistribution: Object.entries(toolActionCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([action, count]) => ({ action, count })),
+      modelDistribution: Object.entries(modelCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([model, count]) => ({ model, count })),
+      perFirm: perFirm.slice(0, 50), // Top 50 firms by usage
+    };
+  },
+});
+
+/**
+ * query: getVisitorAnalytics
+ *
+ * Landing page visitor tracking for the founder app.
+ * Tracks visits to public routes (/, /privacy-policy, /terms-of-service,
+ * /portal/*/login) so the founder can see landing page effectiveness.
+ *
+ * Data is collected from analytics_events with event='page_view' that
+ * originate from unauthenticated routes.
+ */
+export const getVisitorAnalytics = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounder(ctx, args.tokenIdentifier);
+
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    // Fetch recent page view events
+    const pageViews = await ctx.db
+      .query("analytics_events")
+      .filter((q: any) => q.eq(q.field("event"), "page_view"))
+      .order("desc")
+      .take(5000);
+
+    const viewsToday = pageViews.filter((e: any) => e.timestamp > oneDayAgo).length;
+    const views7d = pageViews.filter((e: any) => e.timestamp > sevenDaysAgo).length;
+    const views30d = pageViews.filter((e: any) => e.timestamp > thirtyDaysAgo).length;
+
+    // Route breakdown
+    const routeCounts: Record<string, number> = {};
+    for (const view of pageViews) {
+      const route = view.properties?.route || '/';
+      routeCounts[route] = (routeCounts[route] || 0) + 1;
+    }
+
+    // Unique visitors (by IP or session ID if available)
+    const uniqueIps = new Set(pageViews.map((e: any) => e.properties?.ip || 'unknown'));
+
+    // Portal login attempts (interest signal)
+    const portalLogins = pageViews.filter((e: any) =>
+      e.properties?.route?.includes('/portal/') && e.properties?.route?.includes('/login')
+    ).length;
+
+    return {
+      totalViews: pageViews.length,
+      viewsToday,
+      views7d,
+      views30d,
+      uniqueVisitors: uniqueIps.size,
+      portalLoginViews: portalLogins,
+      routeBreakdown: Object.entries(routeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([route, count]) => ({ route, count }))
+        .slice(0, 10),
+      conversionSignal: portalLogins > 0 ? Math.round((portalLogins / pageViews.length) * 100) : 0,
+    };
+  },
+});

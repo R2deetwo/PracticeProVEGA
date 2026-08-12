@@ -580,6 +580,34 @@ export const App: React.FC = () => {
     const ui = useUI();
     const { isSessionLocked, setIsSessionLocked } = ui;
 
+    // ─── Visitor Analytics: Track page views on public routes ──────────────
+    // Fires a page_view analytics event when unauthenticated users visit
+    // public routes (landing, login, legal docs). This data feeds the
+    // founder's visitor analytics dashboard so they can see landing page
+    // effectiveness and conversion signals.
+    const trackPageView = React.useCallback((pathname: string) => {
+        try {
+            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
+            if (!publicPaths.includes(pathname)) return;
+            // Fire-and-forget — don't block on analytics
+            fetch(`${import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'}/api/mutation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: 'analytics:trackEvent',
+                    args: {
+                        event: 'page_view',
+                        properties: { route: pathname, referrer: document.referrer || 'direct' },
+                    },
+                }),
+            }).catch(() => {}); // Silent fail — analytics should never break the app
+        } catch {}
+    }, []);
+
+    React.useEffect(() => {
+        trackPageView(location.pathname);
+    }, [location.pathname, trackPageView]);
+
     const hasSavedSession = React.useMemo(() => {
         try {
             // ─── DraftPro tab bypass ────────────────────────────────────
