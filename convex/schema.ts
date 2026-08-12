@@ -1811,4 +1811,45 @@ export default defineSchema({
     suspendedAt: v.number(),
   }).index("by_user", ["userId"]),
 
+  // ─── Push Notification Tokens ──────────────────────────────────────────
+  // Each user can have multiple device tokens (phone, tablet, etc.).
+  // Used by sendPushNotification to dispatch FCM notifications.
+  user_push_tokens: defineTable({
+    userId: v.string(),
+    firmId: nullableString,
+    token: v.string(),              // FCM device token
+    deviceType: v.string(),         // 'android' | 'ios' | 'web'
+    deviceName: nullableString,     // Optional: "Samsung S23" etc.
+    isActive: v.boolean(),          // Set to false when token is revoked
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_token", ["token"])
+    .index("by_firm", ["firmId"])
+    .index("by_user_active", ["userId", "isActive"]),
+
+  // ─── In-App Notification Center ─────────────────────────────────────────
+  // Persistent notification entries shown in the in-app notification center.
+  // Unlike the existing `notifications` table (which is ephemeral bell badges),
+  // these persist and can be tapped to trigger actions (e.g., APK download).
+  app_notifications: defineTable({
+    userId: v.string(),
+    firmId: nullableString,
+    title: v.string(),
+    body: v.string(),
+    type: v.string(),               // 'app_update' | 'broadcast' | 'system' | 'security'
+    priority: v.string(),           // 'low' | 'normal' | 'high'
+    actionType: nullableString,     // 'apk_download' | 'navigate' | 'dismiss' | 'external_url'
+    actionUrl: nullableString,      // URL for apk_download or external_url
+    actionData: v.optional(v.any()), // Optional data payload for navigate
+    isRead: v.boolean(),
+    readAt: nullableNumber,
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_read", ["userId", "isRead"])
+    .index("by_firm", ["firmId"])
+    .index("by_created", ["createdAt"]),
+
 }, { schemaValidation: false });

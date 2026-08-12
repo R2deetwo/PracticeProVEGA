@@ -81,6 +81,7 @@ import { NotesView } from './NotesView';
 import HelpView from './HelpView';
 import ArchiveView from './ArchiveView';
 import SecurityAccessView from './SecurityAccessView';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import ModalManager from './modals/ModalManager';
 import { DockedModal } from './modals/DockedModal';
 import { MatterDetailView } from './details/MatterDetailView';
@@ -579,6 +580,11 @@ export const App: React.FC = () => {
     const { startTour } = useOnboarding();
     const ui = useUI();
     const { isSessionLocked, setIsSessionLocked } = ui;
+
+    // ─── Push Notifications: Register device on native platform ────────────
+    // Registers the device with FCM on app boot (if native + logged in).
+    // Requires google-services.json in android/app/ and FCM_SERVER_KEY in Convex.
+    usePushNotifications(currentUser?.id, currentUser?.firmId);
 
     // ─── Visitor Analytics: Track page views on public routes ──────────────
     // Fires a page_view analytics event when unauthenticated users visit
