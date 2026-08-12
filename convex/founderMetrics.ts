@@ -2303,8 +2303,8 @@ export const getAloaUsageStats = query({
  * query: getVisitorAnalytics
  *
  * Landing page visitor tracking for the founder app.
- * Tracks visits to public routes (/, /privacy-policy, /terms-of-service,
- * /portal/*/login) so the founder can see landing page effectiveness.
+ * Tracks visits to public routes (landing, privacy, terms, portal logins)
+ * so the founder can see landing page effectiveness.
  *
  * Data is collected from analytics_events with event='page_view' that
  * originate from unauthenticated routes.

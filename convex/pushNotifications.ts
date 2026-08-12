@@ -22,7 +22,7 @@
  *     5. Set FCM_SERVER_KEY in Convex env
  */
 
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -221,7 +221,7 @@ export const notifyAppUpdate = mutation({
 
     if (tokens.length > 0) {
       // Fire the push notification via internal action (async — don't block)
-      ctx.scheduler.runAfter(0, internal.pushNotifications.sendFcmPush, {
+      ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
         tokens,
         title: `New App Update Available (v${args.version})`,
         body: args.releaseNotes || "A new performance update is ready. Tap to download.",
@@ -241,110 +241,11 @@ export const notifyAppUpdate = mutation({
   },
 });
 
-// ─── FCM Dispatch (Internal Action) ──────────────────────────────────────────
-
-/**
- * sendFcmPush — Internal action that sends FCM push notifications.
- *
- * Uses either:
- *   - FCM_SERVER_KEY (legacy server key, simpler)
- *   - FIREBASE_SERVICE_ACCOUNT_JSON (service account, recommended)
- *
- * Falls back gracefully if neither is configured — the in-app notification
- * center still works, just no OS tray notification.
- */
-export const sendFcmPush = internalAction({
-  args: {
-    tokens: v.array(v.string()),
-    title: v.string(),
-    body: v.string(),
-    data: v.optional(v.any()),
-  },
-  handler: async (ctx, args) => {
-    if (args.tokens.length === 0) return { success: true, sent: 0 };
-
-    const serverKey = process.env.FCM_SERVER_KEY;
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-
-    // If no Firebase credentials configured, skip silently
-    // (in-app notifications still work — just no OS tray notification)
-    if (!serverKey && !serviceAccountJson) {
-      console.log("[push] FCM not configured — skipping OS tray notification (in-app notification still created)");
-      return { success: true, sent: 0, reason: "FCM_NOT_CONFIGURED" };
-    }
-
-    try {
-      // Method 1: Legacy server key (HTTP v1 API via fetch)
-      if (serverKey) {
-        const response = await fetch("https://fcm.googleapis.com/fcm/send", {
-          method: "POST",
-          headers: {
-            "Authorization": `key=${serverKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            registration_ids: args.tokens,
-            notification: {
-              title: args.title,
-              body: args.body,
-              sound: "default",
-              click_action: "FCM_PLUGIN_ACTIVITY",
-              icon: "ic_launcher",
-            },
-            data: args.data || {},
-            priority: "high",
-          }),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`[push] FCM sent: ${result.success || 0} success, ${result.failure || 0} failure`);
-          return { success: true, sent: result.success || 0, failed: result.failure || 0 };
-        } else {
-          const errText = await response.text();
-          console.error("[push] FCM error:", response.status, errText);
-          return { success: false, error: `FCM ${response.status}: ${errText}` };
-        }
-      }
-
-      // Method 2: Service account (firebase-admin SDK)
-      if (serviceAccountJson) {
-        // Dynamic import so firebase-admin doesn't crash if not installed
-        const admin = await import('firebase-admin');
-        const serviceAccount = JSON.parse(serviceAccountJson);
-
-        if (!admin.apps.length) {
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-          });
-        }
-
-        const message = {
-          notification: { title: args.title, body: args.body },
-          data: args.data || {},
-          tokens: args.tokens,
-          android: {
-            priority: "high" as const,
-            notification: {
-              sound: "default",
-              icon: "ic_launcher",
-              clickAction: "FCM_PLUGIN_ACTIVITY",
-            },
-          },
-        };
-
-        const response = await admin.messaging().sendEachForMulticast(message as any);
-        console.log(`[push] FCM sent: ${response.successCount} success, ${response.failureCount} failure`);
-        return { success: true, sent: response.successCount, failed: response.failureCount };
-      }
-    } catch (err: any) {
-      console.error("[push] FCM dispatch error:", err.message);
-      return { success: false, error: err.message };
-    }
-
-    return { success: false, reason: "NO_METHOD_AVAILABLE" };
-  },
-});
+// ─── FCM Dispatch ────────────────────────────────────────────────────────────
+// The sendFcmPush internal action lives in pushNotificationsNode.ts because
+// firebase-admin requires the Node.js runtime ("use node" directive).
+// Convex's default runtime doesn't support Node.js APIs like Buffer/crypto.
+// The scheduler calls internal.pushNotificationsNode.sendFcmPush from here.
 
 // ─── General Purpose: Send to specific users ────────────────────────────────
 
@@ -393,7 +294,7 @@ export const sendToUsers = mutation({
     }
 
     if (tokens.length > 0) {
-      ctx.scheduler.runAfter(0, internal.pushNotifications.sendFcmPush, {
+      ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
         tokens,
         title: args.title,
         body: args.body,

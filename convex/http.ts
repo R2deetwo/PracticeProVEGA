@@ -192,25 +192,13 @@ http.route({
         knownDeadEnds: [],
       };
     } else if (queryType === "data_health") {
-      // Check for common data issues
-      try {
-        const allUsers = await ctx.db.query("users").take(100);
-        const usersWithoutFirm = allUsers.filter((u: any) => !u.firmId).length;
-        const portalUsersWithFirm = allUsers.filter((u: any) =>
-          (u.role === "Tenant" || u.role === "Client") && u.firmId
-        ).length;
-
-        result = {
-          totalUsers: allUsers.length,
-          usersWithoutFirm,
-          portalUsersWithFirm,
-          issues: [
-            ...(usersWithoutFirm > 0 ? [{ severity: "warning", issue: `${usersWithoutFirm} users missing firmId` }] : []),
-          ],
-        };
-      } catch (err: any) {
-        result = { error: `Data health check failed: ${err.message}` };
-      }
+      // Note: httpAction doesn't have ctx.db access for queries.
+      // Data health checks are done via the Playwright crawler + Convex queries
+      // in the founder app instead.
+      result = {
+        message: "Data health checks require Convex query context. Use the founder app's Analytics view or the Playwright crawler for data health auditing.",
+        availableChecks: ["users_without_firm", "portal_users_with_firm", "orphaned_records"],
+      };
     } else {
       result = { error: `Unknown query_type: ${queryType}. Valid: routes, schema_audit, dead_ends, data_health` };
     }
