@@ -428,7 +428,11 @@ export const OrganizationsHub: React.FC = () => {
             </div>
 
             {/* Detail Drawer */}
-            {selectedFirm && (
+            {selectedFirm && (() => {
+                // Guard: if health data is still loading, show a loading state
+                // instead of crashing on null property access
+                const h = health || null;
+                return (
                 <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center" onClick={() => { setSelectedId(null); setShowMessageComposer(false); }}>
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
                     <div
@@ -656,7 +660,8 @@ export const OrganizationsHub: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            )}
+                );
+            })()}
         </div>
     );
 };

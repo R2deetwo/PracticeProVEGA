@@ -51,7 +51,7 @@ const TargetTracker: React.FC<{ current: number, target: number }> = ({ current,
 
     return (
         <div className="bg-slate-50 dark:bg-zinc-700/30 rounded-lg p-6 border border-slate-100 dark:border-zinc-700/50 relative overflow-hidden">
-            {percentage >= 100 && <div className="absolute top-0 right-0 p-2"><span className="text-2xl">🎉</span></div>}
+            {percentage >= 100 && <div className="absolute top-0 right-0 p-2"></div>}
             <div className="flex justify-between items-end mb-2 relative z-10">
                 <div>
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Monthly Revenue Goal</h4>

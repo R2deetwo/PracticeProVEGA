@@ -33,16 +33,16 @@ type Theme = 'info' | 'success' | 'warning' | 'urgent';
 type PersistenceMode = 'permanent' | 'session' | 'persistent';
 
 const PERSISTENCE_LABELS: Record<PersistenceMode, { label: string; description: string; icon: string }> = {
-    permanent:  { label: 'Dismiss Permanently', description: 'Once dismissed, never shows again. Ideal for one-off announcements or compliance acknowledgments.', icon: '🔒' },
-    session:    { label: 'Dismiss for Session', description: 'Hidden until logout. Reappears on next login until expired.', icon: '⏱️' },
-    persistent: { label: 'Non-Dismissible',     description: 'No X button. Stays pinned until you archive it from the Control Center.', icon: '📌' },
+    permanent:  { label: 'Dismiss Permanently', description: 'Once dismissed, never shows again. Ideal for one-off announcements or compliance acknowledgments.', icon: 'Lock' },
+    session:    { label: 'Dismiss for Session', description: 'Hidden until logout. Reappears on next login until expired.', icon: 'Clock' },
+    persistent: { label: 'Non-Dismissible',     description: 'No X button. Stays pinned until you archive it from the Control Center.', icon: 'Pin' },
 };
 
 const THEME_STYLES: Record<Theme, { label: string; color: string; bg: string; border: string; emoji: string }> = {
-    info:    { label: 'Info / Announcement', color: 'text-blue-600',     bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-300 dark:border-blue-700',     emoji: '🔵' },
-    success: { label: 'Success / Milestone', color: 'text-emerald-600',  bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-300 dark:border-emerald-700', emoji: '🟢' },
-    warning: { label: 'Warning',             color: 'text-amber-600',    bg: 'bg-amber-50 dark:bg-amber-900/20',   border: 'border-amber-300 dark:border-amber-700',   emoji: '🟡' },
-    urgent:  { label: 'Urgent Alert',        color: 'text-red-600',      bg: 'bg-red-50 dark:bg-red-900/20',       border: 'border-red-300 dark:border-red-700',       emoji: '🔴' },
+    info:    { label: 'Info / Announcement', color: 'text-blue-600',     bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-300 dark:border-blue-700',     emoji: '' },
+    success: { label: 'Success / Milestone', color: 'text-emerald-600',  bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-300 dark:border-emerald-700', emoji: '' },
+    warning: { label: 'Warning',             color: 'text-amber-600',    bg: 'bg-amber-50 dark:bg-amber-900/20',   border: 'border-amber-300 dark:border-amber-700',   emoji: '' },
+    urgent:  { label: 'Urgent Alert',        color: 'text-red-600',      bg: 'bg-red-50 dark:bg-red-900/20',       border: 'border-red-300 dark:border-red-700',       emoji: '' },
 };
 
 const TARGET_LABELS: Record<Target, string> = {
@@ -293,7 +293,7 @@ export const BroadcastConsole: React.FC = () => {
                                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedBannerId(isExpanded ? null : banner.broadcastId)}>
                                                 <div className="flex items-center gap-1.5 mb-1">
                                                     <span className={`px-1.5 py-0.5 rounded text-3xs font-bold ${tc.badge}`}>
-                                                        {themeKey === 'info' ? '🔵 Info' : themeKey === 'success' ? '🟢 Success' : themeKey === 'warning' ? '🟡 Warning' : themeKey === 'urgent' ? '🔴 Urgent' : themeKey}
+                                                        {themeKey === 'info' ? 'Info' : themeKey === 'success' ? 'Success' : themeKey === 'warning' ? 'Warning' : themeKey === 'urgent' ? 'Urgent' : themeKey}
                                                     </span>
                                                     <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate flex-1">{banner.title}</p>
                                                 </div>
@@ -500,10 +500,10 @@ export const BroadcastConsole: React.FC = () => {
                                 className="w-full h-10 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-600 dark:text-slate-400 focus:ring-1 focus:ring-primary-500 cursor-pointer"
                                 defaultValue=""
                             >
-                                <option value="" disabled>📋 Load Template...</option>
-                                <option value="maintenance">🔧 Scheduled System Maintenance</option>
-                                <option value="feature">✨ Platform Feature Update</option>
-                                <option value="holiday">📅 Holiday / Office Hours Notice</option>
+                                <option value="" disabled>Load Template...</option>
+                                <option value="maintenance">Scheduled System Maintenance</option>
+                                <option value="feature">Platform Feature Update</option>
+                                <option value="holiday">Holiday / Office Hours Notice</option>
                             </select>
                         </div>
                     </div>

@@ -462,7 +462,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             defaultValue=""
                             title="Insert a template"
                         >
-                            <option value="">📋 Template</option>
+                            <option value="">Template</option>
                             <option value="meeting">Meeting Notes</option>
                             <option value="matter_summary">Matter Summary</option>
                             <option value="property_inspection">Property Inspection</option>

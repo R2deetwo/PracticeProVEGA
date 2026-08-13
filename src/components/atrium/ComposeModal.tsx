@@ -822,7 +822,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                               : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                         }`}
                       >
-                        {ch === 'in-app' ? '💬 In-App' : ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '🏠 Portal'}
+                        {ch === 'in-app' ? 'In-App' : ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : 'Portal'}
                         {channelDisabled && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
                       </button>
                     );

@@ -125,7 +125,7 @@ const TypeRow: React.FC<{
   return (
     <div className={`rounded-lg border ${isActive ? 'border-slate-200 dark:border-zinc-700' : 'border-slate-200 dark:border-zinc-700 opacity-60'} bg-white dark:bg-zinc-900 overflow-hidden`}>
       <div className="flex items-center gap-3 p-3">
-        <span className="text-2xl flex-shrink-0 w-10 text-center">{icon || '📋'}</span>
+        <span className="text-2xl flex-shrink-0 w-10 text-center">{icon || 'FileText'}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{label}</p>
@@ -275,7 +275,7 @@ const NewTypeForm: React.FC<{
   const { addToast } = useUI();
   const [isOpen, setIsOpen] = useState(false);
   const [label, setLabel] = useState('');
-  const [icon, setIcon] = useState('📋');
+  const [icon, setIcon] = useState('FileText');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(portalType === 'resident' ? 'maintenance' : 'legal');
   const [defaultPriority, setDefaultPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
@@ -286,7 +286,7 @@ const NewTypeForm: React.FC<{
 
   const reset = () => {
     setLabel('');
-    setIcon('📋');
+    setIcon('FileText');
     setDescription('');
     setCategory(portalType === 'resident' ? 'maintenance' : 'legal');
     setDefaultPriority('medium');
@@ -474,7 +474,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
   };
 
   const portalLabel = portalType === 'resident' ? 'Resident' : 'Client';
-  const portalIcon = portalType === 'resident' ? '🏠' : '⚖️';
+  const portalIcon = portalType === 'resident' ? 'Home' : 'Scale';
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
@@ -502,7 +502,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
           <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
             {(allTypes || []).filter((t: any) => t.isActive !== false).slice(0, 3).map((t: any) => (
               <span key={t._id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
-                <span>{t.icon || '📋'}</span>
+                <span>{t.icon || 'FileText'}</span>
                 {t.label}
               </span>
             ))}

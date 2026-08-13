@@ -216,7 +216,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
       <ZapIcon className="w-8 h-8 text-blue-600" />
      </div>
-     <h3 className="text-xl font-bold text-slate-900 ">Almost done! 🎉</h3>
+     <h3 className="text-xl font-bold text-slate-900 ">Almost there!</h3>
      <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
       Your new account is ready. Fill in a few details and we'll restore your previous workspace to this account.
      </p>
