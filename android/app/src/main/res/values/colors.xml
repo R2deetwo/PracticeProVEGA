@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PracticePro brand colors for the Android native theme.
+
+  These colors are referenced by styles.xml (AppTheme). Without this file,
+  AAPT2 (the Android resource compiler) would fail with:
+    "resource color/colorPrimary (aka com.practicepro.app:color/colorPrimary) not found."
+
+  The values match the PracticePro brand identity:
+    - colorPrimary: Emerald green (#10b981) — the brand accent
+    - colorPrimaryDark: Darker emerald for the status bar
+    - colorAccent: Same emerald for accent controls
+
+  These are OVERRIDES for Theme.AppCompat.Light.DarkActionBar. The launch
+  theme (AppTheme.NoActionBarLaunch) extends Theme.SplashScreen and uses
+  the splash drawable directly — it does not reference these colors.
+
+  NOTE: ic_launcher_background is defined in ic_launcher_background.xml —
+  do NOT duplicate it here or AAPT2 will fail with a duplicate resource error.
+-->
+<resources>
+    <color name="colorPrimary">#10b981</color>
+    <color name="colorPrimaryDark">#047857</color>
+    <color name="colorAccent">#10b981</color>
+</resources>
