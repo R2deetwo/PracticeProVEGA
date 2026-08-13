@@ -323,27 +323,28 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                             <option value="">Select Category</option>
                                             <option value="Client">Client</option>
                                             <option value="Vendor">Vendor</option>
-                                            {/* Legal categories — shown for Vega AND Komplete (hasLegalFeatures).
-                                                Previously this only checked 'legal' || 'vega' and missed 'unified',
-                                                so Komplete firms never saw Court Staff / Opposing Counsel / etc. */}
+                                            {/* Legal categories — shown for Vega AND Komplete (hasLegalFeatures). */}
                                             {hasLegalFeatures && (
                                                 <>
+                                                    <option value="Client">Client</option>
+                                                    <option value="Registrar">Registrar</option>
+                                                    <option value="Bailiff">Bailiff</option>
+                                                    <option value="Lawyer">Lawyer</option>
+                                                    <option value="Witness">Witness</option>
                                                     <option value="Court Staff">Court Staff</option>
                                                     <option value="Opposing Counsel">Opposing Counsel</option>
-                                                    <option value="Judiciary">Judiciary</option>
                                                     <option value="Advocate">Advocate</option>
                                                 </>
                                             )}
-                                            {/* Property categories — shown for Atrium AND Komplete (hasPropertyFeatures).
-                                                For Komplete firms, BOTH legal and property categories appear,
-                                                so a firm can categorize a contact as either 'Client' (legal)
-                                                or 'Landlord'/'Tenant' (property). */}
+                                            {/* Property categories — shown for Atrium AND Komplete (hasPropertyFeatures). */}
                                             {hasPropertyFeatures && (
                                                 <>
+                                                    <option value="Resident">Resident</option>
                                                     <option value="Landlord">Landlord</option>
                                                     <option value="Tenant">Tenant</option>
-                                                    <option value="Estate Agent">Estate Agent</option>
+                                                    <option value="Vendor">Vendor</option>
                                                     <option value="Facility Manager">Facility Manager</option>
+                                                    <option value="Estate Agent">Estate Agent</option>
                                                     <option value="Contractor">Contractor</option>
                                                 </>
                                             )}

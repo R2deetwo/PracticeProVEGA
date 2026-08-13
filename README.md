@@ -2,273 +2,248 @@
 
 **The AI-Powered Operating System for Nigerian Legal Practice & Property Management.**
 
-PracticePro is a dual-product SaaS platform that serves two professional verticals from a single, unified codebase:
+PracticePro is a dual-product SaaS platform serving two professional verticals from a single unified codebase:
 
 - **Vega OS** — Legal Practice Management for Nigerian law firms
 - **Atrium OS** — Property & Estate Management for property managers and gated estates
-- **Komplete** — Unified firms that run both legal and property operations
+- **Komplete** — Unified firms running both legal and property operations
 
-Built specifically for the Nigerian jurisdiction, PracticePro combines practice management, financial operations, document intelligence, and AI automation into one cohesive platform.
-
----
-
-## 🏛️ Vega OS — Legal Practice Management
-
-### Smart Matter Management
-- **Jurisdiction Intelligence:** AI-suggests the appropriate court (Federal High Court vs. State High Court) based on matter type and Section 251 of the 1999 Constitution.
-- **Workflow Automation:** Kanban-style boards with customizable stages for Civil Litigation, Corporate Secretarial, and Real Estate workflows.
-- **Matter Intake AI:** Upload case files (PDF/Word) and the Ingestion Agent extracts matter title, area of law, suit number, and opposing parties automatically.
-- **External Access:** Securely invite Co-Counsel or Watching Briefs to view specific matters.
-
-### DraftPro™ Editor
-A purpose-built legal word processor integrated directly into the browser.
-- **Context-Aware:** Automatically pulls Client Name, Suit Number, and Court details into templates.
-- **Magic Rewrite:** Uses AI to rewrite casual text into formal legalese.
-- **Letterhead Engine:** Overlays the firm's official letterhead on documents for accurate PDF previews and printing.
-- **Legal Extensions:** Custom TipTap extensions for legal parties, placeholders, and page breaks.
-
-### Legal Financial Engine
-- **Retainer Billing:** Automated recurring retainer invoicing with a staged outbox system (Staged → Queued → Sent → Failed).
-- **Billing Monitor:** Real-time outbox tracking with retry and failure management.
-- **Tax Compliance:** AI-powered expense deductibility analysis (VAT 7.5%, Withholding Tax 5/10%).
-- **Multi-Plan Gating:** Financials locked to Pro+ for legal firms.
-
-### Research Studio
-- **Law Reports Terminal:** Searchable database of Nigerian case law with AI-generated ratios and summaries. Available as a subscription add-on.
-- **Strategy Studio:** AI-assisted legal strategy development.
-- **Vector Notebooks:** Upload case files to a private notebook and ask questions like *"What is the date of the offer letter?"* to extract specific facts across thousands of pages.
-
-### Compliance Module
-- **Professional Standards:** Track Annual Practicing Fees and CPD hours.
-- **Legal Intelligence Hub:** Manage court rules modules, firm licenses, and usage logs.
-- **RPC Guardian:** AI reviews document summaries for ethical compliance with Rules of Professional Conduct (Rule 1.4, 5.1).
-
-### Client Portal
-- **Secure Intake:** Public-facing forms where prospective clients can record voice notes or upload documents.
-- **Client Dashboard:** Clients log in to view case status, pay invoices, upload documents, and submit service requests.
-- **Threaded Messaging:** Portal conversations with file attachments that auto-link to matters.
-- **Service Requests:** Admin-configurable request types (Document Review, Meeting Request, Billing Inquiry).
+Built for the Nigerian jurisdiction, PracticePro combines practice management, financial operations, document intelligence, AI automation, and visitor management into one cohesive platform.
 
 ---
 
-## 🏢 Atrium OS — Property & Estate Management
+## 🏗️ Architecture Overview
 
-### Property Portfolio Management
-- **Multi-Unit Properties:** Track individual units within buildings — rent amounts, tenant details, lease terms, amenity tracking.
-- **Lease Lifecycle:** Lease expiry tracking with urgency alerts (≤90 days warning, expired flagging).
-- **Vacancy Pipeline:** Lead management from Inquiry → Vetted → Lease Generated → Closed, with vetting scores.
-- **Bulk Operations:** Bulk edit properties, bulk rent collection, and rent review notice PDF generation.
-- **Property Tracking:** Maintenance history, rent payment history, tracking timeline, and image galleries per property.
+### Tech Stack
+- **Frontend:** React 18 + Vite 5 + TypeScript + Tailwind CSS
+- **Backend:** Convex (serverless database + real-time sync)
+- **AI:** Google Gemini (ALOA/ARIA AI assistant, document analysis, legal research)
+- **Mobile:** Capacitor 8 (Android APK)
+- **Deployment:** Vercel (primary) + Cloudflare Workers (secondary)
+- **Push Notifications:** Firebase Cloud Messaging (FCM)
+- **Payments:** Paystack integration
 
-### Revenue Engine
-Atrium's financial hub — accessible as tabs within the Financials page:
-- **Service Charge Monitor:** Track service charges (Diesel, Security, Cleaning, Water, Other) with defaulter detection, 5% penalty rate, per-unit mute, and cycle presets (Monthly/Quarterly/Annually).
-- **Payments & Receipts Ledger:** Full ledger with entry types (rent, service_charge, penalty, deposit) and statuses (cleared, pending, defaulted).
-- **Reminder Rules:** Automated WhatsApp/Email/SMS reminder rules with customizable templates (rent reminders, late notices, payment receipts, service charge alerts, access restrictions, penalty notices, lease renewals, welcome notes, and more).
-- **Available Units:** Vacancy tracking integrated with the lead pipeline.
+### Product Architecture
+```
+PracticePro (Parent Company)
+├── Vega OS (Legal)
+│   ├── Matter Management & Workflow Automation
+│   ├── ALDIA Document Intelligence (risk analysis, PII scanning)
+│   ├── DraftPro AI Document Editor
+│   ├── Research Studio (chronology, legal matrix, gap analysis)
+│   ├── Scale of Charges Compliance Engine
+│   └── ALOA AI Assistant (Legal)
+├── Atrium OS (Property)
+│   ├── Property & Unit Management
+│   ├── Visitor Management System (VMS) with gatehouse verification
+│   ├── Service Charge & Minimum Vend Tracking
+│   ├── Rent Collection & Receipt Automation
+│   ├── ARIA AI Assistant (Property)
+│   └── Resident Portal (ledger, payments, maintenance, visitors)
+└── Komplete (Unified)
+    └── All features from both Vega + Atrium
+```
 
-### Resident (Tenant) Portal
-Feature-gated to Atrium Growth+ plans.
-- **Dashboard:** Personal financial summary, outstanding balance, quick actions.
-- **Ledger:** Complete financial ledger with rent receipts, service charge status, and payment history.
-- **Maintenance:** Submit maintenance tickets with image/video attachments; admin-configurable request types.
-- **Messages:** Direct messaging with property management (if enabled).
-- **Payments:** Upload payment proofs (receipts, transfer slips) for admin verification.
-- **Notice Board:** Pinned notices, priority alerts, property/unit-scoped announcements.
-- **Documents:** Secure document sharing between management and residents.
-- **Visitor Management:** Generate 6-digit access codes for visitors (see VMS below).
-- **Accessibility:** Font size controls, theme isolation (light/dark only), mobile-optimized layout.
+### Multi-Product Routing
+The app uses a `useProduct()` hook that determines which product context is active:
+- Legal firms → Vega mode (ALOA, matters, courts)
+- Property firms → Atrium mode (ARIA, properties, residents)
+- Unified firms → Komplete mode (both)
 
-### Visitor Management System (VMS)
-A gated-estate access control system built into the Resident Portal:
-- **Resident Code Generation:** Residents create 6-digit visitor access codes with expiry windows (2h, 6h, 12h, 24h).
-- **Dual Delivery:** Share via personal WhatsApp (free, no API cost) or automatic portal delivery via Chakra WhatsApp API.
-- **Gatekeeper Interface:** Lightweight verification portal for gate tablets/phones — code entry, instant verification (green/red screens), check-in/check-out logging.
-- **Offline Fallback:** Gatekeeper caches last 100 verifications in localStorage for Lagos network downtime.
-- **Grace Periods:** Configurable buffer (default 30 min) allows entry slightly before/after the rigid expiry window.
-- **Revocation:** Residents can instantly revoke active codes from their dashboard.
-- **Admin Configuration:** Toggle VMS on/off, configure gatekeeper/resident notifications, set grace periods and default validity — all in Settings → Portal Access.
-
-### Automated Communications
-- **WhatsApp Integration:** ChakraHQ WhatsApp API for automated rent reminders, late notices, and service charge alerts.
-- **Email Integration:** Brevo email for formal notices and receipts.
-- **Scheduled Messages:** Queue messages for future delivery with a 5-minute cron processor.
-- **Automation Templates:** Custom message templates per firm with variable substitution (tenant name, amounts, dates, addresses, Google Maps links).
-- **Compose Modal:** Send individual or bulk messages via WhatsApp, Email, or Portal.
-
-### Property Financials
-- **Invoices & Demands:** Generate rent demands, service charge invoices, and penalty notices.
-- **Always Available:** Unlike Vega (Pro+ gated), Atrium financials are available on all plans — it's the primary revenue hub.
-- **Minimum Vend/Estate Fees:** Property-level toggle for minimum vend charges with custom labels and amounts.
+Product context affects: AI assistant identity, terminology (matter vs property, client vs resident), available features, and tier gating.
 
 ---
 
-## 🤖 AI Workforce — ALOA® / ARIA®
+## 🚀 Local Development Setup
 
-PracticePro utilizes a multi-agent AI architecture powered by Google Gemini. The assistant is branded **ALOA®** for legal firms and **ARIA®** for property firms.
+### Prerequisites
+- Node.js 20+ (see `.nvmrc`)
+- npm 10+
+- A Convex account (free tier works)
+- A Google Gemini API key
 
-### AI Agents (running automatically, no per-agent toggles needed)
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/R2deetwo/PracticeProVEGA.git
+cd PracticeProVEGA
 
-| Agent | Function | Product |
-| :--- | :--- | :--- |
-| **ALOA/ARIA Chat** | Conversational assistant for matters, drafting, finance, and portfolio queries | Both |
-| **ALDIA** (Advanced Legal Document Intelligence) | Multi-agent document analysis — summaries, key clauses, risk scores, parties, dates, governing law | Both |
-| **RPC Review** | Ethics & accuracy check built into ALDIA | Vega |
-| **PII Shield** | Strips NIN, BVN, bank account numbers before AI processing | Both |
-| **Brain Memory** | Vector recall over your firm's documents and notes | Both |
-| **Research** | Multi-source legal research with citations | Vega |
-| **Tax Compliance** | Nigerian tax analysis on expenses | Vega |
-| **Ingestion Agent** | AI matter intake from uploaded documents | Vega |
-| **Jurisdiction Scout** | Analyzes facts to determine court venue | Vega |
-| **Property Management** | Atrium system instruction for property-specific AI responses | Atrium |
+# Install dependencies
+npm ci
 
-### AI Features
-- **AI Request Queue:** Deterministic sequential processing — no race conditions or out-of-order responses.
-- **15-second timeout:** AbortController prevents UI freezes on mobile networks.
-- **API Key Pre-Flight:** Validates key existence before any network call.
-- **PII Reporting:** Visible indicator showing what PII was stripped before sending to AI.
-- **Proactive Intelligence:** Deadline scanning, anomaly detection, and AI morning briefings via cron jobs.
-- **Conversation Memory:** Nightly summarization of conversations for cross-session continuity.
-- **Voice Dictation:** Web Speech API integration for notes with punctuation commands.
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your values (see below)
+```
 
----
+### Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_CONVEX_URL` | ✅ | Convex deployment URL (found in Convex dashboard) |
+| `VITE_GEMINI_API_KEY` | Optional | Google Gemini API key for AI features |
+| `CONVEX_DEPLOY_KEY` | Optional | For CI/CD Convex deploys |
+| `FCM_SERVER_KEY` | Optional | Firebase Cloud Messaging server key for push notifications |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Optional | Firebase service account JSON for FCM (recommended) |
 
-## 🔐 Client & Resident Portals
+### Running the Dev Server
+```bash
+npm run dev
+# App runs on http://localhost:5173
+```
 
-### Shared Portal Infrastructure
-- **Magic-Link Invites:** Secure token-based invitations via email/WhatsApp.
-- **Threaded Conversations:** Portal messages with file attachments, sub-threading per ticket, and inline ticket controls.
-- **Notice Boards:** Pinned notices, priority levels, property/unit-scoped targeting.
-- **Service Request Types:** Admin-configurable catalog per firm per portal type.
-- **Portal Settings:** Toggle messaging, payment proof uploads, VMS, and notification preferences per firm.
-
-### Portal Settings (Admin)
-Located in **Settings → Portal Access**:
-- Client Portal invites and management (Vega)
-- Resident Portal invites and management (Atrium)
-- Service Request Types configuration
-- Visitor Management System settings (Atrium):
-  - Enable/disable visitor codes
-  - Gatekeeper WhatsApp notifications
-  - Resident arrival notifications
-  - Grace period configuration (0/15/30/60 min)
-  - Default validity window (2/6/12/24 hours)
+### Demo Mode
+Visit `http://localhost:5173/?impersonate=demo@practicepro.ng` to bypass login and explore the app with demo data. Set `sessionStorage.setItem('practicepro_demo_product', 'atrium')` before navigating for Atrium demo data.
 
 ---
 
-## 📊 Analytics & Reporting
+## 📦 Building & Deploying
 
-### Financial Reports
-- Profit & Loss, AR Aging, Timesheet, Utilization, Matter Status, Profitability
+### Build
+```bash
+npm run build
+# Output: dist/ (production bundle)
+```
 
-### Business Intelligence (Pro+)
-- Case Analytics, Client Analytics, Property Analytics
+### Deploy to Vercel
+Vercel auto-deploys on push to `main` via GitHub integration.
+- **URL:** https://practice-pro-vega.vercel.app
+- **Build command:** `npm run build`
+- **Output directory:** `dist`
 
-### Property Reports (Atrium)
-- Revenue tracking, defaulter reports, vacancy analytics
+### Deploy to Cloudflare Workers
+```bash
+# Manual deploy (requires Cloudflare API token)
+CLOUDFLARE_API_TOKEN=your_token npx wrangler deploy
 
-### Compliance Reports (Vega)
-- Professional standards, practicing fees, CPD tracking
+# Or via GitHub Actions (auto-deploys on push to main)
+# Requires secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, VITE_CONVEX_URL
+```
+- **URL:** https://practice-pro-vega.prototypechigo.workers.dev
+- **Config:** `wrangler.jsonc` (SPA mode with cache headers)
+
+### Deploy Convex Backend
+```bash
+# Set up Convex deploy key (found in Convex dashboard → Settings → API)
+CONVEX_DEPLOY_KEY=your_key npx convex deploy
+```
+
+### Build Android APK
+```bash
+npm run cap:sync    # Sync web assets to native
+cd android && ./gradlew assembleRelease
+# APK: android/app/build/outputs/apk/release/app-release.apk
+```
+
+### Build Founder/Admin APK
+```bash
+npx vite build --config vite.admin.config.ts
+npm run cap:sync:admin
+cd android && ./gradlew assembleRelease
+```
 
 ---
 
-## 🛠 Technical Stack
-
-| Layer | Technology |
-| :--- | :--- |
-| **Frontend** | React 18, TypeScript, Tailwind CSS, Vite |
-| **Backend** | Convex (real-time database, cron jobs, file storage) |
-| **AI Engine** | Google Gemini 2.0 Flash / 2.5 Pro (`@google/genai`) |
-| **Mobile** | Capacitor v8 (Android APK) |
-| **State** | React Context API (local-first architecture) |
-| **Editor** | TipTap (DraftPro) |
-| **PDF** | jsPDF + autoTable |
-| **WhatsApp** | ChakraHQ API |
-| **Email** | Brevo (Sendinblue) |
-| **Auth** | Convex Auth with biometric unlock |
-| **CI/CD** | GitHub Actions (auto-deploys Convex + builds APK) |
-
----
-
-## 📂 Project Structure
+## 📁 Repository Structure
 
 ```
-/
-├── convex/                    # Backend (Convex)
-│   ├── schema.ts              # 60+ database tables
-│   ├── portals.ts             # Portal messaging, tickets, invitations
-│   ├── visitorManagement.ts   # VMS token generation & verification
-│   ├── communications.ts      # WhatsApp (Chakra) & Email (Brevo)
-│   ├── retainerBilling.ts     # Automated retainer invoicing
-│   ├── backups.ts             # Nightly backup to GitHub + Telegram
-│   ├── crons.ts               # Scheduled jobs
-│   └── ...
+├── convex/                    # Backend (Convex functions + schema)
+│   ├── schema.ts              # Database schema (70+ tables)
+│   ├── myFunctions.ts         # Core CRUD + auth + business logic
+│   ├── founderMetrics.ts      # Founder app analytics + admin queries
+│   ├── portals.ts             # Resident/Client portal backend
+│   ├── visitorManagement.ts   # VMS (access codes, gatehouse)
+│   ├── pushNotifications.ts   # Push notification infrastructure
+│   ├── pushNotificationsNode.ts # FCM dispatch (Node.js runtime)
+│   ├── feedback.ts            # User feedback + admin replies
+│   └── http.ts                # HTTP routes (webhooks, AI streaming)
 ├── src/
 │   ├── components/
-│   │   ├── aloa/              # AI Chat (ALOA/ARIA) interface
-│   │   ├── atrium/            # Atrium-specific (Revenue Engine, VMS, etc.)
-│   │   ├── auth/              # Login, biometric unlock
-│   │   ├── client/            # Client Portal (Vega)
-│   │   ├── tenant/            # Resident Portal (Atrium)
-│   │   ├── portal/            # Shared portal components (Visitor, Gatekeeper)
-│   │   ├── documents/         # DraftPro Editor (TipTap)
-│   │   ├── research/          # Research Studio & Law Reports
-│   │   ├── settings/          # 14 settings tabs
-│   │   ├── details/           # Matter & Property detail views
-│   │   ├── forms/             # Modal forms (Matter, Task, Invoice, etc.)
-│   │   └── toolkit/           # Reusable UI primitives
-│   ├── agents/                # AI agents (ALDIA, Research, etc.)
-│   ├── contexts/              # Global state (Auth, Data, UI, ALOA)
-│   ├── services/              # API wrappers (Gemini, Brain)
-│   ├── utils/                 # Helpers (PII, AI queue, haptics, etc.)
-│   └── constants.tsx          # Icons, types, config
+│   │   ├── admin/             # Founder APK views
+│   │   ├── aloa/              # ALOA/ARIA AI chat interface
+│   │   ├── atrium/            # Property management components
+│   │   ├── client/            # Client portal (Vega)
+│   │   ├── details/           # Detail views (matter, property, contact)
+│   │   ├── forms/             # Data entry forms
+│   │   ├── portal/            # Portal components (login, VMS, gatehouse)
+│   │   ├── tenant/            # Resident portal (Atrium)
+│   │   └── ...
+│   ├── agents/                # AI agent modules
+│   │   ├── AgencyHub.ts       # ALOA/ARIA identity + system prompt builder
+│   │   ├── AdvancedLegalDocumentIntelligenceAgent.ts  # ALDIA
+│   │   ├── ResearchAgent.ts   # Legal research analysis
+│   │   ├── ScaleOfChargesAgent.ts  # Legal billing compliance
+│   │   └── ...
+│   ├── contexts/              # React contexts (Auth, Data, Core, Finance, etc.)
+│   ├── hooks/                 # Custom hooks (useFeatures, useVersionCheck, etc.)
+│   ├── constants/             # Tier configs, identity guardrails, products
+│   └── utils/                 # Utilities (analytics, haptics, formatting, etc.)
 ├── android/                   # Capacitor Android project
-└── .github/workflows/         # CI/CD (APK build + Convex deploy)
+├── scripts/                   # Build + audit scripts
+│   ├── generate-version-manifest.cjs  # Version.json generator
+│   ├── mark-healthy.cjs       # Post-build health marker
+│   ├── vercel-deploy.cjs      # Direct Vercel API deploy
+│   ├── agent-audit.ts         # Playwright UI crawler
+│   └── audit-master-suite.ts  # 10-domain audit suite
+├── public/                    # Static assets
+│   ├── _headers               # Cloudflare cache headers
+│   ├── _redirects             # Cloudflare SPA routing
+│   └── version.json           # Build version manifest
+├── .github/workflows/         # CI/CD
+│   ├── build-apk.yml          # Android APK build
+│   └── build-admin-apk.yml    # Founder APK build
+├── wrangler.jsonc             # Cloudflare Workers config
+├── vercel.json                # Vercel deploy config
+└── tailwind.config.js         # Tailwind theme (custom colors, fonts, sizes)
 ```
 
 ---
 
-## ⚡ Getting Started
+## 🤖 AI Agents
 
-1. **Install Dependencies:** `npm install`
-2. **Configure Environment:** Set `VITE_CONVEX_URL` in `.env`
-3. **Set AI Key:** In the app, go to Settings → AI Settings → API Key Configuration and paste your Google Gemini API key (get one free at [Google AI Studio](https://aistudio.google.com/app/apikey))
-4. **Run Development Server:** `npm run dev`
-5. **Build APK:** Push to `main` — GitHub Actions builds the APK automatically
-
----
-
-## 📦 Subscription Plans
-
-| Plan | Vega (Legal) | Atrium (Property) |
-| :--- | :--- | :--- |
-| **Core** | Basic matter management | Basic property tracking |
-| **Growth** | + Client Portal, Research, Analytics | + Resident Portal, VMS, Analytics |
-| **Pro** | + Financials, Billing Monitor, BI Reports | + All Growth features (financials always included) |
-| **Enterprise** | + Audit Logs, Automation Engine, External Counsel | + All Pro features |
-| **Komplete** | Unified firm — both Vega + Atrium features | Unified firm — both Vega + Atrium features |
+| Agent | Purpose | Product |
+|-------|---------|---------|
+| **ALOA** (Vega) / **ARIA** (Atrium) | AI assistant for chat, drafting, task management | Both |
+| **ALDIA** | Document intelligence (risk scoring, PII scanning, metadata extraction) | Vega |
+| **Research Agent** | Legal research (chronology, gap analysis, adversarial brief) | Vega |
+| **Scale of Charges** | Legal billing compliance (Remuneration Order 2023) | Vega |
+| **Jurisdiction Agent** | Court routing (Federal vs State High Court) | Vega |
+| **Ingestion Agent** | Bulk document auto-titling and metadata extraction | Vega |
+| **Data Protection** | NDPA PII scanner with redaction | Both |
+| **RPC Guidance** | Professional conduct review for AI outputs | Vega |
+| **Tax Compliance** | WENR tax deductibility analysis | Both |
 
 ---
 
-## 🔒 Security & Compliance
+## 🔐 Security & Compliance
 
-- **PII Shield:** Automatically strips NIN, BVN, bank account numbers before AI processing.
-- **Content Protection:** FLAG_SECURE on Android prevents screenshots (banking-app level).
-- **Biometric Unlock:** Fingerprint/face unlock via Capacitor biometric auth.
-- **Audit Logs:** Enterprise+ firms get full audit trail of all actions.
-- **NDPA Aligned:** Data protection practices aligned with Nigeria Data Protection Act.
-- **Portal Security:** Magic-link authentication, role-based access, session isolation.
-
----
-
-## 🔄 Backup System
-
-PracticePro includes a multi-target cloud backup system (no credit card required):
-- **GitHub Private Repo:** Nightly full-database export committed to a private GitHub repository.
-- **Telegram Bot Channel:** Same backup also sent to a private Telegram channel via Bot API.
-- **30-day rolling retention:** Old backups automatically deleted.
-- **Manual trigger:** Run a backup on-demand from the Convex dashboard.
+- **NDPA 2023 Compliant** — Nigerian Data Protection Act
+- **Row-Level Security** — `requireFirmUser()` enforces per-firm data isolation
+- **Portal User Isolation** — Tenant/Client roles blocked from firm-level operations
+- **Disposable Email Blocking** — 32+ disposable email domains blocked at signup
+- **Rate Limiting** — AI request queue prevents API abuse
+- **Content Protection** — FLAG_SECURE on Android, screenshot prevention
+- **Audit Trail** — All admin actions logged to `securityEvents` table
 
 ---
 
-&copy; 2024–2026 PracticePro Legal Technologies. All rights reserved.
+## 📊 Audit & Testing
+
+### Playwright Crawler
+```bash
+npm run audit:app     # UI crawler (20 routes, screenshots, console errors)
+npm run audit:all     # Master suite (10 audit domains, 44 checks)
+npm run dev-report    # Generate development report (JSON + Markdown)
+```
+
+### Audit Results
+Reports saved to `./audit-results/`:
+- `master-report.json` — Full 10-domain audit results
+- `dev-report.json` — Development metrics for founder app
+- `dev-report.md` — Human-readable summary
+- `screenshots/` — Visual captures of every route
+
+---
+
+## 📝 License
+
+Proprietary — PracticePro Systems Limited, Lagos, Nigeria.
