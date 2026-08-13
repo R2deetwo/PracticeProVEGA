@@ -8,8 +8,8 @@
   "stableSince": "2026-08-13T13:14:48.167Z",
   "apkVersion": "1.0.550",
   "apkVersionCode": 10550,
-  "apkUrl": null,
-  "apkBuildStatus": "building",
-  "apkBuiltAt": "2026-08-11T16:58:36.819Z",
+  "apkUrl": "https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-660/PracticePro-v1.0.552.apk",
+  "apkBuildStatus": "healthy",
+  "apkBuiltAt": "2026-08-13T13:18:05.209Z",
   "markedHealthyAt": "2026-08-13T13:14:48.167Z"
 }
