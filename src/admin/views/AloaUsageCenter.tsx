@@ -13,7 +13,7 @@
  * tool results, or error details are ever displayed. The founder can see
  * HOW MUCH AI is being used, not WHAT is being said.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
@@ -24,21 +24,37 @@ const AloaUsageCenter: React.FC = () => {
   const { currentUser } = useFounderAuth();
   const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
   const [activeTab, setActiveTab] = useState<'overview' | 'firms' | 'tools'>('overview');
+  const [queryError, setQueryError] = useState<string | null>(null);
 
-  let stats: any = undefined;
-  try {
-    stats = useQuery(api.founderMetrics.getAloaUsageStats, tokenIdentifier ? { tokenIdentifier } : 'skip');
-  } catch (e) {
-    console.error('[AloaUsageCenter] Query failed:', e);
-  }
+  // useQuery MUST be called unconditionally (Rules of Hooks).
+  // Do NOT wrap in try/catch — Convex useQuery never throws synchronously.
+  // If the backend query throws (e.g. auth failure), useQuery returns
+  // undefined forever and we show a loading state. To handle errors
+  // gracefully, we use a timeout to detect "stuck loading" and show
+  // an error message instead of spinning forever.
+  const stats = useQuery(api.founderMetrics.getAloaUsageStats,
+    tokenIdentifier ? { tokenIdentifier } : 'skip');
 
-  const isLoading = stats === undefined;
-  const hasError = stats === null;
-  const data = stats || { platform: {}, toolActionDistribution: [], modelDistribution: [], perFirm: [] };
-  const platform = data?.platform || {};
-  const toolActions = data?.toolActionDistribution || [];
-  const models = data?.modelDistribution || [];
-  const perFirm = data?.perFirm || [];
+  // Detect stuck loading — if stats is still undefined after 8 seconds,
+  // the query likely threw an error on the backend (e.g. requireFounder
+  // failed). Show an error message instead of spinning forever.
+  useEffect(() => {
+    if (stats === undefined && !queryError) {
+      const timer = setTimeout(() => {
+        setQueryError('Query timed out. You may not have founder permissions, or the backend needs to be deployed.');
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [stats, queryError]);
+
+  const isLoading = stats === undefined && !queryError;
+  const hasError = queryError !== null || stats === null;
+  const errorMessage = queryError || 'Failed to load AI usage data. The backend may need to be deployed.';
+  const data = stats as any || { platform: {}, toolActionDistribution: [], modelDistribution: [], perFirm: [] };
+  const platform: any = data?.platform || {};
+  const toolActions: any[] = data?.toolActionDistribution || [];
+  const models: any[] = data?.modelDistribution || [];
+  const perFirm: any[] = data?.perFirm || [];
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20">
@@ -58,7 +74,7 @@ const AloaUsageCenter: React.FC = () => {
           </div>
         ) : hasError ? (
           <div className={CARD}>
-            <p className="text-sm text-rose-500">Failed to load AI usage data. The backend may need to be deployed.</p>
+            <p className="text-sm text-rose-500">{errorMessage}</p>
           </div>
         ) : (
           <>
