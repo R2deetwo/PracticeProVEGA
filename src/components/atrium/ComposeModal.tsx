@@ -237,6 +237,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     return [];
   });
   const [showFinancials, setShowFinancials] = useState(false);
+  // AI Drafting Assistant state
+  const [showAiDraft, setShowAiDraft] = useState(false);
+  const [aiDraftPrompt, setAiDraftPrompt] = useState('');
+  const [isAiDrafting, setIsAiDrafting] = useState(false);
   const [countryCode, setCountryCode] = useState('+234');
   const [amount, setAmount] = useState(() => prefill?.rentAmount ? String(prefill.rentAmount) : '');
   const [customText, setCustomText] = useState('');
@@ -424,6 +428,63 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       setCustomText(generated);
     }
   }, [msgType, effectiveUnitLabel, effectiveTenantName, amount, serviceCharge, legalFee, agencyFee, cautionDeposit, dueDate, isEdited, coreState.firmDetails?.automationSettings?.automationTemplates]);
+
+  // ── AI Drafting Assistant ────────────────────────────────────────────
+  const handleAiDraft = async () => {
+    if (!aiDraftPrompt.trim() || isAiDrafting) return;
+    setIsAiDrafting(true);
+    try {
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+        localStorage.getItem('practicepro_gemini_api_key') || '';
+      if (!apiKey) {
+        addToast('AI key not configured. Set your Gemini API key in Settings.', { type: 'error' });
+        setIsAiDrafting(false);
+        return;
+      }
+
+      const context = [
+        `Recipient: ${effectiveTenantName}`,
+        effectiveUnitLabel ? `Unit: ${effectiveUnitLabel}` : '',
+        amount ? `Rent: ₦${amount}` : '',
+        serviceCharge ? `Service Charge: ₦${serviceCharge}` : '',
+        dueDate ? `Due Date: ${dueDate}` : '',
+        `Message Type: ${msgType}`,
+        `Firm: ${coreState.firmDetails?.name || 'Management'}`,
+      ].filter(Boolean).join('\n');
+
+      const systemPrompt = `You are a professional property management assistant in Nigeria. Write a concise, direct, and highly professional message based on the user's instructions. No fluff, no emojis, no excessive pleasantries. Get straight to the point. Keep it under 150 words. Use Nigerian English spelling and Naira (₦) symbol where relevant.\n\nContext:\n${context}`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: aiDraftPrompt.trim() }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 300 },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const draft = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (draft) {
+          setCustomText(draft);
+          setIsEdited(true);
+          setShowAiDraft(false);
+          setAiDraftPrompt('');
+          addToast('AI draft generated. Review and edit before sending.', { type: 'success' });
+        } else {
+          addToast('AI returned empty response. Try rephrasing.', { type: 'error' });
+        }
+      } else {
+        addToast('AI request failed. Check your API key.', { type: 'error' });
+      }
+    } catch (e: any) {
+      addToast(`AI draft error: ${e?.message || 'Failed'}`, { type: 'error' });
+    } finally {
+      setIsAiDrafting(false);
+    }
+  };
 
   // ── Close dropdown on outside click ──────────────────────────────────
   useEffect(() => {
@@ -1123,13 +1184,48 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             <div className="pt-2 border-t border-slate-200 dark:border-zinc-700">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">Message Content</label>
-                <button 
-                  onClick={() => setIsEdited(false)} 
-                  className={`text-2xs uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40' : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'}`}
-                  disabled={!isEdited}
-                >
-                  Reset Template
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* AI Drafting Assistant */}
+                  {showAiDraft ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={aiDraftPrompt}
+                        onChange={e => setAiDraftPrompt(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && aiDraftPrompt.trim()) handleAiDraft(); if (e.key === 'Escape') setShowAiDraft(false); }}
+                        placeholder="What do you want your message to say?"
+                        className="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-violet-300 dark:border-violet-700 rounded-lg text-slate-700 dark:text-zinc-200 w-48 sm:w-64 focus:ring-1 focus:ring-violet-400"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleAiDraft}
+                        disabled={!aiDraftPrompt.trim() || isAiDrafting}
+                        className="text-2xs uppercase font-bold tracking-wider px-2 py-1 bg-violet-600 text-white rounded transition-colors hover:bg-violet-500 disabled:opacity-50"
+                      >
+                        {isAiDrafting ? '...' : 'Draft'}
+                      </button>
+                      <button onClick={() => { setShowAiDraft(false); setAiDraftPrompt(''); }} className="text-slate-400 hover:text-rose-500 px-1">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowAiDraft(true)}
+                      className="text-2xs uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 flex items-center gap-1"
+                      title="AI Drafting Assistant"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>
+                      AI Draft
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsEdited(false)}
+                    className={`text-2xs uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40' : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'}`}
+                    disabled={!isEdited}
+                  >
+                    Reset Template
+                  </button>
+                </div>
               </div>
               <textarea 
                 value={customText} 

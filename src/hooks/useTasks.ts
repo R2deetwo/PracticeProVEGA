@@ -14,6 +14,7 @@ export const useTasks = (appState: AppState, actions: any) => {
     const { currentUser } = useAuth();
     const createTaskMutation = useMutation(api.myFunctions.createTask);
     const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
+    const updateTaskMutation = useMutation(api.myFunctions.updateTask);
 
     const handleUpdateTaskStatus = useCallback(async (id: string, status: any) => {
         // Use the dedicated updateTaskStatus mutation instead of the generic
@@ -42,8 +43,28 @@ export const useTasks = (appState: AppState, actions: any) => {
         }
     }, [updateTaskStatusMutation, currentUser, addToast]);
 
-    const handleUpdateTaskPriority = useCallback((id: string, priority: any) => 
+    const handleUpdateTaskPriority = useCallback((id: string, priority: any) =>
         actions.updateItem('tasks', { id, priority }, 'Task Priority'), [actions]);
+
+    // Dedicated task update — uses updateTask mutation (not generic updateItem)
+    // This prevents duplicate cards caused by ID lookup failures in updateItem.
+    // Use this for reassignment, priority changes, and any full-task edit.
+    const handleUpdateTask = useCallback(async (task: any) => {
+        try {
+            const taskId = task._id || task.id;
+            // Strip internal fields before sending
+            const { _id, _creationTime, ...patch } = task;
+            await updateTaskMutation({
+                taskId,
+                patch,
+                userEmail: currentUser?.email,
+            });
+        } catch (e: any) {
+            console.error('[handleUpdateTask] Failed:', e);
+            addToast(e?.message || 'Failed to update task.', { type: 'error' });
+            throw e;
+        }
+    }, [updateTaskMutation, currentUser, addToast]);
 
     const handleBulkUpdateTaskStatus = useCallback(async (ids: string[], status: any) => {
         const promises = ids.map(id => actions.updateItem('tasks', { id, status }, 'Task'));
@@ -137,6 +158,7 @@ export const useTasks = (appState: AppState, actions: any) => {
 
     return {
         handleUpdateTaskStatus,
+        handleUpdateTask,
         handleUpdateTaskPriority,
         handleBulkUpdateTaskStatus,
         handleBulkDeleteTasks,

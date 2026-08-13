@@ -38,7 +38,14 @@ export const ExecutionProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
 
     const executionActions: ExecutionActions = {
         handleAddTask: actions.handleAddTask,
-        updateTask: (item) => actions.updateItem('tasks', item, 'Task'),
+        updateTask: (item) => {
+            // Use dedicated updateTask mutation if available (prevents duplicate cards)
+            if (actions.handleUpdateTask) {
+                return actions.handleUpdateTask(item);
+            }
+            // Fallback to generic updateItem
+            return actions.updateItem('tasks', item, 'Task');
+        },
         deleteTask: (id, name) => actions.deleteItem('tasks', id, name || 'Task'),
         handleUpdateTaskStatus: (taskId, status) => actions.handleUpdateTaskStatus(taskId, status),
         handleUpdateWorkflow: actions.handleUpdateWorkflow,

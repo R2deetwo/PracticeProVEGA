@@ -580,7 +580,7 @@ const ModalManager: React.FC = () => {
         documents={documentState.documents}
         checklistTemplates={coreState.checklistTemplates}
         onAddTask={dataHandlers.handleAddTask}
-        onUpdateTask={(t) => dataHandlers.updateItem('tasks', t, t.title)}
+        onUpdateTask={(t) => executionActions.updateTask(t)}
         onClose={closeModal}
         initialContext={modalContext}
         currentUser={currentUser!}
@@ -606,7 +606,7 @@ const ModalManager: React.FC = () => {
             dataHandlers.deleteItem('tasks', task.id, task.title);
             closeModal();
           }}
-          onUpdateTask={(t) => dataHandlers.updateItem('tasks', t, t.title)}
+          onUpdateTask={(t) => executionActions.updateTask(t)}
           onViewInTasks={(id, color) => {
             closeModal();
             setTimeout(() => {

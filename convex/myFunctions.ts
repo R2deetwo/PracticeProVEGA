@@ -3160,6 +3160,86 @@ export const updateTaskStatus = mutation({
 });
 
 /**
+ * mutation: updateTask
+ *
+ * Dedicated task update mutation — patches any field on an existing task
+ * IN PLACE (never creates a duplicate). This replaces the generic
+ * `updateItem('tasks', ...)` path for task reassignment and edits,
+ * which was causing duplicate cards due to ID lookup failures.
+ *
+ * The generic updateItem couldn't find tasks because `createTask`
+ * doesn't persist the `id` field — only `_id`. This mutation uses
+ * the same 3-strategy lookup as `updateTaskStatus` (which works).
+ */
+export const updateTask = mutation({
+  args: {
+    taskId: v.string(),
+    patch: v.any(), // Partial task fields to update
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+
+    // Same 3-strategy lookup as updateTaskStatus
+    let task: any = null;
+
+    // Strategy 1: Try as Convex _id
+    try {
+      task = await ctx.db.get(args.taskId as any);
+    } catch {}
+
+    // Strategy 2: Look up by custom `id` field
+    if (!task) {
+      task = await ctx.db
+        .query("tasks")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .filter((q: any) => q.eq(q.field("id"), args.taskId))
+        .first();
+    }
+
+    // Strategy 3: Scan all firm tasks and match by id or _id
+    if (!task) {
+      const allTasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .take(1000);
+      task = allTasks.find((t: any) =>
+        t.id === args.taskId ||
+        String(t._id) === String(args.taskId)
+      );
+    }
+
+    if (!task) {
+      throw new Error(`Task not found (id: ${args.taskId}).`);
+    }
+
+    if (task.firmId && task.firmId !== firmId) {
+      throw new Error("Unauthorized. This task belongs to another organization.");
+    }
+
+    // Strip internal fields from the patch
+    const { _id, _creationTime, id, ...patchData } = args.patch;
+
+    // Round any currency fields
+    const CURRENCY_KEYS = ['amount', 'rate', 'price', 'balance', 'value', 'total'];
+    for (const [key, val] of Object.entries(patchData)) {
+      if (typeof val === 'string' && CURRENCY_KEYS.some(k => key.toLowerCase().includes(k))) {
+        const num = parseFloat((val as string).replace(/[^\d.-]/g, ''));
+        if (!isNaN(num)) (patchData as any)[key] = Math.round(num * 100) / 100;
+      }
+    }
+
+    // Patch in place — NEVER create a new record
+    await ctx.db.patch(task._id, {
+      ...patchData,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true, taskId: task._id };
+  },
+});
+
+/**
  * recordTermsAcceptance — Stores a durable, server-side record of a user
  * accepting the Terms of Service / Privacy Policy.
  *
