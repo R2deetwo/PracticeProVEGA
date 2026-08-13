@@ -80,6 +80,33 @@ const Header: React.FC = React.memo(() => {
         () => (sessionStorage.getItem('practicepro_demo_product') as 'vega' | 'atrium') || 'vega'
     );
 
+    // ─── App Notifications (APK updates, system alerts) ────────────────────
+    // Merged into Platform Notices tab — no separate System tab.
+    const appNotifications = useQuery(api.pushNotifications.getUserNotifications,
+        currentUser?.id ? { userId: currentUser.id, limit: 10 } : 'skip'
+    );
+    const appUnreadCount = useQuery(api.pushNotifications.getUnreadNotificationCount,
+        currentUser?.id ? { userId: currentUser.id } : 'skip'
+    );
+    const markAppNotifRead = useMutation(api.pushNotifications.markNotificationRead);
+    const markAllAppNotifsRead = useMutation(api.pushNotifications.markAllNotificationsRead);
+    const appUnread = appUnreadCount || 0;
+
+    const handleAppNotifClick = async (notif: any) => {
+        if (!notif.isRead) {
+            try { await markAppNotifRead({ notificationId: notif._id }); } catch {}
+        }
+        if (notif.actionType === 'apk_download' && notif.actionUrl) {
+            if (Capacitor.isNativePlatform()) {
+                import('@capacitor/browser').then(({ Browser }) => {
+                    Browser.open({ url: notif.actionUrl });
+                }).catch(() => window.open(notif.actionUrl, '_blank'));
+            } else {
+                window.open(notif.actionUrl, '_blank');
+            }
+        }
+    };
+
     // Fetch inbound tenant messages for notification bell.
     // IMPORTANT: Use hasPropertyFeatures (not isProperty) so Komplete firms
     // also get resident messages. isProperty is only for the assistant name.
@@ -436,11 +463,14 @@ const Header: React.FC = React.memo(() => {
                             <div className="p-4 border-b border-slate-100 dark:border-zinc-700 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-sm text-slate-800 dark:text-white">Notifications</h3>
-                                    {unreadCount > 0 && <span className="bg-red-100 text-red-600 text-2xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount} new</span>}
+                                    {(unreadCount > 0 || appUnread > 0) && <span className="bg-red-100 text-red-600 text-2xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount + appUnread} new</span>}
                                 </div>
                                 <div className="flex gap-3 items-center">
                                     {notifTab === 'platform' && aggregatedNotifications.filter(n => (n as any)._isBroadcast).length > 0 && (
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
+                                    )}
+                                    {notifTab === 'platform' && appUnread > 0 && (
+                                        <button onClick={() => markAllAppNotifsRead({ userId: currentUser.id })} className="text-2xs font-bold text-emerald-600 hover:underline">Clear system alerts</button>
                                     )}
                                     {notifTab === 'firm' && aggregatedNotifications.filter(n => !(n as any)._isBroadcast).length > 0 && (
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
@@ -569,7 +599,10 @@ const Header: React.FC = React.memo(() => {
                                         ? aggregatedNotifications.filter(n => (n as any)._isBroadcast)
                                         : aggregatedNotifications.filter(n => !(n as any)._isBroadcast);
 
-                                    if (tabNotifications.length === 0) {
+                                    // Platform tab also shows app/system notifications (APK updates etc.)
+                                    const showAppNotifs = notifTab === 'platform' && appNotifications && appNotifications.length > 0;
+
+                                    if (tabNotifications.length === 0 && !showAppNotifs) {
                                         return (
                                             <div className="py-12 flex flex-col items-center justify-center text-slate-400">
                                                 <BellIcon className="w-12 h-12 mb-3 opacity-20" />
@@ -589,6 +622,43 @@ const Header: React.FC = React.memo(() => {
 
                                     return (
                                         <div className="divide-y divide-slate-100 dark:divide-zinc-700">
+                                            {/* App/system notifications (APK updates etc.) — shown at top of Platform tab */}
+                                            {showAppNotifs && appNotifications.map((notif: any) => (
+                                                <button
+                                                    key={notif._id}
+                                                    onClick={() => handleAppNotifClick(notif)}
+                                                    className={`w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/50 flex gap-4 transition-colors ${!notif.isRead ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : ''}`}
+                                                >
+                                                    <div className="mt-1 flex-shrink-0">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                                            notif.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'
+                                                        }`}>
+                                                            <svg className={`w-4 h-4 ${notif.priority === 'high' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-grow">
+                                                        <p className={`text-sm leading-snug mb-1 ${!notif.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>
+                                                            {notif.title}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">
+                                                            {notif.body}
+                                                        </p>
+                                                        {notif.actionType === 'apk_download' && notif.actionUrl && (
+                                                            <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white text-2xs font-bold rounded-lg">
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                                                                </svg>
+                                                                Download Update
+                                                            </div>
+                                                        )}
+                                                        <p className="text-2xs font-medium text-slate-400 mt-1">
+                                                            {new Date(notif.createdAt).toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            ))}
                                             {tabNotifications.map((notification: any) => {
                                                 const style = getNotificationStyle(notification.type);
                                                 return (
