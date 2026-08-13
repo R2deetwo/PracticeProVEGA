@@ -491,7 +491,7 @@ export const BroadcastConsole: React.FC = () => {
                                     if (tpl) {
                                         setTitle(tpl.title);
                                         setMessage(tpl.message);
-                                        setTheme(tpl.theme);
+                                        setTheme(tpl.theme as Theme);
                                         setDeepLink(tpl.deepLink);
                                         addToast(`Template "${val}" loaded. Edit and send.`, { type: 'info' });
                                     }

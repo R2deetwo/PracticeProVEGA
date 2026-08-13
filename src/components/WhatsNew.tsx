@@ -155,6 +155,23 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // - Don't overwhelm users — 3-5 bullets is the sweet spot
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        id: 'v1.20.0',
+        version: '1.20.0',
+        date: '2026-08-14',
+        title: 'VMS Add-On Billing, Team Deactivation & Smarter ALOA Drafts',
+        description: 'A paid Visitor Management System add-on with 14-day trial, soft-deactivation for team members, per-conversation ALOA draft persistence, and a role-based Terms of Service consent engine.',
+        features: [
+            { icon: 'portal', label: 'VMS Add-On with 14-Day Trial', text: 'Atrium firms can now start a 14-day free trial of the Visitor Management System add-on. Residents generate 6-digit visitor codes; gatekeepers verify at the gatehouse terminal. Billing gate blocks code generation if the trial has expired or the add-on is inactive.' },
+            { icon: 'shield', label: 'Team Member Deactivation', text: 'Admins can now soft-deactivate team members instead of hard-deleting them. Deactivated users cannot log in and are filtered out of task assignment, but their historical contributions (matters, tasks, messages) remain attributed to them. A "Deactivated" badge appears in the team directory with one-click reactivation.' },
+            { icon: 'brain', label: 'ALOA Per-Conversation Drafts', text: 'Switching between ALOA conversations no longer loses your typed text. Each conversation now has its own draft slot — start a message in one chat, switch to another, and your draft is preserved when you switch back.' },
+            { icon: 'pen', label: 'Inline Unit Muting', text: 'Mute or reactivate property units directly from the unit tab strip in Edit Property — no more scrolling to the bottom of the form. A bell-off icon appears next to each unit tab; click it to hide the unit from the workspace without deleting its ledger history.' },
+            { icon: 'chat', label: 'Support Thread Deletion', text: 'Users can now delete their own support threads from the System Inbox. Threads are soft-deleted (preserved for audit) and hidden from both user and admin inboxes. The founder can restore deleted threads if needed.' },
+            { icon: 'shield', label: 'Role-Based Terms of Service', text: 'Terms of Service acceptance is now tracked per user role (founder, admin, lawyer, paralegal, portal user). When only one role\'s terms change, only affected users see the re-acceptance prompt — no more bothering everyone for a portal-only update.' },
+            { icon: 'bolt', label: 'Native Dictation Repair', text: 'The Note Editor\'s voice-to-text now auto-restarts on transient errors (up to 5 attempts), preserves your cursor position mid-dictation, and no longer steals focus from the microphone indicator. Long-form dictation sessions are no longer interrupted by brief network blips.' },
+            { icon: 'theme', label: 'Resident Portal Legibility', text: 'Portal text sizes bumped globally (9-10px → 11-12px) for WCAG AA compliance. The font-size A−/A+ control is now visible on mobile. Hero cards merged outstanding balances into the header to save vertical space and bring key actions above the fold.' },
+        ],
+    },
+    {
         id: 'v1.19.0',
         version: '1.19.0',
         date: '2026-07-27',

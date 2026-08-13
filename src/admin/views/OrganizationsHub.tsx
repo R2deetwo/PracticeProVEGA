@@ -15,7 +15,7 @@
  * pays PracticePro). Client-level invoices and financials are NEVER shown.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
