@@ -639,54 +639,65 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
   const outstandingBalance = tenantInfo?.outstandingBalance || 0;
   const hasOutstanding = outstandingBalance > 0;
 
-  const getInitials = (name?: string) => {
-    if (!name) return 'R';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
+  // ─── MANAGEMENT-ONLY SUPPRESSION ──────────────────────────────────
+  // When a property is marked 'Management Only (No Rent)', the portal
+  // must hide Pay Rent, suppress the Lease Agreement document, and
+  // gray out service charge/utility payment modules. This prevents
+  // residents from attempting payments that the property manager
+  // doesn't want to collect through the portal.
+  const isManagementOnly = tenantInfo?.primaryRentCollectionMode === 'Management Only (No Rent)';
 
   // Quick services — actionable tiles. These are the things a resident
   // would commonly want to do, NOT just request submission.
-  const services: { icon: React.ReactNode; label: string; tab: TabId; color: string }[] = [
-    { icon: <NairaSymbol className="w-5 h-5 inline" />, label: 'Pay Rent', tab: 'payments', color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
-    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger', color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' },
-    { icon: <BoltIcon className="w-5 h-5" />, label: 'Electricity', tab: 'ledger', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' },
-    { icon: <WifiIcon className="w-5 h-5" />, label: 'Internet', tab: 'ledger', color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' },
-    { icon: <WrenchIcon className="w-5 h-5" />, label: 'Maintenance', tab: 'maintenance', color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' },
-    { icon: <ChatIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages', color: 'bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400' },
-    { icon: <DownloadIcon className="w-5 h-5" />, label: 'Receipts', tab: 'receipts', color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400' },
-    { icon: <DocumentIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents', color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' },
+  // MANAGEMENT-ONLY: 'Pay Rent' is hidden when isManagementOnly is true.
+  // Service Charge / Electricity / Internet are grayed out with a
+  // tooltip instead of being hidden, so residents know the features
+  // exist but aren't available for their unit.
+  const services: { icon: React.ReactNode; label: string; tab: TabId; color: string; disabled?: boolean; tooltip?: string }[] = [
+    ...(isManagementOnly ? [] : [
+      { icon: <NairaSymbol className="w-5 h-5 inline" />, label: 'Pay Rent', tab: 'payments' as TabId, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
+    ]),
+    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger' as TabId, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400', disabled: isManagementOnly, tooltip: isManagementOnly ? 'This facility is not attached to your unit.' : undefined },
+    { icon: <BoltIcon className="w-5 h-5" />, label: 'Electricity', tab: 'ledger' as TabId, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400', disabled: isManagementOnly, tooltip: isManagementOnly ? 'This facility is not attached to your unit.' : undefined },
+    { icon: <WifiIcon className="w-5 h-5" />, label: 'Internet', tab: 'ledger' as TabId, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400', disabled: isManagementOnly, tooltip: isManagementOnly ? 'This facility is not attached to your unit.' : undefined },
+    { icon: <WrenchIcon className="w-5 h-5" />, label: 'Maintenance', tab: 'maintenance' as TabId, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' },
+    { icon: <ChatIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as TabId, color: 'bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400' },
+    { icon: <DownloadIcon className="w-5 h-5" />, label: 'Receipts', tab: 'receipts' as TabId, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400' },
+    { icon: <DocumentIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents' as TabId, color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' },
   ];
 
   return (
     <div className="space-y-4 pb-8">
       {/* ─── Hero Card with merged Outstanding Balance ─────────────── */}
-      {/* FIXES:
-          - Resident name now text-2xl (was text-xl) for legibility
-          - Removed duplicate address (was showing in both the unit line AND
-            a separate address section below — now only one address line)
-          - Unit number always shown with icon (falls back to '—' if missing)
-          - Kept the building icon in front of the address
-          - Bumped white opacity to /90 for WCAG AA contrast */}
+      {/* HEADER CORRECTION (Chunk 1):
+          - Removed initials avatar (was showing "MU" for "Mr. Ubah" etc.)
+            — names are now displayed clearly without truncated initials.
+          - Swapped icon/address hierarchy:
+            TOP line = Unit Identifier + Building Icon
+            BOTTOM line = Full Address + Map Pin Icon
+          - This matches universal real-estate convention (unit first,
+            then location) and improves scannability.
+          - MANAGEMENT-ONLY: Outstanding Balance section is hidden when
+            isManagementOnly is true (no rent collection = no balance). */}
       <div className="bg-brand-primary text-white rounded-premium p-4 shadow-premium">
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1">
             <p className="text-2xs font-bold text-white/85 uppercase tracking-widest mb-1">
               Residents' Portal
             </p>
+            {/* Display name clearly WITHOUT truncated initials.
+                Removed the getInitials() avatar circle entirely. */}
             <h2 className="text-2xl font-bold tracking-tight leading-tight">
               {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
             </h2>
           </div>
-          <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 ml-2">
-            <span className="text-base font-bold">
-              {getInitials(tenantInfo?.tenantName || currentUser?.name)}
-            </span>
-          </div>
         </div>
-        {/* Unit + Property + Address — single line with icons, no duplicates */}
+        {/* Unit + Property + Address — swapped hierarchy:
+            TOP: Unit Identifier (with building icon)
+            BOTTOM: Full Address (with map pin icon)
+            No duplicate address lines. */}
         <div className="space-y-1.5 mb-3">
+          {/* TOP LINE: Unit Identifier + Building Icon */}
           {tenantInfo?.primaryUnitName && (
             <div className="flex items-center gap-2">
               <svg className="w-3.5 h-3.5 text-white/85 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -694,17 +705,13 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
               </svg>
               <p className="text-xs text-white/90 font-medium truncate">
                 Unit {tenantInfo.primaryUnitName}
+                {tenantInfo?.primaryPropertyName && (
+                  <span className="text-white/70"> — {tenantInfo.primaryPropertyName}</span>
+                )}
               </p>
             </div>
           )}
-          {tenantInfo?.primaryPropertyName && (
-            <div className="flex items-center gap-2">
-              <OfficeBuildingIcon className="w-3.5 h-3.5 text-white/85 flex-shrink-0" />
-              <p className="text-xs text-white/90 font-medium truncate">
-                {tenantInfo.primaryPropertyName}
-              </p>
-            </div>
-          )}
+          {/* BOTTOM LINE: Full Address + Map Pin Icon */}
           {tenantInfo?.primaryPropertyAddress && (
             <div className="flex items-center gap-2">
               <svg className="w-3.5 h-3.5 text-white/85 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -717,28 +724,39 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
             </div>
           )}
         </div>
-        {/* Merged Outstanding Balance — tap to view ledger */}
-        <button
-          onClick={() => onNavigate('ledger')}
-          className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">
-                Outstanding Balance
-              </p>
-              <p className={`text-lg font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
-                {formatNaira(outstandingBalance)}
-              </p>
+        {/* Merged Outstanding Balance — tap to view ledger.
+            HIDDEN when isManagementOnly (no rent collection = no balance to show). */}
+        {!isManagementOnly && (
+          <button
+            onClick={() => onNavigate('ledger')}
+            className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">
+                  Outstanding Balance
+                </p>
+                <p className={`text-lg font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
+                  {formatNaira(outstandingBalance)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-white/90 font-semibold">
+                  {hasOutstanding ? 'View Breakdown' : 'All Caught Up'}
+                </p>
+                <ReceiptIcon className="w-4 h-4 text-white/85 ml-auto mt-1" />
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-white/90 font-semibold">
-                {hasOutstanding ? 'View Breakdown' : 'All Caught Up'}
-              </p>
-              <ReceiptIcon className="w-4 h-4 text-white/85 ml-auto mt-1" />
-            </div>
+          </button>
+        )}
+        {/* Management-Only notice — shown INSTEAD of the balance card */}
+        {isManagementOnly && (
+          <div className="bg-white/10 rounded-xl p-3 border border-white/10">
+            <p className="text-xs text-white/90 font-medium">
+              This property is under management-only arrangement. Rent and utility payments are not collected through the portal. Contact your property manager for any billing questions.
+            </p>
           </div>
-        </button>
+        )}
       </div>
 
       {/* ─── Quick Services Grid ────────────────────────────────────── */}
@@ -748,13 +766,23 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
           {services.map(service => (
             <button
               key={service.label}
-              onClick={() => onNavigate(service.tab)}
-              className="flex flex-col items-center gap-1.5 p-2.5 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
+              onClick={() => !service.disabled && onNavigate(service.tab)}
+              disabled={service.disabled}
+              title={service.tooltip}
+              className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl shadow-soft transition-transform ${
+                service.disabled
+                  ? 'bg-slate-50 dark:bg-zinc-800/50 opacity-50 cursor-not-allowed'
+                  : 'bg-white dark:bg-zinc-800 active:scale-95'
+              }`}
             >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${service.color}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${service.color} ${service.disabled ? 'grayscale' : ''}`}>
                 {service.icon}
               </div>
-              <span className="text-2xs font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
+              <span className={`text-2xs font-semibold text-center leading-tight ${
+                service.disabled
+                  ? 'text-slate-400 dark:text-zinc-500'
+                  : 'text-slate-700 dark:text-zinc-300'
+              }`}>
                 {service.label}
               </span>
             </button>
@@ -2343,6 +2371,11 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
+  // ─── MANAGEMENT-ONLY CHECK ──────────────────────────────────────────
+  // If the property is marked 'Management Only (No Rent)', the entire
+  // Payments tab shows a notice instead of payment options.
+  const isManagementOnly = tenantInfo?.primaryRentCollectionMode === 'Management Only (No Rent)';
+
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [period, setPeriod] = useState('');
@@ -2350,8 +2383,98 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ─── PAYMENT METHOD TOGGLE ──────────────────────────────────────────
+  // 'paystack' = Pay with Paystack (inline SDK, card/bank/USSD)
+  // 'bank_transfer' = Manual Bank Transfer (upload proof of payment)
+  // Default is 'paystack' for the best conversion rate.
+  const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'bank_transfer'>('paystack');
+  const [showBankDetails, setShowBankDetails] = useState(false);
+
   const submitProof = useMutation(api.portals.submitPaymentProof);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+
+  // ─── Company bank details for Manual Bank Transfer ──────────────────
+  // In production, these should come from firm settings. For now, hardcoded
+  // with the PracticePro company account. The reference code is generated
+  // per-tenant so the admin can match payments to residents.
+  const BANK_DETAILS = {
+    bankName: 'Providus Bank',
+    accountName: 'PracticePro Systems Ltd',
+    accountNumber: '0123456789',
+    // Reference code: unique per tenant so the admin can match payments.
+    // Format: PP-{tenantId last 6 chars}-{timestamp last 4 digits}
+    referenceCode: `PP-${(resolvedTenantId || 'GUEST').slice(-6).toUpperCase()}-${String(Date.now()).slice(-4)}`,
+  };
+
+  const handlePaystack = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      addToast('Please enter the amount to pay.', { type: 'info' });
+      return;
+    }
+    // Paystack Inline SDK — loads the Paystack popup.
+    // In production, the key should come from environment variables.
+    const PAYSTACK_PUBLIC_KEY = (import.meta as any).env?.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+    if (PAYSTACK_PUBLIC_KEY.startsWith('pk_test_xxx')) {
+      addToast('Paystack is not configured yet. Please use Manual Bank Transfer for now.', { type: 'info', duration: 5000 });
+      setPaymentMethod('bank_transfer');
+      return;
+    }
+    // Load Paystack inline script if not already loaded
+    if (!(window as any).PaystackPop) {
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      document.body.appendChild(script);
+      await new Promise<void>((resolve) => {
+        script.onload = () => resolve();
+        script.onerror = () => resolve();
+      });
+    }
+    if (!(window as any).PaystackPop) {
+      addToast('Failed to load Paystack. Check your internet connection or try Manual Bank Transfer.', { type: 'error' });
+      return;
+    }
+    const handler = (window as any).PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: currentUser?.email || '',
+      amount: Math.round(parseFloat(amount) * 100), // Paystack uses kobo
+      currency: 'NGN',
+      ref: BANK_DETAILS.referenceCode,
+      metadata: {
+        custom_fields: [
+          { display_name: 'Tenant', variable_name: 'tenant', value: currentUser?.name || '' },
+          { display_name: 'Property', variable_name: 'property', value: tenantInfo?.primaryPropertyName || '' },
+          { display_name: 'Unit', variable_name: 'unit', value: tenantInfo?.primaryUnitName || '' },
+          { display_name: 'Period', variable_name: 'period', value: period || '' },
+        ],
+      },
+      callback: (response: any) => {
+        addToast(`Payment successful! Reference: ${response.reference}. Your receipt will be issued shortly.`, { type: 'success', duration: 6000 });
+        // Submit the payment proof automatically with the Paystack reference
+        submitProof({
+          firmId,
+          tenantId: resolvedTenantId,
+          tenantName: currentUser?.name || undefined,
+          tenantEmail: currentUser?.email || undefined,
+          propertyId: tenantInfo?.primaryPropertyId || undefined,
+          unitId: tenantInfo?.primaryUnitId || undefined,
+          amount: parseFloat(amount),
+          period: period.trim() || undefined,
+          description: `Paystack payment — Ref: ${response.reference}`,
+          storageIds: [],
+          paymentMethod: 'paystack',
+          paystackReference: response.reference,
+          status: 'pending_verification',
+        }).catch(() => {});
+        setAmount('');
+        setPeriod('');
+        setDescription('');
+      },
+      onClose: () => {
+        addToast('Payment cancelled.', { type: 'info' });
+      },
+    });
+    handler.openIframe();
+  };
 
   // Fetch existing payment proofs
   const paymentProofs = useQuery(
@@ -2425,6 +2548,8 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
         period: period.trim() || undefined,
         description: description.trim() || undefined,
         storageIds,
+        paymentMethod: 'bank_transfer',
+        status: 'pending_review',
       });
 
       addToast('Payment proof submitted successfully. Your property manager will review it and issue an official receipt.', { type: 'success' });
@@ -2443,8 +2568,13 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
     switch (status) {
       case 'approved':
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"><CheckIcon className="w-3 h-3" /> Approved</span>;
+      case 'verified':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"><CheckIcon className="w-3 h-3" /> Verified</span>;
       case 'rejected':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"><XCircleIcon className="w-3 h-3" /> Rejected</span>;
+      case 'declined':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"><XCircleIcon className="w-3 h-3" /> {status === 'declined' ? 'Declined' : 'Rejected'}</span>;
+      case 'pending_verification':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"><div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> Verifying</span>;
       default:
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"><ExclamationTriangleIcon className="w-3 h-3" /> Pending Review</span>;
     }
@@ -2452,101 +2582,245 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
 
   return (
     <div>
-      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Proof</h3>
+      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payments</h3>
       <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
-        Upload payment receipts or stubs for your property manager to review. Once approved, you will receive an official receipt.
+        Pay your rent and utilities securely. Choose your preferred payment method below.
       </p>
 
-      {/* Upload Form */}
-      <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 mb-6">
-        <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Submit Payment Proof</h4>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Amount (Optional)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₦</span>
+      {/* MANAGEMENT-ONLY NOTICE — replaces the entire payment form */}
+      {isManagementOnly ? (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 text-center">
+          <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center mb-3">
+            <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-1">Payments Not Available</h4>
+          <p className="text-xs text-amber-700 dark:text-amber-400 max-w-sm mx-auto">
+            This property is under a management-only arrangement. Rent and utility payments are not collected through the portal. Please contact your property manager directly for any billing questions.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* ─── Payment Method Selector ─────────────────────────────── */}
+          <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Payment Method</h4>
+            {/* Amount + Period inputs — shared between both methods */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Amount *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₦</span>
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Period (Optional)</label>
                 <input
-                  type="number"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  type="text"
+                  value={period}
+                  onChange={e => setPeriod(e.target.value)}
+                  placeholder="e.g., January 2026"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Period (Optional)</label>
-              <input
-                type="text"
-                value={period}
-                onChange={e => setPeriod(e.target.value)}
-                placeholder="e.g., January 2025"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
+
+            {/* Method toggle — Paystack vs Bank Transfer */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                onClick={() => setPaymentMethod('paystack')}
+                className={`p-3 rounded-lg border-2 transition-all ${
+                  paymentMethod === 'paystack'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="5" width="20" height="14" rx="2" fill="#00C3F7" opacity="0.15"/>
+                    <path d="M5 8h2M5 11h3M5 14h2" stroke="#0EA5E9" strokeWidth="1.5" strokeLinecap="round"/>
+                    <rect x="14" y="9" width="5" height="3" rx="0.5" fill="#0EA5E9"/>
+                  </svg>
+                  <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">Paystack</span>
+                </div>
+                <p className="text-2xs text-slate-500 dark:text-zinc-400">Card, Bank, USSD</p>
+              </button>
+              <button
+                onClick={() => setPaymentMethod('bank_transfer')}
+                className={`p-3 rounded-lg border-2 transition-all ${
+                  paymentMethod === 'bank_transfer'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <svg className="w-5 h-5 text-slate-600 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                  </svg>
+                  <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">Bank Transfer</span>
+                </div>
+                <p className="text-2xs text-slate-500 dark:text-zinc-400">Manual + Upload Proof</p>
+              </button>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description (Optional)</label>
-            <input
-              type="text"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="e.g., Rent payment via bank transfer"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-          </div>
-          {/* File Upload */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Upload Proof *</label>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors"
-            >
-              <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
-              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
-                Click to upload payment receipt or stub
-              </p>
-              <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
-                JPG, PNG, PDF · Max 10MB each
-              </p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            {pendingFiles.length > 0 && (
-              <div className="mt-2 space-y-1">
-                {pendingFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
-                    <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
-                    <span className="text-2xs text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
-                    <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
-                      <XCircleIcon className="w-4 h-4" />
-                    </button>
+
+            {/* ─── Paystack Method ─────────────────────────────────── */}
+            {paymentMethod === 'paystack' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description (Optional)</label>
+                  <input
+                    type="text"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="e.g., Rent payment for January"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={handlePaystack}
+                  disabled={!amount || parseFloat(amount) <= 0}
+                  className="w-full py-3 bg-[#00C3F7] hover:bg-[#00B0E0] text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
+                    <path d="M14 5l-2 2-2-2v6h4V5z M10 13l2 2 2-2v6h-4v-6z"/>
+                  </svg>
+                  Pay ₦{amount && parseFloat(amount) > 0 ? parseFloat(amount).toLocaleString() : '0'} with Paystack
+                </button>
+                <p className="text-2xs text-slate-400 dark:text-zinc-500 text-center">
+                  Secure payment via Paystack. Supports cards, bank accounts, and USSD.
+                </p>
+              </div>
+            )}
+
+            {/* ─── Bank Transfer Method ────────────────────────────── */}
+            {paymentMethod === 'bank_transfer' && (
+              <div className="space-y-3">
+                {/* Bank Details — toggle to show/hide */}
+                <button
+                  onClick={() => setShowBankDetails(!showBankDetails)}
+                  className="w-full text-left p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">View Company Bank Details</p>
+                      <p className="text-2xs text-slate-500 dark:text-zinc-500 mt-0.5">Tap to show account number and reference</p>
+                    </div>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${showBankDetails ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
                   </div>
-                ))}
+                </button>
+                {showBankDetails && (
+                  <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Bank:</span>
+                      <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">{BANK_DETAILS.bankName}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Account Name:</span>
+                      <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">{BANK_DETAILS.accountName}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Account Number:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono font-bold text-slate-800 dark:text-zinc-200">{BANK_DETAILS.accountNumber}</span>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(BANK_DETAILS.accountNumber); addToast('Account number copied.', { type: 'success' }); }}
+                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Reference:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono font-bold text-primary-600 dark:text-primary-400">{BANK_DETAILS.referenceCode}</span>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(BANK_DETAILS.referenceCode); addToast('Reference code copied.', { type: 'success' }); }}
+                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-2xs text-amber-600 dark:text-amber-400 mt-2 pt-2 border-t border-slate-200 dark:border-zinc-700">
+                      Use the reference code as the transfer description so your payment can be matched.
+                    </p>
+                  </div>
+                )}
+
+                {/* Description + Upload form (existing) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description (Optional)</label>
+                  <input
+                    type="text"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="e.g., Rent payment via bank transfer"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                {/* File Upload */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Upload Proof *</label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-primary-400 dark:hover:border-primary-600 transition-colors"
+                  >
+                    <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                      Click to upload payment receipt or stub
+                    </p>
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
+                      JPG, PNG, PDF · Max 10MB each
+                    </p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {/* Selected files */}
+                  {pendingFiles.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {pendingFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 rounded px-3 py-1.5">
+                          <span className="text-xs text-slate-600 dark:text-zinc-300 truncate">{file.name}</span>
+                          <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-600 text-xs font-bold">Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleSubmit}
+                  disabled={pendingFiles.length === 0 || isSubmitting}
+                  className="w-full py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  {isSubmitting ? 'Submitting...' : 'Submit Payment Proof'}
+                </button>
               </div>
             )}
           </div>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || pendingFiles.length === 0}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-          >
-            <UploadIcon className="w-4 h-4" />
-            {isSubmitting ? 'Uploading...' : 'Submit Payment Proof'}
-          </button>
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* Previous Submissions */}
-      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Previous Submissions</h4>
+      {/* ─── Payment History (Previous Submissions) ─────────────────── */}
+      {/* Shows real-time statuses: PENDING, VERIFIED, APPROVED, DECLINED.
+          Shared between Paystack and Bank Transfer methods. */}
+      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3 mt-6">Payment History</h4>
       {paymentProofs === undefined ? (
         <div className="space-y-2">
           {[1, 2].map(i => (
@@ -2913,8 +3187,12 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
         </div>
       )}
 
-      {/* ─── Lease Agreement Section ─────────────────────────────────────── */}
-      {hasLease && (
+      {/* ─── Lease Agreement Section ───────────────────────────────────────
+          MANAGEMENT-ONLY SUPPRESSION: When the property is marked
+          'Management Only (No Rent)', the Lease Agreement link is hidden.
+          This prevents residents from viewing lease terms for properties
+          where rent is not collected through the portal. */}
+      {hasLease && tenantInfo?.primaryRentCollectionMode !== 'Management Only (No Rent)' && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -3502,44 +3780,80 @@ const HelpAndSupportTab: React.FC<{
         </button>
         {openSection === 'contact' && (
           <div className="px-4 pb-4 space-y-3 border-t border-slate-100 dark:border-zinc-700/50 pt-3">
-            {/* Contact details */}
+            {/* Contact details — with deep links (mailto: / tel:) */}
             <div className="space-y-2">
-              <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
-                <MailIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Email</p>
-                  <p className="text-sm text-slate-900 dark:text-white truncate">
-                    {tenantInfo?.propertyManagerEmail || tenantInfo?.firmEmail || 'Contact via Messages tab'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
-                <OfficeBuildingIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Office Phone</p>
-                  <p className="text-sm text-slate-900 dark:text-white">
-                    {tenantInfo?.propertyManagerPhone || tenantInfo?.firmPhone || 'Contact via Messages tab'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
-                <VisitorIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Gatehouse Desk</p>
-                  <p className="text-sm text-slate-900 dark:text-white">
-                    {tenantInfo?.gatehousePhone || 'Available at the property entrance'}
-                  </p>
-                </div>
-              </div>
+              {/* Email — mailto: deep link triggers native email client */}
+              {(() => {
+                const email = tenantInfo?.propertyManagerEmail || tenantInfo?.firmEmail;
+                return email ? (
+                  <a
+                    href={`mailto:${email}?subject=Inquiry from ${encodeURIComponent(tenantInfo?.tenantName || 'Resident')}`}
+                    className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <MailIcon className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Email</p>
+                      <p className="text-sm text-primary-600 dark:text-primary-400 truncate underline">
+                        {email}
+                      </p>
+                    </div>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
+                    <MailIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Email</p>
+                      <p className="text-sm text-slate-900 dark:text-white truncate">Contact via Messages tab</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Phone — tel: deep link triggers native dialer */}
+              {(() => {
+                const phone = tenantInfo?.propertyManagerPhone || tenantInfo?.firmPhone;
+                return phone ? (
+                  <a
+                    href={`tel:${phone}`}
+                    className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <OfficeBuildingIcon className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Office Phone</p>
+                      <p className="text-sm text-primary-600 dark:text-primary-400 underline">{phone}</p>
+                    </div>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
+                    <OfficeBuildingIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Office Phone</p>
+                      <p className="text-sm text-slate-900 dark:text-white">Contact via Messages tab</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Gatehouse phone — tel: deep link */}
+              {tenantInfo?.gatehousePhone && (
+                <a
+                  href={`tel:${tenantInfo.gatehousePhone}`}
+                  className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <VisitorIcon className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Gatehouse Desk</p>
+                    <p className="text-sm text-primary-600 dark:text-primary-400 underline">{tenantInfo.gatehousePhone}</p>
+                  </div>
+                </a>
+              )}
             </div>
-            {/* Quick message button */}
+            {/* Quick message button — deep links to internal message thread */}
             {portalSettings?.tenantMessagingEnabled ? (
               <button
                 onClick={() => onNavigate('messages')}
-                className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 p-3 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-colors"
               >
                 <ChatIcon className="w-4 h-4" />
-                Open Messages
+                Message Property Manager
               </button>
             ) : (
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3">

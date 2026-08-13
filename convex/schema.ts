@@ -1428,16 +1428,22 @@ export default defineSchema({
     period: nullableString,            // e.g., "January 2025"
     description: nullableString,
     storageIds: v.optional(v.array(v.string())), // Convex storage IDs for uploaded files
-    status: nullableString,            // "pending_review" | "approved" | "rejected"
+    status: nullableString,            // "pending_review" | "pending_verification" | "verified" | "approved" | "rejected" | "declined"
     adminNote: nullableString,
     reviewedAt: nullableNumber,
     reviewedBy: nullableString,
+    // ─── UNIFIED PAYMENT PIPELINE ──────────────────────────────────
+    // paymentMethod: 'bank_transfer' (manual upload) or 'paystack' (inline SDK)
+    paymentMethod: nullableString,
+    // paystackReference: Paystack transaction reference (for Paystack payments)
+    paystackReference: nullableString,
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_firm", ["firmId"])
     .index("by_tenant", ["tenantId"])
-    .index("by_firm_status", ["firmId", "status"]),
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_paystack_reference", ["paystackReference"]),
 
   // ─── Portal Settings ──────────────────────────────────────────────
   // Per-firm portal configuration. Controls features like messaging,

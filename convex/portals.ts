@@ -3255,6 +3255,18 @@ export const getTenantInfo = query({
 
     // Determine primary property/unit for this tenant (first match)
     const primaryUnit = tenantUnits.length > 0 ? tenantUnits[0] : null;
+
+    // Fetch the full property record for the primary unit/property so we can
+    // access rentCollectionMode (for Management-Only suppression in the portal).
+    // Without this, the portal can't know whether to hide Pay Rent / Lease Agreement.
+    let primaryPropertyRecord: any = null;
+    if (primaryUnit?.propertyId) {
+      try { primaryPropertyRecord = await ctx.db.get(primaryUnit.propertyId as any); } catch {}
+    }
+    if (!primaryPropertyRecord && tenantProperties.length > 0) {
+      try { primaryPropertyRecord = await ctx.db.get(tenantProperties[0].id as any); } catch {}
+    }
+
     const primaryProperty = primaryUnit
       ? { id: primaryUnit.propertyId, name: primaryUnit.propertyName, address: primaryUnit.propertyAddress }
       : tenantProperties.length > 0 ? tenantProperties[0] : null;
@@ -3279,6 +3291,12 @@ export const getTenantInfo = query({
       // When false, residents of THIS property see "Feature Not Yet Active" even if
       // firm VMS is on. Defaults to true (backward compat for properties without the field).
       primaryPropertyVmsEnabled: primaryProperty?.automationSettings?.vmsEnabled ?? true,
+      // ─── MANAGEMENT-ONLY SUPPORT ───────────────────────────────────
+      // Exposes the property's rentCollectionMode so the portal can hide
+      // Pay Rent, suppress Lease Agreement, and gray out service charge/
+      // utility modules when the property is marked 'Management Only (No Rent)'.
+      // Falls back to 'Full (Collect Rent)' for properties without the field.
+      primaryRentCollectionMode: primaryPropertyRecord?.rentCollectionMode || 'Full (Collect Rent)',
       // Canonical tenant name from the property record (source of truth)
       tenantName: resolvedTenantName,
     };
@@ -4592,7 +4610,15 @@ export const submitPaymentProof = mutation({
     amount: v.optional(v.number()),
     period: v.optional(v.string()),
     description: v.optional(v.string()),
-    storageIds: v.array(v.string()), // Convex storage IDs for uploaded files
+    storageIds: v.array(v.string()),
+    // ─── UNIFIED PAYMENT PIPELINE ──────────────────────────────────
+    // paymentMethod: 'bank_transfer' (manual upload) or 'paystack' (inline SDK)
+    // paystackReference: Paystack transaction reference (for Paystack payments)
+    // status: initial status — 'pending_review' for bank transfer,
+    //         'pending_verification' for Paystack (awaiting webhook confirmation)
+    paymentMethod: v.optional(v.string()),
+    paystackReference: v.optional(v.string()),
+    status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -4607,7 +4633,9 @@ export const submitPaymentProof = mutation({
       period: args.period,
       description: args.description,
       storageIds: args.storageIds,
-      status: "pending_review",
+      paymentMethod: args.paymentMethod || 'bank_transfer',
+      paystackReference: args.paystackReference,
+      status: args.status || 'pending_review',
       createdAt: now,
       updatedAt: now,
     });
