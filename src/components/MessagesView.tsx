@@ -704,6 +704,31 @@ const MessagesView: React.FC = () => {
     // hidden from the user's inbox but preserved in the DB for audit trail.
     // Founder can restore via the admin inbox.
     const deleteFeedbackThread = useMutation(api.feedback.deleteFeedbackThread);
+    // ─── USER REPLY TO FEEDBACK ───────────────────────────────────────
+    // Allows the user to send a follow-up message in their support thread
+    // after the founder has responded. The input is permanently mounted
+    // at the bottom of the System Inbox thread.
+    const userReplyToFeedback = useMutation(api.feedback.userReplyToFeedback);
+    const [feedbackReplyText, setFeedbackReplyText] = useState('');
+    const [isSendingFeedbackReply, setIsSendingFeedbackReply] = useState(false);
+
+    const handleSendFeedbackReply = async (feedbackId: string) => {
+        if (!feedbackReplyText.trim() || isSendingFeedbackReply) return;
+        setIsSendingFeedbackReply(true);
+        try {
+            await userReplyToFeedback({
+                feedbackId: feedbackId as any,
+                message: feedbackReplyText.trim(),
+                userEmail: currentUser?.email,
+            });
+            addToast('Reply sent. The PracticePro team will be notified.', { type: 'success' });
+            setFeedbackReplyText('');
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to send reply.', { type: 'error' });
+        } finally {
+            setIsSendingFeedbackReply(false);
+        }
+    };
     // Admin-side delete for portal conversation messages. Allows admin to
     // delete ANY message in a conversation (their own or the portal user's).
     // Uses the new adminDeletePortalMessage mutation which has a cross-firm guard.
@@ -1719,7 +1744,7 @@ const MessagesView: React.FC = () => {
                                                             n.link?.view === 'messaging' &&
                                                             n.link?.context?.systemInbox
                                                         ).length > 0 && (
-                                                            <span className="flex-shrink-0 bg-emerald-500 text-white text-2xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                                            <span className="flex-shrink-0 bg-red-500 text-white text-2xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                                                                 {(coreState.notifications || []).filter(n =>
                                                                     n && n.userId === currentUser.id &&
                                                                     !n.isRead &&
@@ -2805,16 +2830,24 @@ const MessagesView: React.FC = () => {
                                                         )}
                                                         {/* Additional replies in the thread */}
                                                         {fb.replies && fb.replies.filter((r: any) => r.adminId !== 'system_auto_reply').map((reply: any, idx: number) => (
-                                                            <div key={idx} className="flex justify-start">
+                                                            <div key={idx} className={`flex ${reply.isUserReply ? 'justify-end' : 'justify-start'}`}>
                                                                 <div className="max-w-[75%]">
                                                                     <div className="flex items-center gap-1.5 mb-1">
-                                                                        <span className="text-2xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
-                                                                            Founder
+                                                                        <span className={`text-2xs font-black uppercase tracking-wider ${
+                                                                            reply.isUserReply
+                                                                                ? 'text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/40'
+                                                                                : 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40'
+                                                                        } px-2 py-0.5 rounded-full`}>
+                                                                            {reply.isUserReply ? 'You' : 'Founder'}
                                                                         </span>
                                                                     </div>
-                                                                    <div className="bg-emerald-900 dark:bg-emerald-950 border border-emerald-600/30 shadow-sm ring-1 ring-white/10 dark:ring-black/20 text-white rounded-2xl rounded-tl-sm px-4 py-3">
+                                                                    <div className={`${
+                                                                        reply.isUserReply
+                                                                            ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm'
+                                                                            : 'bg-emerald-900 dark:bg-emerald-950 border border-emerald-600/30 shadow-sm ring-1 ring-white/10 dark:ring-black/20 text-white rounded-2xl rounded-tl-sm'
+                                                                    } px-4 py-3`}>
                                                                         <p className="text-sm leading-relaxed whitespace-pre-wrap text-white">{reply.message}</p>
-                                                                        <p className="text-2xs text-emerald-300 mt-1">
+                                                                        <p className={`text-2xs mt-1 ${reply.isUserReply ? 'text-primary-200' : 'text-emerald-300'}`}>
                                                                             {new Date(reply.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                                                                         </p>
                                                                     </div>
@@ -2825,6 +2858,54 @@ const MessagesView: React.FC = () => {
                                                 );
                                             })
                                         )}
+                                    </div>
+                                    {/* ─── Reply Input (permanently mounted at bottom) ──────
+                                        Allows the user to send a follow-up message in their
+                                        support thread. Enter = send, Shift+Enter = newline.
+                                        The input is always visible so the user can reply at
+                                        any time without scrolling or looking for a button. */}
+                                    <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-800">
+                                        <div className="flex items-end gap-2">
+                                            <textarea
+                                                value={feedbackReplyText}
+                                                onChange={e => setFeedbackReplyText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        // Send on Enter (use the most recent feedback thread)
+                                                        const latestFeedback = myFeedback[0];
+                                                        if (latestFeedback) {
+                                                            handleSendFeedbackReply(String(latestFeedback._id || latestFeedback.id));
+                                                        }
+                                                    }
+                                                    // Shift+Enter inserts a newline (default behavior, no preventDefault needed)
+                                                }}
+                                                placeholder="Type a reply to the PracticePro team..."
+                                                rows={1}
+                                                className="flex-1 px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 resize-none min-h-[40px] max-h-32"
+                                                style={{ fieldSizing: 'content' } as any}
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const latestFeedback = myFeedback[0];
+                                                    if (latestFeedback) {
+                                                        handleSendFeedbackReply(String(latestFeedback._id || latestFeedback.id));
+                                                    }
+                                                }}
+                                                disabled={!feedbackReplyText.trim() || isSendingFeedbackReply}
+                                                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
+                                            >
+                                                {isSendingFeedbackReply ? (
+                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <SendIcon className="w-4 h-4" />
+                                                )}
+                                                Send
+                                            </button>
+                                        </div>
+                                        <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-1">
+                                            Press Enter to send · Shift+Enter for a new line
+                                        </p>
                                     </div>
                                 </div>
                             ) : selectedInboxType !== 'team' && !selectedInboundMsg && selectedInboxId ? (

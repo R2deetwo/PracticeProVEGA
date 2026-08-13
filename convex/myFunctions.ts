@@ -823,9 +823,14 @@ export const getChatMessages = query({
 
       if (args.conversationId) {
         // Most efficient: use the by_conversation index
+        // CRITICAL: Sort by _creationTime ASCENDING so messages render in
+        // chronological order (oldest first, newest at bottom). Without
+        // this, messages load out of order on refresh (e.g. Aug 14 messages
+        // appearing above Aug 13 messages).
         return await ctx.db
           .query("chatMessages")
           .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId as any))
+          .order("asc")
           .collect();
       }
 
@@ -855,9 +860,12 @@ export const getChatMessages = query({
 
       const legacyMessages = recentMessages.filter(m => !m.firmId && m.conversationId && convoIds.has(m.conversationId.toString()));
 
-      // 4. Combine and return unique
+      // 4. Combine and return unique, sorted by creation time ascending
       const combined = [...messagesByFirm, ...legacyMessages];
-      return Array.from(new Map(combined.map(m => [m._id, m])).values());
+      const unique = Array.from(new Map(combined.map(m => [m._id, m])).values());
+      // Sort by _creationTime ascending (oldest first) so the chat renders
+      // in chronological order with the newest message at the bottom.
+      return unique.sort((a: any, b: any) => (a._creationTime || 0) - (b._creationTime || 0));
 
     } catch (e) {
       console.error("getChatMessages error:", e);

@@ -2176,18 +2176,31 @@ export const getAloaUsageStats = query({
     const errorRate = totalMessages > 0 ? (errorCount / totalMessages) * 100 : 0;
 
     // Tool action distribution (aggregate, no content)
+    // NOTE: toolAction can be either a string (legacy) or an object
+    // { type: 'modal', modalType: 'demoUpsell', ... } (current).
+    // When it's an object, we extract the .type string as the action label
+    // so the distribution chart shows "modal", "navigate", etc. instead of
+    // "[object Object]" (which happens when JS coerces an object to a key).
     const toolActionCounts: Record<string, number> = {};
     for (const msg of allMessages) {
       if (msg.toolAction) {
-        toolActionCounts[msg.toolAction] = (toolActionCounts[msg.toolAction] || 0) + 1;
+        const actionLabel = typeof msg.toolAction === 'string'
+          ? msg.toolAction
+          : (msg.toolAction as any)?.type || (msg.toolAction as any)?.modalType || 'unknown_action';
+        toolActionCounts[actionLabel] = (toolActionCounts[actionLabel] || 0) + 1;
       }
     }
 
     // Model distribution
+    // NOTE: modelUsed should be a string, but defensive-coerce in case
+    // an object slipped through (e.g. from a proxy response).
     const modelCounts: Record<string, number> = {};
     for (const msg of allMessages) {
       if (msg.modelUsed) {
-        modelCounts[msg.modelUsed] = (modelCounts[msg.modelUsed] || 0) + 1;
+        const modelLabel = typeof msg.modelUsed === 'string'
+          ? msg.modelUsed
+          : String(msg.modelUsed);
+        modelCounts[modelLabel] = (modelCounts[modelLabel] || 0) + 1;
       }
     }
 
@@ -2220,8 +2233,12 @@ export const getAloaUsageStats = query({
         firmStatsMap[firmId].lastActivity = msg.createdAt;
       }
       if (msg.toolAction) {
-        firmStatsMap[firmId].toolActions[msg.toolAction] =
-          (firmStatsMap[firmId].toolActions[msg.toolAction] || 0) + 1;
+        // Same defensive extraction as the platform-wide distribution above
+        const actionLabel = typeof msg.toolAction === 'string'
+          ? msg.toolAction
+          : (msg.toolAction as any)?.type || (msg.toolAction as any)?.modalType || 'unknown_action';
+        firmStatsMap[firmId].toolActions[actionLabel] =
+          (firmStatsMap[firmId].toolActions[actionLabel] || 0) + 1;
       }
     }
 
@@ -2242,11 +2259,24 @@ export const getAloaUsageStats = query({
     }
 
     // Fetch firm names for display
+    // NOTE: firmId on messages can be either a Convex _id or a custom UUID
+    // (the frontend uses both). ctx.db.get only works with Convex IDs —
+    // for custom UUIDs we fall back to querying the firms table by the
+    // custom `id` field. This fixes the "Unknown Firm" issue where active
+    // queries were attributed to 'Unknown Firm' because the lookup threw.
     const firmIds = Object.keys(firmStatsMap).filter(id => id !== 'unknown');
     const firmNames: Record<string, { name: string; product: string }> = {};
     for (const firmId of firmIds) {
       try {
-        const firm = await ctx.db.get(firmId as any);
+        // Strategy 1: Try as Convex _id (fast path)
+        let firm: any = await ctx.db.get(firmId as any);
+        // Strategy 2: Query by custom `id` field (for UUID firmIds)
+        if (!firm) {
+          firm = await ctx.db
+            .query("firms")
+            .filter((q: any) => q.eq(q.field("id"), firmId))
+            .first();
+        }
         if (firm) {
           firmNames[firmId] = {
             name: (firm as any).name || 'Unknown Firm',

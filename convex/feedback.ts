@@ -405,12 +405,22 @@ export const adminReplyToFeedback = mutation({
       replies
     } as any);
 
+    // ─── Notification message logic ───────────────────────────────────
+    // FIRST reply (no prior replies): "We've reviewed your feedback and responded!"
+    // SUBSEQUENT replies: "New update in your support thread"
+    // This prevents the "reviewed your feedback" toast from firing on
+    // every single reply, which was annoying users.
+    const isFirstReply = replies.length <= 1; // The push above added 1, so <=1 means first
+    const notifMessage = isFirstReply
+      ? `PracticePro Team: We've reviewed your feedback and responded! Tap to view the conversation.`
+      : `New update in your support thread. Tap to view.`;
+
     // ─── FIX: notification payload now carries the feedbackId ───────
     await ctx.db.insert("notifications", {
       firmId: feedback.firmId,
       userId: feedback.userId,
       title: "PracticePro Team",
-      message: `PracticePro Team: We've reviewed your feedback and responded! Tap to view the conversation.`,
+      message: notifMessage,
       type: "feedback_reply",
       link: {
         view: 'messaging',
@@ -505,6 +515,75 @@ export const updateFeedbackStatus = mutation({
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback not found");
     await ctx.db.patch(args.feedbackId, { status: args.status } as any);
+    return { success: true };
+  },
+});
+
+/**
+ * mutation: userReplyToFeedback
+ * Allows a USER to reply to their own support thread (adding a follow-up
+ * message after the founder has responded). This appends the user's reply
+ * to the replies array and reopens the thread status if it was 'Resolved'.
+ *
+ * NOTIFICATION: Notifies the founder that the user has replied.
+ */
+export const userReplyToFeedback = mutation({
+  args: {
+    feedbackId: v.id("user_feedback"),
+    message: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const feedback = await ctx.db.get(args.feedbackId);
+    if (!feedback) throw new Error("Feedback thread not found");
+
+    // AUTH: verify the caller owns this thread
+    if (args.userEmail && feedback.userEmail !== args.userEmail) {
+      throw new Error("Not authorized to reply to this thread");
+    }
+
+    const replies = (feedback as any).replies || [];
+    replies.push({
+      adminId: args.userEmail || feedback.userId || 'user',
+      message: args.message,
+      timestamp: Date.now(),
+      isUserReply: true,
+    });
+
+    // Reopen the thread if it was Resolved/Archived
+    const newStatus = (feedback as any).status === 'Resolved' || (feedback as any).status === 'Archived'
+      ? 'New'
+      : (feedback as any).status || 'New';
+
+    await ctx.db.patch(args.feedbackId, {
+      status: newStatus,
+      replies,
+    } as any);
+
+    // Notify the founder that the user has replied
+    const founders = await ctx.db
+      .query("users")
+      .filter((q: any) => q.eq(q.field("role"), "Founder"))
+      .collect();
+    for (const founder of founders) {
+      await ctx.db.insert("notifications", {
+        firmId: 'system',
+        userId: founder._id,
+        title: "User Reply",
+        message: `${feedback.userName || feedback.userEmail || 'A user'} replied to their support thread: "${args.message.slice(0, 80)}${args.message.length > 80 ? '...' : ''}"`,
+        type: "feedback_user_reply",
+        link: {
+          view: 'feedback',
+          id: null,
+          context: {
+            feedbackId: args.feedbackId.toString(),
+          },
+        },
+        timestamp: new Date().toISOString(),
+        isRead: false,
+      } as any);
+    }
+
     return { success: true };
   },
 });
