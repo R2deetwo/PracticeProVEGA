@@ -378,7 +378,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                         key={address}
                                         address={address}
                                         units={units}
-                                        onUnitClick={(id) => navigateTo('propertyDetail', id)}
+                                        onUnitClick={(id) => navigateTo('propertyDetail', id, { tab: 'units', targetUnit: id, highlight: id })}
                                         onEditClick={(id) => openModal('editProperty', id, { contactId: contact.id })}
                                         onDeleteClick={(prop) => handleDeleteProperty(prop)}
                                     />

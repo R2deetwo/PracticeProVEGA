@@ -362,19 +362,23 @@ export const sendTestPush = mutation({
       createdAt: Date.now(),
     });
 
-    // Dispatch FCM push
-    const result: any = await ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
+    // Dispatch FCM push via scheduler (fire-and-forget for the FCM call)
+    ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
       tokens: tokenStrings,
       title: args.title,
       body: args.body,
       data: { type: "test_push" },
     });
 
+    // Note: scheduler.runAfter doesn't return the action's result.
+    // We return success based on having tokens — the actual FCM result
+    // is logged server-side in pushNotificationsNode.ts.
     return {
       success: true,
-      sent: result?.sent || 0,
-      failed: result?.failed || 0,
+      sent: tokenStrings.length,
+      failed: 0,
       totalDevices: tokenStrings.length,
+      message: `Push dispatched to ${tokenStrings.length} device(s). Check server logs for FCM delivery status.`,
     };
   },
 });
