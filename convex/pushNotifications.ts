@@ -305,3 +305,76 @@ export const sendToUsers = mutation({
     return { success: true, count, pushTokens: tokens.length };
   },
 });
+
+/**
+ * mutation: sendTestPush
+ *
+ * Sends a test FCM push notification to the founder's own device(s).
+ * Used by the "Send Test Push Notification" button in founder Settings.
+ * Returns the FCM dispatch result so the founder can see exactly what
+ * happened (success count, failure count, or error message).
+ */
+export const sendTestPush = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    title: v.string(),
+    body: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Verify founder
+    const founder = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier.toLowerCase()))
+      .first();
+
+    if (!founder || founder.role !== "Founder") {
+      throw new Error("Unauthorized. Only Founders can send test pushes.");
+    }
+
+    // Get the founder's device tokens
+    const tokens = await ctx.db
+      .query("user_push_tokens")
+      .withIndex("by_user_active", (q: any) =>
+        q.eq("userId", String(founder._id)).eq("isActive", true)
+      )
+      .collect();
+
+    const tokenStrings = tokens.map((t: any) => t.token);
+
+    if (tokenStrings.length === 0) {
+      return {
+        success: false,
+        reason: "NO_REGISTERED_DEVICES",
+        error: "No active device tokens found for your account. Open the founder APK on your device first — it will auto-register with FCM on launch.",
+      };
+    }
+
+    // Create an in-app notification too
+    await ctx.db.insert("app_notifications", {
+      userId: String(founder._id),
+      firmId: undefined,
+      title: args.title,
+      body: args.body,
+      type: "system",
+      priority: "normal",
+      actionType: "dismiss",
+      isRead: false,
+      createdAt: Date.now(),
+    });
+
+    // Dispatch FCM push
+    const result: any = await ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
+      tokens: tokenStrings,
+      title: args.title,
+      body: args.body,
+      data: { type: "test_push" },
+    });
+
+    return {
+      success: true,
+      sent: result?.sent || 0,
+      failed: result?.failed || 0,
+      totalDevices: tokenStrings.length,
+    };
+  },
+});

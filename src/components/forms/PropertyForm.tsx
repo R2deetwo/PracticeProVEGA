@@ -721,7 +721,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             // Using the stale snapshot would overwrite the just-saved email with the
             // old/missing value — this was the root cause of the email persistence bug.
             if (saveToContacts) {
-            addToast('Syncing resident details to Contacts directory...', { type: 'info' });
+            let contactsCreated = 0;
+            let contactsLinked = 0;
+            let syncErrors = 0;
             await Promise.all(currentUnits.map(async (unit) => {
                 const tenantName = composeTenantName(unit).trim();
                 const tenantPhone = (unit.tenantPhone || '').trim();
@@ -736,20 +738,24 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     // the latest tenantEmail, rentAmount, etc. that were just entered.
                     const freshPd = buildPropertyRecord(unit, propertyData, unitId);
 
-                    // Search existing contacts by phone (primary matcher) or email
+                    // Bug #3 fix: Only match contacts with property-related categories
+                    // (avoids false-positive matching against the landlord or legal clients)
+                    const propertyCategories = ['Tenant', 'Resident', 'Landlord', 'Vendor', 'Facility Manager', 'Estate Agent', 'Contractor'];
                     const existingByPhone = tenantPhone
                         ? (appState.contacts || []).find(c =>
-                            c.phone && c.phone.replace(/\D/g, '') === tenantPhone.replace(/\D/g, ''))
+                            c.phone && c.phone.replace(/\D/g, '') === tenantPhone.replace(/\D/g, '') &&
+                            propertyCategories.includes(c.category || ''))
                         : null;
                     const existingByEmail = tenantEmail
                         ? (appState.contacts || []).find(c =>
-                            c.email && c.email.toLowerCase().trim() === tenantEmail.toLowerCase().trim())
+                            c.email && c.email.toLowerCase().trim() === tenantEmail.toLowerCase().trim() &&
+                            propertyCategories.includes(c.category || ''))
                         : null;
                     const existingContact = existingByPhone || existingByEmail;
 
                     if (existingContact) {
-                        // Link existing contact to this unit — patch ONLY tenantContactId
-                        // onto the fresh rentalDetails (not the stale coreState snapshot).
+                        contactsLinked++;
+                        // Link existing contact to this unit
                         await updateItem('properties', {
                             ...freshPd,
                             rentalDetails: {
@@ -767,7 +773,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         phone: tenantPhone,
                         email: tenantEmail,
                         contactType: ContactType.Individual,
-                        category: 'Resident',
+                        category: 'Tenant', // Bug #2 fix: use 'Tenant' (in seed list) instead of 'Resident' (not in list)
                         // Link back to the property/unit for traceability
                         properties: [{
                             id: unitId,
@@ -778,23 +784,33 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                     const created = await addItem('contacts', newContactData, 'Contact');
                     if (created) {
-                        // Link the new contactId back to the unit — patch ONLY
-                        // tenantContactId onto the fresh rentalDetails.
+                        contactsCreated++;
+                        // Bug #4 fix: Use _id (Convex ID) for tenantContactId, not the
+                        // client UUID (id) which gets overwritten during Convex merge.
+                        const contactId = created._id || created.id;
                         await updateItem('properties', {
                             ...freshPd,
                             rentalDetails: {
                                 ...freshPd.rentalDetails,
-                                tenantContactId: created.id,
+                                tenantContactId: contactId,
                             } as any,
                         }, 'Property');
                     }
                 } catch (syncErr) {
-                    // Auto-sync is best-effort — don't fail the property save
+                    syncErrors++;
                     console.warn(`Resident auto-sync failed for unit ${unit.unitName}:`, syncErr);
-                    addToast(`Resident contact sync failed: ${syncErr?.message || 'Unknown error'}. The resident's details were saved on the unit but not synced to Contacts.`, { type: 'info' });
                 }
             }));
-            addToast('Resident details synced to Contacts directory.', { type: 'success' });
+            // Bug #1 fix: only show success if contacts were actually created/linked
+            if (contactsCreated > 0) {
+                addToast(`${contactsCreated} resident(s) synced to Contacts directory.`, { type: 'success' });
+            } else if (contactsLinked > 0) {
+                addToast(`${contactsLinked} resident(s) linked to existing contacts.`, { type: 'success' });
+            } else if (syncErrors > 0) {
+                addToast(`${syncErrors} resident contact(s) failed to sync. Check console for details.`, { type: 'error' });
+            } else {
+                addToast('No resident details to sync (name, phone, or email required).', { type: 'info' });
+            }
             } // end if (saveToContacts)
 
             // Note: We no longer pass empty [] to onSave — that wipes the contact's property references.

@@ -78,7 +78,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setAppState(prev => ({ ...prev, [table]: [...(prev[table as keyof AppState] as any[]), optimisticItem] }));
 
             try {
-                const rawId = await createItemMutation({ table, data: { ...data, firmId: currentUser?.firmId }, userEmail: currentUser?.email });
+                const rawId = await createItemMutation({ table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email });
                 const convexId = rawId?.toString() || rawId;
                 // CRITICAL: Keep the original client UUID as `id` (matching what was
                 // saved to the backend document) and store the Convex internal _id

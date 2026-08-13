@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { Capacitor } from '@capacitor/core';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderTheme, THEME_OPTIONS } from '../useFounderTheme';
 
@@ -48,6 +48,7 @@ export const Settings: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
 
     const envStatus = useQuery(api.debug_env.checkEnv, {});
+    const testPush = useMutation(api.pushNotifications.sendTestPush);
 
     const [screenCapture, setScreenCapture] = useState(() => safeGetBool('founder_screen_capture', true));
     const [biometric, setBiometric] = useState(() => safeGetBool('founder_biometric', false));
@@ -278,6 +279,34 @@ export const Settings: React.FC = () => {
                                 <ToggleRow label="Milestone Alerts" description="10th, 50th, 100th, 1000th firm signup" checked={notifMilestone} onChange={() => toggleSetting('founder_notif_milestone', setNotifMilestone, notifMilestone, 'Milestone alerts')} />
                                 <ToggleRow label="Payment Failures" description="Subscription payment failures and billing errors" checked={notifPaymentFailure} onChange={() => toggleSetting('founder_notif_payment_failure', setNotifPaymentFailure, notifPaymentFailure, 'Payment alerts')} />
                             </div>
+                        </div>
+                        {/* Test Push Notification */}
+                        <div className={CARD}>
+                            <p className={SECTION_TITLE}>Push Notification Diagnostics</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+                                Send a test FCM push notification to your device to verify the end-to-end push pipeline.
+                            </p>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const result = await testPush({
+                                            tokenIdentifier: currentUser?.email || '',
+                                            title: 'PracticePro Test Push',
+                                            body: 'If you can see this, push notifications are working correctly!',
+                                        });
+                                        if (result.success) {
+                                            addToast(`Test push sent! (${result.sent || 0} device(s) notified)`, { type: 'success' });
+                                        } else {
+                                            addToast(`Push failed: ${result.error || result.reason || 'Unknown error'}`, { type: 'error' });
+                                        }
+                                    } catch (e: any) {
+                                        addToast(`Push test error: ${e?.message || 'Failed'}`, { type: 'error' });
+                                    }
+                                }}
+                                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors"
+                            >
+                                Send Test Push Notification
+                            </button>
                         </div>
                     </div>
                 )}
