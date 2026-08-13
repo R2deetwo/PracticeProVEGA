@@ -2370,9 +2370,12 @@ export const createItem = mutation({
     }
 
     // Auto-inject creation timestamp and audit fields
+    // When requireFirmUser returns empty firmId (anonymous/legacy context),
+    // fall back to the firmId from the client-supplied data payload.
+    const effectiveFirmId = firmId || sanitizedData.firmId || '';
     const dataWithTimestamp = {
       ...sanitizedData,
-      firmId, // FORCED DATA ISOLATION
+      firmId: effectiveFirmId, // DATA ISOLATION (with fallback for legacy calls)
       createdAt: sanitizedData.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

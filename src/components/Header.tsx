@@ -44,7 +44,7 @@ const Header: React.FC = React.memo(() => {
     const { isProperty, hasPropertyFeatures } = useProduct();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
-    const [notifTab, setNotifTab] = useState<'system' | 'platform' | 'firm'>('system');
+    const [notifTab, setNotifTab] = useState<'platform' | 'firm'>('platform');
     const notificationsRef = useRef<HTMLDivElement>(null);
     const [isUserMenuOpen, setUserMenuOpen] = React.useState(false);
     const userMenuRef = React.useRef<HTMLDivElement>(null);
@@ -454,24 +454,8 @@ const Header: React.FC = React.memo(() => {
                                 </div>
                             </div>
 
-                            {/* Tab switcher — System | Platform Notices | Firm Notices */}
+                            {/* Tab switcher — Platform Notices | Firm Notices (System merged into Platform) */}
                             <div className="flex border-b border-slate-100 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900">
-                                <button
-                                    onClick={() => setNotifTab('system')}
-                                    className={`flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${
-                                        notifTab === 'system'
-                                            ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500'
-                                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 border-transparent'
-                                    }`}
-                                >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                                    </svg>
-                                    System
-                                    {appUnread > 0 && (
-                                        <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                                    )}
-                                </button>
                                 <button
                                     onClick={() => setNotifTab('platform')}
                                     className={`flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${
@@ -508,64 +492,6 @@ const Header: React.FC = React.memo(() => {
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {(() => {
-                                    // ─── System tab: App notifications (APK updates, etc.) ────────
-                                    if (notifTab === 'system') {
-                                        const sysNotifs = appNotifications || [];
-                                        if (sysNotifs.length === 0) {
-                                            return (
-                                                <div className="py-12 flex flex-col items-center justify-center text-slate-400">
-                                                    <BellIcon className="w-12 h-12 mb-3 opacity-20" />
-                                                    <p className="text-sm">No system notifications</p>
-                                                </div>
-                                            );
-                                        }
-                                        return (
-                                            <div className="divide-y divide-slate-50 dark:divide-zinc-700/50">
-                                                {appUnread > 0 && (
-                                                    <button
-                                                        onClick={() => markAllAppNotifsRead({ userId: currentUser.id })}
-                                                        className="w-full py-2 text-center text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                                                    >
-                                                        Mark all read ({appUnread})
-                                                    </button>
-                                                )}
-                                                {sysNotifs.map((notif: any) => (
-                                                    <button
-                                                        key={notif._id}
-                                                        onClick={() => handleAppNotifClick(notif)}
-                                                        className={`w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors ${!notif.isRead ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''}`}
-                                                    >
-                                                        <div className="flex items-start gap-2">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${
-                                                                notif.priority === 'high' ? 'bg-red-500' :
-                                                                notif.priority === 'normal' ? 'bg-emerald-500' : 'bg-slate-300'
-                                                            }`} />
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className={`text-xs font-bold ${!notif.isRead ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}`}>
-                                                                    {notif.title}
-                                                                </p>
-                                                                <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">
-                                                                    {notif.body}
-                                                                </p>
-                                                                {notif.actionType === 'apk_download' && notif.actionUrl && (
-                                                                    <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white text-2xs font-bold rounded-lg">
-                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                                                                        </svg>
-                                                                        Download Update
-                                                                    </div>
-                                                                )}
-                                                                <p className="text-2xs text-slate-400 mt-1">
-                                                                    {new Date(notif.createdAt).toLocaleString()}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        );
-                                    }
-
                                     // ─── Platform / Firm tabs (existing notification logic) ───────
                                     // Filter notifications by the selected tab
                                     const tabNotifications = notifTab === 'platform'
