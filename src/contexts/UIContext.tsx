@@ -527,7 +527,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 import('../utils/haptics').then(m => m.haptics.light());
             }
         } catch {}
-        const duration = options?.duration || 4000;
+        const duration = options?.duration || 3500;
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
         }, duration);

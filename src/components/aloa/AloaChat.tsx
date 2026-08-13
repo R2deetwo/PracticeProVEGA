@@ -2863,7 +2863,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             hid the button for most responses. Now it shows for
                                             ALL AI responses so the user can always send content
                                             to DraftPro for editing. */}
-                                        {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && msg.content.trim().length > 20 && (
+                                        {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && msg.content.trim().length > 50 && !msg.content.trim().match(/^(yes|no|ok|sure|done|thanks|thank you|got it|understood|certainly|of course)[.!]?$/i) && (
                                             <button
                                                 onClick={() => handleDraftInDraftPro(msg.content || '', (msg as any).citations)}
                                                 className="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md px-2 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5 border border-primary-300 dark:border-primary-700"

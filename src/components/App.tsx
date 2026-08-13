@@ -672,14 +672,22 @@ export const App: React.FC = () => {
     // VERSION-GATED: The user has accepted if EITHER:
     //   - localStorage has the current version (fast path), OR
     //   - The server has ANY acceptance record for this user (durable path).
-    //     This handles the case where localStorage was cleared (APK reinstall)
-    //     but the user already accepted in a previous session.
-    // The acceptance gate triggers ONLY when the LEGAL_TERMS_VERSION
-    // explicitly increments. Routine code updates/refreshes do NOT
-    // re-trigger the gate.
+    //     This handles the case where localStorage was cleared (APK reinstall
+    //     or _refresh= cache-bust) but the user already accepted in a
+    //     previous session.
+    //
+    // DECOUPLED FROM CODE DEPLOYS: Routine code updates (version bumps,
+    // _refresh params, APK updates) do NOT reset ToS acceptance. Only an
+    // explicit LEGAL_TERMS_VERSION increment in TermsAcceptance.tsx
+    // triggers re-acceptance. The server record is the source of truth.
+    //
+    // LOADING STATE: While the server query is loading (undefined),
+    // assume accepted (don't block the user). Only prompt if the query
+    // resolves and returns null (no record found).
     const hasAcceptedTerms =
         hasAcceptedCurrentTerms() ||
-        (serverTermsRecord !== undefined && serverTermsRecord !== null && serverTermsRecord !== '');
+        (serverTermsRecord === undefined) || // Still loading → don't block
+        (serverTermsRecord !== null && serverTermsRecord !== '');
 
     const isEditorMode = view === 'editor';
 

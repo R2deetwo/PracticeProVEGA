@@ -35,6 +35,10 @@ const AloaUsageCenter: React.FC = () => {
   const isLoading = stats === undefined;
   const hasError = stats === null;
   const data = stats || { platform: {}, toolActionDistribution: [], modelDistribution: [], perFirm: [] };
+  const platform = data?.platform || {};
+  const toolActions = data?.toolActionDistribution || [];
+  const models = data?.modelDistribution || [];
+  const perFirm = data?.perFirm || [];
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20">
@@ -83,28 +87,28 @@ const AloaUsageCenter: React.FC = () => {
                   <div className={CARD}>
                     <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Messages Today</p>
                     <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-                      {data.platform?.messagesToday || 0}
+                      {platform.messagesToday || 0}
                     </p>
                   </div>
                   <div className={CARD}>
                     <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Messages (7d)</p>
                     <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-                      {data.platform?.messages7d || 0}
+                      {platform.messages7d || 0}
                     </p>
                   </div>
                   <div className={CARD}>
                     <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Active AI Firms</p>
                     <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-                      {data.platform?.activeAiFirms || 0}
-                      <span className="text-sm text-slate-400 font-medium ml-1">/ {data.platform?.totalAiFirms || 0}</span>
+                      {platform.activeAiFirms || 0}
+                      <span className="text-sm text-slate-400 font-medium ml-1">/ {platform.totalAiFirms || 0}</span>
                     </p>
                   </div>
                   <div className={CARD}>
                     <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Error Rate</p>
                     <p className={`text-3xl font-black mt-1 ${
-                      (data.platform?.errorRate || 0) > 5 ? 'text-rose-500' : 'text-emerald-500'
+                      (platform.errorRate || 0) > 5 ? 'text-rose-500' : 'text-emerald-500'
                     }`}>
-                      {data.platform?.errorRate || 0}%
+                      {platform.errorRate || 0}%
                     </p>
                   </div>
                 </div>
@@ -112,10 +116,10 @@ const AloaUsageCenter: React.FC = () => {
                 {/* Tool Action Distribution */}
                 <div className={CARD}>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">What Lawyers Do With AI</h3>
-                  {data.toolActionDistribution?.length > 0 ? (
+                  {toolActions?.length > 0 ? (
                     <div className="space-y-2">
-                      {data.toolActionDistribution.map((tool: any, i: number) => {
-                        const maxCount = data.toolActionDistribution[0]?.count || 1;
+                      {toolActions.map((tool: any, i: number) => {
+                        const maxCount = toolActions[0]?.count || 1;
                         const pct = Math.round((tool.count / maxCount) * 100);
                         return (
                           <div key={i} className="flex items-center gap-3">
@@ -138,9 +142,9 @@ const AloaUsageCenter: React.FC = () => {
                 {/* Model Distribution */}
                 <div className={CARD}>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">AI Models Used</h3>
-                  {data.modelDistribution?.length > 0 ? (
+                  {models?.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {data.modelDistribution.map((m: any, i: number) => (
+                      {models.map((m: any, i: number) => (
                         <div key={i} className="px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50 rounded-lg">
                           <span className="text-xs font-bold text-violet-700 dark:text-violet-400">{m.model}</span>
                           <span className="text-xs text-violet-500 ml-2">{m.count} calls</span>
@@ -158,9 +162,9 @@ const AloaUsageCenter: React.FC = () => {
             {activeTab === 'firms' && (
               <div className={CARD}>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Top AI-Engaged Firms</h3>
-                {data.perFirm?.length > 0 ? (
+                {perFirm?.length > 0 ? (
                   <div className="space-y-2">
-                    {data.perFirm.map((firm: any, i: number) => (
+                    {perFirm.map((firm: any, i: number) => (
                       <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl">
                         <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {i + 1}
@@ -213,10 +217,10 @@ const AloaUsageCenter: React.FC = () => {
                   Which AI agents and tools are being used across the platform. This helps identify which features
                   drive engagement and which may need improvement.
                 </p>
-                {data.toolActionDistribution?.length > 0 ? (
+                {toolActions?.length > 0 ? (
                   <div className="space-y-3">
-                    {data.toolActionDistribution.map((tool: any, i: number) => {
-                      const total = data.toolActionDistribution.reduce((s: number, t: any) => s + t.count, 0);
+                    {toolActions.map((tool: any, i: number) => {
+                      const total = toolActions.reduce((s: number, t: any) => s + t.count, 0);
                       const pct = total > 0 ? Math.round((tool.count / total) * 100) : 0;
                       return (
                         <div key={i}>
