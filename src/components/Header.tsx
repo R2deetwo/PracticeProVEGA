@@ -80,33 +80,6 @@ const Header: React.FC = React.memo(() => {
         () => (sessionStorage.getItem('practicepro_demo_product') as 'vega' | 'atrium') || 'vega'
     );
 
-    // ─── App Notifications (APK updates, system alerts) ────────────────────
-    // Merged into Platform Notices tab — no separate System tab.
-    const appNotifications = useQuery(api.pushNotifications.getUserNotifications,
-        currentUser?.id ? { userId: currentUser.id, limit: 10 } : 'skip'
-    );
-    const appUnreadCount = useQuery(api.pushNotifications.getUnreadNotificationCount,
-        currentUser?.id ? { userId: currentUser.id } : 'skip'
-    );
-    const markAppNotifRead = useMutation(api.pushNotifications.markNotificationRead);
-    const markAllAppNotifsRead = useMutation(api.pushNotifications.markAllNotificationsRead);
-    const appUnread = appUnreadCount || 0;
-
-    const handleAppNotifClick = async (notif: any) => {
-        if (!notif.isRead) {
-            try { await markAppNotifRead({ notificationId: notif._id }); } catch {}
-        }
-        if (notif.actionType === 'apk_download' && notif.actionUrl) {
-            if (Capacitor.isNativePlatform()) {
-                import('@capacitor/browser').then(({ Browser }) => {
-                    Browser.open({ url: notif.actionUrl });
-                }).catch(() => window.open(notif.actionUrl, '_blank'));
-            } else {
-                window.open(notif.actionUrl, '_blank');
-            }
-        }
-    };
-
     // Fetch inbound tenant messages for notification bell.
     // IMPORTANT: Use hasPropertyFeatures (not isProperty) so Komplete firms
     // also get resident messages. isProperty is only for the assistant name.
