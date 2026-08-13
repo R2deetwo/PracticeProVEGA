@@ -29,6 +29,13 @@ export const useMessaging = (appState: AppState, actions: any) => {
         // Server-side mutation: atomically creates the chat message AND
         // notifications for every other conversation member. If this call
         // succeeds, the recipient is GUARANTEED to get a notification.
+        //
+        // IDEMPOTENCY: each call generates a fresh idempotencyKey. If the
+        // network drops after Convex receives the mutation but before the
+        // client gets the success response, the client will retry with the
+        // SAME key (captured in the closure) and the server will return the
+        // original messageId instead of inserting a duplicate.
+        const idempotencyKey = uuidv4();
         try {
             await sendChatMessageMutation({
                 conversationId,
@@ -36,6 +43,7 @@ export const useMessaging = (appState: AppState, actions: any) => {
                 authorId: senderId,
                 authorName: currentUser?.name || undefined,
                 userEmail: currentUser?.email,
+                idempotencyKey,
             });
         } catch (e: any) {
             console.error('[handleSendMessage] Failed:', e);

@@ -148,6 +148,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     );
 
     const [textInput, setTextInput] = useState('');
+    // ─── PER-CONVERSATION DRAFT PERSISTENCE ────────────────────────────────
+    // Previously: switching conversations called setMessages([]) but kept
+    // textInput intact → draft for conversation A was visible in conversation B
+    // (context loss + privacy risk if A's draft contained sensitive info).
+    // Switching back to A also lost the draft entirely (text was overwritten
+    // by typing in B or cleared on send).
+    //
+    // FIX: keep a Map of conversationId → draft text. When activeConversationId
+    // changes, save the outgoing draft and restore the incoming draft.
+    // The "no-conversation" key '__new__' handles the new-chat state.
+    const draftByConversationRef = useRef<Record<string, string>>({});
+    const isRestoringDraftRef = useRef(false);
     const [pendingAttachments, setPendingAttachments] = useState<{ storageId: string; name: string; type: string }[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -439,6 +451,34 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         return () => { cancelled = true; };
     }, [activeConversationId, convex, setMessages, setIsLoading, addToast]);
+
+    // ─── DRAFT RESTORE ON CONVERSATION SWITCH ─────────────────────────────
+    // When the user switches to a different conversation (or starts a new chat),
+    // restore that conversation's saved draft. The previous draft was already
+    // saved by the textInput autosave effect below.
+    useEffect(() => {
+        const key = activeConversationId || '__new__';
+        isRestoringDraftRef.current = true;
+        setTextInput(draftByConversationRef.current[key] || '');
+        // Clear pending attachments too — they belonged to the previous conv
+        setPendingAttachments([]);
+        // Release the guard on next tick so the autosave effect can run again
+        setTimeout(() => { isRestoringDraftRef.current = false; }, 0);
+    }, [activeConversationId]);
+
+    // ─── DRAFT AUTOSAVE (debounced) ───────────────────────────────────────
+    // Saves the current textInput to the active conversation's draft slot.
+    // Skipped while restoring a draft to avoid clobbering the restore with
+    // the empty string from the previous render cycle.
+    useEffect(() => {
+        if (isRestoringDraftRef.current) return;
+        const key = activeConversationId || '__new__';
+        // Only save non-empty drafts to avoid overwriting a saved draft with ''
+        // when the input briefly flickers empty during a render.
+        if (textInput || draftByConversationRef.current[key]) {
+            draftByConversationRef.current[key] = textInput;
+        }
+    }, [textInput, activeConversationId]);
 
     const disconnectLiveSession = () => {
         if (liveSessionRef.current) {
@@ -1221,7 +1261,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         label: 'Go to AI Settings →',
                     },
                 }]);
-                if (!overrideContent) setTextInput('');
+                if (!overrideContent) {
+                    setTextInput('');
+                    // Clear the saved draft for this conversation so switching
+                    // away and back doesn't restore a sent message
+                    draftByConversationRef.current[activeConversationId || '__new__'] = '';
+                }
                 return;
             }
         }
@@ -1243,7 +1288,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     label: 'Create Your Account'
                 }
             }]);
-            if (!overrideContent) setTextInput('');
+            if (!overrideContent) {
+                setTextInput('');
+                draftByConversationRef.current[activeConversationId || '__new__'] = '';
+            }
             return;
         }
 
@@ -1263,7 +1311,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // Store PII result on the user message so PIIShieldBadge can render
         (newUserMsg as any).piiResult = piiResult.totalStripped > 0 ? piiResult : undefined;
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
-        if (!overrideContent) setTextInput('');
+        if (!overrideContent) {
+            setTextInput('');
+            draftByConversationRef.current[activeConversationId || '__new__'] = '';
+        }
         // Clear attachments after sending
         const sentAttachments = [...pendingAttachments];
         setPendingAttachments([]);

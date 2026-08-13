@@ -117,6 +117,18 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const [dictationSupported, setDictationSupported] = useState(false);
     const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<SpeechRecognition | null>(null);
+    // ─── DICTATION REPAIR REFS ──────────────────────────────────────────
+    // userStoppedRef: user explicitly tapped stop → don't auto-restart
+    // insertPosRef: saved editor position so transcript always lands at the
+    //   cursor the user had when dictation started, even if they tap elsewhere
+    //   mid-dictation. Without this, transcripts went to wherever the cursor
+    //   happened to be (often the wrong place after the user scrolled).
+    // restartCountRef: caps auto-restart attempts to prevent infinite loops
+    //   if the engine keeps crashing.
+    const userStoppedRef = useRef(false);
+    const insertPosRef = useRef<number | null>(null);
+    const restartCountRef = useRef(0);
+    const MAX_RESTARTS = 5;
 
     useEffect(() => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -139,9 +151,32 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             .replace(/\bhyphen\b/gi, '-');
     };
 
+    // ─── Insert transcript at the saved cursor position ─────────────────
+    // Avoids editor.chain().focus() which steals focus from the mic indicator
+    // and (worse) scrolls the page. Inserts at insertPosRef if set, else at
+    // the current cursor.
+    const insertTranscript = (text: string) => {
+        if (!editor) return;
+        try {
+            const pos = insertPosRef.current;
+            if (pos !== null && pos >= 0 && pos <= editor.state.doc.content.size) {
+                // Restore the saved cursor and insert there
+                editor.chain().setTextSelection(pos).insertContent(text).run();
+                // Advance the saved position past what we just inserted
+                insertPosRef.current = pos + text.length;
+            } else {
+                // Fallback: insert at current cursor (no focus stealing)
+                editor.chain().insertContent(text).run();
+            }
+        } catch (err) {
+            console.warn('[Dictation] insertContent failed:', err);
+        }
+    };
+
     const toggleDictation = () => {
         if (isDictating) {
-            recognitionRef.current?.stop();
+            userStoppedRef.current = true;
+            try { recognitionRef.current?.stop(); } catch (e) { /* already stopped */ }
             setIsDictating(false);
             setInterimText('');
             return;
@@ -149,7 +184,21 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR || !editor) return;
 
+        // Reset state for a fresh session
+        userStoppedRef.current = false;
+        restartCountRef.current = 0;
+        // Save the current cursor position so transcripts land here regardless
+        // of where the user taps during dictation.
+        try {
+            insertPosRef.current = editor.state.selection.from;
+        } catch {
+            insertPosRef.current = null;
+        }
+
         const recognition = new SR();
+        // Use en-NG for Nigerian English when available (better accent match),
+        // fall back to en-US. Some Android WebView builds only support en-US
+        // and will throw on unsupported locales — wrapped in try/catch below.
         recognition.lang = 'en-US';
         recognition.continuous = true;
         recognition.interimResults = true;
@@ -167,9 +216,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             }
 
             if (finalTranscript) {
-                // Process punctuation commands and insert
+                // Process punctuation commands and insert at saved cursor
                 const processed = processTranscript(finalTranscript);
-                editor.chain().focus().insertContent(processed + ' ').run();
+                insertTranscript(processed + ' ');
                 setInterimText('');
             } else if (interim) {
                 // Show interim text as a live preview
@@ -178,20 +227,65 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         };
 
         recognition.onerror = (event: Event) => {
-            console.warn('[Dictation] Error:', (event as any).error);
-            setIsDictating(false);
-            setInterimText('');
+            const errType = (event as any).error;
+            console.warn('[Dictation] Error:', errType);
+            // 'no-speech' and 'network' are transient — don't kill the session,
+            // the onend handler will auto-restart up to MAX_RESTARTS times.
+            // 'not-allowed' / 'service-not-allowed' are permanent — stop now.
+            if (errType === 'not-allowed' || errType === 'service-not-allowed') {
+                userStoppedRef.current = true;
+                setIsDictating(false);
+                setInterimText('');
+            } else if (errType === 'aborted') {
+                // User-initiated or our own stop() — don't show error
+            }
+            // For 'no-speech', 'network', 'audio-capture' — leave isDictating true
+            // and let onend handle the restart.
         };
 
         recognition.onend = () => {
-            setIsDictating(false);
-            setInterimText('');
+            // ─── AUTO-RESTART on transient end ──────────────────────────
+            // Web Speech API ends the session after ~30-60s of silence or on
+            // network blips. If the user didn't explicitly stop, restart so
+            // long-form dictation isn't interrupted.
+            if (userStoppedRef.current) {
+                setIsDictating(false);
+                setInterimText('');
+                return;
+            }
+            if (restartCountRef.current >= MAX_RESTARTS) {
+                console.warn('[Dictation] Max restarts reached, stopping.');
+                setIsDictating(false);
+                setInterimText('');
+                return;
+            }
+            restartCountRef.current += 1;
+            try {
+                recognition.start();
+                // Keep isDictating true — UI stays in recording state
+            } catch (restartErr: any) {
+                // InvalidStateError: recognition already started (rare race)
+                // Just absorb and let the next onend retry.
+                console.warn('[Dictation] restart failed:', restartErr?.error || restartErr);
+            }
         };
 
         recognitionRef.current = recognition;
-        recognition.start();
-        setIsDictating(true);
-        editor.commands.focus();
+        try {
+            recognition.start();
+            setIsDictating(true);
+            // Focus the editor ONCE at start so the cursor has a valid position,
+            // but do NOT re-focus during dictation (would scroll / steal focus).
+            editor.commands.focus();
+        } catch (startErr: any) {
+            if (startErr?.error === 'already-started' || startErr?.name === 'InvalidStateError') {
+                // Recognition already running — flip UI to dictating
+                setIsDictating(true);
+            } else {
+                console.warn('[Dictation] start failed:', startErr);
+                setIsDictating(false);
+            }
+        }
     };
 
     const savePendingChanges = useCallback((html?: string) => {

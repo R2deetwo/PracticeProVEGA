@@ -1,5 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { User, FirmDetails, ModalType, CourtType, UserRole, SubscriptionPlan } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
@@ -104,6 +106,58 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const { addToast, navigateTo, closeModal, activePeers } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
+    // ─── DEACTIVATION / REACTIVATION ───────────────────────────────────
+    // Soft-deactivates a team member. The user record is preserved (so their
+    // historical contributions remain attributed), but they can no longer
+    // log in and appear with a "Deactivated" badge in this table.
+    const deactivateMutation = useMutation(api.myFunctions.deactivateTeamMember);
+    const reactivateMutation = useMutation(api.myFunctions.reactivateTeamMember);
+
+    const handleDeactivateUser = (user: User) => {
+        if (!user) return;
+        // Founder role is the firm's founding partner — cannot be deactivated.
+        if (user.role === UserRole.Founder) {
+            addToast("The Founding Partner account cannot be deactivated.", { type: 'error' });
+            return;
+        }
+        if (user.id === currentUser.id) {
+            addToast("You cannot deactivate your own account.", { type: 'error' });
+            return;
+        }
+        const reason = window.prompt(`Deactivate ${user.name}? They will lose login access immediately but their contributions remain attributed to them. Optional: provide a reason.`);
+        if (reason === null) return; // cancelled
+        openModal('deleteConfirmation', user.id, {
+            title: 'Deactivate Team Member?',
+            message: `${user.name} will lose login access immediately. Their matters, tasks, and messages will remain attributed to them. They can be reactivated later.`,
+            onConfirm: async () => {
+                try {
+                    await deactivateMutation({
+                        userId: user._id || (user as any).id,
+                        deactivatedBy: currentUser.email,
+                        reason: reason || undefined,
+                    });
+                    addToast(`${user.name} deactivated.`, { type: 'success' });
+                    closeModal();
+                } catch (e: any) {
+                    addToast(e?.message || 'Failed to deactivate user.', { type: 'error' });
+                }
+            },
+            confirmText: 'Yes, Deactivate',
+            confirmButtonClass: 'bg-amber-600 hover:bg-amber-700'
+        });
+    };
+
+    const handleReactivateUser = async (user: User) => {
+        try {
+            await reactivateMutation({
+                userId: user._id || (user as any).id,
+                reactivatedBy: currentUser.email,
+            });
+            addToast(`${user.name} reactivated. They can now log in again.`, { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to reactivate user.', { type: 'error' });
+        }
+    };
     const { handleClearMatterLogs, handleDeleteAllChats, handleUpdateUser, regenerateInviteCode } = useDataActions();
     const { maxUsers, canAddUsers } = useFeatures();
     const [clickCount, setClickCount] = useState(0);
@@ -146,11 +200,17 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             u.role !== UserRole.ExternalCounsel
         );
         // Sort: Pending users first (so admins see join requests immediately),
-        // then alphabetical by name
+        // then active members alphabetically, then deactivated members at the bottom.
+        // Deactivated members remain visible (grayed out) so admins can reactivate
+        // them — but they're pushed below the active team for visual priority.
         const sortedUsers = teamUsers.sort((a, b) => {
             const aPending = a.role === UserRole.Pending ? 0 : 1;
             const bPending = b.role === UserRole.Pending ? 0 : 1;
             if (aPending !== bPending) return aPending - bPending;
+            // Within the same pending status, active members come first
+            const aDeactivated = (a as any).deactivatedAt ? 1 : 0;
+            const bDeactivated = (b as any).deactivatedAt ? 1 : 0;
+            if (aDeactivated !== bDeactivated) return aDeactivated - bDeactivated;
             return (a.name || '').localeCompare(b.name || '');
         });
 
@@ -423,20 +483,27 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                     );
                                     const isInAnotherFirm = user.firmId !== firmDetails.id;
                                     const isMe = user.id === currentUser.id;
-                                    
+                                    const isDeactivated = !!(user as any).deactivatedAt;
+
                                     return (
-                                        <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                        <tr key={user.id} className={`hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors ${isDeactivated ? 'opacity-50 grayscale' : ''}`}>
                                             <td className="px-4 py-3 font-medium text-slate-900 dark:text-white flex items-center gap-3">
                                                 <div className="relative">
                                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${getUserColor(user.name)}`}>
                                                         {getInitials(user.name)}
                                                     </div>
-                                                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-800 ${isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
+                                                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-800 ${isDeactivated ? 'bg-amber-500' : isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="flex items-center gap-1.5 text-sm">
                                                         {user.name}
                                                         {isMe && <span className="text-2xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-wider">You</span>}
+                                                        {isDeactivated && (
+                                                            <span className="text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-0.5" title={`Deactivated${(user as any).deactivatedBy ? ` by ${(user as any).deactivatedBy}` : ''}${(user as any).deactivatedAt ? ` on ${new Date((user as any).deactivatedAt).toLocaleDateString()}` : ''}`}>
+                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" /></svg>
+                                                                Deactivated
+                                                            </span>
+                                                        )}
                                                         {(user.role === UserRole.Client || user.role === UserRole.Tenant) && (
                                                             <span className="text-3xs font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-0.5">
                                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
@@ -507,12 +574,34 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                                         <UserCircleIcon className="w-4 h-4" />
                                                     </button>
 
-                                                    {/* Remove User Button */}
-                                                    {user.id !== currentUser.id && (
+                                                    {/* Remove User / Deactivate / Reactivate Button */}
+                                                    {user.id !== currentUser.id && !isDeactivated && (
+                                                        <button
+                                                            onClick={() => handleDeactivateUser(user)}
+                                                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors"
+                                                            title="Deactivate User (preserve history)"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                    {user.id !== currentUser.id && isDeactivated && (
+                                                        <button
+                                                            onClick={() => handleReactivateUser(user)}
+                                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors"
+                                                            title="Reactivate User"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                    {user.id !== currentUser.id && !isDeactivated && (
                                                         <button
                                                             onClick={() => handleRemoveUser(user)}
                                                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                                                            title="Remove User"
+                                                            title="Permanently Remove User"
                                                         >
                                                             <TrashIcon className="w-4 h-4" />
                                                         </button>

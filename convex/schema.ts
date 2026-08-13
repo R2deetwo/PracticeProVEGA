@@ -114,12 +114,23 @@ export default defineSchema({
     // (and skip the push). Smart delivery: push OR email, not both.
     pushNotificationEnabled: nullableBoolean,
     pushNotificationRegisteredAt: nullableNumber,
+    // ─── DEACTIVATION ───────────────────────────────────────────────────
+    // When a firm admin removes a team member, the user record is NOT
+    // deleted (preserves authorship of matters, tasks, messages, etc.).
+    // Instead, deactivatedAt is set. The user can no longer log in or
+    // be assigned new work, but their historical contributions remain
+    // attributed to them and they appear with a "Deactivated" badge in
+    // the team directory (grayed out, sorted to the bottom).
+    // Reactivation clears this field.
+    deactivatedAt: nullableNumber,
+    deactivatedBy: nullableString,    // email of admin who deactivated
+    deactivationReason: nullableString,
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]),
+  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]).index("by_deactivated", ["deactivatedAt"]),
 
   // 3. Operational Data
   matters: defineTable({
@@ -442,9 +453,13 @@ export default defineSchema({
     status: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
+    // ─── IDEMPOTENCY KEY ───────────────────────────────────────────────
+    // Prevents duplicate chat messages on network retry. Generated client-side
+    // per send attempt; the sendChatMessage mutation dedups on (authorId, idempotencyKey).
+    idempotencyKey: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+  }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_idempotency", ["idempotencyKey"]),
 
   chatConversations: defineTable({
     firmId: nullableString,
@@ -882,9 +897,20 @@ export default defineSchema({
     }))),
     source: v.optional(v.string()),  // "feedback" | "aloa_echo" — distinguishes real feedback from Aloa chat echoes
     timestamp: v.number(),
+    // ─── IDEMPOTENCY KEY ───────────────────────────────────────────────
+    // Prevents duplicate feedback threads on double-submit or network retry.
+    // See submitFeedback mutation for the dedup logic.
+    idempotencyKey: v.optional(v.string()),
+    // ─── SOFT DELETE ───────────────────────────────────────────────────
+    // When true, the thread is hidden from both user and admin inboxes.
+    // We don't hard-delete to preserve audit trail (founder can review
+    // deleted threads if needed for compliance).
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.string()),  // userId or 'admin' for admin-initiated deletion
   }).index("by_firm", ["firmId"])
     .index("by_status", ["status"])
-    .index("by_timestamp", ["timestamp"]),
+    .index("by_timestamp", ["timestamp"])
+    .index("by_user_id", ["userId"]),
 
   // Feature flags — per-firm gating of features without a full deploy
   feature_flags: defineTable({
@@ -1700,13 +1726,22 @@ export default defineSchema({
     platform: nullableString,               // 'web' | 'android' | 'ios'
     ipHash: nullableString,                 // hashed IP for abuse detection (not raw IP)
     id: nullableString,                     // Legacy field — frontend copy of _id
+    // ─── ROLE-BASED CONSENT ───────────────────────────────────────────
+    // Tracks which user role accepted this version. Different roles see
+    // different ToS content (e.g. portal residents sign a Portal Terms of
+    // Use, firm admins sign the full PracticePro ToS). This field lets us
+    // require per-role re-acceptance when the role-specific version bumps.
+    // Values: 'founder' | 'admin' | 'lawyer' | 'paralegal' | 'portal_user' | 'unknown'
+    roleContext: nullableString,
+    roleTermsVersion: nullableString,       // version specific to this role (e.g. 'portal-v1')
     createdAt: nullableString,
     updatedAt: nullableString,
   })
     .index("by_firm", ["firmId"])
     .index("by_user", ["userId"])
     .index("by_user_email", ["userEmail"])
-    .index("by_custom_id", ["id"]),
+    .index("by_custom_id", ["id"])
+    .index("by_role_context", ["roleContext"]),
 
   // ─── SUBSCRIPTION REQUESTS (CRO Audit Track A — Revenue Protection) ──────
   // Replaces the broken flow where SubscriptionSettings.processUpgrade

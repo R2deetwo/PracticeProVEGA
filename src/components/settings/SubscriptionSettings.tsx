@@ -887,6 +887,16 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             <AddOnsErrorBoundary>
                 <AddOnsSection firmDetails={firmDetails} />
             </AddOnsErrorBoundary>
+
+            {/* ─── VMS ADD-ON PANEL ─────────────────────────────────────────
+                Visitor Management System billing card. Shows trial countdown,
+                active status, or upgrade prompt. Only shown for Atrium firms
+                (VMS is property-management specific). */}
+            {resolveProductMode(firmDetails.product) === 'property' && (
+                <AddOnsErrorBoundary>
+                    <VmsAddonPanel firmDetails={firmDetails} />
+                </AddOnsErrorBoundary>
+            )}
         </div>
     );
 };
@@ -1090,6 +1100,175 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                         </div>
                     );
                 })}
+            </div>
+        </div>
+    );
+};
+
+// ─── VMS ADD-ON PANEL ─────────────────────────────────────────────────────
+// Visitor Management System billing card. Shows:
+//   - 'Start 14-day free trial' button (if no add-on)
+//   - Trial countdown (if trial active)
+//   - 'Active' badge + cancel button (if active)
+//   - 'Expired' state + 'Subscribe' button (if expired)
+//
+// The backend gate in generateVisitorToken blocks code generation unless
+// status is 'trial' (within trial window) or 'active'.
+const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { addToast } = useUI();
+    const { currentUser } = useAuth();
+    const vmsStatus = useQuery(api.myFunctions.getVmsAddonStatus,
+        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email } : 'skip');
+    const startTrial = useMutation(api.myFunctions.startVmsAddonTrial);
+    const cancelVms = useMutation(api.myFunctions.cancelVmsAddon);
+    const [busy, setBusy] = useState(false);
+
+    if (!firmDetails?.id) return null;
+
+    const status = (vmsStatus as any)?.status || 'none';
+    const trialEndsAt = (vmsStatus as any)?.trialEndsAt;
+    const activatedAt = (vmsStatus as any)?.activatedAt;
+    const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000))) : 0;
+
+    const handleStartTrial = async () => {
+        if (!currentUser?.email) return;
+        const ok = window.confirm('Start a 14-day free trial of the Visitor Management System? You can generate visitor codes immediately. No payment required.');
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email });
+            addToast('VMS trial started! Residents can now generate visitor codes.', { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to start trial.', { type: 'error' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!currentUser?.email) return;
+        const ok = window.confirm('Cancel the VMS add-on? Residents will no longer be able to generate visitor codes. Existing tokens remain valid until they expire.');
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await cancelVms({ firmId: firmDetails.id, userEmail: currentUser.email });
+            addToast('VMS add-on cancelled.', { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to cancel add-on.', { type: 'error' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                        Visitor Management System
+                        {status === 'active' && (
+                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>
+                        )}
+                        {status === 'trial' && (
+                            <span className="text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Trial</span>
+                        )}
+                        {status === 'expired' && (
+                            <span className="text-2xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Expired</span>
+                        )}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">
+                        Generate 6-digit visitor codes that residents share with guests. Gatekeepers verify codes at the gatehouse terminal. Includes audit trail, auto-expiry, and revocation.
+                    </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                    <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />15,000<span className="text-xs font-normal text-slate-500">/mo</span></p>
+                </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                {status === 'none' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">Try VMS free for 14 days. No payment required.</p>
+                        <button
+                            onClick={handleStartTrial}
+                            disabled={busy}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                            {busy ? 'Starting...' : 'Start 14-Day Free Trial'}
+                        </button>
+                    </div>
+                )}
+                {status === 'trial' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                            Trial active — {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining. Subscribe to keep VMS after the trial ends.
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                                className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
+                            >
+                                Subscribe
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={busy}
+                                className="px-3 py-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+                            >
+                                Cancel Trial
+                            </button>
+                        </div>
+                    </div>
+                )}
+                {status === 'active' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                            Active{activatedAt ? ` since ${new Date(activatedAt).toLocaleDateString()}` : ''}. Residents can generate visitor codes.
+                        </p>
+                        <button
+                            onClick={handleCancel}
+                            disabled={busy}
+                            className="px-3 py-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+                        >
+                            Cancel Add-on
+                        </button>
+                    </div>
+                )}
+                {status === 'expired' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-rose-700 dark:text-rose-400 font-medium">
+                            Your VMS add-on has expired. Residents cannot generate new visitor codes.
+                        </p>
+                        <button
+                            onClick={() => addToast('To re-subscribe, contact founder@practicepro.ng to arrange payment. The founder will reactivate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                            Re-subscribe
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Gatehouse URL display */}
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">Gatehouse Terminal URL</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 mb-2">Share this URL with your security guards. They can bookmark it on a tablet at the gatehouse — no PracticePro login required.</p>
+                <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded text-xs text-slate-700 dark:text-zinc-300 font-mono overflow-x-auto whitespace-nowrap">
+                        {typeof window !== 'undefined' ? window.location.origin : 'https://app.practicepro.ng'}/gatehouse?firmId={firmDetails.id}
+                    </code>
+                    <button
+                        onClick={() => {
+                            const url = `${typeof window !== 'undefined' ? window.location.origin : 'https://app.practicepro.ng'}/gatehouse?firmId=${firmDetails.id}`;
+                            navigator.clipboard.writeText(url);
+                            addToast('Gatehouse URL copied to clipboard.', { type: 'success' });
+                        }}
+                        className="px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                        Copy
+                    </button>
+                </div>
             </div>
         </div>
     );

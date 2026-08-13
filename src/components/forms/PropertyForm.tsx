@@ -1300,22 +1300,53 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         {/* UNIT TABS — always show (even for single unit) + inline Add Unit button */}
                         <div className="flex flex-wrap gap-2 px-1 mb-2 items-center">
                             {unitsData.map((unit, index) => (
-                                <button
-                                    key={unit.id}
-                                    type="button"
-                                    onClick={() => setActiveUnitIndex(index)}
-                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border flex items-center gap-1.5 ${
-                                        activeUnitIndex === index
-                                        ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20'
-                                        : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/10'
-                                    }`}
-                                >
-                                    {unit.unitName}
-                                    {/* MUTED badge for deactivated units */}
-                                    {(unit as any).status === 'Muted' && (
-                                        <span className="text-3xs font-black uppercase bg-slate-400 text-white px-1 py-0.5 rounded">MUTED</span>
-                                    )}
-                                </button>
+                                <div key={unit.id} className="relative group inline-flex">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveUnitIndex(index)}
+                                        className={`px-4 py-1.5 rounded-l-lg text-xs font-bold transition-all shadow-sm border-r-0 flex items-center gap-1.5 ${
+                                            activeUnitIndex === index
+                                            ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20'
+                                            : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/10'
+                                        }`}
+                                    >
+                                        {unit.unitName}
+                                        {/* MUTED badge for deactivated units */}
+                                        {(unit as any).status === 'Muted' && (
+                                            <span className="text-3xs font-black uppercase bg-slate-400 text-white px-1 py-0.5 rounded">MUTED</span>
+                                        )}
+                                    </button>
+                                    {/* INLINE MUTE/UNMUTE button — no more scrolling to bottom of form.
+                                        Long-press the small button to mute; click to unmute.
+                                        Suppresses click propagation so it doesn't switch active unit. */}
+                                    <button
+                                        type="button"
+                                        title={(unit as any).status === 'Muted' ? `Reactivate ${unit.unitName}` : `Mute ${unit.unitName} (hide from workspace)`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const currentStatus = (unit as any).status;
+                                            updateUnit(index, 'status' as any,
+                                                currentStatus === 'Muted' ? 'Vacant' : 'Muted'
+                                            );
+                                            formTouched.current = true;
+                                        }}
+                                        className={`px-2 py-1.5 rounded-r-lg text-xs font-bold transition-all shadow-sm border flex items-center ${
+                                            (unit as any).status === 'Muted'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50'
+                                                : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-600 dark:hover:text-zinc-300'
+                                        } ${activeUnitIndex === index ? 'border-l-0' : ''}`}
+                                    >
+                                        {(unit as any).status === 'Muted' ? (
+                                            // Reactivate icon (play)
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>
+                                        ) : (
+                                            // Mute icon (pause / bell-off)
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13.494m0-13.494l-3.5 3.5H5.5v6.494h3l3.5 3.5V6.253z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
                             ))}
                             {/* INLINE ADD UNIT button — appends a new unit tab immediately */}
                             <button
@@ -1775,7 +1806,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             {/* MUTE / DEACTIVATE UNIT toggle — replaces hard delete.
                                 Muted units are hidden from the workspace grid but
                                 remain in the Edit Modal with a MUTED badge.
-                                Preserves sequential integrity and ledger history. */}
+                                Preserves sequential integrity and ledger history.
+                                NOTE: You can also mute inline from the unit tab strip above. */}
                             <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800 mt-3">
                                 <div>
                                     <p className="text-xs font-bold text-slate-600 dark:text-zinc-300">
@@ -1783,8 +1815,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     </p>
                                     <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-0.5">
                                         {(unitsData[activeUnitIndex] as any).status === 'Muted'
-                                            ? 'Hidden from workspace. Ledger history preserved.'
-                                            : 'Hide from daily workspace without deleting. History preserved.'}
+                                            ? 'Hidden from workspace. Ledger history preserved. Use the green play button on the unit tab above to reactivate.'
+                                            : 'Hide from daily workspace without deleting. History preserved. You can also mute inline via the bell-off icon on the unit tab above.'}
                                     </p>
                                 </div>
                                 <button

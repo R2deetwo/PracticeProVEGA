@@ -1443,6 +1443,18 @@ export const verifyLogin = action({
       return { success: false, message: "Your portal access has been revoked. Please contact your manager to request a new invitation.", isRevoked: true };
     }
 
+    // ─── DEACTIVATION CHECK ────────────────────────────────────────────
+    // If a firm admin has deactivated this user (deactivatedAt is set),
+    // block the login with a clear message. The user record still exists
+    // (for audit/authorship) but they cannot access the app.
+    if (user.deactivatedAt) {
+      return {
+        success: false,
+        message: "Your account has been deactivated. Please contact your firm administrator to request reactivation.",
+        isDeactivated: true,
+      };
+    }
+
     const MAX_ATTEMPTS = 5;
     const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
     const now = Date.now();
@@ -1577,6 +1589,132 @@ export const updateUserSecurity = mutation({
     await ctx.db.patch(args.userId, { isMfaEnabled: args.isMfaEnabled });
     return { success: true };
   }
+});
+
+/**
+ * mutation: deactivateTeamMember
+ * Soft-deactivates a team member. The user record is preserved (so their
+ * historical contributions — matters, tasks, messages — remain attributed),
+ * but they can no longer log in. They appear with a "Deactivated" badge in
+ * the team directory, grayed out and sorted to the bottom.
+ *
+ * AUTH: only firm admins (role='Admin' or 'Founding Partner') can deactivate.
+ * The founder@practicepro.ng email can also deactivate any user.
+ *
+ * SAFETY: deactivating yourself is blocked (would lock the firm out).
+ */
+export const deactivateTeamMember = mutation({
+  args: {
+    userId: v.id("users"),
+    deactivatedBy: v.string(),        // admin's email
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.deactivatedBy);
+    const adminUser = auth.user;
+    if (!adminUser) throw new Error("Admin user not found");
+
+    // AUTH CHECK: only Admin or Founder (or platform founder) can deactivate
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+    if (!FOUNDER_EMAILS.includes(args.deactivatedBy) && !isAdminRole) {
+      throw new Error("Only administrators can deactivate team members");
+    }
+
+    const targetUser = await ctx.db.get(args.userId);
+    if (!targetUser) throw new Error("User not found");
+
+    // SAFETY: can't deactivate yourself
+    if (targetUser.email === args.deactivatedBy) {
+      throw new Error("You cannot deactivate your own account");
+    }
+
+    // SAFETY: can't deactivate the firm's founding partner
+    // The Founder role maps to the firm's primary admin — deactivating
+    // would lock the firm out of admin functions.
+    if (targetUser.role === 'Founder') {
+      throw new Error("The Founding Partner account cannot be deactivated");
+    }
+
+    // Idempotent: already deactivated → return success
+    if (targetUser.deactivatedAt) {
+      return { success: true, alreadyDeactivated: true };
+    }
+
+    await ctx.db.patch(args.userId, {
+      deactivatedAt: Date.now(),
+      deactivatedBy: args.deactivatedBy,
+      deactivationReason: args.reason || null,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * mutation: reactivateTeamMember
+ * Clears the deactivatedAt field, restoring login access.
+ */
+export const reactivateTeamMember = mutation({
+  args: {
+    userId: v.id("users"),
+    reactivatedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.reactivatedBy);
+    const adminUser = auth.user;
+    if (!adminUser) throw new Error("Admin user not found");
+
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+    if (!FOUNDER_EMAILS.includes(args.reactivatedBy) && !isAdminRole) {
+      throw new Error("Only administrators can reactivate team members");
+    }
+
+    const targetUser = await ctx.db.get(args.userId);
+    if (!targetUser) throw new Error("User not found");
+
+    await ctx.db.patch(args.userId, {
+      deactivatedAt: undefined,
+      deactivatedBy: undefined,
+      deactivationReason: undefined,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * query: getFirmMembersWithDeactivationStatus
+ * Returns all users for a firm, sorted with active members first and
+ * deactivated members at the bottom. Each row includes deactivatedAt,
+ * deactivatedBy, and deactivationReason for the team directory UI.
+ */
+export const getFirmMembersWithDeactivationStatus = query({
+  args: {
+    firmId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireFirmUser(ctx, args.userEmail);
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // Sort: active first (deactivatedAt falsy), then deactivated (most recent first)
+    return users.sort((a: any, b: any) => {
+      const aDeactivated = !!a.deactivatedAt;
+      const bDeactivated = !!b.deactivatedAt;
+      if (aDeactivated && !bDeactivated) return 1;
+      if (!aDeactivated && bDeactivated) return -1;
+      if (aDeactivated && bDeactivated) return (b.deactivatedAt || 0) - (a.deactivatedAt || 0);
+      // Both active — preserve existing order (by name)
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  },
 });
 
 /**
@@ -2422,6 +2560,12 @@ export const sendChatMessage = mutation({
     createConversationIfMissing: v.optional(v.boolean()),
     conversationMembers: v.optional(v.array(v.string())), // memberIds for new conversation
     conversationName: v.optional(v.string()),
+    // ─── IDEMPOTENCY KEY ───────────────────────────────────────────────
+    // Prevents duplicate messages when the client retries after a network blip.
+    // If a message with the same idempotencyKey already exists, the mutation
+    // returns the existing messageId WITHOUT inserting a duplicate or
+    // re-issuing notifications. Generate on the client with uuidv4() per send.
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Authenticate the caller (verifies session OR userEmail fallback).
@@ -2430,6 +2574,20 @@ export const sendChatMessage = mutation({
     const senderId = args.authorId || auth.userId;
     const senderName = args.authorName || auth.user?.name || "A colleague";
     const now = new Date().toISOString();
+
+    // ─── DEDUP CHECK ──────────────────────────────────────────────────
+    // If idempotencyKey is provided, check for an existing message with the
+    // same key. Return early if found — no duplicate insert, no duplicate
+    // notifications. This makes sendChatMessage safe to retry.
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("chatMessages")
+        .withIndex("by_idempotency", (q) => q.eq("idempotencyKey", args.idempotencyKey as any))
+        .first();
+      if (existing) {
+        return { messageId: (existing as any).id || existing._id.toString(), deduplicated: true };
+      }
+    }
 
     // 2. Resolve the conversation. If createConversationIfMissing is set and
     //    the conversation doesn't exist, create it. This supports the
@@ -2494,6 +2652,8 @@ export const sendChatMessage = mutation({
       firmId,
       isDeleted: false,
       status: "sent",
+      // Persist idempotencyKey so future retries can dedup against this row
+      idempotencyKey: args.idempotencyKey || null,
     });
 
     // 4. Create notifications for every OTHER member of the conversation.
@@ -3257,6 +3417,13 @@ export const recordTermsAcceptance = mutation({
   args: {
     termsVersion: v.string(),
     userEmail: v.optional(v.string()),
+    // ─── ROLE-BASED CONSENT ───────────────────────────────────────────
+    // The user role accepting these terms. Different roles have different
+    // terms versions (e.g. portal residents sign portal-v1, firm admins
+    // sign admin-v3). Recording the role lets us require per-role
+    // re-acceptance when only one role's terms change.
+    roleContext: v.optional(v.string()),
+    roleTermsVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     let firmId: string | null = null;
@@ -3292,6 +3459,10 @@ export const recordTermsAcceptance = mutation({
       userAgent,
       platform,
       ipHash: null,
+      // Role-based consent fields (null-safe for legacy callers that
+      // don't pass roleContext — those rows are treated as 'unknown' role)
+      roleContext: args.roleContext || 'unknown',
+      roleTermsVersion: args.roleTermsVersion || null,
       createdAt: now,
       updatedAt: now,
     });
@@ -3304,16 +3475,30 @@ export const recordTermsAcceptance = mutation({
  * getTermsAcceptance — Queries the most recent terms acceptance record
  * for a given user email. Used to verify consent server-side (e.g., for
  * audit reports or NDPA compliance checks).
+ *
+ * ROLE-AWARE: if roleContext is provided, returns the most recent record
+ * for THAT role. If not provided, returns the most recent record for any
+ * role (legacy behavior — backwards compatible).
  */
 export const getTermsAcceptance = query({
-  args: { userEmail: v.optional(v.string()) },
+  args: {
+    userEmail: v.optional(v.string()),
+    roleContext: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     if (!args.userEmail) return null;
     const records = await ctx.db
       .query("termsAcceptance")
       .withIndex("by_user_email", (q: any) => q.eq("userEmail", args.userEmail))
       .order("desc")
-      .take(10);
+      .take(50);
+
+    if (args.roleContext) {
+      // Find the most recent record matching this role
+      const roleMatch = records.find((r: any) => r.roleContext === args.roleContext);
+      return roleMatch || null;
+    }
+    // Legacy: return most recent record (any role)
     return records.length > 0 ? records[0] : null;
   },
 });
@@ -5758,6 +5943,214 @@ export const cancelAddon = mutation({
         isRead: false,
       } as any);
     }
+
+    return { success: true };
+  },
+});
+
+// ─── VMS ADD-ON BILLING ────────────────────────────────────────────────────
+//
+// The Visitor Management System (VMS) is a paid add-on for Atrium firms.
+// It allows residents to generate 6-digit visitor codes that gatekeepers
+// verify at the gatehouse terminal (/gatehouse?firmId=xxx).
+//
+// Billing model:
+//   - 14-day free trial (no card required)
+//   - Monthly subscription after trial
+//   - Founder (practicepro.ng) firms get VMS free for testing
+//
+// Add-on state is stored on the firm record at subscriptionAddons.vms:
+//   { status: 'none'|'trial'|'active'|'expired'|'suspended',
+//     trialStartsAt?: number,
+//     trialEndsAt?: number,
+//     activatedAt?: number,
+//     expiresAt?: number,
+//     cancelledAt?: number }
+
+/**
+ * query: getVmsAddonStatus
+ * Returns the firm's VMS add-on state. Used by the Subscription Settings
+ * page to show trial countdown, active status, or upgrade prompt.
+ */
+export const getVmsAddonStatus = query({
+  args: {
+    firmId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireFirmUser(ctx, args.userEmail);
+    // Look up firm by custom id field OR by Convex _id (try-as-Id fallback)
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) return { status: 'none' as const };
+    const vms = (firm.subscriptionAddons as any)?.vms;
+    if (!vms) return { status: 'none' as const };
+    // Auto-expire trial if past trialEndsAt
+    if (vms.status === 'trial' && vms.trialEndsAt && vms.trialEndsAt < Date.now()) {
+      return { ...vms, status: 'expired' as const };
+    }
+    return vms;
+  },
+});
+
+/**
+ * mutation: startVmsAddonTrial
+ * Starts a 14-day free trial of the VMS add-on. Only firm admins can start
+ * a trial. Each firm can only trial once (prevents trial cycling).
+ */
+export const startVmsAddonTrial = mutation({
+  args: {
+    firmId: v.string(),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const adminUser = auth.user;
+    if (!adminUser) throw new Error("User not found");
+
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+      throw new Error("Only firm administrators can start add-on trials");
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    const existingVms = (firm.subscriptionAddons as any)?.vms;
+    if (existingVms && (existingVms.status === 'trial' || existingVms.status === 'active')) {
+      throw new Error(`VMS add-on is already ${existingVms.status}. Cannot start a new trial.`);
+    }
+    if (existingVms && existingVms.trialStartsAt) {
+      throw new Error("This firm has already used its 14-day VMS trial. Please subscribe to continue.");
+    }
+
+    const now = Date.now();
+    const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;  // 14 days
+    const updatedAddons = {
+      ...(firm.subscriptionAddons as any || {}),
+      vms: {
+        status: 'trial',
+        trialStartsAt: now,
+        trialEndsAt: now + TRIAL_DURATION_MS,
+      },
+    };
+
+    await ctx.db.patch(firm._id, {
+      subscriptionAddons: updatedAddons,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true, trialEndsAt: now + TRIAL_DURATION_MS };
+  },
+});
+
+/**
+ * mutation: activateVmsAddon
+ * Founder-only — activates the VMS add-on for a firm after payment is
+ * confirmed. Used by the founder admin dashboard to flip trial/expired
+ * firms to 'active' once their subscription payment is processed.
+ */
+export const activateVmsAddon = mutation({
+  args: {
+    firmId: v.string(),
+    activatedBy: v.string(),
+    expiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    if (!FOUNDER_EMAILS.includes(args.activatedBy)) {
+      throw new Error("Only the platform founder can activate add-ons");
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    const updatedAddons = {
+      ...(firm.subscriptionAddons as any || {}),
+      vms: {
+        status: 'active',
+        activatedAt: Date.now(),
+        expiresAt: args.expiresAt || null,
+        trialStartsAt: (firm.subscriptionAddons as any)?.vms?.trialStartsAt,
+        trialEndsAt: (firm.subscriptionAddons as any)?.vms?.trialEndsAt,
+      },
+    };
+
+    await ctx.db.patch(firm._id, {
+      subscriptionAddons: updatedAddons,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * mutation: cancelVmsAddon
+ * Firm admin cancels the VMS add-on. Status moves to 'expired' so the
+ * gate in generateVisitorToken blocks further code generation.
+ */
+export const cancelVmsAddon = mutation({
+  args: {
+    firmId: v.string(),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const adminUser = auth.user;
+    if (!adminUser) throw new Error("User not found");
+
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+      throw new Error("Only firm administrators can cancel add-ons");
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    const existingVms = (firm.subscriptionAddons as any)?.vms;
+    if (!existingVms || existingVms.status === 'none') {
+      throw new Error("VMS add-on is not active");
+    }
+
+    const updatedAddons = {
+      ...(firm.subscriptionAddons as any || {}),
+      vms: {
+        ...existingVms,
+        status: 'expired',
+        cancelledAt: Date.now(),
+      },
+    };
+
+    await ctx.db.patch(firm._id, {
+      subscriptionAddons: updatedAddons,
+      updatedAt: new Date().toISOString(),
+    });
 
     return { success: true };
   },

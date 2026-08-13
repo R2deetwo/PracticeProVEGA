@@ -39,7 +39,14 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
         onClose();
     };
 
-    const assignableUsers = users.filter(u => u.role === UserRole.Lawyer || u.role === UserRole.Paralegal);
+    // Filter to Lawyers + Paralegals, AND exclude deactivated members.
+    // Deactivated members cannot be assigned new work (their existing
+    // assignments remain intact for audit, but they're not selectable
+    // for new task assignments).
+    const assignableUsers = users.filter(u =>
+        (u.role === UserRole.Lawyer || u.role === UserRole.Paralegal)
+        && !(u as any).deactivatedAt
+    );
 
     return (
         <form onSubmit={handleSave} className="space-y-3">

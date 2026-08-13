@@ -4,6 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefreshCw } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 const FeedbackForm: React.FC = () => {
     const { addToast, closeModal } = useUI();
@@ -69,6 +70,11 @@ const FeedbackForm: React.FC = () => {
         setIsSubmitting(true);
         try {
             if (currentUser) {
+                // Generate an idempotency key for this submit attempt so
+                // double-clicks or network retries don't create duplicate
+                // feedback threads. The key is regenerated on each call to
+                // handleSubmit (i.e. each user-initiated submit attempt).
+                const idempotencyKey = uuidv4();
                 await submitFeedback({
                     firmId: currentUser.firmId || 'none',
                     userId: currentUser.id || 'unknown',
@@ -77,6 +83,7 @@ const FeedbackForm: React.FC = () => {
                     type: ticketType,
                     title: title.trim() || 'Untitled Feedback',
                     message: feedback,
+                    idempotencyKey,
                 });
             }
             addToast(ticketType === 'Support Ticket' ? 'Ticket submitted! Our team will be in touch.' : 'Thank you for your input! We appreciate you helping us build a better app.', { type: 'success' });

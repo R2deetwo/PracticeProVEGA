@@ -116,6 +116,38 @@ export const generateVisitorToken = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
+    // ─── VMS ADD-ON BILLING GATE ──────────────────────────────────────
+    // VMS is a paid add-on. Before generating a token, verify the firm has
+    // an active or trial VMS add-on subscription. If the trial has expired
+    // or no subscription exists, block token generation with a clear
+    // upgrade prompt.
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (firm) {
+      const vmsAddon = (firm.subscriptionAddons as any)?.vms;
+      if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
+        // Allow if founder firm (practicepro.ng) for testing
+        const isFounderFirm = (firm.email || '').toLowerCase().endsWith('@practicepro.ng')
+          || firm.id === 'practicepro'
+          || (firm.name || '').toLowerCase().includes('practicepro');
+        if (!isFounderFirm) {
+          throw new Error("VMS_ADDON_REQUIRED: Your firm does not have an active Visitor Management System add-on. Please ask your firm admin to subscribe in Settings → Subscription → Add-ons.");
+        }
+      } else if (vmsAddon.status === 'trial' && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
+        // Trial has expired — auto-mark as expired
+        vmsAddon.status = 'expired';
+        await ctx.db.patch(firm._id, {
+          subscriptionAddons: { ...(firm.subscriptionAddons as any || {}), vms: vmsAddon },
+        });
+        throw new Error("VMS_TRIAL_EXPIRED: Your 14-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
+      }
+    }
+
     // Fetch property details (for denormalized gate display)
     const property: any = await ctx.db.get(args.propertyId as any);
     if (!property) throw new Error("Property not found");

@@ -664,10 +664,27 @@ export const App: React.FC = () => {
     // (which clears localStorage). The server record is the source of truth.
     const [needsTermsAcceptance, setNeedsTermsAcceptance] = useState(false);
 
-    // Query the server-side terms acceptance record for the current user.
-    // Returns the most recent acceptance record, or null if none exists.
+    // ─── ROLE-BASED TERMS RESOLUTION ───────────────────────────────────
+    // Resolve the current user's role context so the server query returns
+    // the most recent acceptance record FOR THIS ROLE. This enables per-role
+    // re-acceptance: if we bump 'portal-v2', only portal users see the prompt;
+    // admins are not bothered.
+    const roleContext = (() => {
+        if (!currentUser) return 'unknown';
+        const email = (currentUser.email || '').toLowerCase();
+        if (email.endsWith('@practicepro.ng')) return 'founder';
+        const role = (currentUser.role || '').toLowerCase();
+        if (role === 'client' || role === 'tenant') return 'portal_user';
+        if (role === 'founder') return 'admin';
+        if (['admin', 'lawyer', 'paralegal'].includes(role)) return role;
+        return 'unknown';
+    })();
+
+    // Query the server-side terms acceptance record for the current user +
+    // their role context. Returns the most recent acceptance record for THIS
+    // role, or null if none exists for this role yet.
     const serverTermsRecord = useQuery(api.myFunctions.getTermsAcceptance,
-        currentUser?.email ? { userEmail: currentUser.email } : "skip");
+        currentUser?.email ? { userEmail: currentUser.email, roleContext } : "skip");
 
     // VERSION-GATED: The user has accepted if EITHER:
     //   - localStorage has the current version (fast path), OR
@@ -687,7 +704,7 @@ export const App: React.FC = () => {
     const hasAcceptedTerms =
         hasAcceptedCurrentTerms() ||
         (serverTermsRecord === undefined) || // Still loading → don't block
-        (serverTermsRecord !== null && serverTermsRecord !== '');
+        (serverTermsRecord !== null);
 
     const isEditorMode = view === 'editor';
 

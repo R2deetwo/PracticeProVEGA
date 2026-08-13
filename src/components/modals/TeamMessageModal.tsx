@@ -107,6 +107,9 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                     createConversationIfMissing,
                     conversationMembers,
                     conversationName: 'Direct Message',
+                    // Idempotency: each recipient gets its own key so retries
+                    // for recipient A don't accidentally dedup against recipient B.
+                    idempotencyKey: uuidv4(),
                 });
                 successCount++;
             } catch (e) {

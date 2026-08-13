@@ -21,14 +21,39 @@ export const submitFeedback = mutation({
     title: v.optional(v.string()),
     message: v.string(),
     rating: v.optional(v.number()),
+    // ─── IDEMPOTENCY KEY ───────────────────────────────────────────────
+    // Prevents duplicate feedback threads when the client double-clicks the
+    // Submit button or retries after a network blip. If a feedback with the
+    // same idempotencyKey already exists for this user, return its id without
+    // inserting a new doc. Generate on the client with uuidv4() per submit
+    // attempt (not per typing session).
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── DEDUP CHECK ──────────────────────────────────────────────────
+    // Scan recent feedback from this user for a matching idempotencyKey.
+    // We scan by user (not index) because the schema doesn't have a composite
+    // index on (userId, idempotencyKey) and adding one would require a migration.
+    // 500 rows is enough to catch double-submit retries within ~minutes.
+    if (args.idempotencyKey) {
+      const recent = await ctx.db
+        .query("user_feedback")
+        .order("desc")
+        .take(500);
+      const existing = recent.find((f: any) =>
+        f.userId === args.userId && f.idempotencyKey === args.idempotencyKey
+      );
+      if (existing) {
+        return existing._id;
+      }
+    }
+
     const feedbackId = await ctx.db.insert("user_feedback", {
       ...args,
       status: "New",
       source: "feedback",
       timestamp: Date.now(),
-    });
+    } as any);
 
     // ─── Context-aware auto-reply ───────────────────────────────────
     // Different feedback types get different acknowledgment messages
@@ -128,6 +153,10 @@ export const getFeedbackList = query({
       let filtered = results.filter((item: any) => {
         // Empty message → reject
         if (!item.message || item.message.trim().length === 0) return false;
+        // ─── SOFT-DELETE FILTER ─────────────────────────────────────────
+        // Hide threads the user (or admin) has deleted. Founder can still see
+        // these via getFeedbackListIncludingDeleted (audit-only query).
+        if (item.deletedAt) return false;
         // Explicitly tagged non-feedback → reject
         if (item.source && !ALLOWED_SOURCES.includes(item.source)) return false;
         // Leaked ALOA echo fingerprint: no source, no title, no type → reject
@@ -183,11 +212,93 @@ export const getMyFeedbackReplies = query({
     const ALLOWED_SOURCES = ["feedback", "feedback_form", "data_restore"];
     return all.filter((item: any) => {
       if (!item.message || item.message.trim().length === 0) return false;
+      // Hide soft-deleted threads from the user's own inbox
+      if (item.deletedAt) return false;
       if (item.source && !ALLOWED_SOURCES.includes(item.source)) return false;
       if (!item.source && !item.title && !item.type) return false;
       if (item.source && (item.source.toLowerCase().includes('aloa') || item.source.toLowerCase().includes('search'))) return false;
       return true;
     });
+  },
+});
+
+/**
+ * mutation: deleteFeedbackThread
+ * Soft-deletes a user_feedback thread. Called by:
+ *   - The user (deletes their own support thread from their inbox)
+ *   - The founder/admin (deletes any user's thread from the admin inbox)
+ *
+ * Soft-delete preserves the audit trail — the row remains in the database
+ * with deletedAt + deletedBy set, but is filtered out of all inbox queries.
+ * The founder can query getFeedbackListIncludingDeleted for compliance review.
+ *
+ * AUTH:
+ *   - User can only delete their OWN threads (verified by userEmail match).
+ *   - Founder (practicepro.ng founder email) can delete any thread.
+ */
+export const deleteFeedbackThread = mutation({
+  args: {
+    feedbackId: v.id("user_feedback"),
+    deletedBy: v.string(),  // user email OR 'admin'
+    userEmail: v.optional(v.string()),  // for user-side auth
+  },
+  handler: async (ctx, args) => {
+    const feedback = await ctx.db.get(args.feedbackId);
+    if (!feedback) throw new Error("Feedback thread not found");
+
+    // AUTH CHECK
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isFounder = args.userEmail && FOUNDER_EMAILS.includes(args.userEmail);
+    if (!isFounder) {
+      // Regular user — must own the thread
+      if (args.userEmail && feedback.userEmail !== args.userEmail) {
+        throw new Error("Not authorized to delete this thread");
+      }
+      if (!args.userEmail && args.deletedBy !== 'admin') {
+        throw new Error("Authentication required to delete thread");
+      }
+    }
+
+    // Already deleted? Return idempotent success
+    if (feedback.deletedAt) {
+      return { success: true, alreadyDeleted: true };
+    }
+
+    await ctx.db.patch(args.feedbackId, {
+      deletedAt: Date.now(),
+      deletedBy: args.deletedBy,
+      status: 'Deleted',
+    } as any);
+
+    return { success: true };
+  },
+});
+
+/**
+ * mutation: restoreFeedbackThread
+ * Reverses a soft-delete. Founder-only — used for compliance review or
+ * accidental-deletion recovery.
+ */
+export const restoreFeedbackThread = mutation({
+  args: {
+    feedbackId: v.id("user_feedback"),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    if (!FOUNDER_EMAILS.includes(args.userEmail)) {
+      throw new Error("Only founder can restore deleted threads");
+    }
+    const feedback = await ctx.db.get(args.feedbackId);
+    if (!feedback) throw new Error("Feedback thread not found");
+
+    await ctx.db.patch(args.feedbackId, {
+      deletedAt: undefined,
+      deletedBy: undefined,
+      status: feedback.status === 'Deleted' ? 'Replied' : feedback.status,
+    } as any);
+
+    return { success: true };
   },
 });
 

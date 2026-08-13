@@ -38,6 +38,43 @@ const TERMS_VERSION = '2026-07-27-v4';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
 const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 
+// ─── ROLE-BASED TERMS VERSIONING ─────────────────────────────────────────
+// Different user roles see different terms content. Bumping a role-specific
+// version forces ONLY users in that role to re-accept — e.g. if we update
+// the Portal Terms of Use, only portal residents see the prompt; firm
+// admins are not bothered.
+//
+// Roles:
+//   - 'founder'      — platform founder (practicepro.ng staff)
+//   - 'admin'        — firm admin (Founder role in UserRole enum)
+//   - 'lawyer'       — Vega lawyer / Atrium manager
+//   - 'paralegal'    — Vega paralegal / Atrium associate
+//   - 'portal_user'  — Resident / Client portal user (Tenant or Client role)
+const ROLE_TERMS_VERSIONS: Record<string, string> = {
+    founder: 'founder-v1',
+    admin: 'admin-v1',
+    lawyer: 'lawyer-v1',
+    paralegal: 'paralegal-v1',
+    portal_user: 'portal-v1',
+};
+
+/**
+ * Resolve the user's role context for terms acceptance.
+ * Portal users (Tenant/Client) → 'portal_user'.
+ * Firm Founder role → 'founder' (if @practicepro.ng) or 'admin'.
+ * Other roles → lowercase role name.
+ */
+function resolveRoleContext(user: any): string {
+    if (!user) return 'unknown';
+    const email = (user.email || '').toLowerCase();
+    if (email.endsWith('@practicepro.ng')) return 'founder';
+    const role = (user.role || '').toLowerCase();
+    if (role === 'client' || role === 'tenant') return 'portal_user';
+    if (role === 'founder') return 'admin';
+    if (['admin', 'lawyer', 'paralegal'].includes(role)) return role;
+    return 'unknown';
+}
+
 /**
  * Check if the user has accepted the CURRENT terms version (localStorage only).
  * This is the fast synchronous check used for initial UI gating.
@@ -122,10 +159,16 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
         // 1. localStorage — for fast UI gating (bar doesn't reappear)
         markTermsAccepted();
         // 2. Database — for NDPA §25 demonstrable consent (durable, server-side)
+        // Include roleContext + roleTermsVersion so per-role version bumps
+        // only force re-acceptance for affected users.
+        const roleContext = resolveRoleContext(currentUser);
+        const roleTermsVersion = ROLE_TERMS_VERSIONS[roleContext] || undefined;
         try {
             await recordAcceptance({
                 termsVersion: TERMS_VERSION,
                 userEmail: currentUser?.email,
+                roleContext,
+                roleTermsVersion,
             });
         } catch (err) {
             console.warn('[TermsAcceptance] Failed to record consent in database:', err);

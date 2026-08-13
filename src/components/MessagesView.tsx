@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ChatConversation, ChatMessage, User, ModalType, View } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatterState } from '../contexts/MatterContext';
@@ -698,6 +699,11 @@ const MessagesView: React.FC = () => {
     const logAutomation = useMutation(api.sentry.logAutomation);
     const markInboundRead = useMutation(api.sentry.markMessageAsRead);
     const deleteInboundMessage = useMutation(api.sentry.deleteInboundMessage);
+    // ─── SUPPORT THREAD DELETION ───────────────────────────────────────
+    // Soft-deletes a user's own support thread (System Inbox). The thread is
+    // hidden from the user's inbox but preserved in the DB for audit trail.
+    // Founder can restore via the admin inbox.
+    const deleteFeedbackThread = useMutation(api.feedback.deleteFeedbackThread);
     // Admin-side delete for portal conversation messages. Allows admin to
     // delete ANY message in a conversation (their own or the portal user's).
     // Uses the new adminDeletePortalMessage mutation which has a cross-firm guard.
@@ -2213,6 +2219,7 @@ const MessagesView: React.FC = () => {
                                                                         userEmail: currentUser?.email,
                                                                         attachments: [storageId],
                                                                         attachmentNames: [`voice-note-${duration}s.webm`],
+                                                                        idempotencyKey: uuidv4(),
                                                                     });
                                                                     addToast('Voice note sent.', { type: 'success' });
                                                                 }
@@ -2241,6 +2248,7 @@ const MessagesView: React.FC = () => {
                                                                 // — files were silently lost.
                                                                 attachments: attachments.map(a => a.storageId),
                                                                 attachmentNames: attachments.map(a => a.name),
+                                                                idempotencyKey: uuidv4(),
                                                             });
                                                         } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
                                                     }}
@@ -2713,7 +2721,34 @@ const MessagesView: React.FC = () => {
                                             myFeedback.map((fb: any) => {
                                                 if (!fb) return null;
                                                 return (
-                                                    <div key={fb._id || fb.id} className="space-y-3">
+                                                    <div key={fb._id || fb.id} className="space-y-3 group/thread">
+                                                        {/* Delete thread button — appears on hover (desktop) or always visible (mobile) */}
+                                                        <div className="flex justify-end">
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    const ok = window.confirm('Delete this support thread? The conversation will be removed from your inbox. PracticePro may retain a copy for audit purposes.');
+                                                                    if (!ok) return;
+                                                                    try {
+                                                                        await deleteFeedbackThread({
+                                                                            feedbackId: fb._id,
+                                                                            deletedBy: currentUser?.email || 'user',
+                                                                            userEmail: currentUser?.email,
+                                                                        });
+                                                                        addToast('Thread deleted.', { type: 'success' });
+                                                                    } catch (e: any) {
+                                                                        addToast(e?.message || 'Failed to delete thread.', { type: 'error' });
+                                                                    }
+                                                                }}
+                                                                className="text-2xs text-slate-400 hover:text-rose-500 dark:text-zinc-500 dark:hover:text-rose-400 transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                                                title="Delete this support thread"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                                Delete thread
+                                                            </button>
+                                                        </div>
                                                         {/* User's original feedback — right aligned, primary bubble */}
                                                         <div className="flex justify-end">
                                                             <div className="max-w-[75%] bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
@@ -2964,6 +2999,7 @@ const MessagesView: React.FC = () => {
                                             userEmail: currentUser?.email,
                                             attachments: (pendingAttachments || []).map(a => a.storageId),
                                             attachmentNames: (pendingAttachments || []).map(a => a.name),
+                                            idempotencyKey: uuidv4(),
                                         });
                                     } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
                                 };
