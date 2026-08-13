@@ -101,10 +101,7 @@ async function main() {
   console.log(`[deploy] Uploaded ${uploaded.size} files`);
 
   // 4. Create deployment — skip build since we uploaded pre-built dist/
-<<<<<<< HEAD
   //    Include vercel.json config inline so rewrites/headers work correctly.
-=======
->>>>>>> ce3f5d6 (3692863c-c258-460e-95fa-4dfbe91c9667)
   console.log('[deploy] Creating production deployment...');
   const deployRes = await api('/v13/deployments?skipBuild=1', {
     method: 'POST',
@@ -118,15 +115,12 @@ async function main() {
         outputDirectory: null,
         installCommand: null,
       },
-<<<<<<< HEAD
       routes: [
         { src: '/version.json', dest: '/version.json', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0' } },
         { src: '/assets/(.*)', dest: '/assets/$1', headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
         { src: '/(.*\\.(?:js|css|woff2?|ttf|otf|eot|png|jpg|jpeg|gif|svg|webp|ico))', dest: '/$1', headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
         { src: '/(.*)', dest: '/index.html' },
       ],
-=======
->>>>>>> ce3f5d6 (3692863c-c258-460e-95fa-4dfbe91c9667)
     }),
   });
 
