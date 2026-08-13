@@ -55,6 +55,9 @@ export default {
         },
         white: 'rgb(var(--color-white) / <alpha-value>)',
         black: 'rgb(var(--color-black) / <alpha-value>)',
+        brand: {
+          primary: '#10b981', // Emerald green — matches tailwind.config.ts
+        },
         primary: {
           50:  'rgb(var(--color-primary-50)  / <alpha-value>)',
           100: 'rgb(var(--color-primary-100) / <alpha-value>)',

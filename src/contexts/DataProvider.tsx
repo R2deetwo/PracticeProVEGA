@@ -321,27 +321,24 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, [markNotificationsMutation, currentUser?.email]);
 
     const handleClearAllNotifications = React.useCallback(async () => {
-        // OPTIMISTIC UI — immediately mark all notifications as read + clear
-        // the local array so the bell badge drops to 0 instantly.
-        // Previously: only cleared the array (setNotifications([])) but the
-        // Convex subscription immediately pushed back the real data (with
-        // notifications still unread), causing them to flash back.
-        // Fix: mark all as read in the optimistic update so when Convex
-        // pushes back, they're already isRead=true and won't show as unread.
+        // OPTIMISTIC UI — immediately clear all notifications from local state
+        // so the bell badge drops to 0 and the panel empties instantly.
         setAppState(prev => ({
             ...prev,
-            notifications: (prev.notifications || []).map((n: any) => ({
-                ...n,
-                isRead: true,
-            })),
+            notifications: [],
         }));
         try {
             await clearAllNotificationsMutation({ userEmail: currentUser?.email });
-            // After the mutation completes, the Convex subscription will
-            // push the updated data (all isRead=true). The local state
-            // already matches, so no flash-back.
+            // After the mutation completes, notifications are DELETED from the DB.
+            // The Convex subscription will push an empty array (or the remaining
+            // notifications that couldn't be deleted due to userId mismatch).
+            // Either way, the local state is already empty, so no resurrection.
         } catch (err: any) {
             console.warn('[handleClearAllNotifications] Failed:', err?.message);
+            // On failure, the Convex subscription will push back the real data
+            // (notifications still exist in DB), which is correct behavior —
+            // the user will see them again, but at least the operation failed
+            // gracefully rather than showing stale empty state.
         }
     }, [clearAllNotificationsMutation, currentUser?.email]);
     
