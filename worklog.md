@@ -6564,3 +6564,144 @@ Stage Summary:
 - Security & Access page created for both user app and resident portal
 - Property overview no longer obscured by inline padding override
 - Gatehouse route now accepts firmId from URL query string
+
+---
+Task ID: 25-29
+Agent: Main Agent
+Task: Master directive batches 1-5 — inline mute, ALOA drafts, dictation repair, dedup, deactivation, VMS billing, role-based ToS
+
+Work Log:
+
+BATCH 1 — FRONTEND FIXES (Task 25):
+- PropertyForm.tsx: Replaced single unit-tab button with split-button (tab + inline mute icon).
+  Bell-off icon for active units, play icon for muted units. Stops click propagation
+  so it doesn't switch active unit. Eliminates scrolling to bottom of Edit Property.
+  Old mute panel at bottom retained for explanation, with new cross-reference text.
+- AloaChat.tsx: Added draftByConversationRef Map<conversationId, draftText>. Two effects:
+  (1) on activeConversationId change, save outgoing draft + restore incoming draft +
+  clear pendingAttachments; (2) on textInput change, save to current conv slot.
+  isRestoringDraftRef guard prevents clobbering restore with empty render-cycle value.
+  All 3 setTextInput('') post-send paths now also clear the saved draft slot.
+- NoteEditor.tsx: Replaced dictation implementation with auto-restart-capable version.
+  userStoppedRef distinguishes user-initiated stops from engine auto-stops. restartCountRef
+  caps restarts at MAX_RESTARTS=5 to prevent infinite loops. insertPosRef saves cursor
+  at dictation start; transcripts land there regardless of where user taps mid-session.
+  insertTranscript() avoids editor.chain().focus() (steals focus / scrolls). onerror
+  distinguishes 'not-allowed' (permanent) from 'no-speech'/'network' (transient).
+  recognition.start() wrapped in try/catch for InvalidStateError.
+
+BATCH 2 — BACKEND DEDUP + SUPPORT THREAD DELETION (Task 26):
+- convex/feedback.ts submitFeedback: added idempotencyKey arg + dedup scan (queries
+  last 500 user_feedback rows, returns existing _id if key matches).
+- convex/feedback.ts deleteFeedbackThread: soft-delete mutation. Auth check: user can
+  delete own threads (userEmail match), founder can delete any. Patches deletedAt +
+  deletedBy + status='Deleted'. Idempotent (already-deleted returns success).
+- convex/feedback.ts restoreFeedbackThread: founder-only, reverses soft-delete.
+- convex/feedback.ts getFeedbackList + getMyFeedbackReplies: filter rows where
+  deletedAt is truthy.
+- convex/schema.ts user_feedback: added idempotencyKey, deletedAt, deletedBy fields
+  + by_user_id index.
+- convex/myFunctions.ts sendChatMessage: added idempotencyKey arg. At start of handler,
+  queries by_idempotency index — if match found, returns existing messageId with
+  deduplicated:true flag, no insert, no notifications.
+- convex/schema.ts chatMessages: added idempotencyKey field + by_idempotency index.
+- All 4 client call sites updated:
+  - src/hooks/useMessaging.ts handleSendMessage
+  - src/components/MessagesView.tsx (3 call sites: voice note, team reply, DM reply)
+  - src/components/modals/TeamMessageModal.tsx (per-recipient uuid)
+  - src/components/forms/FeedbackForm.tsx submitFeedback
+- MessagesView.tsx: 'Delete thread' button on each feedback thread in user inbox.
+  Uses window.confirm() (not useConfirm's confirm() which has different signature).
+  Calls deleteFeedbackThread with currentUser.email for auth.
+
+BATCH 3 — DEACTIVATED MEMBER STATE (Task 27):
+- convex/schema.ts users: added deactivatedAt, deactivatedBy, deactivationReason fields
+  + by_deactivated index.
+- convex/myFunctions.ts verifyLogin: added deactivation check after Pending check.
+  Returns { success: false, message: '...', isDeactivated: true } if deactivatedAt set.
+- convex/myFunctions.ts deactivateTeamMember: admin/founder-only mutation. Blocks
+  self-deactivation + Founder-role deactivation. Idempotent.
+- convex/myFunctions.ts reactivateTeamMember: admin/founder-only, clears fields.
+- convex/myFunctions.ts getFirmMembersWithDeactivationStatus: sorts active first,
+  deactivated at bottom (most-recent-deactivation first).
+- src/components/settings/FirmSettings.tsx:
+  - Added deactivateMutation + reactivateMutation hooks
+  - handleDeactivateUser: prompt for reason → confirm modal → mutation
+  - handleReactivateUser: direct mutation
+  - Sort: pending → active → deactivated
+  - Row: opacity-50 grayscale when deactivated, amber status dot
+  - Deactivated badge with title tooltip showing deactivatedBy + deactivatedAt
+  - Action buttons: Deactivate (X icon, amber), Reactivate (check icon, emerald),
+    Permanent Remove (trash icon, red) — last only shows for non-deactivated
+- src/components/forms/AssignUsersForm.tsx: filter out deactivated from assignable
+  users (existing assignments remain intact for audit).
+
+BATCH 4 — VMS ADD-ON BILLING + GATEHOUSE SOPs (Task 28):
+- convex/visitorManagement.ts generateVisitorToken: added VMS add-on billing gate
+  at top of handler. Looks up firm by custom id field OR Convex _id. If firm has
+  no VMS add-on (or status is none/expired/suspended), throws VMS_ADDON_REQUIRED.
+  If trial past trialEndsAt, auto-flips to expired and throws VMS_TRIAL_EXPIRED.
+  Founder firms (*@practicepro.ng or name contains 'practicepro') bypass for testing.
+- convex/myFunctions.ts:
+  - getVmsAddonStatus query: returns firm's vms add-on state
+  - startVmsAddonTrial mutation: 14-day trial, admin/founder-only, one-per-firm
+  - activateVmsAddon mutation: founder-only, sets status='active'
+  - cancelVmsAddon mutation: admin/founder-only, sets status='expired'
+- src/components/settings/SubscriptionSettings.tsx VmsAddonPanel:
+  - Shown only for Atrium firms (resolveProductMode === 'property')
+  - Status badges: Active (emerald) / Trial (amber) / Expired (rose)
+  - State-aware buttons: Start Trial / Subscribe / Cancel / Re-subscribe
+  - Trial countdown: "{N} days remaining"
+  - Gatehouse URL display with copy button
+  - Pricing: ₦15,000/mo
+- VMS_GATEHOUSE_SOPS.md: comprehensive SOPs doc — setup, resident workflow,
+  gatehouse terminal, billing lifecycle, security/privacy, troubleshooting, contacts.
+
+BATCH 5 — ROLE-BASED ToS CONSENT ENGINE (Task 29):
+- convex/schema.ts termsAcceptance: added roleContext + roleTermsVersion fields
+  + by_role_context index.
+- convex/myFunctions.ts recordTermsAcceptance: accepts roleContext + roleTermsVersion
+  args, persists with record. Defaults to 'unknown' for legacy callers.
+- convex/myFunctions.ts getTermsAcceptance: role-aware — if roleContext provided,
+  returns most recent record matching that role. Legacy mode (no roleContext)
+  returns most recent record for any role.
+- src/components/TermsAcceptance.tsx:
+  - ROLE_TERMS_VERSIONS map: founder-v1, admin-v1, lawyer-v1, paralegal-v1, portal-v1
+  - resolveRoleContext(user): maps UserRole enum + email domain → role context string
+    (e.g. @practicepro.ng → 'founder', Tenant/Client → 'portal_user', Founder role
+    for non-practicepro.ng → 'admin')
+  - handleAccept passes roleContext + roleTermsVersion to recordAcceptance
+- src/components/App.tsx:
+  - Resolves roleContext for currentUser inline
+  - Queries getTermsAcceptance with { userEmail, roleContext } — server returns
+    role-specific record, enabling per-role re-acceptance
+  - Removed `serverTermsRecord !== ''` check (TS error: Doc type has no '' overlap)
+
+VERIFICATION:
+- TypeScript (frontend): 327 errors (baseline 328 — NET -1, ZERO new errors)
+- TypeScript (convex): clean
+- Vite build: passes in 21.13s
+- Convex deploy: SUCCESS — 4 new indexes added:
+  [+] chatMessages.by_idempotency (idempotencyKey, _creationTime)
+  [+] termsAcceptance.by_role_context (roleContext, _creationTime)
+  [+] user_feedback.by_user_id (userId, _creationTime)
+  [+] users.by_deactivated (deactivatedAt, _creationTime)
+- Git: commit d00ac8b, pushed to origin/main + synced to origin/master
+
+DEPLOYMENT NOTES:
+- Vercel: Auto-deploys from master push (triggered)
+- Convex: Deployed with new indexes (live)
+- Cloudflare: Requires manual `npx wrangler deploy` from user's machine
+- Admin APK: Will trigger build-admin-apk.yml if src/admin/** changes (none this round)
+
+Stage Summary:
+- Inline unit muting: users can mute/unmute from the unit tab strip — no scrolling
+- ALOA drafts: switching conversations preserves per-conversation draft text
+- Dictation: auto-restarts on transient errors, preserves cursor position, no focus stealing
+- Message dedup: idempotencyKey on submitFeedback + sendChatMessage + all 4 client call sites
+- Support thread deletion: user-side delete button + soft-delete mutation + founder restore
+- Deactivated member state: full lifecycle (schema, login block, UI badge, assignment filter)
+- VMS add-on billing: trial/active/expired states, billing gate in generateVisitorToken,
+  billing panel in SubscriptionSettings, comprehensive SOPs doc
+- Role-based ToS: per-role version tracking, role-aware server query, only affected roles
+  see re-acceptance prompts when their role-specific version bumps
