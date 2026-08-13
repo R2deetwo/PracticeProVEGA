@@ -364,6 +364,15 @@ export const adminReplyToFeedback = mutation({
     // idempotencyKey already exists on this feedback, the mutation
     // returns early without inserting a duplicate.
     idempotencyKey: v.optional(v.string()),
+    // ─── REPLY CHANNEL TOGGLE ───────────────────────────────────────
+    // When false (DEFAULT), the reply is delivered IN-APP ONLY — the
+    // user sees it in their System Inbox the next time they open the app.
+    // No email is sent.
+    // When true, the reply is delivered in-app AND via email (Brevo).
+    // This matches top-tier SaaS support desk conventions (Intercom,
+    // Zendesk) where in-app is the default and email is an explicit
+    // "also send via email" toggle.
+    sendEmail: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const feedback = await ctx.db.get(args.feedbackId);
@@ -397,12 +406,6 @@ export const adminReplyToFeedback = mutation({
     } as any);
 
     // ─── FIX: notification payload now carries the feedbackId ───────
-    // Previously: link.id was null, context was just { systemInbox: true }
-    // → clicking the notification opened the generic Messages tab with
-    //   no thread visible (dead-end navigation).
-    // Now: link.id is the feedbackId, context includes selectedInboxId
-    //   and initialTab so MessagesView can auto-open the System Inbox
-    //   thread showing this specific conversation.
     await ctx.db.insert("notifications", {
       firmId: feedback.firmId,
       userId: feedback.userId,
@@ -424,10 +427,12 @@ export const adminReplyToFeedback = mutation({
       isRead: false,
     } as any);
 
-    // ─── Send Brevo email to the user (for offline notification) ────
-    // Fires an internalAction so the mutation returns immediately.
-    // Only sends if the user has an email on file.
-    if (feedback.userEmail) {
+    // ─── Send Brevo email to the user (OPTIONAL) ────────────────────
+    // Only sends if sendEmail is explicitly true AND the user has an
+    // email on file. Default is in-app only (sendEmail = false/undefined).
+    // This matches Intercom/Zendesk conventions: in-app is the default
+    // delivery channel; email is an explicit "+ Email" toggle.
+    if (args.sendEmail === true && feedback.userEmail) {
       ctx.scheduler.runAfter(0, internal.feedback.sendReplyEmail, {
         userEmail: feedback.userEmail,
         userName: feedback.userName,

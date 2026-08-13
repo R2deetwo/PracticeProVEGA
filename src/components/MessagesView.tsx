@@ -1699,16 +1699,18 @@ const MessagesView: React.FC = () => {
                                                             markNotificationsAsRead(systemNotifs.map(n => String(n.id || n._id || '')));
                                                         }
                                                     }}
-                                                    className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all duration-200 hover:bg-emerald-950/40 hover:border-emerald-500/30 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500' : 'border-l-transparent'}`}
+                                                    className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all duration-200 hover:bg-primary-950/40 hover:border-primary-500/30 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-primary-50 dark:bg-primary-900/20 border-l-primary-500' : 'border-l-transparent'}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2 min-w-0">
-                                                            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
-                                                                <SparklesIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                            <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
+                                                                <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                                                                </svg>
                                                             </div>
                                                             <div className="min-w-0">
                                                                 <p className="text-sm font-bold text-slate-100 dark:text-slate-100 font-semibold truncate">PracticePro Team</p>
-                                                                <p className="text-2xs text-emerald-400 dark:text-emerald-400 font-medium uppercase tracking-wider">Support Channel</p>
+                                                                <p className="text-2xs text-primary-400 dark:text-primary-400 font-medium uppercase tracking-wider">Support Channel</p>
                                                             </div>
                                                         </div>
                                                         {(coreState.notifications || []).filter(n =>
@@ -2701,14 +2703,31 @@ const MessagesView: React.FC = () => {
                                    in filteredConversations but never rendered. Now it's
                                    accessible when the user clicks the System Inbox entry. */
                                 <div className="flex-1 flex flex-col bg-slate-50 dark:bg-zinc-900 overflow-hidden">
-                                    {/* Thread header */}
+                                    {/* Thread header — with mobile back button to escape the
+                                        navigation trap where users couldn't get back to the
+                                        inbox list from the System Inbox thread. */}
                                     <div className="flex items-center gap-3 p-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-800">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
-                                            <SparklesIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                        {/* Back to Inbox — visible on mobile/tablet only.
+                                            Clears selectedInboxId so the conversation list reappears. */}
+                                        <button
+                                            onClick={() => { setSelectedInboxId(null); setSelectedInboxType(null); }}
+                                            className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0 flex items-center gap-1"
+                                            aria-label="Back to inbox"
+                                        >
+                                            <ChevronRightIcon className="w-5 h-5 rotate-180" />
+                                        </button>
+                                        {/* PracticePro Support avatar — branded shield icon.
+                                            Replaced the generic SparklesIcon (which resembled
+                                            Gemini's branding) with a professional support shield
+                                            in PracticePro's emerald brand color. */}
+                                        <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
+                                            <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                                            </svg>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-sm font-bold text-slate-900 dark:text-white">PracticePro Team</h3>
-                                            <p className="text-2xs text-emerald-400 dark:text-emerald-400 font-medium uppercase tracking-wider">Support Channel</p>
+                                            <p className="text-2xs text-primary-500 dark:text-primary-400 font-medium uppercase tracking-wider">Support Channel</p>
                                         </div>
                                     </div>
                                     {/* Conversation thread */}

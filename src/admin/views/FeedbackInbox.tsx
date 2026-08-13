@@ -70,6 +70,7 @@ const FeedbackInboxInner: React.FC = () => {
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
+    const [sendEmail, setSendEmail] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // SAFE DATA FETCHING — wrapped in try/catch. If the Convex function
@@ -119,16 +120,17 @@ const FeedbackInboxInner: React.FC = () => {
                 message: replyText.trim(),
                 channelType: 'SUPPORT',
                 idempotencyKey,
+                sendEmail,
             });
             try {
                 await logAdminAction({
                     tokenIdentifier,
                     action: 'ADMIN ACTION: Replied to feedback',
                     targetFirmId: selected.firmId || undefined,
-                    details: `Reply to "${selected.title || 'Untitled'}" from ${selected.userName || selected.userEmail || 'unknown'}`,
+                    details: `Reply to "${selected.title || 'Untitled'}" from ${selected.userName || selected.userEmail || 'unknown'} (Email: ${sendEmail ? 'YES' : 'NO'})`,
                 });
             } catch {}
-            addToast('Reply sent. User will see it in their inbox and get an email.', { type: 'success' });
+            addToast(sendEmail ? 'Reply sent. User will see it in-app and get an email.' : 'Reply sent. User will see it in their inbox.', { type: 'success' });
             setReplyText('');
         } catch (e: any) {
             addToast(e?.message || 'Failed to send reply.', { type: 'error' });
@@ -342,16 +344,43 @@ const FeedbackInboxInner: React.FC = () => {
                                         rows={4}
                                         className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 resize-none"
                                     />
-                                    <button
-                                        onClick={handleReply}
-                                        disabled={!replyText.trim() || isSubmitting}
-                                        className="mt-2 w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                    >
-                                        {isSubmitting && (
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        )}
-                                        {isSubmitting ? 'Sending...' : 'Send Reply (In-App + Email Notification)'}
-                                    </button>
+                                    <div className="mt-2 flex items-center gap-2">
+                                        {/* Send Reply — in-app by default */}
+                                        <button
+                                            onClick={handleReply}
+                                            disabled={!replyText.trim() || isSubmitting}
+                                            className="flex-1 px-4 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {isSubmitting && (
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            )}
+                                            {isSubmitting ? 'Sending...' : 'Send Reply'}
+                                        </button>
+                                        {/* + Email toggle — optional email delivery.
+                                            When ON, the reply is also sent via Brevo email.
+                                            When OFF (default), reply is in-app only.
+                                            Matches Intercom/Zendesk conventions. */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSendEmail(prev => !prev)}
+                                            className={`px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                                                sendEmail
+                                                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400'
+                                                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-400 dark:text-zinc-500 hover:border-slate-300 dark:hover:border-zinc-600'
+                                            }`}
+                                            title={sendEmail ? 'Email delivery ON — reply will also be sent via email' : 'Email delivery OFF — reply is in-app only. Click to also send via email.'}
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                            </svg>
+                                            + Email
+                                        </button>
+                                    </div>
+                                    <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-1.5">
+                                        {sendEmail
+                                            ? 'In-app + email. User gets a Brevo email notification.'
+                                            : 'In-app only. User sees the reply in their inbox next time they open the app.'}
+                                    </p>
                                 </div>
                                 <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-zinc-700">
                                     {selected.status !== 'Resolved' && (
