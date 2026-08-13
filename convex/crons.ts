@@ -151,6 +151,17 @@ crons.interval(
   {}
 );
 
+// ─── EXPIRED BROADCAST CLEANUP ──────────────────────────────────────────
+// Every 15 minutes, mark broadcast notifications with expiresAt in the
+// past as isRead=true. This auto-removes expired maintenance notices
+// and scheduled-outage banners from user dashboards without manual action.
+crons.interval(
+  "cleanupExpiredBroadcasts",
+  { minutes: 15 },
+  internal.broadcasts.cleanupExpiredBroadcasts,
+  {}
+);
+
 // ─── COURT DATE REMINDERS ────────────────────────────────────────────────────
 // Daily at 6:00 UTC (7:00 AM WAT). Scans matters with nextAdjournedDate
 // set. For each hearing 7, 3, or 1 day(s) away, inserts a scheduled_messages

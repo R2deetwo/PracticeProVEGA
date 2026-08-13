@@ -4771,6 +4771,7 @@ export const createBroadcastNotification = internalMutation({
     targetProduct: v.optional(v.string()),
     persistenceMode: v.optional(v.string()),
     broadcastId: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("notifications", {
@@ -4792,6 +4793,7 @@ export const createBroadcastNotification = internalMutation({
       },
       timestamp: new Date().toISOString(),
       isRead: false,
+      expiresAt: args.expiresAt,
     } as any);
   },
 });

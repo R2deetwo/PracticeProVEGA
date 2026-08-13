@@ -16,7 +16,7 @@
  *      notifications (keeps the payload small).
  */
 
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 
@@ -94,6 +94,11 @@ export const getActiveBroadcasts = query({
 
       // Must be unread (active)
       if (n.isRead) return false;
+
+      // AUTO-EXPIRY: Filter out expired broadcast notifications
+      // (e.g., "Scheduled System Maintenance" with expiresAt in the past)
+      const expiresAt = (n as any).expiresAt;
+      if (expiresAt && typeof expiresAt === 'number' && expiresAt < Date.now()) return false;
 
       // USER MATCHING — multi-signal (relaxed for reliable rendering):
       const nUserId = String(n.userId || '');
@@ -516,5 +521,45 @@ export const purgeAllBroadcasts = mutation({
     }
 
     return { success: true, deleted: toDelete.length };
+  },
+});
+
+/**
+ * internalMutation: cleanupExpiredBroadcasts
+ *
+ * Cron job (every 15 minutes) — marks broadcast notifications with
+ * expiresAt in the past as isRead=true. This auto-removes expired
+ * maintenance notices and scheduled-outage banners from user dashboards
+ * without requiring manual admin action.
+ */
+export const cleanupExpiredBroadcasts = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    // Scan notifications with expiresAt set (using the by_expires index)
+    // We can't do a range query on optional fields with Convex, so we
+    // scan all broadcast notifications and filter.
+    const allBroadcasts = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.neq(q.field("isRead"), true))
+      .take(500);
+
+    let expired = 0;
+    for (const n of allBroadcasts) {
+      const expiresAt = (n as any).expiresAt;
+      const type = n.type || '';
+      if (!type.startsWith('broadcast_')) continue;
+      if (expiresAt && typeof expiresAt === 'number' && expiresAt < now) {
+        await ctx.db.patch(n._id, { isRead: true } as any);
+        expired++;
+      }
+    }
+
+    if (expired > 0) {
+      console.log(`[cleanupExpiredBroadcasts] Marked ${expired} expired broadcasts as read`);
+    }
+
+    return { success: true, expired };
   },
 });

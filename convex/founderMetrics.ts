@@ -836,6 +836,7 @@ export const broadcastNotification = action({
     message: v.string(),
     deepLink: v.optional(v.string()),
     persistenceMode: v.optional(v.string()),
+    expiresAt: v.optional(v.number()), // Auto-expiry timestamp (for maintenance notices)
   },
   handler: async (ctx, args) => {
     // Actions can't use ctx.db directly — use internal query for auth check
@@ -884,6 +885,7 @@ export const broadcastNotification = action({
           targetProduct: args.targetProduct,
           persistenceMode,
           broadcastId,
+          expiresAt: args.expiresAt,
         });
         recipientCount++;
       }

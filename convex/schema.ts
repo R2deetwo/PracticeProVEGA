@@ -322,7 +322,8 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+    expiresAt: v.optional(v.number()), // Auto-expiry timestamp (null = never expires)
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]),
 
   invoices: defineTable({
     firmId: nullableString,
