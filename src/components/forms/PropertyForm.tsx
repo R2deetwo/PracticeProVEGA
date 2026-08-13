@@ -721,6 +721,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             // Using the stale snapshot would overwrite the just-saved email with the
             // old/missing value — this was the root cause of the email persistence bug.
             if (saveToContacts) {
+            addToast('Syncing resident details to Contacts directory...', { type: 'info' });
             await Promise.all(currentUnits.map(async (unit) => {
                 const tenantName = composeTenantName(unit).trim();
                 const tenantPhone = (unit.tenantPhone || '').trim();
@@ -793,6 +794,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     addToast(`Resident contact sync failed: ${syncErr?.message || 'Unknown error'}. The resident's details were saved on the unit but not synced to Contacts.`, { type: 'info' });
                 }
             }));
+            addToast('Resident details synced to Contacts directory.', { type: 'success' });
             } // end if (saveToContacts)
 
             // Note: We no longer pass empty [] to onSave — that wipes the contact's property references.
@@ -919,18 +921,20 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
         // NOTE: Do NOT call setOpenSections here — the useState initializer
         // already sets rental:true when activeUnitId/autoExpandRental is set.
-        // Calling setOpenSections again causes a double-render flash where
-        // the accordion appears to open then close then open again.
-        // The useState initializer is the single source of truth for the
-        // initial expanded state.
 
-        // Double rAF ensures the browser has painted the expanded DOM content
-        // before we try to scroll to it.
+        // Triple rAF + setTimeout for reliable scroll — the accordion content
+        // needs to be fully rendered AND the modal's transition animation
+        // needs to complete before scrollIntoView works correctly.
         const raf1 = requestAnimationFrame(() => {
             const raf2 = requestAnimationFrame(() => {
-                rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const raf3 = requestAnimationFrame(() => {
+                    rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+                // Also try after a short delay in case the rAF fires too early
+                setTimeout(() => {
+                    rentalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
             });
-            return () => cancelAnimationFrame(raf2);
         });
         return () => cancelAnimationFrame(raf1);
     }, [activeUnitId, autoExpandRental]);

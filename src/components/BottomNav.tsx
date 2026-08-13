@@ -104,26 +104,30 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     const { light } = useHapticFeedback();
 
     // Unified Badge Logic: Strictly filters for the current user and maps notifications to their respective tabs.
+    // HOME/DASHBOARD: No badges — notifications belong on the Bell icon and Messages tab only.
     const getBadgeCountForView = React.useCallback((view: View) => {
         if (!currentUser) return 0;
-        
+
+        // Dashboard/Home gets NO badge — clean home view, no duplicate alerts
+        if (view === 'dashboard') return 0;
+
         // We filter notifications that:
         // 1. Belong to this user
         // 2. Are unread
         // 3. Match the target view (or related view context)
         return coreState.notifications.filter(n => {
             if (n.userId !== currentUser.id || n.isRead || !n.link) return false;
-            
+
             // Views can have aliases or sub-views (e.g. matterDetail is nested under matters)
             const targetView = n.link.view;
             if (!targetView) return false;
-            
+
             if (targetView === view) return true;
-            
+
             // Alias groups
             if (view === 'matters' && targetView === 'matterDetail') return true;
             if (view === 'billing' && (targetView === 'invoiceDetail' || targetView === 'receiptDetail')) return true;
-            
+
             return false;
         }).length;
     }, [coreState.notifications, currentUser]);
