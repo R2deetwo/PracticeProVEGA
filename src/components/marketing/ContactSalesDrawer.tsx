@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
@@ -112,9 +113,15 @@ const ContactSalesDrawer: React.FC<{
 
     if (!isOpen) return null;
 
-    return (
+    // CRITICAL: Use createPortal to render at document.body level.
+    // The LandingPage has <main className="animate-swap-in"> which applies
+    // a CSS transform — this creates a containing block that traps
+    // position:fixed elements, causing the modal to appear at the top of
+    // the page instead of centered in the viewport. Portaling to
+    // document.body escapes the transformed parent.
+    return createPortal(
         <>
-            {/* Backdrop — also acts as a flex centering container on desktop */}
+            {/* Backdrop — flex container that centers the panel in the viewport */}
             <div
                 className={`fixed inset-0 z-[9500] bg-black/40 backdrop-blur-sm transition-opacity duration-300 flex items-end sm:items-center sm:justify-center p-0 sm:p-4 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
                 onClick={handleClose}
@@ -280,7 +287,8 @@ const ContactSalesDrawer: React.FC<{
                 </div>
             </div>
             </div>
-        </>
+        </>,
+        document.body
     );
 };
 
