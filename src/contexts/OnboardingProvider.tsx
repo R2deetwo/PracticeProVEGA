@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTipManager } from '../hooks/useTipManager';
 import { useAuth } from './AuthContext';
+import { useDataActions } from './DataContext';
 
 const ONBOARDING_STORAGE_KEY = 'practicepro_tour_completed';
 
@@ -22,24 +23,36 @@ export const OnboardingProvider: React.FC<{ children?: React.ReactNode }> = ({ c
   const [isTourRunning, setIsTourRunning] = React.useState(false);
   const [stepIndex, setStepIndex] = React.useState(0);
   const { resetAllTips } = useTipManager();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentUser } = useAuth();
+  const { handleUpdateUser } = useDataActions();
 
   const startTour = React.useCallback(() => {
-    resetAllTips(true); // Silently reset tips to ensure tour targets are visible
+    resetAllTips(true);
     setStepIndex(0);
     setIsTourRunning(true);
   }, [resetAllTips]);
 
-  // REMOVED: The useEffect that auto-started the tour. 
-  // Control is now fully handed over to App.tsx to ensure strict sequencing.
-
+  // PERSISTENCE: Tour completion is written to BOTH localStorage (fast
+  // UI gating) AND the database (user.onboardingCompleted = true).
+  // The database flag is the source of truth — it survives device
+  // switches, APK reinstalls, and cache clears. The localStorage flag
+  // is only for fast initial render before the user query resolves.
   const completeTour = React.useCallback(() => {
+    // 1. localStorage — fast UI gating
     try {
       localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     } catch (error) {
       console.error("Could not save tour completion state:", error);
     }
-  }, []);
+    // 2. Database — durable persistence (survives device switches)
+    if (currentUser?.id) {
+      try {
+        handleUpdateUser(currentUser.id, { onboardingCompleted: true });
+      } catch (error) {
+        console.warn('[OnboardingProvider] Failed to persist tour completion to database:', error);
+      }
+    }
+  }, [currentUser?.id, handleUpdateUser]);
 
   const stopTour = React.useCallback((complete = true) => {
     setIsTourRunning(false);
@@ -51,11 +64,17 @@ export const OnboardingProvider: React.FC<{ children?: React.ReactNode }> = ({ c
   const resetTour = React.useCallback(() => {
     try {
       localStorage.removeItem(ONBOARDING_STORAGE_KEY);
-      startTour();
+      // Also reset the database flag so the tour can re-run
+      if (currentUser?.id) {
+        try {
+          handleUpdateUser(currentUser.id, { onboardingCompleted: false });
+        } catch {}
+      }
     } catch (error) {
       console.error("Could not reset tour state:", error);
     }
-  }, [startTour]);
+    startTour();
+  }, [startTour, currentUser?.id, handleUpdateUser]);
 
   const nextStep = React.useCallback(() => {
     setStepIndex(prev => prev + 1);

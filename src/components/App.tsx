@@ -1060,8 +1060,13 @@ export const App: React.FC = () => {
             // desktop/landscape. Mobile users can still start it manually from
             // Settings → Help if they want.
             if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) return;
-            const hasCompletedTour = localStorage.getItem('practicepro_tour_completed');
-            if (hasCompletedTour !== 'true') {
+            // PERSISTENCE: Check BOTH localStorage (fast) AND the database
+            // (durable). The database flag (user.onboardingCompleted) is
+            // the source of truth — it survives device switches and cache
+            // clears. localStorage is only for fast initial render.
+            const hasCompletedTourLocal = localStorage.getItem('practicepro_tour_completed');
+            const hasCompletedTourDB = (currentUser as any)?.onboardingCompleted === true;
+            if (hasCompletedTourLocal !== 'true' && !hasCompletedTourDB) {
                 const timer = setTimeout(() => startTour(), 800);
                 return () => clearTimeout(timer);
             }

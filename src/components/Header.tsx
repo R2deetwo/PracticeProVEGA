@@ -135,8 +135,9 @@ const Header: React.FC = React.memo(() => {
             timestampStr: n.timestamp
         }));
 
-        // Unread Client Messages (Vega/legal)
-        const unreadClientMessages = clientMessages.filter(m => !m.isRead && m.authorId !== currentUser.id).map(m => ({
+        // Unread Client Messages (Vega/legal) — EXCLUDES deleted messages
+        // (ghost badge fix: deleted messages left unread status lingering)
+        const unreadClientMessages = clientMessages.filter(m => !m.isRead && m.authorId !== currentUser.id && !(m as any).isDeleted).map(m => ({
             id: m.id,
             userId: currentUser.id,
             message: `New message from Client in matter`,
@@ -148,8 +149,9 @@ const Header: React.FC = React.memo(() => {
         }));
 
         // Inbound Tenant Messages (Atrium/property) — shown in notification bell
+        // EXCLUDES deleted messages (ghost badge fix)
         const unreadTenantMessages = (inboundTenantMessages as any[])
-            .filter((m: any) => !m.isRead)
+            .filter((m: any) => !m.isRead && !m.isDeleted)
             .slice(0, 10)
             .map((m: any) => ({
                 id: m._id,
