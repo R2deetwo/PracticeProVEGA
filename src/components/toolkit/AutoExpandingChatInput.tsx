@@ -8,7 +8,7 @@
  * - Voice note recording via MediaRecorder API
  * - Pending attachment previews (filename + remove X)
  * - Active recording state with timer + cancel/stop controls
- * - Send button or Shift+Enter sends
+ * - Send button or Enter key sends (Shift+Enter for newline)
  */
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
@@ -68,7 +68,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
     autoFocus = false,
     hint,
     maxLines = 3,
-    sendOnEnter = false,
+    sendOnEnter = true,
     attachments = [],
     onRemoveAttachment,
     onAttachClick,

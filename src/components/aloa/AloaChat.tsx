@@ -2072,6 +2072,80 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
     };
 
+    // ─── Inline Action Pill: Draft + Generate ──────────────────────────
+    // Called when the user clicks "✦ Draft in DraftPro" on a specific
+    // list item. Unlike handleDraftInDraftPro (which loads the text as-is),
+    // this function passes the item as a PROMPT and sets disableAutoDraft=false
+    // so DraftPro immediately generates a full legal document from it.
+    const handleInlineDraftGenerate = (itemContent: string, msgCitations?: any) => {
+        try {
+            // Extract a clean title from the item text
+            const title = extractDocumentTitle(itemContent) || 'Untitled Document';
+
+            // Build the draft config — pass the item as draftPrompt so the AI
+            // generates a FULL document from it (not just copies the text).
+            // disableAutoDraft=false triggers immediate AI generation.
+            const draftConfig: any = {
+                openedByAloa: true,
+                draftTitle: title,
+                draftPrompt: `Draft a complete, professional legal document based on the following item from an AI-generated list. The document should be fully formatted with proper legal structure, boilerplate clauses, and Nigerian legal conventions where applicable:\n\n${itemContent}`,
+                draftContent: undefined,
+                disableAutoDraft: false,
+            };
+
+            // Attach citations if available
+            const citationsToAttach = msgCitations || citationRegistryRef.current.toJSON();
+            if (citationsToAttach && citationsToAttach.citations && citationsToAttach.citations.length > 0) {
+                draftConfig.citations = citationsToAttach;
+            }
+
+            // Save to localStorage + open in tab or in-place
+            const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
+            if (fid) {
+                const key = draftSessionKey({ matterId: undefined, title });
+                try {
+                    saveDraftSession(fid, key, {
+                        title,
+                        content: '',
+                        draftPrompt: draftConfig.draftPrompt,
+                        matterId: undefined,
+                        updatedAt: new Date().toISOString(),
+                        savedAt: Date.now(),
+                    });
+                } catch (e) {
+                    console.warn('[handleInlineDraftGenerate] localStorage save failed:', e);
+                }
+
+                if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                    try {
+                        const url = `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(title)}&autoDraft=true`;
+                        const armed = navigateArmedDraftTab(url);
+                        if (armed) {
+                            openDraftInTab({ key, url, title });
+                            addToast(`Generating "${title}" in DraftPro...`, { type: 'success' });
+                            return;
+                        }
+                        const result = openDraftInTab({ key, url, title });
+                        if (result !== 'in-place') {
+                            addToast(`Generating "${title}" in DraftPro (new tab)...`, { type: 'success' });
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('[handleInlineDraftGenerate] new tab failed:', e);
+                    }
+                }
+            }
+
+            // Mobile or popup blocked — open in-place
+            setPendingDraft(draftConfig);
+            openEditorRef.current(null, draftConfig);
+            addToast(`Generating "${title}" in DraftPro...`, { type: 'success' });
+        } catch (e: any) {
+            console.error('[handleInlineDraftGenerate] Failed:', e);
+            addToast(`Failed to open DraftPro: ${e?.message || 'Unknown error'}`, { type: 'error' });
+        }
+    };
+
     // ─── Send to Research Studio ──────────────────────────────────────────
     // Takes an uploaded document from the ALOA chat and sends it to the
     // Research Studio as a new source in a new (or existing) notebook.
@@ -2805,11 +2879,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             onClick={(e) => {
                                                 // ─── Inline Action Pill Handler ──────────────
                                                 // Intercepts clicks on .aloa-inline-action-pill
-                                                // buttons inside the rendered markdown and
-                                                // triggers DraftPro with the specific list item
-                                                // content. This lets users draft individual
-                                                // items from AI-generated lists without relying
-                                                // on global message-level footer buttons.
+                                                // buttons and triggers context-aware document
+                                                // GENERATION (not just loading text) in DraftPro.
+                                                // The specific list item's content is passed as
+                                                // a prompt so the AI generates a full legal draft.
                                                 const target = e.target as HTMLElement;
                                                 const pill = target.closest('.aloa-inline-action-pill') as HTMLElement;
                                                 if (pill) {
@@ -2817,7 +2890,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                     e.stopPropagation();
                                                     const draftContent = pill.getAttribute('data-draft-content') || '';
                                                     if (draftContent) {
-                                                        handleDraftInDraftPro(draftContent, (msg as any).citations);
+                                                        handleInlineDraftGenerate(draftContent, (msg as any).citations);
                                                     }
                                                 }
                                             }}

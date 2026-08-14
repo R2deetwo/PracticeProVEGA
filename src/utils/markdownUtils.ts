@@ -117,20 +117,25 @@ export const parseAloaMarkdown = (text: string): string => {
                     </li>`;
                 }
 
-                // ─── Inline Action Pill for legal document list items ──────
+                // ─── Hover-Reveal Draft Pill for legal document list items ──
                 // Detects list items containing legal document keywords
                 // (Letter, Affidavit, Application, Notice, Statement, etc.)
-                // and appends an inline action pill that lets the user
-                // draft the document in DraftPro directly from that item.
+                // and appends a subtle micro-dot indicator at the trailing
+                // edge. On hover, the dot expands into a glassmorphic pill
+                // reading "✦ Draft in DraftPro" — clean, unobtrusive, and
+                // functional. No static "Draft" text cluttering every item.
                 const isLegalDoc = content.match(/\b(Letter|Affidavit|Application|Notice|Statement|Agreement|Contract|Deed|Will|Petition|Motion|Brief|Memorandum|Lease|Tenancy)\b/i);
                 if (isLegalDoc) {
                     const escapedContent = content.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                    return `<li class="text-sm leading-relaxed group/item flex items-start justify-between gap-2">
+                    return `<li class="text-sm leading-relaxed group/item flex items-start justify-between gap-2 relative">
                         <span class="flex-1">${content}</span>
-                        <button class="aloa-inline-action-pill flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-bold bg-white/10 hover:bg-white/20 border border-white/10 text-slate-400 hover:text-white opacity-0 group-hover/item:opacity-100 transition-all backdrop-blur-sm" data-draft-content="${escapedContent}" title="Draft in DraftPro">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                            Draft
-                        </button>
+                        <span class="aloa-inline-action-pill-wrapper flex-shrink-0 relative flex items-center justify-end">
+                            <span class="aloa-action-dot block w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-zinc-500 opacity-30 group-hover/item:opacity-0 transition-opacity duration-200"></span>
+                            <button class="aloa-inline-action-pill absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-bold bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 hover:text-white opacity-0 group-hover/item:opacity-100 translate-x-2 group-hover/item:translate-x-0 transition-all duration-200 backdrop-blur-sm whitespace-nowrap pointer-events-auto" data-draft-content="${escapedContent}" title="Draft this document in DraftPro">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+                                Draft in DraftPro
+                            </button>
+                        </span>
                     </li>`;
                 }
 
