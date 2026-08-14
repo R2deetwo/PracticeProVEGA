@@ -378,11 +378,11 @@ export const getTiersForProduct = (product: ProductMode): Record<TierId, TierDef
 export const isKomplete = (product?: string | null): boolean =>
   product === 'unified';
 
-export const DISPLAY_TIER_IDS: TierId[] = ['Core', 'Growth', 'Pro'];
+export const DISPLAY_TIER_IDS: TierId[] = ['Core', 'Growth', 'Pro', 'Enterprise'];
 
-export const getDisplayTiersForProduct = (product: ProductMode): Record<Exclude<TierId, 'Enterprise'>, TierDef> => {
+export const getDisplayTiersForProduct = (product: ProductMode): Record<TierId, TierDef> => {
   const all = getTiersForProduct(product);
-  return { Core: all.Core, Growth: all.Growth, Pro: all.Pro };
+  return { Core: all.Core, Growth: all.Growth, Pro: all.Pro, Enterprise: all.Enterprise };
 };
 
 /** Price string for landing/settings cards */
