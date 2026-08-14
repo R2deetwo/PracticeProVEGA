@@ -3297,6 +3297,18 @@ export const getTenantInfo = query({
       // utility modules when the property is marked 'Management Only (No Rent)'.
       // Falls back to 'Full (Collect Rent)' for properties without the field.
       primaryRentCollectionMode: primaryPropertyRecord?.rentCollectionMode || 'Full (Collect Rent)',
+      // ─── CORE SERVICES (Configurable-by-Default) ──────────────────
+      // Per-property service toggles. When false, the service icon is
+      // grayed out in the Resident Portal with a tooltip. Defaults to
+      // all-active for backward compatibility.
+      primaryCoreServices: {
+        serviceCharge: primaryPropertyRecord?.coreServices?.serviceCharge ?? true,
+        electricity: primaryPropertyRecord?.coreServices?.electricity ?? true,
+        internet: primaryPropertyRecord?.coreServices?.internet ?? true,
+        wasteManagement: primaryPropertyRecord?.coreServices?.wasteManagement ?? true,
+      },
+      // Custom fees configured by the property manager
+      primaryCustomFees: primaryPropertyRecord?.customFees || [],
       // Canonical tenant name from the property record (source of truth)
       tenantName: resolvedTenantName,
     };

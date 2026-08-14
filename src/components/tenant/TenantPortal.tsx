@@ -49,6 +49,15 @@ const WrenchIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+// Waste Management icon (trash can)
+const TrashIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
 const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -638,27 +647,35 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
   const outstandingBalance = tenantInfo?.outstandingBalance || 0;
   const hasOutstanding = outstandingBalance > 0;
 
-  // ─── MANAGEMENT-ONLY SUPPRESSION ──────────────────────────────────
-  // When a property is marked 'Management Only (No Rent)', the portal
-  // must hide Pay Rent, suppress the Lease Agreement document, and
-  // gray out service charge/utility payment modules. This prevents
-  // residents from attempting payments that the property manager
-  // doesn't want to collect through the portal.
+  // ─── CORE SERVICES (Configurable-by-Default) ──────────────────────
+  // Per-property service toggles fetched from the backend. When a service
+  // is 'inactive', the icon is grayed out with a tooltip:
+  //   "This service is not applicable for your property."
+  // This replaces the old static "Management-Only" message with a
+  // data-driven, manager-configurable service architecture.
   const isManagementOnly = tenantInfo?.primaryRentCollectionMode === 'Management Only (No Rent)';
+  const coreServices = tenantInfo?.primaryCoreServices || {
+    serviceCharge: true,
+    electricity: true,
+    internet: true,
+    wasteManagement: true,
+  };
+  const customFees: any[] = tenantInfo?.primaryCustomFees || [];
 
-  // Quick services — actionable tiles. These are the things a resident
-  // would commonly want to do, NOT just request submission.
-  // MANAGEMENT-ONLY: 'Pay Rent' is hidden when isManagementOnly is true.
-  // Service Charge / Electricity / Internet are grayed out with a
-  // tooltip instead of being hidden, so residents know the features
-  // exist but aren't available for their unit.
+  // Quick services — actionable tiles. Each core service has an Active/Inactive
+  // toggle controlled by the property manager via the Edit Property modal.
+  // Inactive services are grayed out but VISIBLE (so residents know they exist).
   const services: { icon: React.ReactNode; label: string; tab: TabId; color: string; disabled?: boolean; tooltip?: string }[] = [
+    // Pay Rent — hidden only when Management-Only (no rent collection at all)
     ...(isManagementOnly ? [] : [
       { icon: <NairaSymbol className="w-5 h-5 inline" />, label: 'Pay Rent', tab: 'payments' as TabId, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
     ]),
-    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger' as TabId, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400', disabled: isManagementOnly, tooltip: isManagementOnly ? 'This facility is not attached to your unit.' : undefined },
-    { icon: <BoltIcon className="w-5 h-5" />, label: 'Electricity', tab: 'ledger' as TabId, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400', disabled: isManagementOnly, tooltip: isManagementOnly ? 'This facility is not attached to your unit.' : undefined },
-    { icon: <WifiIcon className="w-5 h-5" />, label: 'Internet', tab: 'ledger' as TabId, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400', disabled: isManagementOnly, tooltip: isManagementOnly ? 'This facility is not attached to your unit.' : undefined },
+    // Core services — each gated by its own Active/Inactive toggle
+    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger' as TabId, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400', disabled: !coreServices.serviceCharge, tooltip: !coreServices.serviceCharge ? 'This service is not applicable for your property.' : undefined },
+    { icon: <BoltIcon className="w-5 h-5" />, label: 'Electricity', tab: 'ledger' as TabId, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400', disabled: !coreServices.electricity, tooltip: !coreServices.electricity ? 'This service is not applicable for your property.' : undefined },
+    { icon: <WifiIcon className="w-5 h-5" />, label: 'Internet', tab: 'ledger' as TabId, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400', disabled: !coreServices.internet, tooltip: !coreServices.internet ? 'This service is not applicable for your property.' : undefined },
+    // Waste Management — new core service
+    { icon: <TrashIcon className="w-5 h-5" />, label: 'Waste Mgmt', tab: 'ledger' as TabId, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400', disabled: !coreServices.wasteManagement, tooltip: !coreServices.wasteManagement ? 'This service is not applicable for your property.' : undefined },
     { icon: <WrenchIcon className="w-5 h-5" />, label: 'Maintenance', tab: 'maintenance' as TabId, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' },
     { icon: <ChatIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as TabId, color: 'bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400' },
     { icon: <DownloadIcon className="w-5 h-5" />, label: 'Receipts', tab: 'receipts' as TabId, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400' },
@@ -724,38 +741,32 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
           )}
         </div>
         {/* Merged Outstanding Balance — tap to view ledger.
-            HIDDEN when isManagementOnly (no rent collection = no balance to show). */}
-        {!isManagementOnly && (
-          <button
-            onClick={() => onNavigate('ledger')}
-            className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">
-                  Outstanding Balance
-                </p>
-                <p className={`text-lg font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
-                  {formatNaira(outstandingBalance)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-white/90 font-semibold">
-                  {hasOutstanding ? 'View Breakdown' : 'All Caught Up'}
-                </p>
-                <ReceiptIcon className="w-4 h-4 text-white/85 ml-auto mt-1" />
-              </div>
+            Always shown (even for Management-Only properties) because
+            the property may still have active service charges even if
+            rent collection is disabled. The old Management-Only text
+            block has been removed — services are now individually
+            toggled by the property manager. */}
+        <button
+          onClick={() => onNavigate('ledger')}
+          className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">
+                Outstanding Balance
+              </p>
+              <p className={`text-lg font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
+                {formatNaira(outstandingBalance)}
+              </p>
             </div>
-          </button>
-        )}
-        {/* Management-Only notice — shown INSTEAD of the balance card */}
-        {isManagementOnly && (
-          <div className="bg-white/10 rounded-xl p-3 border border-white/10">
-            <p className="text-xs text-white/90 font-medium">
-              This property is under management-only arrangement. Rent and utility payments are not collected through the portal. Contact your property manager for any billing questions.
-            </p>
+            <div className="text-right">
+              <p className="text-xs text-white/90 font-semibold">
+                {hasOutstanding ? 'View Breakdown' : 'All Caught Up'}
+              </p>
+              <ReceiptIcon className="w-4 h-4 text-white/85 ml-auto mt-1" />
+            </div>
           </div>
-        )}
+        </button>
       </div>
 
       {/* ─── Quick Services Grid ────────────────────────────────────── */}

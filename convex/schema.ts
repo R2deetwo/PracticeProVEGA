@@ -775,6 +775,28 @@ export default defineSchema({
     minimumVendEnabled: nullableBoolean,
     minimumVendAmount: nullableNumber,
     minimumVendLabel: nullableString,
+    // ─── CORE SERVICES (Configurable-by-Default) ──────────────────────
+    // Per-property toggles for standard services. When a service is
+    // 'active', it appears as a functional icon in the Resident Portal.
+    // When 'inactive', the icon is grayed out with a tooltip:
+    //   "This service is not applicable for your property."
+    // This replaces the old "Management-Only" static message with a
+    // data-driven, manager-configurable service architecture.
+    // Defaults to all-active for backward compatibility with existing
+    // properties that don't have this field yet.
+    coreServices: v.optional(v.object({
+      serviceCharge: v.optional(v.boolean()),
+      electricity: v.optional(v.boolean()),
+      internet: v.optional(v.boolean()),
+      wasteManagement: v.optional(v.boolean()),
+    })),
+    // Custom fees added by the property manager (label + amount).
+    // Rendered in the Resident Portal alongside core services.
+    customFees: v.optional(v.array(v.object({
+      label: v.string(),
+      amount: v.number(),
+      active: v.optional(v.boolean()),
+    }))),
     // ─── Notification Guardrails ─────────────────────────
     // Property-level global toggle for morning utility reminders
     remindersEnabled: nullableBoolean,

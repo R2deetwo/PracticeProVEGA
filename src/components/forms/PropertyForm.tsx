@@ -124,6 +124,21 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [status, setStatus] = useState<Property['status']>(propertyToEdit?.status || PropertyStatus.Occupied);
     const [ownershipType, setOwnershipType] = useState<Property['ownershipType']>(propertyToEdit?.ownershipType || 'managed');
     const [rentCollectionMode, setRentCollectionMode] = useState<Property['rentCollectionMode']>(propertyToEdit?.rentCollectionMode || 'Full (Collect Rent)');
+    // ─── CORE SERVICES (Configurable-by-Default) ──────────────────────
+    // Per-property service toggles. The manager selects which services
+    // are active for this property. Inactive services are grayed out in
+    // the Resident Portal with a tooltip. Defaults to all-active.
+    const [coreServices, setCoreServices] = useState<{
+        serviceCharge: boolean;
+        electricity: boolean;
+        internet: boolean;
+        wasteManagement: boolean;
+    }>((propertyToEdit as any)?.coreServices || {
+        serviceCharge: true,
+        electricity: true,
+        internet: true,
+        wasteManagement: true,
+    });
     const [value, setValue] = useState<number>(propertyToEdit?.value || 0);
     const [managementFee, setManagementFee] = useState<number>(propertyToEdit?.managementFeePercentage || 10);
     const [numberOfUnits, setNumberOfUnits] = useState<number>(() => {
@@ -596,6 +611,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             description,
             // status: status, // Moved to unit level
             rentCollectionMode,
+            // Core Services — per-property Active/Inactive toggles
+            coreServices,
             value,
             managementFeePercentage: managementFee,
             images,
@@ -1026,6 +1043,42 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <option value="Full (Collect Rent)">Full (Collect Rent)</option>
                                     <option value="Management Only (No Rent)">Management Only (No Rent)</option>
                                 </select>
+                            </div>
+                            {/* ─── Core Services Toggles ──────────────────────────
+                                Per-property Active/Inactive toggles for standard
+                                services. Inactive services are grayed out in the
+                                Resident Portal with a tooltip. This gives the
+                                manager data-driven control over which services
+                                appear for residents, without developer intervention. */}
+                            <div className="space-y-2 group md:col-span-2">
+                                <label className={labelClass}>Core Services</label>
+                                <p className="text-3xs text-slate-400 dark:text-zinc-500 mb-2">
+                                    Toggle which services are active for this property. Inactive services appear grayed out in the Resident Portal.
+                                </p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {([
+                                        { key: 'serviceCharge' as const, label: 'Service Charge' },
+                                        { key: 'electricity' as const, label: 'Electricity' },
+                                        { key: 'internet' as const, label: 'Internet' },
+                                        { key: 'wasteManagement' as const, label: 'Waste Mgmt' },
+                                    ]).map(service => (
+                                        <button
+                                            key={service.key}
+                                            type="button"
+                                            onClick={() => setCoreServices(prev => ({ ...prev, [service.key]: !prev[service.key] }))}
+                                            className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
+                                                coreServices[service.key]
+                                                    ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
+                                                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-400 dark:text-zinc-500'
+                                            }`}
+                                        >
+                                            <span>{service.label}</span>
+                                            <span className={`w-8 h-4 rounded-full relative transition-colors ${coreServices[service.key] ? 'bg-primary-500' : 'bg-slate-300 dark:bg-zinc-600'}`}>
+                                                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${coreServices[service.key] ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Property Type</label>
