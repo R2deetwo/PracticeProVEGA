@@ -1220,11 +1220,13 @@ export default defineSchema({
     name: v.string(),
     companyName: v.optional(v.string()),
     message: v.string(),
-    source: v.optional(v.string()), // "Enterprise Pricing CTA", "Komplete Callout", "Footer", etc.
+    source: v.optional(v.string()),
+    productInterest: v.optional(v.string()), // "Vega" | "Atrium" | "Komplete"
     status: v.union(
-      v.literal("new"),
+      v.literal("unread"),
       v.literal("contacted"),
       v.literal("qualified"),
+      v.literal("converted"),
       v.literal("closed"),
       v.literal("spam"),
     ),

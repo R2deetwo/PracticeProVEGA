@@ -38,6 +38,7 @@ import SecurityCenter from './views/SecurityCenter';
 import FounderNotificationsCenter from './views/FounderNotificationsCenter';
 import AloaUsageCenter from './views/AloaUsageCenter';
 import { FinancialSettings } from './views/FinancialSettings';
+import { SalesPipeline } from './views/SalesPipeline';
 
 // ─── Early-init: apply persisted screen capture preference ──────────
 // The Java default for FLAG_SECURE is now OFF (screenshots allowed).
@@ -92,7 +93,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -157,6 +158,7 @@ const FounderApp: React.FC = () => {
             case 'notifications': return <ViewErrorBoundary viewName="Notifications"><FounderNotificationsCenter /></ViewErrorBoundary>;
             case 'aloaUsage': return <ViewErrorBoundary viewName="AI Usage"><AloaUsageCenter /></ViewErrorBoundary>;
             case 'financials': return <ViewErrorBoundary viewName="Financials"><FinancialSettings /></ViewErrorBoundary>;
+            case 'sales': return <ViewErrorBoundary viewName="Sales"><SalesPipeline /></ViewErrorBoundary>;
             default: return null;
         }
     };

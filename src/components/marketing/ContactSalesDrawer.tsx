@@ -78,6 +78,7 @@ const ContactSalesDrawer: React.FC<{
                 companyName: formData.companyName.trim() || undefined,
                 message: formData.message.trim(),
                 source,
+                productInterest: undefined, // Could be passed from the landing page context
             });
             setIsSubmitted(true);
         } catch (err) {
