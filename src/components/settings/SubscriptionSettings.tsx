@@ -214,9 +214,11 @@ const BillingCalculator: React.FC<{
     const totalActualUsers = users.length;
     const additionalSeats = Math.max(0, (totalActualUsers + simulationCount) - 1);
     // Derive maxUsers from the current tier (null = unlimited)
+    // getTiersForProduct returns a Record<TierId, TierDef>, not an array —
+    // use Object.values() to find the matching tier by id.
     const product = (users[0] as any)?.product || 'legal';
     const tiers = getTiersForProduct(product as any);
-    const currentTierDef = tiers.find(t => t.id === currentPlan);
+    const currentTierDef = Object.values(tiers).find(t => t.id === currentPlan);
     const maxUsers = currentTierDef?.maxUsers ?? null;
     const isSimulating = simulationCount > 0;
 
@@ -396,7 +398,7 @@ const BillingCalculator: React.FC<{
                 )}
 
                 {/* Seat Threshold Logic — when exceeding tier limit, show upgrade/buy buttons */}
-                {maxUsers !== null && (totalActualUsers + simulationCount) >= maxUsers && currentPlan !== SubscriptionPlan.Enterprise && (
+                {maxUsers !== null && (totalActualUsers + simulationCount) >= maxUsers && currentPlan !== ('Enterprise' as any) && (
                     <div className="flex gap-2 pt-2">
                         <button
                             onClick={() => onUpgrade?.(undefined as any)}
