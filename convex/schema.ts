@@ -934,6 +934,21 @@ export default defineSchema({
     .index("by_timestamp", ["timestamp"])
     .index("by_user_id", ["userId"]),
 
+  // ─── ORGANIZATION PAYOUT DETAILS ───────────────────────────────────
+  // Single source of truth for PracticePro Systems Limited's corporate
+  // bank account. Used by all manual bank transfer checkouts across
+  // Vega, Atrium, Komplete, and add-on purchases.
+  // Managed exclusively by the Founder App.
+  organization_payout_details: defineTable({
+    corporateName: v.string(),         // "PracticePro Systems Limited"
+    bankName: v.string(),              // e.g. "Providus Bank"
+    accountNumber: v.string(),         // 10-digit NUBAN
+    accountName: v.string(),           // verified corporate holder name
+    isActive: v.boolean(),
+    updatedBy: v.string(),             // founder email
+    updatedAt: v.number(),
+  }).index("by_active", ["isActive"]),
+
   // Feature flags — per-firm gating of features without a full deploy
   feature_flags: defineTable({
     firmId: v.string(),

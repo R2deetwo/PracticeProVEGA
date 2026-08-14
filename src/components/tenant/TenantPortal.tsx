@@ -152,8 +152,8 @@ const TenantPortal: React.FC = () => {
   const [hasAttemptedFirmRepair, setHasAttemptedFirmRepair] = useState(false);
   const [isRequestingVms, setIsRequestingVms] = useState(false);
 
-  // VMS Request Handler — sends an automated message to the property manager
-  // requesting that VMS be enabled for the resident's property.
+  // Sentry Pass Request Handler — sends an automated message to the property manager
+  // requesting that Sentry Pass be enabled for the resident's property.
   // Includes unit number so the PM knows which unit the request is from.
   const handleRequestVmsEnable = async () => {
     if (isRequestingVms) return;
@@ -169,12 +169,12 @@ const TenantPortal: React.FC = () => {
         senderName: residentName,
         senderEmail: currentUser?.email,
         senderRole: 'Tenant',
-        subject: 'VMS Enablement Request',
-        content: `Hello,\n\nI would like to request that the Visitor Management System (VMS) be enabled for ${unitLabel}. This will allow me to generate 6-digit access codes for my visitors, contractors, and delivery personnel.\n\nPlease enable this feature in Portal Access Settings at your earliest convenience.\n\nThank you,\n${residentName}${unitName ? ` (Unit ${unitName})` : ''}`,
+        subject: 'Sentry Pass Enablement Request',
+        content: `Hello,\n\nI would like to request that the Sentry Pass be enabled for ${unitLabel}. This will allow me to generate 6-digit access codes for my visitors, contractors, and delivery personnel.\n\nPlease enable this feature in Portal Access Settings at your earliest convenience.\n\nThank you,\n${residentName}${unitName ? ` (Unit ${unitName})` : ''}`,
         propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || undefined,
         unitId: tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id || undefined,
       });
-      addToast('Request sent to your property manager. They will enable VMS from Portal Access Settings.', { type: 'success' });
+      addToast('Request sent to your property manager. They will enable Sentry Pass from Portal Access Settings.', { type: 'success' });
     } catch (e: any) {
       addToast(e?.message || 'Failed to send request. Please try again or contact your property manager directly.', { type: 'error' });
     } finally {
@@ -404,7 +404,7 @@ const TenantPortal: React.FC = () => {
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number; disabled?: boolean }[] = [
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
-    // VISITORS TAB — always visible. VMS is AND-gated:
+    // VISITORS TAB — always visible. Sentry Pass is AND-gated:
     //   1. Firm-level: portalSettings.vmsEnabled
     //   2. Property-level: tenantInfo.primaryPropertyVmsEnabled (defaults true)
     // When either is off, the tab shows a "Feature Not Yet Active" message.
@@ -2403,16 +2403,15 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
   const submitProof = useMutation(api.portals.submitPaymentProof);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
-  // ─── Company bank details for Manual Bank Transfer ──────────────────
-  // In production, these should come from firm settings. For now, hardcoded
-  // with the PracticePro company account. The reference code is generated
-  // per-tenant so the admin can match payments to residents.
+  // ─── Dynamic bank details from organization_payout_details ────────
+  // Fetches the active corporate bank account configured by the Founder
+  // App. NO hardcoded mock data — if no config exists, shows clean
+  // placeholders ([Bank Name] / 0000000000) instead of real bank entities.
+  const orgPayoutDetails = useQuery(api.myFunctions.getOrgPayoutDetails, {});
   const BANK_DETAILS = {
-    bankName: 'Providus Bank',
-    accountName: 'PracticePro Systems Ltd',
-    accountNumber: '0123456789',
-    // Reference code: unique per tenant so the admin can match payments.
-    // Format: PP-{tenantId last 6 chars}-{timestamp last 4 digits}
+    bankName: orgPayoutDetails?.bankName || '[Bank Name]',
+    accountName: orgPayoutDetails?.accountName || 'PracticePro Systems Limited',
+    accountNumber: orgPayoutDetails?.accountNumber || '0000000000',
     referenceCode: `PP-${(resolvedTenantId || 'GUEST').slice(-6).toUpperCase()}-${String(Date.now()).slice(-4)}`,
   };
 
@@ -3515,9 +3514,9 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
 export default TenantPortal;
 
 // ─── Visitor Disabled State ──────────────────────────────────────────────────
-// Shown when VMS is not enabled by the property manager. Makes the feature
+// Shown when Sentry Pass is not enabled by the property manager. Makes the feature
 // discoverable instead of hidden, so residents know it exists.
-// Also provides a "Request Manager to Enable VMS" button that dispatches
+// Also provides a "Request Manager to Enable Sentry Pass" button that dispatches
 // an automated request message to the property manager.
 const VisitorDisabledState: React.FC<{ onRequestEnable?: () => void; isRequesting?: boolean }> = ({ onRequestEnable, isRequesting }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -3527,7 +3526,7 @@ const VisitorDisabledState: React.FC<{ onRequestEnable?: () => void; isRequestin
     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Visitor Access Codes</h3>
     <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-sm mb-4">
       Generate 6-digit access codes for your visitors, contractors, and delivery
-      personnel. Codes are verified at the gatehouse for seamless entry.
+      personnel. Codes are verified at the Sentry Pass for seamless entry.
     </p>
     <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 max-w-sm mb-4">
       <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">
@@ -3555,7 +3554,7 @@ const VisitorDisabledState: React.FC<{ onRequestEnable?: () => void; isRequestin
         ) : (
           <>
             <ChatIcon className="w-4 h-4" />
-            Request Manager to Enable VMS
+            Request Manager to Enable Sentry Pass
           </>
         )}
       </button>
@@ -3588,7 +3587,7 @@ const HelpAndSupportTab: React.FC<{
     {
       icon: <VisitorIcon className="w-5 h-5" />,
       title: 'Code Verification',
-      description: 'When a visitor arrives, the gatekeeper enters the code at the gatehouse terminal. The system verifies the code against active tokens, checks validity (not expired, not revoked, not already used), and logs the check-in with a timestamp.',
+      description: 'When a visitor arrives, the gatekeeper enters the code at the Sentry Pass terminal. The system verifies the code against active tokens, checks validity (not expired, not revoked, not already used), and logs the check-in with a timestamp.',
       status: portalSettings?.vmsEnabled ? 'Active' : 'Available on Request',
     },
     {
@@ -3600,7 +3599,7 @@ const HelpAndSupportTab: React.FC<{
     {
       icon: <ShieldIcon className="w-5 h-5" />,
       title: 'Code Revocation',
-      description: 'You can revoke any active access code at any time from the Visitors tab. Revoked codes are immediately rejected at the gatehouse. This gives you full control over who can enter, even after a code has been shared.',
+      description: 'You can revoke any active access code at any time from the Visitors tab. Revoked codes are immediately rejected at the Sentry Pass. This gives you full control over who can enter, even after a code has been shared.',
       status: portalSettings?.vmsEnabled ? 'Active' : 'Available on Request',
     },
     {
@@ -3628,7 +3627,7 @@ const HelpAndSupportTab: React.FC<{
     },
     {
       q: 'How do I generate a visitor pass?',
-      a: 'Go to the Visitors tab, tap "Generate Access Code", enter your visitor\'s name and phone number, choose how long the code should be valid (2, 6, 12, or 24 hours), and share the code with your visitor via WhatsApp or SMS. The gatekeeper will verify the code at the gatehouse.',
+      a: 'Go to the Visitors tab, tap "Generate Access Code", enter your visitor\'s name and phone number, choose how long the code should be valid (2, 6, 12, or 24 hours), and share the code with your visitor via WhatsApp or SMS. The gatekeeper will verify the code at the Sentry Pass.',
     },
     {
       q: 'How do I view my receipts?',
@@ -3842,7 +3841,7 @@ const HelpAndSupportTab: React.FC<{
                   </div>
                 );
               })()}
-              {/* Gatehouse phone — tel: deep link */}
+              {/* Sentry Pass phone — tel: deep link */}
               {tenantInfo?.gatehousePhone && (
                 <a
                   href={`tel:${tenantInfo.gatehousePhone}`}
@@ -3850,7 +3849,7 @@ const HelpAndSupportTab: React.FC<{
                 >
                   <VisitorIcon className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Gatehouse Desk</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">Sentry Pass Desk</p>
                     <p className="text-sm text-primary-600 dark:text-primary-400 underline">{tenantInfo.gatehousePhone}</p>
                   </div>
                 </a>

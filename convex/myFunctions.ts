@@ -6242,3 +6242,76 @@ export const cancelVmsAddon = mutation({
     return { success: true };
   },
 });
+
+// ─── ORGANIZATION PAYOUT DETAILS (Founder Financial Hub) ────────────────
+//
+// Single source of truth for PracticePro Systems Limited's corporate bank
+// account. Used by all manual bank transfer checkouts. Managed exclusively
+// by the Founder App. The portal/checkout components query getOrgPayoutDetails
+// to render the bank details dynamically (no hardcoded mock data).
+
+/**
+ * query: getOrgPayoutDetails
+ * Public query — returns the active corporate bank account details.
+ * Used by checkout components in the user app, portal, and add-on flow.
+ * Returns null if no active config exists (checkout shows placeholders).
+ */
+export const getOrgPayoutDetails = query({
+  args: {},
+  handler: async (ctx) => {
+    const active = await ctx.db
+      .query("organization_payout_details")
+      .withIndex("by_active", (q: any) => q.eq("isActive", true))
+      .first();
+    return active || null;
+  },
+});
+
+/**
+ * mutation: updateOrgPayoutDetails
+ * Founder-only — updates the corporate bank account details.
+ * Deactivates any previously-active record and creates a new one,
+ * preserving audit history.
+ */
+export const updateOrgPayoutDetails = mutation({
+  args: {
+    corporateName: v.string(),
+    bankName: v.string(),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    founderEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    if (!FOUNDER_EMAILS.includes(args.founderEmail)) {
+      throw new Error("Only the founder can update payout details");
+    }
+
+    // Validate NUBAN: 10 digits
+    if (!/^\d{10}$/.test(args.accountNumber)) {
+      throw new Error("Account number must be exactly 10 digits (NUBAN)");
+    }
+
+    // Deactivate any previously-active record
+    const existing = await ctx.db
+      .query("organization_payout_details")
+      .withIndex("by_active", (q: any) => q.eq("isActive", true))
+      .collect();
+    for (const record of existing) {
+      await ctx.db.patch(record._id, { isActive: false });
+    }
+
+    // Insert the new active record
+    await ctx.db.insert("organization_payout_details", {
+      corporateName: args.corporateName,
+      bankName: args.bankName,
+      accountNumber: args.accountNumber,
+      accountName: args.accountName,
+      isActive: true,
+      updatedBy: args.founderEmail,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});

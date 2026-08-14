@@ -35,7 +35,7 @@ interface VerificationResult {
     expiredAt?: number;
 }
 
-const OFFLINE_CACHE_KEY = 'practicepro_gatehouse_cache';
+const OFFLINE_CACHE_KEY = 'practicepro_sentrypass_cache';
 const MAX_CACHE_SIZE = 100;
 
 export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void }> = ({ firmId, onBack }) => {
@@ -189,14 +189,14 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                 <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-4">
                     <GateIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Gatehouse Terminal</h1>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Sentry Pass Terminal</h1>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md mb-4">
                     This terminal verifies visitor access codes. To activate it,
-                    your property manager needs to provide the gatehouse URL with
+                    your property manager needs to provide the Sentry Pass URL with
                     a firm identifier.
                 </p>
                 <p className="text-xs text-slate-400 dark:text-zinc-500">
-                    The URL should look like: <code className="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded">/gatehouse?firmId=YOUR_FIRM_ID</code>
+                    The URL should look like: <code className="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded">/Sentry Pass?firmId=YOUR_FIRM_ID</code>
                 </p>
             </div>
         );
@@ -218,7 +218,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                         <GateIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
-                        <h1 className="font-black text-slate-900 dark:text-white text-base">Gatehouse</h1>
+                        <h1 className="font-black text-slate-900 dark:text-white text-base">Sentry Pass</h1>
                         <p className="text-2xs text-slate-500 dark:text-zinc-400">Visitor Verification</p>
                     </div>
                 </div>

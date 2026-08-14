@@ -87,11 +87,20 @@ function buildVisitorMessage(
   expiresAt: number,
   address: string,
   mapsLink: string,
+  residentName?: string,
+  unitName?: string,
 ): string {
   const expiryTime = new Date(expiresAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const formattedDate = new Date(visitDate).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const expiryDate = new Date(expiresAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
-  return `Hello ${visitorName}, here is your entry code for ${estateName}: *${tokenCode}*. Valid on ${formattedDate} until ${expiryTime}. Address: ${address}. Location: ${mapsLink}`;
+  // Standardized Sentry Pass message format — structured for SMS/WhatsApp distribution
+  return `🛡️ SENTRY PASS ACCESS CODE: [ ${tokenCode} ]
+----------------------------------------
+Host: ${residentName || 'Resident'}
+Destination: ${estateName}${unitName ? `, Unit ${unitName}` : ''}
+Valid Until: ${expiryDate} ${expiryTime}
+
+Please present this pass at the main security gate upon arrival.`;
 }
 
 function buildMapsLink(address: string): string {
@@ -238,6 +247,8 @@ export const generateVisitorToken = mutation({
             expiresAt,
             property.address || "",
             buildMapsLink(property.address || ""),
+            residentName,
+            unitName,
           )
         : undefined,
       whatsappScheduled: args.deliveryMethod === "portal_api",

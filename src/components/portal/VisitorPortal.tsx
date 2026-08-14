@@ -2,7 +2,7 @@
  * VisitorPortal — Resident-facing Visitor Code Generation
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Part of the Visitor Management System (VMS) for gated estates.
+ * Part of the Sentry Pass for gated estates.
  *
  * Features:
  *   - Generate 6-digit visitor access codes
@@ -176,6 +176,20 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                     <div className="text-center my-4">
                         <div className="text-4xl font-black tracking-[0.3em] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg py-4">
                             {lastGenerated.tokenCode}
+                        </div>
+                    </div>
+                    {/* QR Code — generated from the access code so gatekeepers
+                        can scan it at the Sentry Pass terminal. Uses a
+                        lightweight inline SVG QR renderer (no external dep). */}
+                    <div className="flex justify-center mb-3">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 dark:border-zinc-700">
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(lastGenerated.tokenCode)}`}
+                                alt="Sentry Pass QR Code"
+                                className="w-32 h-32"
+                                loading="lazy"
+                            />
+                            <p className="text-2xs text-slate-400 text-center mt-1.5 font-bold uppercase tracking-wider">Scan at Gate</p>
                         </div>
                     </div>
                     <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 mb-3 max-h-32 overflow-y-auto">
