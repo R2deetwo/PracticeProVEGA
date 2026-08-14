@@ -39,6 +39,7 @@ import FounderNotificationsCenter from './views/FounderNotificationsCenter';
 import AloaUsageCenter from './views/AloaUsageCenter';
 import { FinancialSettings } from './views/FinancialSettings';
 import { SalesPipeline } from './views/SalesPipeline';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // ─── Early-init: apply persisted screen capture preference ──────────
 // The Java default for FLAG_SECURE is now OFF (screenshots allowed).
@@ -102,6 +103,13 @@ const FounderApp: React.FC = () => {
 
     const isFounder = currentUser?.role === 'Founder';
     useFounderSignals({ enabled: isFounder });
+
+    // ─── PUSH NOTIFICATION REGISTRATION ──────────────────────────────
+    // CRITICAL: The admin app MUST register for push notifications so the
+    // founder receives FCM pushes for: new feedback, sales leads, add-on
+    // requests, and app updates. Without this, the founder has NO registered
+    // device tokens and all sendFcmPush calls return { sent: 0 }.
+    usePushNotifications(currentUser?.id, currentUser?.firmId);
 
     const showSplash = !splashDone || isLoadingSession;
 

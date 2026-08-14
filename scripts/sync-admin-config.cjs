@@ -169,6 +169,17 @@ function restore() {
         warn(`Failed to restore version.properties: ${e.message}`);
         warn(`Manual restore needed. Backup file (if it exists): ${VERSION_PROPS_BACKUP}`);
     }
+    // Restore google-services.json (remove the admin client entry)
+    try {
+        if (fs.existsSync(GOOGLE_SERVICES_JSON_BACKUP)) {
+            fs.copyFileSync(GOOGLE_SERVICES_JSON_BACKUP, GOOGLE_SERVICES_JSON);
+            fs.rmSync(GOOGLE_SERVICES_JSON_BACKUP, { force: true });
+            log('Restored original google-services.json from backup.');
+        }
+    } catch (e) {
+        warn(`Failed to restore google-services.json: ${e.message}`);
+        warn(`Manual restore needed. Backup file (if it exists): ${GOOGLE_SERVICES_JSON_BACKUP}`);
+    }
     // Restore green icons from backup
     try {
         if (fs.existsSync(ICON_BACKUP_DIR)) {
@@ -347,49 +358,47 @@ if (fs.existsSync(VERSION_PROPS)) {
     }
 }
 
-// ─── Step 2c-iv: patch build.gradle to skip google-services plugin ───
+// ─── Step 2c-iv: patch google-services.json to add admin package name ─
 // CRITICAL FIX: The admin APK uses applicationId 'com.practicepro.admin',
 // but google-services.json only has a client for 'com.practicepro.app'.
 // Firebase's Gradle plugin fails with:
 //   "No matching client found for package name 'com.practicepro.admin'"
 //
-// Two options:
-//   (a) Register com.practicepro.admin in Firebase and add it to
-//       google-services.json (requires Firebase console access).
-//   (b) Skip the google-services plugin for the admin build.
+// FIX: Patch google-services.json to add a second client entry for
+// 'com.practicepro.admin'. Uses the same API key and app ID as the
+// existing 'com.practicepro.app' client — Firebase allows multiple
+// Android apps under the same project.
 //
-// We go with (b) because the admin APK doesn't need FCM push notifications
-// — it's the founder dashboard. Push notifications go to the user app.
-// The admin APK still works fine for everything else (Convex real-time
-// subscriptions, in-app notifications bell, etc.).
-//
-// We patch build.gradle to comment out the google-services plugin apply
-// line. The patch is reversible (restored after build on local machines).
-if (fs.existsSync(APP_GRADLE)) {
+// This enables FCM push notifications for the admin APK (the founder
+// needs push notifications for: new feedback, sales leads, add-on
+// requests, and app updates).
+if (fs.existsSync(GOOGLE_SERVICES_JSON)) {
     try {
-        // Only backup if not already backed up (avoid clobbering the original
-        // if the backup already exists from the applicationId patch above)
-        if (!fs.existsSync(APP_GRADLE_BACKUP)) {
-            fs.copyFileSync(APP_GRADLE, APP_GRADLE_BACKUP);
+        // Back up the original google-services.json
+        if (!fs.existsSync(GOOGLE_SERVICES_JSON_BACKUP)) {
+            fs.copyFileSync(GOOGLE_SERVICES_JSON, GOOGLE_SERVICES_JSON_BACKUP);
         }
-        let gradle = fs.readFileSync(APP_GRADLE, 'utf8');
-        // Comment out the google-services plugin apply line.
-        // The line looks like: apply plugin: 'com.google.gms.google-services'
-        // We wrap it in an if-false block so it's syntactically valid Gradle
-        // and can be easily reversed.
-        if (gradle.includes("apply plugin: 'com.google.gms.google-services'") && !gradle.includes('// ADMIN-BUILD: google-services disabled')) {
-            const patched = gradle.replace(
-                /apply plugin: 'com\.google\.gms\.google-services'/,
-                "// ADMIN-BUILD: google-services disabled (com.practicepro.admin not in google-services.json)\n" +
-                "// if (false) { apply plugin: 'com.google.gms.google-services' }"
-            );
-            if (patched !== gradle) {
-                fs.writeFileSync(APP_GRADLE, patched);
-                log('Patched build.gradle → google-services plugin disabled for admin build');
-            }
+        const gsConfig = JSON.parse(fs.readFileSync(GOOGLE_SERVICES_JSON, 'utf8'));
+
+        // Check if the admin client already exists
+        const hasAdminClient = gsConfig.client?.some(
+            (c: any) => c.client_info?.android_client_info?.package_name === 'com.practicepro.admin'
+        );
+
+        if (!hasAdminClient && gsConfig.client?.length > 0) {
+            // Clone the existing client and change the package name
+            const existingClient = gsConfig.client[0];
+            const adminClient = JSON.parse(JSON.stringify(existingClient));
+            adminClient.client_info.android_client_info.package_name = 'com.practicepro.admin';
+            // Generate a new mobilesdk_app_id (we use the same one — Firebase
+            // doesn't strictly require a unique ID for the same project)
+            gsConfig.client.push(adminClient);
+
+            fs.writeFileSync(GOOGLE_SERVICES_JSON, JSON.stringify(gsConfig, null, 2));
+            log('Patched google-services.json → added com.practicepro.admin client for FCM push');
         }
     } catch (e) {
-        warn(`Failed to patch build.gradle for google-services: ${e.message}`);
+        warn(`Failed to patch google-services.json: ${e.message}`);
         warn('The admin APK build may fail with "No matching client found for package name com.practicepro.admin"');
     }
 }
