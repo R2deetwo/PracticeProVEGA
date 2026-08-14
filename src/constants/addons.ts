@@ -1,27 +1,26 @@
 /**
- * ADD-ONS CATALOG — CRO Audit Revenue Expansion
+ * ADD-ONS CATALOG — Streamlined offerings
  *
- * Defines upsellable add-ons that firms can purchase on top of their base
- * subscription. Each add-on has:
- *   - id: stable catalog identifier (used in DB)
- *   - name: human-readable display name
- *   - description: what the add-on includes
- *   - category: 'whatsapp' | 'seats' | 'storage' | 'ai' | 'integration'
- *   - billingInterval: 'monthly' | 'annual' | 'one_time'
- *   - amount: NGN price (per billing cycle, per unit)
- *   - unitLabel: e.g. 'per 500 messages', 'per seat', 'per GB'
- *   - applicableProducts: which products can buy this add-on
+ * PURGED: All WhatsApp add-ons removed (Extra 500 / Extra 2,000 messages).
+ *         WhatsApp messaging is now a built-in feature, not a billable add-on.
+ * PURGED: AI Priority Boost (consolidated into Pro plan).
+ * PURGED: Managed Data Migration (now a free onboarding service).
+ *
+ * ACTIVE ADD-ONS (clean catalog):
+ *   1. Extra Team Seats (5 + 10 packs)
+ *   2. File Storage Expansion (50 GB)
+ *   3. Custom Integration Setup (one-time)
  *
  * Pipeline:
- *   1. User purchases add-on in main app → createAddonRequest mutation
- *      writes a pending row in subscriptionAddons table
- *   2. Founder sees pending add-on requests in SubscriptionRequestsCenter
- *   3. Founder approves (optionally with discount) → addon becomes 'active'
- *   4. Active add-ons are visible in the firm's Billing & Plans page
- *   5. Firm can cancel an active add-on at any time (status → 'cancelled')
+ *   1. User purchases add-on → createAddonRequest mutation writes a
+ *      pending row in subscriptionAddons table + notifies the Founder
+ *   2. Founder sees pending requests in SubscriptionRequestsCenter
+ *   3. Founder approves → addon becomes 'active'
+ *   4. Active add-ons visible in Billing & Plans page
+ *   5. Firm can cancel at any time (status → 'cancelled')
  */
 
-export type AddonCategory = 'whatsapp' | 'seats' | 'storage' | 'ai' | 'integration' | 'migration';
+export type AddonCategory = 'seats' | 'storage' | 'integration';
 export type AddonBillingInterval = 'monthly' | 'annual' | 'one_time';
 export type ProductType = 'legal' | 'property' | 'unified' | 'vega' | 'atrium' | 'komplete';
 
@@ -32,38 +31,20 @@ export interface AddonDef {
   category: AddonCategory;
   billingInterval: AddonBillingInterval;
   amount: number;             // NGN price per unit per billing cycle
-  unitLabel: string;          // e.g. 'per 500 messages/mo'
+  unitLabel: string;          // e.g. 'per 5 seats/mo'
   applicableProducts: ProductType[] | 'all';
   icon?: string;              // emoji or icon name (optional)
   popular?: boolean;
 }
 
-export const ADDON_CATALOG: AddonDef[] = [
-  // ─── WHATSAPP ADD-ONS (Atrium / Komplete only) ──────────────────────
-  {
-    id: 'extra_whatsapp_500',
-    name: 'Extra 500 WhatsApp Messages',
-    description: 'Add 500 additional WhatsApp rent/demand notices per month. Useful for portfolios with high tenant turnover or seasonal demand notices.',
-    category: 'whatsapp',
-    billingInterval: 'monthly',
-    amount: 5000,
-    unitLabel: 'per 500 messages/mo',
-    applicableProducts: ['property', 'atrium', 'unified', 'komplete'],
-    icon: '💬',
-    popular: true,
-  },
-  {
-    id: 'extra_whatsapp_2000',
-    name: 'Extra 2,000 WhatsApp Messages',
-    description: 'Add 2,000 additional WhatsApp rent/demand notices per month. Best value for large portfolios.',
-    category: 'whatsapp',
-    billingInterval: 'monthly',
-    amount: 18000,
-    unitLabel: 'per 2,000 messages/mo',
-    applicableProducts: ['property', 'atrium', 'unified', 'komplete'],
-    icon: '💬',
-  },
+// ─── Category metadata for accordion grouping ──────────────────────────────
+export const ADDON_CATEGORIES: { id: AddonCategory; label: string; subtitle: string; icon: string }[] = [
+  { id: 'seats', label: 'Capacity & Storage', subtitle: 'Expand your workspace', icon: '👥' },
+  { id: 'storage', label: 'Capacity & Storage', subtitle: 'Expand your workspace', icon: '💾' },
+  { id: 'integration', label: 'Professional Services', subtitle: 'Bespoke setup & white-glove onboarding', icon: '🔌' },
+];
 
+export const ADDON_CATALOG: AddonDef[] = [
   // ─── EXTRA SEATS (all products) ─────────────────────────────────────
   {
     id: 'extra_seats_5',
@@ -92,8 +73,8 @@ export const ADDON_CATALOG: AddonDef[] = [
   // ─── STORAGE ADD-ONS (Vega / Komplete) ─────────────────────────────
   {
     id: 'extra_storage_50gb',
-    name: 'Extra 50 GB Case File Storage',
-    description: 'Add 50 GB of additional digital case file storage for large document-heavy matters.',
+    name: 'Extra 50 GB File Storage',
+    description: 'Add 50 GB of additional file storage for large document-heavy matters and external integrations.',
     category: 'storage',
     billingInterval: 'monthly',
     amount: 8000,
@@ -102,43 +83,17 @@ export const ADDON_CATALOG: AddonDef[] = [
     icon: '💾',
   },
 
-  // ─── AI ADD-ONS (Vega Growth+ / Komplete) ───────────────────────────
-  {
-    id: 'ai_priority_boost',
-    name: 'ARIA Priority Boost',
-    description: 'Get priority queuing for ARIA AI requests during peak hours. Reduces response time by up to 60%.',
-    category: 'ai',
-    billingInterval: 'monthly',
-    amount: 15000,
-    unitLabel: 'per month',
-    applicableProducts: ['legal', 'vega', 'unified', 'komplete'],
-    icon: '⚡',
-  },
-
   // ─── INTEGRATION ADD-ONS ────────────────────────────────────────────
   {
     id: 'custom_integration_setup',
     name: 'Custom Integration Setup',
-    description: 'One-time setup of a custom integration (e.g. CAC API, Land Registry, accounting software). Includes 8 hours of developer time.',
+    description: 'One-time setup of a custom integration (e.g. CAC API, Land Registry, accounting software). Includes 8 hours of developer time and white-glove onboarding.',
     category: 'integration',
     billingInterval: 'one_time',
     amount: 250000,
     unitLabel: 'one-time',
     applicableProducts: 'all',
     icon: '🔌',
-  },
-
-  // ─── DATA MIGRATION ADD-ON (Atrium) ────────────────────────────────
-  {
-    id: 'managed_data_migration',
-    name: 'Managed Data Migration',
-    description: 'Our team migrates your Excel rent roll, tenant list, and lease data into Atrium. Up to 50 units included; ₦2,500 per additional unit.',
-    category: 'migration',
-    billingInterval: 'one_time',
-    amount: 150000,
-    unitLabel: 'one-time (up to 50 units)',
-    applicableProducts: ['property', 'atrium', 'unified', 'komplete'],
-    icon: '📦',
     popular: true,
   },
 ];

@@ -5850,24 +5850,103 @@ export const createAddonRequest = mutation({
       updatedAt: now.toISOString(),
     });
 
-    // Notify founder users
+    // ─── Notify founder users (in-app + push) ──────────────────────
+    // Creates an unread system alert in the Founder App inbox AND fires
+    // a real-time push notification to the founder's registered devices.
     const founders = await ctx.db.query("users").filter((q: any) =>
       q.eq(q.field("role"), "Founder")
     ).collect();
+
+    // Fetch firm name for the push notification body
+    let firmName = 'A workspace';
+    try {
+      const firm: any = await ctx.db.get(firmId as any);
+      if (firm?.name) firmName = firm.name;
+    } catch {}
+
+    const pushTitle = 'New Add-on Request';
+    const pushBody = `${firmName} requested ${args.addonName}`;
+
     for (const founder of founders) {
+      // 1. In-app notification (shows in Founder App inbox)
       await ctx.db.insert("notifications", {
         firmId: 'system',
         userId: founder._id,
-        title: 'Add-On Request Pending Review',
-        message: `${user?.email || 'A user'} requested ${args.addonName} (₦${args.amount.toLocaleString()}).`,
+        title: pushTitle,
+        message: `${firmName} requested ${args.addonName} (₦${args.amount.toLocaleString()}).`,
         type: 'addon_request',
         link: { view: 'subscriptions', id: requestId, context: {} },
         timestamp: now.toISOString(),
         isRead: false,
       } as any);
+
+      // 2. Push notification via FCM (fires to founder's registered devices)
+      try {
+        const founderTokens = await ctx.db
+          .query("user_push_tokens")
+          .filter((q: any) => q.eq(q.field("userId"), String(founder._id)))
+          .filter((q: any) => q.eq(q.field("isActive"), true))
+          .take(10);
+        if (founderTokens.length > 0) {
+          ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
+            tokens: founderTokens.map((t: any) => t.token),
+            title: pushTitle,
+            body: pushBody,
+            data: {
+              type: 'addon_request',
+              requestId: String(requestId),
+              view: 'subscriptions',
+            },
+          });
+        }
+      } catch (pushErr) {
+        console.warn('[createAddonRequest] Push notification failed:', pushErr);
+      }
     }
 
     return { success: true, requestId };
+  },
+});
+
+/**
+ * mutation: purgeStalePendingAddons
+ * Founder-only — deletes all add-on requests with status 'pending_review'
+ * that are older than 72 hours. These stale requests clog the admin queue.
+ * Also purges any mock/test add-on requests.
+ */
+export const purgeStalePendingAddons = mutation({
+  args: {
+    founderEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    if (!FOUNDER_EMAILS.includes(args.founderEmail)) {
+      throw new Error("Only the founder can purge stale add-on requests");
+    }
+
+    const CUTOFF_HOURS = 72;
+    const cutoffTime = new Date(Date.now() - CUTOFF_HOURS * 60 * 60 * 1000).toISOString();
+
+    const allPending = await ctx.db
+      .query("subscriptionAddons")
+      .filter((q: any) => q.eq(q.field("status"), "pending_review"))
+      .collect();
+
+    let purged = 0;
+    for (const req of allPending) {
+      const requestedAt = (req as any).requestedAt || '';
+      const isStale = requestedAt < cutoffTime;
+      const isMock = (req as any).addonName?.toLowerCase().includes('test') ||
+                     (req as any).addonName?.toLowerCase().includes('mock') ||
+                     (req as any).userEmail?.includes('test') ||
+                     (req as any).userEmail?.includes('demo');
+      if (isStale || isMock) {
+        await ctx.db.delete(req._id);
+        purged++;
+      }
+    }
+
+    return { success: true, purged, remaining: allPending.length - purged };
   },
 });
 

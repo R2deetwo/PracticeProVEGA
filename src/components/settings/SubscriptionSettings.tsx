@@ -941,9 +941,14 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
     const [purchasingId, setPurchasingId] = useState<string | null>(null);
     const [activeAddons, setActiveAddons] = useState<any[] | null>(null);
     const [pendingAddons, setPendingAddons] = useState<any[] | null>(null);
+    // Accordion state — which category is expanded
+    const [expandedCategory, setExpandedCategory] = useState<string | null>('seats');
+    // Which individual add-on drawer is expanded
+    const [expandedAddon, setExpandedAddon] = useState<string | null>(null);
+    // Seat simulator state
+    const [seatCount, setSeatCount] = useState(5);
 
-    // Fetch active + pending add-ons defensively — if the backend doesn't
-    // have the new mutations yet, silently skip (catalog still renders).
+    // Fetch active + pending add-ons defensively
     useEffect(() => {
         if (!currentUser?.email || !convex) return;
         let cancelled = false;
@@ -953,14 +958,12 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 const active = await convex.query(api.myFunctions.getActiveAddonsForFirm, { userEmail: email });
                 if (!cancelled) setActiveAddons(active || []);
             } catch (e: any) {
-                console.warn('[AddOnsSection] getActiveAddonsForFirm failed (backend may not be deployed yet):', e?.message || e);
                 if (!cancelled) setActiveAddons([]);
             }
             try {
                 const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: email });
                 if (!cancelled) setPendingAddons(pending || []);
             } catch (e: any) {
-                console.warn('[AddOnsSection] getPendingAddonsForFirm failed (backend may not be deployed yet):', e?.message || e);
                 if (!cancelled) setPendingAddons([]);
             }
         })();
@@ -970,32 +973,45 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
     const product = firmDetails.product || 'unified';
     const applicableAddons = getAddonsForProduct(product);
 
+    // Group add-ons by category for the accordion
+    const groupedAddons = useMemo(() => {
+        const groups: Record<string, AddonDef[]> = {};
+        for (const addon of applicableAddons) {
+            if (!groups[addon.category]) groups[addon.category] = [];
+            groups[addon.category].push(addon);
+        }
+        return groups;
+    }, [applicableAddons]);
+
+    // Category metadata
+    const categoryMeta: Record<string, { label: string; subtitle: string; icon: string }> = {
+        seats: { label: 'Capacity', subtitle: 'Expand your team seats', icon: '👥' },
+        storage: { label: 'Storage', subtitle: 'Additional file storage', icon: '💾' },
+        integration: { label: 'Professional Services', subtitle: 'Bespoke setup & white-glove onboarding', icon: '🔌' },
+    };
+
     const handlePurchase = async (addon: AddonDef) => {
         if (!convex) {
-            addToast('Cannot submit request — backend not ready. Please try again in a moment.', { type: 'error' });
+            addToast('Cannot submit request — backend not ready.', { type: 'error' });
             return;
         }
         setPurchasingId(addon.id);
         try {
-            // CRO AUDIT — use convex.mutation directly (defensive — if the
-            // backend doesn't have createAddonRequest yet, this throws a
-            // catchable error instead of crashing the page).
             await convex.mutation(api.myFunctions.createAddonRequest, {
                 addonId: addon.id,
                 addonName: addon.name,
                 billingInterval: addon.billingInterval,
                 amount: addon.amount,
-                quantity: 1,
+                quantity: addon.category === 'seats' ? seatCount : 1,
                 userEmail: currentUser?.email,
             });
-            addToast(`${addon.name} request submitted. Our team will verify your payment and activate it within 24 hours.`, { type: 'success', duration: 6000 });
-            // Refresh the pending list
+            addToast(`${addon.name} request submitted. The PracticePro team will be notified and activate it within 24 hours.`, { type: 'success', duration: 6000 });
             try {
                 const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
                 setPendingAddons(pending || []);
             } catch {}
         } catch (e: any) {
-            addToast(e?.message || 'Failed to submit add-on request. The backend may still be deploying — please try again in a few minutes.', { type: 'error' });
+            addToast(e?.message || 'Failed to submit add-on request.', { type: 'error' });
         } finally {
             setPurchasingId(null);
         }
@@ -1005,7 +1021,7 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 
     return (
         <div className="mt-8 pt-6 border-t border-slate-200 dark:border-zinc-700">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
                 <div className="p-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1014,22 +1030,19 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add-Ons &amp; Extras</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
-                Supercharge your workspace with additional capacity. All add-ons are billed separately and can be cancelled anytime.
+                Expand your workspace with additional capacity. All add-ons are billed separately and can be cancelled anytime.
             </p>
 
-            {/* Active Add-Ons (if any) */}
+            {/* Active Add-Ons */}
             {activeAddons && activeAddons.length > 0 && (
                 <div className="mb-4 space-y-2">
-                    <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active Add-Ons</p>
+                    <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active</p>
                     {activeAddons.map((addon: any) => (
                         <div key={addon._id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                                    {addon.addonName}
-                                </p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.addonName}</p>
                                 <p className="text-xs text-slate-500 dark:text-zinc-400">
-                                    {addon.quantity > 1 ? `${addon.quantity} × ` : ''}<NairaSymbol />{formatNaira(addon.discountedAmount || addon.amount || 0)}/{addon.billingInterval === 'monthly' ? 'mo' : addon.billingInterval === 'annual' ? 'yr' : 'one-time'}
-                                    {addon.discountPercent && addon.discountPercent > 0 && <span className="text-emerald-600 ml-1">({addon.discountPercent}% discount applied)</span>}
+                                    {addon.quantity > 1 ? `${addon.quantity} × ` : ''}<NairaSymbol />{formatNaira(addon.discountedAmount || addon.amount || 0)}/{addon.billingInterval === 'monthly' ? 'mo' : 'one-time'}
                                 </p>
                             </div>
                             <span className="px-2 py-0.5 bg-emerald-600 text-white text-2xs font-black uppercase rounded-full">Active</span>
@@ -1038,7 +1051,7 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 </div>
             )}
 
-            {/* Pending Add-Ons (if any) */}
+            {/* Pending Add-Ons */}
             {pendingAddons && pendingAddons.length > 0 && (
                 <div className="mb-4 space-y-2">
                     <p className="text-2xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Pending Review</p>
@@ -1047,7 +1060,7 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.addonName}</p>
                                 <p className="text-xs text-slate-500 dark:text-zinc-400">
-                                    Submitted {new Date(addon.requestedAt).toLocaleDateString()} — awaiting founder approval.
+                                    Submitted {new Date(addon.requestedAt).toLocaleDateString()} — awaiting approval.
                                 </p>
                             </div>
                             <span className="px-2 py-0.5 bg-amber-500 text-white text-2xs font-black uppercase rounded-full animate-pulse">Pending</span>
@@ -1056,47 +1069,119 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 </div>
             )}
 
-            {/* Available Add-Ons Catalog */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {applicableAddons.map((addon) => {
-                    const isPurchasing = purchasingId === addon.id;
+            {/* ─── Accordion Catalog ─────────────────────────────────── */}
+            <div className="space-y-2">
+                {Object.entries(groupedAddons).map(([category, addons]) => {
+                    const meta = categoryMeta[category] || { label: category, subtitle: '', icon: '📦' };
+                    const isExpanded = expandedCategory === category;
                     return (
-                        <div key={addon.id} className={`p-4 rounded-lg border transition-all ${addon.popular ? 'border-primary-300 dark:border-primary-700 bg-primary-50/30 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'} hover:shadow-md`}>
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    {addon.icon && <span className="text-xl flex-shrink-0">{addon.icon}</span>}
-                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.name}</h4>
+                        <div key={category} className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                            {/* Accordion Header */}
+                            <button
+                                onClick={() => setExpandedCategory(isExpanded ? null : category)}
+                                className="w-full flex items-center gap-3 p-3 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors"
+                            >
+                                <span className="text-lg flex-shrink-0">{meta.icon}</span>
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white">{meta.label}</p>
+                                    <p className="text-2xs text-slate-500 dark:text-zinc-400 truncate">{meta.subtitle}</p>
                                 </div>
-                                {addon.popular && (
-                                    <span className="px-1.5 py-0.5 bg-primary-600 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Popular</span>
-                                )}
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3 leading-relaxed">{addon.description}</p>
-                            <div className="flex items-center justify-between gap-2">
-                                <div>
-                                    <p className="text-base font-black text-primary-600 dark:text-primary-400">{formatAddonPrice(addon)}</p>
-                                    <p className="text-3xs text-slate-400 uppercase tracking-wider">{addon.unitLabel}</p>
+                                <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            {/* Accordion Content — list of add-ons */}
+                            {isExpanded && (
+                                <div className="border-t border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-700/50">
+                                    {addons.map((addon) => {
+                                        const isAddonExpanded = expandedAddon === addon.id;
+                                        const isPurchasing = purchasingId === addon.id;
+                                        const isPending = pendingAddons?.some(p => p.addonId === addon.id);
+                                        const isActive = activeAddons?.some(a => a.addonId === addon.id);
+                                        return (
+                                            <div key={addon.id}>
+                                                {/* Add-on Row Header */}
+                                                <button
+                                                    onClick={() => setExpandedAddon(isAddonExpanded ? null : addon.id)}
+                                                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors"
+                                                >
+                                                    <span className="text-base flex-shrink-0">{addon.icon}</span>
+                                                    <div className="flex-1 min-w-0 text-left">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{addon.name}</p>
+                                                            {addon.popular && <span className="px-1.5 py-0.5 bg-primary-600 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Popular</span>}
+                                                            {isActive && <span className="px-1.5 py-0.5 bg-emerald-600 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Active</span>}
+                                                            {isPending && <span className="px-1.5 py-0.5 bg-amber-500 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Pending</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <p className="text-sm font-bold text-primary-600 dark:text-primary-400">{formatAddonPrice(addon)}</p>
+                                                    </div>
+                                                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${isAddonExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </button>
+
+                                                {/* Expanded Drawer */}
+                                                {isAddonExpanded && (
+                                                    <div className="px-3 pb-3 bg-slate-50 dark:bg-zinc-800/50">
+                                                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed mb-3 pt-2">{addon.description}</p>
+
+                                                        {/* Seat Simulator (for seats category) */}
+                                                        {addon.category === 'seats' && (
+                                                            <div className="mb-3 p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">Quantity</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <button
+                                                                            onClick={() => setSeatCount(Math.max(1, seatCount - 1))}
+                                                                            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-bold flex items-center justify-center hover:bg-slate-200 dark:hover:bg-zinc-600"
+                                                                        >−</button>
+                                                                        <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[60px] text-center">{seatCount} {seatCount === 1 ? 'Seat' : 'Seats'}</span>
+                                                                        <button
+                                                                            onClick={() => setSeatCount(seatCount + 1)}
+                                                                            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-bold flex items-center justify-center hover:bg-slate-200 dark:hover:bg-zinc-600"
+                                                                        >+</button>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                                    Estimated Monthly Total: <span className="font-bold text-primary-600 dark:text-primary-400"><NairaSymbol />{formatNaira(addon.amount * seatCount)}</span>
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Action Button */}
+                                                        <button
+                                                            onClick={() => handlePurchase(addon)}
+                                                            disabled={isPurchasing || isActive || isPending}
+                                                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center gap-1.5"
+                                                        >
+                                                            {isPurchasing ? (
+                                                                <>
+                                                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                    Submitting...
+                                                                </>
+                                                            ) : isActive ? (
+                                                                'Already Active'
+                                                            ) : isPending ? (
+                                                                'Pending Review'
+                                                            ) : (
+                                                                <>
+                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                                                    </svg>
+                                                                    {addon.billingInterval === 'one_time' ? 'Submit Request' : 'Add to Plan'}
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                <button
-                                    onClick={() => handlePurchase(addon)}
-                                    disabled={isPurchasing}
-                                    className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center gap-1.5 flex-shrink-0"
-                                >
-                                    {isPurchasing ? (
-                                        <>
-                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                            Submitting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                                            </svg>
-                                            Purchase
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                            )}
                         </div>
                     );
                 })}
