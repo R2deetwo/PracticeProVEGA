@@ -120,12 +120,14 @@ const ContactSalesDrawer: React.FC<{
                 onClick={handleClose}
             />
 
-            {/* Drawer panel */}
+            {/* Panel — bottom sheet on mobile, centered modal on desktop.
+                Appears right where the user is looking, not at the top of the screen. */}
             <div
-                className={`fixed top-0 right-0 z-[9600] h-full w-full sm:w-[440px] max-w-[100vw] flex flex-col
-                    bg-white dark:bg-zinc-900 shadow-2xl border-l border-slate-200 dark:border-zinc-700
-                    transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]
-                    ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                className={`fixed z-[9600] flex flex-col bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200 dark:border-zinc-700
+                    transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]
+                    ${isVisible ? 'opacity-100' : 'opacity-0'}
+                    bottom-0 left-0 right-0 rounded-t-2xl max-h-[85vh]
+                    sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[440px] sm:max-w-[90vw] sm:rounded-2xl`}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-zinc-700/60">
