@@ -33,7 +33,7 @@ import { VisitorPortal } from '../portal/VisitorPortal';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
-import VersionRefreshBanner from '../VersionRefreshBanner';
+// VersionRefreshBanner is now globally mounted in App.tsx via ToastRefreshNotification
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const ReceiptIconLocal: React.FC<{ className?: string }> = ({ className }) => (
@@ -566,10 +566,9 @@ const TenantPortal: React.FC = () => {
           </>
         )}
       </div>
-      {/* Version refresh banner — shows when a new deploy is detected.
-          Portal routes early-return before App.tsx renders this, so we
-          include it here to ensure portal users get update prompts too. */}
-      <VersionRefreshBanner />
+      {/* Version refresh toast is globally mounted in App.tsx via
+          ToastRefreshNotification. No need to render here — it covers
+          all routes including portals. */}
     </div>
   );
 };

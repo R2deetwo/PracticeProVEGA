@@ -94,6 +94,7 @@ import SplashScreen from './SplashScreen';
 import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
+import ToastRefreshNotification from './ToastRefreshNotification';
 import ApkUpdateBanner from './ApkUpdateBanner';
 import CriticalLeaseBanner from './CriticalLeaseBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
@@ -1504,11 +1505,14 @@ export const App: React.FC = () => {
                     }}
                 />
             )}
-            {/* Detects new deploys and prompts the user to refresh — bypasses
-                browser/CDN caches that may serve stale HTML/JS.
-                BULLETPROOF: Always rendered (not auth-gated) so the banner
+            {/* Toast-based refresh notification — persistent, non-intrusive.
+                Replaces the full-width VersionRefreshBanner with a glassmorphic
+                toast in the bottom-right corner. Does NOT auto-dismiss.
+                Stacks below standard system toasts (z-[9998] vs z-[9999]).
+                Never enters the Notification Center or messaging inbox.
+                BULLETPROOF: Always rendered (not auth-gated) so the toast
                 shows on ALL routes including landing pages, login, and portals. */}
-            <VersionRefreshBanner />
+            <ToastRefreshNotification />
             {/* APK update banner — native only. No-op on web. Shows update
                 prompt when a new APK build is available and verified healthy.
                 Auth-gated — only shown to logged-in users. */}

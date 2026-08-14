@@ -19,7 +19,7 @@ import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
-import VersionRefreshBanner from '../VersionRefreshBanner';
+// VersionRefreshBanner is now globally mounted in App.tsx via ToastRefreshNotification
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -2011,8 +2011,8 @@ const ClientDashboard: React.FC = () => {
 
             {/* Tab Content */}
             {renderTabContent()}
-            {/* Version refresh banner — shows when a new deploy is detected */}
-            <VersionRefreshBanner />
+            {/* Version refresh toast is now globally mounted in App.tsx —
+                no need to render it here (would cause duplicate prompts). */}
         </div>
     );
 };
