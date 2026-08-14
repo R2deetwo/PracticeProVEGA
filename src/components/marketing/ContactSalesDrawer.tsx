@@ -116,13 +116,13 @@ const ContactSalesDrawer: React.FC<{
         <>
             {/* Backdrop */}
             <div
-                className={`fixed inset-0 z-[280] bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+                className={`fixed inset-0 z-[9500] bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
                 onClick={handleClose}
             />
 
             {/* Drawer panel */}
             <div
-                className={`fixed top-0 right-0 z-[290] h-full w-full sm:w-[440px] max-w-[100vw] flex flex-col
+                className={`fixed top-0 right-0 z-[9600] h-full w-full sm:w-[440px] max-w-[100vw] flex flex-col
                     bg-white dark:bg-zinc-900 shadow-2xl border-l border-slate-200 dark:border-zinc-700
                     transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]
                     ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
