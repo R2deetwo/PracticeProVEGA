@@ -507,7 +507,19 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
 
     const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => {
         const id = Date.now();
+        // DEBOUNCING — deduplicate identical toast messages within a 2-second
+        // window to prevent UI spam (e.g. when a button is double-clicked or
+        // a Convex subscription fires multiple rapid updates).
+        const messageStr = typeof message === 'string' ? message : String(message);
         setToasts(prev => {
+            const now = id;
+            const isDuplicate = prev.some(t =>
+                t.id > now - 2000 && // within 2 seconds
+                (typeof t.message === 'string' ? t.message : String(t.message)) === messageStr &&
+                t.type === (options?.type || 'info')
+            );
+            if (isDuplicate) return prev; // Skip — duplicate within debounce window
+
             // CAP: maximum 3 visible toasts at any time. Older toasts
             // are dropped so the screen doesn't fill up with a cascade
             // of alerts (e.g. when deleting a multi-unit property).

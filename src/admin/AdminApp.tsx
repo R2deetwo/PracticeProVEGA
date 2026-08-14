@@ -258,17 +258,32 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return (
         <ToastContext.Provider value={{ addToast }}>
             {children}
-            {/* Toast container — bottom of screen */}
-            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] space-y-2 w-full max-w-sm px-4" style={{ bottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom)))' }}>
-                {toasts.map(t => (
-                    <div key={t.id} className={`px-4 py-3 rounded-lg shadow-lg text-sm font-bold text-center animate-slide-in-up ${
-                        t.type === 'success' ? 'bg-emerald-600 text-white' :
-                        t.type === 'error' ? 'bg-red-600 text-white' :
-                        'bg-slate-800 text-white'
-                    }`}>
-                        {t.message}
-                    </div>
-                ))}
+            {/* ─── Unified Glassmorphic Toast Container ───────────────────
+                Matches the user app's toast system: glassmorphic dark container,
+                large rounded-square icon, contextual colors, max 3 visible. */}
+            <div className="fixed inset-x-0 bottom-0 z-[9999] flex flex-col-reverse items-center gap-2.5 px-4 pointer-events-none sm:items-end sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6">
+                {toasts.slice().reverse().map(t => {
+                    const config = {
+                        success: { icon: '✓', iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600' },
+                        error: { icon: '!', iconBg: 'bg-gradient-to-br from-rose-500 to-red-600' },
+                        info: { icon: 'i', iconBg: 'bg-gradient-to-br from-blue-500 to-violet-600' },
+                        warning: { icon: '⚠', iconBg: 'bg-gradient-to-br from-amber-500 to-yellow-600' },
+                    };
+                    const style = config[t.type] || config.info;
+                    return (
+                        <div key={t.id} className="w-full max-w-sm pointer-events-auto animate-slide-in-up">
+                            <div className="relative rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl" />
+                                <div className="relative p-4 flex items-center gap-3">
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl ${style.iconBg} flex items-center justify-center shadow-lg`}>
+                                        <span className="text-white font-bold text-lg">{style.icon}</span>
+                                    </div>
+                                    <p className="flex-1 text-sm font-medium text-white leading-snug">{t.message}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
             {/* APK Update Banner — shows on native founder APK when a new
                 build is available. Polls /version.json for apkVersionCode. */}

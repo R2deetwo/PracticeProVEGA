@@ -77,17 +77,20 @@ const ToastRefreshNotification: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-4 right-4 z-[9998] transition-all duration-300 ease-out pointer-events-auto ${animationClass}`}
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="fixed bottom-4 right-4 z-[9998] transition-all duration-300 ease-out pointer-events-auto w-full max-w-sm sm:w-auto"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', left: '1rem', right: '1rem' }}
     >
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm mx-auto">
         {/* Glassmorphic background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 dark:from-slate-900/98 dark:to-zinc-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 dark:from-slate-900/98 dark:to-zinc-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-primary-500/30" />
 
-        {/* Content */}
-        <div className="relative p-4 pr-10">
+        {/* Content — NO top-right [X] close icon (per directive).
+            The [Dismiss] button at the bottom handles cancellation.
+            The pulsing green indicator dot is retained on the outer edge. */}
+        <div className="relative p-4">
           {/* Icon + Title */}
-          <div className="flex items-start gap-3 mb-3">
+          <div className="flex items-start gap-3 mb-4">
+            {/* Large rounded-square icon container — matches standard toast style */}
             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30">
               <RefreshIcon className="w-5 h-5 text-white" />
             </div>
@@ -101,7 +104,7 @@ const ToastRefreshNotification: React.FC = () => {
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons — aligned cleanly at the bottom */}
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
@@ -119,21 +122,10 @@ const ToastRefreshNotification: React.FC = () => {
           </div>
         </div>
 
-        {/* X close button — top-right corner */}
-        <button
-          onClick={handleDismiss}
-          aria-label="Dismiss"
-          className="absolute top-2 right-2 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-          title="Dismiss"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        {/* Subtle pulse indicator — draws attention without being annoying */}
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary-500 rounded-full">
-          <div className="absolute inset-0 bg-primary-500 rounded-full animate-ping opacity-75" />
+        {/* Pulsing green indicator dot — retained for the "Update Available" variant.
+            Standard toasts do NOT have this dot. */}
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full">
+          <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75" />
         </div>
       </div>
     </div>
