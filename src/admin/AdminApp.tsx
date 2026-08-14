@@ -261,7 +261,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {/* ─── Unified Glassmorphic Toast Container ───────────────────
                 Matches the user app's toast system: glassmorphic dark container,
                 large rounded-square icon, contextual colors, max 3 visible. */}
-            <div className="fixed inset-x-0 bottom-0 z-[9999] flex flex-col-reverse items-center gap-2.5 px-4 pointer-events-none sm:items-end sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6">
+            <div className="fixed bottom-0 right-0 z-[9999] flex flex-col-reverse items-end gap-2.5 px-4 pointer-events-none sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6">
                 {toasts.slice().reverse().map(t => {
                     const config = {
                         success: { icon: '✓', iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600' },

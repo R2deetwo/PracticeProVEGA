@@ -198,14 +198,13 @@ const BillingCalculator: React.FC<{
     simulationCount: number,
     setSimulationCount: (n: number) => void,
     selectedModalities: FirmSpecialty[],
-    // CRO AUDIT: toggle controls moved INTO the calculator (next to "Estimated
-    // Monthly Cost" header) instead of a giant toggle at the top of the page.
     showBillingToggle?: boolean,
     isAnnualState?: boolean,
     onToggleBilling?: () => void,
     viewAsMonthlyCostState?: boolean,
     onToggleViewMode?: () => void,
-}> = ({ users, currentPlan, isAnnual, viewAsMonthlyCost, simulationCount, setSimulationCount, selectedModalities, showBillingToggle = false, isAnnualState, onToggleBilling, viewAsMonthlyCostState, onToggleViewMode }) => {
+    onUpgrade?: (tierId?: any) => void,
+}> = ({ users, currentPlan, isAnnual, viewAsMonthlyCost, simulationCount, setSimulationCount, selectedModalities, showBillingToggle = false, isAnnualState, onToggleBilling, viewAsMonthlyCostState, onToggleViewMode, onUpgrade }) => {
     const seatRateForTier = (tier: TierDef): number => {
         if (!isAnnual) return tier.monthlyPrice ?? 0;
         return Math.round((tier.annualPrice ?? 0) / 12);
@@ -214,6 +213,11 @@ const BillingCalculator: React.FC<{
     const multiplier = (isAnnual && !viewAsMonthlyCost) ? 12 : 1;
     const totalActualUsers = users.length;
     const additionalSeats = Math.max(0, (totalActualUsers + simulationCount) - 1);
+    // Derive maxUsers from the current tier (null = unlimited)
+    const product = (users[0] as any)?.product || 'legal';
+    const tiers = getTiersForProduct(product as any);
+    const currentTierDef = tiers.find(t => t.id === currentPlan);
+    const maxUsers = currentTierDef?.maxUsers ?? null;
     const isSimulating = simulationCount > 0;
 
     let baseCost = 0, addOnCost = 0, addOnLabel = 'Additional Seats', baseSeatLabel = 'Admin Seat (You)';
@@ -361,27 +365,60 @@ const BillingCalculator: React.FC<{
                     <span className={!viewAsMonthlyCostState ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Total Billed</span>
                 </div>
             )}
-            <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 p-1.5 rounded-full"><UserCircleIcon className="w-4 h-4" /></div>
-                        <div><p className="font-bold text-sm text-slate-800 dark:text-white">{baseSeatLabel}</p><p className="text-xs text-slate-500">{currentPlan} Rate</p></div>
+            {/* ─── SLIM BILLING CARD ────────────────────────────────────────
+                Flattened from heavy background blocks to a slim inline list.
+                Shows: Total Seats Allowed vs Active Seats Used.
+                When user exceeds tier limit, shows upgrade + buy-seat buttons. */}
+            <div className="space-y-3">
+                {/* Seat Usage Summary — slim inline format */}
+                <div className="flex items-center justify-between py-2 px-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                        <UserCircleIcon className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">
+                            {totalActualUsers} / {maxUsers === null ? '∞' : maxUsers} seats used
+                        </span>
                     </div>
-                    <p className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(baseDisplay)}</p>
+                    {maxUsers !== null && (totalActualUsers + simulationCount) >= maxUsers && (
+                        <span className="text-2xs font-bold text-rose-500">At limit</span>
+                    )}
+                </div>
+
+                {/* Seat Breakdown — inline, no heavy blocks */}
+                <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 dark:text-zinc-400">{baseSeatLabel} ({currentPlan})</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(baseDisplay)}</span>
                 </div>
                 {additionalSeats > 0 && (
-                    <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 p-1.5 rounded-full"><span className="font-bold text-xs">+{additionalSeats}</span></div>
-                            <div><p className="font-bold text-sm text-slate-800 dark:text-white">Team Members</p><p className="text-xs text-slate-500">{addOnLabel}</p></div>
-                        </div>
-                        <p className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(addOnDisplay)}</p>
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 dark:text-zinc-400">{addOnLabel}</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(addOnDisplay)}</span>
                     </div>
                 )}
-                <div className="border-t border-slate-200 dark:border-zinc-700 pt-4 flex justify-between items-end">
+
+                {/* Seat Threshold Logic — when exceeding tier limit, show upgrade/buy buttons */}
+                {maxUsers !== null && (totalActualUsers + simulationCount) >= maxUsers && currentPlan !== SubscriptionPlan.Enterprise && (
+                    <div className="flex gap-2 pt-2">
+                        <button
+                            onClick={() => onUpgrade?.(undefined as any)}
+                            className="flex-1 px-3 py-2 bg-gradient-to-r from-primary-600 to-primary-500 text-white text-xs font-bold rounded-lg hover:from-primary-700 hover:to-primary-600 transition-all shadow-md flex items-center justify-center gap-1.5"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 1l2.928 6.327L20 8.18l-5 4.876L16.18 20 10 16.586 3.82 20 5 13.056 0 8.18l7.072-.853L10 1z" /></svg>
+                            Upgrade Plan
+                        </button>
+                        <button
+                            onClick={() => onUpgrade?.(undefined as any)}
+                            className="px-3 py-2 border-2 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex items-center gap-1.5"
+                        >
+                            + Buy Extra Seat (<NairaSymbol />4,000)
+                        </button>
+                    </div>
+                )}
+
+                {/* Total — slim divider + total */}
+                <div className="border-t border-slate-200 dark:border-zinc-700 pt-3 flex justify-between items-end">
                     <div className="flex flex-col">
-                        <p className="text-sm font-medium text-slate-500">Total Billed {isAnnual ? 'Annually' : 'Monthly'}</p>
-                        {isAnnual && <p className="text-xs text-green-600 font-bold">Includes 20% discount applied.</p>}
+                        <p className="text-sm font-medium text-slate-500">Total {isAnnual ? 'Annually' : 'Monthly'}</p>
+                        {isAnnual && <p className="text-xs text-green-600 font-bold">Includes 20% discount</p>}
                     </div>
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400"><NairaSymbol />{formatNaira(totalCost)}</p>
                 </div>
@@ -992,26 +1029,93 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 
     const handlePurchase = async (addon: AddonDef) => {
         if (!convex) {
-            addToast('Cannot submit request — backend not ready.', { type: 'error' });
+            addToast('Cannot process payment — backend not ready.', { type: 'error' });
             return;
         }
         setPurchasingId(addon.id);
         try {
-            await convex.mutation(api.myFunctions.createAddonRequest, {
-                addonId: addon.id,
-                addonName: addon.name,
-                billingInterval: addon.billingInterval,
-                amount: addon.amount,
-                quantity: addon.category === 'seats' ? seatCount : 1,
-                userEmail: currentUser?.email,
-            });
-            addToast(`${addon.name} request submitted. The PracticePro team will be notified and activate it within 24 hours.`, { type: 'success', duration: 6000 });
-            try {
-                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
-                setPendingAddons(pending || []);
-            } catch {}
+            // DIRECT-TO-PAYMENT: Route directly to the Paystack payment
+            // gateway instead of creating a 'pending_review' request that
+            // requires manual founder approval. Standard add-ons should be
+            // self-serve — users shouldn't wait for manual approval to give
+            // the platform money.
+            //
+            // Paystack Inline SDK — loads the popup for card/bank/USSD payment.
+            // On success, auto-activates the add-on and shows a success toast.
+            const PAYSTACK_PUBLIC_KEY = (import.meta as any).env?.VITE_PAYSTACK_PUBLIC_KEY || '';
+            const totalAmount = addon.category === 'seats' ? addon.amount * seatCount : addon.amount;
+            const reference = `ADDON-${addon.id}-${Date.now()}`;
+
+            if (PAYSTACK_PUBLIC_KEY && !PAYSTACK_PUBLIC_KEY.startsWith('pk_test_xxx')) {
+                // Paystack is configured — process payment directly
+                if (!(window as any).PaystackPop) {
+                    const script = document.createElement('script');
+                    script.src = 'https://js.paystack.co/v1/inline.js';
+                    document.body.appendChild(script);
+                    await new Promise<void>((resolve) => {
+                        script.onload = () => resolve();
+                        script.onerror = () => resolve();
+                    });
+                }
+                if (!(window as any).PaystackPop) {
+                    addToast('Failed to load payment gateway. Please try again.', { type: 'error' });
+                    return;
+                }
+                const handler = (window as any).PaystackPop.setup({
+                    key: PAYSTACK_PUBLIC_KEY,
+                    email: currentUser?.email || '',
+                    amount: Math.round(totalAmount * 100),
+                    currency: 'NGN',
+                    ref: reference,
+                    metadata: {
+                        custom_fields: [
+                            { display_name: 'Add-on', variable_name: 'addon', value: addon.name },
+                            { display_name: 'Quantity', variable_name: 'quantity', value: String(addon.category === 'seats' ? seatCount : 1) },
+                        ],
+                    },
+                    callback: async (response: any) => {
+                        // Payment successful — auto-activate the add-on
+                        try {
+                            await convex.mutation(api.myFunctions.createAddonRequest, {
+                                addonId: addon.id,
+                                addonName: addon.name,
+                                billingInterval: addon.billingInterval,
+                                amount: totalAmount,
+                                quantity: addon.category === 'seats' ? seatCount : 1,
+                                userEmail: currentUser?.email,
+                            });
+                            addToast('Payment confirmed. Your new seats/add-ons are being activated and will be ready momentarily.', { type: 'success', duration: 6000 });
+                            try {
+                                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                                setPendingAddons(pending || []);
+                            } catch {}
+                        } catch (e: any) {
+                            addToast('Payment successful but activation failed. Contact support.', { type: 'warning' });
+                        }
+                    },
+                    onClose: () => {
+                        addToast('Payment cancelled.', { type: 'info' });
+                    },
+                });
+                handler.openIframe();
+            } else {
+                // Paystack not configured — fall back to request flow
+                await convex.mutation(api.myFunctions.createAddonRequest, {
+                    addonId: addon.id,
+                    addonName: addon.name,
+                    billingInterval: addon.billingInterval,
+                    amount: totalAmount,
+                    quantity: addon.category === 'seats' ? seatCount : 1,
+                    userEmail: currentUser?.email,
+                });
+                addToast(`${addon.name} request submitted. The PracticePro team will be notified and activate it within 24 hours.`, { type: 'success', duration: 6000 });
+                try {
+                    const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                    setPendingAddons(pending || []);
+                } catch {}
+            }
         } catch (e: any) {
-            addToast(e?.message || 'Failed to submit add-on request.', { type: 'error' });
+            addToast(e?.message || 'Failed to process payment.', { type: 'error' });
         } finally {
             setPurchasingId(null);
         }
@@ -1051,19 +1155,40 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 </div>
             )}
 
-            {/* Pending Add-Ons */}
+            {/* Pending Add-Ons — with Cancel Request button */}
             {pendingAddons && pendingAddons.length > 0 && (
                 <div className="mb-4 space-y-2">
-                    <p className="text-2xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Pending Review</p>
+                    <p className="text-2xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Pending</p>
                     {pendingAddons.map((addon: any) => (
                         <div key={addon._id} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.addonName}</p>
                                 <p className="text-xs text-slate-500 dark:text-zinc-400">
-                                    Submitted {new Date(addon.requestedAt).toLocaleDateString()} — awaiting approval.
+                                    Submitted {new Date(addon.requestedAt).toLocaleDateString()}
                                 </p>
                             </div>
-                            <span className="px-2 py-0.5 bg-amber-500 text-white text-2xs font-black uppercase rounded-full animate-pulse">Pending</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="px-2 py-0.5 bg-amber-500 text-white text-2xs font-black uppercase rounded-full animate-pulse">Pending</span>
+                                {/* Cancel Request — immediately deletes from DB + clears UI */}
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await convex.mutation(api.myFunctions.cancelAddon, { addonRequestId: String(addon._id), userEmail: currentUser?.email });
+                                            addToast('Request cancelled.', { type: 'success' });
+                                            const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                                            setPendingAddons(pending || []);
+                                        } catch (e: any) {
+                                            addToast(e?.message || 'Failed to cancel request.', { type: 'error' });
+                                        }
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
+                                    title="Cancel Request"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -1160,7 +1285,7 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                                                             {isPurchasing ? (
                                                                 <>
                                                                     <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                    Submitting...
+                                                                    Processing...
                                                                 </>
                                                             ) : isActive ? (
                                                                 'Already Active'
@@ -1169,9 +1294,9 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                                                             ) : (
                                                                 <>
                                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                                                     </svg>
-                                                                    {addon.billingInterval === 'one_time' ? 'Submit Request' : 'Add to Plan'}
+                                                                    {addon.billingInterval === 'one_time' ? 'Proceed to Checkout' : 'Pay Now'}
                                                                 </>
                                                             )}
                                                         </button>

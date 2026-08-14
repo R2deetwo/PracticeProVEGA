@@ -77,10 +77,10 @@ const ToastRefreshNotification: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 right-4 z-[9998] transition-all duration-300 ease-out pointer-events-auto w-full max-w-sm sm:w-auto"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', left: '1rem', right: '1rem' }}
+      className="fixed bottom-4 right-4 z-[9998] transition-all duration-300 ease-out pointer-events-auto w-[calc(100%-2rem)] max-w-sm sm:w-auto sm:max-w-sm"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="relative w-full sm:max-w-sm mx-auto">
+      <div className="relative w-full">
         {/* Glassmorphic background */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 dark:from-slate-900/98 dark:to-zinc-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-primary-500/30" />
 

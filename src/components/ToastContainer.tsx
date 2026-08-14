@@ -29,7 +29,7 @@ const ToastContainer: React.FC = () => {
     return (
         <div
             aria-live="assertive"
-            className="fixed inset-x-0 bottom-0 flex flex-col-reverse items-center justify-end px-4 pointer-events-none sm:items-end sm:px-6 z-[9999] gap-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6"
+            className="fixed bottom-0 right-0 flex flex-col-reverse items-end justify-end px-4 pointer-events-none sm:px-6 z-[9999] gap-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6"
         >
             {/* Render in reverse order so newest is at the bottom.
                 flex-col-reverse handles the visual stacking. */}
