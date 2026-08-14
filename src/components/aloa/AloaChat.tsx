@@ -2802,6 +2802,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2"
                                             dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(formatNairaInText(msg.content)) }}
                                             onCopy={handleCleanCopy}
+                                            onClick={(e) => {
+                                                // ─── Inline Action Pill Handler ──────────────
+                                                // Intercepts clicks on .aloa-inline-action-pill
+                                                // buttons inside the rendered markdown and
+                                                // triggers DraftPro with the specific list item
+                                                // content. This lets users draft individual
+                                                // items from AI-generated lists without relying
+                                                // on global message-level footer buttons.
+                                                const target = e.target as HTMLElement;
+                                                const pill = target.closest('.aloa-inline-action-pill') as HTMLElement;
+                                                if (pill) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const draftContent = pill.getAttribute('data-draft-content') || '';
+                                                    if (draftContent) {
+                                                        handleDraftInDraftPro(draftContent, (msg as any).citations);
+                                                    }
+                                                }
+                                            }}
                                         />
                                     )}
                                     {/* Attachment thumbnails/files */}
