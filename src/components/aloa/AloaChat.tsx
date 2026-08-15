@@ -2178,7 +2178,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 // using the attachmentProcessor (handles PDF, DOCX, TXT, images)
                 try {
                     const { processAttachment } = await import('../../utils/attachmentProcessor');
-                    const processed = await processAttachment(storageId, name, import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud');
+                    const processed = await processAttachment(storageId, name, import.meta.env.VITE_CONVEX_URL || 'https://keen-jaguar-204.convex.cloud');
 
                     if (processed.extractedText) {
                         // Text was successfully extracted from the document

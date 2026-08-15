@@ -16,7 +16,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AdminApp } from './AdminApp';
 import '../index.css';
 
-const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://gregarious-malamute-537.convex.cloud";
+const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://keen-jaguar-204.convex.cloud";
 const convex = new ConvexReactClient(CONVEX_URL);
 
 // Global unhandled promise rejection handler

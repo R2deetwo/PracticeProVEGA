@@ -427,7 +427,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
                 // Use Convex's query endpoint (valid HTTP path) instead of /health
                 // which doesn't exist. This hits a real Convex API endpoint.
-                await fetch('https://gregarious-malamute-537.convex.cloud/api/query', {
+                await fetch('https://keen-jaguar-204.convex.cloud/api/query', {
                     method: 'POST',
                     mode: 'no-cors',
                     signal: controller.signal,
