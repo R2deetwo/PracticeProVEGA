@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">PracticePro</string>
-    <string name="title_activity_main">PracticePro</string>
-    <string name="package_name">com.practicepro.app</string>
-    <string name="custom_url_scheme">com.practicepro.app</string>
+    <string name="app_name">PracticePro Founder</string>
+    <string name="title_activity_main">PracticePro Founder</string>
+    <string name="package_name">com.practicepro.admin</string>
+    <string name="custom_url_scheme">com.practicepro.admin</string>
 </resources>

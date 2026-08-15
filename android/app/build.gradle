@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.practicepro.app"
+        applicationId "com.practicepro.admin"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
 

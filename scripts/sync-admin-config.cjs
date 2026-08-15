@@ -382,7 +382,7 @@ if (fs.existsSync(GOOGLE_SERVICES_JSON)) {
 
         // Check if the admin client already exists
         const hasAdminClient = gsConfig.client?.some(
-            (c: any) => c.client_info?.android_client_info?.package_name === 'com.practicepro.admin'
+            (c) => c.client_info?.android_client_info?.package_name === 'com.practicepro.admin'
         );
 
         if (!hasAdminClient && gsConfig.client?.length > 0) {
