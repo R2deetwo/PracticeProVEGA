@@ -597,7 +597,7 @@ export const App: React.FC = () => {
             const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
             if (!publicPaths.includes(pathname)) return;
             // Fire-and-forget — don't block on analytics
-            fetch(`${import.meta.env.VITE_CONVEX_URL || 'https://keen-jaguar-204.convex.cloud'}/api/mutation`, {
+            fetch(`${import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'}/api/mutation`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

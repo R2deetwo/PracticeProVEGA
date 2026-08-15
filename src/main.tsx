@@ -26,7 +26,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // --- DATABASE CONNECTION CONFIGURATION ---
 // Prefers the environment variable; falls back to the live production instance.
-const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://keen-jaguar-204.convex.cloud";
+const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://gregarious-malamute-537.convex.cloud";
 if (!CONVEX_URL) {
   throw new Error("[main.tsx] VITE_CONVEX_URL is not set. Add it to your .env file.");
 }

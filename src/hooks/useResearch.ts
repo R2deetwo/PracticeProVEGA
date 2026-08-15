@@ -8,7 +8,7 @@ import { getGeminiApiKey, AI_CONFIG, stripPII } from '../utils/aiUtils';
 import { GoogleGenAI, Type } from '@google/genai';
 import { processAttachments } from '../utils/attachmentProcessor';
 
-const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://keen-jaguar-204.convex.cloud";
+const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
 
 /**
  * Hook for managing research notebooks, sources, and AI analysis.

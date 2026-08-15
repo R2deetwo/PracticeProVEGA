@@ -63,7 +63,7 @@ export async function uploadBlobToConvex(
  * @returns The URL to access the file
  */
 export function getStorageFileUrl(storageId: string): string {
-    const convexUrl = import.meta.env.VITE_CONVEX_URL || 'https://keen-jaguar-204.convex.cloud';
+    const convexUrl = import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud';
     return `${convexUrl}/api/storage/${storageId}`;
 }
 

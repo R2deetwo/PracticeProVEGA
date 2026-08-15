@@ -10,7 +10,7 @@ import { api } from "../../convex/_generated/api";
 import { processAttachments } from '../utils/attachmentProcessor';
 import { buildJurisdictionContextBlock, buildJurisdictionalReasoning } from '../utils/jurisdictionConfig';
 
-const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://keen-jaguar-204.convex.cloud";
+const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
 const convex = new ConvexHttpClient(CONVEX_URL);
 
 export enum ModalType {
