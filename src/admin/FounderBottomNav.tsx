@@ -197,6 +197,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     const [pendingCount, setPendingCount] = useState(0);
     const [expiringSoon, setExpiringSoon] = useState(0);
     const [newSignupCount, setNewSignupCount] = useState(0);
+    const [unreadSalesCount, setUnreadSalesCount] = useState(0);
 
     // Shared badge formatter — caps at "9+" for counts > 9
     const formatBadgeCount = (count: number): string | null => {
@@ -226,9 +227,24 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
             } catch (e: any) {
                 console.warn('[FounderBottomNav] getFounderAlerts failed:', e?.message || e);
             }
+            // Also fetch unread sales lead count for the Sales nav badge.
+            // This query is GLOBAL (runs in the nav, not just on the Sales page)
+            // so the badge updates in real-time without navigating to the sales tab.
+            try {
+                const count = await convex.query(api.salesInquiries.getUnreadSalesInquiryCount, {});
+                if (!cancelled) {
+                    setUnreadSalesCount(count || 0);
+                }
+            } catch (e: any) {
+                console.warn('[FounderBottomNav] getUnreadSalesInquiryCount failed:', e?.message || e);
+            }
         };
         fetchStats();
-        const interval = setInterval(fetchStats, 60_000);
+        // Poll every 15 seconds for real-time badge updates.
+        // Convex WebSocket subscriptions handle instant updates for queries
+        // using useQuery(), but this defensive polling pattern ensures
+        // badges stay fresh even if the WebSocket drops momentarily.
+        const interval = setInterval(fetchStats, 15_000);
         return () => { cancelled = true; clearInterval(interval); };
     }, [tokenIdentifier, convex]);
 
@@ -311,6 +327,8 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                     // CRO AUDIT Track A — show pending count badge on Subscriptions item
                                     const showBadge = item.view === 'subscriptions' && pendingCount > 0;
                                     const isUrgent = item.view === 'subscriptions' && expiringSoon > 0;
+                                    // Sales lead badge — amber/gold for unread sales leads
+                                    const showSalesBadge = item.view === 'sales' && unreadSalesCount > 0;
                                     return (
                                         <button
                                             key={item.view}
@@ -324,6 +342,11 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                                 {showBadge && (
                                                     <span className={`absolute -top-1 -right-1 min-w-[20px] h-5 px-1 ${isUrgent ? 'bg-red-500 animate-pulse' : 'bg-amber-500'} text-white text-2xs font-bold rounded-full flex items-center justify-center`}>
                                                         {formatBadgeCount(pendingCount)}
+                                                    </span>
+                                                )}
+                                                {showSalesBadge && (
+                                                    <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-amber-500 text-white text-2xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                                                        {formatBadgeCount(unreadSalesCount)}
                                                     </span>
                                                 )}
                                             </div>
