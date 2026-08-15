@@ -382,3 +382,53 @@ export const sendTestPush = mutation({
     };
   },
 });
+
+/**
+ * mutation: sendTestPushToUser
+ * Allows ANY authenticated user (not just founders) to send a test push
+ * notification to their own registered devices. Used by the "Test Push"
+ * button in the user app's Notification Settings.
+ */
+export const sendTestPushToUser = mutation({
+  args: {
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Find the user by email
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.userEmail.toLowerCase()))
+      .first();
+
+    if (!user) {
+      return { success: false, sent: 0, reason: "USER_NOT_FOUND" };
+    }
+
+    // Get the user's device tokens
+    const tokens = await ctx.db
+      .query("user_push_tokens")
+      .withIndex("by_user_active", (q: any) =>
+        q.eq("userId", String(user._id)).eq("isActive", true)
+      )
+      .collect();
+
+    const tokenStrings = tokens.map((t: any) => t.token);
+
+    if (tokenStrings.length === 0) {
+      return { success: false, sent: 0, reason: "NO_REGISTERED_DEVICES" };
+    }
+
+    // Dispatch FCM push
+    ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
+      tokens: tokenStrings,
+      title: "PracticePro Test Push",
+      body: "This is a test notification from PracticePro. If you can see this, push notifications are working correctly!",
+      data: { type: "test_push" },
+    });
+
+    return {
+      success: true,
+      sent: tokenStrings.length,
+    };
+  },
+});

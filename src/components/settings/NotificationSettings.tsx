@@ -327,7 +327,68 @@ export const NotificationSettings: React.FC = () => {
         <LockClosedIcon className="w-3 h-3" />
         <span>Locked items are always enabled for security and compliance. They cannot be turned off.</span>
       </div>
+
+      {/* ─── Test Push Notification ─────────────────────────────────── */}
+      {/* Allows the user to verify their device is properly registered for
+          FCM push notifications. Sends a test payload to their registered
+          device tokens. Only visible on native platforms (APK). */}
+      <div className="mt-6 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">Test Push Notification</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+              Send a test notification to verify your device is registered for push alerts.
+            </p>
+          </div>
+          <TestPushButton />
+        </div>
+      </div>
     </div>
+  );
+};
+
+// ─── Test Push Button (separate component for hook isolation) ──────────────
+const TestPushButton: React.FC = () => {
+  const { addToast } = useUI();
+  const { currentUser } = useAuth();
+  const testPush = useMutation(api.pushNotifications.sendTestPushToUser);
+  const [isSending, setIsSending] = useState(false);
+
+  const handleTestPush = async () => {
+    if (!currentUser?.email) return;
+    setIsSending(true);
+    try {
+      const result = await testPush({ userEmail: currentUser.email });
+      if (result?.sent > 0) {
+        addToast(`Test push sent to ${result.sent} device(s). Check your notification shade.`, { type: 'success' });
+      } else {
+        addToast('No registered devices found. Make sure you have the APK installed and notifications enabled.', { type: 'info', duration: 6000 });
+      }
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to send test push.', { type: 'error' });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleTestPush}
+      disabled={isSending}
+      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-shrink-0"
+    >
+      {isSending ? (
+        <>
+          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          Sending...
+        </>
+      ) : (
+        <>
+          <BellIcon className="w-3.5 h-3.5" />
+          Send Test Push
+        </>
+      )}
+    </button>
   );
 };
 

@@ -86,6 +86,17 @@ export const sendFcmPush = internalAction({
               sound: "default",
               icon: "ic_launcher",
               clickAction: "FCM_PLUGIN_ACTIVITY",
+              channelId: "practicepro-general",
+              priority: "high" as const,
+              defaultVibrateTimings: true,
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+                badge: 1,
+              },
             },
           },
         };

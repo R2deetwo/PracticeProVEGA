@@ -7,6 +7,7 @@ interface ResourcesPageProps {
     onBack: () => void;
     onPrivacyClick: () => void;
     onTermsClick: () => void;
+    onCookieClick?: () => void;
     onDPAClick?: () => void;
     activeProduct: 'vega' | 'atrium';
     setActiveProduct?: (p: 'vega' | 'atrium') => void;
@@ -928,7 +929,7 @@ const GuideCard: React.FC<{ guide: typeof GUIDES[0] }> = ({ guide }) => {
 
 // ─── ROOT COMPONENT ───────────────────────────────────────────────────────────
 
-const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onDPAClick, activeProduct, setActiveProduct }) => {
+const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, activeProduct, setActiveProduct }) => {
     const isVega = activeProduct === 'vega';
     return (
         <div className="h-[100dvh] overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
@@ -1174,9 +1175,9 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         >
                             Terms of Service
                         </button>
-                        <div className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-default">
-                            Cookie Policy <span className="text-2xs ml-1 font-bold uppercase text-slate-300 dark:text-slate-600">Soon</span>
-                        </div>
+                        <button onClick={onCookieClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                            Cookie Policy
+                        </button>
                         <button onClick={onDPAClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                             Data Processing Agreement
                         </button>
