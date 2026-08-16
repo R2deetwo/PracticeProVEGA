@@ -61,7 +61,7 @@ const Header: React.FC = React.memo(() => {
 
     const handleAppNotifClick = async (notif: any) => {
         if (!notif.isRead) {
-            try { await markAppNotifRead({ notificationId: notif._id }); } catch {}
+            try { await markAppNotifRead({ notificationId: notif._id, userEmail: currentUser?.email }); } catch {}
         }
         if (notif.actionType === 'apk_download' && notif.actionUrl) {
             if (Capacitor.isNativePlatform()) {
@@ -443,7 +443,7 @@ const Header: React.FC = React.memo(() => {
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
                                     )}
                                     {notifTab === 'platform' && appUnread > 0 && (
-                                        <button onClick={() => markAllAppNotifsRead({ userId: currentUser.id })} className="text-2xs font-bold text-emerald-600 hover:underline">Clear system alerts</button>
+                                        <button onClick={() => markAllAppNotifsRead({ userId: currentUser.id, userEmail: currentUser?.email })} className="text-2xs font-bold text-emerald-600 hover:underline">Clear system alerts</button>
                                     )}
                                     {notifTab === 'firm' && aggregatedNotifications.filter(n => !(n as any)._isBroadcast).length > 0 && (
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>

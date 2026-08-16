@@ -4,7 +4,7 @@ import { SignerContext } from '../contexts/ProductContext';
 import { AI_CONFIG, stripPII, getGeminiApiKey } from '../utils/aiUtils';
 import { getSystemInstruction } from '../agents/AgencyHub';
 import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES, getAloaProtocol } from '../constants/aloaPrompts';
-import { validateAIResponse } from '../config/identityGuardrails';
+import { validateAIResponse } from '../constants/identityGuardrails';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
 import { processAttachments } from '../utils/attachmentProcessor';
@@ -506,7 +506,7 @@ IMPORTANT:
                     const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
                     const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
                     const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
-                    const { sanitized } = validateAIResponse(rawText || '', agent as 'ARIA' | 'ALOA');
+                    const sanitized = validateAIResponse(rawText || '', agent === 'ARIA');
                     return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName}`, thoughtSignature } as any;
                 }
 
@@ -544,7 +544,7 @@ IMPORTANT:
             const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
             const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
             const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
-            const { sanitized } = validateAIResponse(rawText || '', agent as 'ARIA' | 'ALOA');
+            const sanitized = validateAIResponse(rawText || '', agent === 'ARIA');
             return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName} (Proxy)`, thoughtSignature } as any;
         } catch (proxyErr: any) {
             lastError = proxyErr;
@@ -724,7 +724,7 @@ You are operating in RESEARCH MODE. Apply these rules:
         }
     }
 
-    const { sanitized } = validateAIResponse(fullText, agent as 'ARIA' | 'ALOA');
+    const sanitized = validateAIResponse(fullText, agent === 'ARIA');
     return { text: sanitized, modelUsed: preferredModelName };
 };
 

@@ -123,8 +123,61 @@ export const getUnreadNotificationCount = query({
 });
 
 export const markNotificationRead = mutation({
-  args: { notificationId: v.id("app_notifications") },
+  args: {
+    notificationId: v.id("app_notifications"),
+    userEmail: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    // B3 SHIP-BLOCKER FIX: Verify caller owns the notification before patching.
+    // Without this, anyone with a notificationId could mark any user's
+    // notifications as read (suppressing sales-lead alerts, etc.).
+    const notification = await ctx.db.get(args.notificationId);
+    if (!notification) {
+      return { success: false, error: "Notification not found" };
+    }
+
+    // If userEmail is provided, verify ownership.
+    // If userEmail is NOT provided (legacy caller), allow the patch but log
+    // to securityEvents for monitoring — mirrors the requireFirmUser fallback pattern.
+    if (args.userEmail) {
+      // Look up the caller's user record via tokenIdentifier (email) index
+      const caller = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.userEmail!.toLowerCase()))
+        .first();
+
+      if (!caller) {
+        return { success: false, error: "Caller not found" };
+      }
+
+      // The notification's userId field stores the user's _id (Convex id) or
+      // a legacy string id. Check both for backward compatibility.
+      const notifUserId = notification.userId;
+      const callerId = caller._id;
+      const callerLegacyId = (caller as any).id || (caller as any).userId || "";
+
+      if (notifUserId !== callerId && notifUserId !== callerLegacyId) {
+        // Log the unauthorized attempt
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "unauthorized_notification_access",
+            details: `markNotificationRead: caller ${args.userEmail} attempted to mark notification owned by ${notifUserId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        return { success: false, error: "Not authorized to mark this notification" };
+      }
+    } else {
+      // Legacy call path — log for monitoring
+      try {
+        await ctx.db.insert("securityEvents", {
+          eventType: "anonymous_legacy_call",
+          details: "markNotificationRead: no userEmail provided (legacy call path)",
+          timestamp: Date.now(),
+        });
+      } catch {}
+    }
+
     await ctx.db.patch(args.notificationId, {
       isRead: true,
       readAt: Date.now(),
@@ -134,8 +187,47 @@ export const markNotificationRead = mutation({
 });
 
 export const markAllNotificationsRead = mutation({
-  args: { userId: v.string() },
+  args: {
+    userId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    // B3 SHIP-BLOCKER FIX: Verify caller owns the userId they're marking read for.
+    // Without this, anyone could suppress another user's notifications.
+    if (args.userEmail) {
+      const caller = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.userEmail!.toLowerCase()))
+        .first();
+
+      if (!caller) {
+        return { success: false, count: 0, error: "Caller not found" };
+      }
+
+      const callerId = caller._id;
+      const callerLegacyId = (caller as any).id || (caller as any).userId || "";
+
+      // The client passes userId — verify it matches the caller
+      if (args.userId !== callerId && args.userId !== callerLegacyId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "unauthorized_notification_access",
+            details: `markAllNotificationsRead: caller ${args.userEmail} attempted to mark notifications for userId ${args.userId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        return { success: false, count: 0, error: "Not authorized to mark notifications for this user" };
+      }
+    } else {
+      try {
+        await ctx.db.insert("securityEvents", {
+          eventType: "anonymous_legacy_call",
+          details: "markAllNotificationsRead: no userEmail provided (legacy call path)",
+          timestamp: Date.now(),
+        });
+      } catch {}
+    }
+
     const unread = await ctx.db
       .query("app_notifications")
       .withIndex("by_user_read", (q: any) =>

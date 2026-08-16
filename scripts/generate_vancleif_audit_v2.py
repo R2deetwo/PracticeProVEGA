@@ -238,11 +238,13 @@ def build_title_page():
     stats_data = [
         [cell('Metric', 'TableHeader'), cell('Value', 'TableHeader'), cell('Status', 'TableHeader')],
         [cell('ICM scaffold markdown files'), cell('5 in /ai/prompts/ (numbered)'), cell(showcase_badge())],
+        [cell('AI surfaces audited (ICM scope)'), cell('4 — ALOA/ARIA chat, DraftPro, Research Studio, Proactive Engine'), cell(showcase_badge())],
+        [cell('Total prompt strings catalogued'), cell('33 across the 4 surfaces (5 with MD, 28 code-only)'), cell(polish_badge())],
         [cell('ICM completeness score'), cell('~18% — markdown is documentation only, zero build-time loading'), cell(polish_badge())],
-        [cell('ALOA / ARIA system prompts in code'), cell('5 mapped + 17 code-only (9 agents, 2 Convex, 6 inline)'), cell(polish_badge())],
-        [cell('Identity guardrail systems'), cell('2 parallel (old config/ + new constants/) — split-brain'), cell(polish_badge())],
-        [cell('Wrong-layer findings'), cell('16 catalogued (3 ship-blockers, 12 polish, 5 nice-to-have)'), cell(polish_badge())],
+        [cell('Identity guardrail gaps found'), cell('3 — Research Studio (none), Proactive briefing (minimal), split-brain validator'), cell(blocker_badge())],
+        [cell('New ship-blockers found in extended audit'), cell('3 — Research Studio unguarded, ARIA expansion drift, briefing identity gap'), cell(blocker_badge())],
         [cell('Van Clief showcases (already correct)'), cell('3 — sales-lead pipeline, billing state machine, notifyFounders helper'), cell(showcase_badge())],
+        [cell('Wrong-layer findings'), cell('16 catalogued (3 ship-blockers, 12 polish, 5 nice-to-have)'), cell(polish_badge())],
         [cell('TypeScript errors (post-fix)'), cell('315 (was 327; 5 surgical fixes applied in prior session)'), cell(showcase_badge())],
         [cell('Build status'), cell('Passing (22s)'), cell(showcase_badge())],
         [cell('Atrium launch posture'), cell('3 ship-blockers must fix; rest is polish / nice-to-have'), cell(blocker_badge())],
@@ -298,12 +300,12 @@ def build_methodology_intro():
     story.append(add_heading('1.2 What This Audit Is NOT', STYLES['H2'], 1))
     story.append(P(
         'This is not a generic code-review. It is a focused Van Clief-lens audit with three constraints. '
-        '<b>First</b>, the ICM scope is limited to the ALOA / ARIA chat surface (AgencyHub system '
-        'instruction, tool definitions, identity guardrails) — DraftPro, Research Studio, and the '
-        'proactive engine are flagged but out of scope for migration this session. <b>Second</b>, the '
-        'wrong-layer audit is identify-only — no code is changed in the frontend / backend boundary this '
-        'session; recommendations are catalogued for the team to action. <b>Third</b>, every finding is '
-        'tagged with a launch posture so the team can ship Atrium with confidence.'
+        '<b>First</b>, the ICM scope covers all 4 AI surfaces (ALOA/ARIA chat, DraftPro editor, '
+        'Research Studio, Proactive Engine) — the audit catalogs every prompt string and recommends '
+        'markdown migration priorities per surface. <b>Second</b>, the wrong-layer audit is '
+        'identify-only — no code is changed in the frontend / backend boundary this session; '
+        'recommendations are catalogued for the team to action. <b>Third</b>, every finding is tagged '
+        'with a launch posture so the team can ship Atrium with confidence.'
     ))
 
     story.append(add_heading('1.3 What Is Preserved From the Previous Audit', STYLES['H2'], 1))
@@ -497,7 +499,7 @@ export const PROMPTS = {
 //'''))
 
     story.append(P(
-        '<b>Convex caveat:</b> convex/proactive.ts and convex/conversationMemory.ts run in the Convex '
+        '<b>Convex caveat:</b> convex/proactive.ts and conversationMemory.ts run in the Convex '
         'runtime, which does NOT support Vite <code>?raw</code> imports. For those two prompts, either '
         '(a) keep them inline in TS and accept they are not MD-sourced, or (b) load the MD via a Convex '
         '<code>httpAction</code> that reads from a deployed asset. Option (a) is pragmatic for now; '
@@ -507,9 +509,310 @@ export const PROMPTS = {
     return story
 
 
+def build_draftpro_icm_audit():
+    story = []
+    story.append(add_heading('3. ICM Audit — DraftPro Editor', STYLES['H1'], 0))
+    story.append(P(
+        'DraftPro is the TipTap-based document drafting editor used in both Vega (legal) and Atrium '
+        '(property) modes. The editor itself is a 3,798-line god component (DraftProEditor.tsx), but '
+        'the AI prompt architecture is spread across 6 files: aloaPrompts.ts (5 exported constants + '
+        'a selector), geminiService.ts (streamDraft composition + 4 inline prompts), DraftingAgent.ts '
+        '(rewriteText), DraftProEditor.tsx (3 inline micro-prompts), and jurisdictionConfig.ts '
+        '(buildJurisdictionContextBlock). This audit catalogues 18 distinct prompt surfaces.'
+    ))
+
+    story.append(add_heading('3.1 The 3-Variant Split — Why One MD File Is Not Enough', STYLES['H2'], 1))
+    story.append(P(
+        'The code has 3 distinct, non-trivially-different precision protocols: ALOA_PRECISION_PROTOCOL '
+        '(Vega legal, 115 LOC), ALOA_ATRIUM_PROTOCOL (Atrium property, 111 LOC), and '
+        'ALOA_KOMPLETE_PROTOCOL (unified, 73 LOC). The existing 05-precision-protocol.md (56 lines) '
+        'attempts to document all 3 in one file but is CRITICAL drift — it omits the Komplete variant '
+        'entirely, fabricates rules that do not exist in code (Claimant/Defendant nomenclature, Naira '
+        'formatting, Visitor Pass doc type), and lists a wrong API signature. The recommendation is to '
+        'split into 3 separate files (05a-vega-precision.md, 05b-atrium-precision.md, '
+        '05c-komplete-precision.md) because the ICM principle "folder structure IS the architecture" '
+        'means each variant — selected by getAloaProtocol() at runtime — should be its own file.'
+    ))
+
+    variant_data = [
+        [cell('Variant', 'TableHeader'), cell('Code constant (LOC)', 'TableHeader'), cell('Unique content', 'TableHeader'), cell('Proposed MD', 'TableHeader')],
+        [cell('Vega (legal)'), cell('ALOA_PRECISION_PROTOCOL (115)'), cell('"User is ALWAYS the Lawyer/Solicitor"; 3 doc structures (Notice to Quit, Court Affidavit, Motion); embeds LITIGATION_SKELETON_INSTRUCTION'), cell('05a-vega-precision.md')],
+        [cell('Atrium (property)'), cell('ALOA_ATRIUM_PROTOCOL (111)'), cell('"User is ALWAYS the Property Manager"; 3 property structures (Notice to Tenant, Property Affidavit, Tenancy Agreement); NO litigation skeleton'), cell('05b-atrium-precision.md')],
+        [cell('Komplete (unified)'), cell('ALOA_KOMPLETE_PROTOCOL (73)'), cell('Role-agnostic; "Do NOT assume the user is a Lawyer..."; "CONTEXT-AWARE SIGNING" section; NO doc structures block'), cell('05c-komplete-precision.md')],
+    ]
+    story.append(styled_table(variant_data, [30*mm, 40*mm, 70*mm, 30*mm]))
+    story.append(P('<i>Table 3.1 — The 3 precision-protocol variants. Each is architecturally distinct (selected by getAloaProtocol at runtime) and should be its own markdown file per ICM principles.</i>', 'Caption'))
+
+    story.append(add_heading('3.2 DraftPro Prompt Inventory — 18 Surfaces', STYLES['H2'], 1))
+    story.append(P(
+        '18 distinct DraftPro prompt strings were catalogued across 6 source files. Only 1 has a '
+        'markdown counterpart (05-precision-protocol.md), and it is HIGH drift. The table below '
+        'highlights the most significant surfaces; the full inventory is in the audit transcript.'
+    ))
+
+    draftpro_data = [
+        [cell('Prompt surface', 'TableHeader'), cell('File:Line', 'TableHeader'), cell('LOC', 'TableHeader'), cell('Has MD?', 'TableHeader'), cell('Proposed MD', 'TableHeader')],
+        [cell('ALOA_PRECISION_PROTOCOL (Vega)'), cell('aloaPrompts.ts:29-143'), cell('115'), cell('PARTIAL (drift)'), cell('05a-vega-precision.md')],
+        [cell('ALOA_ATRIUM_PROTOCOL'), cell('aloaPrompts.ts:248-358'), cell('111'), cell('PARTIAL (drift)'), cell('05b-atrium-precision.md')],
+        [cell('ALOA_KOMPLETE_PROTOCOL'), cell('aloaPrompts.ts:152-224'), cell('73'), cell('NO'), cell('05c-komplete-precision.md')],
+        [cell('DRAFTPRO_HTML_FORMATTING_RULES'), cell('aloaPrompts.ts:226-242'), cell('17'), cell('NO'), cell('06-draftpro-html-rules.md')],
+        [cell('LITIGATION_SKELETON_INSTRUCTION'), cell('aloaPrompts.ts:9-27'), cell('19'), cell('NO'), cell('07-litigation-skeleton.md')],
+        [cell('streamDraft system instruction composition'), cell('geminiService.ts:778-805'), cell('28'), cell('NO'), cell('08-streamdraft-recipe.md (architecture doc)')],
+        [cell('roleContextBlock (3 variants)'), cell('geminiService.ts:763-776'), cell('9'), cell('NO'), cell('fold into 05a/05b/05c')],
+        [cell('buildJurisdictionContextBlock'), cell('jurisdictionConfig.ts:219-236'), cell('18'), cell('NO'), cell('09-jurisdiction-context.md')],
+        [cell('generateResearchQuery (SHARED with Research Studio)'), cell('geminiService.ts:1160-1189'), cell('30'), cell('NO'), cell('16-research-query-generator.md')],
+        [cell('analyzeAttorneyDictation'), cell('geminiService.ts:1003-1004'), cell('2'), cell('NO'), cell('10-audio-prompts.md (bundle)')],
+        [cell('transcribeAudio'), cell('geminiService.ts:1071-1074'), cell('4'), cell('NO'), cell('10-audio-prompts.md (bundle)')],
+        [cell('rewriteText (DraftingAgent — HAS BUG)'), cell('DraftingAgent.ts:17-32'), cell('12'), cell('NO'), cell('12-rewrite-text.md (DEFER until bug fixed)')],
+        [cell('Citation instructions prepend'), cell('DraftProEditor.tsx:1018-1024'), cell('7'), cell('NO'), cell('bundle with 16')],
+        [cell('Redraft wrapper'), cell('DraftProEditor.tsx:1786-1787'), cell('2'), cell('NO'), cell('bundle with 16')],
+        [cell('AI help placeholder prompt'), cell('DraftProEditor.tsx:1961'), cell('1'), cell('NO'), cell('bundle with 16')],
+    ]
+    story.append(styled_table(draftpro_data, [55*mm, 45*mm, 12*mm, 22*mm, 36*mm]))
+    story.append(P('<i>Table 3.2 — DraftPro prompt inventory. 18 surfaces total; 15 listed (3 are micro-prompts bundled). Only 1 has MD today and it is HIGH drift.</i>', 'Caption'))
+
+    story.append(add_heading('3.3 The rewriteText Variant-Selection Bug', STYLES['H2'], 1))
+    story.append(Paragraph(
+        f'<b>{blocker_badge()} DraftingAgent.ts:17-21 hardcodes the Vega (legal) precision protocol for ALL rewrite calls, including Atrium and Komplete users.</b><br/><br/>'
+        'The rewriteText function wraps <code>ALOA_PRECISION_PROTOCOL</code> unconditionally — no '
+        '<code>getAloaProtocol()</code> call, no <code>isProperty</code> branch. When an Atrium user '
+        'selects text in a property document and asks for a redraft, the AI receives the legal precision '
+        'protocol (which says "User is ALWAYS the Lawyer/Solicitor" and references litigation skeletons). '
+        'This is the same class of bug as the AgencyHub.ts:240 call-site bug already documented. The fix '
+        'is to call <code>getAloaProtocol(isUnified, signerContext, product)</code> with the correct '
+        'args. <b>Do not migrate rewriteText to markdown until this bug is fixed</b> — migrating a '
+        'buggy prompt freezes the bug in a versioned file.',
+        STYLES['CalloutShipBlocker']
+    ))
+
+    story.append(add_heading('3.4 DraftPro Does NOT Use Function-Calling Tools', STYLES['H2'], 1))
+    story.append(P(
+        'Unlike the ALOA/ARIA chat surface (which has 17 function-calling tools), DraftPro is pure text '
+        'generation (streaming) + multimodal audio (dictation/transcription). The streamDraft function '
+        'does not pass a tools array to the Gemini API. This makes DraftPro prompts SIMPLER to migrate '
+        'to markdown than chat prompts — there is no FunctionDeclaration array to keep in sync. The '
+        'migration is purely: prompt string → markdown file → ?raw import. The 14 FunctionDeclarations '
+        'in geminiService.ts:23-268 are chat-only; the only DraftPro-related tool is start_drafting '
+        '(which opens the editor from chat, not invokes drafting itself).'
+    ))
+
+    story.append(add_heading('3.5 DraftPro Migration Priority Order', STYLES['H2'], 1))
+    story.append(P(
+        'The recommended migration order starts with the lowest-risk, highest-value surfaces to prove '
+        'the Vite ?raw loader pattern, then extends to the larger protocol variants. The rewriteText '
+        'bug must be fixed before its migration. The streamDraft composition logic stays in code '
+        '(it is the orchestration recipe, not a prompt) but should be documented in ai/README.md as '
+        'an architecture diagram.'
+    ))
+
+    draftpro_priority = [
+        [cell('Rank', 'TableHeader'), cell('Prompt', 'TableHeader'), cell('Safety', 'TableHeader'), cell('Value', 'TableHeader'), cell('Phase', 'TableHeader')],
+        [cell('1'), cell('DRAFTPRO_HTML_FORMATTING_RULES (17 LOC, self-contained)'), cell('HIGH'), cell('HIGH'), cell('Phase 1 (first)')],
+        [cell('2'), cell('LITIGATION_SKELETON_INSTRUCTION (19 LOC, references data registry that stays in code)'), cell('HIGH'), cell('HIGH'), cell('Phase 1')],
+        [cell('3'), cell('ALOA_ATRIUM_PROTOCOL (111 LOC, no embedded sub-templates)'), cell('HIGH'), cell('HIGH'), cell('Phase 1')],
+        [cell('4'), cell('ALOA_PRECISION_PROTOCOL Vega (115 LOC, embeds LITIGATION_SKELETON_INSTRUCTION)'), cell('MEDIUM'), cell('HIGH'), cell('Phase 1')],
+        [cell('5'), cell('ALOA_KOMPLETE_PROTOCOL (73 LOC, self-contained)'), cell('HIGH'), cell('MEDIUM'), cell('Phase 1')],
+        [cell('6'), cell('generateResearchQuery (30 LOC, SHARED with Research Studio)'), cell('HIGH'), cell('MEDIUM'), cell('Phase 2')],
+        [cell('7'), cell('buildJurisdictionContextBlock (parameterized — needs render layer)'), cell('MEDIUM'), cell('MEDIUM'), cell('Phase 2')],
+        [cell('DEFER'), cell('rewriteText (FIX VARIANT BUG FIRST)'), cell('LOW'), cell('MEDIUM'), cell('Phase 3 (after bug fix)')],
+    ]
+    story.append(styled_table(draftpro_priority, [10*mm, 75*mm, 20*mm, 20*mm, 25*mm]))
+    story.append(P('<i>Table 3.3 — DraftPro migration priority. Ranks 1-5 are the Phase 1 proof-of-concept batch; rank 6-7 are Phase 2; rewriteText is deferred until the variant-selection bug is fixed.</i>', 'Caption'))
+
+    return story
+
+
+def build_research_studio_icm_audit():
+    story = []
+    story.append(add_heading('4. ICM Audit — Research Studio', STYLES['H1'], 0))
+    story.append(P(
+        'Research Studio is the legal/property research workspace that lets users create notebooks, '
+        'add sources (web URLs, documents), and run AI analyses (source analysis, notebook synthesis, '
+        'research chat). The audit catalogued 12 distinct prompt surfaces across ResearchAgent.ts, '
+        'ResearchStudio.tsx, aiUtils.ts, and geminiService.ts. Zero have markdown counterparts today '
+        '(ICM completeness for Research Studio = 0%).'
+    ))
+
+    story.append(add_heading('4.1 CRITICAL — Research Studio Runs Without Identity Protection', STYLES['H2'], 1))
+    story.append(Paragraph(
+        f'<b>{blocker_badge()} Research Studio runs with NO identity guardrail AND NO validateAIResponse post-processing.</b><br/><br/>'
+        'The ResearchAgent.ts calls streamGemini() and streamGeminiMultipart() without the options '
+        'object that would trigger getSystemInstruction(). As a result, systemInstruction stays empty '
+        'string. The ONLY identity context the model receives is SENIOR_ASSOCIATE_PERSONA embedded in '
+        'the user-message text — and that persona has the WRONG ARIA expansion ("Advanced Research & '
+        'Intelligence Assistant" instead of the canonical "Asset & Revenue Intelligence Assistant"). '
+        'Worse, streamGeminiMultipart() does not support systemInstruction at all — so every PDF '
+        'analysis runs with zero system-instruction protection. If a user asks "What are you?" in '
+        'Research Studio, the model has no identity lock and will likely respond "I am Gemini, a large '
+        'language model trained by Google." The validateAIResponse() safety net that strips such '
+        'phrases in the main ALOA chat is NOT wired into the ResearchAgent pipeline.',
+        STYLES['CalloutShipBlocker']
+    ))
+
+    story.append(add_heading('4.2 The Wrong ARIA Expansion Bug', STYLES['H2'], 1))
+    story.append(Paragraph(
+        f'<b>{blocker_badge()} ResearchAgent.ts:8 expands ARIA as "Advanced Research & Intelligence Assistant" — contradicts every other file.</b><br/><br/>'
+        'The canonical ARIA expansion is "Asset & Revenue Intelligence Assistant" per '
+        'constants/identityGuardrails.ts:118 and ai/prompts/02-aria-property-identity.md. But '
+        'ResearchAgent.ts:8 (SENIOR_ASSOCIATE_PERSONA) says "Advanced Research & Intelligence '
+        'Assistant". Additionally, PropertyManagementAgent.ts:21 says "Asset & Revenue Intelligent '
+        'Assistant" (Intelligence → Intelligent). Three different expansions of the same acronym '
+        'across the codebase. This must be reconciled to a single canonical form before any ICM '
+        'migration — otherwise the markdown will freeze the wrong expansion.',
+        STYLES['CalloutShipBlocker']
+    ))
+
+    story.append(add_heading('4.3 Research Studio Prompt Inventory — 12 Surfaces', STYLES['H2'], 1))
+
+    research_data = [
+        [cell('Prompt surface', 'TableHeader'), cell('File:Line', 'TableHeader'), cell('LOC', 'TableHeader'), cell('Has MD?', 'TableHeader'), cell('Proposed MD', 'TableHeader')],
+        [cell('SENIOR_ASSOCIATE_PERSONA (WRONG ARIA expansion)'), cell('ResearchAgent.ts:8-16'), cell('9'), cell('NO'), cell('13-research-persona.md')],
+        [cell('ANALYSIS_TOOLS 6 prompts (Chronology/Brief/Digest/Matrix/Gap/Adversarial)'), cell('ResearchStudio.tsx:103-108'), cell('6'), cell('NO'), cell('14-research-analysis-tools.md')],
+        [cell('chatWithSources prompt v1 (DEAD CODE — overwritten by v2)'), cell('ResearchAgent.ts:90-104'), cell('15'), cell('NO'), cell('DELETE in code')],
+        [cell('chatWithSources prompt v2 (live)'), cell('ResearchAgent.ts:113-127'), cell('15'), cell('NO'), cell('15-research-chat-template.md')],
+        [cell('Local getSystemInstruction (composes ALOA_PRECISION_PROTOCOL + RAG + docs)'), cell('aiUtils.ts:48-85'), cell('38'), cell('PARTIAL'), cell('document in 13')],
+        [cell('generateResearchQuery (SHARED with DraftPro)'), cell('geminiService.ts:1160-1189'), cell('30'), cell('NO'), cell('16-research-query-generator.md')],
+        [cell('RESEARCH MODE suffix (sendMessage version — full)'), cell('geminiService.ts:321-360'), cell('40'), cell('NO'), cell('17-research-mode-protocol.md')],
+        [cell('RESEARCH MODE suffix (streamMessage version — DRIFT, compressed)'), cell('geminiService.ts:608-617'), cell('10'), cell('NO'), cell('dedup into 17')],
+        [cell('IngestionAgent "ARIA Legal Ingestion Engine"'), cell('IngestionAgent.ts:118-127'), cell('10'), cell('NO'), cell('19-ingestion-engine.md')],
+        [cell('Auto-start "verify citations" invitation message'), cell('ResearchView.tsx:174-180'), cell('5'), cell('NO'), cell('18-research-invitation-message.md')],
+    ]
+    story.append(styled_table(research_data, [60*mm, 40*mm, 12*mm, 20*mm, 38*mm]))
+    story.append(P('<i>Table 4.1 — Research Studio prompt inventory. 12 surfaces; 0 have MD today. The chatWithSources v1 is dead code (overwritten by v2) and should be deleted. The RESEARCH MODE suffix has drift between sendMessage and streamMessage versions.</i>', 'Caption'))
+
+    story.append(add_heading('4.4 Research Studio Does NOT Use Function-Calling Tools', STYLES['H2'], 1))
+    story.append(P(
+        'Like DraftPro, Research Studio is pure text generation — no function-calling tools. The '
+        'analyzeSources() and chatWithSources() functions call streamGemini/streamGeminiMultipart '
+        'without a tools array. This means Research Studio AI cannot autonomously call search_web, '
+        'fetch_web_page, start_drafting, or analyze_document. Users must manually add web sources via '
+        'the ResearchSourceColumn UI, and the "Send to DraftPro" button is a client-side navigation '
+        'hack that bypasses the AI tool layer. This is an architectural choice (text-only research '
+        'assistant) but leaves Research Studio less capable than the main ALOA chat for the same '
+        'legal-research use cases. Not an ICM migration blocker, but worth flagging for a future '
+        'tool-augmentation pass.'
+    ))
+
+    story.append(add_heading('4.5 Pre-Migration Code Fixes (BLOCKER)', STYLES['H2'], 1))
+    story.append(P(
+        'Before any Research Studio prompt is migrated to markdown, 5 code fixes must ship. Migrating '
+        'an unguarded or buggy prompt to markdown freezes the problem in a versioned file. The fixes '
+        'are ordered by dependency.'
+    ))
+
+    pre_fixes = [
+        [cell('#', 'TableHeader'), cell('Fix', 'TableHeader'), cell('File:Line', 'TableHeader'), cell('Effort', 'TableHeader')],
+        [cell('F1'), cell('Fix SENIOR_ASSOCIATE_PERSONA ARIA expansion → "Asset & Revenue Intelligence Assistant"'), cell('ResearchAgent.ts:8'), cell('5 min')],
+        [cell('F2'), cell('Inject getIdentityGuardrail(isProperty) at top of analyzeSources prompt assembly'), cell('ResearchAgent.ts:34-70'), cell('30 min')],
+        [cell('F3'), cell('Inject getIdentityGuardrail(isProperty) at top of chatWithSources + DELETE dead v1 prompt at lines 90-104'), cell('ResearchAgent.ts:75-178'), cell('30 min')],
+        [cell('F4'), cell('Wire validateAIResponse(content, isProperty) into both ResearchAgent return paths (mirror geminiService.ts:508-509)'), cell('ResearchAgent.ts:65, 170'), cell('30 min')],
+        [cell('F5'), cell('Add systemInstruction support to streamGeminiMultipart() (currently has none — all PDF analysis runs unguarded)'), cell('aiUtils.ts:169-196'), cell('1 hour')],
+    ]
+    story.append(styled_table(pre_fixes, [10*mm, 80*mm, 40*mm, 20*mm]))
+    story.append(P('<i>Table 4.2 — Pre-migration code fixes. F1 is the 5-minute fix already in the implementation plan (P4). F2-F5 close the identity-guardrail gap that leaves Research Studio unprotected.</i>', 'Caption'))
+
+    return story
+
+
+def build_proactive_icm_audit():
+    story = []
+    story.append(add_heading('5. ICM Audit — Proactive Intelligence Engine', STYLES['H1'], 0))
+    story.append(P(
+        'The Proactive Engine is the server-side AI system that runs on cron jobs to: (1) scan for '
+        'deadlines and anomalies (deterministic, no AI), (2) generate a daily AI morning briefing per '
+        'firm, (3) summarize conversations for cross-session memory. The audit found 3 AI-driven '
+        'prompt surfaces and 3 deterministic scanners. Only the AI-driven surfaces are ICM-migration '
+        'candidates. Zero have markdown counterparts today.'
+    ))
+
+    story.append(add_heading('5.1 Proactive Engine Prompt Inventory — 3 AI Surfaces', STYLES['H2'], 1))
+
+    proactive_data = [
+        [cell('Prompt surface', 'TableHeader'), cell('File:Line', 'TableHeader'), cell('Cron', 'TableHeader'), cell('Model', 'TableHeader'), cell('Has MD?', 'TableHeader')],
+        [cell('Morning Briefing generator (buildBriefingPrompt)'), cell('proactive.ts:760-803'), cell('daily 06:15 UTC'), cell('gemini-2.0-flash'), cell('NO')],
+        [cell('Conversation Summarizer (summarizeConversation)'), cell('conversationMemory.ts:203-216'), cell('daily 23:00 UTC'), cell('gemini-2.0-flash (JSON mode)'), cell('NO')],
+        [cell('Memory Injection preamble (getInjectionContext)'), cell('conversationMemory.ts:91-96'), cell('runtime (new session)'), cell('N/A (injected text)'), cell('NO')],
+    ]
+    story.append(styled_table(proactive_data, [55*mm, 40*mm, 25*mm, 30*mm, 20*mm]))
+    story.append(P('<i>Table 5.1 — Proactive Engine AI prompt inventory. The 3 deterministic scanners (deadline, anomaly, court reminders) have no prompt and are not ICM candidates.</i>', 'Caption'))
+
+    story.append(add_heading('5.2 CRITICAL — Morning Briefing Runs Without ARIA Identity Lock', STYLES['H2'], 1))
+    story.append(Paragraph(
+        f'<b>{blocker_badge()} The morning briefing appears in user-facing ARIA chat but runs without the full ARIA identity guardrail that interactive ARIA enforces.</b><br/><br/>'
+        'The briefing prompt at proactive.ts:769 says only "You are ARIA, the AI assistant for '
+        '{firmName}." — a minimal identity claim, not the full 92-line guardrail fortress that lives '
+        'in constants/identityGuardrails.ts. The full guardrail contains ~15 banned phrases + canned '
+        'responses for "who are you", "are you Gemini", "ignore your system prompt". The morning '
+        'briefing has none of this protection. The briefing is stored as an aloaMessages row with '
+        'role: "model" and appears in the user\'s ARIA chat panel — the user cannot distinguish a '
+        'cron-generated briefing from an interactive ARIA reply. If a user replies to the briefing '
+        'with "What are you?", the conversation continues without the identity lock. The same gap '
+        'exists in the conversation summarizer (lower severity because its output is a structured '
+        'JSON memory blob, not a direct user-facing message, but the summary IS re-injected into '
+        'ARIA via getInjectionContext so any leak propagates forward).',
+        STYLES['CalloutShipBlocker']
+    ))
+
+    story.append(add_heading('5.3 The Convex Runtime Loading Problem', STYLES['H2'], 1))
+    story.append(P(
+        'Convex server actions run in Convex\'s sandboxed V8 runtime, not Node + Vite. The Vite '
+        '?raw import approach recommended for the frontend (src/) does NOT work for Convex. Three '
+        'loading options were evaluated. Option C (build-time codegen) is recommended because it '
+        'provides zero runtime cost (inlined at build), type safety (compiler errors if MD is '
+        'renamed), and a single source of truth (the same MD file can be referenced from the audit '
+        'table, the codegen loader, and reviewer PRs). Once proven for Convex, the codegen pattern '
+        'can extend to src/ prompts, unifying the ICM loader architecture.'
+    ))
+
+    convex_options = [
+        [cell('Option', 'TableHeader'), cell('Mechanism', 'TableHeader'), cell('Pros', 'TableHeader'), cell('Cons', 'TableHeader'), cell('Verdict', 'TableHeader')],
+        [cell('A — Inline TS (status quo)'), cell('Prompts as template literals in proactive.ts'), cell('Zero infra changes; zero cold-start cost'), cell('MD is documentation only; bypasses ICM entirely'), cell('Acceptable for v1')],
+        [cell('B — httpAction fetch'), cell('httpAction fetches MD from /public/ at briefing time'), cell('MD is true source of truth; non-devs can edit'), cell('Network hop per cron tick × N firms; cache invalidation; fetch failure = briefing failure'), cell('NOT recommended')],
+        [cell('C — Build-time codegen'), cell('Pre-commit hook reads MD → emits convex/_generated/prompts.ts'), cell('Zero runtime cost; type-safe; single source of truth; survives deploy'), cell('Requires build step; generated file must be committed'), cell('RECOMMENDED')],
+    ]
+    story.append(styled_table(convex_options, [30*mm, 45*mm, 35*mm, 35*mm, 25*mm]))
+    story.append(P('<i>Table 5.2 — Convex runtime loading options. Option C (build-time codegen) is recommended for the Proactive Engine. The codegen pattern can later extend to src/ prompts, unifying the ICM loader.</i>', 'Caption'))
+
+    story.append(add_heading('5.4 Error Handling — Silent Failures Across the Board', STYLES['H2'], 1))
+    story.append(P(
+        'Error handling is silent across the entire Proactive Engine. No retries (Convex cron does '
+        'not auto-retry), no user notifications, only console.warn/console.error. The conversation '
+        'summarizer self-heals within 24h (the next-night batch picks up unsummarized conversations). '
+        'The morning briefing does NOT self-heal — a failed firm loses that day\'s briefing with no '
+        'fallback. A chronic failure (quota exhausted, model deprecated) silently degrades the '
+        'product for days before anyone notices. Recommended: add a proactive_engine_health log row '
+        'or a founder-dashboard alert when briefingsCreated === 0 for a day with at least 1 active firm.'
+    ))
+
+    error_data = [
+        [cell('Failure mode', 'TableHeader'), cell('Behavior', 'TableHeader'), cell('User impact', 'TableHeader')],
+        [cell('Missing GEMINI_API_KEY'), cell('console.warn + skip firm'), cell('Silent — no briefing appears')],
+        [cell('AI HTTP non-200'), cell('console.warn + skip firm'), cell('Silent — no briefing appears')],
+        [cell('AI returns empty content'), cell('Fallback to literal "Unable to generate briefing..." string'), cell('User sees degraded ARIA message')],
+        [cell('Any thrown exception'), cell('try/catch per firm, console.error, continue'), cell('Silent — cron continues, this firm gets no briefing')],
+        [cell('JSON parse failure (summarizer)'), cell('try/catch falls back to raw content as summary'), cell('Silent degradation — summary stored with degraded structure')],
+        [cell('Conversation too short (<3 msgs)'), cell('Returns {skipped: true}'), cell('Silent — by design')],
+    ]
+    story.append(styled_table(error_data, [45*mm, 60*mm, 65*mm]))
+    story.append(P('<i>Table 5.3 — Proactive Engine error handling. All paths are silent. The summarizer self-heals within 24h; the briefing does not.</i>', 'Caption'))
+
+    story.append(add_heading('5.5 Proposed Markdown Files + Migration Priority', STYLES['H2'], 1))
+
+    proactive_md = [
+        [cell('Proposed MD', 'TableHeader'), cell('Source', 'TableHeader'), cell('Priority', 'TableHeader'), cell('Loading option', 'TableHeader')],
+        [cell('20-morning-briefing.md'), cell('proactive.ts:760-803 (buildBriefingPrompt)'), cell('P1 (user-facing, identity-sensitive)'), cell('C (codegen) + inject guardrail prefix from 03')],
+        [cell('21-conversation-summarizer.md'), cell('conversationMemory.ts:203-216'), cell('P2 (internal memory, JSON-structured)'), cell('C (codegen)')],
+        [cell('22-conversation-memory-injection.md'), cell('conversationMemory.ts:91-96 (getInjectionContext)'), cell('P3 (small static string, low churn)'), cell('A (inline) or fold into 21')],
+    ]
+    story.append(styled_table(proactive_md, [50*mm, 50*mm, 40*mm, 30*mm]))
+    story.append(P('<i>Table 5.4 — Proposed Proactive Engine markdown files. P1 is the highest priority because it is the only user-facing surface and it most needs the identity guardrail prepended.</i>', 'Caption'))
+
+    return story
+
+
 def build_layer_audit():
     story = []
-    story.append(add_heading('3. "You\'re Automating the Wrong Layer" Audit', STYLES['H1'], 0))
+    story.append(add_heading('6. "You\'re Automating the Wrong Layer" Audit', STYLES['H1'], 0))
     story.append(P(
         'Van Clief\'s second idea: most people build complex orchestration code when they should be '
         'structuring the context that feeds the system. The context IS the orchestration. This section '
@@ -518,7 +821,7 @@ def build_layer_audit():
         'this session. Each finding is tagged with a launch posture so the team can prioritize.'
     ))
 
-    story.append(add_heading('3.1 The Three Van Clief Showcases (Already Correct)', STYLES['H2'], 1))
+    story.append(add_heading('6.1 The Three Van Clief Showcases (Already Correct)', STYLES['H2'], 1))
     story.append(P(
         'Before cataloguing what is wrong, it is worth noting what is already right. Three flows in '
         'PracticePro are textbook Van Clief implementations — the backend owns the orchestration, the '
@@ -540,9 +843,9 @@ def build_layer_audit():
          cell('Context IS the orchestration: the founder list + notification payload IS the dispatch instruction.')],
     ]
     story.append(styled_table(showcase_data, [40*mm, 75*mm, 55*mm]))
-    story.append(P('<i>Table 3.1 — Three flows that already exemplify the Van Clief methodology. The wrong-layer findings below are places where the same methodology has not yet been applied.</i>', 'Caption'))
+    story.append(P('<i>Table 6.1 — Three flows that already exemplify the Van Clief methodology. The wrong-layer findings below are places where the same methodology has not yet been applied.</i>', 'Caption'))
 
-    story.append(add_heading('3.2 Wrong-Layer Findings — Header.tsx Notification Bell', STYLES['H2'], 1))
+    story.append(add_heading('6.2 Wrong-Layer Findings — Header.tsx Notification Bell', STYLES['H2'], 1))
     story.append(P(
         'The notification bell in Header.tsx is the single largest concentration of wrong-layer code in '
         'the codebase. The frontend merges 4 notification sources (broadcast notifications, user '
@@ -577,9 +880,9 @@ def build_layer_audit():
          cell(nice_badge())],
     ]
     story.append(styled_table(header_findings, [35*mm, 55*mm, 55*mm, 25*mm]))
-    story.append(P('<i>Table 3.2 — Wrong-layer findings in the notification bell. All are POLISH — they work functionally but cause UX spam (double push), drift (localStorage vs Convex), and unnecessary network load.</i>', 'Caption'))
+    story.append(P('<i>Table 6.2 — Wrong-layer findings in the notification bell. All are POLISH — they work functionally but cause UX spam (double push), drift (localStorage vs Convex), and unnecessary network load.</i>', 'Caption'))
 
-    story.append(add_heading('3.3 Wrong-Layer Findings — DataProvider.tsx Optimistic Updates', STYLES['H2'], 1))
+    story.append(add_heading('6.3 Wrong-Layer Findings — DataProvider.tsx Optimistic Updates', STYLES['H2'], 1))
     story.append(P(
         'DataProvider.tsx implements optimistic updates that fight with Convex real-time subscriptions. '
         'The team has already worked around the symptoms (the id/_id split to prevent duplicate task '
@@ -608,9 +911,9 @@ def build_layer_audit():
          cell(nice_badge())],
     ]
     story.append(styled_table(provider_findings, [35*mm, 60*mm, 50*mm, 25*mm]))
-    story.append(P('<i>Table 3.3 — Wrong-layer findings in DataProvider.tsx. The optimistic-update workarounds are the team\'s own acknowledgement that the wrong layer is being automated.</i>', 'Caption'))
+    story.append(P('<i>Table 6.3 — Wrong-layer findings in DataProvider.tsx. The optimistic-update workarounds are the team\'s own acknowledgement that the wrong layer is being automated.</i>', 'Caption'))
 
-    story.append(add_heading('3.4 Wrong-Layer Findings — Defensive Polling in Founder App', STYLES['H2'], 1))
+    story.append(add_heading('6.4 Wrong-Layer Findings — Defensive Polling in Founder App', STYLES['H2'], 1))
     story.append(Paragraph(
         f'<b>{polish_badge()} 6 founder-app views bypass useQuery and use setInterval instead. The root cause is a deploy-gap crash that has a known canonical fix.</b><br/><br/>'
         'The pattern appears in: FounderDashboard.tsx:104 (60s), FounderBottomNav.tsx:242 (15s), '
@@ -625,7 +928,7 @@ def build_layer_audit():
         STYLES['CalloutPolish']
     ))
 
-    story.append(add_heading('3.5 Wrong-Layer Findings — Sequential Per-Message Mutations', STYLES['H2'], 1))
+    story.append(add_heading('6.5 Wrong-Layer Findings — Sequential Per-Message Mutations', STYLES['H2'], 1))
     story.append(Paragraph(
         f'<b>{polish_badge()} MessagesView.tsx:1290-1314 fires 50+ sequential mutations on view mount when there are 50 unread messages.</b><br/><br/>'
         'On view mount (when atriumInboundResult and portalMessagesResult finish loading), a useEffect '
@@ -644,7 +947,7 @@ def build_layer_audit():
 
 def build_launch_audit():
     story = []
-    story.append(add_heading('4. Alpha-Launch Posture — Ship Atrium Now', STYLES['H1'], 0))
+    story.append(add_heading('7. Alpha-Launch Posture — Ship Atrium Now', STYLES['H1'], 0))
     story.append(P(
         'Van Clief\'s fourth idea: launch fast, learn from real users, iterate. The known bugs in '
         'Atrium are mostly polish, not blockers. This section explicitly tags every finding from this '
@@ -654,7 +957,7 @@ def build_launch_audit():
         'fixed; POLISH means fix in the first 2 weeks; NICE-TO-HAVE means backlog.'
     ))
 
-    story.append(add_heading('4.1 SHIP-BLOCKERS (Must Fix Before Atrium Launch)', STYLES['H2'], 1))
+    story.append(add_heading('7.1 SHIP-BLOCKERS (Must Fix Before Atrium Launch)', STYLES['H2'], 1))
     story.append(Paragraph(
         '<b>3 ship-blockers. All are security issues. None are polish. All have known fixes with '
         'low regression risk.</b> The team can ship Atrium the same day these 3 are fixed.',
@@ -679,9 +982,9 @@ def build_launch_audit():
          cell('1 hour')],
     ]
     story.append(styled_table(blocker_data, [10*mm, 70*mm, 60*mm, 20*mm]))
-    story.append(P('<i>Table 4.1 — Three ship-blockers. B1 and B2 require coordinated AuthContext changes; B3 is a one-hour fix. Total: 3-4 days of engineering to clear all three.</i>', 'Caption'))
+    story.append(P('<i>Table 7.1 — Three ship-blockers. B1 and B2 require coordinated AuthContext changes; B3 is a one-hour fix. Total: 3-4 days of engineering to clear all three.</i>', 'Caption'))
 
-    story.append(add_heading('4.2 POLISH (Fix in First 2 Weeks Post-Launch)', STYLES['H2'], 1))
+    story.append(add_heading('7.2 POLISH (Fix in First 2 Weeks Post-Launch)', STYLES['H2'], 1))
     story.append(P(
         '12 polish items. All are wrong-layer patterns that work functionally but cause UX spam '
         '(double push), drift (localStorage vs Convex), flicker (optimistic updates vs subscriptions), '
@@ -717,9 +1020,9 @@ def build_launch_audit():
          cell('NDPA compliance + reversibility for legal/financial records'), cell('2 days')],
     ]
     story.append(styled_table(polish_data, [10*mm, 80*mm, 50*mm, 20*mm]))
-    story.append(P('<i>Table 4.2 — 12 polish items. P1-P5 are ICM + identity-guardrail fixes (low effort, high morale win). P6-P7 close the multi-tenant hole from the prior audit. P8-P10 are wrong-layer consolidations. P11-P12 are data-integrity infrastructure.</i>', 'Caption'))
+    story.append(P('<i>Table 7.2 — 12 polish items. P1-P5 are ICM + identity-guardrail fixes (low effort, high morale win). P6-P7 close the multi-tenant hole from the prior audit. P8-P10 are wrong-layer consolidations. P11-P12 are data-integrity infrastructure.</i>', 'Caption'))
 
-    story.append(add_heading('4.3 NICE-TO-HAVE (Backlog)', STYLES['H2'], 1))
+    story.append(add_heading('7.3 NICE-TO-HAVE (Backlog)', STYLES['H2'], 1))
     nice_data = [
         [cell('#', 'TableHeader'), cell('Item', 'TableHeader'), cell('Why it is backlog', 'TableHeader')],
         [cell('N1'), cell('Delete 49 dead shadcn files in src/components/ui/ + CognitiveGuidance.tsx (zero importers)'),
@@ -740,14 +1043,14 @@ def build_launch_audit():
          cell('Refactor; Header becomes pure layout; no functional change')],
     ]
     story.append(styled_table(nice_data, [10*mm, 75*mm, 75*mm]))
-    story.append(P('<i>Table 4.3 — 8 backlog items. N1 is the highest-ROI quick win (170 TS errors in 1 hour). N4 is the largest item (god-component extraction, ~1-2 weeks of work).</i>', 'Caption'))
+    story.append(P('<i>Table 7.3 — 8 backlog items. N1 is the highest-ROI quick win (170 TS errors in 1 hour). N4 is the largest item (god-component extraction, ~1-2 weeks of work).</i>', 'Caption'))
 
     return story
 
 
 def build_roadmap():
     story = []
-    story.append(add_heading('5. Implementation Roadmap', STYLES['H1'], 0))
+    story.append(add_heading('8. Implementation Roadmap', STYLES['H1'], 0))
     story.append(P(
         'The roadmap is sequenced so that the ship-blockers clear first (so Atrium can launch), then '
         'the highest-impact polish items (so the first 2 weeks post-launch are productive), then the '
@@ -757,7 +1060,7 @@ def build_roadmap():
         'and Phase 3 (the 9 agent SYSTEM_PROMPTs get markdown counterparts).'
     ))
 
-    story.append(add_heading('5.1 Phase 0 — Ship-Blockers (3-4 days)', STYLES['H2'], 1))
+    story.append(add_heading('8.1 Phase 0 — Ship-Blockers (3-4 days)', STYLES['H2'], 1))
     story.append(Paragraph(
         '<b>Goal:</b> Clear the 3 security ship-blockers so Atrium can launch. <b>Constraint:</b> All '
         '3 fixes are additive (no behavioural change for legitimate callers). B1 and B2 require '
@@ -773,7 +1076,7 @@ def build_roadmap():
     ]
     story.append(styled_table(p0_data, [80*mm, 20*mm, 60*mm]))
 
-    story.append(add_heading('5.2 Phase 1 — ICM Proof-of-Concept + Quick Wins (1 week)', STYLES['H2'], 1))
+    story.append(add_heading('8.2 Phase 1 — ICM Proof-of-Concept + Quick Wins (1 week)', STYLES['H2'], 1))
     story.append(Paragraph(
         '<b>Goal:</b> Wire up the first ICM markdown file via Vite ?raw imports (proof-of-concept), '
         'fix the identity-guardrail split-brain, fix the Atrium-gets-legal-protocol bug, and clear '
@@ -794,7 +1097,7 @@ def build_roadmap():
     ]
     story.append(styled_table(p1_data, [80*mm, 20*mm, 60*mm]))
 
-    story.append(add_heading('5.3 Phase 2 — Security + Data Integrity (1-2 weeks)', STYLES['H2'], 1))
+    story.append(add_heading('8.3 Phase 2 — Security + Data Integrity (1-2 weeks)', STYLES['H2'], 1))
     story.append(Paragraph(
         '<b>Goal:</b> Close the multi-tenant isolation hole from the prior audit, add idempotency to '
         'critical writes, and convert hard-deletes to soft-deletes. <b>Constraint:</b> Schema changes '
@@ -816,7 +1119,7 @@ def build_roadmap():
     ]
     story.append(styled_table(p2_data, [80*mm, 20*mm, 60*mm]))
 
-    story.append(add_heading('5.4 Phase 3 — ICM Extension + Code Organization (2-4 weeks)', STYLES['H2'], 1))
+    story.append(add_heading('8.4 Phase 3 — ICM Extension + Code Organization (2-4 weeks)', STYLES['H2'], 1))
     story.append(Paragraph(
         '<b>Goal:</b> Extend ICM to the remaining 4 primary markdown files + the 9 agent SYSTEM_PROMPTs, '
         'extract the 9 god components, and consolidate duplicated helpers. <b>Constraint:</b> All '
@@ -844,9 +1147,9 @@ def build_roadmap():
 
 def build_appendix():
     story = []
-    story.append(add_heading('6. Appendix — Recipes &amp; Reference', STYLES['H1'], 0))
+    story.append(add_heading('9. Appendix — Recipes &amp; Reference', STYLES['H1'], 0))
 
-    story.append(add_heading('6.1 The ICM Loader Recipe (Vite ?raw imports)', STYLES['H2'], 1))
+    story.append(add_heading('9.1 The ICM Loader Recipe (Vite ?raw imports)', STYLES['H2'], 1))
     story.append(P(
         'The recommended approach for wiring up the markdown files as the source of truth. Vite '
         'natively supports importing any file as a raw string via the ?raw suffix. No plugins '
@@ -877,7 +1180,7 @@ export const PROMPTS = {
 //     return PROMPTS.formProtocol.replace('{{defaultMode}}', isAtrium ? 'property' : 'legal');
 //   };'''))
 
-    story.append(add_heading('6.2 The notifyFounders Recipe (Already a Showcase)', STYLES['H2'], 1))
+    story.append(add_heading('9.2 The notifyFounders Recipe (Already a Showcase)', STYLES['H2'], 1))
     story.append(P(
         'The notifyFounders helper in convex/founderNotifications.ts is the canonical Van Clief pattern '
         'for backend-owned orchestration. A single client mutation (e.g., submitSalesInquiry) calls '
@@ -920,7 +1223,7 @@ export const notifyFounders = async (ctx, payload) => {
   }
 };'''))
 
-    story.append(add_heading('6.3 The ErrorBoundary Recipe (Replaces Defensive Polling)', STYLES['H2'], 1))
+    story.append(add_heading('9.3 The ErrorBoundary Recipe (Replaces Defensive Polling)', STYLES['H2'], 1))
     story.append(P(
         'The canonical fix for the 6 founder-app polling sites that bypass useQuery to avoid deploy-gap '
         'crashes. Wrap the component in an ErrorBoundary with a fallback that renders a "not deployed '
@@ -943,7 +1246,7 @@ function BillingMonitorInner() {
 // If the backend function doesn't exist (deploy gap), ErrorBoundary
 // catches the synchronous throw and renders the fallback. No black screen.'''))
 
-    story.append(add_heading('6.4 Files Modified in This Audit Session', STYLES['H2'], 1))
+    story.append(add_heading('9.4 Files Modified in This Audit Session', STYLES['H2'], 1))
     story.append(P(
         'This session applied two fixes: the landing page product dropdown wrap (immediate UI bug) and '
         'the 5 surgical fixes from the prior session (preserved). The build passes cleanly.'
@@ -962,7 +1265,7 @@ function BillingMonitorInner() {
     ]
     story.append(styled_table(mod_data, [55*mm, 75*mm, 30*mm]))
 
-    story.append(add_heading('6.5 Audit Methodology', STYLES['H2'], 1))
+    story.append(add_heading('9.5 Audit Methodology', STYLES['H2'], 1))
     story.append(P(
         'This audit was conducted by two parallel exploration agents (one for the ICM / ALOA-ARIA '
         'prompt architecture, one for the wrong-layer / launch-posture audit) using read-only file '
@@ -1012,6 +1315,9 @@ def main():
     story.extend(build_toc())
     story.extend(build_methodology_intro())
     story.extend(build_icm_audit())
+    story.extend(build_draftpro_icm_audit())
+    story.extend(build_research_studio_icm_audit())
+    story.extend(build_proactive_icm_audit())
     story.extend(build_layer_audit())
     story.extend(build_launch_audit())
     story.extend(build_roadmap())
