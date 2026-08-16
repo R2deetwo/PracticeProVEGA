@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Logo, DocumentIcon, ShieldCheckIcon, SparklesIcon, ArrowLeftIcon } from '../constants';
 import { sanitize } from '../utils/sanitization';
 
@@ -1142,13 +1142,33 @@ const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
 const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, activeProduct, setActiveProduct }) => {
     const isVega = activeProduct === 'vega';
     const [whatsNewFilter, setWhatsNewFilter] = useState<'all' | 'vega' | 'atrium' | 'komplete'>(activeProduct);
+    const [activeTab, setActiveTab] = useState<'whatsnew' | 'papers' | 'guides' | 'compliance' | 'legal'>('whatsnew');
+    const [showBackToTop, setShowBackToTop] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
     const filteredWhatsNew = whatsNewFilter === 'all'
         ? WHATS_NEW_ENTRIES
         : WHATS_NEW_ENTRIES.filter(e => e.products.includes(whatsNewFilter as any));
+    const productBadge = isVega
+        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+        : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+
+    const tabs = [
+        { key: 'whatsnew' as const, label: "What's New" },
+        { key: 'papers' as const, label: 'White Papers' },
+        { key: 'guides' as const, label: 'Guides' },
+        { key: 'compliance' as const, label: 'Security' },
+        { key: 'legal' as const, label: 'Legal' },
+    ];
+
+    const handleScroll = () => {
+        if (scrollRef.current) setShowBackToTop(scrollRef.current.scrollTop > 400);
+    };
+    const scrollToTop = () => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+
     return (
-        <div className="h-[100dvh] overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
+        <div ref={scrollRef} onScroll={handleScroll} className="h-[100dvh] overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
             {/* Header */}
-            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/[0.06] sticky top-0 z-10">
+            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/[0.06] sticky top-0 z-20">
                 <div className="container mx-auto px-6 h-16 flex items-center gap-4">
                     <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                         <ArrowLeftIcon className="w-4 h-4" />
@@ -1161,7 +1181,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         <span className="text-slate-400 dark:text-slate-500">/</span>
                         <span className="text-slate-600 dark:text-slate-300 font-medium flex items-center">
                             Resources
-                            <span className="text-2xs ml-2 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 font-bold bg-slate-100 dark:bg-white/5 text-slate-500 tracking-wider">
+                            <span className={`text-2xs ml-2 px-1.5 py-0.5 rounded font-bold tracking-wider ${productBadge}`}>
                                 {isVega ? 'VEGA' : 'ATRIUM'}
                             </span>
                         </span>
@@ -1188,15 +1208,15 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     {/* Toggle */}
                     {setActiveProduct && (
                         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-white/10 shrink-0 self-start">
-                            <button 
-                                onClick={() => setActiveProduct('vega')} 
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-600 dark:text-primary-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                            <button
+                                onClick={() => setActiveProduct('vega')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                             >
                                 Law Firms
                             </button>
-                            <button 
-                                onClick={() => setActiveProduct('atrium')} 
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                            <button
+                                onClick={() => setActiveProduct('atrium')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                             >
                                 Property Managers
                             </button>
@@ -1204,14 +1224,37 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     )}
                 </div>
 
+                {/* Tab Navigation */}
+                <div className="flex gap-1 mb-8 border-b border-slate-200 dark:border-white/[0.06] overflow-x-auto" role="tablist">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => { setActiveTab(tab.key); scrollToTop(); }}
+                            role="tab"
+                            aria-selected={activeTab === tab.key}
+                            className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
+                                activeTab === tab.key
+                                    ? `${isVega ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-emerald-500 text-emerald-600 dark:text-emerald-400'}`
+                                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
                 {/* What's New — with product filter */}
+                {activeTab === 'whatsnew' && (
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
                             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">What's New</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                                What's New
+                                <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
+                            </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">Latest updates and major feature releases</p>
                         </div>
                     </div>
@@ -1230,15 +1273,20 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         )}
                     </div>
                 </section>
+                )}
 
                 {/* White Papers */}
+                {activeTab === 'papers' && (
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-8 h-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center">
                             <DocumentIcon className="w-4 h-4 text-white dark:text-slate-900" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">White Papers</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                                White Papers
+                                <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
+                            </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">{isVega ? 'Original research on legal technology, compliance, and practice management' : 'Original research on property technology, compliance, and agency management'}</p>
                         </div>
                     </div>
@@ -1246,15 +1294,20 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         {(isVega ? WHITE_PAPERS : ATRIUM_WHITE_PAPERS).map(paper => <WhitePaperCard key={paper.id} paper={paper} activeProduct={activeProduct} />)}
                     </div>
                 </section>
+                )}
 
                 {/* Compliance & Security */}
+                {activeTab === 'compliance' && (
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
                             <ShieldCheckIcon className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Security & Compliance</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                                Security & Compliance
+                                <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
+                            </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">Our formal compliance posture and security documentation</p>
                         </div>
                     </div>
@@ -1275,15 +1328,20 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         ))}
                     </div>
                 </section>
+                )}
 
                 {/* Product Guides */}
+                {activeTab === 'guides' && (
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center">
                             <SparklesIcon className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Product Guides</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                                Product Guides
+                                <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
+                            </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">Step-by-step guides for getting the most from PracticePro</p>
                         </div>
                     </div>
@@ -1293,8 +1351,10 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         ))}
                     </div>
                 </section>
+                )}
 
                 {/* Legal Notices */}
+                {activeTab === 'legal' && (
                 <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-8">
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Legal Notices</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Governing documents for your use of PracticePro {isVega ? 'VEGA' : 'ATRIUM'}</p>
@@ -1319,12 +1379,40 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         </button>
                     </div>
                 </section>
+                )}
 
-                {/* Footer note */}
-                <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-12">
+                {/* CTA Footer */}
+                <div className="mt-12 mb-8 p-8 rounded-2xl bg-slate-900 dark:bg-white/[0.03] border border-slate-800 dark:border-white/[0.06] text-center">
+                    <h3 className="text-xl font-bold text-white dark:text-white mb-2">Ready to get started?</h3>
+                    <p className="text-slate-400 dark:text-slate-400 text-sm mb-6 max-w-md mx-auto">
+                        {isVega ? 'Start your 14-day free trial of PracticePro Vega today.' : 'Start your 14-day free trial of PracticePro Atrium today.'}
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                        <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors">
+                            Start Free Trial
+                        </button>
+                        <button onClick={onBack} className="px-6 py-3 rounded-xl border border-slate-600 dark:border-white/20 text-white text-sm font-bold hover:bg-white/10 transition-colors">
+                            Talk to Sales
+                        </button>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <p className="text-center text-xs text-slate-400 dark:text-slate-600">
                     © {new Date().getFullYear()} PracticePro Systems Ltd. Lagos, Nigeria.
                 </p>
             </div>
+
+            {/* Back to Top Button */}
+            {showBackToTop && (
+                <button
+                    onClick={scrollToTop}
+                    className="fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                    aria-label="Back to top"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                </button>
+            )}
         </div>
     );
 };
