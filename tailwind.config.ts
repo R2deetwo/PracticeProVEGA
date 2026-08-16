@@ -73,7 +73,21 @@ const config: Config = {
                         soft: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
                         softer: '0 2px 12px -2px rgba(0, 0, 0, 0.03)',
                         premium: '0 8px 32px -4px rgba(0, 0, 0, 0.08)',
-                }
+                },
+                // ─── Micro typography ─────────────────────────────────────────
+                // These utility classes (text-2xs, text-3xs, tracking-wide-label)
+                // are used in 30+ places across LandingPage.tsx, ContactSalesDrawer.tsx,
+                // designTokens.ts, FounderBottomNav, AdminLogin, NotificationCenter,
+                // and more. Without these definitions, Tailwind silently drops the
+                // classes and text falls back to the inherited (larger) size —
+                // breaking the tight micro-labels on badges, pills, and modal stats.
+                fontSize: {
+                        '2xs': ['0.625rem', { lineHeight: '0.875rem' }],   // 10px / 14px
+                        '3xs': ['0.5rem',   { lineHeight: '0.75rem' }],     // 8px / 12px
+                },
+                letterSpacing: {
+                        'wide-label': '0.05em',
+                },
         }
   },
   plugins: [tailwindcssAnimate],

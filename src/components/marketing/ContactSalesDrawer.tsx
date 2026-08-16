@@ -134,6 +134,9 @@ const ContactSalesDrawer: React.FC<{
             <div
                 className={`fixed inset-0 z-[9500] bg-black/40 backdrop-blur-sm transition-opacity duration-300 flex items-end sm:items-center sm:justify-center p-0 sm:p-4 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
                 onClick={handleClose}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Contact Sales form"
             >
             {/* Panel — bottom sheet on mobile, centered in viewport on desktop.
                 Uses the backdrop as a flex container so the form is always
@@ -163,7 +166,7 @@ const ContactSalesDrawer: React.FC<{
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-6 pb-safe">
                     {isSubmitted ? (
                         /* ── Success State ── */
                         <div className="flex flex-col items-center justify-center h-full text-center px-4">

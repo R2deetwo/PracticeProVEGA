@@ -144,6 +144,9 @@ const NavBar: React.FC<{
     onBackToHub: () => void;
 }> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, activeProduct, setActiveProduct, productChosen, onBackToHub }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+    // Products dropdown — click-toggle (not hover) so iPad/tablet touch users
+    // can open it. Hover is unreliable on iPadOS Safari.
+    const [productsOpen, setProductsOpen] = React.useState(false);
 
     // Close mobile menu on product switch or navigation
     const handleNavClick = (fn: () => void) => {
@@ -152,7 +155,7 @@ const NavBar: React.FC<{
     };
 
     return (
-    <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300">
+    <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
         {/* Glass layer — always light on landing page */}
         <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-colors duration-500" />
 
@@ -195,26 +198,45 @@ const NavBar: React.FC<{
                 )}
             </div>
 
-            {/* Desktop Links — context-aware: hub page shows only Products + Resources + Contact.
-                Product pages (Vega/Atrium) show Features, Pricing, How It Works, Resources, Contact. */}
-            <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-                <div className="relative group">
-                    <button className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200">
+            {/* Desktop Links — shown on lg+ (1024px+). Raised from md: to lg:
+                because iPad portrait (768-820px) was showing this nav and
+                overflowing horizontally on /vega and /atrium pages (9 items
+                don't fit in 720px). iPad portrait now uses the mobile menu. */}
+            <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
+                {/* Products dropdown — click-toggle (was hover-only, which
+                    broke iPad/tablet touch). Click to open, click again or
+                    click outside to close. */}
+                <div className="relative">
+                    <button
+                        onClick={() => setProductsOpen(o => !o)}
+                        onBlur={() => setTimeout(() => setProductsOpen(false), 150)}
+                        aria-expanded={productsOpen}
+                        aria-haspopup="true"
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200"
+                    >
                         Products
-                        <svg className="w-4 h-4 ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        <svg className={`w-4 h-4 ml-0.5 opacity-60 transition-transform ${productsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
-                    <div className="absolute top-full left-0 pt-1 w-[210px]">
-                    <div className="bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
-                        <button onClick={() => setActiveProduct('vega')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
-                            <ScalesIcon className="w-4 h-4 opacity-70" />
-                            Vega
-                        </button>
-                        <button onClick={() => setActiveProduct('atrium')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
-                            <OfficeBuildingIcon className="w-4 h-4 opacity-70" />
-                            Atrium
-                        </button>
-                    </div>
-                    </div>
+                    {productsOpen && (
+                        <div className="absolute top-full left-0 pt-1 w-[210px]">
+                            <div className="bg-white border border-slate-200 rounded-lg shadow-xl flex flex-col p-1">
+                                <button
+                                    onClick={() => { setActiveProduct('vega'); setProductsOpen(false); }}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <ScalesIcon className="w-4 h-4 opacity-70" />
+                                    Vega
+                                </button>
+                                <button
+                                    onClick={() => { setActiveProduct('atrium'); setProductsOpen(false); }}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <OfficeBuildingIcon className="w-4 h-4 opacity-70" />
+                                    Atrium
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 {productChosen && (
                     <>
@@ -266,22 +288,24 @@ const NavBar: React.FC<{
 
             {/* Right Actions */}
             <div className="flex items-center gap-2">
-                <div className="hidden md:block h-4 w-px bg-slate-200 mx-1" />
+                <div className="hidden lg:block h-4 w-px bg-slate-200 mx-1" />
 
                 <button
                     onClick={onLogin}
-                    className="hidden md:block px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors"
+                    className="hidden lg:block px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors"
                 >
                     Log In
                 </button>
-                <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-lg">
+                <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-lg">
                     Start Free Trial
                 </PrimaryButton>
 
-                {/* Mobile hamburger button */}
+                {/* Mobile hamburger button — shown below lg (1024px) so iPad
+                    portrait uses the mobile menu instead of the overflowed
+                    desktop nav. */}
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
                     aria-label="Toggle menu"
                     aria-expanded={mobileMenuOpen}
                 >
@@ -294,10 +318,23 @@ const NavBar: React.FC<{
             </div>
         </div>
 
-        {/* Mobile overlay menu */}
+        {/* Mobile overlay menu — shown below lg (1024px). Raised from md:
+            so iPad portrait uses this instead of the overflowed desktop nav. */}
         {mobileMenuOpen && (
-            <div className="md:hidden fixed inset-0 top-16 z-[240] bg-white overflow-y-auto">
+            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] bg-white overflow-y-auto">
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
+                    {/* Back-to-hub affordance — mobile users on /vega or /atrium
+                        need a way to get back to the hub page. Previously this
+                        was only available via the (invisible on touch) hover
+                        breadcrumb in the desktop nav. */}
+                    {productChosen && (
+                        <button
+                            onClick={() => handleNavClick(onBackToHub)}
+                            className="w-full text-left px-4 py-3 mb-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                        >
+                            <ArrowLeftIcon className="w-5 h-5 opacity-70" /> All Products
+                        </button>
+                    )}
                     <div className="mb-2">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
                         <button onClick={() => handleNavClick(() => setActiveProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}`}>
@@ -332,9 +369,9 @@ const NavBar: React.FC<{
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
 const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onUsageClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
-    <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16">
+    <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-10 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
                 {/* Brand */}
                 <div>
                     <div className="flex items-center gap-2.5 mb-4">
@@ -819,7 +856,7 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
         <section id="features" className="py-12 sm:py-20 lg:py-28" style={{ background: 'var(--color-paper)' }}>
             <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
                 {/* Header */}
-                <div ref={headerRef} className="scroll-reveal text-center mb-16">
+                <div ref={headerRef} className="scroll-reveal text-center mb-10 md:mb-16">
                     <Pill className="mb-5 bg-primary-50 text-primary-700 border-primary-200">
                         Features
                     </Pill>
@@ -1166,7 +1203,7 @@ const SceCalculatorModal: React.FC<{
                                 <button
                                     key={n}
                                     onClick={() => setUnitCount(n)}
-                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all touch-target ${
                                         units === n
                                             ? 'bg-emerald-600 text-white shadow-sm'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1344,7 +1381,7 @@ const SceCalculatorModal: React.FC<{
                 </div>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex-shrink-0 px-4 sm:px-6 py-4 pb-safe border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <p className="text-xs text-slate-500">
                         {units.toLocaleString('en-NG')} units · {billingCycle === 'annual' ? 'Annual billing' : 'Monthly billing'}
                     </p>
@@ -1376,9 +1413,8 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     const isVega = activeProduct === 'vega';
     // SCE Calculator modal state (Atrium only)
     const [showSceCalculator, setShowSceCalculator] = useState(false);
-    // Hover behavior: Calculate button hidden until user hovers a plan,
-    // then slides in when hovering the pill area
-    const [hasHoveredPlan, setHasHoveredPlan] = useState(false);
+    // Tooltip hover state for the "SCE shown per unit" pill (desktop only).
+    // The Calculate button itself is now always visible — no hover gating.
     const [isHoveringArea, setIsHoveringArea] = useState(false);
     const productMode: ProductMode = isVega ? 'legal' : 'property';
     const tiers = getDisplayTiersForProduct(productMode);
@@ -1417,7 +1453,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     <section id="pricing" className="min-h-[100dvh] pt-16 pb-16 px-4 sm:px-6" style={{ background: 'var(--color-paper)' }}>
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
-            <div ref={headerRef} className="scroll-reveal text-center mb-16">
+            <div ref={headerRef} className="scroll-reveal text-center mb-10 md:mb-16">
                 <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
                     {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
@@ -1453,35 +1489,38 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
                 {!isVega && (
                     <div
-                        className="flex justify-center items-center mt-2 relative"
-                        onMouseEnter={() => setIsHoveringArea(true)}
-                        onMouseLeave={() => setIsHoveringArea(false)}
+                        className="flex flex-col sm:flex-row justify-center items-center mt-4 gap-3 relative"
                     >
-                        {/* SCE explanation tooltip — shows when hovering the area */}
+                        {/* SCE explanation tooltip — shows when hovering the pill (desktop only; on touch devices the info is in the calculator itself) */}
                         <div
-                            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 max-w-[90vw] rounded-lg bg-slate-900 px-4 py-3 text-xs leading-relaxed text-white shadow-2xl transition-all duration-300 pointer-events-none ${
-                                isHoveringArea ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-                            }`}
+                            className="group relative"
+                            onMouseEnter={() => setIsHoveringArea(true)}
+                            onMouseLeave={() => setIsHoveringArea(false)}
                         >
-                            <strong className="block mb-1">What is SCE?</strong>
-                            Service Charge Equivalent is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is not an additional fee charged by Atrium.
-                            {/* Arrow */}
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900" />
+                            {/* Pill — always visible. PRICING AUDIT: removed "Billed Annually" (Atrium now has monthly too) */}
+                            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200 whitespace-nowrap cursor-help">
+                                SCE shown per unit<span className="text-blue-500 font-bold">*</span>
+                            </span>
+                            {/* Tooltip */}
+                            <div
+                                className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 max-w-[90vw] rounded-lg bg-slate-900 px-4 py-3 text-xs leading-relaxed text-white shadow-2xl transition-all duration-300 pointer-events-none ${
+                                    isHoveringArea ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                                }`}
+                            >
+                                <strong className="block mb-1">What is SCE?</strong>
+                                Service Charge Equivalent is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is not an additional fee charged by Atrium.
+                                {/* Arrow */}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900" />
+                            </div>
                         </div>
 
-                        {/* Pill — always centered. PRICING AUDIT: removed "Billed Annually" (Atrium now has monthly too) */}
-                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200 whitespace-nowrap">
-                            SCE shown per unit<span className="text-blue-500 font-bold">*</span>
-                        </span>
-
-                        {/* Calculate button — slides in gracefully after user has hovered a plan */}
+                        {/* Calculate button — ALWAYS visible (previously gated behind a
+                            hover-and-hover requirement that made it permanently invisible
+                            on touch devices and confusing on desktop). Now it sits next
+                            to the pill, full opacity, full width, on every device. */}
                         <button
                             onClick={() => setShowSceCalculator(true)}
-                            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 transition-all duration-500 ease-out whitespace-nowrap overflow-hidden ${
-                                hasHoveredPlan && isHoveringArea
-                                    ? 'opacity-100 max-w-[200px] ml-3'
-                                    : 'opacity-0 max-w-0 ml-0'
-                            }`}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 active:scale-95 transition-all duration-200 whitespace-nowrap shadow-sm hover:shadow-md"
                         >
                             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                             <span>Calculate your SCE</span>
@@ -1494,7 +1533,6 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
             <div
                 ref={gridRef}
                 className="scroll-reveal scroll-reveal-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto"
-                onMouseEnter={() => setHasHoveredPlan(true)}
             >
                 {dynamicPlans.map((plan) => (
                     <div
@@ -1797,7 +1835,7 @@ const HowItWorksSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ act
                             : 'From sign-up to your first rent collection — in minutes, not weeks.'}
                     </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
                     {steps.map((step, i) => (
                         <div key={i} className={`text-center relative ${accentBg} ${accentBorder} border rounded-2xl p-8`}>
                             {/* Legible step number — solid accent color, not slate-100 */}
@@ -1987,35 +2025,51 @@ const FAQSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProd
 };
 
 // ─── FINAL CTA SECTION ───────────────────────────────────────────────────
-const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
-    <section className="py-20 md:py-28 bg-primary-600 text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-                Ready to stop managing chaos?
-            </h2>
-            <p className="text-lg text-white/80 mt-4 max-w-2xl mx-auto">
-                Join Nigerian law firms and property managers who've already switched to PracticePro.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-                <button
-                    onClick={onSignup}
-                    className="bg-white text-primary-600 px-8 py-4 rounded-xl font-semibold hover:bg-white/90 hover:scale-[1.02] transition-all shadow-lg"
-                >
-                    Start Free Trial
-                </button>
-                <button
-                    onClick={onContactSales}
-                    className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all"
-                >
-                    Talk to Sales
-                </button>
+// Product-specific headline + body. The green background (bg-primary-600) is
+// preserved across both products per user request — only the copy changes.
+const FINAL_CTA_COPY = {
+    vega: {
+        headline: 'Ready to run a sharper practice?',
+        body: 'Join Nigerian law firms who have already switched to PracticePro Vega — matter management, AI drafting, and court-rule-aware calendaring built for the way you actually work.',
+    },
+    atrium: {
+        headline: 'Ready to stop managing chaos?',
+        body: 'Join Nigerian property managers who have already switched to PracticePro Atrium — rent collection, tenant portals, and revenue intelligence built for portfolios that scale.',
+    },
+};
+
+const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium' }> = ({ onSignup, onContactSales, activeProduct }) => {
+    const copy = FINAL_CTA_COPY[activeProduct];
+    return (
+        <section className="py-20 md:py-28 bg-primary-600 text-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
+                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+                    {copy.headline}
+                </h2>
+                <p className="text-lg text-white/80 mt-4 max-w-2xl mx-auto">
+                    {copy.body}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                    <button
+                        onClick={onSignup}
+                        className="bg-white text-primary-600 px-8 py-4 rounded-xl font-semibold hover:bg-white/90 hover:scale-[1.02] transition-all shadow-lg"
+                    >
+                        Start Free Trial
+                    </button>
+                    <button
+                        onClick={onContactSales}
+                        className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all"
+                    >
+                        Talk to Sales
+                    </button>
+                </div>
+                <p className="text-sm text-white/60 mt-6">
+                    No credit card · 30-day trial · Cancel anytime
+                </p>
             </div>
-            <p className="text-sm text-white/60 mt-6">
-                No credit card · 30-day trial · Cancel anytime
-            </p>
-        </div>
-    </section>
-);
+        </section>
+    );
+};
 
 // ─── MOBILE STICKY BOTTOM CTA BAR ─────────────────────────────────────────
 const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
@@ -2264,7 +2318,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <HowItWorksSection activeProduct={activeProduct} />
                     <TestimonialsSection />
                     <FAQSection activeProduct={activeProduct} />
-                    <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} />
+                    <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} activeProduct={activeProduct} />
                 </main>
             )}
 
