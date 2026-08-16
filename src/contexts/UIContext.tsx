@@ -489,6 +489,8 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         if (location.pathname === '/privacy-policy') mappedView = 'privacyPolicy' as any;
         if (location.pathname === '/terms-of-service') mappedView = 'termsOfService' as any;
         if (location.pathname === '/data-processing-agreement') mappedView = 'dataProcessingAgreement' as any;
+        if (location.pathname === '/usage-policy') mappedView = 'usagePolicy' as any;
+        if (location.pathname === '/resources') mappedView = 'resources' as any;
         if (currentView === 'matters' && currentId) mappedView = 'matterDetail';
         if (currentView === 'contacts' && currentId) mappedView = 'contactDetail';
         if (currentView === 'documents' && currentId) mappedView = 'documentDetail';
@@ -570,6 +572,8 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         else if (newView === 'termsOfService') path = '/terms-of-service';
         else if (newView === 'portalTermsOfUse') path = '/portal-terms-of-use';
         else if (newView === 'dataProcessingAgreement') path = '/data-processing-agreement';
+        else if (newView === 'usagePolicy') path = '/usage-policy';
+        else if (newView === 'resources') path = '/resources';
         else if (newView === 'matterDetail') path = `/matters/${safeId}`;
         else if (newView === 'contactDetail') path = `/contacts/${safeId}`;
         else if (newView === 'documentDetail') path = `/documents/${safeId}`;

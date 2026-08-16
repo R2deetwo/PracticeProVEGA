@@ -22,6 +22,7 @@ const ContactSalesDrawer: React.FC<{
         email: '',
         name: '',
         companyName: '',
+        phone: '',
         message: '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -61,6 +62,12 @@ const ContactSalesDrawer: React.FC<{
         }
         if (!formData.message.trim()) {
             newErrors.message = 'Please describe your needs';
+        } else if (formData.message.trim().length < 10) {
+            newErrors.message = 'Please provide a bit more detail (at least 10 characters)';
+        }
+        // Phone is optional — but if provided, validate it looks like a phone number
+        if (formData.phone.trim() && !/^[+]?[\d\s()-]{7,}$/.test(formData.phone.trim())) {
+            newErrors.phone = 'Please enter a valid phone number (e.g. +234 801 234 5678)';
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -76,9 +83,9 @@ const ContactSalesDrawer: React.FC<{
                 email: formData.email.trim(),
                 name: formData.name.trim(),
                 companyName: formData.companyName.trim() || undefined,
-                message: formData.message.trim(),
+                message: formData.message.trim() + (formData.phone.trim() ? `\n\nPhone: ${formData.phone.trim()} (preferred contact via WhatsApp/phone)` : ''),
                 source,
-                productInterest: undefined, // Could be passed from the landing page context
+                productInterest: undefined,
             });
             setIsSubmitted(true);
         } catch (err) {
@@ -95,7 +102,7 @@ const ContactSalesDrawer: React.FC<{
             onClose();
             if (isSubmitted) {
                 setIsSubmitted(false);
-                setFormData({ email: '', name: '', companyName: '', message: '' });
+                setFormData({ email: '', name: '', companyName: '', phone: '', message: '' });
                 setErrors({});
             }
         }, 300);
@@ -164,7 +171,7 @@ const ContactSalesDrawer: React.FC<{
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Message Sent</h3>
                             <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-xs">
-                                Thank you. One of our consultants will reach out to you directly via your email within 24 hours.
+                                Thank you. One of our consultants will reach out to you within 24 hours{formData.phone ? ' via WhatsApp or phone' : ' via your email'}.
                             </p>
                             <button
                                 onClick={handleClose}
@@ -229,6 +236,24 @@ const ContactSalesDrawer: React.FC<{
                                         className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Phone (optional — for WhatsApp/phone preference) */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
+                                    Phone <span className="text-slate-400 dark:text-zinc-500">(optional — for WhatsApp/phone contact)</span>
+                                </label>
+                                <div className="relative">
+                                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                    <input
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={e => updateField('phone', e.target.value)}
+                                        placeholder="+234 801 234 5678"
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.phone ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                    />
+                                </div>
+                                {errors.phone && <p className="text-2xs text-red-500 mt-1">{errors.phone}</p>}
                             </div>
 
                             {/* Message */}

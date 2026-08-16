@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
     Logo, CheckIcon, ZapIcon,
@@ -7,12 +8,7 @@ import {
     OfficeBuildingIcon, SearchIcon, ArrowLeftIcon, LockClosedIcon, KeyIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
-import PrivacyPolicy from './PrivacyPolicy';
-import TermsOfService from './TermsOfService';
-import DataProcessingAgreement from './DataProcessingAgreement';
-import CookiePolicy from './CookiePolicy';
-import UsagePolicy from './UsagePolicy';
-import ResourcesPage from './ResourcesPage';
+// Legal pages and Resources are now routed via URL in App.tsx — no need to import them here.
 import {
     getDisplayTiersForProduct,
     formatTierPrice,
@@ -1875,12 +1871,10 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     const [activeSection, setActiveSection] = useState('home');
     const [activeProduct, setActiveProduct] = useState<'vega' | 'atrium'>(initialProduct || 'vega');
     const [productChosen, setProductChosen] = useState(!!initialProduct);
-    const [showPrivacy, setShowPrivacy] = useState(false);
-    const [showTerms, setShowTerms] = useState(false);
-    const [showCookiePolicy, setShowCookiePolicy] = useState(false);
-    const [showResources, setShowResources] = useState(false);
-    const [showDPA, setShowDPA] = useState(false);
-    const [showUsagePolicy, setShowUsagePolicy] = useState(false);
+    const navigate = useNavigate();
+
+    // Legal pages and Resources now use URL-based routing (navigate to /resources, /privacy-policy, etc.)
+    // instead of local state flags. This makes them bookmarkable, shareable, and fetchable by external tools.
 
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -2028,12 +2022,9 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     const [contactDrawerSource, setContactDrawerSource] = useState('landing_page');
     const openContactSales = (source: string) => { setContactDrawerSource(source); setIsContactDrawerOpen(true); };
 
-    if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />;
-    if (showTerms) return <TermsOfService onBack={() => setShowTerms(false)} activeProduct={activeProduct} />;
-    if (showDPA) return <DataProcessingAgreement onBack={() => setShowDPA(false)} />;
-    if (showCookiePolicy) return <CookiePolicy onBack={() => setShowCookiePolicy(false)} />;
-    if (showUsagePolicy) return <UsagePolicy onBack={() => setShowUsagePolicy(false)} />;
-    if (showResources) return <ResourcesPage onBack={() => setShowResources(false)} onPrivacyClick={() => { setShowResources(false); setShowPrivacy(true); }} onTermsClick={() => { setShowResources(false); setShowTerms(true); }} onDPAClick={() => { setShowResources(false); setShowDPA(true); }} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />;
+    // Legal pages and Resources are now handled by URL routing in App.tsx
+    // (navigateTo('resources') → /resources, navigateTo('privacyPolicy') → /privacy-policy, etc.)
+    // The LandingPage no longer conditionally renders them — the router handles it.
 
     return (
         <div
@@ -2046,7 +2037,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 scrollTo={scrollTo}
                 onLogin={() => openModal('login')}
                 onSignup={openSignup}
-                onResources={() => setShowResources(true)}
+                onResources={() => navigate('/resources')}
                 onContactSales={() => openContactSales('Nav')}
                 activeProduct={activeProduct}
                 setActiveProduct={handleProductSwitch}
@@ -2093,11 +2084,11 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
 
             <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={() => setIsContactDrawerOpen(false)} source={contactDrawerSource} />
             <Footer
-                onPrivacyClick={() => setShowPrivacy(true)}
-                onTermsClick={() => setShowTerms(true)}
-                onCookieClick={() => setShowCookiePolicy(true)}
-                onUsageClick={() => setShowUsagePolicy(true)}
-                onResources={() => setShowResources(true)}
+                onPrivacyClick={() => navigate('/privacy-policy')}
+                onTermsClick={() => navigate('/terms-of-service')}
+                onCookieClick={() => navigate('/cookie-policy')}
+                onUsageClick={() => navigate('/usage-policy')}
+                onResources={() => navigate('/resources')}
                 onContactSales={() => openContactSales('Footer')}
                 activeProduct={activeProduct}
                 setActiveProduct={handleProductSwitch}

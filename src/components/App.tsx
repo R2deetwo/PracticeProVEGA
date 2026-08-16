@@ -123,6 +123,8 @@ import RevenueEngine from './atrium/RevenueEngine';
 
 import DataProcessingAgreement from './DataProcessingAgreement';
 import CookiePolicy from './CookiePolicy';
+import UsagePolicy from './UsagePolicy';
+import ResourcesPage from './ResourcesPage';
 import NotFoundView from './NotFoundView';
 import ClientPortalLogin from './portal/ClientPortalLogin';
 import TenantPortalLogin from './portal/TenantPortalLogin';
@@ -419,6 +421,8 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'portalTermsOfUse': return <PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
             case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
+            case 'usagePolicy': return <UsagePolicy onBack={goBack} />;
+            case 'resources': return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={(p) => { /* product switch on resources page */ }} />;
             case 'securityAccess': return <SecurityAccessView onBack={goBack} />;
             default: return <NotFoundView />;
         }
@@ -594,7 +598,7 @@ export const App: React.FC = () => {
     // effectiveness and conversion signals.
     const trackPageView = React.useCallback((pathname: string) => {
         try {
-            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
+            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
             if (!publicPaths.includes(pathname)) return;
             // Fire-and-forget — don't block on analytics
             fetch(`${import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'}/api/mutation`, {
@@ -784,7 +788,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
+        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
 
         // TASK 15: Redirect authenticated users away from landing-page routes
         // (/vega, /atrium, /komplet) to the dashboard. These routes are for
