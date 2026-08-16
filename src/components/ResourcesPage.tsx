@@ -927,10 +927,224 @@ const GuideCard: React.FC<{ guide: typeof GUIDES[0] }> = ({ guide }) => {
     );
 };
 
+// ─── WHAT'S NEW DATA (product-tagged) ──────────────────────────────────────
+interface WhatsNewEntry {
+    version: string;
+    date: string;
+    title: string;
+    products: ('vega' | 'atrium' | 'komplete')[];
+    category: 'feature' | 'improvement' | 'fix' | 'security';
+    items: { label: string; body: string; badge?: string }[];
+}
+
+const WHATS_NEW_ENTRIES: WhatsNewEntry[] = [
+    {
+        version: 'v2.4.0',
+        date: 'August 2026',
+        title: 'AI Capabilities + Pricing Overhaul + ICM Migration',
+        products: ['vega', 'atrium'],
+        category: 'feature',
+        items: [
+            { label: 'Product-Specific AI Section', body: 'AI Capabilities now shows ALOA (legal drafting, PII Shield, firm-grade security) for Vega and ARIA (revenue intelligence, tenant data protection, portfolio security) for Atrium — no more generic copy.', badge: 'Both' },
+            { label: 'Atrium Monthly Billing', body: 'Atrium now supports monthly billing (was annual-only). Starter N49K/mo, Growth N96.5K/mo, Pro N200K/mo. 20% premium over annual.' },
+            { label: 'Komplete Fixed', body: 'Price reduced from N2.5M to N2.2M/yr. Seats increased from 10 to unlimited. All add-ons included (Sentry Pass, storage, dedicated AM).' },
+            { label: 'Core Naming Collision Fixed', body: 'Vega "Core" renamed to "Free". Atrium "Core" renamed to "Starter". No more confusion between free and paid tiers.' },
+            { label: 'WhatsApp Limit Increased', body: 'Atrium Starter WhatsApp quota increased from 100 to 250 messages/month.' },
+            { label: '30-Day Money-Back Guarantee', body: 'All annual plans now include a 30-day money-back guarantee. Displayed on pricing section.' },
+            { label: 'ICM Migration', body: 'All 5 primary AI prompts now sourced from markdown files via Vite ?raw imports. Editable without code deploys.' },
+        ],
+    },
+    {
+        version: 'v2.3.0',
+        date: 'August 2026',
+        title: 'Landing Page Redesign + Mobile Nav + New Sections',
+        products: ['vega', 'atrium'],
+        category: 'feature',
+        items: [
+            { label: 'Mobile Hamburger Menu', body: 'Full-screen overlay menu for mobile users (was missing entirely). Products, Features, Pricing, How It Works, Resources, Contact, Log In, Start Free Trial.' },
+            { label: 'Mobile Sticky CTA Bar', body: 'Fixed bottom bar with "Talk to Sales" + "Start Free Trial" buttons on mobile.' },
+            { label: 'WhatsApp FAB', body: 'Floating WhatsApp action button for instant chat.' },
+            { label: 'AI Capabilities Section', body: 'Dark section with 3 columns: AI Copilot, PII Shield, Workspace Isolation.' },
+            { label: 'How It Works Section', body: '3-step guide with product-specific content (Vega: Matter Ingestion Wizard + DraftPro; Atrium: property setup + rent collection).' },
+            { label: 'Testimonials + FAQ + Final CTA', body: '3 new sections added: testimonials carousel, FAQ accordion, final CTA band.' },
+            { label: 'JSON-LD Structured Data', body: 'SoftwareApplication + FAQPage schema added to index.html for SEO.' },
+            { label: 'Skip-to-Content Link', body: 'Accessibility: skip-to-content link + id="main-content" on main element.' },
+        ],
+    },
+    {
+        version: 'v2.2.0',
+        date: 'August 2026',
+        title: 'Security Hardening + Idempotency + Soft Delete',
+        products: ['vega', 'atrium', 'komplete'],
+        category: 'security',
+        items: [
+            { label: 'Impersonation Token Fix', body: 'Replaced unsigned ?impersonate=email URL param with server-verified, short-lived, single-use tokens. Founder-only creation via createImpersonationToken mutation.' },
+            { label: 'API Key Security', body: 'Gemini API key no longer stored in localStorage. Held in-memory only, cleared on logout.' },
+            { label: 'Push Notification Auth', body: 'markNotificationRead + markAllNotificationsRead now verify caller ownership before patching.' },
+            { label: 'Portal Auth Hardening', body: '4 critical portals.ts mutations now require requireFirmUser + cross-firm ownership verification.' },
+            { label: 'Idempotency Keys', body: '5 critical tables (tasks, payment_proofs, termsAcceptance, subscriptionRequests, subscriptionAddons) now support idempotencyKey dedup.' },
+            { label: 'Identity Guardrail Split-Brain Fix', body: 'Eliminated dual identity guardrail systems. Single source of truth via constants/identityGuardrails.ts.' },
+        ],
+    },
+    {
+        version: 'v2.1.0',
+        date: 'August 2026',
+        title: 'Proactive Intelligence Engine + Conversation Memory',
+        products: ['vega', 'atrium'],
+        category: 'feature',
+        items: [
+            { label: 'AI Morning Briefing', body: 'Daily AI-generated briefing per firm: stalled matters, upcoming deadlines, revenue at risk, recent anomalies. Delivered as ARIA chat message at 6:15 AM UTC.' },
+            { label: 'Deadline Scanner', body: 'Scans tasks, events, and service charges for overdue/upcoming deadlines every 6 hours. Creates proactive_insights records.' },
+            { label: 'Anomaly Detector', body: 'Daily detection of stalled matters (30d), unassigned matters, high defaulter ratios, unread messages.' },
+            { label: 'Cross-Session Memory', body: 'AI conversations are summarized nightly and injected into new sessions for continuity.' },
+        ],
+    },
+    {
+        version: 'v2.0.0',
+        date: 'July 2026',
+        title: 'Court Date Reminders + Paystack-Ready Billing',
+        products: ['vega'],
+        category: 'feature',
+        items: [
+            { label: 'Court Date Reminders', body: 'Automated WhatsApp reminders sent 7, 3, and 1 day(s) before each scheduled hearing to assigned lawyers.', badge: 'Pro' },
+            { label: 'Paystack-Ready Billing', body: 'Payment provider abstraction layer built and code-reviewed. Dormant until activated.' },
+            { label: 'Monthly WhatsApp Quota Reset', body: 'Fixed bug where monthly message limits were effectively lifetime caps.' },
+            { label: 'Trust Model Fix', body: 'Clients can no longer auto-mark invoices as "Paid" from the portal.' },
+        ],
+    },
+    {
+        version: 'v1.9.0',
+        date: 'July 2026',
+        title: 'Landing Page Redesign + SCE Calculator',
+        products: ['atrium'],
+        category: 'improvement',
+        items: [
+            { label: 'New Brand System', body: 'Warm Paper background, Space Grotesk display type, duotone brand-tinted hero imagery.' },
+            { label: 'SCE Calculator', body: 'Property managers can model portfolio (units + average rent) and see per-tenant SCE for each tier.' },
+            { label: 'Image Cycling', body: 'Hero images auto-rotate through 3 photos per product with crossfade transitions.' },
+        ],
+    },
+    {
+        version: 'v1.8.0',
+        date: 'July 2026',
+        title: 'Automated Retainer Billing + Billing Monitor',
+        products: ['vega'],
+        category: 'feature',
+        items: [
+            { label: 'Retainer Billing Engine', body: 'Weekly/Monthly/Quarterly/Bi-Annually/Annually billing frequency. Auto-stages draft invoices via cron.' },
+            { label: 'Billing Monitor Dashboard', body: 'KPI cards (Staged/Queued/Sent/Failed), filter tabs, lawyer override controls (Approve & Send, Pause, Skip, Retry).' },
+            { label: 'Premium Gating', body: 'Defense-in-depth: client-side useFeatures + server-side isFirmPremiumRetainerEligible.' },
+        ],
+    },
+    {
+        version: 'v1.7.0',
+        date: 'June 2026',
+        title: 'Sentry Pass (VMS) + Role-Based ToS',
+        products: ['atrium'],
+        category: 'feature',
+        items: [
+            { label: 'Sentry Pass VMS', body: 'Visitor management with 6-digit codes, QR passes, gatekeeper terminal, offline fallback. 14-day free trial, then N15K/mo add-on.' },
+            { label: 'Role-Based ToS', body: 'Per-role terms version tracking. Only affected roles see re-acceptance prompts when their version bumps.' },
+            { label: 'Deactivated Member State', body: 'Soft-deactivation with audit trail. Deactivated users cannot log in but their historical contributions remain attributed.' },
+        ],
+    },
+    {
+        version: 'v1.5.0',
+        date: 'Earlier 2026',
+        title: 'PracticePro Systems Limited + Product Foundation',
+        products: ['vega', 'atrium', 'komplete'],
+        category: 'feature',
+        items: [
+            { label: 'Parent Company', body: 'Renamed to PracticePro Systems Limited.' },
+            { label: 'Product-Aware Architecture', body: 'Full Komplete (unified) product support across documents, contacts, compose, messages, calendar, and portal settings.' },
+            { label: 'DraftPro Editor', body: 'A4 pagination, Nigerian legal fonts, placeholder guardrails, print-to-PDF.' },
+            { label: 'ALOA AI Copilot', body: 'Legal intelligence for matter research, case summaries, and precedent analysis.' },
+            { label: 'NDPA 2023 Compliance', body: 'Privacy Policy, Data Processing Agreement, Cookie Policy, and DPO appointment.' },
+        ],
+    },
+];
+
+// ─── WHAT'S NEW FILTER + ENTRY COMPONENTS ──────────────────────────────────
+const WhatsNewFilter: React.FC<{
+    selectedFilter: 'all' | 'vega' | 'atrium' | 'komplete';
+    setSelectedFilter: (f: 'all' | 'vega' | 'atrium' | 'komplete') => void;
+}> = ({ selectedFilter, setSelectedFilter }) => {
+    const filters: { key: 'all' | 'vega' | 'atrium' | 'komplete'; label: string; color: string }[] = [
+        { key: 'all', label: 'All', color: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' },
+        { key: 'vega', label: 'Vega', color: 'bg-amber-500 text-white' },
+        { key: 'atrium', label: 'Atrium', color: 'bg-emerald-500 text-white' },
+        { key: 'komplete', label: 'Komplete', color: 'bg-violet-500 text-white' },
+    ];
+    return (
+        <div className="flex gap-2 mb-6">
+            {filters.map(f => (
+                <button
+                    key={f.key}
+                    onClick={() => setSelectedFilter(f.key)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        selectedFilter === f.key
+                            ? f.color
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                >
+                    {f.label}
+                </button>
+            ))}
+        </div>
+    );
+};
+
+const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
+    const categoryColors: Record<string, string> = {
+        feature: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+        improvement: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+        fix: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+        security: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
+    };
+    return (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
+            <div className="flex items-start justify-between mb-3">
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-base">{entry.title}</h3>
+                        <span className="text-2xs font-mono text-slate-400">{entry.version}</span>
+                    </div>
+                    <span className="text-xs text-slate-400">{entry.date}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {entry.products.map(p => (
+                        <span key={p} className={`text-2xs font-bold uppercase px-1.5 py-0.5 rounded ${
+                            p === 'vega' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                            p === 'atrium' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                            'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+                        }`}>{p}</span>
+                    ))}
+                    <span className={`px-2 py-1 text-2xs font-bold uppercase rounded-full ${categoryColors[entry.category]}`}>{entry.category}</span>
+                </div>
+            </div>
+            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                {entry.items.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                        <span className="text-primary-500 mt-0.5">•</span>
+                        <span>
+                            <strong className="text-slate-800 dark:text-slate-200">{item.label}</strong> — {item.body}
+                            {item.badge && <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-bold">{item.badge}</span>}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
 // ─── ROOT COMPONENT ───────────────────────────────────────────────────────────
 
 const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, activeProduct, setActiveProduct }) => {
     const isVega = activeProduct === 'vega';
+    const [whatsNewFilter, setWhatsNewFilter] = useState<'all' | 'vega' | 'atrium' | 'komplete'>(activeProduct);
+    const filteredWhatsNew = whatsNewFilter === 'all'
+        ? WHATS_NEW_ENTRIES
+        : WHATS_NEW_ENTRIES.filter(e => e.products.includes(whatsNewFilter as any));
     return (
         <div className="h-[100dvh] overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
             {/* Header */}
@@ -990,9 +1204,9 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     )}
                 </div>
 
-                {/* What's New */}
+                {/* What's New — with product filter */}
                 <section className="mb-16">
-                    <div className="flex items-center gap-3 mb-8">
+                    <div className="flex items-center gap-3 mb-4">
                         <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
                             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         </div>
@@ -1001,97 +1215,19 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             <p className="text-sm text-slate-500 dark:text-slate-400">Latest updates and major feature releases</p>
                         </div>
                     </div>
+
+                    {/* Product filter buttons */}
+                    <WhatsNewFilter selectedFilter={whatsNewFilter} setSelectedFilter={setWhatsNewFilter} />
+
                     <div className="space-y-6">
-                        {/* July 2026 — Court Date Reminders + Paystack-Ready Billing */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1">Court Date Reminders + Paystack-Ready Billing</h3>
-                                    <span className="text-xs text-slate-400">July 2026</span>
-                                </div>
-                                <span className="px-2 py-1 text-2xs font-bold uppercase rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">New</span>
+                        {filteredWhatsNew.map((entry, idx) => (
+                            <WhatsNewEntry key={idx} entry={entry} />
+                        ))}
+                        {filteredWhatsNew.length === 0 && (
+                            <div className="text-center py-12 text-slate-400 dark:text-slate-500 text-sm">
+                                No updates for this product yet.
                             </div>
-                            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Court Date Reminders</strong> — automated WhatsApp reminders sent 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s). Set your matter's adjourned date, and PracticePro handles the rest. <span className="text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-bold">Pro</span></span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Paystack-Ready Billing Architecture</strong> — the billing system now includes a payment provider abstraction layer. Online card payments via Paystack are built and code-reviewed, but dormant until activated. All current billing flows (manual bank transfer + mark-as-paid) remain unchanged.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Monthly WhatsApp Quota Reset</strong> — fixed a bug where monthly message limits (100/500) were effectively lifetime caps. Quotas now reset on the 1st of each month.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Trust Model Fix</strong> — clients can no longer auto-mark invoices as "Paid" from the portal. Only the firm (manual verification) or Paystack webhooks (when activated) can set an invoice to Paid.</span>
-                                </li>
-                            </ul>
-                        </div>
-
-                        {/* July 2026 — Landing Page Redesign */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1">Landing Page Redesign + SCE Calculator</h3>
-                                    <span className="text-xs text-slate-400">July 2026</span>
-                                </div>
-                                <span className="px-2 py-1 text-2xs font-bold uppercase rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">Update</span>
-                            </div>
-                            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">New Brand System</strong> — warm Paper background, Space Grotesk display type, unified card token system, duotone brand-tinted hero imagery.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">SCE Calculator</strong> — property managers can model their portfolio (units + average rent) and see per-tenant SCE for each tier, with absorbability ratings (Easy / Moderate / Tight).</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Image Cycling</strong> — hero images auto-rotate through 3 photos per product with crossfade transitions.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Usage Policy</strong> — new comprehensive 15-section policy covering acceptable use, AI features, portal access, billing, and compliance.</span>
-                                </li>
-                            </ul>
-                        </div>
-
-                        {/* Earlier 2026 — Foundation */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1">PracticePro Systems Limited + Product Foundation</h3>
-                                    <span className="text-xs text-slate-400">Earlier 2026</span>
-                                </div>
-                                <span className="px-2 py-1 text-2xs font-bold uppercase rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Foundation</span>
-                            </div>
-                            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Parent Company</strong> — renamed to PracticePro Systems Limited (CAC registration pending).</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">Product-Aware Architecture</strong> — full Komplete (unified) product support across documents, contacts, compose, messages, calendar, and portal settings.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">DraftPro Editor</strong> — A4 pagination, Nigerian legal fonts, placeholder guardrails, print-to-PDF.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">ALOA AI Copilot</strong> — legal intelligence for matter research, case summaries, and precedent analysis.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-primary-500 mt-0.5">•</span>
-                                    <span><strong className="text-slate-800 dark:text-slate-200">NDPA 2023 Compliance</strong> — Privacy Policy, Data Processing Agreement, Cookie Policy, and DPO appointment.</span>
-                                </li>
-                            </ul>
-                        </div>
+                        )}
                     </div>
                 </section>
 
