@@ -7233,3 +7233,467 @@ Stage Summary:
 - ARIA identity drift FIXED: 'Intelligent' → 'Intelligence' across all locations
 - Build green; zero regressions
 - Vercel auto-deploying; Cloudflare needs manual wrangler deploy
+
+---
+Task ID: 2
+Agent: PrivacyPolicy Rewrite
+Task: Rewrite PrivacyPolicy.tsx in plain English (matching CookiePolicy.tsx style)
+
+Work Log:
+- Read reference style file: src/components/CookiePolicy.tsx — captured the plain-English summary box, prose-slate styling, light-mode guarantees, and bullet-list conventions
+- Read original: src/components/PrivacyPolicy.tsx (421 lines, ~2,508 body words) — identified dense legal jargon, §3.2 cross-reference bug, §4 numbering gap (4.7→4.9 missing 4.8), §3.4 redundancy, §3.6 missing product gate, and §5.1 ALOA/ARIA inconsistency
+
+Plain-English Doctrine applied:
+- Short sentences (≤25 words where possible) — split long legal sentences
+- Everyday words ("how we handle data" not "data processing practices"; "make a complaint" not "lodge a complaint")
+- Active voice throughout ("We will notify you" not "you shall be notified")
+- No Latin; no "shall/therein/hereby/aforementioned/pursuant to" (verified zero occurrences)
+- Jargon defined inline first use: "Data Controller (you decide how data is used)" / "Data Processor (we handle it on your behalf)" / "personal information (also called PII)"
+- Reader addressed as "you"; company as "we" or "PracticePro"
+- One idea per paragraph; bullets for lists
+- Added a 65-word "In short:" summary box at the top (matching CookiePolicy style)
+
+Structural fixes applied:
+1. §3.2 cross-reference corrected: "See Section 3.4 for details" → "See Section 3.5 for details" (cookies live in §3.5)
+2. §4 numbering gap fixed: §4.9 "Process User Feedback" renumbered to §4.8 (no more 4.7→4.9 jump)
+3. §3.6 (Visitor & Access Code Data) now gated to Atrium only via `{isProperty && (...)}` — Vega does not render property-specific gatehouse/visitor data
+4. §3.4 (Local File Linking) collapsed from 5 repetitive bullets to 3 plain sentences
+5. §5.1 AI Conversation Retention bullet uses `{isVega ? 'ALOA™' : 'ARIA™'}` ternary (Vega→ALOA, Atrium→ARIA); rest of file keeps ALOA™ as canonical name for both products
+
+Jargon eliminated (sample replacements):
+- "data processing practices" → "how we handle data"
+- "your rights as a data subject" → "your rights as a user"
+- "the lawful bases specified under the NDPA 2023" → "the legal reasons allowed by the NDPA 2023"
+- "rectify, erasure, object to or restrict processing, portable format" → "see, correct, delete, limit, move, or stop us using"
+- "lodge a complaint with the Nigeria Data Protection Commission" → "make a complaint to the Nigeria Data Protection Commission"
+- "sub-processor" → "we do not process your AI data on anyone else's behalf"
+- "operate under data processing agreements..." → "sign contracts that meet Nigerian data protection requirements"
+- "subject to limited retention required for tax and legal obligations" → "except for records we are legally required to keep"
+- "This processing is necessary for the performance of the service contract" → "We need this to deliver the service your firm signed up for"
+- "Bring Your Own Key (BYOK)" → "you use your own AI account (called Bring Your Own Key, or BYOK)"
+- "Personally Identifiable Information (PII)" → "personal information (also called PII)"
+- "web beacons" → "invisible trackers"
+- "transmitted only to the AI provider's authentication endpoint" → "sent only to the AI provider's log-in service"
+- "conversations are persisted and scoped to your firm" → "saved and only visible within your firm"
+- "Extract metadata and key information..." → "Pull key details from uploaded documents"
+- "Maintain audit trails and access logs" → "Keep records of activity"
+- "We engage carefully selected third-party service providers" → "We work with carefully chosen third-party providers"
+- "Your continued use... constitutes your acceptance" → "If you keep using PracticePro after the date above, we'll take that as your agreement to the changes"
+- "PracticePro acts as your Data Processor, handling this information only under your instruction..." → "PracticePro only handles this data on your behalf, to provide the service"
+
+Legal substance preserved (verified present):
+- NDPA 2023 + NDPR 2019 references
+- 60-day data export window after account termination
+- 72-hour breach notification principle (newly added to §6 — original file did not mention it)
+- BYOK model: user provides own API key, browser→provider direct, PracticePro is not a sub-processor
+- "We do not sell your data" commitment
+- "We never use your AI inputs or outputs to train any models" commitment
+- Data Controller vs Data Processor role split (defined inline)
+- Children under 18 prohibition
+- Contact email: dpo@practicepro.ng (3 occurrences)
+- Registered address: No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State
+
+Component structure preserved:
+- File: src/components/PrivacyPolicy.tsx
+- Export: `export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }>`
+- Props default: `activeProduct = 'vega'`
+- Internal flags: `const isVega = activeProduct === 'vega'; const isProperty = !isVega;`
+- Root div: `className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page`
+- Sticky header (Back button + "Privacy Policy" title)
+- Scrollable body `max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20`
+- Document head: H1, company name, effective date (August 11, 2026), version 2.0
+- Prose container with `prose prose-slate max-w-none` and the original `prose-p:`, `prose-h2:`, `prose-h3:`, `prose-ul:`, `prose-li:` modifier classes
+- Footer: VEGA • Nigerian Litigation System / ATRIUM • Property OS
+- No `dark:` Tailwind classes (verified 0 occurrences)
+
+activeProduct variations preserved (27 total — spec required 24, all key swaps present):
+- 22 `isVega` ternaries (product name, type, audience, registration IDs, data category, examples, doc examples, feature name, smart suggestions, AI assistant name in §5.1 retention, professional audience, data scope, controller description, footer, plus 4 in §1 Important Note and §2)
+- 3 `isProperty` ternaries (§1 AI assistant description, §4.2 AI processing bullet, §5.1 description)
+- 1 `isVega &&` block (§4.2 court-rules bullet, Vega-only)
+- 1 `isProperty &&` block (§3.6 Visitor & Access Code Data, Atrium-only)
+
+Quality checklist verification:
+- [x] No sentence over 25 words without strong reason (verified — long sentences are intentional lists of rights/verbs in §8)
+- [x] No "shall," "therein," "hereby," "aforementioned," "pursuant to" (verified zero occurrences)
+- [x] Every activeProduct variation preserved (27 total)
+- [x] §3.2 cross-reference fixed to §3.5 (verified)
+- [x] §4 numbering gap fixed (§4.8 present, no §4.9 in body — only in fix-description comment)
+- [x] §3.6 Visitor Data gated to Atrium only (verified `{isProperty && (` block)
+- [x] §3.4 Local File Linking collapsed to 3 sentences (no "Important Clarification" header)
+- [x] ALOA™ vs ARIA™ consistent (ALOA for Vega, ARIA for Atrium in §5.1 retention)
+- [x] All NDPA 2023 / NDPR 2019 references preserved
+- [x] 60-day export window preserved
+- [x] BYOK model preserved (browser→provider direct, no sub-processor)
+- [x] "We do not sell your data" preserved
+- [x] "We do not train AI on your data" preserved ("We never use your AI inputs or outputs to train any models")
+- [x] Data Controller vs Data Processor split preserved (defined inline)
+- [x] Contact email dpo@practicepro.ng preserved (3x)
+- [x] Registered address preserved
+- [x] `style={{ colorScheme: 'light' }}` and `data-public-page` on root div (verified)
+- [x] No `dark:` Tailwind classes (verified 0)
+- [x] TypeScript compiles clean — `npx tsc --noEmit -p tsconfig.json 2>&1 | grep PrivacyPolicy` returned zero errors (other pre-existing errors in unrelated files remain untouched)
+
+Word count:
+- Body word count (single product render): Vega 2,059 / Atrium 2,060 (target was ~1,800-2,000)
+- Summary box (added, matches CookiePolicy style): 65 words
+- Total visible: ~2,124 words
+- Original was ~2,508 words — reduction of ~17%
+- Slightly above 2,000 upper bound (3% over); accepted because further cuts would compromise readability or remove legally material detail. Spec used "~" (approximate).
+
+Issues encountered:
+- §3.6 originally rendered for both products; the spec required gating to Atrium only — wrapped in `{isProperty && (...)}` so Vega no longer shows gatehouse/access-code data
+- §4 numbering gap (4.7→4.9 missing 4.8) corrected by renumbering "Process User Feedback" to 4.8
+- §3.2 cross-reference said "See Section 3.4" but cookies are in §3.5 — fixed
+- §5.1 retention bullet mentioned both ALOA™ (Vega) and ARIA™ (Atrium) in same sentence — now uses `{isVega ? 'ALOA™' : 'ARIA™'}` ternary for product-aware rendering
+- §3.4 had 5 bullets saying the same thing — collapsed to 3 sentences
+- §6 Data Security: added a sentence referencing the NDPA's 72-hour breach notification principle (spec mentioned this should be added even though it lives in the DPA, not this file)
+- Plain-English summary box added at the top (not in original) to match CookiePolicy.tsx reference style and provide a 3-sentence TL;DR
+- File line count: 421 → 535 lines (added comment block explaining fixes + summary box; body is more compact)
+
+Files changed:
+- src/components/PrivacyPolicy.tsx — full rewrite in plain English
+
+Next actions:
+- Visual review recommended: render the page in both Vega and Atrium modes to confirm §3.6 appears for Atrium only and §4.2 court-rules bullet appears for Vega only
+- Consider applying the same plain-English treatment to TermsOfService.tsx and DPA.tsx (if exists) for consistency
+- If word count must hit 2,000 strictly, candidates for further cuts: remove Table of Contents (saves ~30 words) or trim §5.2 sub-bullets further
+
+---
+Task ID: 3
+Agent: TermsOfService Rewrite
+Task: Rewrite TermsOfService.tsx in plain English (preserve all legally material disclosures)
+
+Work Log:
+- Read CookiePolicy.tsx (reference style) and PrivacyPolicy.tsx (sister file rewritten in same session) for tone and structure consistency
+- Read TermsOfService.tsx completely (536 lines, ~5,319 words original)
+- Rewrote the entire file in plain English applying the Plain English Doctrine: short sentences, everyday words, active voice, no Latin, jargon defined inline, "you/we" addressing, one idea per paragraph, bullets for lists
+- Wrote the rewritten file using the Write tool
+- Iteratively compressed the file across 5 rounds of MultiEdit operations to reduce word count from initial ~5,285 down to ~4,864 (Vega render) / ~4,726 (Atrium render)
+- Ran TypeScript check — `npx tsc --noEmit -p tsconfig.json 2>&1 | grep TermsOfService` returned no errors
+- Verified all 32 legal substance preservation checks pass (NDPA 2023, NDPR 2019, 72-hour breach, 60-day export, 30-day soft-delete, 12-month liability cap, LMDC mediation, Arbitration and Mediation Act 2023, Lagos State jurisdiction, no-class-actions waiver, governing law Nigeria, BYOK model, "we do not train AI on your data", NBA enrollment, NIESV, both contact emails, registered address, 5 business day response time, all Vega-only sections, PBKDF2-SHA512, OWASP 2023, NDPA Sections 25/35/40/65)
+
+Plain English transformations applied (sample replacements):
+- "the following terms shall have the meanings set forth below" → "the terms below mean:"
+- "constitute a legally binding contract between you and PracticePro Systems Limited governing your access to and use of the Platform" → "are a binding contract between you and PracticePro about your use of the Platform"
+- "you acknowledge that you have read, understood, and agree to be legally bound by this Agreement" → "you confirm that you have read and agree to these Terms"
+- "IF YOU DO NOT AGREE TO BE BOUND BY THIS AGREEMENT, YOU MUST NOT ACCESS OR USE THE PLATFORM." → "If you do not agree, do not use the Platform." (lowercase, bold)
+- "You represent and warrant that you have the legal capacity to enter into binding contracts under Nigerian law and are at least eighteen (18) years of age." → "You confirm you are 18 or older and can legally agree to contracts in Nigeria."
+- "The Company reserves the right to modify, amend, or update this Agreement at any time in its sole discretion." → "We may update these Terms at any time."
+- "are incorporated into this Agreement by reference and form part of the binding contract" → "are part of these Terms"
+- "AI technology operates probabilistically and may generate 'hallucinations'" → "AI can make things up. It may present fabricated information as fact (sometimes called 'hallucinations')"
+- "PBKDF2-SHA512 password hashing (600,000 iterations, meeting OWASP 2023 minimum)" → "industry-standard password hashing (PBKDF2-SHA512, 600,000 iterations, meeting the OWASP 2023 minimum)" — kept the technical fact, simplified phrasing
+- "data minimization and storage limitation principles of NDPA 2023 Section 38, informed by ISO/IEC 27701 guidelines" → "the NDPA 2023's rules on data minimisation and storage limits"
+- "granular AI Processing Consent modal" → "a consent screen that explains what AI will do with your data"
+- "firm-scoped database" → "a database only your firm can see"
+- "Subject to your compliance with this Agreement, we grant you a limited, non-exclusive, non-transferable, revocable license..." → "If you follow these Terms, we give you a personal, revocable permission to use the Platform for your professional work."
+- "reverse-engineer, decompile, disassemble, or otherwise attempt to derive the source code" → "try to reverse-engineer or extract the source code"
+- Liability cap text → "To the maximum extent allowed by Nigerian law, our total liability to you for any claim under these Terms will not exceed the subscription fees you paid us in the 12 months before the issue arose."
+- Excluded losses → "We are not liable for: (a) lost profits, revenue, or business; (b) lost or corrupted data; (c) loss of goodwill or reputation; (d) any indirect, consequential, incidental, punitive, or special damages, even if we knew they might happen."
+- Indemnification → "You agree to protect PracticePro (and our officers, directors, employees, and agents) from any claims, damages, losses, costs, or legal fees arising from: ..."
+- "force majeure events" → "events outside our control (like natural disasters, war, or government action)"
+- "Without prejudice to the dispute resolution procedures in Section 19" → "Without affecting the dispute resolution process in Section 19"
+- "Nothing in this Agreement shall be construed as overriding or superseding" → "Nothing in these Terms overrides"
+- "Each arbitral tribunal shall consist of a sole arbitrator agreed upon by the parties, or failing agreement, appointed in accordance with the Act." → "The arbitration will be handled by one arbitrator. If we can't agree on who, one will be appointed under the Act."
+- "constitute the entire agreement between you and the Company and supersede all prior negotiations, representations, or agreements" → "These Terms are the complete agreement between you and PracticePro, replacing any earlier discussions or agreements"
+- "Failure or delay by either party to exercise any right or remedy under this Agreement shall not constitute a waiver of that right or remedy." → "If either of us delays or fails to use a right under these Terms, that doesn't mean we've given up that right."
+- "if any provision of this Agreement is found to be unenforceable by a court of competent jurisdiction" → "if a court finds any part of these Terms unenforceable"
+- "submitted to the exclusive jurisdiction of the courts of Lagos State for the purpose of enforcing any arbitral award or seeking urgent injunctive relief" → "the courts of Lagos State will handle enforcement of any arbitral award or urgent injunctions"
+- "Words importing the singular include the plural and vice versa." → DELETED (boilerplate)
+- "The words 'include,' 'includes,' 'Including,' shall be construed without limitation." → DELETED (boilerplate)
+- "References to any statute include all amendments, extensions, or re-enactments." → "References to laws include any later amendments."
+
+Structural fixes applied:
+1. Softened ALL-CAPS disclaimers (§2.1.3, §6.3, §15.1, §15.2) to bold sentence case
+2. Normalised H3 structure across all 23 sections — Sections 8-23 previously used flat numbered paragraphs with bold inline headings, now use H3 + content pattern matching Sections 1-7 and the PrivacyPolicy/CookiePolicy sister files
+3. Fixed §8.7 ALOA™/ARIA™ gating — now uses `{isVega ? 'ALOA™' : 'ARIA™'}` ternary so each product shows only its own AI assistant name (previously mentioned both regardless of `activeProduct`)
+4. Aligned footer version to "Version 2.1 • August 2026" (body header already said Version 2.1; footer previously said Version 2.0, April 2026)
+5. Deleted boilerplate interpretation rules ("singular includes plural", "including without limitation")
+6. Fixed internal anchor IDs (`2-4` → `2-3`, `2-5` → `2-4`) so they match their visible section numbers
+7. Added plain-English summary box at the top matching CookiePolicy.tsx and PrivacyPolicy.tsx style
+8. Converted H1 and H2 headings from ALL CAPS to sentence case for consistency with sister files
+
+Component structure preserved:
+- File: src/components/TermsOfService.tsx
+- Export: `export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }>`
+- Props default: `activeProduct = 'vega'`
+- Internal flags: `const isVega = activeProduct === 'vega'; const isProperty = !isVega;`
+- Root div: `className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page`
+- Sticky header (Back button + "Terms and Conditions of Service" title)
+- Scrollable body `max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20`
+- Document head: H1 (sentence case), company name, effective date (January 1, 2026), last updated (August 11, 2026), version 2.1
+- Prose container with `prose prose-slate max-w-none` and the original `prose-p:`, `prose-h2:`, `prose-h3:`, `prose-ul:`, `prose-li:` modifier classes
+- Footer: VEGA • Professional Operations System / ATRIUM • Property OS, Version 2.1, August 2026
+- No `dark:` Tailwind classes (verified 0 occurrences)
+
+activeProduct variations preserved (45 total — spec required 24, all key swaps present):
+- 27 `isVega` ternaries (product name, AI assistant name, platform name, user definition, eligibility, professional status warranty, calendar court-rules bullet, RPC vs Professional Compliance heading, recipients, AI disclaimer type, portal provider, footer, plus multiple in §1.1 definitions and §3.2 core functionalities)
+- 10 `isProperty` ternaries (mirror of isVega ternaries for Atrium)
+- 7 `isVega &&` blocks (Vega-only sections: ALOA definition, Court Rules Agent definition, Jurisdiction Scout definition, §5.4 Jurisdiction Scout, §5.5 Court Rules Agent, §5.7 Scale Expert Agent, §6.2.3 Court Deadlines, §13.2 conflict-of-interest bullet)
+- 1 `isProperty &&` block (ARIA definition)
+
+All Vega-only sections preserved:
+- §5.4 Jurisdiction Scout
+- §5.5 Court Rules Agent
+- §5.7 Scale Expert Agent
+- §6.2.3 Court Deadlines
+- §13.2 conflict-of-interest bullet (Vega-only)
+- §3.2 calendar court-rules bullet (Vega-only)
+- §1.1 Court Rules Agent, Jurisdiction Scout, RPC, Scale Expert Agent definitions (Vega-only)
+- §1.1 ALOA definition (Vega-only)
+- §1.1 NIESV, Tenancy Law definitions (Atrium-only)
+
+Quality checklist verification:
+- [x] No sentence over 25 words without strong reason (verified — long sentences are intentional lists or contain legally required phrasing)
+- [x] No "shall," "therein," "hereby," "aforementioned," "pursuant to" (verified — only occurrence is in the comment block describing what was removed)
+- [x] No ALL-CAPS disclaimers (verified — replaced with bold sentence case in §2.1.3, §6.3, §15.1, §15.2)
+- [x] Every activeProduct variation preserved (45 total)
+- [x] §8.7 ALOA™/ARIA™ gated correctly (uses `{isVega ? 'ALOA™' : 'ARIA™'}` ternary)
+- [x] Footer version aligned to 2.1, August 2026
+- [x] PBKDF2 technical spec simplified but fact preserved (kept "PBKDF2-SHA512, 600,000 iterations, meeting the OWASP 2023 minimum" in §10.2)
+- [x] All NDPA 2023 / NDPR 2019 references preserved (multiple in §1.1, §4.3, §5.6/5.8, §8, §11.3, §11.5, §23.3)
+- [x] 60-day export window preserved (§11.4)
+- [x] 30-day soft-delete recovery preserved (§11.2, §11.3)
+- [x] 72-hour breach notification preserved (§8.6, NDPA 2023 Section 40)
+- [x] Liability cap (12 months of fees) preserved (§16.1)
+- [x] Lagos Multi-Door Courthouse preserved (§19.2)
+- [x] Arbitration and Mediation Act 2023 preserved (§19.3)
+- [x] No class actions waiver preserved (§19.4)
+- [x] Governing law: Nigeria preserved (§20.1)
+- [x] Lagos State jurisdiction preserved (§20.2)
+- [x] BYOK model preserved (§8.7 — "Bring Your Own Key, or BYOK", user provides own API key, browser→provider direct, PracticePro not a sub-processor)
+- [x] "We do not train AI on your data" preserved (§5.8: "These conversations are not used to train AI models"; §7.2: "Your User Data is never used to train, fine-tune, or improve any AI foundation model")
+- [x] All Vega-only sections preserved (Jurisdiction Scout, Court Rules Agent, Scale Expert Agent, conflict-of-interest, Court Deadlines — all 5 verified present)
+- [x] NBA enrollment preserved (§2.2.2 Vega: "enrolled and licensed to practise law in Nigeria and are in good standing with the Nigerian Bar Association (NBA)")
+- [x] NIESV preserved (§1.1 Atrium definition)
+- [x] Contact emails preserved (practiceprosystems@gmail.com in §22; dpo@practicepro.ng in §5.8, §10.5, §22)
+- [x] Registered address preserved (§1.1 Company definition and §22 Contact)
+- [x] 5 business day response time preserved (§22)
+- [x] `style={{ colorScheme: 'light' }}` and `data-public-page` on root div (verified)
+- [x] No `dark:` Tailwind classes (verified 0 occurrences in body; only mentioned in comment block describing absence)
+- [x] TypeScript compiles clean — `npx tsc --noEmit -p tsconfig.json 2>&1 | grep TermsOfService` returned zero errors
+
+Word count:
+- Body word count (Vega render): 4,864
+- Body word count (Atrium render): 4,726
+- Plain-English summary box (added, matches CookiePolicy/PrivacyPolicy style): ~55 words
+- Original was ~5,319 words — reduction of ~9% (Vega) / ~11% (Atrium)
+- Above the 3,500-4,000 target by ~22% (Vega) / ~18% (Atrium); accepted because:
+  (a) the Terms of Service has 23 sections covering a wider scope than Privacy Policy (12 sections) or Cookie Policy (8 sections)
+  (b) the spec required preservation of extensive legal substance (32 distinct items verified) including multiple NDPA section references, the full dispute resolution ladder (negotiation → LMDC mediation → arbitration), the BYOK model with detailed explanation, and 7 Vega-only conditional sections
+  (c) further cuts would require removing legal substance or merging distinct disclosures, which the spec explicitly prohibited
+  (d) the PrivacyPolicy.tsx rewrite precedent (Task ID 2) accepted a 3% overage on a similar plain-English rewrite; this rewrite's larger overage reflects the larger source material
+
+Issues encountered:
+- §8.7 originally mentioned both ALOA™ (Vega) and ARIA™ (Atrium) in the same sentence regardless of `activeProduct` — fixed via `{isVega ? 'ALOA™' : 'ARIA™'}` ternary
+- §2.3 had internal anchor ID `2-4` (should be `2-3`); §2.4 had `2-5` (should be `2-4`) — both fixed
+- Footer said "Version 2.0 • April 2026" while body header said "Version 2.1" — footer aligned to "Version 2.1 • August 2026"
+- ALL-CAPS disclaimers in §2.1.3, §6.3, §15.1, §15.2 were aggressive and hard to read — all four converted to bold sentence case
+- Sections 8-23 used flat numbered paragraphs with bold inline headings (e.g., `<p>8.1 <strong>Applicable Law:</strong> ...`), inconsistent with the H3 pattern in Sections 1-7 and the sister files — every numbered sub-section (X.Y) now uses an H3 element
+- Word count target was difficult to hit without removing legal substance; iterative compression across 5 rounds brought the count from initial ~5,285 down to ~4,864 (Vega) — final overage documented above
+- File line count: 536 → 797 lines (added comment block explaining fixes + plain-English summary box; body is more compact due to H3 restructure)
+
+Files changed:
+- src/components/TermsOfService.tsx — full rewrite in plain English
+
+Next actions:
+- Visual review recommended: render the page in both Vega and Atrium modes to confirm (a) ALOA™ appears for Vega and ARIA™ appears for Atrium in §5.1, §5.8, and §8.7; (b) Vega-only sections (5.4 Jurisdiction Scout, 5.5 Court Rules Agent, 5.7 Scale Expert Agent, 6.2.3 Court Deadlines, 13.2 conflict-of-interest bullet) appear for Vega and are hidden for Atrium
+- If word count must hit 4,000 strictly, candidates for further cuts: remove the Table of Contents (saves ~85 words); remove the "In short" summary box (saves ~55 words); compress §1.1 definitions further by removing some of the less-critical definitions (Content, Subscription, User Data — could be defined inline); merge §3.2 bullets further
+- Consider applying the same plain-English treatment to DPA.tsx (if it exists) for consistency with the Privacy Policy and Terms of Service
+- Consider whether the body H1 ("Terms and Conditions of Service") should remain in sentence case or be restored to ALL CAPS for visual consistency with the original; sentence case was chosen here to match the CookiePolicy.tsx and PrivacyPolicy.tsx sister files
+
+---
+Task ID: 4
+Agent: DataProcessingAgreement Rewrite
+Task: Rewrite DataProcessingAgreement.tsx in plain English (preserve all legally material disclosures)
+
+Work Log:
+- Read reference style file: src/components/CookiePolicy.tsx — captured the plain-English summary box, prose-slate styling, light-mode guarantees, and bullet-list conventions
+- Read sister files: src/components/PrivacyPolicy.tsx and src/components/TermsOfService.tsx (both rewritten earlier in this session) for additional tone/structure consistency
+- Read original: src/components/DataProcessingAgreement.tsx (256 lines, ~1,853 body words) — identified 30+ "shall" occurrences, dense GDPR-style boilerplate, duplicate H1 in sticky bar, TOC #15 mismatch ("Signatures" vs actual §15 "Execution and Acceptance"), version mismatch (header "1.1" vs footer "v1.0"), and missing plain-English summary box
+- Wrote the rewritten file using the Write tool
+- Ran TypeScript check — `npx tsc --noEmit -p tsconfig.json 2>&1 | grep DataProcessingAgreement` returned zero errors
+- Verified no banned legal jargon remains: zero matches for "shall," "therein," "hereby," "aforementioned," "pursuant to," or any Latin phrases
+- Verified single H1 in title block (sticky bar uses `<span>`)
+- Verified version 1.1 aligned everywhere (header "Version: 1.1", footer "Version 1.1")
+
+Plain English Doctrine applied:
+- Short sentences (≤25 words where possible) — split long legal sentences
+- Everyday words ("decides why and how personal data is used" not "determines the purposes and means of processing personal data")
+- Active voice throughout ("we will notify the Controller" not "the Controller shall be notified")
+- No Latin; no "shall/therein/hereby/aforementioned/pursuant to" (verified zero occurrences in body)
+- Jargon defined inline first use, in a parenthetical: "ALOA™ for Vega, ARIA™ for Atrium"; "recovery time and recovery point objectives (how quickly we restore service and how much data we can lose)"; "ISO 27001:2022 information security management framework — an international standard for keeping information secure"; "Standard Contractual Clauses (SCCs — pre-approved contract terms that the law accepts for moving data across borders)"; "DPIAs — reviews we do when a new use of data could be high-risk to people's privacy"
+- Reader addressed as "you" / company as "we" or "PracticePro"
+- One idea per paragraph; bullets and numbered lists for enumerations
+- Added an 85-word "In short:" summary box at the top (matching CookiePolicy/PrivacyPolicy/TermsOfService style)
+
+Jargon eliminated (sample replacements, all per spec):
+- "incorporated by reference into and forms part of the main Service Agreement" → "is part of the main Service Agreement"
+- "the following terms shall have the meanings given below" → "the terms below mean:"
+- "The Controller represents, warrants, and undertakes that:" → "The Controller confirms that:"
+- "shall remain in force for the duration" → "stays in effect for the duration"
+- "governed by and construed in accordance with the laws of the Federal Republic of Nigeria" → "is governed by the laws of the Federal Republic of Nigeria"
+- "Any dispute arising out of or in connection with this DPA shall be subject to the exclusive jurisdiction of the courts of Lagos State" → "Any dispute about this DPA will be handled by the courts of Lagos State, Nigeria"
+- "Clauses relating to confidentiality, liability, and governing law shall survive termination of this DPA" → "The confidentiality, liability, and governing law clauses continue after this DPA ends"
+- "without undue delay and in any event within 24 hours" → "within 24 hours"
+- "to the extent legally permissible and technically feasible" → "where we legally can"
+- "to the extent available" → "where we have it"
+- "determines the purposes and means of processing personal data" → "decides why and how personal data is used"
+- "any operation or set of operations performed on Personal Data" → "anything done with Personal Data, such as collecting, storing, using, sharing, or deleting it"
+- "and any regulations made thereunder" → "and its regulations"
+- "all necessary consents, authorisations, and legal bases required under the NDPA" → "all permissions required under the NDPA"
+- "accuracy, quality, and legality of Personal Data" → "the accuracy and legality of the Personal Data"
+- "acknowledge and agree that" → "agree that" (and "Both parties agree that")
+- "incident response, system monitoring, security investigations, leaked data remediation, and platform health diagnostics" → "incident response, security investigations, and platform health checks"
+- "investigating, containing, and remediating any Personal Data Breach" → "investigating and fixing any Personal Data Breach"
+- "AI-powered analysis (via ALOA™/ARIA™)" → "AI-powered analysis through our AI assistants (ALOA™ for Vega, ARIA™ for Atrium)"
+- "platform health diagnostics" → "platform health checks"
+- "role-restricted to Founder accounts only" → "limited to founder accounts"
+- "emergency data purge operations" → "emergency deletion of data"
+- "post-incident notification" → "tell the Controller after the fact"
+- "re-tag or delete the leaked records to prevent further unauthorized access" → "fix the labels on or delete the affected records so they can't be accessed again" (shortened further to "Fix or delete the affected records so they can't be accessed again" in the numbered list)
+- "quarantine the leaked data" → "isolate the leaked data"
+- "confirmed to have leaked outside its intended storage location or scope boundaries" → "has leaked outside where it should be stored"
+- "Recovery Time Objectives (RTO) and Recovery Point Objectives (RPO)" → "recovery time and recovery point objectives (how quickly we restore service and how much data we can lose)"
+- "principle of least privilege" → "people only get the access they actually need"
+- "The Controller is the Data Controller in respect of all" → "The Controller controls all"
+- "The Processor acknowledges the heightened sensitivity of" → "We understand that"
+- "The Processor shall impose data protection obligations on each Sub-Processor equivalent to those set out in this DPA" → "We will require each Sub-Processor to follow the same data-protection rules as in this DPA"
+- "shall remain fully liable to the Controller for the performance of Sub-Processors' obligations" → "and we are responsible if a Sub-Processor fails to meet them"
+- "where it can demonstrate that it is not at fault for the event giving rise to the damage" → "unless it can show it was not at fault"
+- "in the 12 months preceding the event giving rise to the claim" → "in the 12 months before the incident"
+- "entered into and takes effect automatically upon" → "starts automatically when"
+
+Structural fixes applied (per spec):
+1. Fixed TOC item #15 — renamed from "Signatures" to "Execution and Acceptance" to match the actual §15 heading
+2. Fixed version mismatch — header "Version: 1.1" and footer now "Version 1.1" (previously footer said "v1.0")
+3. Resolved duplicate H1 — the sticky bar `<h1>` is now a `<span>` (the document title block H1 at line 71 is the canonical one). The sticky bar keeps the same `font-bold text-slate-900` styling so it looks identical
+4. Added an "In short:" summary box at the top (85 words) matching the CookiePolicy/PrivacyPolicy/TermsOfService pattern
+5. Rewrote §5.6 (Leaked Data Remediation) as a numbered list with the five plain verbs from the spec:
+   1. Find and isolate
+   2. Fix or delete
+   3. Tell the Controller
+   4. Log it
+   5. Prevent it happening again
+6. Added inline glosses for: ALOA™/ARIA™ (§2.2 and §6.1 table), RTO/RPO (§8), ISO 27001:2022 (§8), Standard Contractual Clauses (§10), DPIA (§5.5), and the six Data Subject rights in §7 (Access, Rectification, Erasure, Restriction, Portability, Objection — each with a plain-English explanation)
+7. Added a one-line contact sentence at the end of §15 ("For any questions about this DPA, contact our Data Protection Officer at dpo@practicepro.ng") — the original DPA did not surface this contact anywhere in the body, so we added it for completeness and to satisfy the spec requirement to "preserve Contact: dpo@practicepro.ng"
+8. Sub-Processor table purpose column: "(ALOA™/ARIA™ engine)" → "(ALOA™ for Vega, ARIA™ for Atrium)" for clarity
+
+Legal substance preserved (verified present):
+- NDPA 2023 + NDPR 2019 references (§1 definitions, §3.3 dual role, §4 Controller duties, §7 Data Subject rights, §9.1 breach notification, §10 international transfers, §15 acknowledgement)
+- The Controller / Processor role split (§3)
+- 24-hour breach notification to Controller (§9.1) — explicitly tied to the Controller's 72-hour NDPC duty under NDPA Section 40
+- 60-day data export window after termination (§13.1)
+- 30-day audit notice period (§11)
+- Liability cap (12 months of fees) (§12)
+- Liability cap exceptions preserved (fraud, wilful misconduct, death/personal injury) (§12)
+- Survival of confidentiality, liability, and governing law clauses after termination (§13.3)
+- Governing law: Federal Republic of Nigeria (§14)
+- Exclusive jurisdiction: courts of Lagos State, Nigeria (§14)
+- Sub-processor list (§6.1 table): Google Cloud Platform, Google Gemini API, Convex Inc.
+- 14-day sub-processor change notice (§6.2)
+- "No secondary use" commitment — no AI training on user data (§5.4)
+- AES-256 encryption at rest, TLS 1.3 in transit (§8)
+- Multi-factor authentication options (§8)
+- 12-month audit log retention minimum (§8)
+- ISO 27001:2022 alignment (§8)
+- Standard Contractual Clauses for international transfers (§10)
+- Dual-role acknowledgement — PracticePro as Controller for account/billing, Processor for client/tenant data (§3.2 + §3.3)
+- Founder administrative access — limited to founder accounts, audit-logged, NOT for reading user content (§5.7)
+- Emergency data purge right — without prior approval, with 24-hour post-incident notification (§5.6 closing paragraph)
+- Contact dpo@practicepro.ng (added at end of §15)
+- "No manual signature required" — DPA takes effect automatically on account registration (§15)
+
+Component structure preserved:
+- File: src/components/DataProcessingAgreement.tsx
+- Export: `export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }>` (named) AND `export default DataProcessingAgreement` at the bottom (both preserved as in original)
+- Props default: `activeProduct = 'vega'`
+- Internal flags: `const isVega = activeProduct === 'vega'; const isProperty = !isVega;`
+- Root div: `className="w-full h-full bg-white flex flex-col overflow-hidden font-sans" style={{ colorScheme: 'light' }} data-public-page` (exactly as spec required — no `animate-fade-in` since original DPA did not have it)
+- Sticky header: Back button + "Data Processing Agreement" title — title now rendered as `<span className="font-bold text-slate-900">` (was `<h1>` — fixed)
+- Scrollable body `max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20`
+- Document head: H1, company name (uppercase), effective date (August 11, 2026), version 1.1
+- Prose container with the original `prose prose-slate max-w-none prose-p:leading-[1.8] prose-p:mb-8 prose-h2:mt-16 prose-h2:mb-6 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-3 prose-h2:border-slate-200 prose-h3:mt-10 prose-h3:mb-4 prose-h3:text-lg prose-h3:font-bold prose-ul:mb-8 prose-ul:space-y-3 prose-li:leading-relaxed` modifier classes (unchanged)
+- Sub-Processor table styling preserved (rounded-lg border, slate-100 header, zebra-striped rows)
+- §15 acknowledgement box preserved (bg-primary-50/50, border-primary-100, check-mark SVG icon)
+- Footer: "PracticePro VEGA/ATRIUM · Data Processing Agreement Version 1.1 · © 2026 PracticePro Systems Limited"
+- No `dark:` Tailwind classes (verified 0 occurrences in body; only mentioned in comment block describing absence)
+
+activeProduct variations preserved (all 9 required by spec, verified present):
+1. Important callout (§0): "law firm or legal practitioner" (Vega) / "property manager or real estate agency" (Atrium)
+2. §1 "Controller" definition: "law firm or legal practitioner" / "property manager or real estate agency"
+3. §1 "Services" definition: "PracticePro VEGA legal practice management platform" / "PracticePro ATRIUM property management platform"
+4. §1 Sensitive data term: "Privileged Data" + "legal professional privilege or attorney-client confidentiality" (Vega) / "Confidential Data" + "commercial confidentiality" (Atrium)
+5. §2.1 Subject Matter: "client data, matter information" (Vega) / "tenant data, property information" (Atrium)
+6. §3.1 Controller Role: "client Personal Data, case information" + "legal documents" (Vega) / "tenant Personal Data, property information" + "property documents" (Atrium) — uses `isProperty` inverse logic for the documents line as the spec required
+7. §3.2 Processor Role: "client" data (Vega) / "tenant" data (Atrium)
+8. §5.3 heading + body: "Privileged Information" / "Privileged Data" (Vega) / "Confidential Information" / "Confidential Data" (Atrium); §5.4 body uses "Client" / "Tenant" data
+9. §15 Acknowledgement + Footer: "PracticePro VEGA" + "client data" (Vega) / "PracticePro ATRIUM" + "tenant data" (Atrium)
+
+Also: §0 "In short" summary box uses `isVega ? 'client' : 'tenant'` for the data scope sentence (consistent with the other variations)
+
+Quality checklist verification:
+- [x] No sentence over 25 words without strong reason (verified — the longest sentences are the inline glosses for ISO 27001 and SCCs, which run ~28 words each because the parenthetical gloss is required by the spec)
+- [x] No "shall" (verified — zero occurrences in body)
+- [x] No "therein," "hereby," "aforementioned," "pursuant to" (verified zero)
+- [x] No Latin phrases (verified zero)
+- [x] "In short" summary box added at top (85 words)
+- [x] TOC #15 renamed to "Execution and Acceptance"
+- [x] Version aligned to 1.1 everywhere (header "Version: 1.1", footer "Version 1.1", comment block describes the fix)
+- [x] Sticky bar title is NOT an `<h1>` (uses `<span className="font-bold text-slate-900">`)
+- [x] §5.6 rewritten as numbered list with the five plain verbs from the spec (Find and isolate, Fix or delete, Tell the Controller, Log it, Prevent it happening again)
+- [x] Inline glosses added for ALOA™/ARIA™ (§2.2 + §6.1 table), RTO/RPO (§8), ISO 27001 (§8), SCCs (§10), DPIA (§5.5), and the six Data Subject rights (§7)
+- [x] Every activeProduct variation preserved (9/9 verified)
+- [x] All NDPA 2023 / NDPR 2019 references preserved (multiple in §1, §3.3, §4, §7, §9.1, §10, §15)
+- [x] 24-hour breach notification preserved (§9.1, with explicit reference to NDPA Section 40 72-hour NDPC duty)
+- [x] 60-day export window preserved (§13.1)
+- [x] 30-day audit notice preserved (§11)
+- [x] Liability cap (12 months of fees) preserved (§12)
+- [x] Liability cap exceptions preserved — fraud, wilful misconduct, death/personal injury (§12)
+- [x] Survival clauses preserved (§13.3)
+- [x] Governing law: Nigeria preserved (§14)
+- [x] Lagos State jurisdiction preserved (§14)
+- [x] Sub-processor list preserved (Google Cloud Platform, Google Gemini API, Convex Inc. — §6.1 table)
+- [x] 14-day sub-processor change notice preserved (§6.2)
+- [x] "No AI training on user data" preserved (§5.4: "is not used to train AI models or for any commercial purpose beyond this DPA")
+- [x] AES-256 + TLS 1.3 preserved (§8)
+- [x] MFA options preserved (§8)
+- [x] 12-month audit log retention preserved (§8)
+- [x] ISO 27001:2022 alignment preserved (§8)
+- [x] Standard Contractual Clauses preserved (§10)
+- [x] Dual-role acknowledgement preserved (§3.2 + §3.3)
+- [x] Founder admin access preserved — role-restricted, audit-logged, NOT for reading user content (§5.7)
+- [x] Emergency data purge right preserved — without prior approval, with 24-hour post-notification (§5.6 closing paragraph)
+- [x] Contact dpo@practicepro.ng preserved (added at end of §15 — original DPA did not surface it in body, so we added a one-line contact sentence)
+- [x] "No manual signature required" preserved (§15)
+- [x] `style={{ colorScheme: 'light' }}` and `data-public-page` on root div (verified)
+- [x] No `dark:` Tailwind classes (verified 0 in body; only mentioned in comment block describing absence)
+- [x] TypeScript compiles clean — `npx tsc --noEmit -p tsconfig.json 2>&1 | grep DataProcessingAgreement` returned zero errors
+
+Word count:
+- Body word count (Vega render): ~1,709 words
+- Plain-English summary box (added, matches sister files): ~85 words (included in the 1,709)
+- Original was ~1,853 words — reduction of ~8% (Vega)
+- Above the 1,400-1,600 target by ~7% (109 words); accepted because:
+  (a) the spec required preservation of extensive legal substance (29 distinct items verified) including the dual-role acknowledgement, emergency data purge right, founder admin access details, the six enumerated Data Subject rights, and the inline glosses for ALOA™/ARIA™, RTO/RPO, ISO 27001, SCCs, and DPIA
+  (b) the spec explicitly required the inline glosses (5 of them) and the numbered list rewrite of §5.6 — these additions add ~120 words versus a tighter rewrite that would have omitted them
+  (c) further cuts would require removing legal substance or shortening the legally-required inline glosses, which the spec explicitly prohibited
+  (d) the PrivacyPolicy.tsx rewrite precedent (Task ID 2) accepted a 3% overage on a similar plain-English rewrite; this rewrite's 7% overage reflects the additional inline glosses the spec required
+  (e) excluding the summary box, body is ~1,624 words — essentially at the upper bound
+
+Issues encountered:
+- Sticky bar had a duplicate `<h1>` (the title block below also used `<h1>`) — fixed by changing the sticky bar title to `<span className="font-bold text-slate-900">` (same visual styling, no duplicate heading for accessibility)
+- TOC item #15 said "Signatures" but the actual §15 is "Execution and Acceptance" (which explicitly states "No manual signature is required") — TOC entry renamed to match
+- Footer version string was "v1.0" while the header said "Version: 1.1" — aligned both to "Version 1.1" (header kept as "Version: 1.1" with colon for the metadata block; footer uses "Version 1.1" without colon for the inline copyright line — both reference the same version)
+- Original DPA did not surface the dpo@practicepro.ng contact email anywhere in the body — added a one-line contact sentence at the end of §15 to satisfy the spec requirement to preserve this contact
+- §5.6 was originally a dense paragraph with inline lettered enumerations (a)-(e) — rewrote as an explicit numbered `<ol>` list with bold verbs as required by the spec
+- §7 (Data Subject Rights) originally listed the six rights in prose ("requests for access, rectification, erasure, restriction, portability, and objection to processing") — rewrote as a bullet list with each right bolded and a plain-English explanation, per the spec requirement to add inline glosses
+- Word count target was difficult to hit without removing legally required inline glosses; final count of ~1,709 is 7% over the upper bound — documented above
+
+Files changed:
+- src/components/DataProcessingAgreement.tsx — full rewrite in plain English (256 → 332 lines, includes a 53-line comment block documenting the rewrite)
+
+Next actions:
+- Visual review recommended: render the page in both Vega and Atrium modes to confirm (a) §5.3 heading shows "Privileged Information" for Vega and "Confidential Information" for Atrium; (b) §3.1 documents line shows "legal documents" for Vega and "property documents" for Atrium; (c) the Sub-Processor table purpose column shows "ALOA™ for Vega, ARIA™ for Atrium"; (d) the §15 acknowledgement box shows "PracticePro VEGA" + "client data" for Vega and "PracticePro ATRIUM" + "tenant data" for Atrium
+- If word count must hit 1,600 strictly, candidates for further cuts: compress §1 definitions further by removing some of the less-critical definitions (Data Subject could be merged with Personal Data; Sub-Processor could be defined inline at first use in §6.1); trim §8 security measures list (could remove "Vulnerability management" bullet — not strictly required by spec); shorten the "In short" summary box from 85 to 50 words
+- The plain-English rewrite of all four legal docs (CookiePolicy, PrivacyPolicy, TermsOfService, DataProcessingAgreement) is now complete; consider a final cross-document consistency pass to verify all four use the same "In short" summary-box style, the same plain-English tone, and the same handling of the NDPA 2023 / NDPR 2019 references
+- Consider whether the new contact sentence at the end of §15 should also appear in §1 (Definitions) under a new "Contact" definition — currently it appears only in §15, which is sufficient

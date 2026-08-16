@@ -1224,10 +1224,106 @@ body.aloax-is-processing .aloax-nav-badge {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
-  
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* ── SCE Calculator slider ────────────────────────────────────────────
+   * Custom-styled range input for the Atrium SCE Calculator modal.
+   * Native range inputs look different across browsers and are visually
+   * inconsistent with the emerald/teal Atrium brand. This gives a
+   * consistent, smooth, modern slider with:
+   *   - A thin track with emerald gradient fill
+   *   - A large, shadowed thumb that scales on hover/drag
+   *   - Smooth transitions for a "premium" feel
+   *   - Cross-browser support (WebKit, Firefox, Edge)
+   * The fill effect is achieved via a CSS variable --sce-fill-pct that
+   * is set inline by the component based on the current slider value.
+   */
+
+  .sce-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      #10b981 0%,
+      #14b8a6 var(--sce-fill-pct, 9.9%),
+      #e2e8f0 var(--sce-fill-pct, 9.9%),
+      #e2e8f0 100%
+    );
+    outline: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  /* WebKit thumb (Chrome, Safari, Edge) */
+  .sce-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid #10b981;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .sce-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45), 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .sce-slider::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.55), 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Firefox thumb */
+  .sce-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid #10b981;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .sce-slider::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45), 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .sce-slider::-moz-range-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+  }
+
+  /* Firefox track (WebKit track is handled by the background gradient above) */
+  .sce-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 9999px;
+    background: transparent; /* Firefox uses -moz-range-progress for the fill */
+  }
+
+  .sce-slider::-moz-range-progress {
+    height: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(to right, #10b981, #14b8a6);
+  }
+
+  /* Focus ring for accessibility */
+  .sce-slider:focus-visible {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
   }
 
   .pb-safe {

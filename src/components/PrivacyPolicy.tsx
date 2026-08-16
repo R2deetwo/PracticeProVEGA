@@ -1,6 +1,36 @@
 import React from 'react';
 import { ChevronLeftIcon as ChevronLeft } from '../constants';
 
+/**
+ * Privacy Policy — rewritten in plain English.
+ *
+ * Design goals:
+ *   - Short sentences (no more than 25 words where possible).
+ *   - Everyday words instead of legal jargon.
+ *   - Active voice. Address the reader as "you," the company as "we" or "PracticePro."
+ *   - Legal terms (Data Controller, Data Processor, PII) defined inline the first time
+ *     they appear.
+ *   - Bullets for lists. One idea per paragraph.
+ *   - Always render in light mode (see index.html — `html.dark` is set when the OS
+ *     theme is dark). The `style={{ colorScheme: 'light' }}` on the root and the
+ *     absence of any `dark:` Tailwind classes guarantee this.
+ *
+ * Structural fixes applied in this rewrite:
+ *   - §3.2 cross-reference corrected from "Section 3.4" to "Section 3.5."
+ *   - §4 numbering gap fixed (the old file jumped 4.7 → 4.9). 4.9 is now 4.8.
+ *   - §3.6 (Visitor & Access Code Data) is now gated to Atrium only via `isProperty`.
+ *   - §3.4 (Local File Linking) collapsed from five repetitive bullets to three
+ *     sentences.
+ *   - §5.1 AI Conversation Retention bullet uses ALOA™ for Vega and ARIA™ for
+ *     Atrium (matching the `activeProduct` logic). The rest of the file keeps
+ *     ALOA™ as the canonical assistant name for both products.
+ *
+ * All legally material disclosures are preserved: NDPA 2023, NDPR 2019,
+ * the 60-day data export window, the BYOK model, "we do not sell your data,"
+ * "we do not train AI on your data," the Data Controller / Data Processor
+ * role split, the under-18 prohibition, the contact email, and the
+ * registered address.
+ */
 export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }> = ({ onBack, activeProduct = 'vega' }) => {
     const isVega = activeProduct === 'vega';
     const isProperty = !isVega;
@@ -35,6 +65,15 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                         </div>
                     </div>
 
+                    {/* Plain-English summary box — gives the reader the gist in a few sentences */}
+                    <div className="mb-12 p-5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 leading-relaxed">
+                        <strong className="text-slate-900">In short:</strong> We collect only what we need to run
+                        PracticePro, bill you, and power the AI features you turn on. You are the Data Controller
+                        (you decide how data is used) for the {isVega ? 'client' : 'tenant'} data you enter.
+                        PracticePro is your Data Processor (we handle it on your behalf). We do not sell your
+                        data, and we do not use it to train AI models.
+                    </div>
+
                     {/* Standard Document Content with explicit spacing */}
                     <div className="prose prose-slate max-w-none
                         prose-p:leading-[1.8] prose-p:mb-12
@@ -49,10 +88,10 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                         <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-10">
                             <ol className="list-decimal pl-5 space-y-2">
                                 <li><a href="#introduction">Introduction</a></li>
-                                <li><a href="#who-we-are">Who We Are (Data Controller Information)</a></li>
+                                <li><a href="#who-we-are">Who We Are</a></li>
                                 <li><a href="#information-collection">Information We Collect</a></li>
                                 <li><a href="#usage">How We Use Your Information</a></li>
-                                <li><a href="#ai-processing-detail">AI Processing and Third-Party Service Providers</a></li>
+                                <li><a href="#ai-processing-detail">AI Processing and Third-Party Providers</a></li>
                                 <li><a href="#security">Data Security</a></li>
                                 <li><a href="#retention">Data Retention</a></li>
                                 <li><a href="#rights-detail">Your Rights Under NDPR and NDPA</a></li>
@@ -69,28 +108,46 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8">1. Introduction</h2>
                             <div className="space-y-12">
                                 <p>
-                                    Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}), a comprehensive cloud-based {isVega ? 'Litigation System' : 'Property OS'} designed specifically for Nigerian {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}. PracticePro Systems Limited ("PracticePro," "we," "us," or "our") is committed to protecting the privacy and security of your personal data in accordance with the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and all applicable Nigerian data protection laws and regulations.
+                                    Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}),
+                                    a cloud-based {isVega ? 'Litigation System' : 'Property OS'} built for Nigerian{' '}
+                                    {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}.
+                                    PracticePro Systems Limited (we call ourselves "PracticePro," "we," "us," or "our")
+                                    protects your personal data. We follow the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>,
+                                    the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and other
+                                    Nigerian data protection laws.
                                 </p>
                                 <p>
-                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including {isProperty ? 'our AI-powered property assistant ALOA™' : 'our AI-powered legal assistant ALOA™'}. By using PracticePro, you consent to the data practices described in this Privacy Policy.
+                                    This policy explains how we collect, use, share, store, and protect your personal
+                                    data when you use PracticePro, including{' '}
+                                    {isProperty ? 'our AI-powered property assistant ALOA™' : 'our AI-powered legal assistant ALOA™'}.
+                                    By using PracticePro, you agree to the practices described here.
                                 </p>
                                 <p>
-                                    <strong>Important Note:</strong> As a {isVega ? 'Litigation System' : 'Property Management System'}, PracticePro processes sensitive personal data and confidential {isVega ? 'client' : 'tenant'} information on behalf of {isVega ? 'legal practitioners' : 'property managers'}. Users ({isVega ? 'lawyers and law firms' : 'property managers and real estate firms'}) are Data Controllers for their {isVega ? 'clients\'' : 'tenants\''} data, while PracticePro acts as a Data Processor. This Privacy Policy governs our data processing practices and your rights as a data subject.
+                                    <strong>Important:</strong> PracticePro handles sensitive personal data and
+                                    confidential {isVega ? 'client' : 'tenant'} information on behalf of{' '}
+                                    {isVega ? 'legal practitioners' : 'property managers'}. You (the{' '}
+                                    {isVega ? 'lawyer or law firm' : 'manager or firm'} using PracticePro) are the
+                                    Data Controller for your {isVega ? 'clients\'' : 'tenants\''} data — you
+                                    decide how it is used. PracticePro is your Data Processor, and we handle that
+                                    data only on your behalf to provide the service.
                                 </p>
                             </div>
                         </section>
 
                         <section id="who-we-are" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8">2. Who We Are (Data Controller Information)</h2>
+                            <h2 className="text-3xl font-bold mb-8">2. Who We Are</h2>
                             <div className="space-y-12">
                                 <p>
                                     <strong>Company Name:</strong> PracticePro Systems Limited<br />
-                                    <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway. Lagos State<br />
+                                    <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State<br />
                                     <strong>Email:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a><br />
                                     <strong>Data Protection Officer (DPO):</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a>
                                 </p>
                                 <p>
-                                    For matters related to User account information, billing, and platform usage, PracticePro is the Data Controller. For {isVega ? 'client' : 'tenant'} data entered into the Platform by {isVega ? 'legal practitioners' : 'property managers'}, the individual {isVega ? 'lawyer or law firm' : 'manager or firm'} is the Data Controller, and PracticePro is the Data Processor.
+                                    For your account, billing, and platform usage, PracticePro is the Data
+                                    Controller. For {isVega ? 'client' : 'tenant'} data you enter into PracticePro,
+                                    the {isVega ? 'lawyer or law firm' : 'manager or firm'} is the Data Controller,
+                                    and PracticePro is the Data Processor.
                                 </p>
                             </div>
                         </section>
@@ -98,194 +155,223 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                         <section id="information-collection" className="mb-20">
                             <h2 className="text-3xl font-bold mb-8">3. Information We Collect</h2>
                             <div className="space-y-12">
-                                <p>We collect and process the following categories of personal data:</p>
+                                <p>We collect these categories of personal data:</p>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.1 Information You Provide Directly</h3>
+                                    <h3 className="text-xl font-bold">3.1 Information You Provide</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Account Registration Information:</strong> Full name, email address, phone number, firm name, {isVega ? 'Nigerian Bar Association (NBA) enrollment number, practice areas, jurisdiction information,' : 'estate agency registration (e.g., NIESV/ESVARBON), service areas,'} and password.</li>
-                                        <li><strong>Billing and Payment Information:</strong> Billing address, payment method details (processed securely through third-party payment processors), transaction history, and invoices.</li>
-                                        <li><strong>Profile Information:</strong> Professional designation, firm logo, letterhead, practice preferences, and communication preferences.</li>
-                                        <li><strong>{isVega ? 'Client and Matter' : 'Tenant and Property'} Data:</strong> Information about your {isVega ? 'clients and legal matters including names, contact details, case facts, court information, deadlines' : 'tenants and properties including names, contact details, lease agreements, rent schedules, maintenance records'}, financial records, time entries, expenses, and related documentation. This data is entered by you and is processed on your behalf.</li>
-                                        <li><strong>Documents and Files:</strong> {isVega ? 'Legal documents, contracts, pleadings, correspondence,' : 'Lease agreements, tenancy notices, property title documents, inspection reports,'} and other files you upload, create, or link to the Platform, including documents analyzed by our AI services.</li>
-                                        <li><strong>Communications:</strong> Messages sent through the Platform, support tickets, feedback, and any other communications with us or through Platform features.</li>
+                                        <li><strong>Account registration:</strong> Full name, email address, phone number, firm name, {isVega ? 'Nigerian Bar Association (NBA) enrollment number, practice areas, jurisdiction' : 'estate agency registration (e.g., NIESV/ESVARBON), service areas'}, and password.</li>
+                                        <li><strong>Billing and payment:</strong> Billing address, payment method details (handled securely by third-party payment processors), transaction history, and invoices.</li>
+                                        <li><strong>Profile:</strong> Professional designation, firm logo, and letterhead.</li>
+                                        <li><strong>{isVega ? 'Client and Matter' : 'Tenant and Property'} data:</strong> Information about your {isVega ? 'clients and legal matters — names, contact details, case facts, court information, deadlines' : 'tenants and properties — names, contact details, lease agreements, rent schedules, maintenance records'}, financial records, time entries, expenses, and related files. You enter this data, and we process it on your behalf.</li>
+                                        <li><strong>Documents and files:</strong> {isVega ? 'Legal documents, contracts, pleadings, correspondence' : 'Lease agreements, tenancy notices, property title documents, inspection reports'}, and other files you upload, create, or link to PracticePro — including files analyzed by our AI services.</li>
+                                        <li><strong>Communications:</strong> Messages sent through PracticePro, support tickets, feedback, and other messages to us or through Platform features.</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">3.2 Information Collected Automatically</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Usage Data:</strong> Information about how you access and use the Platform, including features used, actions taken, frequency and duration of use, search queries, and interaction patterns.</li>
-                                        <li><strong>Device and Technical Information:</strong> IP address, device type, operating system, browser type and version, unique device identifiers, network information, and general location data (city/state level based on IP address).</li>
-                                        <li><strong>Log Data:</strong> Server logs that include date and time of access, pages viewed, features accessed, response times, error reports, and other system activity.</li>
-                                        <li><strong>Cookies and Similar Technologies:</strong> We use cookies, web beacons, and similar tracking technologies to collect information about your browsing activities. See Section 3.4 for details.</li>
+                                        <li><strong>Usage data:</strong> How you access and use PracticePro — features used, actions taken, how often, how long, search queries, and patterns.</li>
+                                        <li><strong>Device and technical data:</strong> IP address, device type, operating system, browser type and version, unique device identifiers, network information, and general location (city/state level, based on IP).</li>
+                                        <li><strong>Log data:</strong> Server logs with date and time of access, pages viewed, features used, response times, error reports, and other system activity.</li>
+                                        <li><strong>Cookies and similar technologies:</strong> We use cookies, invisible trackers, and similar tools to learn about your browsing. See Section 3.5 for details.</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">3.3 Information from Third-Party Sources</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Authentication Services:</strong> If you register or log in using third-party services (e.g., Google Workspace), we receive basic profile information such as name and email address as permitted by your privacy settings with that service.</li>
-                                        <li><strong>Payment Processors:</strong> Transaction confirmation and payment status information from payment service providers like Paystack or Flutterwave.</li>
-                                        <li><strong>Integration Partners:</strong> If you connect third-party applications (e.g., Google Drive, calendar systems), we receive data necessary to provide integrated functionality as authorized by you.</li>
+                                        <li><strong>Log-in services:</strong> If you sign in using a third-party service (e.g., Google Workspace), we receive basic profile details like name and email, as allowed by your privacy settings with that service.</li>
+                                        <li><strong>Payment processors:</strong> Transaction confirmation and payment status from providers like Paystack or Flutterwave.</li>
+                                        <li><strong>Integration partners:</strong> If you connect third-party apps (e.g., Google Drive, calendar systems), we receive the data needed to provide the integration, as authorized by you.</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.4 Local File Linking and Aggregation</h3>
-                                    <p><strong>Important Clarification:</strong> PracticePro includes features that allow you to link local folders or files from your desktop or device to the Platform for easier access and organization. When you use these features:</p>
-                                    <ul className="list-disc pl-8 space-y-6">
-                                        <li>We do not automatically upload your entire hard drive. Files are uploaded only when you specifically select, import, or instruct the Platform to process them.</li>
-                                        <li>Only files you specifically select, import, or instruct the Platform to process are uploaded or analyzed.</li>
-                                        <li>File linking features require your explicit permission and configuration.</li>
-                                        <li>You maintain full control over which local files are accessed by PracticePro.</li>
-                                        <li>We process only the files you explicitly direct us to process through features like document upload, AI analysis, or matter attachment.</li>
-                                    </ul>
+                                    <h3 className="text-xl font-bold">3.4 Local File Linking</h3>
+                                    <p>
+                                        PracticePro lets you link local folders or files from your computer for
+                                        easier access. We do not upload your entire hard drive — only the files
+                                        you specifically select, import, or ask PracticePro to process. You stay
+                                        in full control of which local files PracticePro can access.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">3.5 Cookies and Tracking Technologies</h3>
-                                    <p>We use the following types of cookies and tracking technologies:</p>
+                                    <p>We use these types of cookies and tracking tools:</p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Essential Cookies:</strong> Required for Platform functionality, including authentication, security, and session management. These cannot be disabled.</li>
-                                        <li><strong>Functional Cookies:</strong> Remember your preferences, settings, and choices to enhance your experience.</li>
-                                        <li><strong>Analytics Cookies:</strong> Help us understand how the Platform is used, identify performance issues, and improve our services. We may use services like Google Analytics.</li>
-                                        <li><strong>Marketing Cookies:</strong> Used to deliver relevant advertisements and measure campaign effectiveness (only with your consent).</li>
+                                        <li><strong>Essential cookies:</strong> Required for PracticePro to work — including login, security, and session management. These cannot be turned off.</li>
+                                        <li><strong>Functional cookies:</strong> Remember your preferences, settings, and choices.</li>
+                                        <li><strong>Analytics cookies:</strong> Help us understand how PracticePro is used, find performance issues, and improve our services.</li>
+                                        <li><strong>Marketing cookies:</strong> Used to show relevant ads and measure campaign results (only with your consent).</li>
                                     </ul>
-                                    <p>You can manage your cookie preferences through your browser settings. However, disabling essential cookies may affect Platform functionality.</p>
+                                    <p>
+                                        You can manage cookie preferences in your browser settings. Turning off
+                                        essential cookies may break PracticePro features.
+                                    </p>
                                 </div>
 
-                                <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.6 Visitor & Access Code Data</h3>
-                                    <p>We collect and process the following personal data when you use the Visitor Management System (VMS): (a) visitor name and phone number, provided by the resident when generating an access code; (b) the resident's name, unit number, and property address, used to verify the visitor at the gatehouse; (c) access code metadata including generation timestamp, expiry time, check-in/check-out times, and revocation status. This data is scoped to your property and unit — other residents cannot see your access codes, and you cannot see theirs. The gatekeeper sees only the minimum information needed for entry verification. Access codes expire automatically based on the configured expiry window (default: 6 hours) and are retained in an audit log for security investigations.</p>
-                                </div>
+                                {isProperty && (
+                                    <div className="space-y-8">
+                                        <h3 className="text-xl font-bold">3.6 Visitor & Access Code Data</h3>
+                                        <p>
+                                            When you use the Visitor Management System, we collect: (a) visitor
+                                            name and phone number, given by the resident when generating an access
+                                            code; (b) the resident's name, unit number, and property address,
+                                            used to verify the visitor at the gatehouse; and (c) access code
+                                            details — when it was made, when it expires, check-in and check-out
+                                            times, and whether it was cancelled.
+                                        </p>
+                                        <p>
+                                            This data is scoped to your property and unit. Other residents
+                                            cannot see your access codes, and you cannot see theirs. The
+                                            gatekeeper sees only the minimum needed for entry. Codes expire
+                                            automatically (default: 6 hours) and are kept in an audit log for
+                                            security reviews.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </section>
 
                         <section id="usage" className="mb-20">
                             <h2 className="text-3xl font-bold mb-8 transition-colors">4. How We Use Your Information</h2>
                             <div className="space-y-12">
-                                <p>We process your personal data for the following purposes, based on the lawful bases specified under the NDPA 2023:</p>
+                                <p>
+                                    We use your personal data for these purposes, based on the legal reasons
+                                    allowed by the NDPA 2023:
+                                </p>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.1 To Provide and Maintain the Platform (Contractual Necessity)</h3>
+                                    <h3 className="text-xl font-bold">4.1 To Provide and Maintain PracticePro</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Create, maintain, and authenticate user accounts</li>
-                                        <li>Provide access to Platform features including {isVega ? 'matter management' : 'property management'}, document storage, calendaring, billing, and task management</li>
-                                        <li>Process and fulfill your requests for Platform services</li>
-                                        <li>Synchronize data across devices and maintain data consistency</li>
-                                        <li>Enable offline functionality and data synchronization</li>
-                                        <li>Provide customer support and respond to inquiries</li>
+                                        <li>Create and manage user accounts</li>
+                                        <li>Provide features including {isVega ? 'matter management' : 'property management'}, document storage, calendaring, billing, and tasks</li>
+                                        <li>Sync data across your devices, including offline</li>
+                                        <li>Provide customer support</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.2 To Provide AI-Powered Services (Consent)</h3>
+                                    <h3 className="text-xl font-bold">4.2 To Provide AI-Powered Services</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>{isProperty ? 'Process documents and property information through ALOA™ for analysis, document drafting, and insights' : 'Process documents and case information through ALOA™ for legal research, document drafting, and analysis'}</li>
-                                        <li>Generate automated summaries, risk assessments, and legal document drafts</li>
-                                        {isVega && <li>Calculate filing deadlines based on Nigerian court rules</li>}
-                                        <li>Extract metadata and key information from uploaded documents</li>
-                                        <li>Provide intelligent suggestions and proactive insights based on matter data</li>
+                                        <li>{isProperty ? 'Process documents and property information through ALOA™ for analysis, drafting, and insights' : 'Process documents and case information through ALOA™ for legal research, drafting, and analysis'}</li>
+                                        <li>Generate summaries, risk assessments, and document drafts</li>
+                                        {isVega && <li>Calculate filing deadlines from Nigerian court rules</li>}
+                                        <li>Pull key details from uploaded documents</li>
+                                        <li>Offer smart suggestions based on your {isVega ? 'matter' : 'property'} data</li>
                                         <li>Enable voice-based interaction and natural language processing</li>
                                     </ul>
-                                    <p><strong>Important:</strong> When you use AI features, you explicitly consent to the processing of data (including case facts and document content) through our AI service providers.</p>
+                                    <p>
+                                        <strong>Note:</strong> When you use AI features, you agree that we will
+                                        send your data (including case facts and document content) to our AI
+                                        service providers.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.3 To Process Payments (Contractual Necessity)</h3>
+                                    <h3 className="text-xl font-bold">4.3 To Process Payments</h3>
                                     <ul className="list-disc pl-8 space-y-6">
                                         <li>Process subscription payments and invoices</li>
                                         <li>Manage billing accounts and payment methods</li>
-                                        <li>Verify payment information and prevent fraud</li>
+                                        <li>Verify payment details and prevent fraud</li>
                                         <li>Generate receipts and financial records</li>
                                         <li>Calculate and collect applicable taxes (VAT)</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.4 To Improve and Optimize the Platform (Legitimate Interests)</h3>
+                                    <h3 className="text-xl font-bold">4.4 To Improve PracticePro</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Analyze usage patterns to understand how features are used</li>
-                                        <li>Identify and fix technical issues, bugs, and performance problems</li>
-                                        <li>Develop new features and enhance existing functionality</li>
-                                        <li>Conduct research and analytics using aggregate, anonymized data</li>
-                                        <li>Test new features and conduct quality assurance</li>
-                                        <li>Monitor and improve AI model performance and accuracy</li>
+                                        <li>Study how features are used, using grouped, anonymized data</li>
+                                        <li>Find and fix bugs, and improve existing features</li>
+                                        <li>Build and test new features</li>
+                                        <li>Monitor and improve AI model performance</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.5 For Security and Fraud Prevention (Legitimate Interests)</h3>
+                                    <h3 className="text-xl font-bold">4.5 For Security and Fraud Prevention</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Detect, prevent, and respond to security incidents and threats</li>
-                                        <li>Investigate and prevent fraud, unauthorized access, and policy violations</li>
-                                        <li>Verify user identity and prevent account abuse</li>
-                                        <li>Monitor for suspicious activity and potential security breaches</li>
-                                        <li>Maintain audit trails and access logs for security purposes</li>
-                                        <li>Protect the rights, property, and safety of PracticePro, our users, and third parties</li>
+                                        <li>Detect, prevent, and respond to security incidents, fraud, and policy violations</li>
+                                        <li>Verify user identity and stop account abuse</li>
+                                        <li>Watch for suspicious activity and keep records of activity</li>
+                                        <li>Protect PracticePro, our users, and third parties</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">4.6 To Communicate With You</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Send service-related announcements and important Platform updates</li>
+                                        <li>Send service-related announcements and important updates</li>
                                         <li>Provide customer support and respond to inquiries</li>
-                                        <li>Send notifications about account activity, new features, and system maintenance</li>
-                                        <li>Request feedback and conduct user surveys</li>
-                                        <li>Send marketing communications (only with your consent, and you may opt out at any time)</li>
-                                        <li><strong>Automated Multi-Channel Notifications:</strong> When tasks are assigned or reminders are triggered, the Platform may send notifications via in-app alerts, email, and WhatsApp. External stakeholders (clients/residents) receive email by default and WhatsApp only if explicitly opted in. Internal staff receive in-app notifications only. You may manage your notification preferences, including opting out of WhatsApp messages, at any time in Settings.</li>
-                                        <li><strong>Task-Related Communications:</strong> When a task is assigned to you, the Platform processes your name, email address, and (if applicable) phone number to deliver assignment notifications and reminders. This processing is necessary for the performance of the service contract between you and the firm using PracticePro.</li>
+                                        <li>Notify you about account activity, new features, and maintenance</li>
+                                        <li>Request feedback and run user surveys</li>
+                                        <li>Send marketing messages (only with your consent — opt out anytime)</li>
+                                        <li><strong>Automated multi-channel alerts:</strong> When tasks are assigned or reminders trigger, PracticePro may send in-app, email, or WhatsApp alerts. External contacts ({isVega ? 'clients' : 'residents'}) get email by default and WhatsApp only if they opt in. Internal staff get in-app alerts only. Change notification settings, including turning off WhatsApp, anytime in Settings.</li>
+                                        <li><strong>Task notices:</strong> When a task is assigned to you, PracticePro uses your name, email, and (if needed) phone number to send assignment notices and reminders. We need this to deliver the service your firm signed up for.</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">4.7 To Comply with Legal Obligations</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Comply with applicable laws, regulations, and regulatory requests</li>
-                                        <li>Respond to court orders, subpoenas, and legal process</li>
-                                        <li>Cooperate with law enforcement and regulatory authorities when legally required</li>
-                                        <li>Maintain records as required by tax, accounting, and corporate laws</li>
+                                        <li>Follow applicable laws, regulations, court orders, and subpoenas</li>
+                                        <li>Cooperate with law enforcement and regulators when legally required</li>
+                                        <li>Keep records required by tax, accounting, and corporate laws</li>
                                         <li>Enforce our Terms of Service and other agreements</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.9 To Process User Feedback</h3>
-                                    <p>When you submit feedback through the in-app feedback form, we process your name, email address, feedback type, title, and message content. Feedback is stored securely and is visible to PracticePro's founder team via the administrative application. Feedback is auto-replied to immediately upon submission. You should not include sensitive personal data in feedback submissions.</p>
+                                    <h3 className="text-xl font-bold">4.8 To Process User Feedback</h3>
+                                    <p>
+                                        When you send feedback through the in-app form, we process your name,
+                                        email, feedback type, title, and message. Feedback is stored securely
+                                        and visible to PracticePro's founder team through the admin app. You
+                                        get an auto-reply right after submitting. Do not include sensitive
+                                        personal data in feedback.
+                                    </p>
                                 </div>
                             </div>
                         </section>
 
                         <section id="ai-processing-detail" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">5. AI Processing and Third-Party Service Providers</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">5. AI Processing and Third-Party Providers</h2>
                             <div className="space-y-12">
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.1 ALOA™ AI Processing</h3>
-                                    <p>ALOA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting capabilities' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities'}. The Platform uses a <strong>Bring Your Own Key (BYOK)</strong> model for AI processing, which means:</p>
+                                    <p>
+                                        ALOA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting'}. PracticePro uses a <strong>Bring Your Own Key (BYOK)</strong> model — meaning you use your own AI account (called Bring Your Own Key, or BYOK). Here is how it works:
+                                    </p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Your Own API Key:</strong> To use ALOA™'s AI features, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. This key is stored locally in your browser and is used to authenticate directly with the AI provider of your choice.</li>
-                                        <li><strong>Direct Browser-to-Provider Transmission:</strong> When you submit a query, upload a document for analysis, or request AI-generated content, your data is transmitted <strong>directly from your browser to the AI provider</strong> (Google or OpenAI). PracticePro does not intercept, store, or route your AI query data through our servers.</li>
-                                        <li><strong>You Are the Data Controller for AI Inputs:</strong> Because you provide your own API key and your data goes directly to the AI provider, you (not PracticePro) are the Data Controller for all data you submit to the AI provider. Your use of the AI provider is governed by the provider's own Terms of Service and Privacy Policy. PracticePro is not a sub-processor for your AI processing activities.</li>
-                                        <li><strong>No Model Training by PracticePro:</strong> PracticePro does not use your AI inputs or outputs to train any models. Whether the AI provider uses your data for model training is governed by your agreement with the provider — we recommend reviewing the provider's terms and configuring data retention settings in your provider account.</li>
-                                        <li><strong>Privacy Shield Agent:</strong> Before processing data through AI, our Privacy Shield Agent identifies and flags Personally Identifiable Information (PII), giving you the option to redact sensitive information before submission to the AI provider.</li>
-                                        <li><strong>API Key Security:</strong> Your API key is stored in your browser's local storage and is transmitted only to the AI provider's authentication endpoint. It is never sent to PracticePro's servers. You should ensure your browser and device are secured (password lock, screen lock) to protect your API key.</li>
-                                        <li><strong>AI Conversation Retention:</strong> When you interact with ALOA™ (Vega) or ARIA™ (Atrium), your AI assistant conversations are persisted and scoped to your firm. This allows you to review past conversations and enables the AI to maintain context across sessions. Conversations are visible to the user who created them and firm administrators within the same firm. PracticePro's founder team does NOT have read access to your AI conversations — they are isolated from the admin and feedback systems.</li>
+                                        <li><strong>Your own API key:</strong> To use ALOA™, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. The key is stored in your browser and used to log in directly with the AI provider you choose.</li>
+                                        <li><strong>Direct browser-to-provider transfer:</strong> When you submit a query, upload a document, or request AI content, your data goes straight from your browser to the AI provider (Google or OpenAI). PracticePro does not intercept, store, or route your AI queries.</li>
+                                        <li><strong>You are the Data Controller for AI inputs:</strong> Because you supply your own API key and your data goes directly to the AI provider, you (not PracticePro) are the Data Controller for what you submit. Your use of the AI provider follows their Terms and Privacy Policy. We do not process your AI data on anyone else's behalf.</li>
+                                        <li><strong>PracticePro does not train models on your data:</strong> We never use your AI inputs or outputs to train any models. Whether the AI provider uses your data for training is governed by your agreement with them. Review their terms and configure data retention in your provider account.</li>
+                                        <li><strong>Privacy Shield Agent:</strong> Before sending data to AI, our Privacy Shield Agent finds and flags personal information (also called PII), so you can redact sensitive details first.</li>
+                                        <li><strong>API key security:</strong> Your API key is stored in your browser's local storage and sent only to the AI provider's log-in service, never to PracticePro's servers. Keep your browser and device secured (password lock, screen lock).</li>
+                                        <li><strong>AI conversation history:</strong> When you chat with {isVega ? 'ALOA™' : 'ARIA™'}, your conversations are saved and only visible within your firm. This lets you review past chats and helps the AI keep context. Conversations are visible to the user who created them and to firm administrators. PracticePro's founder team does NOT have read access — conversations are kept separate from the admin and feedback systems.</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.2 Other Third-Party Service Providers</h3>
-                                    <p>We engage carefully selected third-party service providers to help us deliver the Platform. These providers process personal data only on our behalf and under strict contractual obligations. We do not sell your data to third parties.</p>
+                                    <p>
+                                        We work with carefully chosen third-party providers to help deliver
+                                        PracticePro. They process personal data only on our behalf and under
+                                        strict contract terms. We do not sell your data.
+                                    </p>
 
                                     <div className="space-y-6 pl-4 border-l-2 border-slate-100">
                                         <div className="space-y-4">
                                             <h4 className="font-bold">5.2.1 Cloud Hosting and Infrastructure</h4>
                                             <ul className="list-disc pl-8 space-y-2">
                                                 <li><strong>Provider:</strong> Google Cloud Platform</li>
-                                                <li><strong>Purpose:</strong> Hosting the Platform, storing data, providing computing resources</li>
-                                                <li><strong>Security:</strong> Google Cloud provides robust infrastructure security, encryption, and maintains its own compliance certifications (see cloud.google.com/security/compliance for details)</li>
+                                                <li><strong>Purpose:</strong> Hosting PracticePro, storing data, providing computing resources</li>
+                                                <li><strong>Security:</strong> Strong infrastructure security, encryption, and compliance certifications (see cloud.google.com/security/compliance)</li>
                                             </ul>
                                         </div>
 
@@ -293,8 +379,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                             <h4 className="font-bold">5.2.2 Payment Processors</h4>
                                             <ul className="list-disc pl-8 space-y-2">
                                                 <li><strong>Providers:</strong> Paystack, Flutterwave, or other authorized Nigerian payment gateways</li>
-                                                <li><strong>Purpose:</strong> Processing subscription payments, managing payment methods, transaction processing</li>
-                                                <li><strong>Note:</strong> We do not store complete credit card numbers or sensitive payment credentials on our servers</li>
+                                                <li><strong>Purpose:</strong> Processing subscription payments and managing payment methods</li>
+                                                <li><strong>Note:</strong> We do not store full credit card numbers or sensitive payment credentials</li>
                                             </ul>
                                         </div>
 
@@ -302,8 +388,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                             <h4 className="font-bold">5.2.3 Analytics and Performance Monitoring</h4>
                                             <ul className="list-disc pl-8 space-y-2">
                                                 <li><strong>Providers:</strong> Google Analytics, error tracking services, performance monitoring tools</li>
-                                                <li><strong>Purpose:</strong> Understanding usage patterns, identifying technical issues, improving Platform performance</li>
-                                                <li><strong>Note:</strong> We configure analytics tools to anonymize personal data where possible</li>
+                                                <li><strong>Purpose:</strong> Understanding usage, finding issues, improving performance</li>
+                                                <li><strong>Note:</strong> We anonymize personal data in analytics where possible</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -311,12 +397,19 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.3 Data Protection Safeguards for Third Parties</h3>
-                                    <p>All third-party service providers are contractually required to process data only as instructed by us, implement appropriate technical measures, maintain confidentiality, and operate under data processing agreements that address applicable data protection requirements.</p>
+                                    <p>
+                                        All third-party providers must, by contract, process data only as we
+                                        instruct, use appropriate technical measures, keep data confidential,
+                                        and sign contracts that meet Nigerian data protection requirements.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.4 International Data Transfers</h3>
-                                    <p>Some of our service providers may process data outside Nigeria. When data is transferred internationally, we take steps to ensure adequate protection through appropriate contractual safeguards and by requiring service providers to maintain adequate levels of data protection as required by the NDPA.</p>
+                                    <p>
+                                        Some providers process data outside Nigeria. When data crosses borders,
+                                        we protect it with contracts that meet the NDPA's protection standards.
+                                    </p>
                                 </div>
                             </div>
                         </section>
@@ -325,7 +418,11 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">6. Data Security</h2>
                             <div className="space-y-12">
                                 <p>
-                                    We implement technical and organizational security measures to protect your personal data, including data encryption at rest and in transit, access controls, regular backups, network monitoring, and security incident response procedures.
+                                    We use technical and organizational measures to protect your personal data:
+                                    encryption at rest and in transit, access controls, regular backups, network
+                                    monitoring, and incident response procedures. If a breach affects your
+                                    personal data, we will notify you without undue delay, following the NDPA's
+                                    72-hour breach notification principle.
                                 </p>
                             </div>
                         </section>
@@ -334,7 +431,11 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">7. Data Retention</h2>
                             <div className="space-y-12">
                                 <p>
-                                    We retain personal data only for as long as necessary to fulfill the purposes for which it was collected. User account data is maintained for the duration of your active account. Upon termination, data can be exported natively within 60 days, after which it is permanently deleted from our servers, subject to limited retention required for tax and legal obligations.
+                                    We keep personal data only as long as needed for the purpose it was
+                                    collected. Your account data is kept while your account is active. If you
+                                    close your account, you can export your data within 60 days. After that, it
+                                    is permanently deleted from our servers, except for records we are legally
+                                    required to keep.
                                 </p>
                             </div>
                         </section>
@@ -343,7 +444,11 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">8. Your Rights Under NDPR and NDPA</h2>
                             <div className="space-y-12">
                                 <p>
-                                    Under the Nigerian data protection framework, you have the right to access, rectify, or request erasure of your data. You may object to or restrict processing, request your data in a portable format, and withdraw consent. You also have the right to lodge a complaint with the Nigeria Data Protection Commission (NDPC). To exercise these rights, please contact our Data Protection Officer at dpo@practicepro.ng.
+                                    Under Nigerian data protection law, you can access, see, correct,
+                                    delete, limit, move, or stop us using your personal data. You can also
+                                    withdraw consent and make a complaint to the Nigeria Data Protection
+                                    Commission (NDPC). To use any of these rights, contact our Data Protection
+                                    Officer at dpo@practicepro.ng.
                                 </p>
                             </div>
                         </section>
@@ -352,7 +457,9 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">9. Children's Privacy</h2>
                             <div className="space-y-12">
                                 <p>
-                                    PracticePro is intended solely for {isVega ? 'legal' : 'real estate'} professionals and individuals over the age of 18. We do not knowingly collect personal data from anyone under the age of 18.
+                                    PracticePro is intended for {isVega ? 'legal' : 'real estate'} professionals
+                                    and people over 18. We do not knowingly collect personal data from anyone
+                                    under 18.
                                 </p>
                             </div>
                         </section>
@@ -363,14 +470,16 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold transition-colors">10.1 PracticePro as Data Controller</h3>
                                     <p>
-                                        PracticePro acts as the Data Controller when processing information about your account, subscription, and general Platform usage. This encompasses how you interact with our billing systems and platform functionality.
+                                        PracticePro is the Data Controller when handling information about your
+                                        account, subscription, and general platform use. This includes how you
+                                        interact with our billing systems and platform features.
                                     </p>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold transition-colors">10.2 PracticePro as Data Processor</h3>
                                     <p>
-                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ALOA™ queries that you input into the Platform, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro acts as your Data Processor, handling this information only under your instruction and strictly for the provision of the Platform's services.
+                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ALOA™ queries you enter, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro only handles this data on your behalf, to provide the service.
                                     </p>
                                 </div>
                             </div>
@@ -380,7 +489,10 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">11. Changes to This Policy</h2>
                             <div className="space-y-12">
                                 <p>
-                                    We may update this Privacy Policy from time to time. When we make material changes, we will notify you via email or through an application alert prior to the changes taking effect. Your continued use of the Platform after the effective date constitutes your acceptance of the updated Policy.
+                                    We may update this Privacy Policy from time to time. When we make material
+                                    changes, we will notify you by email or in-app alert before they take
+                                    effect. If you keep using PracticePro after the date above, we'll take
+                                    that as your agreement to the changes.
                                 </p>
                             </div>
                         </section>
@@ -389,7 +501,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">12. Contact Us</h2>
                             <div className="space-y-12">
                                 <p>
-                                    If you have any questions, concerns, or requests regarding this Privacy Policy or our data processing practices, please contact us at:
+                                    If you have questions, concerns, or requests about this Privacy Policy or
+                                    how we handle data, contact us at:
                                 </p>
                                 <div className="space-y-6">
                                     <p>

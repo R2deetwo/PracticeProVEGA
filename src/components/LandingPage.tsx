@@ -961,52 +961,109 @@ const TIER_CTAS: Record<TierId, string> = {
 };
 
 // ─── SCE CALCULATOR MODAL (Atrium only) ─────────────────────────────────────
-// Lets property managers input their unit count and see:
-// - Per-tenant SCE for each tier
-// - Total annual cost
-// - Whether their residents can absorb the cost (based on a typical
-// Lagos service charge benchmark of ₦2,000-5,000/unit/month)
-// Helps them decide if Atrium makes economic sense for their portfolio.
+// Interactive slider-based calculator that lets property managers:
+//   1. Drag a slider to set their unit count (1-500)
+//   2. Toggle between monthly and annual billing
+//   3. See live-updating per-tenant SCE for each tier
+//   4. Visualise "absorbability" — whether residents will notice the cost
+//      on their service charge invoice (based on Lagos SC benchmarks)
+//
+// DESIGN DECISION: "Average rent per unit" input REMOVED.
+// The previous version asked for average rent and showed "SCE as % of rent".
+// However, average rent does NOT change the SCE calculation at all — SCE is
+// simply (annual subscription ÷ 12 ÷ units). The percentage was purely
+// informational and confused users ("does this change anything?"). The
+// absorbability benchmark (₦2,000-5,000/mo based on typical Lagos service
+// charges) is a more useful comparison point and doesn't require the user
+// to guess their average rent. If we ever need the percentage back, it's
+// trivial to re-add — but the slider UX is cleaner without it.
 
 const SceCalculatorModal: React.FC<{
     tiers: Record<Exclude<TierId, 'Enterprise'>, TierDef>;
     onClose: () => void;
     onSignup: (productOverride?: ProductMode) => void;
 }> = ({ tiers, onClose, onSignup }) => {
-    const [unitCount, setUnitCount] = useState<string>('50');
-    const [avgRentPerUnit, setAvgRentPerUnit] = useState<string>('1500000');
+    // ── State ────────────────────────────────────────────────────────────
+    // Unit count drives the entire calculation. Default to 50 (a typical
+    // small-to-medium Lagos portfolio). Slider range: 1-500, with smart
+    // step scaling (1-unit steps for small portfolios, 5-unit steps for
+    // larger ones) so the slider feels precise at low values and fast at
+    // high values.
+    const [unitCount, setUnitCount] = useState<number>(50);
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
 
-    const units = Math.max(1, parseInt(unitCount) || 0);
-    const avgRent = Math.max(0, parseInt(avgRentPerUnit) || 0);
+    const units = Math.max(1, unitCount);
 
-    // Calculate SCE per tenant per month for each tier
+    // ── Calculations ────────────────────────────────────────────────────
+    // For each tier, compute:
+    //   - SCE per tenant per month = (price ÷ 12 ÷ units) for annual,
+    //     or (monthlyPrice ÷ units) for monthly billing
+    //   - Total cost (monthly or annual, matching the toggle)
+    //   - Absorbability: based on Lagos SC benchmark
+    //     · Easy:   SCE < ₦2,000/mo — residents barely notice
+    //     · Moderate: SCE ₦2,000-5,000/mo — noticeable but reasonable
+    //     · Tight:  SCE > ₦5,000/mo — consider a higher tier
+    //   - Whether this tier is the "best fit" for the user's unit count
+    //     (i.e., units falls within the tier's included range)
     const calculations = (['Core', 'Growth', 'Pro'] as const).map(id => {
         const tier = tiers[id];
         const annualPrice = tier.annualPrice || 0;
-        const scePerTenantMonthly = units > 0 ? Math.round(annualPrice / 12 / units) : 0;
+        const monthlyPrice = tier.monthlyPrice || 0;
+
+        // SCE calculation depends on billing cycle
+        const scePerTenantMonthly = billingCycle === 'annual'
+            ? (units > 0 ? Math.round(annualPrice / 12 / units) : 0)
+            : (units > 0 ? Math.round(monthlyPrice / units) : 0);
+
         const totalAnnual = annualPrice;
-        // SCE as % of average annual rent (rent × 12)
-        const annualRent = avgRent * 12;
-        const sceAsPercentOfRent = annualRent > 0 ? (scePerTenantMonthly * 12 / annualRent) * 100 : 0;
-        // Absorbability: typical Lagos SC is ₦2,000-5,000/mo per unit
-        // If SCE < ₦2,000, residents barely notice it. If > ₦5,000, it's noticeable.
+        const totalMonthly = monthlyPrice;
+
+        // Absorbability — based on Lagos SC benchmark
         let absorbability: 'easy' | 'moderate' | 'tight' = 'easy';
         if (scePerTenantMonthly > 5000) absorbability = 'tight';
         else if (scePerTenantMonthly > 2000) absorbability = 'moderate';
+
+        // Absorbability percentage for the visual bar (0-100%)
+        // Map SCE to a 0-100 scale where:
+        //   0 = ₦0/mo (0%)
+        //   ₦2,000/mo = 33% (end of "easy")
+        //   ₦5,000/mo = 67% (end of "moderate")
+        //   ₦10,000/mo = 100% (very tight)
+        const absorbabilityPct = Math.min(100, Math.round((scePerTenantMonthly / 10000) * 100));
+
+        // Best fit: units falls within the tier's included range
+        // (tierMaxUnits is the included cap; beyond that, overage applies)
+        const tierMaxUnits = tier.maxUnits;
+        const isBestFit = tierMaxUnits !== null && units <= tierMaxUnits;
+        const exceedsCapacity = tierMaxUnits !== null && units > tierMaxUnits;
+
+        // Overage calculation (if units exceed the tier's included cap)
+        let overageUnits = 0;
+        let overageCost = 0;
+        if (tier.overageRate && tier.overageStartUnit && units >= tier.overageStartUnit) {
+            overageUnits = units - (tier.overageStartUnit - 1);
+            overageCost = overageUnits * tier.overageRate;
+        }
+
         return {
             id,
             tierName: tier.label,
-            tierMaxUnits: tier.maxUnits,
+            tierMaxUnits,
             scePerTenantMonthly,
             totalAnnual,
-            sceAsPercentOfRent,
+            totalMonthly,
+            overageCost,
+            overageUnits,
             absorbability,
-            exceedsCapacity: tier.maxUnits !== null && units > tier.maxUnits,
+            absorbabilityPct,
+            isBestFit,
+            exceedsCapacity,
         };
     });
 
     const fmtNaira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 
+    // ── Render ──────────────────────────────────────────────────────────
     // Use createPortal to render at document.body level — escapes any
     // transformed parent (like <main className="animate-swap-in"> which
     // applies a CSS transform that creates a containing block, trapping
@@ -1026,7 +1083,7 @@ const SceCalculatorModal: React.FC<{
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto flex flex-col">
                 {/* Brand accent bar */}
                 <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 to-teal-600 rounded-t-2xl sm:rounded-t-2xl" />
 
@@ -1034,7 +1091,7 @@ const SceCalculatorModal: React.FC<{
                 <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
                     <div>
                         <h2 id="sce-calc-title" className="font-display text-lg font-bold text-slate-900">SCE Calculator</h2>
-                        <p className="text-xs text-slate-500 mt-0.5">See how Atrium fits your portfolio</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Drag the slider to see your per-tenant cost</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -1047,131 +1104,249 @@ const SceCalculatorModal: React.FC<{
 
                 {/* Body */}
                 <div className="px-4 sm:px-6 py-5 space-y-5">
-                    {/* Explanation */}
+                    {/* Explanation — shorter and clearer than before */}
                     <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
                         <p className="text-xs text-emerald-900 leading-relaxed">
-                            <strong>Service Charge Equivalent (SCE)</strong> is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is <strong>not</strong> an additional fee charged by Atrium.
+                            <strong>Service Charge Equivalent (SCE)</strong> is your Atrium subscription divided across your tenants — shown as a per-tenant monthly amount. You can add this line to your service charge invoices to recover the cost. It is <strong>not</strong> an extra fee from Atrium.
                         </p>
                     </div>
 
-                    {/* Inputs */}
-                    <div className="grid sm:grid-cols-2 gap-4">
-                        <label className="block">
-                            <span className="block text-sm font-semibold text-slate-700 mb-1.5">Units under management</span>
+                    {/* ── Primary slider: Units under management ─────────────── */}
+                    <div className="space-y-3">
+                        <div className="flex items-baseline justify-between">
+                            <label htmlFor="sce-units-slider" className="text-sm font-semibold text-slate-700">
+                                Units under management
+                            </label>
+                            <div className="flex items-baseline gap-1">
+                                <span className="font-display text-2xl font-extrabold text-emerald-600 nums-tabular transition-all duration-150">
+                                    {units.toLocaleString('en-NG')}
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium">units</span>
+                            </div>
+                        </div>
+
+                        {/* Custom-styled range slider */}
+                        <div className="relative pt-1">
                             <input
-                                type="number"
+                                id="sce-units-slider"
+                                type="range"
                                 min="1"
-                                value={unitCount}
-                                onChange={e => setUnitCount(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                                placeholder="e.g. 50"
+                                max="500"
+                                step="1"
+                                value={units}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value);
+                                    // Snap to the smart step (1, 5, or 10) so the
+                                    // slider feels precise at low values and fast
+                                    // at high values. Without snapping, dragging
+                                    // from 25 to 100 would go 1-by-1.
+                                    const step = val <= 25 ? 1 : val <= 100 ? 5 : 10;
+                                    const snapped = Math.round(val / step) * step;
+                                    setUnitCount(Math.max(1, Math.min(500, snapped)));
+                                }}
+                                className="sce-slider w-full"
+                                aria-valuemin={1}
+                                aria-valuemax={500}
+                                aria-valuenow={units}
+                                style={{ '--sce-fill-pct': `${((units - 1) / 499) * 100}%` } as React.CSSProperties}
                             />
-                            <span className="block text-xs text-slate-400 mt-1">Total units across all properties</span>
-                        </label>
-                        <label className="block">
-                            <span className="block text-sm font-semibold text-slate-700 mb-1.5">Avg. annual rent per unit (₦)</span>
-                            <input
-                                type="number"
-                                min="0"
-                                step="50000"
-                                value={avgRentPerUnit}
-                                onChange={e => setAvgRentPerUnit(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                                placeholder="e.g. 1,500,000"
-                            />
-                            <span className="block text-xs text-slate-400 mt-1">Used to calculate SCE as % of rent</span>
-                        </label>
+                            {/* Tick marks for context */}
+                            <div className="flex justify-between mt-2 text-3xs text-slate-400 font-medium">
+                                <span>1</span>
+                                <span>50</span>
+                                <span>100</span>
+                                <span>250</span>
+                                <span>500+</span>
+                            </div>
+                        </div>
+
+                        {/* Quick-set buttons for common portfolio sizes */}
+                        <div className="flex flex-wrap gap-2">
+                            {[10, 25, 50, 100, 250].map(n => (
+                                <button
+                                    key={n}
+                                    onClick={() => setUnitCount(n)}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                        units === n
+                                            ? 'bg-emerald-600 text-white shadow-sm'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    {n}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Results — stacked cards on mobile, table on desktop */}
-                    <div className="space-y-3 sm:hidden">
-                        {calculations.map(calc => (
-                            <div key={calc.id} className="border border-slate-200 rounded-lg p-3">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <p className="font-display font-bold text-slate-900 text-sm">{calc.tierName}</p>
-                                        {calc.exceedsCapacity && (
-                                            <p className="text-3xs text-amber-600 font-bold mt-0.5">Exceeds tier cap ({calc.tierMaxUnits} units)</p>
+                    {/* ── Billing cycle toggle ──────────────────────────────── */}
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-700">Billing cycle</p>
+                            <p className="text-xs text-slate-500">
+                                {billingCycle === 'annual' ? 'Save 20% with annual billing' : 'Flexibility of monthly billing'}
+                            </p>
+                        </div>
+                        <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                            <button
+                                onClick={() => setBillingCycle('monthly')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    billingCycle === 'monthly'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Monthly
+                            </button>
+                            <button
+                                onClick={() => setBillingCycle('annual')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    billingCycle === 'annual'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Annual
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── Tier cards (live-updating) ────────────────────────── */}
+                    {/* Three cards in a responsive grid. Each card shows the
+                        tier name, the big SCE number, total cost, and an
+                        absorbability bar. The "best fit" card gets a
+                        highlighted border and badge. */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {calculations.map(calc => {
+                            // Use static class lookups instead of dynamic template
+                            // strings (e.g. `text-${color}-600`) — Tailwind purges
+                            // classes it can't see at build time, so dynamic
+                            // strings would silently break the styling.
+                            const absorbabilityStyles = {
+                                easy: {
+                                    text: 'text-emerald-600',
+                                    bg: 'bg-emerald-500',
+                                    label: 'Easy',
+                                },
+                                moderate: {
+                                    text: 'text-amber-600',
+                                    bg: 'bg-amber-500',
+                                    label: 'Moderate',
+                                },
+                                tight: {
+                                    text: 'text-red-600',
+                                    bg: 'bg-red-500',
+                                    label: 'Tight',
+                                },
+                            }[calc.absorbability];
+
+                            return (
+                                <div
+                                    key={calc.id}
+                                    className={`relative rounded-xl border-2 p-4 transition-all duration-300 ${
+                                        calc.isBestFit
+                                            ? 'border-emerald-500 bg-emerald-50/30 shadow-lg scale-[1.02]'
+                                            : calc.exceedsCapacity
+                                            ? 'border-slate-200 bg-slate-50/50 opacity-75'
+                                            : 'border-slate-200 bg-white hover:border-slate-300'
+                                    }`}
+                                >
+                                    {/* Best fit badge */}
+                                    {calc.isBestFit && (
+                                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-emerald-600 text-white text-3xs font-black uppercase tracking-wider rounded-full shadow-sm whitespace-nowrap">
+                                            Best fit
+                                        </div>
+                                    )}
+
+                                    {/* Tier name + capacity */}
+                                    <div className="mb-3">
+                                        <h3 className="font-display font-bold text-slate-900 text-sm">{calc.tierName}</h3>
+                                        <p className="text-3xs text-slate-500 font-medium">
+                                            {calc.tierMaxUnits ? `Up to ${calc.tierMaxUnits} units` : 'Unlimited units'}
+                                            {calc.exceedsCapacity && (
+                                                <span className="text-amber-600 font-bold ml-1">· Over capacity</span>
+                                            )}
+                                        </p>
+                                    </div>
+
+                                    {/* Big SCE number — the headline */}
+                                    <div className="mb-3">
+                                        <p className="text-3xs text-slate-400 uppercase tracking-wider font-bold mb-0.5">SCE per tenant / mo</p>
+                                        <p className={`font-display text-2xl font-extrabold nums-tabular transition-all duration-150 ${absorbabilityStyles.text}`}>
+                                            {fmtNaira(calc.scePerTenantMonthly)}
+                                        </p>
+                                    </div>
+
+                                    {/* Total cost */}
+                                    <div className="mb-3">
+                                        <p className="text-3xs text-slate-400 uppercase tracking-wider font-bold mb-0.5">
+                                            {billingCycle === 'annual' ? 'Annual total' : 'Monthly total'}
+                                        </p>
+                                        <p className="text-sm font-bold text-slate-900 nums-tabular">
+                                            {billingCycle === 'annual'
+                                                ? fmtNaira(calc.totalAnnual)
+                                                : fmtNaira(calc.totalMonthly)
+                                            }
+                                        </p>
+                                        {/* Overage warning */}
+                                        {calc.overageUnits > 0 && (
+                                            <p className="text-3xs text-amber-600 font-semibold mt-0.5">
+                                                + {fmtNaira(calc.overageCost)}/mo for {calc.overageUnits} extra units
+                                            </p>
                                         )}
                                     </div>
-                                    <span
-                                        className={`inline-block px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${
-                                            calc.absorbability === 'easy'
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : calc.absorbability === 'moderate'
-                                                ? 'bg-amber-100 text-amber-700'
-                                                : 'bg-red-100 text-red-700'
-                                        }`}
-                                    >
-                                        {calc.absorbability}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-xs">
+
+                                    {/* Absorbability bar — visual indicator */}
                                     <div>
-                                        <p className="text-slate-400 uppercase tracking-wider text-3xs font-bold">SCE/tenant/mo</p>
-                                        <p className="font-display nums-tabular font-bold text-slate-900">{fmtNaira(calc.scePerTenantMonthly)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-400 uppercase tracking-wider text-3xs font-bold">% of rent</p>
-                                        <p className="nums-tabular text-slate-600">{avgRent > 0 ? `${calc.sceAsPercentOfRent.toFixed(2)}%` : '—'}</p>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-3xs text-slate-400 uppercase tracking-wider font-bold">Absorbability</span>
+                                            <span className={`text-3xs font-bold uppercase tracking-wider ${absorbabilityStyles.text}`}>
+                                                {absorbabilityStyles.label}
+                                            </span>
+                                        </div>
+                                        {/* Track with three colored zones */}
+                                        <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            {/* Zone backgrounds (green 0-33%, amber 33-67%, red 67-100%) */}
+                                            <div className="absolute inset-0 flex">
+                                                <div className="w-1/3 bg-emerald-100" />
+                                                <div className="w-1/3 bg-amber-100" />
+                                                <div className="w-1/3 bg-red-100" />
+                                            </div>
+                                            {/* Fill bar — animated width transition */}
+                                            <div
+                                                className={`relative h-full ${absorbabilityStyles.bg} transition-all duration-300 ease-out`}
+                                                style={{ width: `${calc.absorbabilityPct}%` }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
-                    {/* Desktop table */}
-                    <div className="hidden sm:block border border-slate-200 rounded-lg overflow-hidden">
-                        <div className="grid grid-cols-4 gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
-                            <span>Tier</span>
-                            <span className="text-right">SCE / tenant / mo</span>
-                            <span className="text-right">% of rent</span>
-                            <span className="text-right">Absorbability</span>
-                        </div>
-                        {calculations.map(calc => (
-                            <div key={calc.id} className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-slate-100 last:border-b-0 items-center">
-                                <div>
-                                    <p className="font-display font-bold text-slate-900 text-sm">{calc.tierName}</p>
-                                    {calc.exceedsCapacity && (
-                                        <p className="text-3xs text-amber-600 font-bold mt-0.5">Exceeds tier cap ({calc.tierMaxUnits} units)</p>
-                                    )}
-                                </div>
-                                <p className="text-right font-display nums-tabular font-bold text-slate-900 text-sm">
-                                    {fmtNaira(calc.scePerTenantMonthly)}
-                                </p>
-                                <p className="text-right nums-tabular text-slate-600 text-sm">
-                                    {avgRent > 0 ? `${calc.sceAsPercentOfRent.toFixed(2)}%` : '—'}
-                                </p>
-                                <div className="text-right">
-                                    <span
-                                        className={`inline-block px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${
-                                            calc.absorbability === 'easy'
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : calc.absorbability === 'moderate'
-                                                ? 'bg-amber-100 text-amber-700'
-                                                : 'bg-red-100 text-red-700'
-                                        }`}
-                                    >
-                                        {calc.absorbability}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
+                    {/* ── How to use this number ────────────────────────────── */}
+                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                        <p className="text-xs font-bold text-slate-700 mb-2">How to use this number</p>
+                        <ol className="space-y-1.5 text-xs text-slate-600 leading-relaxed list-decimal list-inside">
+                            <li>Pick the tier whose SCE feels comfortable for your residents.</li>
+                            <li>Add the SCE as a line item on your monthly service charge invoice.</li>
+                            <li>Your tenants pay it as part of their normal service charge — no separate collection needed.</li>
+                            <li>The subscription cost is recovered; the platform effectively pays for itself.</li>
+                        </ol>
                     </div>
 
-                    {/* Legend / guidance */}
+                    {/* ── Absorbability legend ──────────────────────────────── */}
                     <div className="space-y-1.5 text-xs text-slate-500">
-                        <p className="font-semibold text-slate-700">How to read absorbability:</p>
-                        <p><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 align-middle"></span> <strong>Easy</strong> — SCE under ₦2,000/mo. Residents barely notice it on their service charge invoice.</p>
-                        <p><span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle"></span> <strong>Moderate</strong> — SCE ₦2,000-5,000/mo. Noticeable but reasonable vs typical Lagos SC.</p>
-                        <p><span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5 align-middle"></span> <strong>Tight</strong> — SCE over ₦5,000/mo. Consider a higher tier with more units to spread the cost.</p>
+                        <p className="font-semibold text-slate-700">What the colors mean:</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 align-middle"></span> <strong>Easy</strong> — under ₦2,000/mo. Residents barely notice it on their service charge invoice.</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle"></span> <strong>Moderate</strong> — ₦2,000-5,000/mo. Noticeable but reasonable vs typical Lagos service charges.</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5 align-middle"></span> <strong>Tight</strong> — over ₦5,000/mo. Consider a higher tier with more units to spread the cost.</p>
                     </div>
                 </div>
 
                 {/* Footer */}
                 <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <p className="text-xs text-slate-500">
-                        {units} units · {fmtNaira(parseInt(avgRentPerUnit) || 0)}/unit/yr
+                        {units.toLocaleString('en-NG')} units · {billingCycle === 'annual' ? 'Annual billing' : 'Monthly billing'}
                     </p>
                     <div className="flex gap-2 w-full sm:w-auto">
                         <button

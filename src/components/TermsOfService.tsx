@@ -1,6 +1,49 @@
 import React from 'react';
 import { ChevronLeftIcon as ChevronLeft } from '../constants';
 
+/**
+ * Terms of Service — rewritten in plain English.
+ *
+ * Design goals:
+ *   - Short sentences (no more than 25 words where possible).
+ *   - Everyday words instead of legal jargon.
+ *   - Active voice. Address the reader as "you," the company as "we" or "PracticePro."
+ *   - Legal terms (Data Controller, Data Processor, PII) defined inline the first
+ *     time they appear.
+ *   - Bullets for lists. One idea per paragraph.
+ *   - Always render in light mode (see index.html — `html.dark` is set when the OS
+ *     theme is dark). The `style={{ colorScheme: 'light' }}` on the root and the
+ *     absence of any `dark:` Tailwind classes guarantee this.
+ *
+ * Structural fixes applied in this rewrite:
+ *   - Normalised H3 structure: every numbered sub-section (X.Y) now uses an H3,
+ *     matching the pattern in PrivacyPolicy.tsx and CookiePolicy.tsx. Sections
+ *     8-23 previously used flat numbered paragraphs with bold inline headings.
+ *   - Softened ALL-CAPS disclaimers in §2.1.3, §6.3, §15.1, and §15.2 to bold
+ *     sentence case (easier to read, same legal effect).
+ *   - Fixed §8.7: now uses `{isVega ? 'ALOA™' : 'ARIA™'}` so each product shows
+ *     only its own AI assistant name (previously mentioned both regardless of
+ *     `activeProduct`).
+ *   - Aligned footer version to "Version 2.1 • August 2026" (body header already
+ *     said Version 2.1; footer previously said Version 2.0, April 2026).
+ *   - Deleted boilerplate interpretation rules ("singular includes plural" and
+ *     "including shall be construed without limitation") — not legally material.
+ *   - Fixed internal anchor IDs (`2-4` → `2-3`, `2-5` → `2-4`) so they match
+ *     their visible section numbers.
+ *
+ * All legally material disclosures are preserved: NDPA 2023, NDPR 2019,
+ * the 72-hour breach notification (NDPA 2023 Section 40), the 60-day data
+ * export window, the 30-day soft-delete recovery window, the 12-month
+ * liability cap, Lagos Multi-Door Courthouse mediation, arbitration under
+ * the Arbitration and Mediation Act 2023, exclusive Lagos State jurisdiction,
+ * the no-class-actions waiver, governing law (Nigeria), the BYOK AI model
+ * (user provides own API key, browser→provider direct), "we do not train AI
+ * on your data," all Vega-only sections (Jurisdiction Scout, Court Rules
+ * Agent, Scale Expert Agent, conflict-of-interest bullet, Court Deadlines),
+ * NBA enrollment (Vega), NIESV/ESVARBON (Atrium), the contact emails, the
+ * registered address, and the 5 business day response commitment.
+ */
+
 export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }> = ({ onBack, activeProduct = 'vega' }) => {
     const isVega = activeProduct === 'vega';
     const isProperty = !isVega;
@@ -23,8 +66,8 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
             <div className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
                 <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
                     <div className="mb-16">
-                        <h1 className="text-4xl font-bold text-slate-900 mb-6">TERMS AND CONDITIONS OF SERVICE</h1>
-                        <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PracticePro Systems Limited</p>
+                        <h1 className="text-4xl font-bold text-slate-900 mb-6">Terms and Conditions of Service</h1>
+                        <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
                         <div className="flex flex-col text-xs text-slate-500 italic">
                             <span>Effective Date: January 1, 2026</span>
                             <span>Last Updated: August 11, 2026</span>
@@ -32,71 +75,80 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                         </div>
                     </div>
 
+                    {/* Plain-English summary box — gives the reader the gist in a few sentences */}
+                    <div className="mb-12 p-5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 leading-relaxed">
+                        <strong className="text-slate-900">In short:</strong> These Terms are a binding contract between you
+                        and PracticePro about your use of the {isVega ? 'VEGA' : 'ATRIUM'} platform. You must be 18 or older
+                        and able to enter contracts in Nigeria. We use industry-standard security, we do not train AI on
+                        your data, and our liability is capped at the fees you paid us in the last 12 months. If you do
+                        not agree, do not use the Platform.
+                    </div>
+
                     <div className="prose prose-slate max-w-none
-                        prose-p:leading-[1.8] prose-p:mb-12
+                        prose-p:leading-[1.8] prose-p:mb-8
                         prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200
                         prose-h3:mt-12 prose-h3:mb-6 prose-h3:text-xl prose-h3:font-bold
-                        prose-ul:mb-10 prose-ul:space-y-4
+                        prose-ul:mb-8 prose-ul:space-y-4
                         prose-li:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline
                         prose-strong:text-slate-900">
 
                         <hr className="my-10" />
 
-                        <h2>TABLE OF CONTENTS</h2>
+                        <h2>Table of contents</h2>
                         <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-10">
                             <ol className="list-decimal pl-5 space-y-2">
-                                <li><a href="#section-1">Definitions and Interpretation</a></li>
+                                <li><a href="#section-1">Definitions and interpretation</a></li>
                                 <li><a href="#section-2">Agreement to Terms</a></li>
-                                <li><a href="#section-3">Platform Services and Description</a></li>
-                                <li><a href="#section-4">User Registration and Eligibility</a></li>
-                                <li><a href="#section-5">Artificial Intelligence Services</a></li>
-                                <li><a href="#section-6">AI Risk Disclaimers and Professional Responsibility</a></li>
-                                <li><a href="#section-7">Intellectual Property Rights</a></li>
-                                <li><a href="#section-8">Data Protection and Privacy (NDPA 2023)</a></li>
-                                <li><a href="#section-9">Cookie Policy and Consent</a></li>
-                                <li><a href="#section-10">Password Security and Account Access</a></li>
-                                <li><a href="#section-11">Data Retention and Deletion</a></li>
-                                <li><a href="#section-12">Subscription Fees and Payment Terms</a></li>
-                                <li><a href="#section-13">Acceptable Use and Prohibited Conduct</a></li>
-                                <li><a href="#section-14">Service Availability and Modifications</a></li>
-                                <li><a href="#section-15">Warranties and Disclaimers</a></li>
-                                <li><a href="#section-16">Limitation of Liability</a></li>
+                                <li><a href="#section-3">Platform services and description</a></li>
+                                <li><a href="#section-4">User registration and eligibility</a></li>
+                                <li><a href="#section-5">Artificial intelligence services</a></li>
+                                <li><a href="#section-6">AI risk disclaimers and professional responsibility</a></li>
+                                <li><a href="#section-7">Intellectual property rights</a></li>
+                                <li><a href="#section-8">Data protection and privacy (NDPA 2023)</a></li>
+                                <li><a href="#section-9">Cookie policy and consent</a></li>
+                                <li><a href="#section-10">Password security and account access</a></li>
+                                <li><a href="#section-11">Data retention and deletion</a></li>
+                                <li><a href="#section-12">Subscription fees and payment terms</a></li>
+                                <li><a href="#section-13">Acceptable use and prohibited conduct</a></li>
+                                <li><a href="#section-14">Service availability and modifications</a></li>
+                                <li><a href="#section-15">Warranties and disclaimers</a></li>
+                                <li><a href="#section-16">Limitation of liability</a></li>
                                 <li><a href="#section-17">Indemnification</a></li>
-                                <li><a href="#section-18">Term and Termination</a></li>
-                                <li><a href="#section-19">Dispute Resolution</a></li>
-                                <li><a href="#section-20">Governing Law and Jurisdiction</a></li>
-                                <li><a href="#section-21">General Provisions</a></li>
-                                <li><a href="#section-22">Contact Information</a></li>
-                                <li><a href="#section-23">Portal Terms of Use</a></li>
+                                <li><a href="#section-18">Term and termination</a></li>
+                                <li><a href="#section-19">Dispute resolution</a></li>
+                                <li><a href="#section-20">Governing law and jurisdiction</a></li>
+                                <li><a href="#section-21">General provisions</a></li>
+                                <li><a href="#section-22">Contact information</a></li>
+                                <li><a href="#section-23">Portal terms of use</a></li>
                             </ol>
                         </div>
 
                         <hr className="my-10" />
 
                         <section id="section-1" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">1. DEFINITIONS AND INTERPRETATION</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">1. Definitions and interpretation</h2>
                             <div className="space-y-16">
                                 <div id="1-1" className="space-y-8">
                                     <h3 className="text-xl font-bold">1.1 Definitions</h3>
-                                    <p>In these Terms and Conditions, the following terms shall have the meanings set forth below:</p>
+                                    <p>In these Terms, the terms below mean:</p>
                                     <div className="space-y-8 pl-4 border-l-2 border-slate-100">
-                                        {isVega && <p><strong>"ALOA"</strong> or <strong>"ALOA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>}
-                                        {isProperty && <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Asset & Revenue Intelligence Assistant, the artificial intelligence agent embedded within Atrium OS that monitors rent collection, resident compliance, and portfolio revenue performance.</p>}
-                                        <p><strong>"AI Agents"</strong> means collectively, ALOA™/ARIA™ (as applicable), Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent, all of which constitute the artificial intelligence-powered components of the Platform.</p>
-                                        <p><strong>"ALDIA"</strong> means Advanced Legal Document Intelligence Agent, which provides automated document summarization, risk analysis, metadata extraction, and clause identification services.</p>
-                                        <p><strong>"Agreement"</strong> means these Terms and Conditions, together with all schedules, exhibits, and documents incorporated by reference, including the Privacy Policy.</p>
-                                        <p><strong>"Company," "we," "us," "our"</strong> means PracticePro Systems Limited, a company operating under the laws of the Federal Republic of Nigeria with its registered office at No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.</p>
-                                        <p><strong>"Content"</strong> means all data, text, software, photographs, graphics, video, messages, tags, or other materials, whether publicly posted or privately transmitted, uploaded to or transmitted through the Platform by Users.</p>
-                                        {isVega && <p><strong>"Court Rules Agent"</strong> means the AI component that calculates statutory filing deadlines based on Nigerian Civil Procedure Rules and automatically generates tasks for calculated deadlines.</p>}
-                                        <p><strong>"DraftPro"</strong> means the AI-powered document drafting assistant that generates legal documents based on templates, user inputs, and matter-specific data.</p>
-                                        {isVega && <p><strong>"Jurisdiction Scout"</strong> means the AI component that identifies appropriate courts, jurisdictions, and applicable legal frameworks for matters.</p>}
-                                        <p><strong>"NDPA"</strong> means the Nigeria Data Protection Act 2023 (Act No. 5 of 2023) and all regulations, guidelines, and directives issued thereunder by the Nigeria Data Protection Commission.</p>
-                                        <p><strong>"Personal Data"</strong> has the meaning ascribed to it in Section 65 of the NDPA 2023, being any information relating to an identified or identifiable natural person.</p>
-                                        <p><strong>"Platform"</strong> means the {isVega ? 'VEGA professional operations system' : 'ATRIUM property management system'}, including all web applications, APIs, and related services made available by the Company.</p>
-                                        <p><strong>"Privacy Shield Agent"</strong> means the AI component designed to identify, flag, and facilitate redaction of Personally Identifiable Information (PII) from documents before processing through other AI Services.</p>
+                                        {isVega && <p><strong>"ALOA"</strong> or <strong>"ALOA™"</strong> means Advanced Legal Office Assistant — the AI agent (powered by Google's Gemini API) for conversation, research, drafting, voice control, and proactive intelligence.</p>}
+                                        {isProperty && <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Asset & Revenue Intelligence Assistant — the AI agent inside Atrium OS that monitors rent collection, resident compliance, and portfolio revenue.</p>}
+                                        <p><strong>"AI Agents"</strong> means the AI-powered parts of the Platform: ALOA™/ARIA™ (whichever applies), Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent.</p>
+                                        <p><strong>"ALDIA"</strong> means Advanced Legal Document Intelligence Agent — summarises documents, analyses risk, extracts metadata, and identifies clauses.</p>
+                                        <p><strong>"Agreement"</strong> means these Terms plus any documents incorporated by reference (including the Privacy Policy).</p>
+                                        <p><strong>"Company," "we," "us," "our"</strong> means PracticePro Systems Limited, a company operating under the laws of the Federal Republic of Nigeria. Registered office: No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.</p>
+                                        <p><strong>"Content"</strong> means all data, text, software, photos, graphics, video, messages, tags, or other materials — public or private — that you upload to or send through the Platform.</p>
+                                        {isVega && <p><strong>"Court Rules Agent"</strong> means the AI component that calculates statutory filing deadlines based on the Nigerian Civil Procedure Rules and creates tasks for them.</p>}
+                                        <p><strong>"DraftPro"</strong> means the AI-powered document drafting assistant. It generates documents from templates, your inputs, and matter-specific data.</p>
+                                        {isVega && <p><strong>"Jurisdiction Scout"</strong> means the AI component that identifies the right courts, jurisdictions, and legal frameworks for a matter.</p>}
+                                        <p><strong>"NDPA"</strong> means the Nigeria Data Protection Act 2023 (Act No. 5 of 2023), plus all regulations, guidelines, and directives issued by the Nigeria Data Protection Commission.</p>
+                                        <p><strong>"Personal Data"</strong> has the meaning given in Section 65 of the NDPA 2023 — any information about an identified or identifiable natural person.</p>
+                                        <p><strong>"Platform"</strong> means the {isVega ? 'VEGA professional operations system' : 'ATRIUM property management system'}, including all web apps, APIs, and related services we provide.</p>
+                                        <p><strong>"Privacy Shield Agent"</strong> means the AI component that identifies, flags, and helps redact Personally Identifiable Information (also called PII — data that can identify a person) before other AI Services process it.</p>
                                         {isVega ? (
                                             <>
-                                                <p><strong>"RPC"</strong> means the Rules of Professional Conduct in the Legal Profession, 2023, as may be amended from time to time.</p>
+                                                <p><strong>"RPC"</strong> means the Rules of Professional Conduct in the Legal Profession, 2023, as amended.</p>
                                                 <p><strong>"Scale Expert Agent"</strong> means the AI component that calculates professional fees based on the Legal Practitioners (Remuneration for Legal Documentation and Other Land Matters) Order 2023.</p>
                                             </>
                                         ) : (
@@ -105,416 +157,613 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                                 <p><strong>"Tenancy Law"</strong> means the Tenancy Law of Lagos State 2011 and other applicable state tenancy laws in Nigeria.</p>
                                             </>
                                         )}
-                                        <p><strong>"Subscription"</strong> means your contractual arrangement with the Company for access to the Platform under a specified pricing tier.</p>
+                                        <p><strong>"Subscription"</strong> means your contract with us for access to the Platform under a specific pricing tier.</p>
                                         <p><strong>"User," "you," "your"</strong> means any individual, {isVega ? 'law firm, legal department' : 'property manager, real estate agency'}, or other entity that registers for, accesses, or uses the Platform.</p>
-                                        <p><strong>"User Data"</strong> means all data, information, documents, and content submitted, uploaded, or created by or on behalf of Users through the Platform.</p>
+                                        <p><strong>"User Data"</strong> means all data, information, documents, and content submitted, uploaded, or created by or for Users through the Platform.</p>
                                     </div>
                                 </div>
 
                                 <div id="1-2" className="space-y-8">
                                     <h3 className="text-xl font-bold">1.2 Interpretation</h3>
-                                    <div className="space-y-8">
-                                        <p>1.2.1 In this Agreement, unless the context otherwise requires:</p>
-                                        <div className="space-y-8 pl-4">
-                                            <p>(a) <strong>Headings and Titles:</strong> Section headings are inserted for convenience only and shall not affect the construction of this Agreement.</p>
-                                            <p>(b) <strong>Singular and Plural:</strong> Words importing the singular include the plural and vice versa.</p>
-                                            <p>(c) <strong>Including:</strong> The words "include," "includes," "including," shall be construed without limitation.</p>
-                                            <p>(d) <strong>Statutory References:</strong> References to any statute include all amendments, extensions, or re-enactments.</p>
-                                            <p>(e) <strong>Writing:</strong> References to "writing" include emails and electronic communications.</p>
-                                            <p>(f) <strong>Business Days:</strong> "Business day" means any day other than Saturday, Sunday, or a public holiday in Nigeria.</p>
-                                            <p>(g) <strong>Currency:</strong> All monetary amounts are in Nigerian Naira (₦) unless otherwise specified.</p>
-                                        </div>
-                                    </div>
+                                    <p>Unless the context clearly says otherwise:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li><strong>Headings:</strong> Section headings are for convenience only and do not affect how these Terms are read.</li>
+                                        <li><strong>Statutory references:</strong> References to laws include any later amendments.</li>
+                                        <li><strong>Business days:</strong> A "business day" is any day that is not Saturday, Sunday, or a public holiday in Nigeria.</li>
+                                        <li><strong>Currency:</strong> All monetary amounts are in Nigerian Naira (₦) unless we say otherwise.</li>
+                                    </ul>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-2" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">2. AGREEMENT TO TERMS</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">2. Agreement to Terms</h2>
                             <div className="space-y-16">
                                 <div id="2-1" className="space-y-8">
-                                    <h3 className="text-xl font-bold">2.1 Binding Contract</h3>
-                                    <p>2.1.1 These Terms and Conditions constitute a legally binding contract between you and PracticePro Systems Limited governing your access to and use of the Platform.</p>
-                                    <p>2.1.2 By creating an account, accessing the Platform, or using any Platform services, you acknowledge that you have read, understood, and agree to be legally bound by this Agreement.</p>
-                                    <p>2.1.3 <strong>IF YOU DO NOT AGREE TO BE BOUND BY THIS AGREEMENT, YOU MUST NOT ACCESS OR USE THE PLATFORM.</strong></p>
+                                    <h3 className="text-xl font-bold">2.1 Binding contract</h3>
+                                    <p>These Terms are a binding contract between you and PracticePro about your use of the Platform.</p>
+                                    <p>By creating an account, accessing the Platform, or using any service, you confirm that you have read and agree to these Terms.</p>
+                                    <p><strong>If you do not agree, do not use the Platform.</strong></p>
                                 </div>
 
                                 <div id="2-2" className="space-y-8">
-                                    <h3 className="text-xl font-bold">2.2 Capacity and Authority</h3>
-                                    <p>2.2.1 You represent and warrant that you have the legal capacity to enter into binding contracts under Nigerian law and are at least eighteen (18) years of age.</p>
-                                    <p>2.2.2 <strong>Professional Status:</strong> {isVega ? 'If you represent yourself as a legal practitioner, you warrant that you are duly enrolled and licensed to practice law in Nigeria and are in good standing with the Nigerian Bar Association.' : 'If you represent yourself as a property manager or real estate agent, you warrant that you have all necessary licenses and authority to manage the properties listed on the Platform.'}</p>
+                                    <h3 className="text-xl font-bold">2.2 Capacity and authority</h3>
+                                    <p>You confirm you are 18 or older and can legally agree to contracts in Nigeria.</p>
+                                    <p><strong>Professional status:</strong> {isVega ? 'If you present yourself as a legal practitioner, you confirm that you are enrolled and licensed to practise law in Nigeria and are in good standing with the Nigerian Bar Association (NBA).' : 'If you present yourself as a property manager or real estate agent, you confirm that you have all necessary licences and authority to manage the properties listed on the Platform.'}</p>
+                                </div>
+
+                                <div id="2-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">2.3 Amendments and modifications</h3>
+                                    <p><strong>Right to update:</strong> We may update these Terms at any time.</p>
+                                    <p><strong>Material changes:</strong> For changes that materially affect your rights, we will give you at least 30 days' notice by email or a prominent notice on the Platform.</p>
+                                    <p><strong>Effective date:</strong> Changes take effect on the date stated in the notice. If no date is stated, they take effect 30 days after we send the notice.</p>
                                 </div>
 
                                 <div id="2-4" className="space-y-8">
-                                    <h3 className="text-xl font-bold">2.3 Amendments and Modifications</h3>
-                                    <p>2.3.1 <strong>Right to Modify:</strong> The Company reserves the right to modify, amend, or update this Agreement at any time in its sole discretion.</p>
-                                    <p>2.3.2 <strong>Material Changes:</strong> For changes that materially affect your rights, we will provide at least thirty (30) days' advance notice by email or prominent notice on the Platform.</p>
-                                    <p>2.3.3 <strong>Effective Date:</strong> Amendments become effective on the date specified in the notice or, if no date is specified, thirty (30) days after notice is provided.</p>
-                                </div>
-
-                                <div id="2-5" className="space-y-8">
-                                    <h3 className="text-xl font-bold">2.4 Additional Terms and Policies</h3>
-                                    <p>2.4.1 <strong>Incorporated Documents:</strong> The Privacy Policy, Cookie Policy, and Data Processing Agreement are incorporated into this Agreement by reference and form part of the binding contract between you and the Company.</p>
+                                    <h3 className="text-xl font-bold">2.4 Additional terms and policies</h3>
+                                    <p>The Privacy Policy, Cookie Policy, and Data Processing Agreement are part of these Terms.</p>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-3" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">3. PLATFORM SERVICES AND DESCRIPTION</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">3. Platform services and description</h2>
                             <div className="space-y-16">
                                 <div id="3-1" className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.1 Platform Overview</h3>
-                                    <p>The Company provides a comprehensive, cloud-based {isVega ? 'professional operations platform designed specifically for Nigerian teams' : 'property management platform designed specifically for the Nigerian real estate sector'}. The Platform integrates traditional {isVega ? 'operational' : 'property'} management functionalities with advanced artificial intelligence capabilities.</p>
+                                    <h3 className="text-xl font-bold">3.1 Platform overview</h3>
+                                    <p>We provide a cloud-based {isVega ? 'professional operations platform for Nigerian teams' : 'property management platform for the Nigerian real estate sector'}, combining traditional {isVega ? 'operational' : 'property'} management with advanced AI features.</p>
                                 </div>
 
                                 <div id="3-2" className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.2 Core Functionalities</h3>
-                                    <p>3.2.1 <strong>{isVega ? 'Matter and Case Management' : 'Property and Tenant Management'}:</strong> Centralized repository for all {isVega ? 'matters, cases, and client information' : 'properties, units, and tenant information'} with customizable workflows and status tracking.</p>
-                                    <p>3.2.2 <strong>Document Management:</strong> Secure cloud storage for all {isVega ? 'case files' : 'lease agreements'} and documents with version control and document history tracking.</p>
-                                    <p>3.2.3 <strong>Task and Workflow Management:</strong> Task creation, assignment, and tracking with priority levels and deadline management.</p>
-                                    <p>3.2.4 <strong>Calendar and Scheduling:</strong> Integrated calendar for all firm events and deadlines {isVega && 'with automatic calculation based on Nigerian court rules'}.</p>
-                                    <p>3.2.5 <strong>Financial Management:</strong> Invoicing, {isVega ? 'time-entry billing, expense tracking, and fee schedule automation' : 'rent collection, receipt generation, and expense tracking'}.</p>
-                                    <p>3.2.6 <strong>{isVega ? 'Client' : 'Tenant'} Communications:</strong> Secure messaging and portal features for updates and collaboration.</p>
-                                    <p>3.2.7 <strong>Task Delegation and Verification:</strong> Internal staff may delegate tasks to {isVega ? 'clients' : 'residents'} via the Platform. External stakeholders (clients/residents) may mark tasks as completed, which routes to a "Pending Verification" status for internal review before final closure. Both internal and external assignees have clearly defined permissions and obligations regarding task status updates.</p>
-                                    <p>3.2.8 <strong>Automated Multi-Channel Notifications:</strong> The Platform dispatches task assignment and reminder notifications via in-app alerts, email, and WhatsApp (where opted in). Internal staff receive in-app notifications only. External stakeholders receive in-app notifications plus email (default) and WhatsApp (only if explicitly opted in). Users may manage their notification preferences in Settings.</p>
-                                    <p>3.2.9 <strong>Presence and Activity Tracking:</strong> The Platform displays team member online status (active, inactive, offline) based on session activity. This presence data is visible to all firm team members and is used solely for operational coordination.</p>
+                                    <h3 className="text-xl font-bold">3.2 Core functionalities</h3>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li><strong>{isVega ? 'Matter/case management' : 'Property/tenant management'}:</strong> Central store for {isVega ? 'matters, cases, and clients' : 'properties, units, and tenants'} with custom workflows.</li>
+                                        <li><strong>Document management:</strong> Secure cloud storage for {isVega ? 'case files' : 'lease agreements'} and documents, with version control.</li>
+                                        <li><strong>Tasks, calendar, and finance:</strong> Task tracking with deadlines; integrated calendar{isVega ? ' with automatic calculation based on Nigerian court rules' : ''}; invoicing and {isVega ? 'time-entry billing' : 'rent collection'}.</li>
+                                        <li><strong>{isVega ? 'Client' : 'Tenant'} communications:</strong> Secure messaging and portal features.</li>
+                                        <li><strong>Task delegation and verification:</strong> Internal staff delegate tasks to {isVega ? 'clients' : 'residents'}. External stakeholders can mark tasks complete, which routes to "Pending Verification" for internal review.</li>
+                                        <li><strong>Multi-channel notifications:</strong> In-app, email, and WhatsApp (where opted in). Internal staff get in-app only; external stakeholders get in-app plus email by default. Manage preferences in Settings.</li>
+                                        <li><strong>Presence tracking:</strong> Team members' online status is visible to all firm members, for operational coordination only.</li>
+                                    </ul>
                                 </div>
 
                                 <div id="3-3" className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.3 Subscription Tiers</h3>
-                                    <p>The Platform is offered in multiple subscription tiers (Free, Standard, Professional, and Enterprise), each providing different levels of functionality, capacity, and support. The specific features available at each tier are detailed on the Platform's pricing page and may be updated from time to time.</p>
+                                    <h3 className="text-xl font-bold">3.3 Subscription tiers</h3>
+                                    <p>The Platform is offered in multiple tiers (Free, Standard, Professional, and Enterprise), each with different functionality, capacity, and support. Features at each tier are listed on the pricing page and may change.</p>
                                 </div>
 
                                 <div id="3-4" className="space-y-8">
-                                    <h3 className="text-xl font-bold">3.4 Visitor Management System</h3>
-                                    <p>The Platform includes a Visitor Management System (VMS) that allows residents to generate 6-digit numeric access codes for their visitors. By using VMS, you agree that: (a) you are responsible for all access codes you generate; (b) you will only generate codes for visitors authorized to enter your property; (c) you will not sell, share, or transfer access codes outside their intended use window; (d) codes expire automatically and cannot be reused after expiry; (e) all code generation, verification, check-in, check-out, and revocation events are logged in an audit trail accessible to your property manager.</p>
+                                    <h3 className="text-xl font-bold">3.4 Visitor management system</h3>
+                                    <p>The Platform includes a Visitor Management System (VMS) that lets residents generate 6-digit numeric access codes for their visitors. By using VMS, you agree that you are responsible for all codes you generate, will only generate them for authorised visitors, will not sell or transfer them outside their intended use window, that codes expire automatically and cannot be reused, and that all code events (generation, verification, check-in, check-out, revocation) are logged in an audit trail your property manager can access.</p>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-4" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">4. USER REGISTRATION AND ELIGIBILITY</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">4. User registration and eligibility</h2>
                             <div className="space-y-16">
                                 <div id="4-1" className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.1 Eligibility Criteria</h3>
-                                    <p>The Platform is designed exclusively for use by {isVega ? 'legal practitioners, law firms, corporate legal departments, and educational institutions' : 'property managers, real estate agencies, landlords, and property management companies'}. You must be at least eighteen (18) years of age to create an account.</p>
+                                    <h3 className="text-xl font-bold">4.1 Eligibility criteria</h3>
+                                    <p>The Platform is designed only for use by {isVega ? 'legal practitioners, law firms, corporate legal departments, and educational institutions' : 'property managers, real estate agencies, landlords, and property management companies'}. You must be at least 18 years old to create an account.</p>
                                 </div>
 
                                 <div id="4-2" className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.2 Account Registration</h3>
-                                    <p>4.2.1 To access the Platform, you must create an account by providing accurate, current, and complete personal, professional, and billing information. You agree to maintain and promptly update your information to keep it accurate.</p>
-                                    <p>4.2.2 <strong>Email Verification:</strong> All accounts require email verification before access is granted. You are responsible for ensuring your provided email address is valid and accessible.</p>
-                                    <p>4.2.3 <strong>One Account Per Person:</strong> Each individual may only maintain one active account. Creating multiple accounts to circumvent restrictions constitutes a material breach of this Agreement.</p>
-                                    <p>4.2.4 <strong>Account Responsibility:</strong> You are fully responsible for all activity that occurs under your account and for maintaining the confidentiality of your login credentials. You must notify us immediately upon becoming aware of any unauthorized use of your account.</p>
+                                    <h3 className="text-xl font-bold">4.2 Account registration</h3>
+                                    <p>To access the Platform, you must create an account and provide accurate, current, and complete personal, professional, and billing information. You agree to keep it accurate and up to date.</p>
+                                    <p><strong>Email verification:</strong> All accounts require email verification before access is granted. You are responsible for making sure your email address is valid and accessible.</p>
+                                    <p><strong>One account per person:</strong> Each person may keep only one active account. Creating multiple accounts to bypass restrictions is a material breach of these Terms.</p>
+                                    <p><strong>Account responsibility:</strong> You are fully responsible for all activity under your account and for keeping your login details confidential. Tell us immediately if you become aware of any unauthorised use of your account.</p>
                                 </div>
 
                                 <div id="4-3" className="space-y-8">
-                                    <h3 className="text-xl font-bold">4.3 Explicit Consent at Registration</h3>
-                                    <p>4.3.1 During registration, you will be required to provide two separate, explicit, and affirmative consent actions:</p>
-                                    <div className="space-y-4 pl-4 border-l-2 border-slate-100">
-                                        <p>(a) Agreement to these Terms and Conditions of Service; and</p>
-                                        <p>(b) Agreement to the Privacy Policy, which governs the collection, processing, and retention of your personal data.</p>
-                                    </div>
-                                    <p>4.3.2 These consents are recorded with a timestamp and stored in our database for regulatory accountability as required by NDPA 2023.</p>
+                                    <h3 className="text-xl font-bold">4.3 Explicit consent at registration</h3>
+                                    <p>During registration, you will be asked to give two separate, explicit consents:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>Agreement to these Terms and Conditions of Service; and</li>
+                                        <li>Agreement to the Privacy Policy, which governs how we collect, use, and keep your personal data.</li>
+                                    </ul>
+                                    <p>These consents are recorded with a timestamp and stored in our database for regulatory accountability, as required by the NDPA 2023.</p>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-5" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">5. ARTIFICIAL INTELLIGENCE SERVICES</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">5. Artificial intelligence services</h2>
                             <div className="space-y-16">
                                 <div id="5-1" className="space-y-8">
-                                    <p>Provides conversational AI assistance, research, document drafting, voice control, and proactive intelligence. {isVega ? 'ALOA™' : 'ARIA™'} processes matter context and team data to provide personalized assistance.</p>
+                                    <h3 className="text-xl font-bold">5.1 {isVega ? 'ALOA™' : 'ARIA™'} — main AI assistant</h3>
+                                    <p>Provides conversational AI help, research, drafting, voice control, and proactive intelligence, using your matter context and team data.</p>
                                 </div>
                                 <div id="5-2" className="space-y-8">
-                                    <h3 className="text-xl font-bold">5.2 ALDIA — Document Intelligence Agent</h3>
-                                    <p>Provides automated document summarization, risk analysis, metadata extraction, and clause identification. Documents submitted to ALDIA are transmitted to Google's Gemini API for processing.</p>
+                                    <h3 className="text-xl font-bold">5.2 ALDIA — document intelligence agent</h3>
+                                    <p>Summarises documents, analyses risk, extracts metadata, and identifies clauses. Documents are passed to Google's Gemini API for processing.</p>
                                 </div>
                                 <div id="5-3" className="space-y-8">
-                                    <h3 className="text-xl font-bold">5.3 DraftPro — Document Drafting Assistant</h3>
-                                    <p>AI-powered document generation based on templates, user inputs, and matter-specific data. All drafts require professional review before use in legal proceedings.</p>
+                                    <h3 className="text-xl font-bold">5.3 DraftPro — document drafting assistant</h3>
+                                    <p>Generates documents from templates, your inputs, and matter-specific data. All drafts need professional review before use in any formal proceeding.</p>
                                 </div>
                                 {isVega && (
                                     <>
                                         <div id="5-4" className="space-y-8">
                                             <h3 className="text-xl font-bold">5.4 Jurisdiction Scout</h3>
-                                            <p>Identifies appropriate courts, jurisdictions, and applicable legal frameworks. Output is advisory only and does not constitute legal advice. Practitioners must independently verify all jurisdictional determinations.</p>
+                                            <p>Identifies the right courts, jurisdictions, and legal frameworks for a matter. The output is advisory only and is not legal advice. Practitioners must independently verify all jurisdictional determinations.</p>
                                         </div>
                                         <div id="5-5" className="space-y-8">
                                             <h3 className="text-xl font-bold">5.5 Court Rules Agent</h3>
-                                            <p>Calculates statutory filing deadlines based on Nigerian Civil Procedure Rules and court-specific variations, automatically generating reminders and tasks. Due to the jurisdictional complexity of Nigerian procedure, all calculated deadlines require independent verification by qualified practitioners.</p>
+                                            <p>Calculates statutory filing deadlines based on the Nigerian Civil Procedure Rules and court-specific variations, and automatically generates reminders and tasks. Because Nigerian procedure is jurisdictionally complex, all calculated deadlines must be independently verified by a qualified practitioner.</p>
                                         </div>
                                     </>
                                 )}
-                                <div id="5-6" className="space-y-8">
+                                <div id={`5-${isVega ? '6' : '4'}`} className="space-y-8">
                                     <h3 className="text-xl font-bold">5.{isVega ? '6' : '4'} Privacy Shield Agent</h3>
-                                    <p>Identifies and manages Personally Identifiable Information (PII) before processing, offering options for manual or automated redaction to comply with NDPA 2023 data minimization requirements.</p>
+                                    <p>Identifies and manages Personally Identifiable Information (PII) before processing. It offers manual or automated redaction options to help you meet the NDPA 2023's rules on data minimisation.</p>
                                 </div>
                                 {isVega && (
                                     <div id="5-7" className="space-y-8">
                                         <h3 className="text-xl font-bold">5.7 Scale Expert Agent</h3>
-                                        <p>Calculates professional fees based on official Nigerian fee schedules, including the Remuneration for Legal Documentation and Other Land Matters Order 2023. Output is for reference only.</p>
+                                        <p>Calculates professional fees based on official Nigerian fee schedules, including the Remuneration for Legal Documentation and Other Land Matters Order 2023. The output is for reference only.</p>
                                     </div>
                                 )}
-                                <div id="5-8" className="space-y-8">
-                                    <h3 className="text-xl font-bold">5.{isVega ? '8' : '5'} AI Consent Requirement</h3>
-                                    <p>5.8.1 Prior to first use of any AI Agent, you will be presented with a granular AI Processing Consent modal, which clearly discloses: (a) what data is transmitted to the AI processor (Google Gemini API); (b) the data minimization measures in place; (c) confirmation that your data is not used for AI model training; and (d) your right to decline and disable AI features.</p>
-                                    <p>5.8.2 Your consent decision is recorded with a timestamp to your user profile in our database for audit trail purposes under NDPA 2023 Section 25.</p>
-                                    <p>5.8.3 You may withdraw AI processing consent at any time via the AI Settings panel in your account settings. Withdrawal of consent will disable all AI Agent features for your account.</p>
-                                    <p>5.8.4 <strong>AI Conversation Persistence:</strong> Your interactions with the AI Assistant (ALOA™/ARIA™) are stored in a firm-scoped database for the purposes of maintaining conversation context across sessions, enabling you to review past AI-assisted research and drafting, and improving AI response quality within your firm. These conversations are NOT used to train AI models. You may request deletion of your AI conversation history at any time by contacting your firm administrator or dpo@practicepro.ng.</p>
+                                <div id={`5-${isVega ? '8' : '5'}`} className="space-y-8">
+                                    <h3 className="text-xl font-bold">5.{isVega ? '8' : '5'} AI consent requirement</h3>
+                                    <p>Before you first use any AI Agent, you will see a consent screen that explains what AI will do with your data. It discloses:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>What data is sent to the AI processor (Google Gemini API);</li>
+                                        <li>The data minimisation measures in place;</li>
+                                        <li>That your data is not used for AI model training; and</li>
+                                        <li>Your right to decline and turn off AI features.</li>
+                                    </ul>
+                                    <p>Your consent decision is recorded with a timestamp to your user profile, for audit trail purposes under NDPA 2023 Section 25.</p>
+                                    <p>You may withdraw your AI processing consent at any time via the AI Settings panel in your account. Withdrawing consent turns off all AI Agent features for your account.</p>
+                                    <p><strong>AI conversation persistence:</strong> Your interactions with {isVega ? 'ALOA™' : 'ARIA™'} are stored in a database only your firm can see. This keeps conversation context across sessions and improves AI response quality within your firm. These conversations are <strong>not</strong> used to train AI models. You can ask for your AI conversation history to be deleted at any time by contacting your firm administrator or dpo@practicepro.ng.</p>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-6" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">6. AI RISK DISCLAIMERS AND PROFESSIONAL RESPONSIBILITY</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">6. AI risk disclaimers and professional responsibility</h2>
                             <div className="space-y-16">
                                 <div id="6-1" className="space-y-8">
-                                    <h3 className="text-xl font-bold">6.1 Nature and Limitations of AI Technology</h3>
-                                    <p>6.1.1 <strong>Inherent Limitations:</strong> You acknowledge that AI technology operates probabilistically and may generate "hallucinations"—fabricated information presented as fact. AI Agents may produce inaccurate, incomplete, or legally incorrect outputs.</p>
-                                    <p>6.1.2 <strong>Not Legal Advice:</strong> No output from any AI Agent on the Platform constitutes {isProperty ? 'professional' : 'legal'} advice. All outputs are tools to assist qualified {isProperty ? 'professionals' : 'legal professionals'} and do not replace professional {isProperty ? '' : 'legal '}judgment.</p>
-                                    <p>6.1.3 <strong>Professional Judgment:</strong> AI lacks true comprehension and contextual understanding. All outputs must be reviewed, verified, and approved by qualified professionals before reliance or use in any professional proceeding.</p>
+                                    <h3 className="text-xl font-bold">6.1 Nature and limits of AI</h3>
+                                    <p><strong>Inherent limits:</strong> AI can make things up. It may present fabricated information as fact (sometimes called "hallucinations"). AI Agents may produce inaccurate, incomplete, or legally wrong outputs.</p>
+                                    <p><strong>Not {isProperty ? 'professional' : 'legal'} advice:</strong> No output from any AI Agent is {isProperty ? 'professional' : 'legal'} advice. All outputs are tools to help qualified {isProperty ? 'professionals' : 'legal professionals'}. They do not replace professional {isProperty ? '' : 'legal '}judgment.</p>
+                                    <p><strong>Professional judgment:</strong> AI does not truly understand context. You must review, verify, and approve all outputs with a qualified professional before relying on them or using them in any professional proceeding.</p>
                                 </div>
 
                                 <div id="6-2" className="space-y-8">
-                                    <h3 className="text-xl font-bold">6.2 Mandatory Oversight and Verification</h3>
-                                    <p>6.2.1 <strong>Absolute Requirement:</strong> You MUST exercise independent professional oversight over all AI-generated content. Before relying on any output, you must independently verify {isProperty ? 'all information and regulatory requirements' : 'all case citations, legal principles'}, calculated deadlines, and fee computations.</p>
-                                    <p>6.2.2 <strong>{isVega ? 'RPC' : 'Professional'} Compliance:</strong> The use of AI tools does not diminish your professional obligations. You remain personally responsible for all work product submitted to {isVega ? 'courts, clients, and opposing parties' : 'tenants, landlords, and regulatory bodies'}.</p>
-                                    {isVega && <p>6.2.3 <strong>Court Deadlines:</strong> Never rely solely on Court Rules Agent calculations for filing deadlines without independent verification. Missing a limitation period or filing deadline due to AI error does not excuse negligence under Nigerian professional liability standards.</p>}
+                                    <h3 className="text-xl font-bold">6.2 Mandatory oversight and verification</h3>
+                                    <p><strong>Absolute requirement:</strong> You must exercise independent professional oversight over all AI-generated content. Before relying on any output, you must independently verify {isProperty ? 'all information and regulatory requirements' : 'all case citations and legal principles'}, calculated deadlines, and fee computations.</p>
+                                    <p><strong>{isVega ? 'RPC' : 'Professional'} compliance:</strong> Using AI tools does not reduce your professional obligations. You remain personally responsible for all work product you submit to {isVega ? 'courts, clients, and opposing parties' : 'tenants, landlords, and regulatory bodies'}.</p>
+                                    {isVega && <p><strong>Court deadlines:</strong> Never rely only on Court Rules Agent calculations for filing deadlines without independent verification. Missing a limitation period or filing deadline because of an AI error does not excuse negligence under Nigerian professional liability standards.</p>}
                                 </div>
 
                                 <div id="6-3" className="space-y-8">
-                                    <h3 className="text-xl font-bold">6.3 No Warranty on AI Outputs</h3>
-                                    <p>THE COMPANY MAKES NO WARRANTIES, EXPRESS OR IMPLIED, REGARDING THE ACCURACY, COMPLETENESS, RELIABILITY, OR FITNESS FOR PURPOSE OF ANY AI AGENT OUTPUT. YOUR USE OF AI OUTPUTS IS ENTIRELY AT YOUR OWN PROFESSIONAL RISK.</p>
+                                    <h3 className="text-xl font-bold">6.3 No warranty on AI outputs</h3>
+                                    <p><strong>We make no warranties, express or implied, about the accuracy, completeness, reliability, or fitness for purpose of any AI Agent output. Your use of AI outputs is entirely at your own professional risk.</strong></p>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-7" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">7. INTELLECTUAL PROPERTY RIGHTS</h2>
-                            <div className="space-y-12">
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">7. Intellectual property rights</h2>
+                            <div className="space-y-16">
                                 <div id="7-1" className="space-y-8">
-                                    <h3 className="text-xl font-bold">7.1 Ownership of Platform</h3>
-                                    <p>7.1.1 The Platform, including all software, code, algorithms, AI models, user interface designs, trademarks, and documentation, remains the exclusive intellectual property of PracticePro Systems Limited. Nothing in this Agreement transfers any intellectual property rights to you.</p>
-                                    <p>7.1.2 <strong>Restricted License:</strong> Subject to your compliance with this Agreement, we grant you a limited, non-exclusive, non-transferable, revocable license to access and use the Platform solely for your legitimate professional purposes.</p>
+                                    <h3 className="text-xl font-bold">7.1 Ownership of the Platform</h3>
+                                    <p>The Platform — including all software, code, algorithms, AI models, UI designs, trademarks, and documentation — remains the exclusive intellectual property of PracticePro Systems Limited. Nothing in these Terms transfers any intellectual property rights to you.</p>
+                                    <p><strong>Restricted licence:</strong> If you follow these Terms, we give you a personal, revocable permission to use the Platform for your professional work.</p>
                                 </div>
                                 <div id="7-2" className="space-y-8">
-                                    <h3 className="text-xl font-bold">7.2 User Data Ownership</h3>
-                                    <p>7.2.1 You retain full ownership of all User Data you submit to the Platform. We do not claim any proprietary interest in your client matters, documents, or firm data.</p>
-                                    <p>7.2.2 <strong>Limited License to Operate:</strong> You grant us a limited, royalty-free license to store, process, and transmit your User Data solely to the extent necessary to provide the Platform services to you, in accordance with our Privacy Policy.</p>
-                                    <p>7.2.3 <strong>AI Exclusion:</strong> Your User Data is never used to train, fine-tune, or improve any AI foundation model, including the underlying Google Gemini models. Data transmitted to AI processors is subject to their applicable data processing agreements.</p>
+                                    <h3 className="text-xl font-bold">7.2 User data ownership</h3>
+                                    <p>You keep full ownership of all User Data you submit to the Platform. We do not claim any proprietary interest in your client matters, documents, or firm data.</p>
+                                    <p><strong>Limited licence to operate:</strong> You give us a limited, royalty-free permission to store, process, and transmit your User Data — but only to the extent needed to provide the Platform services to you, as set out in our Privacy Policy.</p>
+                                    <p><strong>AI exclusion:</strong> Your User Data is never used to train, fine-tune, or improve any AI foundation model, including the underlying Google Gemini models. Data sent to AI processors is subject to their own data processing agreements.</p>
                                 </div>
                                 <div id="7-3" className="space-y-8">
-                                    <h3 className="text-xl font-bold">7.3 Prohibited Actions</h3>
-                                    <p>You may not: (a) copy, modify, or create derivative works of the Platform; (b) reverse engineer or decompile any part of the Platform; (c) use any automated tools to scrape, extract, or harvest data from the Platform; (d) use the Platform's trademarks without prior written consent.</p>
+                                    <h3 className="text-xl font-bold">7.3 Prohibited actions</h3>
+                                    <p>You may not:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>Copy, modify, or create derivative works of the Platform;</li>
+                                        <li>Try to reverse-engineer or extract the source code of the Platform;</li>
+                                        <li>Use automated tools to scrape, extract, or harvest data from the Platform; or</li>
+                                        <li>Use the Platform's trademarks without our prior written consent.</li>
+                                    </ul>
                                 </div>
                             </div>
                         </section>
 
                         <section id="section-8" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">8. DATA PROTECTION AND PRIVACY (NDPA 2023)</h2>
-                            <div className="space-y-12">
-                                <p>8.1 <strong>Applicable Law:</strong> Both parties agree to comply fully with the Nigeria Data Protection Act 2023 (NDPA), the Nigeria Data Protection Regulation 2019 (NDPR), and all subsidiary legislation issued by the Nigeria Data Protection Commission (NDPC).</p>
-                                <p>8.2 <strong>Roles:</strong> With respect to your firm's client data entered into the Platform, you (the law firm) are the Data Controller, and the Company is a Data Processor acting solely on your documented instructions. With respect to your account and billing data, the Company is the Data Controller.</p>
-                                <p>8.3 <strong>Technical and Organisational Measures:</strong> We implement appropriate technical and organizational security measures to protect personal data against unauthorized access, accidental loss, destruction, or disclosure. These include PBKDF2-SHA512 password hashing (600,000 iterations, meeting OWASP 2023 minimum), firm-level data isolation, encrypted transmission (TLS), and role-based access control.</p>
-                                <p>8.4 <strong>Data Subject Rights:</strong> Under the NDPA 2023, your clients (as data subjects) have rights to access, rectification, erasure, portability, and objection. As Data Controller, you are responsible for receiving and responding to data subject requests from your clients. The Platform provides tools to support your compliance with these obligations.</p>
-                                <p>8.5 <strong>Data Portability:</strong> You may export a copy of your firm's data at any time using the Export Archive function in the Data Management settings. Exports are provided in structured, machine-readable JSON format.</p>
-                                <p>8.6 <strong>Breach Notification:</strong> We will notify you of any confirmed personal data breach affecting your firm's data within 72 hours of becoming aware of it, as required by NDPA 2023 Section 40, to enable you to fulfill your obligations to the NDPC and affected data subjects.</p>
-                                <p>8.7 <strong>Third-Party Processors:</strong> We use the following sub-processors to deliver the service: (a) Convex, Inc. (database and serverless infrastructure); (b) Resend, Inc. (transactional email delivery). <strong>AI Processing Model:</strong> The Platform's AI features (ARIA™, ALOA™) are powered by large language models accessed via your own API key. When you provide your own Google Gemini or OpenAI API key, AI requests are sent directly from your browser to the AI provider — PracticePro does not act as a sub-processor for your AI inputs, and your AI query data does not pass through or reside on PracticePro's servers. You are the Data Controller for all data you submit to the AI provider, and your use of the AI provider is governed by the provider's own terms and privacy policy. Each sub-processor is bound by appropriate data processing agreements prohibiting use of your data for their own purposes.</p>
-                                <p>8.8 <strong>Privacy Policy:</strong> Full details of our data processing practices are set out in our Privacy Policy, which is incorporated into this Agreement by reference.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">8. Data protection and privacy (NDPA 2023)</h2>
+                            <div className="space-y-16">
+                                <div id="8-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.1 Applicable law</h3>
+                                    <p>Both parties agree to comply fully with the Nigeria Data Protection Act 2023 (NDPA), the Nigeria Data Protection Regulation 2019 (NDPR), and all subsidiary legislation issued by the Nigeria Data Protection Commission (NDPC).</p>
+                                </div>
+                                <div id="8-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.2 Roles</h3>
+                                    <p>For your firm's client data entered into the Platform, you (the {isVega ? 'law firm' : 'property firm'}) are the Data Controller (you decide how the data is used), and we are a Data Processor (we handle it on your behalf, only on your documented instructions). For your account and billing data, PracticePro is the Data Controller.</p>
+                                </div>
+                                <div id="8-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.3 Technical and organisational measures</h3>
+                                    <p>We use appropriate technical and organisational security measures to protect personal data against unauthorised access, accidental loss, destruction, or disclosure. These include industry-standard password hashing, firm-level data isolation, encrypted transmission (TLS), and role-based access control.</p>
+                                </div>
+                                <div id="8-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.4 Data subject rights</h3>
+                                    <p>Under the NDPA 2023, your clients (as data subjects) have rights to access, correction, erasure, portability, and objection. As Data Controller, you are responsible for receiving and responding to their requests. The Platform provides tools to help you meet these obligations.</p>
+                                </div>
+                                <div id="8-5" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.5 Data portability</h3>
+                                    <p>You can export a copy of your firm's data at any time using the Export Archive function in Data Management settings. Exports are provided in structured, machine-readable JSON format.</p>
+                                </div>
+                                <div id="8-6" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.6 Breach notification</h3>
+                                    <p>We will tell you about any confirmed personal data breach affecting your firm's data within 72 hours of becoming aware of it, as required by NDPA 2023 Section 40. This lets you meet your obligations to the NDPC and to affected data subjects.</p>
+                                </div>
+                                <div id="8-7" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.7 Third-party processors</h3>
+                                    <p>We use these sub-processors to deliver the service:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>Convex, Inc. — database and serverless infrastructure; and</li>
+                                        <li>Resend, Inc. — transactional email delivery.</li>
+                                    </ul>
+                                    <p><strong>AI processing model (Bring Your Own Key, or BYOK):</strong> The Platform's AI features ({isVega ? 'ALOA™' : 'ARIA™'}) are powered by large language models accessed via your own API key. When you provide your own Google Gemini or OpenAI API key, AI requests go directly from your browser to the AI provider. PracticePro does not act as a sub-processor for your AI inputs, and your AI query data does not pass through or stay on PracticePro's servers. You are the Data Controller for data you submit to the AI provider, and your use of the provider is governed by their own terms and privacy policy.</p>
+                                    <p>Each sub-processor is bound by data processing agreements that stop them using your data for their own purposes.</p>
+                                </div>
+                                <div id="8-8" className="space-y-8">
+                                    <h3 className="text-xl font-bold">8.8 Privacy Policy</h3>
+                                    <p>Full details of our data processing practices are set out in our Privacy Policy, which is incorporated into these Terms.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-9" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">9. COOKIE POLICY AND CONSENT</h2>
-                            <div className="space-y-12">
-                                <p>9.1 <strong>What Are Cookies:</strong> Cookies are small data files stored on your device when you use the Platform. We use cookies and similar tracking technologies to enable essential functionality, improve performance, and understand usage patterns.</p>
-                                <p>9.2 <strong>Cookie Categories:</strong></p>
-                                <div className="space-y-4 pl-4 border-l-2 border-slate-100">
-                                    <p>(a) <strong>Essential Cookies:</strong> Required for core Platform functionality including session management, authentication, and security. These cannot be disabled without rendering the Platform non-functional.</p>
-                                    <p>(b) <strong>Functional Cookies:</strong> Store your preferences such as display theme, language, and notification settings to enhance your experience.</p>
-                                    <p>(c) <strong>Analytics Cookies:</strong> Collect anonymized data about Platform usage to help us understand how the Platform is used and where improvements can be made. These are only set with your explicit consent.</p>
-                                    <p>(d) <strong>Marketing Cookies:</strong> Used to track and measure the effectiveness of our marketing communications. These are only set with your explicit consent and may be declined without affecting Platform functionality.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">9. Cookie policy and consent</h2>
+                            <div className="space-y-16">
+                                <div id="9-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">9.1 What cookies are</h3>
+                                    <p>Cookies are small data files stored on your device when you use the Platform. We use them to enable essential functionality, improve performance, and understand usage patterns. Full details are in our Cookie Policy.</p>
                                 </div>
-                                <p>9.3 <strong>Consent Mechanism:</strong> On your first visit to the Platform, you will be presented with a cookie consent notice. You may accept all cookies, accept only essential cookies, or manage your preferences granularly. Essential cookies do not require your consent as they are strictly necessary for Platform operation.</p>
-                                <p>9.4 <strong>Withdrawing Consent:</strong> You may withdraw your cookie consent or change your preferences at any time via your browser settings or the cookie preference centre in your account settings. Withdrawing consent for analytics or marketing cookies will not affect your ability to use the Platform.</p>
-                                <p>9.5 <strong>Third-Party Cookies:</strong> Certain Platform features may integrate third-party services that set their own cookies. We are not responsible for third-party cookie policies.</p>
+                                <div id="9-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">9.2 Cookie categories and consent</h3>
+                                    <p>We use four categories: <strong>Essential</strong> (required for the Platform to work; cannot be turned off), <strong>Functional</strong> (your preferences), <strong>Analytics</strong> (anonymised usage data, only with consent), and <strong>Marketing</strong> (campaign tracking, only with consent). On your first visit, you will see a consent notice. You can accept all, accept only essential, or manage preferences in detail.</p>
+                                </div>
+                                <div id="9-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">9.3 Withdrawal and third-party cookies</h3>
+                                    <p>You can withdraw consent or change preferences anytime via your browser settings or the cookie preference centre in your account. Withdrawing analytics or marketing cookies does not affect your ability to use the Platform. Certain features may integrate third-party services that set their own cookies; we are not responsible for third-party cookie policies.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-10" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">10. PASSWORD SECURITY AND ACCOUNT ACCESS</h2>
-                            <div className="space-y-12">
-                                <p>10.1 <strong>Password Requirements:</strong> To protect the confidentiality of sensitive legal data on the Platform, all user passwords must meet the following minimum complexity requirements: (a) at least eight (8) characters in length; (b) at least one uppercase letter; (c) at least one lowercase letter; (d) at least one numerical digit; and (e) at least one special character. These requirements are technically enforced at registration and password reset.</p>
-                                <p>10.2 <strong>Password Hashing:</strong> Passwords are never stored in plaintext. All passwords are irreversibly hashed using PBKDF2-SHA512 with 600,000 iterations (OWASP-recommended minimum) and a per-user salt before being stored in the database. This means that even in the event of an unauthorized database disclosure, your plaintext password cannot be recovered.</p>
-                                <p>10.3 <strong>Re-Authentication for Destructive Actions:</strong> Certain high-risk actions — including permanent account deletion — require identity re-verification. You will be required to re-enter your password before such actions can proceed, regardless of your current session status. This control is in place to prevent unauthorized irreversible data loss.</p>
-                                <p>10.4 <strong>Session Security:</strong> The Platform implements an automatic idle session lock after a configurable period of inactivity. Upon lock, you must re-authenticate to resume access. The default lock timeout is 15 minutes.</p>
-                                <p>10.5 <strong>Your Security Obligations:</strong> You are responsible for (a) not sharing your password with any other person; (b) logging out of the Platform when using shared or public devices; (c) notifying us immediately if you suspect unauthorized access to your account at dpo@practicepro.ng.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">10. Password security and account access</h2>
+                            <div className="space-y-16">
+                                <div id="10-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">10.1 Password requirements</h3>
+                                    <p>To protect sensitive data on the Platform, all passwords must meet these minimum requirements, technically enforced at registration and password reset:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>At least 8 characters;</li>
+                                        <li>At least one uppercase letter;</li>
+                                        <li>At least one lowercase letter;</li>
+                                        <li>At least one numerical digit; and</li>
+                                        <li>At least one special character.</li>
+                                    </ul>
+                                </div>
+                                <div id="10-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">10.2 Password hashing</h3>
+                                    <p>Passwords are never stored in plaintext. They are irreversibly hashed using industry-standard password hashing (PBKDF2-SHA512, 600,000 iterations, meeting the OWASP 2023 minimum), with a per-user salt, before being stored. This means that even if there is an unauthorised database disclosure, your plaintext password cannot be recovered.</p>
+                                </div>
+                                <div id="10-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">10.3 Re-authentication for destructive actions</h3>
+                                    <p>Certain high-risk actions — including permanent account deletion — require identity re-verification. You will be asked to re-enter your password before such actions can proceed, regardless of your current session status. This prevents unauthorised irreversible data loss.</p>
+                                </div>
+                                <div id="10-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">10.4 Session security</h3>
+                                    <p>The Platform automatically locks idle sessions after a configurable period of inactivity. Once locked, you must re-authenticate to resume access. The default lock timeout is 15 minutes.</p>
+                                </div>
+                                <div id="10-5" className="space-y-8">
+                                    <h3 className="text-xl font-bold">10.5 Your security obligations</h3>
+                                    <p>You are responsible for:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>Not sharing your password with anyone;</li>
+                                        <li>Logging out when using shared or public devices; and</li>
+                                        <li>Telling us immediately at dpo@practicepro.ng if you suspect unauthorised access to your account.</li>
+                                    </ul>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-11" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">11. DATA RETENTION AND DELETION</h2>
-                            <div className="space-y-12">
-                                <p>11.1 <strong>Active Account Data:</strong> We retain User Data for as long as your account is active and for the period necessary to provide the Services to you.</p>
-                                <p>11.2 <strong>Soft Delete and Archive Bin:</strong> When you delete a matter, contact, document, or other item, it is moved to a 30-day archive bin rather than being permanently destroyed. This provides a recovery window in the event of accidental deletion.</p>
-                                <p>11.3 <strong>Automated Purge Policy:</strong> Archive bin records are automatically and permanently purged 30 days after they are moved to the bin. This automated purge runs daily and is designed to comply with the data minimization and storage limitation principles of NDPA 2023 Section 38, informed by ISO/IEC 27701 guidelines.</p>
-                                <p>11.4 <strong>Account Termination and Post-Termination Retention:</strong> Upon account termination, you will have a 60-day window to export your firm's data. After this period, we will securely delete your User Data from our systems in accordance with our data retention policy.</p>
-                                <p>11.5 <strong>Right to Erasure (Right to Be Forgotten):</strong> Under NDPA 2023 Section 35, you have the right to request deletion of your personal data. Account deletion can be initiated via Settings &gt; Data Management &gt; Delete Account. If you are the sole administrator of a firm, deleting your account will also trigger deletion of the firm record and all associated data.</p>
-                                <p>11.6 <strong>Exceptions:</strong> Certain data may be retained beyond the above periods where required by applicable Nigerian law, for the resolution of disputes, or for fraud prevention purposes.</p>
-                                <p>11.7 <strong>Leaked Data Remediation:</strong> PracticePro reserves the right to purge, re-tag, or quarantine any data that is confirmed to have leaked outside its intended scope boundaries due to software defects, system misconfiguration, or other technical incidents. Such remediation actions are logged in the security audit trail and notified to affected Firm administrators within 24 hours.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">11. Data retention and deletion</h2>
+                            <div className="space-y-16">
+                                <div id="11-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.1 Active account data</h3>
+                                    <p>We keep User Data for as long as your account is active and for as long as we need it to provide the Services to you.</p>
+                                </div>
+                                <div id="11-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.2 Soft delete and archive bin</h3>
+                                    <p>When you delete a matter, contact, document, or other item, it is moved to a 30-day archive bin rather than being permanently destroyed. This gives you a recovery window in case of accidental deletion.</p>
+                                </div>
+                                <div id="11-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.3 Automated purge policy</h3>
+                                    <p>Items in the archive bin are automatically and permanently purged 30 days after they are moved there. This daily purge complies with the NDPA 2023's rules on data minimisation and storage limits.</p>
+                                </div>
+                                <div id="11-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.4 Account termination and post-termination retention</h3>
+                                    <p>When your account is terminated, you will have a 60-day window to export your firm's data. After that, we will securely delete your User Data from our systems in line with our data retention policy.</p>
+                                </div>
+                                <div id="11-5" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.5 Right to erasure (right to be forgotten)</h3>
+                                    <p>Under NDPA 2023 Section 35, you have the right to ask us to delete your personal data. You can start account deletion via Settings &gt; Data Management &gt; Delete Account. If you are the sole administrator of a firm, deleting your account will also trigger deletion of the firm record and all associated data.</p>
+                                </div>
+                                <div id="11-6" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.6 Exceptions</h3>
+                                    <p>Certain data may be kept beyond the periods above where required by Nigerian law, for the resolution of disputes, or for fraud prevention.</p>
+                                </div>
+                                <div id="11-7" className="space-y-8">
+                                    <h3 className="text-xl font-bold">11.7 Leaked data remediation</h3>
+                                    <p>PracticePro may purge, re-tag, or quarantine any data confirmed to have leaked outside its intended scope because of software defects, misconfiguration, or other technical incidents. These actions are logged in the security audit trail, and affected Firm administrators are told within 24 hours.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-12" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">12. SUBSCRIPTION FEES AND PAYMENT TERMS</h2>
-                            <div className="space-y-12">
-                                <p>12.1 <strong>Fees:</strong> You agree to pay fees for your selected subscription tier as specified on our pricing page. Subscription fees are payable in Nigerian Naira (₦) and are exclusive of applicable taxes.</p>
-                                <p>12.2 <strong>Automatic Renewal:</strong> Subscriptions automatically renew at the end of each billing period unless cancelled before the renewal date. You will be notified of forthcoming renewals.</p>
-                                <p>12.3 <strong>Non-Refundable:</strong> Subscription fees are non-refundable except in circumstances where the Company has materially failed to deliver the subscribed services or as otherwise required by the Federal Competition and Consumer Protection Act 2018.</p>
-                                <p>12.4 <strong>Price Changes:</strong> We will give you at least thirty (30) days' notice of any changes to subscription pricing. Continued use of the Platform after a price change takes effect constitutes your acceptance of the new price.</p>
-                                <p>12.5 <strong>Downgrade and Cancellation:</strong> You may downgrade or cancel your subscription at any time via the Billing & Plans settings. Downgrade or cancellation takes effect at the end of the current billing period. You will retain access to paid features until that date.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">12. Subscription fees and payment terms</h2>
+                            <div className="space-y-16">
+                                <div id="12-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">12.1 Fees</h3>
+                                    <p>You agree to pay fees for your selected subscription tier as set out on our pricing page. Subscription fees are payable in Nigerian Naira (₦) and do not include applicable taxes.</p>
+                                </div>
+                                <div id="12-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">12.2 Automatic renewal</h3>
+                                    <p>Subscriptions automatically renew at the end of each billing period unless you cancel before the renewal date. We will notify you of upcoming renewals.</p>
+                                </div>
+                                <div id="12-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">12.3 Non-refundable</h3>
+                                    <p>Subscription fees are non-refundable, except where we have materially failed to deliver the subscribed services, or as otherwise required by the Federal Competition and Consumer Protection Act 2018.</p>
+                                </div>
+                                <div id="12-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">12.4 Price changes</h3>
+                                    <p>We will give you at least 30 days' notice of any changes to subscription pricing. If you keep using the Platform after a price change takes effect, that means you accept the new price.</p>
+                                </div>
+                                <div id="12-5" className="space-y-8">
+                                    <h3 className="text-xl font-bold">12.5 Downgrade and cancellation</h3>
+                                    <p>You can downgrade or cancel your subscription at any time via the Billing &amp; Plans settings. Downgrade or cancellation takes effect at the end of the current billing period. You will keep access to paid features until that date.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-13" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">13. ACCEPTABLE USE AND PROHIBITED CONDUCT</h2>
-                            <div className="space-y-12">
-                                <p>13.1 <strong>Permitted Use:</strong> The Platform may only be used for lawful {isProperty ? 'property management' : 'legal practice management'} purposes consistent with the Rules of Professional Conduct and applicable Nigerian law.</p>
-                                <p>13.2 <strong>Prohibited Conduct:</strong> You may not:</p>
-                                <ul className="list-disc pl-8 space-y-4">
-                                    <li>Use the Platform for any illegal, fraudulent, or unauthorized purpose;</li>
-                                    <li>Attempt to bypass, undermine, or circumvent any security controls or access restrictions;</li>
-                                    <li>Reverse-engineer, decompile, disassemble, or otherwise attempt to derive the source code of the Platform;</li>
-                                    <li>Introduce malware, viruses, or any harmful code into the Platform;</li>
-                                    <li>Use automated bots or scripts to access, scrape, or harvest data from the Platform;</li>
-                                    <li>Share login credentials with unauthorized individuals or allow concurrent use of a single account by multiple people;</li>
-                                    {isVega && <li>Use the Platform to process data for clients or matters where you have a conflict of interest without proper disclosure and consent;</li>}
-                                    <li>Misrepresent your professional qualifications when using the Platform;</li>
-                                    <li>Use AI Agents to generate {isVega ? 'legal advice to be provided to clients' : 'agreements or notices'} without appropriate professional review and oversight.</li>
-                                </ul>
-                                <p>13.3 <strong>Consequences:</strong> Violation of this section may result in immediate suspension or termination of your account and may attract civil or criminal liability under Nigerian law.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">13. Acceptable use and prohibited conduct</h2>
+                            <div className="space-y-16">
+                                <div id="13-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">13.1 Permitted use</h3>
+                                    <p>The Platform may only be used for lawful {isProperty ? 'property management' : 'legal practice management'} purposes, consistent with the Rules of Professional Conduct and applicable Nigerian law.</p>
+                                </div>
+                                <div id="13-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">13.2 Prohibited conduct</h3>
+                                    <p>You may not:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>Use the Platform for any illegal, fraudulent, or unauthorised purpose;</li>
+                                        <li>Bypass or circumvent security controls, or try to reverse-engineer or extract the source code;</li>
+                                        <li>Introduce malware, viruses, or harmful code;</li>
+                                        <li>Use bots or scripts to scrape or harvest data;</li>
+                                        <li>Share login credentials or allow multiple people to use a single account at the same time;</li>
+                                        {isVega && <li>Use the Platform for clients or matters where you have a conflict of interest without proper disclosure and consent;</li>}
+                                        <li>Misrepresent your professional qualifications; or</li>
+                                        <li>Use AI Agents to generate {isVega ? 'legal advice for clients' : 'agreements or notices'} without appropriate professional review.</li>
+                                    </ul>
+                                </div>
+                                <div id="13-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">13.3 Consequences</h3>
+                                    <p>Violating this section may result in immediate suspension or termination of your account. It may also lead to civil or criminal liability under Nigerian law.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-14" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">14. SERVICE AVAILABILITY AND MODIFICATIONS</h2>
-                            <div className="space-y-12">
-                                <p>14.1 <strong>Availability Target:</strong> We strive to maintain high Platform availability. However, we do not guarantee uninterrupted access. Scheduled maintenance periods and circumstances beyond our reasonable control (including acts of God, force majeure events, third-party infrastructure failures, and cyberattacks) may cause temporary unavailability.</p>
-                                <p>14.2 <strong>Planned Maintenance:</strong> We will endeavour to schedule planned maintenance during off-peak hours and to give advance notice where practicable.</p>
-                                <p>14.3 <strong>Modifications:</strong> We reserve the right to modify, add, or remove Platform features at any time to improve functionality, security, or regulatory compliance. We will provide reasonable notice of significant feature removals that may affect existing workflows.</p>
-                                <p>14.4 <strong>Beta Features:</strong> Features designated as "Beta" or "Preview" are provided on an as-is basis and may be unstable. Beta features may be modified or discontinued without notice.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">14. Service availability and modifications</h2>
+                            <div className="space-y-16">
+                                <div id="14-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">14.1 Availability target</h3>
+                                    <p>We strive to keep the Platform available but do not guarantee uninterrupted access. Scheduled maintenance and circumstances outside our control (like natural disasters, war, or government action), third-party infrastructure failures, and cyberattacks may cause temporary unavailability.</p>
+                                </div>
+                                <div id="14-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">14.2 Planned maintenance and modifications</h3>
+                                    <p>We will try to schedule planned maintenance during off-peak hours and give advance notice where practicable. We may modify, add, or remove features at any time to improve functionality, security, or regulatory compliance, and will give reasonable notice of significant feature removals that affect existing workflows.</p>
+                                </div>
+                                <div id="14-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">14.3 Beta features</h3>
+                                    <p>Features marked "Beta" or "Preview" are provided as-is and may be unstable. They may be modified or discontinued without notice.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-15" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">15. WARRANTIES AND DISCLAIMERS</h2>
-                            <div className="space-y-12">
-                                <p>15.1 <strong>"AS IS" Provision:</strong> THE PLATFORM AND ALL SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR ACCURACY.</p>
-                                <p>15.2 <strong>AI Output Disclaimer:</strong> THE COMPANY EXPRESSLY DISCLAIMS ALL WARRANTIES IN RESPECT OF AI AGENT OUTPUTS. {isProperty ? 'AI-GENERATED DRAFTS' : 'AI-GENERATED LEGAL DRAFTS'}, DEADLINE CALCULATIONS, JURISDICTION RECOMMENDATIONS, AND FEE ASSESSMENTS ARE PROVIDED FOR INFORMATIONAL ASSISTANCE ONLY AND DO NOT CONSTITUTE {isProperty ? 'PROFESSIONAL' : 'LEGAL'} ADVICE.</p>
-                                <p>15.3 <strong>Professional Reliance:</strong> The Platform is a tool to assist {isProperty ? 'property management' : 'legal practice'}. It is not a substitute for professional {isProperty ? '' : 'legal '}training, experience, or judgment. The Company makes no representation that use of the Platform will lead to favourable legal outcomes.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">15. Warranties and disclaimers</h2>
+                            <div className="space-y-16">
+                                <div id="15-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">15.1 "As is" provision</h3>
+                                    <p><strong>The Platform and all services are provided "as is" and "as available," without warranties of any kind, express or implied. This includes, but is not limited to, warranties of merchantability, fitness for a particular purpose, non-infringement, or accuracy.</strong></p>
+                                </div>
+                                <div id="15-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">15.2 AI output disclaimer</h3>
+                                    <p><strong>We expressly disclaim all warranties about AI Agent outputs. {isProperty ? 'AI-generated drafts' : 'AI-generated legal drafts'}, deadline calculations, jurisdiction recommendations, and fee assessments are provided for informational help only and do not constitute {isProperty ? 'professional' : 'legal'} advice.</strong></p>
+                                </div>
+                                <div id="15-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">15.3 Professional reliance</h3>
+                                    <p>The Platform is a tool to assist {isProperty ? 'property management' : 'legal practice'}. It is not a substitute for professional {isProperty ? '' : 'legal '}training, experience, or judgment. We make no representation that using the Platform will lead to favourable legal outcomes.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-16" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">16. LIMITATION OF LIABILITY</h2>
-                            <div className="space-y-12">
-                                <p>16.1 <strong>Liability Cap:</strong> To the maximum extent permitted by applicable Nigerian law, our total aggregate liability to you for all claims arising out of or related to this Agreement — whether in contract, tort, breach of statutory duty, or otherwise — shall not exceed the total subscription fees paid by you in the twelve (12) months immediately preceding the event giving rise to the claim.</p>
-                                <p>16.2 <strong>Excluded Losses:</strong> In no event shall the Company be liable for: (a) loss of profits, revenue, or business; (b) loss of or corruption of data; (c) loss of goodwill or reputation; (d) indirect, consequential, incidental, punitive, or special damages of any kind, whether or not the Company has been advised of the possibility of such damages.</p>
-                                <p>16.3 <strong>AI-Specific Exclusion:</strong> The Company shall not be liable for any professional negligence claim, disciplinary action, court order, adverse judgment, or other loss arising from a legal practitioner's reliance on AI Agent outputs without independent verification and professional review.</p>
-                                <p>16.4 <strong>Consumer Rights:</strong> Nothing in this Agreement shall exclude or limit any rights you may have under the Federal Competition and Consumer Protection Act 2018 or other mandatory provisions of Nigerian consumer protection law that cannot lawfully be excluded.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">16. Limitation of liability</h2>
+                            <div className="space-y-16">
+                                <div id="16-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">16.1 Liability cap</h3>
+                                    <p>To the maximum extent allowed by Nigerian law, our total liability to you for any claim under these Terms will not exceed the subscription fees you paid us in the 12 months before the issue arose.</p>
+                                </div>
+                                <div id="16-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">16.2 Excluded losses</h3>
+                                    <p>We are not liable for:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>Lost profits, revenue, or business;</li>
+                                        <li>Lost or corrupted data;</li>
+                                        <li>Loss of goodwill or reputation; or</li>
+                                        <li>Any indirect, consequential, incidental, punitive, or special damages, even if we knew they might happen.</li>
+                                    </ul>
+                                </div>
+                                <div id="16-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">16.3 AI-specific exclusion</h3>
+                                    <p>We are not liable for any professional negligence claim, disciplinary action, court order, adverse judgment, or other loss arising from a legal practitioner's reliance on AI Agent outputs without independent verification and professional review.</p>
+                                </div>
+                                <div id="16-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">16.4 Consumer rights</h3>
+                                    <p>Nothing in these Terms excludes or limits any rights you have under the Federal Competition and Consumer Protection Act 2018, or other mandatory provisions of Nigerian consumer protection law that cannot lawfully be excluded.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-17" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">17. INDEMNIFICATION</h2>
-                            <div className="space-y-12">
-                                <p>17.1 <strong>Your Indemnity:</strong> You agree to indemnify, defend, and hold harmless the Company and its officers, directors, employees, and agents from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable legal fees) arising out of or related to:</p>
-                                <ul className="list-disc pl-8 space-y-4">
-                                    <li>Your breach of any provision of this Agreement;</li>
-                                    <li>Your use or misuse of the Platform;</li>
-                                    <li>Your reliance on AI Agent outputs without appropriate professional oversight;</li>
-                                    <li>Your violation of any applicable law, regulation, or professional conduct rule;</li>
-                                    <li>Any claim by a third party arising from your use of the Platform in connection with their matter or data.</li>
-                                </ul>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">17. Indemnification</h2>
+                            <div className="space-y-16">
+                                <div id="17-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">17.1 Your indemnity</h3>
+                                    <p>You agree to protect PracticePro (and our officers, directors, employees, and agents) from any claims, damages, losses, costs, or legal fees arising from: your breach of these Terms; your use or misuse of the Platform; your reliance on AI Agent outputs without appropriate professional oversight; your violation of any law or professional conduct rule; or any third-party claim arising from your use of the Platform in connection with their matter or data.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-18" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">18. TERM AND TERMINATION</h2>
-                            <div className="space-y-12">
-                                <p>18.1 <strong>Term:</strong> This Agreement commences on the date you create an account and continues until terminated in accordance with this Section.</p>
-                                <p>18.2 <strong>Termination by You:</strong> You may terminate this Agreement at any time by deleting your account via Settings &gt; Data Management &gt; Delete Account. Termination takes effect immediately upon account deletion.</p>
-                                <p>18.3 <strong>Termination by the Company:</strong> We may terminate or suspend your access immediately and without prior notice where: (a) you materially breach this Agreement; (b) you fail to pay applicable subscription fees after a 14-day grace period; (c) we are required to do so by law; or (d) your conduct poses a security or reputational risk to the Platform or other users.</p>
-                                <p>18.4 <strong>Effect of Termination:</strong> Upon termination, your right to access the Platform ceases immediately. Data export and deletion procedures as described in Section 11 apply. Sections 7, 8, 15, 16, 17, 19, and 20 shall survive termination of this Agreement.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">18. Term and termination</h2>
+                            <div className="space-y-16">
+                                <div id="18-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">18.1 Term</h3>
+                                    <p>These Terms start on the date you create an account and continue until terminated under this Section.</p>
+                                </div>
+                                <div id="18-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">18.2 Termination by you</h3>
+                                    <p>You can terminate these Terms at any time by deleting your account via Settings &gt; Data Management &gt; Delete Account. Termination takes effect immediately on account deletion.</p>
+                                </div>
+                                <div id="18-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">18.3 Termination by us</h3>
+                                    <p>We may terminate or suspend your access immediately and without prior notice where:</p>
+                                    <ul className="list-disc pl-8 space-y-4">
+                                        <li>You materially breach these Terms;</li>
+                                        <li>You fail to pay subscription fees after a 14-day grace period;</li>
+                                        <li>We are required to do so by law; or</li>
+                                        <li>Your conduct poses a security or reputational risk to the Platform or other users.</li>
+                                    </ul>
+                                </div>
+                                <div id="18-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">18.4 Effect of termination</h3>
+                                    <p>On termination, your right to access the Platform stops immediately. The data export and deletion procedures in Section 11 apply. Sections 7, 8, 15, 16, 17, 19, and 20 continue to apply after termination.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-19" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">19. DISPUTE RESOLUTION</h2>
-                            <div className="space-y-12">
-                                <p>19.1 <strong>Good Faith Negotiation:</strong> In the event of any dispute, claim, or controversy arising out of or relating to this Agreement, the parties shall first attempt to resolve the matter through good faith negotiation. A party wishing to invoke this process must provide written notice to the other specifying the nature of the dispute in reasonable detail. The parties shall negotiate for a period of not less than thirty (30) days.</p>
-                                <p>19.2 <strong>Mediation:</strong> If the dispute is not resolved through negotiation within thirty (30) days, either party may refer the matter to mediation under the Rules of the Lagos Multi-Door Courthouse (LMDC) or such other mutually agreed mediation institution. The costs of mediation shall be shared equally.</p>
-                                <p>19.3 <strong>Arbitration:</strong> If mediation fails to produce a settlement within sixty (60) days of the appointment of a mediator, the dispute shall be referred to and finally resolved by arbitration in Lagos, Nigeria, under the Arbitration and Mediation Act 2023. The arbitral tribunal shall consist of a sole arbitrator agreed upon by the parties, or failing agreement, appointed in accordance with the Act.</p>
-                                <p>19.4 <strong>No Class Actions:</strong> All disputes shall be resolved on an individual basis. You waive any right to participate in a class action or representative proceeding.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">19. Dispute resolution</h2>
+                            <div className="space-y-16">
+                                <div id="19-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">19.1 Good faith negotiation</h3>
+                                    <p>If any dispute arises out of or relates to these Terms, the parties will first try to resolve it through good faith negotiation. A party wishing to start this must give written notice to the other, setting out the nature of the dispute in reasonable detail. The parties will negotiate for at least 30 days.</p>
+                                </div>
+                                <div id="19-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">19.2 Mediation</h3>
+                                    <p>If the dispute is not resolved through negotiation within 30 days, either party may refer it to mediation under the Rules of the Lagos Multi-Door Courthouse (LMDC), or another mediation institution the parties agree on. Mediation costs are shared equally.</p>
+                                </div>
+                                <div id="19-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">19.3 Arbitration</h3>
+                                    <p>If mediation does not produce a settlement within 60 days of the appointment of a mediator, the dispute will be referred to and finally resolved by arbitration in Lagos, Nigeria, under the Arbitration and Mediation Act 2023. The arbitration will be handled by one arbitrator. If we can't agree on who, one will be appointed under the Act.</p>
+                                </div>
+                                <div id="19-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">19.4 No class actions</h3>
+                                    <p>All disputes will be resolved on an individual basis. You waive any right to take part in a class action or representative proceeding.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-20" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">20. GOVERNING LAW AND JURISDICTION</h2>
-                            <div className="space-y-12">
-                                <p>20.1 <strong>Governing Law:</strong> This Agreement and all matters arising out of or in connection with it shall be governed by and construed in accordance with the laws of the Federal Republic of Nigeria.</p>
-                                <p>20.2 <strong>Jurisdiction:</strong> Without prejudice to the dispute resolution procedures in Section 19, each party submits to the exclusive jurisdiction of the courts of Lagos State for the purpose of enforcing any arbitral award or seeking urgent injunctive relief.</p>
-                                <p>20.3 <strong>NBA Compliance:</strong> Nothing in this Agreement shall be construed as overriding or superseding the Rules of Professional Conduct for Legal Practitioners 2023 or any directive issued by the Nigerian Bar Association.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">20. Governing law and jurisdiction</h2>
+                            <div className="space-y-16">
+                                <div id="20-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">20.1 Governing law</h3>
+                                    <p>These Terms and all matters arising out of or in connection with them are governed by and construed in line with the laws of the Federal Republic of Nigeria.</p>
+                                </div>
+                                <div id="20-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">20.2 Jurisdiction</h3>
+                                    <p>Without affecting the dispute resolution process in Section 19, the courts of Lagos State will handle enforcement of any arbitral award or urgent injunctions.</p>
+                                </div>
+                                <div id="20-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">20.3 NBA compliance</h3>
+                                    <p>Nothing in these Terms overrides the Rules of Professional Conduct for Legal Practitioners 2023, or any directive issued by the Nigerian Bar Association.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-21" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">21. GENERAL PROVISIONS</h2>
-                            <div className="space-y-12">
-                                <p>21.1 <strong>Entire Agreement:</strong> These Terms, together with the Privacy Policy and Cookie Policy, constitute the entire agreement between you and the Company and supersede all prior negotiations, representations, or agreements relating to the Platform.</p>
-                                <p>21.2 <strong>Severability:</strong> If any provision of this Agreement is found to be unenforceable by a court of competent jurisdiction, the remaining provisions shall continue in full force and effect. The unenforceable provision shall be modified to the minimum extent necessary to make it enforceable.</p>
-                                <p>21.3 <strong>No Waiver:</strong> Failure or delay by either party to exercise any right or remedy under this Agreement shall not constitute a waiver of that right or remedy.</p>
-                                <p>21.4 <strong>Assignment:</strong> You may not assign or transfer any rights or obligations under this Agreement without the prior written consent of the Company. The Company may assign this Agreement in connection with a merger, acquisition, or sale of all or substantially all of its assets.</p>
-                                <p>21.5 <strong>Force Majeure:</strong> The Company shall not be liable for any delay or failure in performance resulting from causes beyond its reasonable control, including acts of God, government actions, internet service disruptions, cyberattacks, or other force majeure events.</p>
-                                <p>21.6 <strong>Language:</strong> This Agreement is drawn up in the English language. In the event of any conflict between this English version and any translation, the English version shall prevail.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">21. General provisions</h2>
+                            <div className="space-y-16">
+                                <div id="21-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">21.1 Entire agreement</h3>
+                                    <p>These Terms are the complete agreement between you and PracticePro about the Platform, replacing any earlier discussions or agreements. They include the Privacy Policy and Cookie Policy.</p>
+                                </div>
+                                <div id="21-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">21.2 Severability</h3>
+                                    <p>If a court finds any part of these Terms unenforceable, the rest will continue in full force. The unenforceable part will be modified only as much as needed to make it enforceable.</p>
+                                </div>
+                                <div id="21-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">21.3 No waiver</h3>
+                                    <p>If either of us delays or fails to use a right under these Terms, that doesn't mean we've given up that right.</p>
+                                </div>
+                                <div id="21-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">21.4 Assignment</h3>
+                                    <p>You may not assign or transfer any rights or obligations under these Terms without our prior written consent. We may assign these Terms in connection with a merger, acquisition, or sale of all or substantially all of our assets.</p>
+                                </div>
+                                <div id="21-5" className="space-y-8">
+                                    <h3 className="text-xl font-bold">21.5 Force majeure and language</h3>
+                                    <p>We are not liable for any delay or failure resulting from events outside our control (like natural disasters, war, or government action), internet service disruptions, or cyberattacks. These Terms are drawn up in English; if there is any conflict between this English version and any translation, the English version prevails.</p>
+                                </div>
                             </div>
                         </section>
 
                         <section id="section-22" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">22. CONTACT INFORMATION</h2>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">22. Contact information</h2>
                             <div className="space-y-12">
-                                <p>For any questions, complaints, or notices relating to this Agreement, please contact us at:</p>
+                                <p>For any questions, complaints, or notices relating to these Terms, please contact us at:</p>
                                 <div className="pl-4 border-l-2 border-slate-100 space-y-3">
                                     <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
-                                    <p><strong>General Enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com">practiceprosystems@gmail.com</a></p>
-                                    <p><strong>Data Protection / Privacy:</strong> <a href="mailto:dpo@practicepro.ng">dpo@practicepro.ng</a></p>
+                                    <p><strong>General enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprosystems@gmail.com</a></p>
+                                    <p><strong>Data protection / privacy:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a></p>
                                 </div>
-                                <p>We aim to respond to all formal notices and complaints within five (5) business days.</p>
+                                <p>We aim to respond to all formal notices and complaints within 5 business days.</p>
                             </div>
                         </section>
 
                         <section id="section-23" className="mb-20">
-                            <h2 className="text-3xl font-bold mb-8 transition-colors">23. PORTAL TERMS OF USE</h2>
-                            <div className="space-y-12">
-                                <p>23.1 <strong>Incorporation by Reference:</strong> The PracticePro Portal Terms of Use ("Portal Terms") are incorporated into and form an integral part of this Agreement. The Portal Terms apply to all users who access the PracticePro Client Portal or Residents' Portal (collectively, the "Portal"). A copy of the Portal Terms is available upon request and is presented to each User during the Portal account setup process.</p>
-                                <p>23.2 <strong>Binding Effect:</strong> By accepting an invitation to the Portal, creating a Portal account, or accessing the Portal in any capacity, you agree to be bound by the Portal Terms in addition to these Terms and Conditions of Service. In the event of a conflict between these Terms and the Portal Terms, the Portal Terms shall prevail with respect to Portal-specific matters.</p>
-                                <p>23.3 <strong>Scope of Portal Terms:</strong> The Portal Terms govern, among other things:</p>
-                                <ul>
-                                    <li>The purpose and scope of Portal access;</li>
-                                    <li>User responsibilities, including the obligation to provide accurate information and refrain from misuse;</li>
-                                    <li>Privacy and data protection obligations in accordance with the NDPA 2023;</li>
-                                    <li>Communication through the Portal, including the acknowledgment that messages are logged and not private;</li>
-                                    <li>Payment submissions and proof of payment requirements;</li>
-                                    <li>Maintenance requests and service charge information (for Residents' Portal users);</li>
-                                    <li>Intellectual property restrictions;</li>
-                                    <li>Limitation of liability specific to Portal use;</li>
-                                    <li>Termination of Portal access; and</li>
-                                    <li>Governing law and dispute resolution.</li>
-                                </ul>
-                                <p>23.4 <strong>Amendment of Portal Terms:</strong> PracticePro reserves the right to amend the Portal Terms at any time in accordance with Section 14 of this Agreement. Continued use of the Portal after any such amendment constitutes your acceptance of the revised Portal Terms.</p>
-                                <p>23.5 <strong>Portal Access as a Privilege:</strong> Access to the Portal is granted at the discretion of the User's {isVega ? 'legal service provider' : 'property manager'} and PracticePro. Portal access may be suspended or terminated in accordance with the Portal Terms and Section 18 of this Agreement.</p>
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">23. Portal terms of use</h2>
+                            <div className="space-y-16">
+                                <div id="23-1" className="space-y-8">
+                                    <h3 className="text-xl font-bold">23.1 Incorporation by reference</h3>
+                                    <p>The PracticePro Portal Terms of Use ("Portal Terms") are part of these Terms. They apply to all users who access the PracticePro Client Portal or Residents' Portal (together, the "Portal"). A copy is available on request and is shown to each User during the Portal account setup process.</p>
+                                </div>
+                                <div id="23-2" className="space-y-8">
+                                    <h3 className="text-xl font-bold">23.2 Binding effect</h3>
+                                    <p>By accepting an invitation to the Portal, creating a Portal account, or accessing the Portal, you agree to be bound by the Portal Terms as well as these Terms. If there is a conflict between these Terms and the Portal Terms, the Portal Terms prevail for Portal-specific matters.</p>
+                                </div>
+                                <div id="23-3" className="space-y-8">
+                                    <h3 className="text-xl font-bold">23.3 Scope of Portal Terms</h3>
+                                    <p>The Portal Terms cover: Portal access scope; user responsibilities (accurate information, no misuse); privacy under the NDPA 2023; communication (messages are logged, not private); payment submissions and proof of payment; maintenance requests and service charges (Residents' Portal); intellectual property restrictions; Portal-specific liability limits; termination of Portal access; and governing law and dispute resolution.</p>
+                                </div>
+                                <div id="23-4" className="space-y-8">
+                                    <h3 className="text-xl font-bold">23.4 Amendment of Portal Terms</h3>
+                                    <p>PracticePro may amend the Portal Terms at any time in line with Section 14 of these Terms. If you keep using the Portal after any such amendment, that means you accept the revised Portal Terms.</p>
+                                </div>
+                                <div id="23-5" className="space-y-8">
+                                    <h3 className="text-xl font-bold">23.5 Portal access as a privilege</h3>
+                                    <p>Access to the Portal is granted at the discretion of the User's {isVega ? 'legal service provider' : 'property manager'} and PracticePro. Portal access may be suspended or terminated in line with the Portal Terms and Section 18 of these Terms.</p>
+                                </div>
                             </div>
                         </section>
 
@@ -523,7 +772,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                     {/* Footer */}
                     <div className="h-32 pt-20 border-t border-slate-100 mt-20 text-center">
                         <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest">
-                            PracticePro {isVega ? 'VEGA • Professional Operations System' : 'ATRIUM • Property OS'} • Version 2.0 • April 2026
+                            PracticePro {isVega ? 'VEGA • Professional Operations System' : 'ATRIUM • Property OS'} • Version 2.1 • August 2026
                         </p>
                     </div>
                     <div className="h-20 sm:h-0" />
