@@ -159,9 +159,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.20.0',
         date: '2026-08-14',
         title: 'VMS Add-On Billing, Team Deactivation & Smarter ALOA Drafts',
-        description: 'A paid Visitor Management System add-on with 14-day trial, soft-deactivation for team members, per-conversation ALOA draft persistence, and a role-based Terms of Service consent engine.',
+        description: 'A paid Visitor Management System add-on with 30-day trial, soft-deactivation for team members, per-conversation ALOA draft persistence, and a role-based Terms of Service consent engine.',
         features: [
-            { icon: 'portal', label: 'VMS Add-On with 14-Day Trial', text: 'Atrium firms can now start a 14-day free trial of the Visitor Management System add-on. Residents generate 6-digit visitor codes; gatekeepers verify at the gatehouse terminal. Billing gate blocks code generation if the trial has expired or the add-on is inactive.' },
+            { icon: 'portal', label: 'VMS Add-On with 30-Day Trial', text: 'Atrium firms can now start a 30-day free trial of the Visitor Management System add-on. Residents generate 6-digit visitor codes; gatekeepers verify at the gatehouse terminal. Billing gate blocks code generation if the trial has expired or the add-on is inactive.' },
             { icon: 'shield', label: 'Team Member Deactivation', text: 'Admins can now soft-deactivate team members instead of hard-deleting them. Deactivated users cannot log in and are filtered out of task assignment, but their historical contributions (matters, tasks, messages) remain attributed to them. A "Deactivated" badge appears in the team directory with one-click reactivation.' },
             { icon: 'brain', label: 'ALOA Per-Conversation Drafts', text: 'Switching between ALOA conversations no longer loses your typed text. Each conversation now has its own draft slot — start a message in one chat, switch to another, and your draft is preserved when you switch back.' },
             { icon: 'pen', label: 'Inline Unit Muting', text: 'Mute or reactivate property units directly from the unit tab strip in Edit Property — no more scrolling to the bottom of the form. A bell-off icon appears next to each unit tab; click it to hide the unit from the workspace without deleting its ledger history.' },

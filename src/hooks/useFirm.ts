@@ -65,7 +65,7 @@ export const useFirm = (appState: AppState, actions: any) => {
      * CRO AUDIT FIX (Track B — B2): added trial parameter. When trial=true,
      * the backend creates the firm with subscriptionPlan='Core' but sets
      * trialStartsAt/trialEndsAt/trialPlan so useFeatures can grant trial
-     * entitlements during the 14-day window.
+     * entitlements during the 30-day window.
      */
     const createFirm = useCallback(async (
         name: string,

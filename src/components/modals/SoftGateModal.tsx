@@ -15,7 +15,7 @@ import NairaSymbol from '../NairaSymbol';
  * names the specific value being unlocked and offers two paths:
  *   1. "Pay Now" — opens PaymentGatewayModal with bank transfer details.
  *   2. "Start 14-Day Free Trial" — creates the firm at the target tier with
- *      a 14-day trial window (via the createSubscriptionRequest flow OR
+ *      a 30-day trial window (via the createSubscriptionRequest flow OR
  *      direct trial activation, depending on whether the firm already exists).
  *
  * This is the contextual upgrade moment — the highest-intent moment for
@@ -86,8 +86,8 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
     // the trial without requiring founder approval (since trials are free).
     openModal('paymentGateway', null, {
       amount: 0,  // trial is free
-      title: `Start 14-Day ${targetPlan} Trial`,
-      description: `No charge for 14 days. After that, you'll need to set up payment to keep ${targetPlan} features.`,
+      title: `Start 30-Day ${targetPlan} Trial`,
+      description: `No charge for 30 days. After that, you'll need to set up payment to keep ${targetPlan} features.`,
       forcePracticeProAccount: true,
       subscriptionContext: {
         requestedPlan: targetPlan,

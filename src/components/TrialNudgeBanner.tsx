@@ -7,19 +7,19 @@ import { useUI } from '../contexts/UIContext';
 /**
  * TrialNudgeBanner — CRO Audit Track B (B8)
  *
- * Surfaces automated, value-driven in-app milestones during the 14-day trial.
+ * Surfaces automated, value-driven in-app milestones during the 30-day trial.
  * The backend expireTrials cron already sends Day-4 and Day-1 notifications;
  * this component adds the in-app banner layer for milestone-based nudges.
  *
- * Milestones:
+ * Milestones (updated for 30-day trial):
  *   Day 0:  Welcome + first setup nudge
  *   Day 1:  First property/matter added nudge
  *   Day 3:  First rent/invoice recorded nudge
- *   Day 5:  First invoice sent nudge
- *   Day 7:  Trial midpoint check-in
- *   Day 10: Trial ending soon (4 days)
- *   Day 13: Last-chance nudge (1 day)
- *   Day 14: Trial expired (handled by expireTrials cron)
+ *   Day 7:  First invoice sent nudge
+ *   Day 14: Trial midpoint check-in
+ *   Day 23: Trial ending soon (7 days)
+ *   Day 29: Last-chance nudge (1 day)
+ *   Day 30: Trial expired (handled by expireTrials cron)
  *
  * The banner is dismissible per-day (stored in localStorage with key
  * `practicepro_trial_nudge_dismissed_${day}`) so it doesn't re-fire on
@@ -49,7 +49,7 @@ const TrialNudgeBanner: React.FC = () => {
     if (daysElapsed === 0) {
       return {
         title: `Welcome to your ${trialPlan} trial`,
-        body: 'Add your first property or matter to get started. The trial gives you full access for 14 days.',
+        body: 'Add your first property or matter to get started. The trial gives you full access for 30 days.',
         cta: 'Get Started',
         ctaAction: () => openModal('newMatter'),
         urgency: 'info' as const,
@@ -75,14 +75,23 @@ const TrialNudgeBanner: React.FC = () => {
     }
     if (daysElapsed === 7) {
       return {
+        title: 'Day 7 — Try WhatsApp messaging',
+        body: 'Send your first WhatsApp rent reminder or court date notification. Automated messaging is included in your trial.',
+        cta: 'Send Message',
+        ctaAction: () => navigateTo('messages'),
+        urgency: 'info' as const,
+      };
+    }
+    if (daysElapsed === 14) {
+      return {
         title: 'Trial midpoint check-in',
-        body: `You're halfway through your ${trialPlan} trial. Here's what firms like yours have set up by Day 7.`,
-        cta: 'See What Others Set Up',
+        body: `You're halfway through your ${trialPlan} trial. Have you tried the AI assistant, automated billing, or the resident portal yet?`,
+        cta: 'Explore Features',
         ctaAction: () => navigateTo('settings', null, { settingsTargetId: 'subscription-management' }),
         urgency: 'info' as const,
       };
     }
-    if (daysRemaining <= 4 && daysRemaining > 1) {
+    if (daysRemaining <= 7 && daysRemaining > 1) {
       return {
         title: `Trial ends in ${daysRemaining} days`,
         body: `Your ${trialPlan} trial ends soon. Locked features after expiry: AI document generation, bulk invoicing, WhatsApp integration. Upgrade now to keep them.`,

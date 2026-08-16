@@ -1043,7 +1043,7 @@ const WHATS_NEW_ENTRIES: WhatsNewEntry[] = [
         products: ['atrium'],
         category: 'feature',
         items: [
-            { label: 'Sentry Pass VMS', body: 'Visitor management with 6-digit codes, QR passes, gatekeeper terminal, offline fallback. 14-day free trial, then N15K/mo add-on.' },
+            { label: 'Sentry Pass VMS', body: 'Visitor management with 6-digit codes, QR passes, gatekeeper terminal, offline fallback. 30-day free trial, then N15K/mo add-on.' },
             { label: 'Role-Based ToS', body: 'Per-role terms version tracking. Only affected roles see re-acceptance prompts when their version bumps.' },
             { label: 'Deactivated Member State', body: 'Soft-deactivation with audit trail. Deactivated users cannot log in but their historical contributions remain attributed.' },
         ],
@@ -1385,7 +1385,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 <div className="mt-12 mb-8 p-8 rounded-2xl bg-slate-900 dark:bg-white/[0.03] border border-slate-800 dark:border-white/[0.06] text-center">
                     <h3 className="text-xl font-bold text-white dark:text-white mb-2">Ready to get started?</h3>
                     <p className="text-slate-400 dark:text-slate-400 text-sm mb-6 max-w-md mx-auto">
-                        {isVega ? 'Start your 14-day free trial of PracticePro Vega today.' : 'Start your 14-day free trial of PracticePro Atrium today.'}
+                        {isVega ? 'Start your 30-day free trial of PracticePro Vega today.' : 'Start your 30-day free trial of PracticePro Atrium today.'}
                     </p>
                     <div className="flex gap-3 justify-center">
                         <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors">

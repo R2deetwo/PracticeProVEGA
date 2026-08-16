@@ -47,7 +47,7 @@ export default defineSchema({
     setupFeePaid: nullableBoolean,
     trustAccountingEnabled: v.optional(v.boolean()),  // Toggle: enable trust accounting for this firm
     // ─── TRIAL SYSTEM (CRO Audit Track B) ───────────────────────────────
-    // When trialStartsAt is set, the firm is on a 14-day trial of `trialPlan`.
+    // When trialStartsAt is set, the firm is on a 30-day trial of `trialPlan`.
     // On expiry (cron), trialPlan is cleared and subscriptionPlan reverts to 'Core'.
     trialStartsAt: nullableNumber,       // epoch ms when trial began
     trialEndsAt: nullableNumber,         // epoch ms when trial expires

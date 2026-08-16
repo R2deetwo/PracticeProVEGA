@@ -1314,7 +1314,7 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 
 // ─── VMS ADD-ON PANEL ─────────────────────────────────────────────────────
 // Visitor Management System billing card. Shows:
-//   - 'Start 14-day free trial' button (if no add-on)
+//   - 'Start 30-day free trial' button (if no add-on)
 //   - Trial countdown (if trial active)
 //   - 'Active' badge + cancel button (if active)
 //   - 'Expired' state + 'Subscribe' button (if expired)
@@ -1339,7 +1339,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 
     const handleStartTrial = async () => {
         if (!currentUser?.email) return;
-        const ok = window.confirm('Start a 14-day free trial of the Visitor Management System? You can generate visitor codes immediately. No payment required.');
+        const ok = window.confirm('Start a 30-day free trial of the Visitor Management System? You can generate visitor codes immediately. No payment required.');
         if (!ok) return;
         setBusy(true);
         try {
@@ -1396,7 +1396,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                 {status === 'none' && (
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <p className="text-sm text-slate-600 dark:text-zinc-400">Try VMS free for 14 days. No payment required.</p>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">Try VMS free for 30 days. No payment required.</p>
                         <button
                             onClick={handleStartTrial}
                             disabled={busy}

@@ -1927,7 +1927,7 @@ export const createFirm = mutation({
     isDataMigration: v.optional(v.boolean()),
     // ─── CRO Audit Track B: Trial system support ───────────────────────
     // When trial=true, the firm is created with subscriptionPlan='Core' but
-    // trialPlan/trialStartsAt/trialEndsAt set to track the 14-day trial of
+    // trialPlan/trialStartsAt/trialEndsAt set to track the 30-day trial of
     // the originally-selected plan. useFeatures.ts reads trialPlan to grant
     // entitlements during the trial window. The expireTrials cron downgrades
     // expired trials back to Core.
@@ -1936,7 +1936,7 @@ export const createFirm = mutation({
   handler: async (ctx, args) => {
     const inviteCode = "INV-" + Math.floor(1000 + Math.random() * 9000);
     const now = Date.now();
-    const TRIAL_DAYS = 14;
+    const TRIAL_DAYS = 30;  // Changed from 14 to 30 — gives users time to experience automations, WhatsApp, email cycles
     const trialEndsAt = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
     // If trial=true, the firm runs at Core for billing but is granted the
@@ -5717,7 +5717,7 @@ function computeNextBillingDate(interval: string, startIso: string): string {
  *      subscriptionPlan='Core' (already is, but defensive), set
  *      adminStatus='active'.
  *   3. Insert a notification for the firm admin: "Your trial has ended".
- *   4. Also dispatch trial-ending-soon notifications (4 days, 1 day before).
+ *   4. Also dispatch trial-ending-soon notifications (7 days, 1 day before).
  */
 export const expireTrials = internalMutation({
   args: {},
@@ -5755,7 +5755,7 @@ export const expireTrials = internalMutation({
           firmId: firm._id,
           userId: admin._id,
           title: 'Trial Ended',
-          message: `Your 14-day trial has ended. You're now on the Core plan. Upgrade to restore your trial features.`,
+          message: `Your 30-day trial has ended. You're now on the Core plan. Upgrade to restore your trial features.`,
           type: 'trial_ended',
           link: { view: 'settings', id: 'subscription-management', context: {} },
           timestamp: new Date().toISOString(),
@@ -5765,17 +5765,18 @@ export const expireTrials = internalMutation({
       expiredCount++;
     }
 
-    // ─── 2. Send "trial ending soon" notifications (4 days and 1 day) ───
-    const fourDaysOut = now + 4 * DAY;
+    // ─── 2. Send "trial ending soon" notifications (7 days and 1 day) ───
+    // Changed from 4 days to 7 days for 30-day trial (gives more notice)
+    const sevenDaysOut = now + 7 * DAY;
     const oneDayOut = now + 1 * DAY;
 
-    // Find trials ending in ~4 days (between 3.5 and 4.5 days from now)
-    const endingSoon4 = await ctx.db
+    // Find trials ending in ~7 days (between 6.5 and 7.5 days from now)
+    const endingSoon7 = await ctx.db
       .query("firms")
-      .withIndex("by_trial_ends", (q: any) => q.lt("trialEndsAt", fourDaysOut + DAY/2))
+      .withIndex("by_trial_ends", (q: any) => q.lt("trialEndsAt", sevenDaysOut + DAY/2))
       .filter((q: any) =>
         q.and(
-          q.gte(q.field("trialEndsAt"), fourDaysOut - DAY/2),
+          q.gte(q.field("trialEndsAt"), sevenDaysOut - DAY/2),
           q.neq(q.field("trialPlan"), null)
         )
       )
@@ -5792,8 +5793,8 @@ export const expireTrials = internalMutation({
       )
       .take(200);
 
-    let notified4 = 0, notified1 = 0;
-    for (const firm of endingSoon4) {
+    let notified7 = 0, notified1 = 0;
+    for (const firm of endingSoon7) {
       const admin = await ctx.db
         .query("users")
         .withIndex("by_firm", (q: any) => q.eq("firmId", firm._id))
@@ -5803,15 +5804,15 @@ export const expireTrials = internalMutation({
         await ctx.db.insert("notifications", {
           firmId: firm._id,
           userId: admin._id,
-          title: 'Trial Ending in 4 Days',
-          message: `Your ${firm.trialPlan} trial ends in 4 days. Upgrade now to keep your features.`,
+          title: 'Trial Ending in 7 Days',
+          message: `Your ${firm.trialPlan} trial ends in 7 days. Upgrade now to keep your features.`,
           type: 'trial_ending_soon',
           link: { view: 'settings', id: 'subscription-management', context: {} },
           timestamp: new Date().toISOString(),
           isRead: false,
         } as any);
       }
-      notified4++;
+      notified7++;
     }
 
     for (const firm of endingSoon1) {
@@ -5835,7 +5836,7 @@ export const expireTrials = internalMutation({
       notified1++;
     }
 
-    return { success: true, expired: expiredCount, notified4, notified1 };
+    return { success: true, expired: expiredCount, notified7, notified1 };
   },
 });
 
@@ -6043,7 +6044,7 @@ export const cancelAddon = mutation({
 // verify at the gatehouse terminal (/gatehouse?firmId=xxx).
 //
 // Billing model:
-//   - 14-day free trial (no card required)
+//   - 30-day free trial (no card required)
 //   - Monthly subscription after trial
 //   - Founder (practicepro.ng) firms get VMS free for testing
 //
@@ -6088,7 +6089,7 @@ export const getVmsAddonStatus = query({
 
 /**
  * mutation: startVmsAddonTrial
- * Starts a 14-day free trial of the VMS add-on. Only firm admins can start
+ * Starts a 30-day free trial of the VMS add-on. Only firm admins can start
  * a trial. Each firm can only trial once (prevents trial cycling).
  */
 export const startVmsAddonTrial = mutation({
@@ -6121,11 +6122,11 @@ export const startVmsAddonTrial = mutation({
       throw new Error(`VMS add-on is already ${existingVms.status}. Cannot start a new trial.`);
     }
     if (existingVms && existingVms.trialStartsAt) {
-      throw new Error("This firm has already used its 14-day VMS trial. Please subscribe to continue.");
+      throw new Error("This firm has already used its 30-day VMS trial. Please subscribe to continue.");
     }
 
     const now = Date.now();
-    const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;  // 14 days
+    const TRIAL_DURATION_MS = 30 * 24 * 60 * 60 * 1000;  // 30 days — changed from 14
     const updatedAddons = {
       ...(firm.subscriptionAddons as any || {}),
       vms: {

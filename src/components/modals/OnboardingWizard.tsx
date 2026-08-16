@@ -188,7 +188,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
       // CRO AUDIT FIX (Track B — B2): pass trial flag to createFirm so the
       // backend sets trialStartsAt/trialEndsAt/trialPlan. The firm is created
       // at Core for billing but granted the selected plan's entitlements
-      // during the 14-day trial window (see useFeatures.ts).
+      // during the 30-day trial window (see useFeatures.ts).
       const fid = await createFirm(
         firmName.trim(),
         'Address Pending',
@@ -582,7 +582,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                       {/* Subtle upsell for Core tier — suggest trying the highest tier */}
                       {selectedTierId === 'Core' && !isKompleteTier && (
                         <p className="text-center text-2xs text-slate-400 mt-1">
-                          Want full features? <button onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 14 days</button> instead.
+                          Want full features? <button onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 30 days</button> instead.
                         </p>
                       )}
                     </>

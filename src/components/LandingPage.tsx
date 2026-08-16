@@ -316,7 +316,7 @@ const NavBar: React.FC<{
                     <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-lg !text-sm mt-2">
                         Start Free Trial
                     </PrimaryButton>
-                    <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 14-day free trial</p>
+                    <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
                 </nav>
             </div>
         )}
@@ -1697,7 +1697,7 @@ const FAQ_ITEMS = {
         },
         {
             q: "Is there a free trial?",
-            a: "Yes. All paid tiers include a 14-day free trial. No credit card required to start. Sentry Pass also includes a 14-day free trial as an add-on.",
+            a: "Yes. All paid tiers include a 30-day free trial. No credit card required to start. Sentry Pass also includes a 30-day free trial as an add-on.",
         },
         {
             q: "Do you offer support?",
@@ -1737,7 +1737,7 @@ const FAQ_ITEMS = {
         },
         {
             q: "How does Sentry Pass (visitor management) work?",
-            a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 14-day free trial, then N15,000/month as an add-on.",
+            a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 30-day free trial, then N15,000/month as an add-on.",
         },
         {
             q: "What happens if a tenant doesn't pay?",
@@ -1815,7 +1815,7 @@ const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => vo
                 </button>
             </div>
             <p className="text-sm text-white/60 mt-6">
-                No credit card · 14-day trial · Cancel anytime
+                No credit card · 30-day trial · Cancel anytime
             </p>
         </div>
     </section>

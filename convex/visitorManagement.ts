@@ -153,7 +153,7 @@ export const generateVisitorToken = mutation({
         await ctx.db.patch(firm._id, {
           subscriptionAddons: { ...(firm.subscriptionAddons as any || {}), vms: vmsAddon },
         });
-        throw new Error("VMS_TRIAL_EXPIRED: Your 14-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
+        throw new Error("VMS_TRIAL_EXPIRED: Your 30-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
       }
     }
 
