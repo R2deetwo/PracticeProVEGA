@@ -1240,6 +1240,8 @@ export const App: React.FC = () => {
             if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
             if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;
+            if (view === 'usagePolicy') return <UsagePolicy onBack={() => navigateTo('dashboard')} />;
+            if (view === 'resources') return <ResourcesPage onBack={() => navigateTo('dashboard')} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={() => {}} />;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
