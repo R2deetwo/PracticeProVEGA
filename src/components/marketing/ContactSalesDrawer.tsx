@@ -164,7 +164,7 @@ const ContactSalesDrawer: React.FC<{
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Message Sent</h3>
                             <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-xs">
-                                Thank you. One of our legal technology consultants will reach out to you directly via your email within 24 hours.
+                                Thank you. One of our consultants will reach out to you directly via your email within 24 hours.
                             </p>
                             <button
                                 onClick={handleClose}
