@@ -733,7 +733,6 @@ const VEGA_FEATURE_CATEGORIES = [
             { title: 'ALOA AI Copilot', desc: 'Your firm\'s always-on legal intelligence — ask questions about your matters, get instant case summaries, analyze opposing counsel patterns, research precedent across Nigerian courts, and surface insights from your document vault. Trained on Nigerian legal terminology and court rules.', badge: 'Growth+' },
             { title: 'Document Vault', desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm\'s document library.' },
             { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis.', badge: 'Growth+', isLegalOnly: true },
-            { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations.', badge: 'Growth+', isPropertyOnly: true },
         ],
     },
     {
@@ -760,7 +759,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
     },
     {
         category: 'Rent & Collections',
-        Icon: MattersIcon,
+        Icon: DocumentIcon,
         items: [
             { title: 'Rent Collection', desc: 'Collect rent in Naira with payment reminders, receipt generation, and payment tracking. Generate invoices and track status at a glance.' },
             { title: 'Service Charge Tracking', desc: 'Itemized SC (Service Charge) and MV (Minimum Vend) tracking per unit. Monitor payment status, flag defaulters, and generate compliance-ready financial reports.' },
@@ -776,6 +775,14 @@ const ATRIUM_FEATURE_CATEGORIES = [
             { title: 'Maintenance Tickets', desc: 'Residents log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
             { title: 'Expense Tracking', desc: 'Log maintenance costs, service charges, and utility bills per property. Track income vs. expenses with cash flow visualizations.' },
             { title: 'Estate Administration Documents', desc: 'Streamline property administration, manage tenancy records, and generate standard estate management administrative documents with precision.', badge: 'Pro' },
+        ],
+    },
+    {
+        category: 'AI & Research',
+        Icon: SparklesIcon,
+        items: [
+            { title: 'ARIA AI Copilot', desc: 'Your portfolio\'s always-on property intelligence — ask questions about your properties, get instant revenue insights, analyze defaulter patterns, research Nigerian property law, and surface insights from your portfolio data. Built for Nigerian property management.', badge: 'Growth+' },
+            { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations for property law and compliance matters.', badge: 'Growth+' },
         ],
     },
 ];
@@ -1465,8 +1472,8 @@ const AI_CAPABILITIES = {
             },
             {
                 title: 'Firm-Grade Security',
-                body: 'Your firm\'s data is fully isolated from every other firm on the platform. AI queries only access your matters, your documents, and your clients. No cross-firm data leakage — ever.',
-                features: ['Complete data isolation between firms', 'Matter-level access control', 'Full audit trail on all AI activity'],
+                body: 'Your firm\'s data is fully isolated from every other organization on the platform. AI queries only access your matters, your documents, and your clients. No cross-organization data leakage — ever.',
+                features: ['Complete data isolation between organizations', 'Matter-level access control', 'Full audit trail on all AI activity'],
             },
         ],
     },
@@ -1488,8 +1495,8 @@ const AI_CAPABILITIES = {
             },
             {
                 title: 'Portfolio-Grade Security',
-                body: 'Your portfolio data is fully isolated from every other firm on the platform. AI queries only access your properties, your tenants, and your financials. No cross-firm data leakage — ever.',
-                features: ['Complete data isolation between firms', 'Property-level access control', 'Full audit trail on all AI activity'],
+                body: 'Your portfolio data is fully isolated from every other organization on the platform. AI queries only access your properties, your tenants, and your financials. No cross-organization data leakage — ever.',
+                features: ['Complete data isolation between organizations', 'Property-level access control', 'Full audit trail on all AI activity'],
             },
         ],
     },
@@ -1845,10 +1852,13 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
 // conversion flow (email-based, responds within 24 hours).
 // When a WhatsApp Business number is registered, replace the onClick with:
 //   href="https://wa.me/234XXXXXXXXXX?text=Hi%20PracticePro..."
+// MOBILE FIX: On mobile, the FAB sits above the sticky CTA bar (bottom-20)
+// to avoid overlapping the "Start Free Trial" button. On desktop (md+),
+// it sits at the standard bottom-6 position since there's no sticky bar.
 const WhatsAppFAB: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-6 right-6 z-[200] w-14 h-14 rounded-full bg-[#25D366] shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[200] w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#25D366] shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >
