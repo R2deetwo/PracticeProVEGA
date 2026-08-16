@@ -455,6 +455,13 @@ const TenantPortal: React.FC = () => {
             <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
               {tenantInfo?.tenantName || currentUser.name?.split(' ')[0] || 'Resident'}
             </h1>
+            {(tenantInfo?.primaryUnitName || tenantInfo?.primaryPropertyName) && (
+              <p className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+                {tenantInfo?.primaryUnitName && `Unit ${tenantInfo.primaryUnitName}`}
+                {tenantInfo?.primaryUnitName && tenantInfo?.primaryPropertyName && ' · '}
+                {tenantInfo?.primaryPropertyName}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Theme Toggle */}

@@ -24,7 +24,7 @@ const CookieConsent: React.FC = () => {
     if (!isVisible) return null;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-700 text-white z-[9999] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl animate-slide-up">
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-700 text-white z-[9999] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl animate-slide-up">
             <div className="flex-1 text-xs text-slate-300 max-w-5xl mx-auto pl-4">
                 We use cookies to enhance your experience and analyze usage in accordance with the NDPA 2023.{' '}
                 <button onClick={() => openLegalDocument('privacy')} className="text-primary-400 hover:text-primary-300 underline font-medium">Privacy Policy</button>

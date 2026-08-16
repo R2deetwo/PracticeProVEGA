@@ -3303,7 +3303,44 @@ export const getTenantInfo = query({
     }
 
     // Determine primary property/unit for this tenant (first match)
-    const primaryUnit = tenantUnits.length > 0 ? tenantUnits[0] : null;
+    // FIX: If no unit-level match was found but we have a property-level match,
+    // try to find the unit on that property whose tenant matches. This handles
+    // the legacy case where PMs linked tenants at the property level via
+    // currentTenantId/tenantId/tenantEmail but didn't explicitly populate
+    // the units array with a matching entry.
+    let primaryUnit = tenantUnits.length > 0 ? tenantUnits[0] : null;
+
+    // Fallback: search the primary property's units array for a matching tenant
+    if (!primaryUnit && tenantProperties.length > 0) {
+      const fallbackProp = tenantProperties[0];
+      try {
+        const propRecord: any = await ctx.db.get(fallbackProp.id as any);
+        if (propRecord?.units && Array.isArray(propRecord.units)) {
+          // Try to find a unit whose tenant matches
+          const matchingUnit = propRecord.units.find((u: any) => {
+            const uTenantId = u.currentTenantId || u.tenantId || u.tenantEmail?.toLowerCase();
+            return possibleIds.has(String(uTenantId)) ||
+                   (email && u.tenantEmail?.toLowerCase() === email.toLowerCase());
+          });
+          // If no exact match but there's only 1 unit, use it (single-unit property)
+          const fallbackUnit = matchingUnit || (propRecord.units.length === 1 ? propRecord.units[0] : null);
+          if (fallbackUnit) {
+            const resolvedUnitName = fallbackUnit.name || fallbackUnit.unitName || fallbackUnit.label || `Unit ${propRecord.units.indexOf(fallbackUnit) + 1}`;
+            primaryUnit = {
+              id: fallbackUnit.id || String(propRecord.units.indexOf(fallbackUnit)),
+              name: resolvedUnitName,
+              unitName: resolvedUnitName,
+              label: fallbackUnit.label || resolvedUnitName,
+              propertyId: String(propRecord._id),
+              propertyName: (propRecord as any).name || propRecord.address || 'Unnamed Property',
+              propertyAddress: propRecord.address,
+              amenities: fallbackUnit.amenities || [],
+              tenantName: fallbackUnit.tenantName || null,
+            };
+          }
+        }
+      } catch {}
+    }
 
     // Fetch the full property record for the primary unit/property so we can
     // access rentCollectionMode (for Management-Only suppression in the portal).
