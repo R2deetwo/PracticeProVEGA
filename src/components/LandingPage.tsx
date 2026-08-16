@@ -195,7 +195,8 @@ const NavBar: React.FC<{
                 )}
             </div>
 
-            {/* Desktop Links */}
+            {/* Desktop Links — context-aware: hub page shows only Products + Resources + Contact.
+                Product pages (Vega/Atrium) show Features, Pricing, How It Works, Resources, Contact. */}
             <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
                 <div className="relative group">
                     <button className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200">
@@ -215,36 +216,40 @@ const NavBar: React.FC<{
                     </div>
                     </div>
                 </div>
-                <button
-                    onClick={() => scrollTo('features')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        activeSection === 'features'
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                >
-                    Features
-                </button>
-                <button
-                    onClick={() => scrollTo('pricing')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        activeSection === 'pricing'
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                >
-                    Pricing
-                </button>
-                <button
-                    onClick={() => scrollTo('howItWorks')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        activeSection === 'howItWorks'
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                >
-                    How It Works
-                </button>
+                {productChosen && (
+                    <>
+                    <button
+                        onClick={() => scrollTo('features')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'features'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        Features
+                    </button>
+                    <button
+                        onClick={() => scrollTo('pricing')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'pricing'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        Pricing
+                    </button>
+                    <button
+                        onClick={() => scrollTo('howItWorks')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'howItWorks'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        How It Works
+                    </button>
+                    </>
+                )}
                 <button
                     onClick={onResources}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
@@ -302,9 +307,13 @@ const NavBar: React.FC<{
                             <OfficeBuildingIcon className="w-5 h-5 opacity-70" /> Atrium — For Property Managers
                         </button>
                     </div>
-                    <button onClick={() => handleNavClick(() => scrollTo('features'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Features</button>
-                    <button onClick={() => handleNavClick(() => scrollTo('pricing'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Pricing</button>
-                    <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How It Works</button>
+                    {productChosen && (
+                        <>
+                        <button onClick={() => handleNavClick(() => scrollTo('features'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Features</button>
+                        <button onClick={() => handleNavClick(() => scrollTo('pricing'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Pricing</button>
+                        <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How It Works</button>
+                        </>
+                    )}
                     <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
                     <div className="h-px bg-slate-200 my-3" />
