@@ -13,6 +13,7 @@ import { Breadcrumbs } from '../Breadcrumbs';
 import Tooltip from '../Tooltip';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { sanitize } from "../../utils/sanitization";
 import ErrorBoundary from '../ErrorBoundary';
 import PdfViewer from '../documents/PdfViewer';
 import HtmlPagePreview from '../documents/HtmlPagePreview';
@@ -249,7 +250,7 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
                         lineHeight: '1.5',
                         color: '#1a1a1a',
                     }}
-                    dangerouslySetInnerHTML={{ __html: html || '<p>No content.</p>' }}
+                    dangerouslySetInnerHTML={{ __html: sanitize(html) || '<p>No content.</p>' }}
                 />
             </div>
         </div>

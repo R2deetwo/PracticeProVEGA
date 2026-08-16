@@ -5,6 +5,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { analyzeSources, AnalysisType } from '../../agents/ResearchAgent';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
+import { sanitize } from '../../utils/sanitization';
 
 interface ResearchStudioProps {
     notebook: ResearchNotebook;
@@ -142,7 +143,7 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
                 <div className="p-4 max-h-80 overflow-y-auto custom-scrollbar">
                     <div
                         className="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: contentHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }}
                     />
                 </div>
             )}

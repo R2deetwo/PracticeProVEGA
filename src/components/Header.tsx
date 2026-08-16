@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Theme, Notification, UserRole } from '../types';
 import { SearchIcon, SunIcon, MoonIcon, BellIcon, LogoutIcon, PracticeProLogoWithText, DesktopComputerIcon, Logo, RevertIcon, ChatAltIcon, PencilSquareIcon, LockClosedIcon } from '../constants';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
+import { api } from '../../convex/_generated/api';
 import { Capacitor } from '@capacitor/core';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,8 +15,6 @@ import { usePermissions } from '../hooks/usePermissions';
 import ConnectionStatus from './auth/ConnectionStatus';
 import { PresenceAvatars } from './toolkit/PresenceAvatars';
 import { useProduct } from '../contexts/ProductContext';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
 
 interface HeaderProps {
     onToggleToolkit: () => void;

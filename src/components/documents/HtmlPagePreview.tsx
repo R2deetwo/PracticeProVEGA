@@ -171,7 +171,7 @@ const PageSheet: React.FC<{
                 <div
                     className="html-page-sheet"
                     dangerouslySetInnerHTML={{
-                        __html: html || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>',
+                        __html: sanitize(html) || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>',
                     }}
                 />
             </div>
@@ -812,7 +812,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                                         <div
                                             className="html-page-sheet"
                                             style={{ pointerEvents: 'none' }}
-                                            dangerouslySetInnerHTML={{ __html: pageHtml }}
+                                            dangerouslySetInnerHTML={{ __html: sanitize(pageHtml) }}
                                         />
                                     </div>
                                 </div>

@@ -283,7 +283,7 @@ export const sendMessage = async (
         conversationMemoryContext?: string | null;
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
     },
-    modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
+    modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
     signal?: AbortSignal
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
 
@@ -572,7 +572,7 @@ export const streamMessage = async (
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
     },
     onChunk: (text: string) => void,
-    modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
+    modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
     signal?: AbortSignal
 ): Promise<{ text: string; modelUsed?: string }> => {
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;

@@ -6705,3 +6705,58 @@ Stage Summary:
   billing panel in SubscriptionSettings, comprehensive SOPs doc
 - Role-based ToS: per-role version tracking, role-aware server query, only affected roles
   see re-acceptance prompts when their role-specific version bumps
+
+---
+Task ID: vancleif-audit
+Agent: Main Agent
+Task: Infinite audit — refactor opportunities + apply Van Cleif methodology where safe/secure/worthwhile
+
+Work Log:
+- Read worklog.md tail to recover context from previous session
+- Verified codebase: PracticePro (React 18 + Vite 5 + Convex + Capacitor); 339 components, 423 Convex functions, 65 schema tables, 327 baseline TS errors
+- Identified "Van Cleif methodology" = polish patterns already applied to flagship modules (feedback.ts, retainerBilling.ts, identityGuardrails.ts, role-based TermsAcceptance):
+  1. Defense-in-depth gating (client + server)
+  2. Idempotency keys + by_idempotency index
+  3. Soft-delete with audit trail (deletedAt/deletedBy/deletedReason)
+  4. Identity lock guardrails (ABSOLUTE IDENTITY LOCK system prompts)
+  5. Role-based access control (requireFirmUser/requireFounder/requireAdmin)
+  6. Per-product branching (isProperty flag for Atrium vs Vega)
+  7. Defensive auth fallback (anonymous context for legacy callers)
+- Launched 2 parallel Explore agents: backend audit + frontend audit
+- Backend audit findings:
+  * myFunctions.ts (6,279 LOC, 81 exports) — God file; 18 hard-delete sites; only sendChatMessage has idempotency
+  * portals.ts (5,970 LOC, 70 exports) — CRITICAL multi-tenant isolation hole: only 1 of 70 mutations calls requireFirmUser
+  * sentry.ts (1,049 LOC, 23 exports) — all financial mutations unauthenticated
+  * embeddings.clearFirmMemories, indexer.deleteAloaDocument, backups.triggerBackupNow — all public, no auth
+  * computeNextBillingDate exists in 3 divergent copies (silent billing bugs)
+  * archive table exists at schema.ts:672 but is never populated
+- Frontend audit findings:
+  * 9 god components (>1,500 LOC); TenantPortal.tsx 3,879 LOC is the worst
+  * AloaChat.tsx 3,455 LOC has ZERO useMemo (re-renders entire chat on every keystroke)
+  * Only 5 of 25 views lazy-loaded (~12,000 LOC shipped in main chunk)
+  * 4 untrusted dangerouslySetInnerHTML sites NOT wrapped in sanitize()
+  * 49 dead shadcn files in src/components/ui/ (zero importers, ~170 of 327 TS errors)
+  * AuthContext uses email-as-token (no JWT, no expiry, 4 localStorage slots in plaintext)
+  * Unsigned ?impersonate= URL param accepts any email with no server check
+- Applied 5 SAFE surgical fixes:
+  1. src/components/Header.tsx — removed duplicate useQuery + api imports (wrong path ../convex/_generated/api)
+  2. src/services/geminiService.ts:286,575 — added "research" literal to modelPreference union
+  3. src/utils/capacitor.ts:30-32,44-45 — fixed cachedIsNative nullability (use local var)
+  4. DocumentDetailView.tsx:252, HtmlPagePreview.tsx:173,815, ResearchStudio.tsx:145 — wrapped 4 untrusted dangerouslySetInnerHTML sites in sanitize()
+  5. src/components/TermsAcceptance.tsx:148-182,237-243 — added isSubmitting guard + disabled Accept button during await
+- Verification: tsc --noEmit errors dropped 327 → 315 (12 errors cleared); vite build passes in 22.82s
+- Generated comprehensive audit PDF: /home/z/my-project/download/PracticePro_VanCleif_Audit_Report.pdf
+  * 19 pages, 79.2 KB
+  * 7 sections + appendix
+  * TOC + palette-driven styling
+  * Pattern gap matrices for backend and frontend
+  * 3-phase prioritized roadmap (security → data integrity → code organization)
+  * Code recipes for idempotency, soft-delete, requireFirmUser
+- PDF QA: 11 checks pass, 2 non-blocking warnings (minor punctuation, cover not full-bleed by design)
+
+Stage Summary:
+- Comprehensive audit complete; PDF delivered to /home/z/my-project/download/
+- 5 safe fixes applied; build green; 12 TS errors cleared
+- 3-phase roadmap with 22 prioritized refactors, all rated by (impact × safety)
+- Critical finding: portals.ts multi-tenant hole (1 of 70 mutations authed) — recommended as next ship
+- All recommendations are SAFE/SECURE/WORTHWHILE per user directive; nothing destructive applied

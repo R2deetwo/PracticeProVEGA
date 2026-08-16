@@ -27,8 +27,9 @@ export function isNativePlatform(): boolean {
             // Check for Capacitor global object
             const capacitor = (window as any).Capacitor;
             if (capacitor && typeof capacitor.isNativePlatform === 'function') {
-                cachedIsNative = capacitor.isNativePlatform();
-                return cachedIsNative;
+                const result = capacitor.isNativePlatform();
+                cachedIsNative = result;
+                return result;
             }
         }
 
@@ -41,7 +42,7 @@ export function isNativePlatform(): boolean {
             // Also check for the Capacitor app ID in the user agent (some versions include it)
             const hasCapacitorUA = /Capacitor/.test(ua);
             cachedIsNative = isAndroidWebView || hasCapacitorUA;
-            return cachedIsNative;
+            return cachedIsNative as boolean;
         }
     } catch {
         // Silently fail — assume web

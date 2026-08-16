@@ -147,6 +147,7 @@ function openLegalDocument(doc: 'terms' | 'privacy') {
 
 const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDeclined, onClose }) => {
     const [dismissed, setDismissed] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { currentUser } = useAuth();
     const recordAcceptance = useMutation(api.myFunctions.recordTermsAcceptance);
     const previousVersion = getPreviousVersion();
@@ -156,6 +157,8 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
     if (dismissed) return null;
 
     const handleAccept = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         // 1. localStorage — for fast UI gating (bar doesn't reappear)
         markTermsAccepted();
         // 2. Database — for NDPA §25 demonstrable consent (durable, server-side)
@@ -172,6 +175,8 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
             });
         } catch (err) {
             console.warn('[TermsAcceptance] Failed to record consent in database:', err);
+        } finally {
+            setIsSubmitting(false);
         }
         onAccepted();
     };
@@ -231,9 +236,10 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                         </button>
                         <button
                             onClick={handleAccept}
-                            className="px-5 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-md whitespace-nowrap"
+                            disabled={isSubmitting}
+                            className="px-5 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-md whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            Accept
+                            {isSubmitting ? 'Saving…' : 'Accept'}
                         </button>
                     </div>
                 </div>
