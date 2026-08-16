@@ -162,22 +162,32 @@ const NavBar: React.FC<{
                 {productChosen && (
                     <button
                         onClick={onBackToHub}
-                        className="hidden md:flex items-center pl-3 border-l border-slate-200 group/breadcrumb relative h-7 overflow-hidden"
+                        className="hidden md:flex items-center pl-3 border-l border-slate-200 group/breadcrumb relative h-7"
+                        style={{ overflow: 'hidden' }}
                         aria-label={`Back to all products — currently viewing ${activeProduct === 'vega' ? 'Vega' : 'Atrium'}`}
                     >
-                        {/* Container — wide enough for "← All Products" on one line.
-                            whitespace-nowrap + min-w fixes the 2-line wrap on hover. */}
-                        <span className="relative h-5 min-w-[7rem] whitespace-nowrap overflow-hidden flex items-center">
+                        {/* Container — fixed width wide enough for "← All Products" on one line.
+                            Inline style guarantees the width; whitespace-nowrap guarantees no wrap.
+                            This is bulletproof against Tailwind purge or specificity issues. */}
+                        <span
+                            className="relative flex items-center"
+                            style={{ height: '1.25rem', width: '9rem', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                        >
                             {/* Default state: product name (VEGA in amber, ATRIUM in emerald) */}
                             <span
                                 className={`absolute inset-0 flex items-center text-sm font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
+                                style={{ whiteSpace: 'nowrap' }}
                             >
                                 {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                             </span>
-                            {/* Hover state: All Products slides up from below */}
-                            <span className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out whitespace-nowrap">
-                                <ArrowLeftIcon className="w-3 h-3 flex-shrink-0" />
-                                <span>All Products</span>
+                            {/* Hover state: All Products slides up from below.
+                                flex-nowrap + shrink-0 on children guarantees one line. */}
+                            <span
+                                className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-wide text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out"
+                                style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap' }}
+                            >
+                                <ArrowLeftIcon className="w-3 h-3" style={{ flexShrink: 0 }} />
+                                <span style={{ flexShrink: 0 }}>All Products</span>
                             </span>
                         </span>
                     </button>

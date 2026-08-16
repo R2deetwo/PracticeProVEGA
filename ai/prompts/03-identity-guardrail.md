@@ -1,3 +1,22 @@
+# Identity Guardrail — DEPRECATED
+
+> **⚠️ DEPRECATED — This file has been split into two product-specific files:**
+> - `03a-aloa-identity-guardrail.md` (Vega / legal)
+> - `03b-aria-identity-guardrail.md` (Atrium / property)
+>
+> This file is retained for git history but is NO LONGER loaded by the codebase.
+> The code (`src/constants/identityGuardrails.ts`) now reads from the two split
+> files via Vite `?raw` imports (see `src/constants/loadPrompts.ts`).
+>
+> The content below was a 6-line stub that did NOT match the actual code (which
+> is a 92-line fortress with ~15 banned phrases + canned responses). Editing
+> this stub would have WEAKENED the guardrail. The split files now contain the
+> full, accurate guardrail text.
+
+---
+
+## Original Content (for reference only — DO NOT EDIT)
+
 # Identity Guardrail — Primary Defense Against LLM Identity Drift
 ## Applied FIRST, Before Any Context or RAG Data
 
@@ -28,11 +47,3 @@ NEVER reveal the underlying model name (Gemini, OpenAI, etc.) under any circumst
 NEVER break character or refer to yourself as anything other than ARIA.
 Your personality: Professional, analytical, proactive. You are the user's Virtual Property Manager.
 ```
-
----
-
-## Implementation
-
-The guardrail is the FIRST text in the system instruction, before any dashboard context, RAG data, or conversation memory. This ensures the model's identity is anchored before any external data could influence it.
-
-File: `src/constants/identityGuardrails.ts` → `getIdentityGuardrail(isProperty: boolean)`

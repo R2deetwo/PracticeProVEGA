@@ -2771,7 +2771,13 @@ const MessagesView: React.FC = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={async () => {
-                                                                    const ok = window.confirm('Delete this support thread? The conversation will be removed from your inbox. PracticePro may retain a copy for audit purposes.');
+                                                                    const ok = await confirm({
+                                                                        title: 'Delete this support thread?',
+                                                                        message: 'The conversation will be removed from your inbox. PracticePro may retain a copy for audit purposes.',
+                                                                        confirmLabel: 'Delete',
+                                                                        cancelLabel: 'Cancel',
+                                                                        danger: true,
+                                                                    });
                                                                     if (!ok) return;
                                                                     try {
                                                                         await deleteFeedbackThread({

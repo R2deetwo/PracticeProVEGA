@@ -246,15 +246,17 @@ export const deleteFeedbackThread = mutation({
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback thread not found");
 
-    // AUTH CHECK
+    // AUTH CHECK — case-insensitive email comparison for robustness
     const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isFounder = args.userEmail && FOUNDER_EMAILS.includes(args.userEmail);
+    const callerEmailLower = args.userEmail?.toLowerCase().trim();
+    const isFounder = callerEmailLower && FOUNDER_EMAILS.includes(callerEmailLower);
     if (!isFounder) {
-      // Regular user — must own the thread
-      if (args.userEmail && feedback.userEmail !== args.userEmail) {
+      // Regular user — must own the thread (case-insensitive comparison)
+      const feedbackEmailLower = feedback.userEmail?.toLowerCase().trim();
+      if (callerEmailLower && feedbackEmailLower && feedbackEmailLower !== callerEmailLower) {
         throw new Error("Not authorized to delete this thread");
       }
-      if (!args.userEmail && args.deletedBy !== 'admin') {
+      if (!callerEmailLower && args.deletedBy !== 'admin') {
         throw new Error("Authentication required to delete thread");
       }
     }
