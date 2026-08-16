@@ -65,9 +65,10 @@ const ContactSalesDrawer: React.FC<{
         } else if (formData.message.trim().length < 10) {
             newErrors.message = 'Please provide a bit more detail (at least 10 characters)';
         }
-        // Phone is optional — but if provided, validate it looks like a phone number
-        if (formData.phone.trim() && !/^[+]?[\d\s()-]{7,}$/.test(formData.phone.trim())) {
-            newErrors.phone = 'Please enter a valid phone number (e.g. +234 801 234 5678)';
+        // Phone is optional — accepts any international format (Nigerian, US, UK, etc.)
+        // For diaspora customers who manage properties in Nigeria from abroad
+        if (formData.phone.trim() && !/^[+]?[\d\s()-]{7,20}$/.test(formData.phone.trim())) {
+            newErrors.phone = 'Please enter a valid phone number with country code (e.g. +1 555 123 4567, +44 7700 900123, +234 801 234 5678)';
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -249,7 +250,7 @@ const ContactSalesDrawer: React.FC<{
                                         type="tel"
                                         value={formData.phone}
                                         onChange={e => updateField('phone', e.target.value)}
-                                        placeholder="+234 801 234 5678"
+                                        placeholder="+1, +44, +234..."
                                         className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.phone ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
