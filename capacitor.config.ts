@@ -1,34 +1,33 @@
 /**
- * Capacitor config for the PracticePro Founder APK.
+ * Capacitor config for the MAIN PracticePro APK (com.practicepro.app).
  *
- * This is a SEPARATE APK from the main PracticePro app:
- *   - Main app: com.practicepro.app (PracticePro)
- *   - Founder app: com.practicepro.admin (PracticePro Founder)
+ * This is the DEFAULT config — the one CI uses when it runs
+ * `npx cap sync android` after `npx vite build` (which outputs to dist/).
  *
- * Both apps share the same Convex backend and codebase, but the founder
- * app only renders admin/management views (Founder Dashboard, Founder
- * Signals, Firm Management, User Management, Audit Logs).
- *
- * The swap script (scripts/sync-admin-config.cjs) patches:
- *   - capacitor.config.ts → this file
- *   - android/app/build.gradle → applicationId = com.practicepro.admin
- *   - android/app/src/main/res/values/strings.xml → app_name = PracticePro Founder
- *   - android/app/version.properties → MINOR=99 (separate versionCode range)
- * And restores all files after cap sync completes.
+ * The Founder APK (com.practicepro.admin) uses a separate config that
+ * points to dist-admin/. The swap script (scripts/sync-admin-config.cjs)
+ * temporarily replaces this file with the admin variant, runs cap sync,
+ * then restores this file. So this file must always point to dist/ (the
+ * main app) in the committed state.
  *
  * BUILD:
- *   npm run build:admin   — builds the founder frontend (Vite)
- *   npm run cap:sync:admin — syncs to the founder Android project
+ *   npm run build           — builds the main app frontend → dist/
+ *   npx cap sync android    — syncs dist/ into the Android project
+ *   npm run apk:release     — builds the main release APK
+ *
+ * FOUNDER APK BUILD (separate):
+ *   npm run build:admin     — builds the founder frontend → dist-admin/
+ *   npm run cap:sync:admin  — runs sync-admin-config.cjs (swaps config, syncs, restores)
  *   npm run apk:admin:release — builds the founder release APK
  */
 
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.practicepro.admin',
-  appName: 'PracticePro Founder',
-  webDir: 'dist-admin',
-  backgroundColor: '#000000',
+  appId: 'com.practicepro.app',
+  appName: 'PracticePro',
+  webDir: 'dist',
+  backgroundColor: '#16A34A',
   android: {
     allowMixedContent: true,
     captureInput: false,
@@ -36,12 +35,8 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      // Native splash is the FINAL phase of the founder loading
-      // sequence (Green → Orange → Black). Black background matches
-      // the founder brand standard. The HTML overlay in admin.html
-      // then plays the full color transition on top of this black.
-      launchShowDuration: 800,
-      backgroundColor: '#000000',
+      launchShowDuration: 2000,
+      backgroundColor: '#16A34A',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       androidSpinnerStyle: 'large',
@@ -51,7 +46,7 @@ const config: CapacitorConfig = {
     },
     LocalNotifications: {
       smallIcon: 'ic_notification',
-      iconColor: '#000000',
+      iconColor: '#16A34A',
       sound: 'notification.wav',
     },
   },
