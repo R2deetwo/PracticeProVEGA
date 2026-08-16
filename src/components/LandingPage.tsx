@@ -1195,7 +1195,8 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     const [isHoveringArea, setIsHoveringArea] = useState(false);
     const productMode: ProductMode = isVega ? 'legal' : 'property';
     const tiers = getDisplayTiersForProduct(productMode);
-    const cycle = isVega ? billingCycle : 'annual';  // Atrium: always annual
+    // PRICING AUDIT: Atrium now supports monthly billing too (was annual-only)
+    const cycle = billingCycle;  // Both Vega and Atrium use the toggle
 
     // Scroll reveal
     const headerRef = useScrollReveal<HTMLDivElement>();
@@ -1237,24 +1238,31 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                     {isVega ? 'Equip your firm with the tools to manage complex cases and scale efficiently.' : 'Frame your technology cost as a service benefit to your residents.'}
                 </p>
 
-                {/* Billing Toggle (VEGA Only — Atrium is annual-only) */}
-                {isVega && (
-                    <div className="flex items-center justify-center gap-4 mb-8">
-                        <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
-                        <button 
-                            onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                            className="relative w-16 h-9 bg-slate-200 rounded-full transition-colors"
-                        >
-                            <div className={`absolute top-1 left-1 w-7 h-7 bg-white rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7' : ''}`} />
-                        </button>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-2xs font-black uppercase rounded-full border border-emerald-200">
-                                Save 20%
-                            </span>
-                        </div>
+                {/* Billing Toggle — PRICING AUDIT: now available for both Vega AND Atrium */}
+                <div className="flex items-center justify-center gap-4 mb-8">
+                    <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
+                    <button
+                        onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                        className="relative w-16 h-9 bg-slate-200 rounded-full transition-colors"
+                        aria-label="Toggle billing cycle"
+                    >
+                        <div className={`absolute top-1 left-1 w-7 h-7 bg-white rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7' : ''}`} />
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-2xs font-black uppercase rounded-full border border-emerald-200">
+                            Save 20%
+                        </span>
                     </div>
-                )}
+                </div>
+
+                {/* 30-day money-back guarantee badge (PRICING AUDIT) */}
+                <div className="flex justify-center mb-8">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full">
+                        <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                        <span className="text-sm font-semibold text-emerald-700">30-day money-back guarantee on annual plans</span>
+                    </div>
+                </div>
 
                 {!isVega && (
                     <div
@@ -1484,47 +1492,78 @@ const AICapabilitiesSection: React.FC = () => (
     </section>
 );
 
-// ─── HOW IT WORKS SECTION (3 steps) ──────────────────────────────────────
-const HowItWorksSection: React.FC = () => (
-    <section id="howItWorks" className="py-20 md:py-28 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12 md:mb-16">
-                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
-                    Get started in 3 steps
-                </h2>
-                <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
-                    From sign-up to your first rent collection or legal draft — in minutes, not weeks.
-                </p>
+// ─── HOW IT WORKS SECTION (3 steps, product-specific) ────────────────────
+const HOW_IT_WORKS_STEPS = {
+    vega: [
+        {
+            num: '1',
+            title: 'Create your firm workspace',
+            body: 'Sign up in 2 minutes. No credit card required for trial. Choose Vega and invite your team.',
+        },
+        {
+            num: '2',
+            title: 'Add your matters',
+            body: 'Use the Matter Ingestion Wizard to bulk-import case files from a folder, or create matters one at a time. Link clients, documents, and court dates.',
+        },
+        {
+            num: '3',
+            title: 'Start practicing',
+            body: 'Draft your first legal document with DraftPro, send a court date reminder via WhatsApp, or run an AI case analysis.',
+        },
+    ],
+    atrium: [
+        {
+            num: '1',
+            title: 'Create your property workspace',
+            body: 'Sign up in 2 minutes. No credit card required for trial. Choose Atrium and set up your portfolio.',
+        },
+        {
+            num: '2',
+            title: 'Add your properties & tenants',
+            body: 'Create properties, add units, and assign tenants. Set rent amounts and service charges. Optionally request our Managed Data Migration service to digitize your records for you.',
+        },
+        {
+            num: '3',
+            title: 'Start collecting',
+            body: 'Send your first WhatsApp rent reminder, collect a payment via bank transfer with proof upload, or generate a visitor pass with Sentry Pass.',
+        },
+    ],
+};
+
+const HowItWorksSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const steps = HOW_IT_WORKS_STEPS[activeProduct];
+    const accentColor = activeProduct === 'vega' ? 'text-amber-500' : 'text-emerald-500';
+    const accentBg = activeProduct === 'vega' ? 'bg-amber-50' : 'bg-emerald-50';
+    const accentBorder = activeProduct === 'vega' ? 'border-amber-200' : 'border-emerald-200';
+    return (
+        <section id="howItWorks" className="py-20 md:py-28 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-12 md:mb-16">
+                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                        Get started in 3 steps
+                    </h2>
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                        {activeProduct === 'vega'
+                            ? 'From sign-up to your first legal draft — in minutes, not weeks.'
+                            : 'From sign-up to your first rent collection — in minutes, not weeks.'}
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                    {steps.map((step, i) => (
+                        <div key={i} className={`text-center relative ${accentBg} ${accentBorder} border rounded-2xl p-8`}>
+                            {/* Legible step number — solid accent color, not slate-100 */}
+                            <div className={`text-5xl md:text-6xl font-extrabold ${accentColor} mb-4`}>{step.num}</div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">{step.title}</h3>
+                            <p className="text-slate-600 text-sm leading-relaxed">
+                                {step.body}
+                            </p>
+                        </div>
+                    ))}
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                {/* Step 1 */}
-                <div className="text-center relative">
-                    <div className="text-6xl md:text-7xl font-extrabold text-slate-100 mb-4">01</div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-3">Create your workspace</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed">
-                        Sign up in 2 minutes. No credit card required for trial. Choose Vega, Atrium, or Komplete.
-                    </p>
-                </div>
-                {/* Step 2 */}
-                <div className="text-center relative">
-                    <div className="text-6xl md:text-7xl font-extrabold text-slate-100 mb-4">02</div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-3">Add your data</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed">
-                        Import your matters, properties, or tenants. Our onboarding wizard guides you through setup.
-                    </p>
-                </div>
-                {/* Step 3 */}
-                <div className="text-center relative">
-                    <div className="text-6xl md:text-7xl font-extrabold text-slate-100 mb-4">03</div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-3">Start managing</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed">
-                        Send your first WhatsApp reminder, collect your first rent payment, or draft your first legal document.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-);
+        </section>
+    );
+};
 
 // ─── TESTIMONIALS SECTION ────────────────────────────────────────────────
 const TESTIMONIALS = [
@@ -1600,7 +1639,7 @@ const FAQ_ITEMS = [
     },
     {
         q: "Can I pay in Naira?",
-        a: "Absolutely. We integrate with Paystack for card, bank transfer, and USSD payments. Manual bank transfer with proof upload is also supported.",
+        a: "Absolutely. Pay via bank transfer with proof upload, or use Paystack for card and USSD payments (currently activating). Manual bank transfer is the live default today.",
     },
     {
         q: "What's the difference between Vega and Atrium?",
@@ -1934,7 +1973,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <TrustBadgesStrip />
                     <AICapabilitiesSection />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
-                    <HowItWorksSection />
+                    <HowItWorksSection activeProduct={activeProduct} />
                     <TestimonialsSection />
                     <FAQSection />
                     <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} />

@@ -18,13 +18,13 @@
 export type ProductMode = 'vega' | 'atrium' | 'unified' | 'legal' | 'property';
 export type TierId = 'Core' | 'Growth' | 'Pro' | 'Enterprise';
 
-// Komplete is a SINGLE flat-rate tier — ₦2.5M/yr (ANNUAL ONLY, no monthly).
-// 1 user account with 10 seats standard. All VEGA + Atrium features.
+// Komplete is a SINGLE flat-rate tier — ₦2.2M/yr (ANNUAL ONLY, no monthly).
+// PRICING AUDIT: Unlimited seats (was 10). All add-ons included.
 // Komplete is the TOP-TIER unified platform — its price MUST NEVER be
 // lower than individual standalone Pro/Enterprise plans.
-// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.5M/yr is correctly positioned above.)
+// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.2M/yr is correctly positioned above.)
 const KOMPLETE_MONTHLY = null;        // Komplete is NEVER billed monthly
-const KOMPLETE_ANNUAL = 2500000;      // ₦2.5M/yr — 1 user account, 10 seats included
+const KOMPLETE_ANNUAL = 2200000;      // ₦2.2M/yr — unlimited seats, all add-ons (pricing audit)
 
 export interface TierDef {
   id: TierId;
@@ -121,7 +121,7 @@ function buildVegaFeatures(t: Pick<TierDef, 'maxUsers' | 'maxActiveMatters' | 'm
 export const VEGA_TIERS: Record<TierId, TierDef> = {
   Core: {
     id: 'Core',
-    label: 'Core',
+    label: 'Free',                    // PRICING AUDIT: renamed from 'Core' to fix naming collision
     monthlyPrice: 0,
     annualPrice: 0,
     monthlyPriceDisplay: 'Free',
@@ -219,27 +219,30 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
 };
 
 // ─── ATRIUM (Property) — 2× baseline pricing, operational limits only ─────────
+// PRICING AUDIT: Added monthly billing (20% premium over annual/12)
+// PRICING AUDIT: Renamed 'Core' label to 'Starter' (id stays 'Core' for DB compat)
+// PRICING AUDIT: Increased WhatsApp limits (Starter 100→250, Pro already unlimited)
 export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Core: {
     id: 'Core',
-    label: 'Core',
-    monthlyPrice: null,              // Atrium is annual-only — NO monthly option
+    label: 'Starter',                  // PRICING AUDIT: renamed from 'Core' to fix naming collision with Vega Free
+    monthlyPrice: 49000,               // PRICING AUDIT: N49,000/mo (20% premium over N490K/yr ÷ 12)
     annualPrice: 490000,
-    monthlyPriceDisplay: '—',        // No monthly option
+    monthlyPriceDisplay: fmt(49000),
     annualPriceDisplay: fmt(490000),
     features: buildAtriumFeatures({
       maxUsers: 1,
       maxUnits: 10,
       maxManagedProperties: 10,
       maxActiveTenants: 15,
-      whatsappLimit: 100,
+      whatsappLimit: 250,              // PRICING AUDIT: increased from 100 to 250
       extras: ['Lease tracking & maintenance log', 'Includes 10 units, then ₦2,700/unit/month'],
     }),
     maxUsers: 1,
     maxUnits: 10,
     maxManagedProperties: 10,
     maxActiveTenants: 15,
-    whatsappLimit: 100,
+    whatsappLimit: 250,
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
     // Overage pricing: ₦2,700/unit/month for units 11-25, forced upgrade at 25
@@ -251,9 +254,9 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Growth: {
     id: 'Growth',
     label: 'Growth',
-    monthlyPrice: null,              // Atrium is annual-only
+    monthlyPrice: 96500,               // PRICING AUDIT: N96,500/mo (20% premium)
     annualPrice: 965000,
-    monthlyPriceDisplay: '—',
+    monthlyPriceDisplay: fmt(96500),
     annualPriceDisplay: fmt(965000),
     features: buildAtriumFeatures({
       maxUsers: 5,
@@ -279,9 +282,9 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Pro: {
     id: 'Pro',
     label: 'Pro',
-    monthlyPrice: null,              // Atrium is annual-only
+    monthlyPrice: 200000,              // PRICING AUDIT: N200,000/mo (20% premium over N2.1M/yr ÷ 12)
     annualPrice: 2100000,
-    monthlyPriceDisplay: '—',
+    monthlyPriceDisplay: fmt(200000),
     annualPriceDisplay: fmt(2100000),
     features: buildAtriumFeatures({
       maxUsers: null,
@@ -328,11 +331,11 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
 };
 
 // ─── KOMPLETE (Unified) — single tier, all features ──────────────────────────
-// Only shown when user selects the Unified/Komplete product.
-// ₦2.5M/yr ANNUAL ONLY (no monthly billing option). 1 user account with 10
-// seats standard. All VEGA + Atrium features.
+// PRICING AUDIT: N2.2M/yr (down from N2.5M), unlimited seats (up from 10),
+// all add-ons included. Position as "Everything. Everyone. One price."
 // Komplete is the TOP-TIER unified platform — its price MUST NEVER be
 // lower than individual standalone Pro/Enterprise plans.
+// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.2M/yr is correctly positioned above.)
 export const KOMPLETE_TIER: TierDef = {
   id: 'Core',                       // Uses Core as TierId for compatibility
   label: 'Komplete',
@@ -341,16 +344,21 @@ export const KOMPLETE_TIER: TierDef = {
   monthlyPriceDisplay: '—',         // No monthly option for Komplete
   annualPriceDisplay: fmt(KOMPLETE_ANNUAL),
   features: [
-    '1 User Account — 10 Seats Standard (Included)',
+    'Unlimited Seats (was 10 — now unlimited per pricing audit)',
     'Unlimited Matters & Units',
     'Unlimited Active Tenants',
     'Unlimited WhatsApp Reminders',
     'ARIA® AI Copilot (Uncapped Priority)',
     'Full Legal + Property Suite',
+    'Sentry Pass (VMS) included — ₦15K/mo value',
+    '500 GB shared storage',
+    'Dedicated account manager',
+    'Priority phone & WhatsApp support',
+    'Custom integrations included',
     'Automated Retainer Billing & Client Auto-Invoicing',
     'Billing Monitor — pending queue, lawyer override controls',
   ],
-  maxUsers: 10,              // 10 seats standard (not null/unlimited)
+  maxUsers: null,              // PRICING AUDIT: unlimited seats (was 10)
   maxUnits: null,
   maxManagedProperties: null,
   maxActiveTenants: null,

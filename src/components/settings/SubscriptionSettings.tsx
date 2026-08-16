@@ -284,19 +284,14 @@ const BillingCalculator: React.FC<{
         const rate = seatRateForTier(VEGA_TIERS.Growth);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Growth Rate)";
     } else if (currentPlan === SubscriptionPlan.Komplete) {
-        // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr with 10 seats included.
-        // Seats 2-10 are included in the base price (no extra charge).
-        // Seats 11+ are billed pro-rata at the Komplete annual rate / 10 / 12 per seat per month.
-        const kompleteAnnual = KOMPLETE_TIER.annualPrice ?? 2500000;
+        // PRICING AUDIT: Komplete is annual-only at ₦2.2M/yr with UNLIMITED seats.
+        // No seat add-on billing — all seats are included.
+        const kompleteAnnual = KOMPLETE_TIER.annualPrice ?? 2200000;
         const baseRate = Math.round(kompleteAnnual / 12);  // monthly-equiv for display
         baseCost = baseRate;
-        // First 9 additional seats (positions 2-10) are included; only bill beyond 10
-        const billableExtraSeats = Math.max(0, additionalSeats - 9);
-        const extraSeatRate = Math.round(baseRate / 10);  // pro-rata: 1/10th of monthly-equiv
-        addOnCost = billableExtraSeats * extraSeatRate;
-        addOnLabel = billableExtraSeats > 0
-            ? `Addt'l Seats (Komplete Pro-Rata) — ${additionalSeats - billableExtraSeats} included`
-            : `Addt'l Seats (Included in Komplete — ${10 - (1 + additionalSeats)} remaining)`;
+        // PRICING AUDIT: unlimited seats — no add-on cost for extra seats
+        addOnCost = 0;
+        addOnLabel = 'All seats included (unlimited)';
     } else if (currentPlan === SubscriptionPlan.Pro) {
         const rate = seatRateForTier(VEGA_TIERS.Pro);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Pro Rate)";
