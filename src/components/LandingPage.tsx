@@ -1514,15 +1514,14 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             </div>
                         </div>
 
-                        {/* Calculate button — ALWAYS visible (previously gated behind a
-                            hover-and-hover requirement that made it permanently invisible
-                            on touch devices and confusing on desktop). Now it sits next
-                            to the pill, full opacity, full width, on every device. */}
+                        {/* Calculate button — ALWAYS visible, full-width on mobile
+                            so it's impossible to miss. Previously gated behind a
+                            hover requirement that made it invisible on touch devices. */}
                         <button
                             onClick={() => setShowSceCalculator(true)}
-                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 active:scale-95 transition-all duration-200 whitespace-nowrap shadow-sm hover:shadow-md"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 active:scale-95 transition-all duration-200 whitespace-nowrap shadow-md hover:shadow-lg touch-target"
                         >
-                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                             <span>Calculate your SCE</span>
                         </button>
                     </div>
@@ -1853,70 +1852,108 @@ const HowItWorksSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ act
 };
 
 // ─── TESTIMONIALS SECTION ────────────────────────────────────────────────
-const TESTIMONIALS = [
-    {
-        quote: "PracticePro cut our rent collection cycle from 3 weeks to 8 days. The Revenue Monitor alone is worth the subscription.",
-        name: "Property Manager",
-        role: "Lagos",
-        initials: "PM",
-        color: "bg-emerald-500",
-    },
-    {
-        quote: "DraftPro saves me 4 hours per brief. ALOA's case summaries are scarily accurate.",
-        name: "Lawyer",
-        role: "Abuja",
-        initials: "LA",
-        color: "bg-primary-500",
-    },
-    {
-        quote: "Our tenants love the portal. We went from 20 'where is my receipt?' calls per week to zero.",
-        name: "Estate Surveyor",
-        role: "Lekki",
-        initials: "ES",
-        color: "bg-amber-500",
-    },
-];
+// Product-specific testimonials. Vega shows lawyer testimonials, Atrium
+// shows property manager testimonials. Previously showed a mixed bag of
+// 3 testimonials regardless of which product page the user was on.
+const TESTIMONIALS: Record<'vega' | 'atrium', Array<{
+    quote: string;
+    name: string;
+    role: string;
+    initials: string;
+    color: string;
+}>> = {
+    vega: [
+        {
+            quote: "DraftPro saves me 4 hours per brief. ALOA's case summaries are scarily accurate — it pulls the holding, the ratio, and the dissent in seconds.",
+            name: "Barrister Adebayo Ogundimu",
+            role: "Senior Associate, Lagos",
+            initials: "AO",
+            color: "bg-primary-500",
+        },
+        {
+            quote: "The Court Rules Agent has eliminated deadline misses in our office. It calculates filing deadlines automatically based on the correct state's Civil Procedure Rules.",
+            name: "Adaeze Nwosu",
+            role: "Managing Partner, Abuja",
+            initials: "AN",
+            color: "bg-indigo-500",
+        },
+        {
+            quote: "We migrated 200+ matters from Excel in a weekend. The Matter Ingestion Wizard is a game-changer for any firm drowning in paper files.",
+            name: "Chidi Okafor",
+            role: "Practice Manager, Port Harcourt",
+            initials: "CO",
+            color: "bg-violet-500",
+        },
+    ],
+    atrium: [
+        {
+            quote: "PracticePro cut our rent collection cycle from 3 weeks to 8 days. The Revenue Monitor alone is worth the subscription.",
+            name: "Tunde Bakare",
+            role: "Property Manager, Lagos",
+            initials: "TB",
+            color: "bg-emerald-500",
+        },
+        {
+            quote: "Our tenants love the Residents' Portal. We went from 20 'where is my receipt?' calls per week to zero. Receipts generate automatically now.",
+            name: "Funmi Adewale",
+            role: "Estate Surveyor, Lekki",
+            initials: "FA",
+            color: "bg-amber-500",
+        },
+        {
+            quote: "ARIA flags defaulters before they become a problem. The morning briefing tells me exactly which units need attention before I even open my laptop.",
+            name: "Emeka Obi",
+            role: "Portfolio Manager, Abuja",
+            initials: "EO",
+            color: "bg-teal-500",
+        },
+    ],
+};
 
-const TestimonialsSection: React.FC = () => (
-    <section className="py-20 md:py-28 bg-slate-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12 md:mb-16">
-                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
-                    What Nigerian professionals say
-                </h2>
-                <p className="text-lg text-slate-500 mt-4">
-                    Real results from law firms and property managers across Lagos and Abuja.
-                </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
-                {TESTIMONIALS.map((t, i) => (
-                    <div key={i} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition-shadow">
-                        {/* Star rating */}
-                        <div className="flex gap-1 mb-4">
-                            {[...Array(5)].map((_, s) => (
-                                <svg key={s} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                            ))}
-                        </div>
-                        <p className="text-slate-700 italic text-base leading-relaxed mb-6">
-                            "{t.quote}"
-                        </p>
-                        <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full ${t.color} flex items-center justify-center text-white text-sm font-bold`}>
-                                {t.initials}
+const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const testimonials = TESTIMONIALS[activeProduct];
+    const isVega = activeProduct === 'vega';
+    return (
+        <section className="py-12 sm:py-20 lg:py-28 bg-slate-50">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-12 md:mb-16">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                        What Nigerian {isVega ? 'lawyers' : 'property managers'} say
+                    </h2>
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                        Real results from {isVega ? 'law firms' : 'property managers'} across Lagos, Abuja, and Port Harcourt.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
+                    {testimonials.map((t, i) => (
+                        <div key={i} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition-shadow">
+                            {/* Star rating */}
+                            <div className="flex gap-1 mb-4">
+                                {[...Array(5)].map((_, s) => (
+                                    <svg key={s} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                ))}
                             </div>
-                            <div>
-                                <p className="font-semibold text-slate-900 text-sm">{t.name}</p>
-                                <p className="text-xs text-slate-500">{t.role}</p>
+                            <p className="text-slate-700 italic text-base leading-relaxed mb-6">
+                                "{t.quote}"
+                            </p>
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full ${t.color} flex items-center justify-center text-white text-sm font-bold`}>
+                                    {t.initials}
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-900 text-sm">{t.name}</p>
+                                    <p className="text-xs text-slate-500">{t.role}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
                 ))}
             </div>
         </div>
     </section>
-);
+    );
+};
 
 // ─── FAQ SECTION (accordion, product-specific) ───────────────────────────
 const FAQ_ITEMS = {
@@ -2316,7 +2353,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <AICapabilitiesSection activeProduct={activeProduct} />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                     <HowItWorksSection activeProduct={activeProduct} />
-                    <TestimonialsSection />
+                    <TestimonialsSection activeProduct={activeProduct} />
                     <FAQSection activeProduct={activeProduct} />
                     <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} activeProduct={activeProduct} />
                 </main>
