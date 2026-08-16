@@ -9,17 +9,17 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
     const firmLabel = isVega ? 'law firm' : 'property management firm';
 
     return (
-        <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
+        <div className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page>
             {/* Standard Header */}
-            <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
+            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 h-16 flex items-center justify-between">
                 <button
                     onClick={onBack}
-                    className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium text-sm"
+                    className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium text-sm"
                 >
                     <ChevronLeft className="w-5 h-5" />
                     Back
                 </button>
-                <h1 className="font-bold text-slate-900 dark:text-white">Portal Terms of Use</h1>
+                <h1 className="font-bold text-slate-900">Portal Terms of Use</h1>
                 <div className="w-16" /> {/* Spacer */}
             </div>
 
@@ -27,27 +27,27 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
             <div className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
                 <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
                     <div className="mb-16">
-                        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">PORTAL TERMS OF USE</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Systems Limited</p>
-                        <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
+                        <h1 className="text-4xl font-bold text-slate-900 mb-6">PORTAL TERMS OF USE</h1>
+                        <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PracticePro Systems Limited</p>
+                        <div className="flex flex-col text-xs text-slate-500 italic">
                             <span>Effective Date: January 1, 2026</span>
                             <span>Last Updated: August 11, 2026</span>
                             <span>Version: 1.1</span>
                         </div>
                     </div>
 
-                    <div className="prose prose-slate dark:prose-invert max-w-none
+                    <div className="prose prose-slate max-w-none
                         prose-p:leading-[1.8] prose-p:mb-12
-                        prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800
+                        prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200
                         prose-h3:mt-12 prose-h3:mb-6 prose-h3:text-xl prose-h3:font-bold
                         prose-ul:mb-10 prose-ul:space-y-4
                         prose-li:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline
-                        prose-strong:text-slate-900 dark:prose-strong:text-white">
+                        prose-strong:text-slate-900">
 
                         <hr className="my-10" />
 
                         <h2>TABLE OF CONTENTS</h2>
-                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 p-6 rounded-lg mb-10">
+                        <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-10">
                             <ol className="list-decimal pl-5 space-y-2">
                                 <li><a href="#portal-section-1">Purpose and Scope</a></li>
                                 <li><a href="#portal-section-2">User Responsibilities</a></li>
@@ -66,7 +66,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                         <hr className="my-10" />
 
                         {/* Preamble */}
-                        <p className="text-lg leading-relaxed text-slate-700 dark:text-zinc-300">
+                        <p className="text-lg leading-relaxed text-slate-700">
                             These Portal Terms of Use ("Portal Terms") govern your access to and use of the PracticePro {portalLabel} (the "Portal"), provided by PracticePro Systems Limited ("PracticePro," "we," "us," or "our"). By accepting an invitation to the Portal, creating an account, or accessing the Portal in any capacity, you ("you," "your," or "User") acknowledge that you have read, understood, and agree to be bound by these Portal Terms, together with the <a href="#portal-section-3">PracticePro Terms and Conditions of Service</a> and the <a href="#portal-section-3">Privacy Policy</a>, which are incorporated herein by reference.
                         </p>
 
@@ -210,7 +210,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                             <h2 className="text-3xl font-bold mb-8 transition-colors">11. CONTACT INFORMATION</h2>
                             <div className="space-y-12">
                                 <p>For any questions, complaints, or notices relating to these Portal Terms, please contact us at:</p>
-                                <div className="pl-4 border-l-2 border-slate-100 dark:border-zinc-800 space-y-3">
+                                <div className="pl-4 border-l-2 border-slate-100 space-y-3">
                                     <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
                                     <p><strong>General Enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com">practiceprosystems@gmail.com</a></p>
@@ -223,8 +223,8 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                     </div>
 
                     {/* Footer */}
-                    <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                    <div className="h-32 pt-20 border-t border-slate-100 mt-20 text-center">
+                        <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA • Professional Operations System' : 'ATRIUM • Property OS'} • Portal Terms of Use • Version 1.0 • April 2026
                         </p>
                     </div>

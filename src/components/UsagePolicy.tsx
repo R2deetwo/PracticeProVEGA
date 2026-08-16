@@ -3,17 +3,17 @@ import { ChevronLeftIcon as ChevronLeft } from '../constants';
 
 const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     return (
-    <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
+    <div className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page>
 
-        <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
+        <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 h-16 flex items-center justify-between">
             <button
                 onClick={onBack}
-                className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium text-sm"
+                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium text-sm"
             >
                 <ChevronLeft className="w-5 h-5" />
                 Back
             </button>
-            <h1 className="font-bold text-slate-900 dark:text-white">Usage Policy</h1>
+            <h1 className="font-bold text-slate-900">Usage Policy</h1>
             <div className="w-16" />
         </div>
 
@@ -21,16 +21,16 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-12 py-10 lg:py-20">
 
                 <div className="mb-12 lg:mb-16">
-                    <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4 lg:mb-6">Usage Policy</h1>
-                    <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
-                    <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
+                    <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 lg:mb-6">Usage Policy</h1>
+                    <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
+                    <div className="flex flex-col text-xs text-slate-500 italic">
                         <span>Last Updated: August 2026</span>
                     </div>
                 </div>
 
-                <div className="prose prose-slate dark:prose-invert max-w-none
+                <div className="prose prose-slate max-w-none
                     prose-p:leading-[1.8] prose-p:mb-8
-                    prose-h2:mt-12 prose-h2:mb-6 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-3 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800
+                    prose-h2:mt-12 prose-h2:mb-6 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-3 prose-h2:border-slate-200
                     prose-h3:mt-8 prose-h3:mb-4 prose-h3:text-lg prose-h3:font-bold
                     prose-ul:mb-6 prose-ul:space-y-2
                     prose-li:leading-relaxed">
@@ -295,8 +295,8 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <p>
                         <strong>PracticePro Systems Limited</strong><br />
                         No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria<br />
-                        Email: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 dark:text-primary-400 underline">dpo@practicepro.ng</a><br />
-                        Data Protection Officer: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 dark:text-primary-400 underline">dpo@practicepro.ng</a>
+                        Email: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 underline">dpo@practicepro.ng</a><br />
+                        Data Protection Officer: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 underline">dpo@practicepro.ng</a>
                     </p>
 
                 </div>

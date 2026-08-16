@@ -5,13 +5,13 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
     const isVega = activeProduct === 'vega';
     const isProperty = !isVega;
     return (
-        <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden font-sans">
-            <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
-                <button onClick={onBack} className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium text-sm">
+        <div className="w-full h-full bg-white flex flex-col overflow-hidden font-sans" style={{ colorScheme: 'light' }} data-public-page>
+            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 h-16 flex items-center justify-between">
+                <button onClick={onBack} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium text-sm">
                     <ChevronLeft className="w-5 h-5" />
                     Back
                 </button>
-                <h1 className="font-bold text-slate-900 dark:text-white">Data Processing Agreement</h1>
+                <h1 className="font-bold text-slate-900">Data Processing Agreement</h1>
                 <div className="w-16" />
             </div>
 
@@ -19,23 +19,23 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                 <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
 
                     <div className="mb-16">
-                        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Data Processing Agreement</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 uppercase tracking-tight">PracticePro Systems Limited</p>
-                        <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic mb-6">
+                        <h1 className="text-4xl font-bold text-slate-900 mb-4">Data Processing Agreement</h1>
+                        <p className="text-sm font-semibold text-slate-600 mb-2 uppercase tracking-tight">PracticePro Systems Limited</p>
+                        <div className="flex flex-col text-xs text-slate-500 italic mb-6">
                             <span>Effective Date: August 11, 2026</span>
                             <span>Version: 1.1</span>
                         </div>
-                        <div className="p-5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                        <div className="p-5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 leading-relaxed">
                             <strong>Important:</strong> This Data Processing Agreement ("DPA") governs the processing of personal data by PracticePro Systems Limited ("Processor") on behalf of the {isVega ? 'law firm or legal practitioner' : 'property manager or real estate agency'} ("Controller") that has agreed to the PracticePro Terms of Service. This DPA is incorporated by reference into and forms part of the main Service Agreement.
                         </div>
                     </div>
 
-                    <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-[1.8] prose-p:mb-8 prose-h2:mt-16 prose-h2:mb-6 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-3 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800 prose-h3:mt-10 prose-h3:mb-4 prose-h3:text-lg prose-h3:font-bold prose-ul:mb-8 prose-ul:space-y-3 prose-li:leading-relaxed">
+                    <div className="prose prose-slate max-w-none prose-p:leading-[1.8] prose-p:mb-8 prose-h2:mt-16 prose-h2:mb-6 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-3 prose-h2:border-slate-200 prose-h3:mt-10 prose-h3:mb-4 prose-h3:text-lg prose-h3:font-bold prose-ul:mb-8 prose-ul:space-y-3 prose-li:leading-relaxed">
 
                         {/* TOC */}
-                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 p-6 rounded-lg mb-12">
+                        <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-12">
                             <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Table of Contents</p>
-                            <ol className="list-decimal pl-5 space-y-1.5 text-sm text-slate-700 dark:text-zinc-300">
+                            <ol className="list-decimal pl-5 space-y-1.5 text-sm text-slate-700">
                                 {['Definitions','Scope and Duration','Roles of the Parties','Controller Obligations','Processor Obligations','Sub-Processors','Data Subject Rights','Security Measures','Personal Data Breaches','Data Transfers','Audit Rights','Liability','Termination and Data Return','Governing Law','Signatures'].map((item, i) => (
                                     <li key={i}>{item}</li>
                                 ))}
@@ -119,12 +119,12 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <h2>6. Sub-Processors</h2>
                             <h3>6.1 Authorised Sub-Processors</h3>
                             <p>The Controller grants general authorisation for the Processor to engage Sub-Processors. The current list of authorised Sub-Processors includes:</p>
-                            <div className="overflow-x-auto my-6 rounded-lg border border-slate-200 dark:border-zinc-700">
+                            <div className="overflow-x-auto my-6 rounded-lg border border-slate-200">
                                 <table className="w-full text-sm border-collapse">
-                                    <thead className="bg-slate-100 dark:bg-zinc-800">
+                                    <thead className="bg-slate-100">
                                         <tr>
                                             {['Sub-Processor','Location','Purpose'].map(h => (
-                                                <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-zinc-200 uppercase tracking-wide border-b border-slate-200 dark:border-zinc-700">{h}</th>
+                                                <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wide border-b border-slate-200">{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -133,12 +133,12 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                                             ['Google Cloud Platform','USA / Multi-region','Cloud hosting, database, and storage infrastructure'],
                                             ['Google Gemini API','USA','AI language model processing (ALOA™/ARIA™ engine)'],
                                             ['Convex Inc.','USA','Real-time database and backend infrastructure'],
-                                            
+
                                         ].map(([sp, loc, purpose], i) => (
-                                            <tr key={i} className={i % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-slate-50 dark:bg-zinc-800/50'}>
-                                                <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200 border-b border-slate-100 dark:border-zinc-800">{sp}</td>
-                                                <td className="px-4 py-3 text-slate-600 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800">{loc}</td>
-                                                <td className="px-4 py-3 text-slate-600 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800">{purpose}</td>
+                                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                                <td className="px-4 py-3 font-medium text-slate-800 border-b border-slate-100">{sp}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-b border-slate-100">{loc}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-b border-slate-100">{purpose}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -223,15 +223,15 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                         <section className="mb-14">
                             <h2>15. Execution and Acceptance</h2>
                             <p>This Agreement is entered into and takes effect automatically upon the Controller's acceptance of the PracticePro Terms of Service, registration of an account, or the first instance of processing Personal Data on the Platform. <strong>No manual signature is required.</strong></p>
-                            <div className="mt-8 p-6 bg-primary-50/50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-lg flex items-start gap-4">
-                                <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center shrink-0">
-                                    <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <div className="mt-8 p-6 bg-primary-50/50 border border-primary-100 rounded-lg flex items-start gap-4">
+                                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                                    <svg className="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Acknowledgement of Terms</h4>
-                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                    <h4 className="font-bold text-slate-900 mb-1">Acknowledgement of Terms</h4>
+                                    <p className="text-sm text-slate-600 leading-relaxed">
                                         By continuing to use PracticePro {isVega ? 'VEGA' : 'ATRIUM'} and storing {isVega ? 'client' : 'tenant'} data on our servers, you acknowledge that you have read, understood, and agreed to the data processing terms outlined in this DPA, establishing a binding legal contract under the NDPA 2023.
                                     </p>
                                 </div>
@@ -240,8 +240,8 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
 
                     </div>
 
-                    <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                    <div className="h-32 pt-20 border-t border-slate-100 mt-20 text-center">
+                        <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA' : 'ATRIUM'} · Data Processing Agreement v1.0 · © 2026 PracticePro Systems Limited
                         </p>
                     </div>

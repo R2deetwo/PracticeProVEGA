@@ -110,7 +110,7 @@ const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
 const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
     <button
         onClick={onClick}
-        className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/70 dark:bg-white/5 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 backdrop-blur-sm hover:bg-white dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.97] ${className}`}
+        className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white transition-all duration-300 active:scale-[0.97] ${className}`}
     >
         {children}
     </button>
@@ -332,7 +332,7 @@ const NavBar: React.FC<{
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
 const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onUsageClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
-    <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-10 md:py-16">
+    <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-10 mb-12">
                 {/* Brand */}
@@ -965,7 +965,7 @@ const TIER_CTAS: Record<TierId, string> = {
 // - Per-tenant SCE for each tier
 // - Total annual cost
 // - Whether their residents can absorb the cost (based on a typical
-//   Lagos service charge benchmark of ₦2,000-5,000/unit/month)
+// Lagos service charge benchmark of ₦2,000-5,000/unit/month)
 // Helps them decide if Atrium makes economic sense for their portfolio.
 
 const SceCalculatorModal: React.FC<{
@@ -1208,7 +1208,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     const productMode: ProductMode = isVega ? 'legal' : 'property';
     const tiers = getDisplayTiersForProduct(productMode);
     // PRICING AUDIT: Atrium now supports monthly billing too (was annual-only)
-    const cycle = billingCycle;  // Both Vega and Atrium use the toggle
+    const cycle = billingCycle; // Both Vega and Atrium use the toggle
 
     // Scroll reveal
     const headerRef = useScrollReveal<HTMLDivElement>();
@@ -1372,11 +1372,11 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         </ul>
 
                         {/* CTA */}
-                        <button 
-                            onClick={plan.id === 'Enterprise' ? () => onContactSales('Enterprise Pricing CTA') : () => onSignup()} 
+                        <button
+                            onClick={plan.id === 'Enterprise' ? () => onContactSales('Enterprise Pricing CTA') : () => onSignup()}
                             className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
-                                plan.highlighted 
-                                ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white hover:opacity-90' 
+                                plan.highlighted
+                                ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white hover:opacity-90'
                                 : 'bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200'
                             }`}
                         >
@@ -1402,7 +1402,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                 Discover <strong className="text-primary-600">Komplete</strong> — our specialized, unified workspace designed exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy portfolios, and track chamber matters from a single secure terminal.
                             </p>
                         </div>
-                        <button 
+                        <button
                             onClick={() => onSignup('unified')}
                             className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-gradient-to-r from-primary-500 to-emerald-600 hover:from-primary-600 hover:to-emerald-700 text-white text-sm font-bold shadow-lg shadow-primary-500/20 transition-all active:scale-95 flex items-center gap-2"
                         >
@@ -1426,7 +1426,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                 PracticePro develops bespoke operational systems, specialized CRMs, and custom workflow automations tailored to your organization's precise processes. Talk to us about building high-performance management tools engineered around your specific business architecture.
                             </p>
                         </div>
-                        <button 
+                        <button
                             onClick={() => onContactSales('Custom Automation Pipeline')}
                             className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-bold shadow-lg shadow-white/10 transition-all active:scale-95 flex items-center gap-2"
                         >
@@ -1856,7 +1856,7 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
 // The FAB opens the Contact Sales drawer instead — the actual working
 // conversion flow (email-based, responds within 24 hours).
 // When a WhatsApp Business number is registered, replace the onClick with:
-//   href="https://wa.me/234XXXXXXXXXX?text=Hi%20PracticePro..."
+// href="https://wa.me/234XXXXXXXXXX?text=Hi%20PracticePro..."
 // MOBILE FIX: On mobile, the FAB sits above the sticky CTA bar (bottom-20)
 // to avoid overlapping the "Start Free Trial" button. On desktop (md+),
 // it sits at the standard bottom-6 position since there's no sticky bar.
@@ -2006,15 +2006,15 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     // Only the pricing section's product-specific CTAs pass an override.
     // TASK 21 (REVISED): "Get Started" should respect the user's current
     // product context:
-    //   - On '/' (root, no product chosen) → open signup with NO selectedProduct
-    //     → signup modal shows the product_selection step (asks which product).
-    //   - On '/vega' or '/atrium' (product already chosen via URL) → open
-    //     signup WITH selectedProduct = activeProduct → signup skips the
-    //     product_selection step and goes straight to the registration form.
-    //   - From the "Are you a real estate lawyer?" Komplete CTA → passes
-    //     'unified' as productOverride → signup skips to form with product=unified.
-    //   - From the pricing section's tier CTAs → passes the active product
-    //     as productOverride → signup skips to form.
+    // - On '/' (root, no product chosen) → open signup with NO selectedProduct
+    // → signup modal shows the product_selection step (asks which product).
+    // - On '/vega' or '/atrium' (product already chosen via URL) → open
+    // signup WITH selectedProduct = activeProduct → signup skips the
+    // product_selection step and goes straight to the registration form.
+    // - From the "Are you a real estate lawyer?" Komplete CTA → passes
+    // 'unified' as productOverride → signup skips to form with product=unified.
+    // - From the pricing section's tier CTAs → passes the active product
+    // as productOverride → signup skips to form.
     //
     // This eliminates the repetitive "which product do you want?" question
     // when the user has already chosen a product by navigating to /vega or
@@ -2039,7 +2039,8 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
         <div
             ref={scrollRef}
             className="h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth md:[scrollbar-gutter:stable]"
-            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)' }}
+            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', colorScheme: 'light' }}
+            data-public-page
         >
             <NavBar
                 activeSection={activeSection}

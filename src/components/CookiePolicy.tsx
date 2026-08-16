@@ -5,17 +5,17 @@ import { useProduct } from '../contexts/ProductContext';
 const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const { isProperty } = useProduct();
     return (
-    <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
+    <div className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page>
 
-        <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
+        <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 h-16 flex items-center justify-between">
             <button
                 onClick={onBack}
-                className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium text-sm"
+                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium text-sm"
             >
                 <ChevronLeft className="w-5 h-5" />
                 Back
             </button>
-            <h1 className="font-bold text-slate-900 dark:text-white">Cookie Policy</h1>
+            <h1 className="font-bold text-slate-900">Cookie Policy</h1>
             <div className="w-16" />
         </div>
 
@@ -23,16 +23,16 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
 
                 <div className="mb-16">
-                    <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Cookie Policy</h1>
-                    <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
-                    <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
+                    <h1 className="text-4xl font-bold text-slate-900 mb-6">Cookie Policy</h1>
+                    <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
+                    <div className="flex flex-col text-xs text-slate-500 italic">
                         <span>Last Updated: August 2026</span>
                     </div>
                 </div>
 
-                <div className="prose prose-slate dark:prose-invert max-w-none
+                <div className="prose prose-slate max-w-none
                     prose-p:leading-[1.8] prose-p:mb-12
-                    prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800
+                    prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200
                     prose-h3:mt-12 prose-h3:mb-6 prose-h3:text-xl prose-h3:font-bold
                     prose-ul:mb-10 prose-ul:space-y-4
                     prose-li:leading-relaxed">
@@ -158,7 +158,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     </p>
 
                     <hr className="my-10" />
-                    <p className="text-xs text-slate-400 dark:text-zinc-600 italic">
+                    <p className="text-xs text-slate-400 italic">
                         This Cookie Policy is issued by PracticePro Systems Limited and applies exclusively
                         to the Vega Legal Operations OS and Atrium Property OS platforms operated under the
                         PracticePro brand. Last reviewed: August 2026.

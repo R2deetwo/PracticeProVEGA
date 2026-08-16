@@ -5,17 +5,17 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
     const isVega = activeProduct === 'vega';
     const isProperty = !isVega;
     return (
-        <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
+        <div className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page>
             {/* Standard Header */}
-            <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
+            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 h-16 flex items-center justify-between">
                 <button
                     onClick={onBack}
-                    className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium text-sm"
+                    className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium text-sm"
                 >
                     <ChevronLeft className="w-5 h-5" />
                     Back
                 </button>
-                <h1 className="font-bold text-slate-900 dark:text-white">Terms and Conditions of Service</h1>
+                <h1 className="font-bold text-slate-900">Terms and Conditions of Service</h1>
                 <div className="w-16" /> {/* Spacer */}
             </div>
 
@@ -23,27 +23,27 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
             <div className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
                 <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
                     <div className="mb-16">
-                        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">TERMS AND CONDITIONS OF SERVICE</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Systems Limited</p>
-                        <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
+                        <h1 className="text-4xl font-bold text-slate-900 mb-6">TERMS AND CONDITIONS OF SERVICE</h1>
+                        <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PracticePro Systems Limited</p>
+                        <div className="flex flex-col text-xs text-slate-500 italic">
                             <span>Effective Date: January 1, 2026</span>
                             <span>Last Updated: August 11, 2026</span>
                             <span>Version: 2.1</span>
                         </div>
                     </div>
 
-                    <div className="prose prose-slate dark:prose-invert max-w-none 
+                    <div className="prose prose-slate max-w-none
                         prose-p:leading-[1.8] prose-p:mb-12
-                        prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800
+                        prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200
                         prose-h3:mt-12 prose-h3:mb-6 prose-h3:text-xl prose-h3:font-bold
                         prose-ul:mb-10 prose-ul:space-y-4
                         prose-li:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline
-                        prose-strong:text-slate-900 dark:prose-strong:text-white">
+                        prose-strong:text-slate-900">
 
                         <hr className="my-10" />
 
                         <h2>TABLE OF CONTENTS</h2>
-                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 p-6 rounded-lg mb-10">
+                        <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-10">
                             <ol className="list-decimal pl-5 space-y-2">
                                 <li><a href="#section-1">Definitions and Interpretation</a></li>
                                 <li><a href="#section-2">Agreement to Terms</a></li>
@@ -79,7 +79,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <div id="1-1" className="space-y-8">
                                     <h3 className="text-xl font-bold">1.1 Definitions</h3>
                                     <p>In these Terms and Conditions, the following terms shall have the meanings set forth below:</p>
-                                    <div className="space-y-8 pl-4 border-l-2 border-slate-100 dark:border-zinc-800">
+                                    <div className="space-y-8 pl-4 border-l-2 border-slate-100">
                                         {isVega && <p><strong>"ALOA"</strong> or <strong>"ALOA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>}
                                         {isProperty && <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Asset & Revenue Intelligence Assistant, the artificial intelligence agent embedded within Atrium OS that monitors rent collection, resident compliance, and portfolio revenue performance.</p>}
                                         <p><strong>"AI Agents"</strong> means collectively, ALOA™/ARIA™ (as applicable), Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent, all of which constitute the artificial intelligence-powered components of the Platform.</p>
@@ -211,7 +211,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <div id="4-3" className="space-y-8">
                                     <h3 className="text-xl font-bold">4.3 Explicit Consent at Registration</h3>
                                     <p>4.3.1 During registration, you will be required to provide two separate, explicit, and affirmative consent actions:</p>
-                                    <div className="space-y-4 pl-4 border-l-2 border-slate-100 dark:border-zinc-800">
+                                    <div className="space-y-4 pl-4 border-l-2 border-slate-100">
                                         <p>(a) Agreement to these Terms and Conditions of Service; and</p>
                                         <p>(b) Agreement to the Privacy Policy, which governs the collection, processing, and retention of your personal data.</p>
                                     </div>
@@ -330,7 +330,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <div className="space-y-12">
                                 <p>9.1 <strong>What Are Cookies:</strong> Cookies are small data files stored on your device when you use the Platform. We use cookies and similar tracking technologies to enable essential functionality, improve performance, and understand usage patterns.</p>
                                 <p>9.2 <strong>Cookie Categories:</strong></p>
-                                <div className="space-y-4 pl-4 border-l-2 border-slate-100 dark:border-zinc-800">
+                                <div className="space-y-4 pl-4 border-l-2 border-slate-100">
                                     <p>(a) <strong>Essential Cookies:</strong> Required for core Platform functionality including session management, authentication, and security. These cannot be disabled without rendering the Platform non-functional.</p>
                                     <p>(b) <strong>Functional Cookies:</strong> Store your preferences such as display theme, language, and notification settings to enhance your experience.</p>
                                     <p>(c) <strong>Analytics Cookies:</strong> Collect anonymized data about Platform usage to help us understand how the Platform is used and where improvements can be made. These are only set with your explicit consent.</p>
@@ -485,7 +485,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <h2 className="text-3xl font-bold mb-8 transition-colors">22. CONTACT INFORMATION</h2>
                             <div className="space-y-12">
                                 <p>For any questions, complaints, or notices relating to this Agreement, please contact us at:</p>
-                                <div className="pl-4 border-l-2 border-slate-100 dark:border-zinc-800 space-y-3">
+                                <div className="pl-4 border-l-2 border-slate-100 space-y-3">
                                     <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
                                     <p><strong>General Enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com">practiceprosystems@gmail.com</a></p>
@@ -521,8 +521,8 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                     </div>
 
                     {/* Footer */}
-                    <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                    <div className="h-32 pt-20 border-t border-slate-100 mt-20 text-center">
+                        <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA • Professional Operations System' : 'ATRIUM • Property OS'} • Version 2.0 • April 2026
                         </p>
                     </div>

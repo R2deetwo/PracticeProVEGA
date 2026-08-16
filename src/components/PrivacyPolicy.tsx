@@ -5,18 +5,18 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
     const isVega = activeProduct === 'vega';
     const isProperty = !isVega;
     return (
-        <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
+        <div className="w-full h-full bg-white flex flex-col overflow-hidden animate-fade-in font-sans" style={{ colorScheme: 'light' }} data-public-page>
 
             {/* Standard Header */}
-            <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
+            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 h-16 flex items-center justify-between">
                 <button
                     onClick={onBack}
-                    className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium text-sm"
+                    className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium text-sm"
                 >
                     <ChevronLeft className="w-5 h-5" />
                     Back
                 </button>
-                <h1 className="font-bold text-slate-900 dark:text-white">Privacy Policy</h1>
+                <h1 className="font-bold text-slate-900">Privacy Policy</h1>
                 <div className="w-16" /> {/* Spacer */}
             </div>
 
@@ -26,9 +26,9 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
 
                     {/* Document Head */}
                     <div className="mb-16">
-                        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Privacy Policy</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
-                        <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
+                        <h1 className="text-4xl font-bold text-slate-900 mb-6">Privacy Policy</h1>
+                        <p className="text-sm font-semibold text-slate-600 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
+                        <div className="flex flex-col text-xs text-slate-500 italic">
                             <span>Effective Date: August 11, 2026</span>
                             <span>Last Updated: August 11, 2026</span>
                             <span>Version: 2.0</span>
@@ -36,9 +36,9 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                     </div>
 
                     {/* Standard Document Content with explicit spacing */}
-                    <div className="prose prose-slate dark:prose-invert max-w-none 
+                    <div className="prose prose-slate max-w-none
                         prose-p:leading-[1.8] prose-p:mb-12
-                        prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200 dark:prose-h2:border-zinc-800
+                        prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-3xl prose-h2:font-bold prose-h2:border-b-2 prose-h2:pb-4 prose-h2:border-slate-200
                         prose-h3:mt-12 prose-h3:mb-6 prose-h3:text-xl prose-h3:font-bold
                         prose-ul:mb-10 prose-ul:space-y-4
                         prose-li:leading-relaxed">
@@ -46,7 +46,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                         <hr className="my-10" />
 
                         <h2>TABLE OF CONTENTS</h2>
-                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 p-6 rounded-lg mb-10">
+                        <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-10">
                             <ol className="list-decimal pl-5 space-y-2">
                                 <li><a href="#introduction">Introduction</a></li>
                                 <li><a href="#who-we-are">Who We Are (Data Controller Information)</a></li>
@@ -279,7 +279,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     <h3 className="text-xl font-bold">5.2 Other Third-Party Service Providers</h3>
                                     <p>We engage carefully selected third-party service providers to help us deliver the Platform. These providers process personal data only on our behalf and under strict contractual obligations. We do not sell your data to third parties.</p>
 
-                                    <div className="space-y-6 pl-4 border-l-2 border-slate-100 dark:border-zinc-800">
+                                    <div className="space-y-6 pl-4 border-l-2 border-slate-100">
                                         <div className="space-y-4">
                                             <h4 className="font-bold">5.2.1 Cloud Hosting and Infrastructure</h4>
                                             <ul className="list-disc pl-8 space-y-2">
@@ -404,8 +404,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                     </div>
 
                     {/* Footer Spacer for Mobile Clearances */}
-                    <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                    <div className="h-32 pt-20 border-t border-slate-100 mt-20 text-center">
+                        <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA • Nigerian Litigation System' : 'ATRIUM • Property OS'}
                         </p>
                     </div>
