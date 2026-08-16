@@ -3,6 +3,26 @@ import React, { useState, useRef } from 'react';
 import { Logo, DocumentIcon, ShieldCheckIcon, SparklesIcon, ArrowLeftIcon } from '../constants';
 import { sanitize } from '../utils/sanitization';
 
+/**
+ * The public Resources page must ALWAYS render in light mode, regardless of:
+ *   - the user's system `prefers-color-scheme: dark` setting
+ *   - the saved `practicepro_theme` value in localStorage (see inline
+ *     script in index.html that toggles `html.dark`)
+ *
+ * Two safeguards:
+ *   1. All Tailwind `dark:` variant classes have been stripped from this
+ *      file, so the page never picks up dark utility styles.
+ *   2. The root container sets `colorScheme: 'light'` via inline style,
+ *      which is the W3C-standard way to tell the browser this subtree
+ *      should always render with light-mode defaults (scrollbars, form
+ *      controls, etc.) and overrides any inherited dark color scheme.
+ *
+ * Explicit Tailwind color classes (bg-slate-50, text-slate-900, etc.) on
+ * every meaningful element handle the rest, so the global
+ * `html.dark body { color: #ffffff !important }` rule in index.html
+ * cannot bleed through.
+ */
+
 interface ResourcesPageProps {
     onBack: () => void;
     onPrivacyClick: () => void;
@@ -19,7 +39,7 @@ const ATRIUM_WHITE_PAPERS = [
     {
         id: 'proptech-adoption',
         tag: 'PropTech',
-        tagColor: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        tagColor: 'bg-blue-50 text-blue-700 border-blue-200',
         title: 'Digital Transformation in Nigerian Real Estate Management',
         summary: 'A comprehensive guide on transitioning from manual property management to automated systems. Discusses rent tracking, maintenance workflows, tenant communication, and scaling property portfolios across multiple states in Nigeria.',
         readTime: '10 min read',
@@ -64,7 +84,7 @@ The transition to a unified property management system is no longer a luxury; it
     {
         id: 'atrium-tenant-retention',
         tag: 'Strategy',
-        tagColor: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        tagColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         title: 'Maximizing Tenant Retention Through Digital Experience',
         summary: 'Explore how providing a seamless, digital-first experience for tenants leads to higher retention rates, lower turnover costs, and improved property yields in competitive urban markets like Lagos and Abuja.',
         readTime: '8 min read',
@@ -96,7 +116,7 @@ Investing in a digital property management system is not just about making the m
     {
         id: 'digital-property-agency',
         tag: 'PropTech',
-        tagColor: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        tagColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         title: 'The Digital Property Agency: A Transformation Roadmap',
         summary: 'A strategic guide to digitizing a Nigerian property agency — covering the five stages of digital maturity, how to build a business case for technology investment, and a practical implementation framework that minimizes disruption to active operations.',
         readTime: '10 min read',
@@ -190,26 +210,26 @@ The digital transformation of a property agency is a journey measured in years, 
 
 const ATRIUM_COMPLIANCE_DOCS = [
     {
-        icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />,
+        icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600" />,
         title: 'NDPA & Tenancy Data Security',
         description: 'Comprehensive guide on how PracticePro Atrium protects sensitive tenant information, lease agreements, guarantors data, and financial records in strict compliance with the Nigerian Data Protection Act (NDPA) 2023.',
         badge: 'Security',
-        badgeColor: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
     {
-        icon: <DocumentIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />,
+        icon: <DocumentIcon className="w-6 h-6 text-amber-600" />,
         title: 'Tenancy Law Compliance Guide',
         description: 'An overview of statutory requirements for rent collection, quit notices, and tenancy agreements across major Nigerian jurisdictions, and how Atrium helps maintain audit-ready records.',
         badge: 'Legal',
-        badgeColor: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
     }
 ];
 
 const ATRIUM_GUIDES = [
     {
         id: 'atrium-getting-started',
-        title: 'Getting Started with Atrium OS', 
-        description: 'A complete walkthrough to set up your property portfolio, add your first tenants, and configure automated billing structures.', 
+        title: 'Getting Started with Atrium OS',
+        description: 'A complete walkthrough to set up your property portfolio, add your first tenants, and configure automated billing structures.',
         tag: 'Beginner',
         readTime: '6 min read',
         content: `
@@ -249,8 +269,8 @@ Now that your core data is in the system, you can begin utilizing the Maintenanc
     },
     {
         id: 'atrium-advanced-units',
-        title: 'Advanced Unit Management', 
-        description: 'Learn how to utilize Atrium\'s context-aware unit hover menus to rapidly process receipts, log maintenance, and manage vacancies.', 
+        title: 'Advanced Unit Management',
+        description: 'Learn how to utilize Atrium\'s context-aware unit hover menus to rapidly process receipts, log maintenance, and manage vacancies.',
         tag: 'Workflow',
         readTime: '4 min read',
         content: `
@@ -282,7 +302,7 @@ const WHITE_PAPERS = [
     {
         id: 'ai-framework',
         tag: 'AI & Ethics',
-        tagColor: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+        tagColor: 'bg-purple-50 text-purple-700 border-purple-200',
         title: 'AI in Nigerian Legal Practice: A Framework for Responsible Adoption',
         summary: 'A practitioner\'s guide to deploying artificial intelligence tools in a law firm setting — covering ISO 42001 principles, data minimization, client confidentiality obligations, and the ethical boundaries that must govern AI use in legal work.',
         readTime: '12 min read',
@@ -350,7 +370,7 @@ Responsible AI adoption in legal practice requires deliberate governance, not ju
     {
         id: 'ndpa-primer',
         tag: 'Data Privacy',
-        tagColor: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        tagColor: 'bg-blue-50 text-blue-700 border-blue-200',
         title: 'Data Privacy for Law Firms: The NDPA 2023 Compliance Primer',
         summary: 'A practical compliance guide tailored specifically for Nigerian law firms. Covers the obligations of data controllers under the NDPA 2023, client data handling best practices, breach notification procedures, and how to document an audit-ready compliance posture.',
         readTime: '15 min read',
@@ -434,7 +454,7 @@ NDPA compliance is an operational discipline, not a one-time project. Law firms 
     {
         id: 'digital-roadmap',
         tag: 'Legal Tech',
-        tagColor: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        tagColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         title: 'The Digital Law Firm: A Transformation Roadmap',
         summary: 'A strategic guide to digitizing a Nigerian law firm — covering the five stages of digital maturity, how to build a business case for technology investment, and a practical implementation framework that minimizes disruption to active practice.',
         readTime: '10 min read',
@@ -528,26 +548,26 @@ The digital transformation of a law firm is a journey measured in years, not mon
 
 const COMPLIANCE_DOCS = [
     {
-        icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />,
+        icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600" />,
         title: 'ISO 27001 Alignment Statement',
         description: 'PracticePro VEGA is built against the ISO 27001:2022 information security framework. This document outlines our security controls across access management, incident response, encryption, and audit logging.',
         badge: 'Security',
-        badgeColor: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
     {
-        icon: <DocumentIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />,
+        icon: <DocumentIcon className="w-6 h-6 text-blue-600" />,
         title: 'NDPA 2023 Data Processing Statement',
         description: 'Our formal statement of data processing activities, lawful bases, retention schedules, and data subject rights procedures as required by the Nigeria Data Protection Act 2023.',
         badge: 'Compliance',
-        badgeColor: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
     },
 ];
 
 const GUIDES = [
     {
         id: 'getting-started',
-        title: 'Getting Started with PracticePro', 
-        description: 'Set up your firm workspace, invite team members, and create your first matter in a few simple steps.', 
+        title: 'Getting Started with PracticePro',
+        description: 'Set up your firm workspace, invite team members, and create your first matter in a few simple steps.',
         tag: 'Beginner',
         readTime: '4 min read',
         content: `
@@ -581,8 +601,8 @@ A "Matter" is the central hub for any case or transaction.
     },
     {
         id: 'aloa-best-practices',
-        title: 'ARIA® AI Copilot — Best Practices', 
-        description: 'How to prompt ARIA effectively, interpret its outputs, and maintain professional responsibility when using AI assistance.', 
+        title: 'ARIA® AI Copilot — Best Practices',
+        description: 'How to prompt ARIA effectively, interpret its outputs, and maintain professional responsibility when using AI assistance.',
         tag: 'AI',
         readTime: '6 min read',
         content: `
@@ -610,14 +630,14 @@ ARIA is an assistant, not a lawyer.
     },
     {
         id: 'billing-setup',
-        title: 'Billing & Invoicing Setup Guide', 
-        description: 'Configure your billing rates, connect your bank account, and generate your first NDPA-compliant invoice.', 
+        title: 'Billing & Invoicing Setup Guide',
+        description: 'Configure your billing rates, connect your bank account, and generate your first NDPA-compliant invoice.',
         tag: 'Finance',
         readTime: '5 min read',
         content: `
 ## Setting Up Financial Workflows
 
-PracticePro VEGA includes robust timekeeping and invoicing tools tailored to Nigerian billing practices. 
+PracticePro VEGA includes robust timekeeping and invoicing tools tailored to Nigerian billing practices.
 
 ### 1. Setting Hourly Rates
 You can set default rates per role and override them per member or per matter.
@@ -641,8 +661,8 @@ When it’s time to bill a client:
     },
     {
         id: 'team-permissions',
-        title: 'Team Permissions & Role Management', 
-        description: 'Understanding the role hierarchy, setting matter-level access controls, and managing associate visibility.', 
+        title: 'Team Permissions & Role Management',
+        description: 'Understanding the role hierarchy, setting matter-level access controls, and managing associate visibility.',
         tag: 'Admin',
         readTime: '3 min read',
         content: `
@@ -660,7 +680,7 @@ There are three fundamental tiers of access in PracticePro:
 | **Associate** | Can only view Matters they are explicitly assigned to. Restricted from deleting files. | Associates, Paralegals, Support Staff |
 
 ### Confidential Matters
-Not all matters should be visible to everyone, even among Partners. 
+Not all matters should be visible to everyone, even among Partners.
 When creating a matter, you can toggle its visibility to **"Private"**. Private matters are only visible to the creator and explicitly invited team members.
 
 ### Ethical Walls
@@ -752,14 +772,14 @@ function renderBlocks(blocks: Block[]) {
     return blocks.map((block, i) => {
         switch (block.type) {
             case 'h2':
-                return <h2 key={i} className="text-lg font-bold text-slate-900 dark:text-white mt-8 mb-3 pb-2 border-b border-slate-100 dark:border-white/5">{block.text}</h2>;
+                return <h2 key={i} className="text-lg font-bold text-slate-900 mt-8 mb-3 pb-2 border-b border-slate-100">{block.text}</h2>;
             case 'h3':
-                return <h3 key={i} className="text-base font-semibold text-slate-800 dark:text-slate-200 mt-5 mb-2">{block.text}</h3>;
+                return <h3 key={i} className="text-base font-semibold text-slate-800 mt-5 mb-2">{block.text}</h3>;
             case 'bullets':
                 return (
                     <ul key={i} className="mb-4 space-y-1.5 list-disc list-inside">
                         {block.items.map((item, j) => (
-                            <li key={j} className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed"
+                            <li key={j} className="text-sm text-slate-600 leading-relaxed"
                                 dangerouslySetInnerHTML={{ __html: sanitize(item) }} />
                         ))}
                     </ul>
@@ -768,19 +788,19 @@ function renderBlocks(blocks: Block[]) {
                 return (
                     <ol key={i} className="mb-4 space-y-1.5 list-decimal list-inside">
                         {block.items.map((item, j) => (
-                            <li key={j} className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed"
+                            <li key={j} className="text-sm text-slate-600 leading-relaxed"
                                 dangerouslySetInnerHTML={{ __html: sanitize(item) }} />
                         ))}
                     </ol>
                 );
             case 'table':
                 return (
-                    <div key={i} className="my-5 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
+                    <div key={i} className="my-5 rounded-lg overflow-hidden border border-slate-200">
                         <table className="w-full text-sm border-collapse">
                             <thead>
-                                <tr className="bg-slate-100 dark:bg-slate-800">
+                                <tr className="bg-slate-100">
                                     {block.rows[0]?.map((cell, j) => (
-                                        <th key={j} className="px-4 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide border-b border-slate-200 dark:border-white/10">
+                                        <th key={j} className="px-4 py-2.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wide border-b border-slate-200">
                                             {cell}
                                         </th>
                                     ))}
@@ -788,11 +808,11 @@ function renderBlocks(blocks: Block[]) {
                             </thead>
                             <tbody>
                                 {block.rows.slice(1).map((row, j) => (
-                                    <tr key={j} className={j % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}>
+                                    <tr key={j} className={j % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                         {row.map((cell, k) => (
-                                            <td key={k} className="px-4 py-2.5 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-white/5 last:border-b-0">
+                                            <td key={k} className="px-4 py-2.5 text-slate-600 border-b border-slate-100 last:border-b-0">
                                                 {k === row.length - 1 && (cell === 'Yes' || cell === 'No') ? (
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${cell === 'Yes' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${cell === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                                                         {cell}
                                                     </span>
                                                 ) : cell}
@@ -805,7 +825,7 @@ function renderBlocks(blocks: Block[]) {
                     </div>
                 );
             case 'paragraph':
-                return <p key={i} className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-3"
+                return <p key={i} className="text-sm text-slate-600 leading-relaxed mb-3"
                     dangerouslySetInnerHTML={{ __html: sanitize(block.text) }} />;
             case 'spacer':
                 return <div key={i} className="my-1" />;
@@ -856,28 +876,28 @@ const WhitePaperCard: React.FC<{ paper: typeof WHITE_PAPERS[0], activeProduct: '
     };
 
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300">
             <div className="p-7">
                 <div className="flex items-start justify-between gap-4 mb-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border ${paper.tagColor}`}>
                         {paper.tag}
                     </span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">{paper.readTime}</span>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">{paper.readTime}</span>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3 leading-snug">{paper.title}</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{paper.summary}</p>
+                <h3 className="text-lg font-bold text-slate-900 mb-3 leading-snug">{paper.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{paper.summary}</p>
             </div>
 
             <div className="px-7 pb-6 flex gap-3">
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-all"
+                    className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-slate-900 text-white hover:opacity-90 transition-all"
                 >
                     {expanded ? 'Collapse' : 'Read Paper'}
                 </button>
                 <button
                     onClick={handlePrint}
-                    className="py-2.5 px-4 rounded-lg font-semibold text-sm border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-2"
+                    className="py-2.5 px-4 rounded-lg font-semibold text-sm border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
                     title="Print or save as PDF"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -886,7 +906,7 @@ const WhitePaperCard: React.FC<{ paper: typeof WHITE_PAPERS[0], activeProduct: '
             </div>
 
             {expanded && (
-                <div className="border-t border-slate-100 dark:border-white/5 px-7 py-6">
+                <div className="border-t border-slate-100 px-7 py-6">
                     {renderBlocks(parseContent(paper.content))}
                 </div>
             )}
@@ -899,27 +919,27 @@ const GuideCard: React.FC<{ guide: typeof GUIDES[0] }> = ({ guide }) => {
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col ${expanded && 'md:col-span-2'}`}>
+        <div className={`bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col ${expanded && 'md:col-span-2'}`}>
             <div className="p-6 flex-1 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
-                    <span className="text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 uppercase tracking-wider">{guide.tag}</span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">{guide.readTime}</span>
+                    <span className="text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 uppercase tracking-wider">{guide.tag}</span>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">{guide.readTime}</span>
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm">{guide.title}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-[280px] sm:max-w-none">{guide.description}</p>
+                <h3 className="font-bold text-slate-900 text-sm">{guide.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-[280px] sm:max-w-none">{guide.description}</p>
             </div>
 
             <div className="px-6 pb-5 flex gap-3">
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className="flex-1 py-2 rounded-lg font-semibold text-xs border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-center"
+                    className="flex-1 py-2 rounded-lg font-semibold text-xs border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all text-center"
                 >
                     {expanded ? 'Hide Guide' : 'Read Guide'}
                 </button>
             </div>
 
             {expanded && (
-                <div className="border-t border-slate-100 dark:border-white/5 px-6 py-5">
+                <div className="border-t border-slate-100 px-6 py-5">
                     {renderBlocks(parseContent(guide.content))}
                 </div>
             )}
@@ -1070,7 +1090,7 @@ const WhatsNewFilter: React.FC<{
     setSelectedFilter: (f: 'all' | 'vega' | 'atrium' | 'komplete') => void;
 }> = ({ selectedFilter, setSelectedFilter }) => {
     const filters: { key: 'all' | 'vega' | 'atrium' | 'komplete'; label: string; color: string }[] = [
-        { key: 'all', label: 'All', color: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' },
+        { key: 'all', label: 'All', color: 'bg-slate-900 text-white' },
         { key: 'vega', label: 'Vega', color: 'bg-amber-500 text-white' },
         { key: 'atrium', label: 'Atrium', color: 'bg-emerald-500 text-white' },
         { key: 'komplete', label: 'Komplete', color: 'bg-violet-500 text-white' },
@@ -1084,7 +1104,7 @@ const WhatsNewFilter: React.FC<{
                     className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                         selectedFilter === f.key
                             ? f.color
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                     }`}
                 >
                     {f.label}
@@ -1096,17 +1116,17 @@ const WhatsNewFilter: React.FC<{
 
 const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
     const categoryColors: Record<string, string> = {
-        feature: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
-        improvement: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-        fix: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-        security: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
+        feature: 'bg-emerald-100 text-emerald-700',
+        improvement: 'bg-blue-100 text-blue-700',
+        fix: 'bg-amber-100 text-amber-700',
+        security: 'bg-rose-100 text-rose-700',
     };
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-3">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-slate-900 dark:text-white text-base">{entry.title}</h3>
+                        <h3 className="font-bold text-slate-900 text-base">{entry.title}</h3>
                         <span className="text-2xs font-mono text-slate-400">{entry.version}</span>
                     </div>
                     <span className="text-xs text-slate-400">{entry.date}</span>
@@ -1114,21 +1134,21 @@ const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
                 <div className="flex items-center gap-2">
                     {entry.products.map(p => (
                         <span key={p} className={`text-2xs font-bold uppercase px-1.5 py-0.5 rounded ${
-                            p === 'vega' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
-                            p === 'atrium' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
-                            'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+                            p === 'vega' ? 'bg-amber-100 text-amber-600' :
+                            p === 'atrium' ? 'bg-emerald-100 text-emerald-600' :
+                            'bg-violet-100 text-violet-600'
                         }`}>{p}</span>
                     ))}
                     <span className={`px-2 py-1 text-2xs font-bold uppercase rounded-full ${categoryColors[entry.category]}`}>{entry.category}</span>
                 </div>
             </div>
-            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+            <ul className="space-y-2 text-sm text-slate-600">
                 {entry.items.map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
                         <span className="text-primary-500 mt-0.5">•</span>
                         <span>
-                            <strong className="text-slate-800 dark:text-slate-200">{item.label}</strong> — {item.body}
-                            {item.badge && <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-bold">{item.badge}</span>}
+                            <strong className="text-slate-800">{item.label}</strong> — {item.body}
+                            {item.badge && <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 font-bold">{item.badge}</span>}
                         </span>
                     </li>
                 ))}
@@ -1149,8 +1169,8 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
         ? WHATS_NEW_ENTRIES
         : WHATS_NEW_ENTRIES.filter(e => e.products.includes(whatsNewFilter as any));
     const productBadge = isVega
-        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-        : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+        ? 'bg-amber-100 text-amber-700'
+        : 'bg-emerald-100 text-emerald-700';
 
     const tabs = [
         { key: 'whatsnew' as const, label: "What's New" },
@@ -1166,20 +1186,26 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
     const scrollToTop = () => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
 
     return (
-        <div ref={scrollRef} onScroll={handleScroll} className="h-[100dvh] overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
+        <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="h-[100dvh] overflow-y-auto bg-slate-50 text-slate-900 font-sans"
+            style={{ colorScheme: 'light' }}
+            data-resources-root
+        >
             {/* Header */}
-            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/[0.06] sticky top-0 z-20">
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
                 <div className="container mx-auto px-6 h-16 flex items-center gap-4">
-                    <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                    <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors">
                         <ArrowLeftIcon className="w-4 h-4" />
                         Back
                     </button>
-                    <div className="h-4 w-px bg-slate-200 dark:bg-white/10" />
+                    <div className="h-4 w-px bg-slate-200" />
                     <div className="flex items-center gap-2">
                         <Logo className="h-5 w-5 text-primary-600" />
-                        <span className="font-bold text-slate-900 dark:text-white">PracticePro</span>
-                        <span className="text-slate-400 dark:text-slate-500">/</span>
-                        <span className="text-slate-600 dark:text-slate-300 font-medium flex items-center">
+                        <span className="font-bold text-slate-900">PracticePro</span>
+                        <span className="text-slate-400">/</span>
+                        <span className="text-slate-600 font-medium flex items-center">
                             Resources
                             <span className={`text-2xs ml-2 px-1.5 py-0.5 rounded font-bold tracking-wider ${productBadge}`}>
                                 {isVega ? 'VEGA' : 'ATRIUM'}
@@ -1194,29 +1220,29 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 {/* Page Hero */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-16">
                     <div>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800/50 mb-5">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border bg-primary-50 text-primary-700 border-primary-200 mb-5">
                             <SparklesIcon className="w-3 h-3" />
                             Knowledge Base
                         </span>
-                        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white mb-4">Resources & Documentation</h1>
-                        <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-                            {isVega 
-                                ? 'Research papers, compliance documentation, and product guides to help your firm get the most from PracticePro — and stay ahead of regulatory requirements.' 
+                        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 mb-4">Resources & Documentation</h1>
+                        <p className="text-lg text-slate-500 max-w-2xl leading-relaxed">
+                            {isVega
+                                ? 'Research papers, compliance documentation, and product guides to help your firm get the most from PracticePro — and stay ahead of regulatory requirements.'
                                 : 'PropTech research, compliance documentation, and product guides to help you scale your property management operations.'}
                         </p>
                     </div>
                     {/* Toggle */}
                     {setActiveProduct && (
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-white/10 shrink-0 self-start">
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0 self-start">
                             <button
                                 onClick={() => setActiveProduct('vega')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Law Firms
                             </button>
                             <button
                                 onClick={() => setActiveProduct('atrium')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Property Managers
                             </button>
@@ -1225,7 +1251,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex gap-1 mb-8 border-b border-slate-200 dark:border-white/[0.06] overflow-x-auto" role="tablist">
+                <div className="flex gap-1 mb-8 border-b border-slate-200 overflow-x-auto" role="tablist">
                     {tabs.map(tab => (
                         <button
                             key={tab.key}
@@ -1234,8 +1260,8 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             aria-selected={activeTab === tab.key}
                             className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
                                 activeTab === tab.key
-                                    ? `${isVega ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-emerald-500 text-emerald-600 dark:text-emerald-400'}`
-                                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                    ? `${isVega ? 'border-amber-500 text-amber-600' : 'border-emerald-500 text-emerald-600'}`
+                                    : 'border-transparent text-slate-500 hover:text-slate-900'
                             }`}
                         >
                             {tab.label}
@@ -1251,11 +1277,11 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                            <h2 className="text-xl font-bold text-slate-900">
                                 What's New
                                 <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
                             </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Latest updates and major feature releases</p>
+                            <p className="text-sm text-slate-500">Latest updates and major feature releases</p>
                         </div>
                     </div>
 
@@ -1267,7 +1293,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             <WhatsNewEntry key={idx} entry={entry} />
                         ))}
                         {filteredWhatsNew.length === 0 && (
-                            <div className="text-center py-12 text-slate-400 dark:text-slate-500 text-sm">
+                            <div className="text-center py-12 text-slate-400 text-sm">
                                 No updates for this product yet.
                             </div>
                         )}
@@ -1279,15 +1305,15 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 {activeTab === 'papers' && (
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
-                        <div className="w-8 h-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center">
-                            <DocumentIcon className="w-4 h-4 text-white dark:text-slate-900" />
+                        <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+                            <DocumentIcon className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                            <h2 className="text-xl font-bold text-slate-900">
                                 White Papers
                                 <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
                             </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{isVega ? 'Original research on legal technology, compliance, and practice management' : 'Original research on property technology, compliance, and agency management'}</p>
+                            <p className="text-sm text-slate-500">{isVega ? 'Original research on legal technology, compliance, and practice management' : 'Original research on property technology, compliance, and agency management'}</p>
                         </div>
                     </div>
                     <div className="grid md:grid-cols-1 gap-5">
@@ -1304,25 +1330,25 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             <ShieldCheckIcon className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                            <h2 className="text-xl font-bold text-slate-900">
                                 Security & Compliance
                                 <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
                             </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Our formal compliance posture and security documentation</p>
+                            <p className="text-sm text-slate-500">Our formal compliance posture and security documentation</p>
                         </div>
                     </div>
                     <div className="grid md:grid-cols-2 gap-4">
                         {(isVega ? COMPLIANCE_DOCS : ATRIUM_COMPLIANCE_DOCS).map((doc, i) => (
-                            <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 flex gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center flex-shrink-0">
+                            <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 flex gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
                                     {doc.icon}
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`text-2xs font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${doc.badgeColor}`}>{doc.badge}</span>
                                     </div>
-                                    <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">{doc.title}</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{doc.description}</p>
+                                    <h3 className="font-bold text-slate-900 text-sm mb-1">{doc.title}</h3>
+                                    <p className="text-xs text-slate-500 leading-relaxed">{doc.description}</p>
                                 </div>
                             </div>
                         ))}
@@ -1338,11 +1364,11 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             <SparklesIcon className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                            <h2 className="text-xl font-bold text-slate-900">
                                 Product Guides
                                 <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
                             </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Step-by-step guides for getting the most from PracticePro</p>
+                            <p className="text-sm text-slate-500">Step-by-step guides for getting the most from PracticePro</p>
                         </div>
                     </div>
                     <div className="grid md:grid-cols-2 gap-4 items-start">
@@ -1355,26 +1381,26 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
 
                 {/* Legal Notices */}
                 {activeTab === 'legal' && (
-                <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-8">
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Legal Notices</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Governing documents for your use of PracticePro {isVega ? 'VEGA' : 'ATRIUM'}</p>
+                <section className="bg-white border border-slate-200 rounded-2xl p-8">
+                    <h2 className="text-lg font-bold text-slate-900 mb-2">Legal Notices</h2>
+                    <p className="text-sm text-slate-500 mb-6">Governing documents for your use of PracticePro {isVega ? 'VEGA' : 'ATRIUM'}</p>
                     <div className="flex flex-wrap gap-3">
                         <button
                             onClick={onPrivacyClick}
-                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                             Privacy Policy
                         </button>
                         <button
                             onClick={onTermsClick}
-                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                             Terms of Service
                         </button>
-                        <button onClick={onCookieClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <button onClick={onCookieClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                             Cookie Policy
                         </button>
-                        <button onClick={onDPAClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <button onClick={onDPAClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                             Data Processing Agreement
                         </button>
                     </div>
@@ -1382,23 +1408,23 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 )}
 
                 {/* CTA Footer */}
-                <div className="mt-12 mb-8 p-8 rounded-2xl bg-slate-900 dark:bg-white/[0.03] border border-slate-800 dark:border-white/[0.06] text-center">
-                    <h3 className="text-xl font-bold text-white dark:text-white mb-2">Ready to get started?</h3>
-                    <p className="text-slate-400 dark:text-slate-400 text-sm mb-6 max-w-md mx-auto">
+                <div className="mt-12 mb-8 p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center">
+                    <h3 className="text-xl font-bold text-white mb-2">Ready to get started?</h3>
+                    <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
                         {isVega ? 'Start your 30-day free trial of PracticePro Vega today.' : 'Start your 30-day free trial of PracticePro Atrium today.'}
                     </p>
                     <div className="flex gap-3 justify-center">
                         <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors">
                             Start Free Trial
                         </button>
-                        <button onClick={onBack} className="px-6 py-3 rounded-xl border border-slate-600 dark:border-white/20 text-white text-sm font-bold hover:bg-white/10 transition-colors">
+                        <button onClick={onBack} className="px-6 py-3 rounded-xl border border-slate-600 text-white text-sm font-bold hover:bg-white/10 transition-colors">
                             Talk to Sales
                         </button>
                     </div>
                 </div>
 
                 {/* Footer */}
-                <p className="text-center text-xs text-slate-400 dark:text-slate-600">
+                <p className="text-center text-xs text-slate-400">
                     © {new Date().getFullYear()} PracticePro Systems Ltd. Lagos, Nigeria.
                 </p>
             </div>
@@ -1407,7 +1433,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
             {showBackToTop && (
                 <button
                     onClick={scrollToTop}
-                    className="fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                    className="fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
                     aria-label="Back to top"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
