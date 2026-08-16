@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-08-16T03:49:11.044Z",
+  "targetUrl": "https://practice-pro-vega.vercel.app/",
+  "passed": 6,
+  "warnings": 16,
+  "errors": 5,
+  "passes": [
+    "✓ Navigation (sticky header) — found",
+    "✓ Stats Demarcator — found",
+    "✓ Footer — found",
+    "✓ No breadcrumb on hub page (expected)",
+    "✓ Full-page screenshot captured",
+    "✓ Mobile full-page screenshot captured"
+  ],
+  "warnings_detail": [
+    "✗ Hero Section (HomeSection) — NOT FOUND (section#home, [id=\"home\"])",
+    "✗ Features Section — NOT FOUND (section#features, [id=\"features\"])",
+    "✗ Trust Badges Strip — NOT FOUND (section:has-text(\"Trusted\"), section:has-text(\"badge\"))",
+    "✗ AI Capabilities Section (dark) — NOT FOUND (section.bg-slate-900:has-text(\"Powered by AI\"))",
+    "✗ Pricing Section — NOT FOUND (section#pricing, [id=\"pricing\"])",
+    "✗ How It Works Section — NOT FOUND (section#howItWorks, [id=\"howItWorks\"])",
+    "✗ Testimonials Section — NOT FOUND (section:has-text(\"What Nigerian professionals say\"))",
+    "✗ FAQ Section — NOT FOUND (section:has-text(\"Questions? Answered\"))",
+    "✗ Final CTA Section — NOT FOUND (section:has-text(\"Ready to stop managing chaos\"))",
+    "✗ Mobile hamburger button not found in DOM",
+    "✗ Mobile sticky bottom CTA bar not found",
+    "✗ WhatsApp floating action button not found",
+    "✗ Skip-to-content link not found",
+    "✗ FAQ buttons not found",
+    "✗ JSON-LD structured data missing or insufficient (0 found, expected ≥2)",
+    "✗ Preconnect hints missing (Paystack:0, Convex:0, Firebase:0)"
+  ],
+  "errors_detail": [
+    "Console: Failed to load resource: the server responded with a status of 400 ()",
+    "Console: Failed to load resource: the server responded with a status of 400 ()",
+    "Console: Failed to load resource: the server responded with a status of 400 ()",
+    "Console: Failed to load resource: the server responded with a status of 400 ()",
+    "Console: Failed to load resource: the server responded with a status of 400 ()"
+  ]
+}

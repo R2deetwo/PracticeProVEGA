@@ -141,11 +141,21 @@ const NavBar: React.FC<{
     onLogin: () => void;
     onSignup: () => void;
     onResources: () => void;
+    onContactSales: () => void;
     activeProduct: 'vega' | 'atrium';
     setActiveProduct: (p: 'vega' | 'atrium') => void;
     productChosen: boolean;
     onBackToHub: () => void;
-}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, activeProduct, setActiveProduct, productChosen, onBackToHub }) => (
+}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, activeProduct, setActiveProduct, productChosen, onBackToHub }) => {
+    const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+    // Close mobile menu on product switch or navigation
+    const handleNavClick = (fn: () => void) => {
+        setMobileMenuOpen(false);
+        fn();
+    };
+
+    return (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300">
         {/* Glass layer — always light on landing page */}
         <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-colors duration-500" />
@@ -166,22 +176,17 @@ const NavBar: React.FC<{
                         style={{ overflow: 'hidden' }}
                         aria-label={`Back to all products — currently viewing ${activeProduct === 'vega' ? 'Vega' : 'Atrium'}`}
                     >
-                        {/* Container — fixed width wide enough for "← All Products" on one line.
-                            Inline style guarantees the width; whitespace-nowrap guarantees no wrap.
-                            This is bulletproof against Tailwind purge or specificity issues. */}
+                        {/* Container — fixed width wide enough for "← All Products" on one line. */}
                         <span
                             className="relative flex items-center"
                             style={{ height: '1.25rem', width: '9rem', overflow: 'hidden', whiteSpace: 'nowrap' }}
                         >
-                            {/* Default state: product name (VEGA in amber, ATRIUM in emerald) */}
                             <span
                                 className={`absolute inset-0 flex items-center text-sm font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
                                 style={{ whiteSpace: 'nowrap' }}
                             >
                                 {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                             </span>
-                            {/* Hover state: All Products slides up from below.
-                                flex-nowrap + shrink-0 on children guarantees one line. */}
                             <span
                                 className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-wide text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out"
                                 style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap' }}
@@ -195,14 +200,12 @@ const NavBar: React.FC<{
             </div>
 
             {/* Desktop Links */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
                 <div className="relative group">
                     <button className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200">
                         Products
                         <svg className="w-4 h-4 ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
-                    {/* Invisible hover bridge: transparent padding fills the gap between
-                        trigger and dropdown so the cursor never leaves the hover boundary */}
                     <div className="absolute top-full left-0 pt-1 w-[210px]">
                     <div className="bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
                         <button onClick={() => setActiveProduct('vega')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -237,14 +240,30 @@ const NavBar: React.FC<{
                     Pricing
                 </button>
                 <button
+                    onClick={() => scrollTo('howItWorks')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        activeSection === 'howItWorks'
+                            ? 'bg-primary-50 text-primary-700'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                >
+                    How It Works
+                </button>
+                <button
                     onClick={onResources}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
                 >
                     Resources
                 </button>
+                <button
+                    onClick={onContactSales}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                >
+                    Contact
+                </button>
             </nav>
 
-            {/* Right Actions — theme toggle removed; landing page is always light */}
+            {/* Right Actions */}
             <div className="flex items-center gap-2">
                 <div className="hidden md:block h-4 w-px bg-slate-200 mx-1" />
 
@@ -255,12 +274,55 @@ const NavBar: React.FC<{
                     Log In
                 </button>
                 <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-lg">
-                    Get Started Free
+                    Start Free Trial
                 </PrimaryButton>
+
+                {/* Mobile hamburger button */}
+                <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                    aria-label="Toggle menu"
+                    aria-expanded={mobileMenuOpen}
+                >
+                    {mobileMenuOpen ? (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    ) : (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    )}
+                </button>
             </div>
         </div>
+
+        {/* Mobile overlay menu */}
+        {mobileMenuOpen && (
+            <div className="md:hidden fixed inset-0 top-16 z-[240] bg-white overflow-y-auto">
+                <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
+                    <div className="mb-2">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
+                        <button onClick={() => handleNavClick(() => setActiveProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                            <ScalesIcon className="w-5 h-5 opacity-70" /> Vega — For Law Firms
+                        </button>
+                        <button onClick={() => handleNavClick(() => setActiveProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'atrium' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                            <OfficeBuildingIcon className="w-5 h-5 opacity-70" /> Atrium — For Property Managers
+                        </button>
+                    </div>
+                    <button onClick={() => handleNavClick(() => scrollTo('features'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Features</button>
+                    <button onClick={() => handleNavClick(() => scrollTo('pricing'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Pricing</button>
+                    <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How It Works</button>
+                    <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
+                    <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
+                    <div className="h-px bg-slate-200 my-3" />
+                    <button onClick={() => handleNavClick(onLogin)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Log In</button>
+                    <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-lg !text-sm mt-2">
+                        Start Free Trial
+                    </PrimaryButton>
+                    <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 14-day free trial</p>
+                </nav>
+            </div>
+        )}
     </header>
-);
+    );
+};
 
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
@@ -1374,6 +1436,296 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
 // (ResourcesSection removed — Resources is now a dedicated page)
 
+// ─── AI CAPABILITIES SECTION (dark) ──────────────────────────────────────
+const AICapabilitiesSection: React.FC = () => (
+    <section className="py-20 md:py-28 bg-slate-900 text-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12 md:mb-16">
+                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+                    Powered by AI. Protected by design.
+                </h2>
+                <p className="text-lg text-slate-300 mt-4 max-w-2xl mx-auto">
+                    Your AI copilot is built for Nigerian legal and property practice — with privacy-first architecture that keeps client data safe.
+                </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
+                {/* ALOA / ARIA Copilot */}
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:border-primary-500/50 transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center mb-5">
+                        <svg className="w-6 h-6 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <h3 className="text-xl font-bold mb-3">Your AI Assistant</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                        4 modes: Auto, Flash, Pro, and Research. Get case summaries, draft documents, analyze opposing counsel, and research precedents. ALOA for legal, ARIA for property.
+                    </p>
+                </div>
+                {/* PII Shield */}
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:border-primary-500/50 transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-5">
+                        <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <h3 className="text-xl font-bold mb-3">Privacy-First AI</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                        Personally identifiable information is automatically stripped before AI processing. Your client data never trains external models. NDPA 2023 compliant by design.
+                    </p>
+                </div>
+                {/* Workspace Isolation */}
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:border-primary-500/50 transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center mb-5">
+                        <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <h3 className="text-xl font-bold mb-3">Firm-Grade Security</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                        RAG and vector search are hard-filtered by workspace_id. No cross-firm data leakage. Ever. Row-level security on every query.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+);
+
+// ─── HOW IT WORKS SECTION (3 steps) ──────────────────────────────────────
+const HowItWorksSection: React.FC = () => (
+    <section id="howItWorks" className="py-20 md:py-28 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12 md:mb-16">
+                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                    Get started in 3 steps
+                </h2>
+                <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                    From sign-up to your first rent collection or legal draft — in minutes, not weeks.
+                </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                {/* Step 1 */}
+                <div className="text-center relative">
+                    <div className="text-6xl md:text-7xl font-extrabold text-slate-100 mb-4">01</div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Create your workspace</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed">
+                        Sign up in 2 minutes. No credit card required for trial. Choose Vega, Atrium, or Komplete.
+                    </p>
+                </div>
+                {/* Step 2 */}
+                <div className="text-center relative">
+                    <div className="text-6xl md:text-7xl font-extrabold text-slate-100 mb-4">02</div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Add your data</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed">
+                        Import your matters, properties, or tenants. Our onboarding wizard guides you through setup.
+                    </p>
+                </div>
+                {/* Step 3 */}
+                <div className="text-center relative">
+                    <div className="text-6xl md:text-7xl font-extrabold text-slate-100 mb-4">03</div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Start managing</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed">
+                        Send your first WhatsApp reminder, collect your first rent payment, or draft your first legal document.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+);
+
+// ─── TESTIMONIALS SECTION ────────────────────────────────────────────────
+const TESTIMONIALS = [
+    {
+        quote: "PracticePro cut our rent collection cycle from 3 weeks to 8 days. The Revenue Monitor alone is worth the subscription.",
+        name: "Property Manager",
+        role: "Lagos",
+        initials: "PM",
+        color: "bg-emerald-500",
+    },
+    {
+        quote: "DraftPro saves me 4 hours per brief. ALOA's case summaries are scarily accurate.",
+        name: "Lawyer",
+        role: "Abuja",
+        initials: "LA",
+        color: "bg-primary-500",
+    },
+    {
+        quote: "Our tenants love the portal. We went from 20 'where is my receipt?' calls per week to zero.",
+        name: "Estate Surveyor",
+        role: "Lekki",
+        initials: "ES",
+        color: "bg-amber-500",
+    },
+];
+
+const TestimonialsSection: React.FC = () => (
+    <section className="py-20 md:py-28 bg-slate-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12 md:mb-16">
+                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                    What Nigerian professionals say
+                </h2>
+                <p className="text-lg text-slate-500 mt-4">
+                    Real results from law firms and property managers across Lagos and Abuja.
+                </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
+                {TESTIMONIALS.map((t, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition-shadow">
+                        {/* Star rating */}
+                        <div className="flex gap-1 mb-4">
+                            {[...Array(5)].map((_, s) => (
+                                <svg key={s} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                            ))}
+                        </div>
+                        <p className="text-slate-700 italic text-base leading-relaxed mb-6">
+                            "{t.quote}"
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full ${t.color} flex items-center justify-center text-white text-sm font-bold`}>
+                                {t.initials}
+                            </div>
+                            <div>
+                                <p className="font-semibold text-slate-900 text-sm">{t.name}</p>
+                                <p className="text-xs text-slate-500">{t.role}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </section>
+);
+
+// ─── FAQ SECTION (accordion) ─────────────────────────────────────────────
+const FAQ_ITEMS = [
+    {
+        q: "Is my data secure?",
+        a: "Yes. All data is isolated by firm ID with row-level security on Convex. We're NDPA 2023 compliant, offer 2FA, and never train AI on your data.",
+    },
+    {
+        q: "Can I pay in Naira?",
+        a: "Absolutely. We integrate with Paystack for card, bank transfer, and USSD payments. Manual bank transfer with proof upload is also supported.",
+    },
+    {
+        q: "What's the difference between Vega and Atrium?",
+        a: "Vega is for law firms — matter management, legal drafting, court reminders. Atrium is for property managers — rent collection, resident portals, visitor management. Komplete combines both.",
+    },
+    {
+        q: "Is there a free trial?",
+        a: "Yes. Vega offers a 14-day free trial on all paid tiers. Atrium offers a 14-day trial. Sentry Pass includes a 14-day free trial as an add-on.",
+    },
+    {
+        q: "Do you offer support?",
+        a: "Yes. Email support for all tiers. WhatsApp support for Growth and above. Dedicated account manager for Enterprise.",
+    },
+    {
+        q: "Can I switch between plans?",
+        a: "Yes. Upgrade or downgrade anytime. Prorated billing applies.",
+    },
+];
+
+const FAQSection: React.FC = () => {
+    const [openIndex, setOpenIndex] = React.useState<number | null>(0);
+    return (
+        <section className="py-20 md:py-28 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+                <div className="text-center mb-12 md:mb-16">
+                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                        Questions? Answered.
+                    </h2>
+                    <p className="text-lg text-slate-500 mt-4">
+                        Everything you need to know before getting started.
+                    </p>
+                </div>
+                <div className="space-y-3">
+                    {FAQ_ITEMS.map((item, i) => (
+                        <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                            <button
+                                onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+                                aria-expanded={openIndex === i}
+                            >
+                                <span className="font-semibold text-slate-900 text-sm md:text-base">{item.q}</span>
+                                <svg
+                                    className={`w-5 h-5 text-slate-400 flex-shrink-0 ml-3 transition-transform ${openIndex === i ? 'rotate-180' : ''}`}
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            {openIndex === i && (
+                                <div className="px-5 pb-4 text-sm text-slate-600 leading-relaxed">
+                                    {item.a}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// ─── FINAL CTA SECTION ───────────────────────────────────────────────────
+const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
+    <section className="py-20 md:py-28 bg-primary-600 text-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+                Ready to stop managing chaos?
+            </h2>
+            <p className="text-lg text-white/80 mt-4 max-w-2xl mx-auto">
+                Join Nigerian law firms and property managers who've already switched to PracticePro.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                <button
+                    onClick={onSignup}
+                    className="bg-white text-primary-600 px-8 py-4 rounded-xl font-semibold hover:bg-white/90 hover:scale-[1.02] transition-all shadow-lg"
+                >
+                    Start Free Trial
+                </button>
+                <button
+                    onClick={onContactSales}
+                    className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all"
+                >
+                    Talk to Sales
+                </button>
+            </div>
+            <p className="text-sm text-white/60 mt-6">
+                No credit card · 14-day trial · Cancel anytime
+            </p>
+        </div>
+    </section>
+);
+
+// ─── MOBILE STICKY BOTTOM CTA BAR ─────────────────────────────────────────
+const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-[200] bg-white border-t border-slate-200 px-4 py-3 flex gap-2 shadow-lg">
+        <button
+            onClick={onContactSales}
+            className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+        >
+            Talk to Sales
+        </button>
+        <button
+            onClick={onSignup}
+            className="flex-[1.5] py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+        >
+            Start Free Trial
+        </button>
+    </div>
+);
+
+// ─── WHATSAPP FLOATING ACTION BUTTON ──────────────────────────────────────
+const WhatsAppFAB: React.FC = () => (
+    <a
+        href="https://wa.me/2348000000000?text=Hi%20PracticePro%2C%20I'd%20like%20to%20learn%20more"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-[200] w-14 h-14 rounded-full bg-[#25D366] shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+        aria-label="Chat with us on WhatsApp"
+    >
+        <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+    </a>
+);
+
 // ─── ROOT COMPONENT ──────────────────────────────────────────────────────
 
 export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ initialProduct }) => {
@@ -1553,11 +1905,20 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 onLogin={() => openModal('login')}
                 onSignup={openSignup}
                 onResources={() => setShowResources(true)}
+                onContactSales={() => openContactSales('Nav')}
                 activeProduct={activeProduct}
                 setActiveProduct={handleProductSwitch}
                 productChosen={productChosen}
                 onBackToHub={handleBackToHub}
             />
+
+            {/* Skip to content link for accessibility */}
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold"
+            >
+                Skip to content
+            </a>
 
             {!productChosen ? (
                 <HubHero
@@ -1566,14 +1927,27 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     highlightKey={0}
                 />
             ) : (
-                <main key={activeProduct} className="animate-swap-in">
+                <main key={activeProduct} id="main-content" className="animate-swap-in">
                     <HomeSection onSignup={openSignup} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
                     <StatsDemarcator activeProduct={activeProduct} />
                     <FeaturesSection activeProduct={activeProduct} />
                     <TrustBadgesStrip />
+                    <AICapabilitiesSection />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
+                    <HowItWorksSection />
+                    <TestimonialsSection />
+                    <FAQSection />
+                    <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} />
                 </main>
             )}
+
+            {/* Mobile sticky bottom CTA bar */}
+            {productChosen && (
+                <MobileStickyCTA onSignup={openSignup} onContactSales={() => openContactSales('Mobile Sticky CTA')} />
+            )}
+
+            {/* WhatsApp floating action button */}
+            <WhatsAppFAB />
 
             <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={() => setIsContactDrawerOpen(false)} source={contactDrawerSource} />
             <Footer
