@@ -621,10 +621,21 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             // when a route was opened directly (e.g. deep link from a
             // notification). Previously fell through to window.history.back()
             // which could EJECT the user from the app entirely on a fresh tab.
-            // Now: if we're on a detail view, go to the parent list view.
-            // Otherwise, go to the dashboard.
-            const currentEntry = history[historyIndex] || { view: 'dashboard' };
-            const view = currentEntry.view;
+            // Now: if we're on a detail view or legal doc, go to the parent
+            // view. Otherwise, go to the dashboard.
+            //
+            // BUG FIX (this session): The previous implementation read
+            // `history[historyIndex].view`, but `history` is initialised to
+            // `[{view: 'dashboard'}]` on first mount — so for a deep-linked
+            // URL like /privacy-policy, `currentEntry.view` was always
+            // 'dashboard', never the actual current view. This caused legal
+            // docs to fall through to the default 'dashboard' branch and call
+            // `navigate('/dashboard')`, which is not a valid route (the real
+            // dashboard lives at `/`). We now use the URL-derived `view`
+            // (which IS the actual current view) and also map legal docs to
+            // their parent ('resources') so deep-link visitors land on a
+            // sensible page instead of being routed to a non-existent URL.
+            const currentView = view;
             const parentMap: Record<string, string> = {
                 'matterDetail': 'matters',
                 'propertyDetail': 'properties',
@@ -633,13 +644,25 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 'contactDetail': 'contacts',
                 'editor': 'matters',
                 'atriumEngine': 'billing',
+                // Public legal/docs pages — fall back to Resources, which is
+                // the page that links to all of them. Better than 'dashboard'
+                // for unauthenticated visitors (who can't access dashboard).
+                'privacyPolicy': 'resources',
+                'termsOfService': 'resources',
+                'portalTermsOfUse': 'resources',
+                'dataProcessingAgreement': 'resources',
+                'cookiePolicy': 'resources',
+                'usagePolicy': 'resources',
             };
-            const parentView = parentMap[view] || 'dashboard';
-            // Use navigateTo to go to the parent view (resets history properly)
-            // We call navigate directly to avoid recursive goBack
-            navigate(`/${parentView}`);
+            const parentView = parentMap[currentView] || 'dashboard';
+            // BUG FIX: previously called `navigate(`/${parentView}`)` which
+            // produces `/dashboard` for the default case — but `/dashboard` is
+            // NOT a valid route (dashboard lives at `/`). Use the same
+            // view→path mapping that `navigateTo` uses.
+            const parentPath = parentView === 'dashboard' ? '/' : `/${parentView}`;
+            navigate(parentPath);
         }
-    }, [navigate, historyIndex, history]);
+    }, [navigate, historyIndex, history, view]);
 
     const goForward = React.useCallback(() => {
         if (historyIndex < history.length - 1) {

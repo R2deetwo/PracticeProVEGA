@@ -29,6 +29,21 @@ interface ResourcesPageProps {
     onTermsClick: () => void;
     onCookieClick?: () => void;
     onDPAClick?: () => void;
+    /** Optional: called when the user clicks "Start Free Trial". If not
+     * provided, the CTA falls back to `onBack`. Wired in App.tsx to
+     * `navigateTo('dashboard')`, which routes unauthenticated visitors to
+     * the LandingPage (where the signup modal lives). */
+    onStartTrial?: () => void;
+    /** Optional: called when the user clicks "Talk to Sales". Same fallback
+     * and wiring as `onStartTrial`. */
+    onContactSales?: () => void;
+    /** Optional: called when the user clicks "Usage Policy" in the Legal tab.
+     * If not provided, the button is hidden (since UsagePolicy is optional
+     * in some deployments). */
+    onUsageClick?: () => void;
+    /** Optional: called when the user clicks "Portal Terms of Use" in the
+     * Legal tab. */
+    onPortalTermsClick?: () => void;
     activeProduct: 'vega' | 'atrium';
     setActiveProduct?: (p: 'vega' | 'atrium') => void;
 }
@@ -1159,7 +1174,7 @@ const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
 
 // ─── ROOT COMPONENT ───────────────────────────────────────────────────────────
 
-const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, activeProduct, setActiveProduct }) => {
+const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, onStartTrial, onContactSales, onUsageClick, onPortalTermsClick, activeProduct, setActiveProduct }) => {
     const isVega = activeProduct === 'vega';
     const [whatsNewFilter, setWhatsNewFilter] = useState<'all' | 'vega' | 'atrium' | 'komplete'>(activeProduct);
     const [activeTab, setActiveTab] = useState<'whatsnew' | 'papers' | 'guides' | 'compliance' | 'legal'>('whatsnew');
@@ -1193,56 +1208,81 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
             style={{ colorScheme: 'light' }}
             data-resources-root
         >
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
-                <div className="container mx-auto px-6 h-16 flex items-center gap-4">
-                    <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+            {/* Header — sticky at the very top */}
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
+                <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-4">
+                    <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors shrink-0">
                         <ArrowLeftIcon className="w-4 h-4" />
-                        Back
+                        <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="h-4 w-px bg-slate-200" />
-                    <div className="flex items-center gap-2">
-                        <Logo className="h-5 w-5 text-primary-600" />
-                        <span className="font-bold text-slate-900">PracticePro</span>
-                        <span className="text-slate-400">/</span>
-                        <span className="text-slate-600 font-medium flex items-center">
-                            Resources
-                            <span className={`text-2xs ml-2 px-1.5 py-0.5 rounded font-bold tracking-wider ${productBadge}`}>
+                    <div className="h-4 w-px bg-slate-200 shrink-0" />
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Logo className="h-5 w-5 text-primary-600 shrink-0" />
+                        <span className="font-bold text-slate-900 truncate">PracticePro</span>
+                        <span className="text-slate-400 shrink-0">/</span>
+                        <span className="text-slate-600 font-medium flex items-center min-w-0">
+                            <span className="truncate">Resources</span>
+                            <span className={`text-2xs ml-2 px-1.5 py-0.5 rounded font-bold tracking-wider shrink-0 ${productBadge}`}>
                                 {isVega ? 'VEGA' : 'ATRIUM'}
                             </span>
                         </span>
                     </div>
                 </div>
+                {/* Sticky tab bar — sits below the header so users can switch
+                    tabs without scrolling back to the top. Previously the tab
+                    bar was part of the scrolling content, which made navigation
+                    awkward on long pages (e.g. the White Papers list). */}
+                <div className="border-t border-slate-100 bg-white/80 backdrop-blur-sm">
+                    <div className="container mx-auto px-4 sm:px-6">
+                        <div className="flex gap-1 overflow-x-auto no-scrollbar" role="tablist">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => { setActiveTab(tab.key); scrollToTop(); }}
+                                    role="tab"
+                                    aria-selected={activeTab === tab.key}
+                                    className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
+                                        activeTab === tab.key
+                                            ? `${isVega ? 'border-amber-500 text-amber-600' : 'border-emerald-500 text-emerald-600'}`
+                                            : 'border-transparent text-slate-500 hover:text-slate-900'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="container mx-auto px-6 py-16 max-w-5xl">
+            <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-16 max-w-5xl">
 
-                {/* Page Hero */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-16">
-                    <div>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border bg-primary-50 text-primary-700 border-primary-200 mb-5">
+                {/* Page Hero — reduced top padding on mobile; toggle wraps below on small screens */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-10 sm:mb-12">
+                    <div className="min-w-0">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border bg-primary-50 text-primary-700 border-primary-200 mb-4">
                             <SparklesIcon className="w-3 h-3" />
                             Knowledge Base
                         </span>
-                        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 mb-4">Resources & Documentation</h1>
-                        <p className="text-lg text-slate-500 max-w-2xl leading-relaxed">
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-slate-900 mb-3">Resources & Documentation</h1>
+                        <p className="text-base sm:text-lg text-slate-500 max-w-2xl leading-relaxed">
                             {isVega
                                 ? 'Research papers, compliance documentation, and product guides to help your firm get the most from PracticePro — and stay ahead of regulatory requirements.'
                                 : 'PropTech research, compliance documentation, and product guides to help you scale your property management operations.'}
                         </p>
                     </div>
-                    {/* Toggle */}
+                    {/* Product toggle — full-width on mobile, auto-width on desktop */}
                     {setActiveProduct && (
-                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0 self-start">
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0 self-start w-full sm:w-auto">
                             <button
                                 onClick={() => setActiveProduct('vega')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Law Firms
                             </button>
                             <button
                                 onClick={() => setActiveProduct('atrium')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Property Managers
                             </button>
@@ -1250,24 +1290,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     )}
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex gap-1 mb-8 border-b border-slate-200 overflow-x-auto" role="tablist">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.key}
-                            onClick={() => { setActiveTab(tab.key); scrollToTop(); }}
-                            role="tab"
-                            aria-selected={activeTab === tab.key}
-                            className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
-                                activeTab === tab.key
-                                    ? `${isVega ? 'border-amber-500 text-amber-600' : 'border-emerald-500 text-emerald-600'}`
-                                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                {/* (Tab bar is now sticky in the header — no longer rendered here) */}
 
                 {/* What's New — with product filter */}
                 {activeTab === 'whatsnew' && (
@@ -1379,45 +1402,163 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 </section>
                 )}
 
-                {/* Legal Notices */}
+                {/* Legal Notices — redesigned as cards for visual consistency
+                    with the White Papers, Guides, and Compliance tabs. Previously
+                    this tab showed four plain buttons in a row, which felt sparse
+                    and inconsistent with the rest of the page. */}
                 {activeTab === 'legal' && (
-                <section className="bg-white border border-slate-200 rounded-2xl p-8">
-                    <h2 className="text-lg font-bold text-slate-900 mb-2">Legal Notices</h2>
-                    <p className="text-sm text-slate-500 mb-6">Governing documents for your use of PracticePro {isVega ? 'VEGA' : 'ATRIUM'}</p>
-                    <div className="flex flex-wrap gap-3">
+                <section className="mb-16">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-900">
+                                Legal Notices
+                                <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
+                            </h2>
+                            <p className="text-sm text-slate-500">Governing documents for your use of PracticePro {isVega ? 'VEGA' : 'ATRIUM'}</p>
+                        </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {/* Privacy Policy */}
                         <button
                             onClick={onPrivacyClick}
-                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
                         >
-                            Privacy Policy
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                        <h3 className="font-bold text-slate-900 text-sm">Privacy Policy</h3>
+                                        <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed">How we collect, use, and protect your personal data under the NDPA 2023.</p>
+                                </div>
+                            </div>
                         </button>
+                        {/* Terms of Service */}
                         <button
                             onClick={onTermsClick}
-                            className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
                         >
-                            Terms of Service
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                        <h3 className="font-bold text-slate-900 text-sm">Terms of Service</h3>
+                                        <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed">The rules and conditions that govern your use of the platform.</p>
+                                </div>
+                            </div>
                         </button>
-                        <button onClick={onCookieClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-                            Cookie Policy
+                        {/* Cookie Policy */}
+                        <button
+                            onClick={onCookieClick}
+                            className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                        <h3 className="font-bold text-slate-900 text-sm">Cookie Policy</h3>
+                                        <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed">What cookies we use, why, and how to control them — in plain English.</p>
+                                </div>
+                            </div>
                         </button>
-                        <button onClick={onDPAClick} className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-                            Data Processing Agreement
+                        {/* Data Processing Agreement */}
+                        <button
+                            onClick={onDPAClick}
+                            className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                        <h3 className="font-bold text-slate-900 text-sm">Data Processing Agreement</h3>
+                                        <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed">How we process and safeguard personal data on your behalf.</p>
+                                </div>
+                            </div>
                         </button>
+                        {/* Usage Policy (optional — only render if handler provided) */}
+                        {onUsageClick && (
+                            <button
+                                onClick={onUsageClick}
+                                className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <h3 className="font-bold text-slate-900 text-sm">Usage Policy</h3>
+                                            <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                        </div>
+                                        <p className="text-xs text-slate-500 leading-relaxed">Acceptable use rules — what you can and can't do on the platform.</p>
+                                    </div>
+                                </div>
+                            </button>
+                        )}
+                        {/* Portal Terms of Use (optional — only render if handler provided) */}
+                        {onPortalTermsClick && (
+                            <button
+                                onClick={onPortalTermsClick}
+                                className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <h3 className="font-bold text-slate-900 text-sm">Portal Terms of Use</h3>
+                                            <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                        </div>
+                                        <p className="text-xs text-slate-500 leading-relaxed">Terms for {isVega ? 'clients' : 'residents'} using the {isVega ? 'Client' : "Residents'"} Portal.</p>
+                                    </div>
+                                </div>
+                            </button>
+                        )}
                     </div>
                 </section>
                 )}
 
-                {/* CTA Footer */}
-                <div className="mt-12 mb-8 p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center">
-                    <h3 className="text-xl font-bold text-white mb-2">Ready to get started?</h3>
-                    <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
-                        {isVega ? 'Start your 30-day free trial of PracticePro Vega today.' : 'Start your 30-day free trial of PracticePro Atrium today.'}
+                {/* CTA Footer — fixed: previously both buttons called `onBack`,
+                    which would route users backward in browser history (often
+                    back to the LandingPage, but unpredictable for deep-link
+                    visitors). Now uses dedicated `onStartTrial` and
+                    `onContactSales` callbacks wired in App.tsx, with a safe
+                    fallback to `onBack` if the callbacks aren't provided. */}
+                <div className="mt-12 mb-8 p-8 sm:p-10 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 text-center">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Ready to get started?</h3>
+                    <p className="text-slate-300 text-sm mb-6 max-w-md mx-auto">
+                        {isVega ? 'Start your 30-day free trial of PracticePro Vega today. No credit card required.' : 'Start your 30-day free trial of PracticePro Atrium today. No credit card required.'}
                     </p>
-                    <div className="flex gap-3 justify-center">
-                        <button onClick={onBack} className="px-6 py-3 rounded-xl bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button
+                            onClick={() => (onStartTrial || onBack)()}
+                            className="px-6 py-3 rounded-xl bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors shadow-lg"
+                        >
                             Start Free Trial
                         </button>
-                        <button onClick={onBack} className="px-6 py-3 rounded-xl border border-slate-600 text-white text-sm font-bold hover:bg-white/10 transition-colors">
+                        <button
+                            onClick={() => (onContactSales || onBack)()}
+                            className="px-6 py-3 rounded-xl border border-slate-600 text-white text-sm font-bold hover:bg-white/10 transition-colors"
+                        >
                             Talk to Sales
                         </button>
                     </div>

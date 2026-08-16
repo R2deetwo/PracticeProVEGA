@@ -422,7 +422,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
             case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
             case 'usagePolicy': return <UsagePolicy onBack={goBack} />;
-            case 'resources': return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={(p) => { /* product switch on resources page */ }} />;
+            case 'resources': return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => navigateTo('dashboard')} onContactSales={() => navigateTo('dashboard')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={(p) => { /* product switch on resources page */ }} />;
             case 'securityAccess': return <SecurityAccessView onBack={goBack} />;
             default: return <NotFoundView />;
         }
@@ -584,7 +584,7 @@ export const App: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { startTour } = useOnboarding();
     const ui = useUI();
-    const { isSessionLocked, setIsSessionLocked } = ui;
+    const { isSessionLocked, setIsSessionLocked, goBack } = ui;
 
     // ─── Push Notifications: Register device on native platform ────────────
     // Registers the device with FCM on app boot (if native + logged in).
@@ -1235,13 +1235,21 @@ export const App: React.FC = () => {
                 return null;
             }
 
-            if (view === 'termsOfService') return <TermsOfService onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
-            if (view === 'portalTermsOfUse') return <PortalTermsOfUse onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
-            if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
-            if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
-            if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;
-            if (view === 'usagePolicy') return <UsagePolicy onBack={() => navigateTo('dashboard')} />;
-            if (view === 'resources') return <ResourcesPage onBack={() => navigateTo('dashboard')} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={() => {}} />;
+            // BUG FIX (this session): All public legal/docs pages now use
+            // `goBack` (history-aware) instead of `navigateTo('dashboard')`.
+            // Previously, clicking Back on a legal doc ALWAYS routed to the
+            // dashboard — but for unauthenticated visitors, `/` (dashboard)
+            // shows the LandingPage, so they were bounced back to the
+            // marketing site instead of returning to the Resources page they
+            // came from. `goBack` uses browser history, so visitors correctly
+            // return to whatever page launched the legal doc.
+            if (view === 'termsOfService') return <TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
+            if (view === 'portalTermsOfUse') return <PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
+            if (view === 'privacyPolicy') return <PrivacyPolicy onBack={goBack} />;
+            if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={goBack} />;
+            if (view === 'cookiePolicy') return <CookiePolicy onBack={goBack} />;
+            if (view === 'usagePolicy') return <UsagePolicy onBack={goBack} />;
+            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => navigateTo('dashboard')} onContactSales={() => navigateTo('dashboard')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={() => {}} />;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
