@@ -63,7 +63,7 @@ const ATRIUM_WHITE_PAPERS = [
 
 The real estate management sector in Nigeria is undergoing a much-needed digital transformation. For decades, property managers have relied on fragmented systems—manual ledgers, disconnected Excel spreadsheets, fragmented WhatsApp groups, and paper receipts. While these methods may suffice for a portfolio of three to five properties, they become catastrophic liabilities as portfolios scale.
 
-Today's Nigerian property manager is not just collecting rent; they are managing facility maintenance lifecycles, ensuring regulatory compliance with state tenancy laws (like the Lagos State Tenancy Law 2011), handling complex vendor relationships, and providing transparent financial reporting to absentee landlords or corporate investors.
+Today's Nigerian property manager is not just collecting rent; they are managing facility maintenance lifecycles, ensuring regulatory compliance with the tenancy and recovery of premises laws of the state where each property is located (every Nigerian state and the FCT has its own tenancy law), handling complex vendor relationships, and providing transparent financial reporting to absentee landlords or corporate investors.
 
 ## 1. The True Cost of Manual Rent Collection
 
@@ -234,7 +234,7 @@ const ATRIUM_COMPLIANCE_DOCS = [
     {
         icon: <DocumentIcon className="w-6 h-6 text-amber-600" />,
         title: 'Tenancy Law Compliance Guide',
-        description: 'An overview of statutory requirements for rent collection, quit notices, and tenancy agreements across major Nigerian jurisdictions, and how Atrium helps maintain audit-ready records.',
+        description: 'An overview of statutory requirements for rent collection, quit notices, and tenancy agreements across all 36 Nigerian states and the FCT — each state has its own tenancy and recovery of premises law — and how Atrium helps maintain audit-ready records.',
         badge: 'Legal',
         badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
     }
@@ -628,7 +628,7 @@ ARIA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Get
 ### Principles of Good Prompting
 The way you ask a question determines the quality of the answer. Use the "Context + Task + Format" framework:
 
-- **Context:** Provide the background. *"We act for a landlord in Lagos who wishes to evict a commercial tenant for non-payment of rent for 6 months."*
+- **Context:** Provide the background. *"We act for a landlord with a property in Lagos who wishes to evict a commercial tenant for non-payment of rent for 6 months."* (Replace "Lagos" with the state where your property is located — ARIA applies the tenancy law of that state.)
 - **Task:** State exactly what you need. *"Draft a 7-day statutory notice of owner's intention to recover premises."*
 - **Format:** Specify how you want it delivered. *"Format this as a formal legal letter with placeholders for names."*
 

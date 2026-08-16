@@ -528,7 +528,7 @@ const PropertyDetailViewContent: React.FC = () => {
         }
 
         if (type === 'Quit') {
-            prompt += `\n**SPECIFIC INSTRUCTION:** This is a Notice to Quit. Ensure it complies with the Tenancy Law of Lagos State (or applicable State Law). Cite the expiration of the current term as the reason. Give the statutory notice period required for a ${rentFreq || 'yearly'} tenant.`;
+            prompt += `\n**SPECIFIC INSTRUCTION:** This is a Notice to Quit. Ensure it complies with the Tenancy Law / Recovery of Premises Law of the state where the property is located (e.g., Lagos Tenancy Law 2011, Abuja Tenancy Law 2013, Rivers State Tenancy Law, etc.). Cite the expiration of the current term as the reason. Give the statutory notice period required for a ${rentFreq || 'yearly'} tenant under that state's law.`;
         } else if (type === 'Demand') {
             prompt += `\n**SPECIFIC INSTRUCTION:** This is a Demand Notice for overdue rent. State clearly the arrears and the consequence of failure to pay (legal action for recovery of premises).`;
         }
@@ -743,8 +743,9 @@ const PropertyDetailViewContent: React.FC = () => {
     //   4. Auto-qualify for 7-Day Notice of Owner's Intention on expiry
     //
     // "Mark as Delivered" has been removed — "Served" is the sole statutory
-    // milestone under Lagos State Tenancy Law. The countdown activates
-    // immediately on serve.
+    // milestone under state tenancy / recovery of premises laws. The countdown
+    // activates immediately on serve. The specific notice period is determined
+    // by the law of the state where the property is located.
 
     const logEvictionEvent = (tracker: EvictionTracker, event: EvictionEvent): EvictionTracker => {
         const eventLog = tracker.eventLog || [];
@@ -863,7 +864,7 @@ const PropertyDetailViewContent: React.FC = () => {
         prompt += `\n**CONTEXT:**\n`;
         prompt += `- Notice to Quit was served on ${tracker.quitNoticeServedDate ? new Date(tracker.quitNoticeServedDate).toLocaleDateString('en-GB') : '[DATE]'}\n`;
         prompt += `- The statutory notice period has expired and the tenant remains in possession\n`;
-        prompt += `\n**SPECIFIC INSTRUCTION:** This is a 7-Day Notice of Owner's Intention to Recover Premises under the the applicable state Recovery of Premises Law (e.g., Lagos Tenancy Law 2011). The tenant has failed to yield possession after the quit notice period expired. Give 7 days from service of this notice for the tenant to vacate, failing which legal proceedings for recovery of premises will be commenced.\n`;
+        prompt += `\n**SPECIFIC INSTRUCTION:** This is a 7-Day Notice of Owner's Intention to Recover Premises under the Recovery of Premises Law of the state where the property is located (e.g., Lagos Tenancy Law 2011, Abuja Tenancy Law 2013, Rivers State Tenancy Law, etc.). The tenant has failed to yield possession after the quit notice period expired. Give 7 days from service of this notice for the tenant to vacate, failing which legal proceedings for recovery of premises will be commenced.\n`;
         prompt += `\n**FORMAT:** Use standard Nigerian legal formatting. Start with the Title centered.`;
 
         const draftTitle = `7-Day Notice - ${d.name || property.address.split(',')[0]}`;
