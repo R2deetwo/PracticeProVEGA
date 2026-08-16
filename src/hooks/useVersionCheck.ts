@@ -1,5 +1,5 @@
 /**
- * useVersionCheck — BULLETPROOF version detection.
+ * useVersionCheck — version detection with dedup to prevent repeat toasts.
  *
  * HOW IT WORKS
  * ------------
@@ -9,23 +9,26 @@
  *    compares the remote `buildTimestamp` against the baked-in local one.
  * 3. If they differ → a new deploy has shipped → show the refresh prompt.
  *
- * WHY TIMESTAMP INSTEAD OF SHA
- * ----------------------------
- * SHA comparison was fragile — Vercel/Cloudflare build environments don't
- * always have git context, causing SHA to fall back to 'unknown'. A build
- * timestamp is ALWAYS available (just `Date.now()` at build time) and is
- * guaranteed to be unique per build.
+ * DEDUP LOGIC (prevents toast from appearing twice for the same version):
+ * - When a new remote version is detected, its timestamp is stored in
+ *   sessionStorage as `practicepro_last_notified_version`.
+ * - On every subsequent check, if the remote timestamp matches the stored
+ *   value, the toast is NOT shown again.
+ * - The stored value is only cleared when the local and remote timestamps
+ *   MATCH (meaning the user has successfully loaded the new version).
+ * - This survives page reloads (sessionStorage is per-tab, persists across
+ *   navigation within the same tab).
  *
  * TRIGGERS
  * --------
- * - Every 30 seconds while the page is visible
- * - Immediately when the tab/window regains focus
- * - Immediately when the browser comes back online
- * - 3 seconds after mount (fast initial check)
+ * - Every 60 seconds while the page is visible
+ * - 10 seconds after mount (delayed to reduce false positives after refresh)
  */
 import { useEffect, useRef, useState } from 'react';
 
-const POLL_INTERVAL_MS = 30 * 1000; // 30 seconds
+const POLL_INTERVAL_MS = 60 * 1000; // 60 seconds (was 30 — less aggressive)
+const INITIAL_DELAY_MS = 10_000; // 10 seconds (was 5 — more settling time)
+const STORAGE_KEY = 'practicepro_last_notified_version';
 
 export interface VersionCheckState {
   updateAvailable: boolean;
@@ -35,7 +38,6 @@ export interface VersionCheckState {
   dismiss: () => void;
 }
 
-// Get the baked-in build timestamp. Falls back to 0 if not set.
 const LOCAL_BUILD_TIMESTAMP = (import.meta as any).env?.VITE_BUILD_TIMESTAMP
   ? Number((import.meta as any).env.VITE_BUILD_TIMESTAMP)
   : 0;
@@ -45,21 +47,26 @@ export function useVersionCheck(): VersionCheckState {
   const [remoteTimestamp, setRemoteTimestamp] = useState<number | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
   const localTimestampRef = useRef<number>(LOCAL_BUILD_TIMESTAMP);
-  // Track the remote timestamp we already notified the user about.
-  // Stored in sessionStorage so it survives the refresh() page reload —
-  // prevents the toast from reappearing for the SAME version after refresh.
-  const lastNotifiedRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // On mount, check if we already notified about a specific remote version.
-    // If so, don't re-notify for that same version (prevents the "pop up
-    // again after refresh" bug).
-    try {
-      const stored = sessionStorage.getItem('practicepro_last_notified_version');
-      if (stored) lastNotifiedRef.current = Number(stored);
-    } catch {}
-
     let cancelled = false;
+
+    const getNotifiedVersion = (): number | null => {
+      try {
+        const stored = sessionStorage.getItem(STORAGE_KEY);
+        return stored ? Number(stored) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const setNotifiedVersion = (ts: number) => {
+      try { sessionStorage.setItem(STORAGE_KEY, String(ts)); } catch {}
+    };
+
+    const clearNotifiedVersion = () => {
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    };
 
     const check = async () => {
       try {
@@ -79,48 +86,46 @@ export function useVersionCheck(): VersionCheckState {
         const localBuild = localTimestampRef.current;
 
         if (localBuild > 0 && remoteBuild > 0 && localBuild !== remoteBuild) {
-          // Don't re-notify for the same remote version we already told the user about.
-          // This prevents the toast from reappearing after the user clicks "Refresh Now"
-          // and the page reloads — the new page still has the old local timestamp until
-          // the fresh JS bundle loads, but we already notified about this remote version.
-          if (lastNotifiedRef.current === remoteBuild) {
-            return; // Already notified — skip silently
+          // Version mismatch — but have we already notified about THIS remote version?
+          const alreadyNotified = getNotifiedVersion();
+          if (alreadyNotified === remoteBuild) {
+            // Already notified for this exact version — do NOT show toast again.
+            // This is the key dedup: even after refresh(), the new page checks
+            // sessionStorage and finds the same remoteBuild, so it skips.
+            return;
           }
 
-          // New version detected — record it so we don't re-notify
-          lastNotifiedRef.current = remoteBuild;
-          try { sessionStorage.setItem('practicepro_last_notified_version', String(remoteBuild)); } catch {}
-
+          // New version (or different from what we notified before) — show toast.
+          // Store IMMEDIATELY (not in refresh()) so it survives even if the
+          // user clicks Refresh Now before the next state update cycle.
+          setNotifiedVersion(remoteBuild);
           setRemoteTimestamp(remoteBuild);
           setUpdateAvailable(true);
           setDismissed(false);
           return;
         }
 
-        // Versions match — clear the notified flag so future updates will notify
-        if (lastNotifiedRef.current !== null) {
-          lastNotifiedRef.current = null;
-          try { sessionStorage.removeItem('practicepro_last_notified_version'); } catch {}
+        // Versions match — the user is on the latest version.
+        // Clear the notified flag so the NEXT deploy will trigger a toast.
+        if (getNotifiedVersion() !== null) {
+          clearNotifiedVersion();
         }
         setUpdateAvailable(false);
-      } catch (err) {
-        // Silent — don't spam console on network errors
+      } catch {
+        // Silent — network errors are expected, don't spam console
       }
     };
 
-    // Delay initial check to 5 seconds (was 3) to give the page more time
-    // to settle after a refresh, reducing false positives
-    const initialTimer = setTimeout(check, 5_000);
+    const initialTimer = setTimeout(check, INITIAL_DELAY_MS);
     const interval = setInterval(check, POLL_INTERVAL_MS);
 
-    const onFocus = () => {
-      // Don't check immediately on focus if we already notified — wait for the interval
-      if (lastNotifiedRef.current === null) check();
-    };
-    const onOnline = () => {
-      if (lastNotifiedRef.current === null) check();
-    };
-    const onVisibility = () => { if (!document.hidden && lastNotifiedRef.current === null) check(); };
+    // On focus/online/visibility: only check if we haven't already notified.
+    // If we have notified, the 60s interval will handle re-checking.
+    const alreadyNotified = () => getNotifiedVersion() !== null;
+    const onFocus = () => { if (!alreadyNotified()) check(); };
+    const onOnline = () => { if (!alreadyNotified()) check(); };
+    const onVisibility = () => { if (!document.hidden && !alreadyNotified()) check(); };
+
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisibility);
@@ -136,14 +141,18 @@ export function useVersionCheck(): VersionCheckState {
   }, []);
 
   const refresh = () => {
-    // Store the remote timestamp we're refreshing TO, so the new page
-    // doesn't re-notify for the same version. This is stored BEFORE
-    // cache clearing so it survives the reload.
-    if (remoteTimestamp) {
-      try { sessionStorage.setItem('practicepro_last_notified_version', String(remoteTimestamp)); } catch {}
-    }
+    // The remote timestamp was already stored in sessionStorage at detection
+    // time (in the check() function above). We don't need to store it again
+    // here. This was the bug: previously, refresh() tried to read
+    // remoteTimestamp from React state, which could be undefined if the
+    // state hadn't propagated yet. Now it's always in sessionStorage.
 
-    const AUTH_PATTERNS = [
+    // Clear all caches so the new JS bundle is fetched fresh.
+    try { if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {}); } catch {}
+
+    // Clear localStorage (except auth/session keys) so stale data doesn't
+    // interfere with the new version.
+    const PRESERVE_PATTERNS = [
       /^practicepro_cached_user$/,
       /^practicepro_user_session$/,
       /^practicepro_portal_session$/,
@@ -160,21 +169,22 @@ export function useVersionCheck(): VersionCheckState {
       /^practicepro_dismissed_tips$/,
       /^practicepro_last_seen_version$/,
       /^practicepro_push_registered_this_session$/,
+      /^practicepro_last_notified_version$/, // Preserve in localStorage too (belt-and-suspenders)
       /^draft_/,
       /^local_cached_files$/,
     ];
-    const isAuthOrUserData = (key: string) => AUTH_PATTERNS.some(p => p.test(key));
+    const shouldPreserve = (key: string) => PRESERVE_PATTERNS.some(p => p.test(key));
 
-    try { if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {}); } catch {}
     try {
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && !isAuthOrUserData(key)) keysToRemove.push(key);
+        if (key && !shouldPreserve(key)) keysToRemove.push(key);
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
     } catch {}
 
+    // Reload with cache-busting parameter
     const url = new URL(window.location.href);
     url.searchParams.set('_refresh', String(Date.now()));
     setTimeout(() => window.location.replace(url.toString()), 150);
