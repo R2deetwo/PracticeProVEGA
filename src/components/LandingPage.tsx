@@ -1465,8 +1465,8 @@ const AI_CAPABILITIES = {
             },
             {
                 title: 'Firm-Grade Security',
-                body: 'RAG and vector search are hard-filtered by firm_id. No cross-firm data leakage. Every query passes through requireFirmUser authentication. Matter-level access control.',
-                features: ['Row-level security by firm_id', 'Matter-scoped document access', 'Full audit trail on all AI queries'],
+                body: 'Your firm\'s data is fully isolated from every other firm on the platform. AI queries only access your matters, your documents, and your clients. No cross-firm data leakage — ever.',
+                features: ['Complete data isolation between firms', 'Matter-level access control', 'Full audit trail on all AI activity'],
             },
         ],
     },
@@ -1488,8 +1488,8 @@ const AI_CAPABILITIES = {
             },
             {
                 title: 'Portfolio-Grade Security',
-                body: 'RAG and vector search are hard-filtered by firm_id. No cross-firm data leakage. Every query passes through requireFirmUser authentication. Property-level access control.',
-                features: ['Row-level security by firm_id', 'Property-scoped document access', 'Full audit trail on all AI queries'],
+                body: 'Your portfolio data is fully isolated from every other firm on the platform. AI queries only access your properties, your tenants, and your financials. No cross-firm data leakage — ever.',
+                features: ['Complete data isolation between firms', 'Property-level access control', 'Full audit trail on all AI activity'],
             },
         ],
     },
@@ -1684,36 +1684,72 @@ const TestimonialsSection: React.FC = () => (
     </section>
 );
 
-// ─── FAQ SECTION (accordion) ─────────────────────────────────────────────
-const FAQ_ITEMS = [
-    {
-        q: "Is my data secure?",
-        a: "Yes. All data is isolated by firm ID with row-level security on Convex. We're NDPA 2023 compliant, offer 2FA, and never train AI on your data.",
-    },
-    {
-        q: "Can I pay in Naira?",
-        a: "Absolutely. Pay via bank transfer with proof upload, or use Paystack for card and USSD payments (currently activating). Manual bank transfer is the live default today.",
-    },
-    {
-        q: "What's the difference between Vega and Atrium?",
-        a: "Vega is for law firms — matter management, legal drafting, court reminders. Atrium is for property managers — rent collection, resident portals, visitor management. Komplete combines both.",
-    },
-    {
-        q: "Is there a free trial?",
-        a: "Yes. Vega offers a 14-day free trial on all paid tiers. Atrium offers a 14-day trial. Sentry Pass includes a 14-day free trial as an add-on.",
-    },
-    {
-        q: "Do you offer support?",
-        a: "Yes. Email support for all tiers. WhatsApp support for Growth and above. Dedicated account manager for Enterprise.",
-    },
-    {
-        q: "Can I switch between plans?",
-        a: "Yes. Upgrade or downgrade anytime. Prorated billing applies.",
-    },
-];
+// ─── FAQ SECTION (accordion, product-specific) ───────────────────────────
+const FAQ_ITEMS = {
+    shared: [
+        {
+            q: "Is my data secure?",
+            a: "Yes. Your data is fully isolated and never shared with other firms. We're NDPA 2023 compliant, offer 2FA, and never train AI on your data. All data is encrypted at rest and in transit.",
+        },
+        {
+            q: "Can I pay in Naira?",
+            a: "Absolutely. Pay via bank transfer with proof upload, or use Paystack for card and USSD payments (currently activating). Manual bank transfer is the live default today.",
+        },
+        {
+            q: "Is there a free trial?",
+            a: "Yes. All paid tiers include a 14-day free trial. No credit card required to start. Sentry Pass also includes a 14-day free trial as an add-on.",
+        },
+        {
+            q: "Do you offer support?",
+            a: "Yes. Email support for all tiers. WhatsApp support for Growth and above. Dedicated account manager for Enterprise and Komplete.",
+        },
+        {
+            q: "Can I switch between plans?",
+            a: "Yes. Upgrade or downgrade anytime. Prorated billing applies. Annual plans include a 30-day money-back guarantee.",
+        },
+    ],
+    vega: [
+        {
+            q: "How does the legal drafting work?",
+            a: "DraftPro is a rich-text editor built specifically for Nigerian legal documents. It handles A4 pagination, Nigerian legal fonts (Times New Roman), court-specific formatting, and placeholder guardrails that prevent printing until every blank is filled. ALOA, your AI copilot, can generate drafts, summarize cases, and research precedents — all within the editor.",
+        },
+        {
+            q: "Can I manage matters for multiple courts and jurisdictions?",
+            a: "Yes. Each matter is tagged with its court, judicial division, and matter type. The system supports all Nigerian court tiers (Supreme Court, Court of Appeal, Federal High Court, State High Courts, Magistrate Courts) and can handle matters from any jurisdiction with appropriate caveats.",
+        },
+        {
+            q: "Do court date reminders really work via WhatsApp?",
+            a: "Yes. Automated WhatsApp reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers. Client-facing reminders are opt-in per matter. Available on the Pro plan and above.",
+        },
+        {
+            q: "Can my clients access their case information?",
+            a: "Yes. The Client Portal lets clients view milestones, upload documents, submit KYC, and track case progress — without calling your office. Available on Growth and above (up to 20 clients), uncapped on Pro.",
+        },
+    ],
+    atrium: [
+        {
+            q: "How does rent collection work?",
+            a: "Tenants pay via bank transfer with proof upload, or through Paystack (card, bank, USSD — currently activating). Receipts generate automatically. The Revenue Monitor shows you who has paid, who hasn't, and how much is outstanding — in real time.",
+        },
+        {
+            q: "Can tenants use the portal on their phones?",
+            a: "Yes. The Resident Portal is mobile-first. Tenants can view payment status, download receipts, log maintenance tickets, and generate visitor passes — all from their phone, no app install required.",
+        },
+        {
+            q: "How does Sentry Pass (visitor management) work?",
+            a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 14-day free trial, then N15,000/month as an add-on.",
+        },
+        {
+            q: "What happens if a tenant doesn't pay?",
+            a: "The Revenue Monitor tracks defaulters by days overdue. You can send automated WhatsApp demand notices, calculate outstanding balances with late penalties, and draft statutory quit notices using Nigerian property law (Lagos State Tenancy Law, Land Use Act).",
+        },
+    ],
+};
 
-const FAQSection: React.FC = () => {
+const FAQSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
     const [openIndex, setOpenIndex] = React.useState<number | null>(0);
+    // Merge shared FAQs with product-specific FAQs
+    const allFaqs = [...FAQ_ITEMS.shared, ...FAQ_ITEMS[activeProduct]];
     return (
         <section className="py-20 md:py-28 bg-white">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
@@ -1722,11 +1758,11 @@ const FAQSection: React.FC = () => {
                         Questions? Answered.
                     </h2>
                     <p className="text-lg text-slate-500 mt-4">
-                        Everything you need to know before getting started.
+                        Everything you need to know about {activeProduct === 'vega' ? 'PracticePro Vega for law firms' : 'PracticePro Atrium for property managers'}.
                     </p>
                 </div>
                 <div className="space-y-3">
-                    {FAQ_ITEMS.map((item, i) => (
+                    {allFaqs.map((item, i) => (
                         <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
                             <button
                                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
@@ -2028,7 +2064,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                     <HowItWorksSection activeProduct={activeProduct} />
                     <TestimonialsSection />
-                    <FAQSection />
+                    <FAQSection activeProduct={activeProduct} />
                     <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} />
                 </main>
             )}
