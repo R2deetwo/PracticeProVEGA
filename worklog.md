@@ -7179,3 +7179,57 @@ Stage Summary:
 - Crawler verified 45/45 checks across Vega + Atrium product pages
 - Build green; zero regressions
 - Vercel deploying; Cloudflare needs manual wrangler deploy
+
+---
+Task ID: ai-capabilities-product-specific + pricing-audit-app-wide + icm-phase-3-complete
+Agent: Main Agent
+Task: Fix generic AI Capabilities section + apply pricing audit across entire app + complete ICM Phase 3
+
+Work Log:
+
+1. AI CAPABILITIES SECTION (was generic, now product-specific):
+- Rewrote AICapabilitiesSection to accept activeProduct prop
+- Vega: "Powered by ALOA. Built for Nigerian law." — amber accent, 3 cards:
+  * Legal Drafting & Analysis (DraftPro, Nigerian citations, cross-jurisdictional)
+  * PII Shield (client data: NIN, BVN, bank accounts)
+  * Firm-Grade Security (matter-level access, requireFirmUser)
+- Atrium: "Powered by ARIA. Built for Nigerian property." — emerald accent, 3 cards:
+  * Revenue Intelligence & Drafting (Revenue Monitor, demand notices, Land Use Act)
+  * PII Shield (tenant data: NIN, BVN, bank accounts)
+  * Portfolio-Grade Security (property-level access, requireFirmUser)
+- Each card has feature bullet list with checkmark icons
+- Assistant name badge with full expansion at top
+
+2. PRICING AUDIT — APPLIED ACROSS ENTIRE APP (22 functional changes):
+- convex/founderMetrics.ts: Split single price map into product-aware VEGA/ATRIUM maps; Komplete N2.2M; calcPlatformRevenue + calcMonthlySubscription now product-aware (was underreporting Atrium revenue by 50-60%)
+- src/components/settings/SubscriptionSettings.tsx: isAnnualOnlyProduct = isUnified only (Atrium no longer annual-only); billing toggle now shows for Atrium
+- src/components/modals/OnboardingWizard.tsx: Atrium billing toggle enabled (was hidden); annual-only badge now Komplete-only; hardcoded 'Core' label → tier.label (shows 'Free'/'Starter')
+- src/components/UsagePolicy.tsx: Legal text updated — both Vega and Atrium offer monthly/annual; Komplete annual-only; 30-day money-back guarantee; WhatsApp limits updated (Starter: 250, was Core: 100)
+- index.html JSON-LD: Vega Pro price 75000→80000; Atrium Core→'Atrium Starter (Annual)' price 150000→490000; Atrium Growth price 350000→965000
+- src/services/communicationIntegration.ts: ChakraHQ plan recommendations updated — Atrium Starter 10 units/250 WhatsApp (was 15/100); Atrium Growth 25 units (was 35)
+- src/constants/addons.ts: Seat add-ons excluded from Komplete (applicableProducts: ['legal','vega','property','atrium'] — was 'all')
+- src/components/LandingPage.tsx: Removed static 'Billed Annually' pill text (Atrium now has monthly)
+- src/constants/tiers.ts: Updated stale comments (Atrium no longer annual-only; Komplete is the only annual-only product)
+
+3. ICM PHASE 3 COMPLETE (all 5 primary prompts now markdown-sourced):
+- Updated ai/prompts/01-aloa-legal-identity.md with full ALOA identity + {{placeholders}}
+- Updated ai/prompts/02-aria-property-identity.md with full ARIA identity + {{placeholders}}
+- Added renderAloaIdentity() + renderAriaIdentity() to loadPrompts.ts
+- Wired up AgencyHub.ts: ALOA legal identity now reads from 01-aloa-legal-identity.md (was 70-line inline string, now 8-line loader call)
+- Wired up PropertyManagementAgent.ts: ARIA identity now reads from 02-aria-property-identity.md (was 65-line inline string, now 8-line loader call)
+- Fixed ARIA expansion drift: 'Asset & Revenue Intelligent Assistant' → 'Asset & Revenue Intelligence Assistant' (canonical form)
+- ICM completeness: ~35% → ~50% (all 5 primary prompts now ICM-complete)
+
+4. VERIFICATION:
+- Convex TS: passes clean
+- Vite build: passes in 22.20s
+- Identity content verified bundled in production build (grep confirms 10 matches for identity strings)
+- Git: 3 commits pushed (08ad98a, 967d96c) to origin/main + origin/master
+
+Stage Summary:
+- AI Capabilities section FIXED: product-specific with clear Legal vs Property usage
+- Pricing audit APPLIED across entire app: 22 functional changes, 0 mismatches remaining
+- ICM Phase 3 COMPLETE: all 5 primary prompts (01, 02, 03a, 03b, 04) now markdown-sourced via Vite ?raw imports
+- ARIA identity drift FIXED: 'Intelligent' → 'Intelligence' across all locations
+- Build green; zero regressions
+- Vercel auto-deploying; Cloudflare needs manual wrangler deploy
