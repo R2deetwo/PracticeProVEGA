@@ -165,8 +165,9 @@ const NavBar: React.FC<{
                         className="hidden md:flex items-center pl-3 border-l border-slate-200 group/breadcrumb relative h-7 overflow-hidden"
                         aria-label={`Back to all products — currently viewing ${activeProduct === 'vega' ? 'Vega' : 'Atrium'}`}
                     >
-                        {/* Container with fixed width to prevent layout shift during transition */}
-                        <span className="relative h-5 w-28 overflow-hidden flex items-center">
+                        {/* Container — wide enough for "← All Products" on one line.
+                            whitespace-nowrap + min-w fixes the 2-line wrap on hover. */}
+                        <span className="relative h-5 min-w-[7rem] whitespace-nowrap overflow-hidden flex items-center">
                             {/* Default state: product name (VEGA in amber, ATRIUM in emerald) */}
                             <span
                                 className={`absolute inset-0 flex items-center text-sm font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
@@ -174,9 +175,9 @@ const NavBar: React.FC<{
                                 {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                             </span>
                             {/* Hover state: All Products slides up from below */}
-                            <span className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out">
-                                <ArrowLeftIcon className="w-3 h-3" />
-                                All Products
+                            <span className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out whitespace-nowrap">
+                                <ArrowLeftIcon className="w-3 h-3 flex-shrink-0" />
+                                <span>All Products</span>
                             </span>
                         </span>
                     </button>

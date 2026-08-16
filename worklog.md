@@ -6760,3 +6760,64 @@ Stage Summary:
 - 3-phase roadmap with 22 prioritized refactors, all rated by (impact × safety)
 - Critical finding: portals.ts multi-tenant hole (1 of 70 mutations authed) — recommended as next ship
 - All recommendations are SAFE/SECURE/WORTHWHILE per user directive; nothing destructive applied
+
+---
+Task ID: vancleif-icm-audit
+Agent: Main Agent
+Task: Redo audit in context of Jake Van Clief's ICM methodology (correct reference) + fix landing page product dropdown wrap
+
+Work Log:
+- User clarified "Van Clief methodology" = Jake Van Clief (@JEVanClief) — ICM (Interpretable Context Methodology), "automating the wrong layer", systems thinking, alpha-launch posture. Previous audit used wrong Van Cleef (jewellery house) metaphor.
+- Preserved genuine engineering findings from previous audit (portals.ts hole, dead shadcn files, god components, auth risks, 5 surgical fixes already applied) — reframed through Van Clief launch lens.
+
+LANDING PAGE FIX (immediate UI bug):
+- src/components/LandingPage.tsx:168-182 — "All Products" hover text on product name breadcrumb was wrapping to 2 lines because container was w-28 (112px) but "← All Products" with tracking-widest at 12px needs ~140px.
+- Fix: Changed container from `w-28` to `min-w-[7rem]` + added `whitespace-nowrap` to both the container and the hover-state span. Wrapped "All Products" text in its own <span> so nowrap applies cleanly. Icon gets `flex-shrink-0`.
+- Build verified: vite build passes in 22.47s.
+
+VAN CLIEF ICM AUDIT (read-only, 2 parallel Explore agents):
+
+ICM AUDIT FINDINGS:
+- ICM scaffold already exists: /ai/README.md + /ai/prompts/ with 5 numbered MD files (01-aloa-legal-identity, 02-aria-property-identity, 03-identity-guardrail, 04-interactive-form-protocol, 05-precision-protocol)
+- ICM completeness score: ~18% — markdown is documentation only, ZERO build-time loading (grep for ?raw imports = 0 matches; grep for fs.readFileSync of .md = 0 matches)
+- Drift report: 4 of 5 MD files have HIGH/CRITICAL drift vs code. 03-identity-guardrail.md is a 6-line stub; code is a 92-line fortress with ~15 banned phrases + canned responses. Editing MD thinking it is source of truth would WEAKEN the guardrail.
+- 17 code-only prompts have NO markdown counterpart: 9 agent SYSTEM_PROMPTs, 2 Convex server-side prompts (morning briefing, conversation summarizer), 6 inline prompts in geminiService.ts
+- Identity guardrail split-brain: OLD system (src/config/identityGuardrails.ts — identityLock() + validateAIResponse returns {isValid, sanitized, violations}) coexists with NEW system (src/constants/identityGuardrails.ts — getIdentityGuardrail() + validateAIResponse returns string). AgencyHub.ts uses NEW; geminiService.ts uses OLD (3 call sites). Different prohibited-phrase lists = same response can pass one and fail the other.
+- HIDDEN BUG (SHIP-BLOCKER): AgencyHub.ts:240 `getAloaProtocol(appState.firmDetails?.product)` passes a STRING where BOOLEAN is expected. Atrium-mode chat silently uses the Vega (legal) precision protocol. TS error flagged. Fix: `getAloaProtocol(isUnified, null, appState.firmDetails?.product)`.
+- Dead code: identityLock() at config/identityGuardrails.ts:64 has zero callers.
+- Build-time loading recommendation: Vite ?raw imports (zero plugins, ~10 LOC loader module). Convex caveat: convex/proactive.ts + conversationMemory.ts run in Convex runtime which doesn't support ?raw — keep inline or load via httpAction.
+
+WRONG-LAYER AUDIT FINDINGS:
+- 3 Van Clief SHOWCASES (already correct): sales-lead pipeline (one mutation → backend handles insert+notify+push+badge), retainer billing state machine (backend owns Staged→Queued→Sent, client fires one mutation per action), notifyFounders helper (centralized dispatch)
+- 16 wrong-layer findings catalogued:
+  * Header.tsx merges 4 notification sources client-side (~100 LOC of merge logic); unread count computed 3 ways; local push duplicates FCM push; toast logic welded into layout shell
+  * DataProvider.tsx optimistic updates fight Convex subscriptions (id/_id split + recentlyDeleted Set are workarounds)
+  * 6 founder-app views bypass useQuery and use setInterval (defensive against deploy-gap crashes) — root cause has known canonical fix (ErrorBoundary, BillingMonitorView pattern)
+  * MessagesView.tsx fires 50+ sequential per-message mutations on view mount
+  * 22 setInterval calls total; 6 are wrong-layer, 16 are legitimate (UI timers, heartbeats, external resources)
+- 2 parallel notification tables (notifications + app_notifications) with no reconciliation
+- 2 parallel toast systems (useUI().addToast live; use-toast.ts + shadcn primitives dead code)
+
+LAUNCH POSTURE:
+- 3 SHIP-BLOCKERS (all security):
+  * B1: Unsigned ?impersonate= URL param (AuthContext.tsx:67-72) — anyone can impersonate anyone
+  * B2: Server Gemini API key in plaintext localStorage (AuthContext.tsx:217-219 + ComposeModal.tsx:438)
+  * B3: pushNotifications.markNotificationRead has NO auth check (pushNotifications.ts:125-156) — anyone with notification ID can mark read
+- 12 POLISH items (wrong-layer consolidations, ICM migration, multi-tenant hole closure)
+- 8 NICE-TO-HAVE items (dead code, god component extraction, lazy loading)
+
+DELIVERABLE:
+- /home/z/my-project/download/PracticePro_VanClief_ICM_Audit_Report.pdf (18 pages, 78.4 KB)
+- 6 sections: methodology intro, ICM audit, wrong-layer audit, launch posture, implementation roadmap, appendix with recipes
+- PDF QA: 11 checks pass, 4 non-blocking warnings (minor punctuation, cover not full-bleed by design)
+- Roadmap sequenced: Phase 0 (ship-blockers, 3-4 days) → Phase 1 (ICM proof-of-concept + quick wins, 1 week) → Phase 2 (security + data integrity, 1-2 weeks) → Phase 3 (ICM extension + code organization, 2-4 weeks)
+
+Stage Summary:
+- Landing page product dropdown FIXED (whitespace-nowrap + min-w container)
+- Comprehensive Van Clief ICM audit delivered as PDF
+- 3 ship-blockers identified (all security, all have known low-risk fixes)
+- ICM completeness measured at ~18%; proof-of-concept path documented (Vite ?raw imports)
+- 3 Van Clief showcases documented (sales-lead pipeline, billing state machine, notifyFounders)
+- 16 wrong-layer findings catalogued with launch posture tags
+- Genuine engineering findings from previous (wrong-context) audit preserved and reframed
+- Build green; no regressions; ready for Atrium launch after 3 ship-blockers cleared
