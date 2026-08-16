@@ -253,6 +253,36 @@ export const updateMaintenanceTicketStatus = mutation({
             updatedAt: now,
           });
         }
+
+        // ─── Email notification to resident on maintenance status update ──
+        // Van Clief principle: "the structure IS the orchestration" —
+        // if we have the ticket + the resident's email, send a notification.
+        // Previously: only in-app notification was created. Residents who
+        // don't check the portal regularly would miss status updates.
+        if (ticket.tenantEmail) {
+          try {
+            ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+              to: ticket.tenantEmail,
+              toName: ticket.tenantName || undefined,
+              subject: `Maintenance Update: ${ticket.subject}`,
+              htmlContent: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto;">
+                  <h2 style="color: #10b981;">Maintenance Request Update</h2>
+                  <p>Hi ${ticket.tenantName || 'Resident'},</p>
+                  <p>Your maintenance request "<strong>${ticket.subject}</strong>" has been updated:</p>
+                  <p><strong>Status:</strong> ${updates.status}<br/>
+                  <strong>Resolution:</strong> ${updates.resolution}</p>
+                  <p>Please log in to your resident portal to view the full conversation.</p>
+                  <p style="color: #64748b; font-size: 12px; margin-top: 20px;">PracticePro Systems Limited — Lagos, Nigeria</p>
+                </div>
+              `,
+              firmId: ticket.firmId || 'system',
+              recordLog: true,
+            });
+          } catch (emailErr: any) {
+            console.warn('[updateMaintenanceTicketStatus] Email to resident failed:', emailErr?.message);
+          }
+        }
       }
     }
   },

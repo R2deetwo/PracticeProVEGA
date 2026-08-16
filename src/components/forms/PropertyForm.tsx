@@ -612,7 +612,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             // status: status, // Moved to unit level
             rentCollectionMode,
             // Core Services — per-property Active/Inactive toggles
-            coreServices,
+            // Service Charge is ALWAYS active (locked), others are configurable
+            coreServices: { ...coreServices, serviceCharge: true },
             value,
             managementFeePercentage: managementFee,
             images,
@@ -1053,26 +1054,28 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="space-y-2 group md:col-span-2">
                                 <label className={labelClass}>Core Services</label>
                                 <p className="text-3xs text-slate-400 dark:text-zinc-500 mb-2">
-                                    Toggle which services are active for this property. Inactive services appear grayed out in the Resident Portal.
+                                    Toggle which services are active for this property. Service Charge is always active. Inactive services appear grayed out in the Resident Portal.
                                 </p>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {([
-                                        { key: 'serviceCharge' as const, label: 'Service Charge' },
-                                        { key: 'electricity' as const, label: 'Electricity' },
-                                        { key: 'internet' as const, label: 'Internet' },
-                                        { key: 'wasteManagement' as const, label: 'Waste Mgmt' },
+                                        { key: 'serviceCharge' as const, label: 'Service Charge', locked: true },
+                                        { key: 'electricity' as const, label: 'Electricity', locked: false },
+                                        { key: 'internet' as const, label: 'Internet', locked: false },
+                                        { key: 'wasteManagement' as const, label: 'Waste Mgmt', locked: false },
                                     ]).map(service => (
                                         <button
                                             key={service.key}
                                             type="button"
-                                            onClick={() => setCoreServices(prev => ({ ...prev, [service.key]: !prev[service.key] }))}
+                                            onClick={() => !service.locked && setCoreServices(prev => ({ ...prev, [service.key]: !prev[service.key] }))}
+                                            disabled={service.locked}
                                             className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
                                                 coreServices[service.key]
                                                     ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
                                                     : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-400 dark:text-zinc-500'
-                                            }`}
+                                            } ${service.locked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
+                                            title={service.locked ? 'Service Charge is always active' : undefined}
                                         >
-                                            <span>{service.label}</span>
+                                            <span className="flex items-center gap-1">{service.label}{service.locked && <svg className="w-2.5 h-2.5 text-primary-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>}</span>
                                             <span className={`w-8 h-4 rounded-full relative transition-colors ${coreServices[service.key] ? 'bg-primary-500' : 'bg-slate-300 dark:bg-zinc-600'}`}>
                                                 <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${coreServices[service.key] ? 'translate-x-4' : 'translate-x-0.5'}`} />
                                             </span>
