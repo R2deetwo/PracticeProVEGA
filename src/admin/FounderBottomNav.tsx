@@ -16,7 +16,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useConvex } from 'convex/react';
+import { useConvex, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useFounderAuth } from './FounderContexts';
 import type { AdminView } from './AdminApp';
@@ -197,7 +197,11 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     const [pendingCount, setPendingCount] = useState(0);
     const [expiringSoon, setExpiringSoon] = useState(0);
     const [newSignupCount, setNewSignupCount] = useState(0);
-    const [unreadSalesCount, setUnreadSalesCount] = useState(0);
+    // REACTIVE: useQuery for real-time sales lead count (no polling needed).
+    // Convex WebSocket subscriptions push updates instantly when data changes.
+    // Falls back to 0 if the query fails (defensive).
+    const unreadSalesResult = useQuery(api.salesInquiries.getUnreadSalesInquiryCount, {});
+    const unreadSalesCount = typeof unreadSalesResult === 'number' ? unreadSalesResult : 0;
 
     // Shared badge formatter — caps at "9+" for counts > 9
     const formatBadgeCount = (count: number): string | null => {
@@ -227,17 +231,8 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
             } catch (e: any) {
                 console.warn('[FounderBottomNav] getFounderAlerts failed:', e?.message || e);
             }
-            // Also fetch unread sales lead count for the Sales nav badge.
-            // This query is GLOBAL (runs in the nav, not just on the Sales page)
-            // so the badge updates in real-time without navigating to the sales tab.
-            try {
-                const count = await convex.query(api.salesInquiries.getUnreadSalesInquiryCount, {});
-                if (!cancelled) {
-                    setUnreadSalesCount(count || 0);
-                }
-            } catch (e: any) {
-                console.warn('[FounderBottomNav] getUnreadSalesInquiryCount failed:', e?.message || e);
-            }
+            // NOTE: Sales lead count is now handled by useQuery (reactive)
+            // — no need to poll it here. The WebSocket pushes updates instantly.
         };
         fetchStats();
         // Poll every 15 seconds for real-time badge updates.

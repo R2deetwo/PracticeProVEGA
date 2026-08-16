@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { notifyFounders } from "./founderNotifications";
 
 /**
  * Sales Inquiries — Unauthenticated lead capture pipeline.
@@ -43,57 +43,19 @@ export const submitSalesInquiry = mutation({
             updatedAt: now,
         });
 
-        // ─── FOUNDER NOTIFICATION PIPELINE ─────────────────────────────
-        // Create a notification for ALL founder users so the lead appears
-        // in the Founder App notification feed with a badge increment.
-        const founders = await ctx.db
-            .query("users")
-            .filter((q: any) => q.eq(q.field("role"), "Founder"))
-            .collect();
-
-        const notifTitle = "New Sales Lead";
-        const notifMessage = `${args.name}${args.companyName ? ` (${args.companyName})` : ''} — ${args.productInterest ? `Interested in ${args.productInterest}` : 'Submitted an inquiry'}`;
-
-        for (const founder of founders) {
-            // 1. In-app notification (shows in Founder App bell + badge)
-            await ctx.db.insert("notifications", {
-                firmId: 'system',
-                userId: founder._id,
-                title: notifTitle,
-                message: notifMessage,
-                type: 'sales_lead',
-                link: {
-                    view: 'sales',
-                    id: String(inquiryId),
-                    context: { inquiryId: String(inquiryId) },
-                },
-                timestamp: new Date().toISOString(),
-                isRead: false,
-            } as any);
-
-            // 2. FCM push notification to founder's registered devices
-            try {
-                const founderTokens = await ctx.db
-                    .query("user_push_tokens")
-                    .filter((q: any) => q.eq(q.field("userId"), String(founder._id)))
-                    .filter((q: any) => q.eq(q.field("isActive"), true))
-                    .take(10);
-                if (founderTokens.length > 0) {
-                    ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-                        tokens: founderTokens.map((t: any) => t.token),
-                        title: notifTitle,
-                        body: notifMessage,
-                        data: {
-                            type: 'sales_lead',
-                            inquiryId: String(inquiryId),
-                            view: 'sales',
-                        },
-                    });
-                }
-            } catch (pushErr) {
-                console.warn('[submitSalesInquiry] Push notification failed:', pushErr);
-            }
-        }
+        // ─── FOUNDER NOTIFICATION PIPELINE (unified) ───────────────────
+        // Single function handles: in-app notification + FCM push to all founders.
+        // Replaces 30+ lines of copy-pasted notification logic.
+        await notifyFounders(ctx, {
+            title: "New Sales Lead",
+            message: `${args.name}${args.companyName ? ` (${args.companyName})` : ''} — ${args.productInterest ? `Interested in ${args.productInterest}` : 'Submitted an inquiry'}`,
+            type: "sales_lead",
+            link: {
+                view: "sales",
+                id: String(inquiryId),
+                context: { inquiryId: String(inquiryId) },
+            },
+        });
 
         return inquiryId;
     },

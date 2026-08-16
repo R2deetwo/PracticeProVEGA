@@ -5,6 +5,7 @@ import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
+import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
@@ -5850,59 +5851,20 @@ export const createAddonRequest = mutation({
       updatedAt: now.toISOString(),
     });
 
-    // ─── Notify founder users (in-app + push) ──────────────────────
-    // Creates an unread system alert in the Founder App inbox AND fires
-    // a real-time push notification to the founder's registered devices.
-    const founders = await ctx.db.query("users").filter((q: any) =>
-      q.eq(q.field("role"), "Founder")
-    ).collect();
-
-    // Fetch firm name for the push notification body
+    // ─── Notify founder users (unified helper) ──────────────────────
+    // Single function handles: in-app notification + FCM push.
     let firmName = 'A workspace';
     try {
       const firm: any = await ctx.db.get(firmId as any);
       if (firm?.name) firmName = firm.name;
     } catch {}
 
-    const pushTitle = 'New Add-on Request';
-    const pushBody = `${firmName} requested ${args.addonName}`;
-
-    for (const founder of founders) {
-      // 1. In-app notification (shows in Founder App inbox)
-      await ctx.db.insert("notifications", {
-        firmId: 'system',
-        userId: founder._id,
-        title: pushTitle,
-        message: `${firmName} requested ${args.addonName} (₦${args.amount.toLocaleString()}).`,
-        type: 'addon_request',
-        link: { view: 'subscriptions', id: requestId, context: {} },
-        timestamp: now.toISOString(),
-        isRead: false,
-      } as any);
-
-      // 2. Push notification via FCM (fires to founder's registered devices)
-      try {
-        const founderTokens = await ctx.db
-          .query("user_push_tokens")
-          .filter((q: any) => q.eq(q.field("userId"), String(founder._id)))
-          .filter((q: any) => q.eq(q.field("isActive"), true))
-          .take(10);
-        if (founderTokens.length > 0) {
-          ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-            tokens: founderTokens.map((t: any) => t.token),
-            title: pushTitle,
-            body: pushBody,
-            data: {
-              type: 'addon_request',
-              requestId: String(requestId),
-              view: 'subscriptions',
-            },
-          });
-        }
-      } catch (pushErr) {
-        console.warn('[createAddonRequest] Push notification failed:', pushErr);
-      }
-    }
+    await notifyFounders(ctx, {
+      title: "New Add-on Request",
+      message: `${firmName} requested ${args.addonName} (₦${args.amount.toLocaleString()}).`,
+      type: "addon_request",
+      link: { view: "subscriptions", id: String(requestId), context: {} },
+    });
 
     return { success: true, requestId };
   },

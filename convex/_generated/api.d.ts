@@ -23,6 +23,7 @@ import type * as drafting from "../drafting.js";
 import type * as embeddings from "../embeddings.js";
 import type * as feedback from "../feedback.js";
 import type * as founderMetrics from "../founderMetrics.js";
+import type * as founderNotifications from "../founderNotifications.js";
 import type * as http from "../http.js";
 import type * as indexer from "../indexer.js";
 import type * as legalRepo from "../legalRepo.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   embeddings: typeof embeddings;
   feedback: typeof feedback;
   founderMetrics: typeof founderMetrics;
+  founderNotifications: typeof founderNotifications;
   http: typeof http;
   indexer: typeof indexer;
   legalRepo: typeof legalRepo;
