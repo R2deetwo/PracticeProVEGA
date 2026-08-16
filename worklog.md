@@ -7021,3 +7021,104 @@ Stage Summary:
 - Support channel deletion FIXED (window.confirm → useConfirm hook + case-insensitive auth)
 - ICM identity guardrails migrated to markdown (3 of 5 primary prompts now ICM-complete)
 - Build green; zero regressions
+
+---
+Task ID: landing-page-spec-implementation
+Agent: Main Agent
+Task: Apply PracticePro Landing Page Implementation Spec (from independent AI review) + continue Phase 3 ICM
+
+Work Log:
+
+LANDING PAGE SPEC IMPLEMENTATION (per uploaded PDF spec):
+- Read 14-page Implementation Spec PDF via PyMuPDF extraction
+- Ran independent audit of current LandingPage.tsx vs spec: found 5 sections MISSING (AI Capabilities, How It Works, Testimonials, FAQ, Final CTA), 7 PARTIAL, mobile nav entirely missing, no JSON-LD, no preconnect hints
+
+Implemented (per spec priority order):
+
+Priority 1 — Critical (mobile usability + conversion):
+1. Mobile hamburger menu + full overlay (src/components/LandingPage.tsx NavBar)
+   - Converted NavBar from arrow-function expression to proper function component (to use useState)
+   - Added hamburger button (md:hidden, w-10 h-10, aria-label="Toggle menu", aria-expanded)
+   - Full-screen overlay menu with Products (Vega/Atrium), Features, Pricing, How It Works, Resources, Contact, Log In, Start Free Trial
+   - handleNavClick closes menu on navigation
+2. Mobile sticky bottom CTA bar (MobileStickyCTA component)
+   - fixed bottom-0 inset-x-0 z-[200] md:hidden
+   - "Talk to Sales" + "Start Free Trial" buttons (flex-[1.5] for primary)
+3. Skip-to-content link (a[href="#main-content"] with sr-only focus:not-sr-only)
+   - Added id="main-content" to main element
+
+Priority 2 — High (spec compliance + SEO):
+4. JSON-LD structured data (index.html)
+   - SoftwareApplication schema with 5 offers (Vega Growth/Pro, Atrium Core/Growth, Komplete) + aggregateRating (4.8, 127 reviews) + publisher (PracticePro Systems Limited, Lagos)
+   - FAQPage schema with all 6 Q&As (matches the FAQ section content)
+5. FAQ accordion section (FAQSection component)
+   - 6 Q&As per spec (data security, Naira payment, Vega vs Atrium, free trial, support, plan switching)
+   - Controlled accordion with aria-expanded, rotate-180 chevron, first item open by default
+6. Final CTA section (FinalCTASection component)
+   - bg-primary-600 text-white, "Ready to stop managing chaos?" headline
+   - 2 CTAs: Start Free Trial (white button) + Talk to Sales (outline)
+   - Trust text: "No credit card · 14-day trial · Cancel anytime"
+7. Testimonials section (TestimonialsSection component)
+   - 3 placeholder testimonials per spec (Property Manager Lagos, Lawyer Abuja, Estate Surveyor Lekki)
+   - 5-star ratings, avatar initials with colored backgrounds
+8. How It Works section (HowItWorksSection component)
+   - 3 numbered steps (01 Create workspace, 02 Add data, 03 Start managing)
+   - Large text-6xl/7xl step numbers in slate-100
+
+Priority 3 — Medium (design fidelity):
+9. AI Capabilities dark section (AICapabilitiesSection component)
+   - bg-slate-900 text-white, 3 columns: ALOA/ARIA Copilot, PII Shield, Workspace Isolation
+   - Each with colored icon (primary/emerald/amber), title, description
+10. WhatsApp floating action button (WhatsAppFAB component)
+    - fixed bottom-6 right-6 z-[200], #25D366 green, wa.me link with pre-filled message
+11. Preconnect hints (index.html)
+    - api.paystack.co, *.convex.cloud, firebasestorage.googleapis.com
+
+Additional nav improvements:
+- Added "How It Works" link to desktop nav + mobile menu
+- Added "Contact" link to desktop nav + mobile menu
+- Renamed "Get Started Free" → "Start Free Trial" (per spec wording)
+- Added aria-label="Main navigation" / "Mobile navigation" to nav elements
+
+Section render order (product page):
+HomeSection → StatsDemarcator → FeaturesSection → TrustBadgesStrip → AICapabilitiesSection → PricingSection → HowItWorksSection → TestimonialsSection → FAQSection → FinalCTASection → Footer
+
+SUPPORT CHANNEL DELETION FIX (user asked multiple times):
+- src/components/MessagesView.tsx:2774 — replaced window.confirm() with useConfirm() hook (was blocked in Capacitor WebView, silently failing)
+- convex/feedback.ts:249-261 — made email auth check case-insensitive (was throwing "Not authorized" on casing mismatch)
+
+ICM IDENTITY GUARDRAIL MIGRATION (Phase 3):
+- Created ai/prompts/03a-aloa-identity-guardrail.md (full 92-line ALOA guardrail, was 6-line stub)
+- Created ai/prompts/03b-aria-identity-guardrail.md (full 75-line ARIA guardrail, was 6-line stub)
+- Marked old 03-identity-guardrail.md as DEPRECATED
+- Updated src/constants/loadPrompts.ts: added aloaGuardrail + ariaGuardrail ?raw imports + renderIdentityGuardrail()
+- Updated src/constants/identityGuardrails.ts: ALOA_IDENTITY_GUARDRAIL + ARIA_IDENTITY_GUARDRAIL now read from markdown (file dropped 243 → 85 lines)
+- ICM completeness: ~22% → ~35% (3 of 5 primary prompts now wired via ?raw)
+
+CRAWLER VERIFICATION:
+- Created scripts/landing-page-audit.cjs — Playwright crawler that checks all 13 spec sections, mobile nav, JSON-LD, preconnect, FAQ accordion, breadcrumb wrap
+- Ran against production (old deploy) + local http-server (new build)
+- VLM analysis of screenshots confirms:
+  * ✅ Hamburger menu icon visible on mobile (top right)
+  * ✅ "Start Free Trial" CTA text (renamed from "Get Started Free")
+  * ✅ Nav now has "How It Works" + "Contact" links
+  * ✅ Page renders correctly (no broken layout)
+- Raw HTML verification confirms:
+  * ✅ 2 JSON-LD scripts present (SoftwareApplication + FAQPage)
+  * ✅ preconnect to api.paystack.co present
+  * ✅ preconnect to *.convex.cloud present
+  * ✅ preconnect to firebasestorage.googleapis.com present
+
+VERIFICATION:
+- Vite build: passes in 21.35s
+- TypeScript: 315 errors (all pre-existing baseline, zero new)
+- Git: committed as aebfbf8, pushed to origin/main + synced to origin/master
+- Vercel: auto-deploy triggered (may take a few minutes to propagate)
+
+Stage Summary:
+- 11 of 13 spec sections implemented (Navigation + Footer were PARTIAL, now improved; 5 missing sections now added)
+- Mobile nav, sticky CTA, WhatsApp FAB, skip-to-content all added
+- JSON-LD + preconnect hints added to index.html
+- Support channel deletion fixed (window.confirm → useConfirm + case-insensitive auth)
+- ICM identity guardrails migrated to markdown (3 of 5 primary prompts ICM-complete)
+- Build green; crawler + VLM verification confirms new elements are rendering

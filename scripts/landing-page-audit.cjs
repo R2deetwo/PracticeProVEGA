@@ -50,16 +50,37 @@ const TARGET_URL = process.env.AUDIT_URL || 'https://practice-pro-vega.vercel.ap
     console.log('\n── Section Checks ────────────────────────────────────────');
 
     // First, check if we're on the hub page (productChosen=false) or product page
-    const isHubPage = await page.locator('text=One platform').count() > 0 || await page.locator('text=Choose your').count() > 0;
+    const isHubPage = await page.locator('text=One platform').count() > 0 || await page.locator('text=Choose your').count() > 0 || await page.locator('text=Professional Practice').count() > 0;
 
     // Navigate to a product page to see the full set of sections
     if (isHubPage) {
-        console.log('  Hub page detected. Clicking "Vega" to see product sections...');
-        const vegaCard = page.locator('text=Vega').first();
-        if (await vegaCard.count() > 0) {
-            await vegaCard.click().catch(() => {});
-            await page.waitForTimeout(2000);
+        console.log('  Hub page detected. Clicking "Enter Vega" to see product sections...');
+        // Try multiple selectors for the Vega card click
+        const vegaSelectors = [
+            'text=Enter Vega',
+            'text=Vega →',
+            'a:has-text("Vega")',
+            'button:has-text("Vega")',
+            'div:has-text("Vega") >> nth=0',
+        ];
+        let clicked = false;
+        for (const sel of vegaSelectors) {
+            try {
+                const el = page.locator(sel).first();
+                if (await el.count() > 0 && await el.isVisible()) {
+                    await el.click({ timeout: 3000 });
+                    clicked = true;
+                    console.log(`  Clicked Vega via selector: ${sel}`);
+                    break;
+                }
+            } catch (e) { /* try next */ }
         }
+        if (!clicked) {
+            // Fallback: navigate directly with query param
+            console.log('  Fallback: navigating to /?product=vega');
+            await page.goto(TARGET_URL + '?product=vega', { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+        }
+        await page.waitForTimeout(3000);
     }
 
     // Now check for sections on the product page
