@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api";
 import { setSentryUser, clearSentryUser } from '../utils/sentry';
 import { identifyUser, resetUser as resetAnalyticsUser } from '../utils/analytics';
 import { removeAllBeforeUnloadGuards } from '../utils/tabNavigation';
+import { setInMemoryApiKey } from '../utils/aiUtils';
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
@@ -58,19 +59,40 @@ export const useAuth = () => {
 
 const getInitialToken = () => {
     try {
-        // FOUNDER IMPERSONATION: Check URL for ?impersonate=email param.
-        // This is set by the Founder APK's "Login As This Firm" button.
-        // Checking here (in getInitialToken) ensures the session is set
-        // synchronously on mount, avoiding a flash of the landing page.
+        // B1 SHIP-BLOCKER FIX: Server-verified impersonation tokens.
+        // OLD (insecure): ?impersonate=email — anyone could impersonate anyone.
+        // NEW (secure): ?impersonateToken=xxx — founder calls createImpersonationToken
+        // (server-verified), gets an opaque token, appends to URL. We read it
+        // synchronously here, store it, and the AuthProvider effect verifies it
+        // asynchronously via verifyImpersonationToken. If verification fails, the
+        // session is cleared.
         try {
             const urlParams = new URLSearchParams(window.location.search);
-            const impersonateEmail = urlParams.get('impersonate');
-            if (impersonateEmail) {
-                const token = impersonateEmail.toLowerCase().trim();
+            const impersonateToken = urlParams.get('impersonateToken');
+            if (impersonateToken) {
+                // Store the token for async verification by the AuthProvider effect.
+                // Don't set the session yet — wait for server verification.
+                try { sessionStorage.setItem('practicepro_pending_impersonate_token', impersonateToken); } catch {}
+                // Clean the URL immediately (before App.tsx reads it)
+                urlParams.delete('impersonateToken');
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+                window.history.replaceState({}, '', newUrl);
+                // Return null — session will be set after async verification.
+                return null;
+            }
+
+            // LEGACY FALLBACK: ?impersonate=email (DEPRECATED — will be removed
+            // after all Founder APK builds are updated to use impersonateToken).
+            // This is kept temporarily for backward compatibility during the
+            // migration window. It logs to console.warn to surface legacy usage.
+            const legacyImpersonateEmail = urlParams.get('impersonate');
+            if (legacyImpersonateEmail) {
+                console.warn('[Auth] DEPRECATED: ?impersonate=email URL param is insecure and will be removed. Use ?impersonateToken=xxx via createImpersonationToken mutation.');
+                const token = legacyImpersonateEmail.toLowerCase().trim();
                 const sessionData = JSON.stringify({ token });
                 try { sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
                 try { localStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
-                // Clean the URL immediately (before App.tsx reads it)
+                // Clean the URL immediately
                 urlParams.delete('impersonate');
                 const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
                 window.history.replaceState({}, '', newUrl);
@@ -116,6 +138,63 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const convex = useConvex();
     const [sessionToken, setSessionToken] = React.useState<string | null>(getInitialToken);
     const [isStorageLoaded, setIsStorageLoaded] = React.useState(true);
+
+    // B1 SHIP-BLOCKER FIX: Async verification of server-issued impersonation tokens.
+    // When getInitialToken() finds ?impersonateToken=xxx in the URL, it stores the
+    // token in sessionStorage and returns null (no session yet). This effect runs
+    // once on mount, verifies the token server-side, and sets the session if valid.
+    // If verification fails (expired, used, not found), the pending token is cleared
+    // and the user sees the landing page.
+    const [impersonateTokenPending, setImpersonateTokenPending] = React.useState<boolean>(() => {
+        try {
+            return sessionStorage.getItem('practicepro_pending_impersonate_token') !== null;
+        } catch {
+            return false;
+        }
+    });
+
+    React.useEffect(() => {
+        if (!impersonateTokenPending) return;
+        let cancelled = false;
+
+        const verifyToken = async () => {
+            try {
+                const pendingToken = sessionStorage.getItem('practicepro_pending_impersonate_token');
+                if (!pendingToken) {
+                    setImpersonateTokenPending(false);
+                    return;
+                }
+
+                // Call the server to verify the token and get the target email
+                const result = await convex.mutation(api.impersonation.verifyImpersonationToken, {
+                    token: pendingToken,
+                });
+
+                if (cancelled) return;
+
+                if (result?.targetEmail) {
+                    // Token verified — set the session
+                    const token = result.targetEmail.toLowerCase().trim();
+                    const sessionData = JSON.stringify({ token });
+                    try { sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
+                    try { localStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
+                    setSessionToken(token);
+                }
+            } catch (err: any) {
+                console.error('[Auth] Impersonation token verification failed:', err.message);
+                // Token invalid/expired/used — clear pending state, user sees landing page
+            } finally {
+                if (!cancelled) {
+                    try { sessionStorage.removeItem('practicepro_pending_impersonate_token'); } catch {}
+                    setImpersonateTokenPending(false);
+                }
+            }
+        };
+
+        verifyToken();
+
+        return () => { cancelled = true; };
+    }, [convex, impersonateTokenPending]);
 
     // State to handle impersonation
     // RESTORE: On initial load, check if we were in the middle of an
@@ -204,23 +283,27 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, []);
 
     // ─── API Key Sync (server → localStorage) ──────────────────────────
-    // When the user logs in, fetch their stored Gemini API key from the
-    // server and sync it to localStorage. This prevents the "API key
-    // disappears on refresh" bug — the key is stored server-side and
-    // restored on every login, even if localStorage was cleared.
+    // B2 SHIP-BLOCKER FIX: Server API key is NO LONGER synced to localStorage.
+    // Previously: localStorage.setItem('practicepro_custom_gemini_key', serverApiKey)
+    // — any XSS could exfiltrate the key and bill the firm.
+    // Now: the key stays in React state (in-memory only) and is exposed via
+    // a module-level setter that aiUtils.getGeminiApiKey() reads. The key is
+    // never written to localStorage, never appears in network requests from
+    // the client (it's used directly in Gemini API calls), and is cleared
+    // on logout.
     const serverApiKey = useQuery(api.myFunctions.getUserApiKey,
         sessionToken ? { tokenIdentifier: sessionToken } : "skip");
 
     React.useEffect(() => {
         if (serverApiKey && typeof serverApiKey === 'string' && serverApiKey.length > 0) {
-            try {
-                const localKey = localStorage.getItem('practicepro_custom_gemini_key');
-                if (localKey !== serverApiKey) {
-                    localStorage.setItem('practicepro_custom_gemini_key', serverApiKey);
-                }
-            } catch {}
+            // Set the in-memory key — aiUtils.getGeminiApiKey() will read this.
+            // Do NOT write to localStorage.
+            setInMemoryApiKey(serverApiKey);
+        } else if (!sessionToken) {
+            // Session ended — clear the in-memory key.
+            setInMemoryApiKey(null);
         }
-    }, [serverApiKey]);
+    }, [serverApiKey, sessionToken]);
 
     const currentUser: User | null = React.useMemo(() => {
         // DEMO MODE BYPASS — development builds only
@@ -695,6 +778,10 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             localStorage.removeItem('practicepro_cached_user');
         }
         localStorage.removeItem('practicepro_session_locked');
+
+        // B2 FIX: Clear the in-memory Gemini API key on logout so the next
+        // user (if any) doesn't inherit the previous user's key.
+        setInMemoryApiKey(null);
 
         // Clear in-memory React state AFTER clearing storage but BEFORE navigation.
         // This ensures the UI immediately stops rendering as authenticated.

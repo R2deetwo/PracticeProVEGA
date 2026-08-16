@@ -212,8 +212,27 @@ export const updateMaintenanceTicketStatus = mutation({
     resolution: v.optional(v.string()),
     assignedTo: v.optional(v.string()),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P6 SECURITY FIX: Verify caller belongs to the firm that owns this ticket.
+    const ticket = await ctx.db.get(args.ticketId);
+    if (!ticket) {
+      throw new Error("Maintenance ticket not found.");
+    }
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (auth.firmId && ticket.firmId && auth.firmId !== ticket.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `updateMaintenanceTicketStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update ticket ${args.ticketId} owned by firm ${ticket.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: ticket belongs to a different firm.");
+      }
+    }
     const { ticketId, ...updates } = args;
     await ctx.db.patch(ticketId, { ...updates, updatedAt: Date.now() });
 
@@ -4661,8 +4680,21 @@ export const submitPaymentProof = mutation({
     paymentMethod: v.optional(v.string()),
     paystackReference: v.optional(v.string()),
     status: v.optional(v.string()),
+    // P11: Idempotency key — prevents duplicate payment proofs on double-submit
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P11 DEDUP: If idempotencyKey is provided, check for an existing record.
+    // If found, return the existing _id instead of creating a duplicate.
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("payment_proofs")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", args.idempotencyKey))
+        .first();
+      if (existing) {
+        return existing._id;
+      }
+    }
     const now = Date.now();
     return await ctx.db.insert("payment_proofs", {
       firmId: args.firmId,
@@ -4678,6 +4710,7 @@ export const submitPaymentProof = mutation({
       paymentMethod: args.paymentMethod || 'bank_transfer',
       paystackReference: args.paystackReference,
       status: args.status || 'pending_review',
+      idempotencyKey: args.idempotencyKey,
       createdAt: now,
       updatedAt: now,
     });
@@ -4720,8 +4753,29 @@ export const updatePaymentProofStatus = mutation({
     proofId: v.id("payment_proofs"),
     status: v.union(v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
     adminNote: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P6 SECURITY FIX: Verify caller belongs to the firm that owns this payment proof.
+    // Without this, anyone with a proofId could approve/reject any firm's payment proofs.
+    const proof = await ctx.db.get(args.proofId);
+    if (!proof) {
+      throw new Error("Payment proof not found.");
+    }
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      // Verify the caller's firm matches the proof's firm
+      if (auth.firmId && proof.firmId && auth.firmId !== proof.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `updatePaymentProofStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update proof ${args.proofId} owned by firm ${proof.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: payment proof belongs to a different firm.");
+      }
+    }
     const { proofId, ...updates } = args;
     await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
   },
@@ -5012,8 +5066,23 @@ export const updateFirmPortalSettings = mutation({
     vmsResidentNotifications: v.optional(v.boolean()),
     vmsGracePeriodMinutes: v.optional(v.number()),
     vmsDefaultExpiryHours: v.optional(v.number()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P6 SECURITY FIX: Verify caller belongs to the firm they're updating settings for.
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `updateFirmPortalSettings: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update settings for firm ${args.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: cannot update settings for a different firm.");
+      }
+    }
     const { firmId, ...updates } = args;
     const existing = await ctx.db
       .query("portal_settings")
@@ -5058,8 +5127,23 @@ export const createNotice = mutation({
     propertyId: v.optional(v.string()),
     unitId: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P6 SECURITY FIX: Verify caller belongs to the firm they're posting a notice for.
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `createNotice: caller ${args.userEmail} (firm ${auth.firmId}) attempted to post notice for firm ${args.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: cannot post notices for a different firm.");
+      }
+    }
     const now = Date.now();
     const noticeId = await ctx.db.insert("portal_notices", {
       firmId: args.firmId,

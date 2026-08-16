@@ -639,14 +639,32 @@ export const OrganizationsHub: React.FC = () => {
                             <div className={CARD}>
                                 <p className={SECTION_TITLE}>Support Actions</p>
                                 <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                         const adminEmail = selectedFirm.adminEmail;
-                                        if (adminEmail && adminEmail !== 'unknown') {
-                                            const url = `https://practice-pro-vega.vercel.app/?impersonate=${encodeURIComponent(adminEmail.toLowerCase())}`;
+                                        if (!adminEmail || adminEmail === 'unknown') {
+                                            addToast('No admin email found for this firm.', { type: 'error' });
+                                            return;
+                                        }
+                                        if (!tokenIdentifier) {
+                                            addToast('Founder session not found. Please log in again.', { type: 'error' });
+                                            return;
+                                        }
+                                        try {
+                                            addToast('Generating secure impersonation link...', { type: 'info' });
+                                            // B1 SHIP-BLOCKER FIX: use server-verified impersonation token
+                                            // instead of the insecure ?impersonate=email URL param.
+                                            const result = await convex.mutation(
+                                                api.impersonation.createImpersonationToken,
+                                                {
+                                                    targetEmail: adminEmail.toLowerCase(),
+                                                    founderEmail: tokenIdentifier,
+                                                }
+                                            );
+                                            const url = `https://practice-pro-vega.vercel.app/?impersonateToken=${encodeURIComponent(result.token)}`;
                                             window.open(url, '_blank');
                                             addToast(`Opening firm dashboard as ${adminEmail}...`, { type: 'success' });
-                                        } else {
-                                            addToast('No admin email found for this firm.', { type: 'error' });
+                                        } catch (err: any) {
+                                            addToast(`Impersonation failed: ${err.message}`, { type: 'error' });
                                         }
                                     }}
                                     className="w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 flex items-center justify-center gap-2"

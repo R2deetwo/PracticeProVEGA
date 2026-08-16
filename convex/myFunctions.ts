@@ -2746,8 +2746,20 @@ export const createTask = mutation({
     creatorId: v.optional(v.string()),
     creatorName: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    // P11: Idempotency key — prevents duplicate tasks on double-submit (mobile retries)
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P11 DEDUP: If idempotencyKey is provided, check for an existing record.
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("tasks")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", args.idempotencyKey))
+        .first();
+      if (existing) {
+        return existing._id;
+      }
+    }
     // 1. Authenticate
     const auth = await requireFirmUser(ctx, args.userEmail);
     const firmId = auth.firmId;
@@ -2775,6 +2787,7 @@ export const createTask = mutation({
       creatorId,
       priority: args.priority || "medium",
       isSystem: false,
+      idempotencyKey: args.idempotencyKey,
       createdAt: now,
       updatedAt: now,
     };
@@ -3433,8 +3446,20 @@ export const recordTermsAcceptance = mutation({
     // re-acceptance when only one role's terms change.
     roleContext: v.optional(v.string()),
     roleTermsVersion: v.optional(v.string()),
+    // P11: Idempotency key — prevents duplicate consent records on double-tap Accept
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P11 DEDUP: If idempotencyKey is provided, check for an existing record.
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("termsAcceptance")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", args.idempotencyKey))
+        .first();
+      if (existing) {
+        return { success: true, recordId: existing.id, acceptedAt: existing.acceptedAt, deduplicated: true };
+      }
+    }
     let firmId: string | null = null;
     let userId: string | null = null;
     let userEmail: string | undefined = undefined;
@@ -3472,6 +3497,7 @@ export const recordTermsAcceptance = mutation({
       // don't pass roleContext — those rows are treated as 'unknown' role)
       roleContext: args.roleContext || 'unknown',
       roleTermsVersion: args.roleTermsVersion || null,
+      idempotencyKey: args.idempotencyKey,
       createdAt: now,
       updatedAt: now,
     });
@@ -5335,8 +5361,20 @@ export const createSubscriptionRequest = mutation({
     paymentProofStorageId: v.optional(v.string()),
     paymentProofNote: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    // P11: Idempotency key — prevents duplicate subscription requests on double-submit
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // P11 DEDUP: If idempotencyKey is provided, check for an existing record.
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("subscriptionRequests")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", args.idempotencyKey))
+        .first();
+      if (existing) {
+        return existing._id;
+      }
+    }
     const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
 
     // Fetch current firm to record the currentPlan
@@ -5369,6 +5407,7 @@ export const createSubscriptionRequest = mutation({
       status: 'pending_review',
       paymentProofStorageId: args.paymentProofStorageId || null,
       paymentProofNote: args.paymentProofNote || null,
+      idempotencyKey: args.idempotencyKey,
       requestedAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });

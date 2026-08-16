@@ -241,6 +241,8 @@ export default defineSchema({
     checklist: v.optional(v.any()),
     isSystem: nullableBoolean,
     id: nullableString, // Legacy field — frontend copy of _id (used by_custom_id index)
+    // P11: Idempotency key for dedup on double-submit (mobile retries, double-tap)
+    idempotencyKey: v.optional(v.string()),
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
@@ -249,7 +251,8 @@ export default defineSchema({
     .index("by_status", ["firmId", "status"])
     .index("by_dueDate", ["firmId", "dueDate"])
     .index("by_assignee_type", ["firmId", "assigneeType"])
-    .index("by_custom_id", ["id"]),
+    .index("by_custom_id", ["id"])
+    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
 
   documents: defineTable({
     firmId: nullableString,
@@ -1476,13 +1479,16 @@ export default defineSchema({
     paymentMethod: nullableString,
     // paystackReference: Paystack transaction reference (for Paystack payments)
     paystackReference: nullableString,
+    // P11: Idempotency key for dedup on double-submit (mobile retries, double-tap)
+    idempotencyKey: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_firm", ["firmId"])
     .index("by_tenant", ["tenantId"])
     .index("by_firm_status", ["firmId", "status"])
-    .index("by_paystack_reference", ["paystackReference"]),
+    .index("by_paystack_reference", ["paystackReference"])
+    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
 
   // ─── Portal Settings ──────────────────────────────────────────────
   // Per-firm portal configuration. Controls features like messaging,
@@ -1779,6 +1785,8 @@ export default defineSchema({
     // Values: 'founder' | 'admin' | 'lawyer' | 'paralegal' | 'portal_user' | 'unknown'
     roleContext: nullableString,
     roleTermsVersion: nullableString,       // version specific to this role (e.g. 'portal-v1')
+    // P11: Idempotency key for dedup on double-submit (double-tap Accept button)
+    idempotencyKey: v.optional(v.string()),
     createdAt: nullableString,
     updatedAt: nullableString,
   })
@@ -1786,7 +1794,8 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_email", ["userEmail"])
     .index("by_custom_id", ["id"])
-    .index("by_role_context", ["roleContext"]),
+    .index("by_role_context", ["roleContext"])
+    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
 
   // ─── SUBSCRIPTION REQUESTS (CRO Audit Track A — Revenue Protection) ──────
   // Replaces the broken flow where SubscriptionSettings.processUpgrade
@@ -1816,6 +1825,8 @@ export default defineSchema({
     discountedAmount: nullableNumber,       // amount * (1 - discountPercent/100), stored at approval
     discountReason: nullableString,         // e.g. "Early adopter loyalty discount"
     id: nullableString,                     // Legacy field — frontend copy of _id
+    // P11: Idempotency key for dedup on double-submit (payment-critical)
+    idempotencyKey: v.optional(v.string()),
     createdAt: nullableString,
     updatedAt: nullableString,
   })
@@ -1823,7 +1834,8 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_reference", ["transactionReference"])
     .index("by_auto_revert", ["autoRevertAt"])
-    .index("by_custom_id", ["id"]),
+    .index("by_custom_id", ["id"])
+    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
 
   // ─── ADD-ONS (CRO Audit — upsellable extras: extra WhatsApp, extra seats, etc.) ──
   // Each row represents a single add-on purchase (one firm, one add-on type, one billing cycle).
@@ -1846,13 +1858,16 @@ export default defineSchema({
     quantity: nullableNumber,               // for multi-unit add-ons (e.g. 3 × extra-seats-5)
     notes: nullableString,                  // free-text
     id: nullableString,                     // Legacy field — frontend copy of _id
+    // P11: Idempotency key for dedup on double-submit (payment-critical)
+    idempotencyKey: v.optional(v.string()),
     createdAt: nullableString,
     updatedAt: nullableString,
   })
     .index("by_firm", ["firmId"])
     .index("by_status", ["status"])
     .index("by_addon", ["addonId"])
-    .index("by_custom_id", ["id"]),
+    .index("by_custom_id", ["id"])
+    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
 
   // ── Security Tables ──────────────────────────────────────────────────
   // Rate limiting: tracks request counts per IP + per user for throttling.
@@ -1932,5 +1947,23 @@ export default defineSchema({
     .index("by_user_read", ["userId", "isRead"])
     .index("by_firm", ["firmId"])
     .index("by_created", ["createdAt"]),
+
+  // ─── IMPERSONATION TOKENS (B1 SHIP-BLOCKER FIX) ───────────────────────
+  // Replaces the unsigned ?impersonate=email URL param that accepted any
+  // email with no server verification. Now: founder calls createImpersonationToken
+  // (server-verified), gets a short-lived opaque token, appends ?impersonateToken=xxx
+  // to the URL. The frontend calls verifyImpersonationToken to exchange it for
+  // the target user's email. Token expires after 5 minutes and is single-use.
+  impersonation_tokens: defineTable({
+    token: v.string(),              // opaque random string (crypto.randomUUID)
+    founderEmail: v.string(),       // founder who created the token
+    targetEmail: v.string(),        // user to be impersonated
+    createdAt: v.number(),
+    expiresAt: v.number(),          // createdAt + 5 minutes (300000 ms)
+    usedAt: nullableNumber,         // set when consumed (single-use)
+  })
+    .index("by_token", ["token"])
+    .index("by_founder", ["founderEmail"])
+    .index("by_target", ["targetEmail"]),
 
 }, { schemaValidation: false });

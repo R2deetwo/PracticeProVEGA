@@ -10,6 +10,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
 import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
+import { getGeminiApiKey } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2 } from 'lucide-react';
 
@@ -434,8 +435,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     if (!aiDraftPrompt.trim() || isAiDrafting) return;
     setIsAiDrafting(true);
     try {
-      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-        localStorage.getItem('practicepro_gemini_api_key') || '';
+      // B2 FIX: use shared getGeminiApiKey() which reads from in-memory state
+      // (set by AuthContext from server) instead of reading localStorage directly.
+      const apiKey = getGeminiApiKey() || '';
       if (!apiKey) {
         addToast('AI key not configured. Set your Gemini API key in Settings.', { type: 'error' });
         setIsAiDrafting(false);

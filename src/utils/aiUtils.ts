@@ -4,8 +4,28 @@ import { ALOA_PRECISION_PROTOCOL } from '../constants/aloaPrompts';
 
 /**
  * Utility functions for AI configuration and key management.
+ *
+ * B2 SHIP-BLOCKER FIX: The Gemini API key is NO LONGER stored in localStorage.
+ * Previously: localStorage.getItem('practicepro_custom_gemini_key')
+ * — any XSS could exfiltrate the key and bill the firm.
+ * Now: the key is held in a module-level variable (in-memory only) that is
+ * set by AuthContext when the user logs in and cleared on logout. The key
+ * never touches localStorage, never appears in network payloads, and is
+ * lost on page refresh (which is acceptable — AuthContext re-fetches it
+ * from the server on every login via getUserApiKey).
  */
 const STORAGE_KEY_API_KEY = 'practicepro_custom_gemini_key';
+
+// Module-level in-memory API key (set by AuthContext, read by getGeminiApiKey)
+let inMemoryApiKey: string | null = null;
+
+/**
+ * Set the in-memory API key. Called by AuthContext when the server returns
+ * the user's stored key. Do NOT call this from anywhere else.
+ */
+export const setInMemoryApiKey = (key: string | null): void => {
+    inMemoryApiKey = key;
+};
 
 export const AI_CONFIG = {
     gemini: {
@@ -198,24 +218,32 @@ export const streamGeminiMultipart = async (
 /**
  * Retrieves the Gemini API Key to use for requests.
  * Priority:
- * 1. User's custom key stored in localStorage.
- * 2. System/Firm key from environment variables.
+ * 1. In-memory key (set by AuthContext from server — B2 fix, never in localStorage).
+ * 2. Legacy localStorage key (backward compat during migration — will be removed).
+ * 3. System/Firm key from environment variables.
  * @returns The API key string or undefined if neither exists.
  */
 export const getGeminiApiKey = (): string | undefined => {
+    // B2 FIX: prefer in-memory key (never persisted to localStorage)
+    if (inMemoryApiKey) return inMemoryApiKey;
+
+    // LEGACY FALLBACK: localStorage key (deprecated — will be removed once
+    // all users have logged in at least once after this deploy, which
+    // populates the in-memory key via AuthContext's getUserApiKey query)
     const customKey = getCustomApiKey();
     if (customKey) return customKey;
-    
+
     const envKey = import.meta.env.VITE_GEMINI_API_KEY as string;
     if (envKey) return envKey;
 
-    // Removed hardcoded master key for security. 
+    // Removed hardcoded master key for security.
     return undefined;
 };
 
 /**
- * Retrieves the stored custom API key (if any) directly from storage.
- * Useful for UI to indicate if a custom key is set.
+ * Retrieves the stored custom API key (if any) directly from localStorage.
+ * LEGACY: kept for backward compatibility during the B2 migration. New code
+ * should use getGeminiApiKey() which prefers the in-memory key.
  */
 export const getCustomApiKey = (): string | null => {
     try {
