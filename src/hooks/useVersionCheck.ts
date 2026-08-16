@@ -45,8 +45,20 @@ export function useVersionCheck(): VersionCheckState {
   const [remoteTimestamp, setRemoteTimestamp] = useState<number | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
   const localTimestampRef = useRef<number>(LOCAL_BUILD_TIMESTAMP);
+  // Track the remote timestamp we already notified the user about.
+  // Stored in sessionStorage so it survives the refresh() page reload —
+  // prevents the toast from reappearing for the SAME version after refresh.
+  const lastNotifiedRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // On mount, check if we already notified about a specific remote version.
+    // If so, don't re-notify for that same version (prevents the "pop up
+    // again after refresh" bug).
+    try {
+      const stored = sessionStorage.getItem('practicepro_last_notified_version');
+      if (stored) lastNotifiedRef.current = Number(stored);
+    } catch {}
+
     let cancelled = false;
 
     const check = async () => {
@@ -66,28 +78,49 @@ export function useVersionCheck(): VersionCheckState {
         const remoteBuild = Number(data.buildTimestamp) || 0;
         const localBuild = localTimestampRef.current;
 
-        console.log('[useVersionCheck]', { localBuild, remoteBuild, match: localBuild === remoteBuild });
-
         if (localBuild > 0 && remoteBuild > 0 && localBuild !== remoteBuild) {
-          console.log('[useVersionCheck] UPDATE AVAILABLE');
+          // Don't re-notify for the same remote version we already told the user about.
+          // This prevents the toast from reappearing after the user clicks "Refresh Now"
+          // and the page reloads — the new page still has the old local timestamp until
+          // the fresh JS bundle loads, but we already notified about this remote version.
+          if (lastNotifiedRef.current === remoteBuild) {
+            return; // Already notified — skip silently
+          }
+
+          // New version detected — record it so we don't re-notify
+          lastNotifiedRef.current = remoteBuild;
+          try { sessionStorage.setItem('practicepro_last_notified_version', String(remoteBuild)); } catch {}
+
           setRemoteTimestamp(remoteBuild);
           setUpdateAvailable(true);
           setDismissed(false);
           return;
         }
 
+        // Versions match — clear the notified flag so future updates will notify
+        if (lastNotifiedRef.current !== null) {
+          lastNotifiedRef.current = null;
+          try { sessionStorage.removeItem('practicepro_last_notified_version'); } catch {}
+        }
         setUpdateAvailable(false);
       } catch (err) {
-        console.error('[useVersionCheck] error:', err);
+        // Silent — don't spam console on network errors
       }
     };
 
-    const initialTimer = setTimeout(check, 3_000);
+    // Delay initial check to 5 seconds (was 3) to give the page more time
+    // to settle after a refresh, reducing false positives
+    const initialTimer = setTimeout(check, 5_000);
     const interval = setInterval(check, POLL_INTERVAL_MS);
 
-    const onFocus = () => check();
-    const onOnline = () => check();
-    const onVisibility = () => { if (!document.hidden) check(); };
+    const onFocus = () => {
+      // Don't check immediately on focus if we already notified — wait for the interval
+      if (lastNotifiedRef.current === null) check();
+    };
+    const onOnline = () => {
+      if (lastNotifiedRef.current === null) check();
+    };
+    const onVisibility = () => { if (!document.hidden && lastNotifiedRef.current === null) check(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisibility);
@@ -103,6 +136,13 @@ export function useVersionCheck(): VersionCheckState {
   }, []);
 
   const refresh = () => {
+    // Store the remote timestamp we're refreshing TO, so the new page
+    // doesn't re-notify for the same version. This is stored BEFORE
+    // cache clearing so it survives the reload.
+    if (remoteTimestamp) {
+      try { sessionStorage.setItem('practicepro_last_notified_version', String(remoteTimestamp)); } catch {}
+    }
+
     const AUTH_PATTERNS = [
       /^practicepro_cached_user$/,
       /^practicepro_user_session$/,
