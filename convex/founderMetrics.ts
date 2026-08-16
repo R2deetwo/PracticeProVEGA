@@ -13,48 +13,93 @@ import { getMaxUsersForFirm, getTierLimitsForFirm, getDisplayPlan } from "./tier
 //
 // These prices mirror src/constants/tiers.ts. If those change, update
 // here too.
-const PLAN_MONTHLY_PRICE: Record<string, number> = {
+// PRICING AUDIT: Split into product-aware maps (Vega vs Atrium have different prices).
+// Komplete is annual-only (monthly = 0).
+const VEGA_PLAN_MONTHLY_PRICE: Record<string, number> = {
   Core: 0,
   Growth: 45000,
   Pro: 80000,
-  Enterprise: 0, // Enterprise is custom-priced, not tracked here
-  Komplete: 130000,
+  Enterprise: 0,
 };
-
-const PLAN_ANNUAL_PRICE: Record<string, number> = {
+const VEGA_PLAN_ANNUAL_PRICE: Record<string, number> = {
   Core: 0,
   Growth: 432000,
   Pro: 768000,
   Enterprise: 0,
-  Komplete: 1248000,
 };
+const ATRIUM_PLAN_MONTHLY_PRICE: Record<string, number> = {
+  Core: 49000,       // Starter
+  Growth: 96500,
+  Pro: 200000,
+  Enterprise: 0,
+};
+const ATRIUM_PLAN_ANNUAL_PRICE: Record<string, number> = {
+  Core: 490000,      // Starter
+  Growth: 965000,
+  Pro: 2100000,
+  Enterprise: 0,
+};
+const KOMPLETE_ANNUAL_PRICE = 2200000;  // PRICING AUDIT: was 2500000
 
 /**
  * Calculate the platform subscription revenue for a single firm.
- * Returns the annualized revenue based on the firm's plan and billing interval.
+ * Returns the annualized revenue based on the firm's plan, product, and billing interval.
  * Returns 0 for Core (free) or unknown plans.
+ * PRICING AUDIT: now product-aware (Vega vs Atrium have different prices).
  */
 function calcPlatformRevenue(firm: any): number {
   const plan = firm.subscriptionPlan || 'Core';
   const interval = firm.billingInterval || 'monthly';
-  if (interval === 'annual') {
-    return PLAN_ANNUAL_PRICE[plan] || 0;
+  const product = firm.product || 'legal';
+
+  // Komplete (unified) is annual-only
+  if (plan === 'Komplete' || product === 'unified') {
+    return KOMPLETE_ANNUAL_PRICE;
   }
-  // Monthly — annualize for comparison
-  return (PLAN_MONTHLY_PRICE[plan] || 0) * 12;
+
+  // Product-aware pricing
+  if (product === 'property' || product === 'atrium') {
+    if (interval === 'annual') {
+      return ATRIUM_PLAN_ANNUAL_PRICE[plan] || 0;
+    }
+    return (ATRIUM_PLAN_MONTHLY_PRICE[plan] || 0) * 12;
+  }
+
+  // Vega (legal) — default
+  if (interval === 'annual') {
+    return VEGA_PLAN_ANNUAL_PRICE[plan] || 0;
+  }
+  return (VEGA_PLAN_MONTHLY_PRICE[plan] || 0) * 12;
 }
 
 /**
  * Calculate the monthly platform subscription amount for a firm.
  * This is what the firm pays PracticePro per month.
+ * PRICING AUDIT: now product-aware.
  */
 function calcMonthlySubscription(firm: any): number {
   const plan = firm.subscriptionPlan || 'Core';
   const interval = firm.billingInterval || 'monthly';
-  if (interval === 'annual') {
-    return Math.round((PLAN_ANNUAL_PRICE[plan] || 0) / 12);
+  const product = firm.product || 'legal';
+
+  // Komplete (unified) is annual-only
+  if (plan === 'Komplete' || product === 'unified') {
+    return Math.round(KOMPLETE_ANNUAL_PRICE / 12);
   }
-  return PLAN_MONTHLY_PRICE[plan] || 0;
+
+  // Product-aware pricing
+  if (product === 'property' || product === 'atrium') {
+    if (interval === 'annual') {
+      return Math.round((ATRIUM_PLAN_ANNUAL_PRICE[plan] || 0) / 12);
+    }
+    return ATRIUM_PLAN_MONTHLY_PRICE[plan] || 0;
+  }
+
+  // Vega (legal) — default
+  if (interval === 'annual') {
+    return Math.round((VEGA_PLAN_ANNUAL_PRICE[plan] || 0) / 12);
+  }
+  return VEGA_PLAN_MONTHLY_PRICE[plan] || 0;
 }
 
 /**

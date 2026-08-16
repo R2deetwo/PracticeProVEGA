@@ -1282,9 +1282,9 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900" />
                         </div>
 
-                        {/* Pill — always centered */}
+                        {/* Pill — always centered. PRICING AUDIT: removed "Billed Annually" (Atrium now has monthly too) */}
                         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200 whitespace-nowrap">
-                            Billed Annually · SCE shown per unit<span className="text-blue-500 font-bold">*</span>
+                            SCE shown per unit<span className="text-blue-500 font-bold">*</span>
                         </span>
 
                         {/* Calculate button — slides in gracefully after user has hovered a plan */}
@@ -1445,52 +1445,105 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 // (ResourcesSection removed — Resources is now a dedicated page)
 
 // ─── AI CAPABILITIES SECTION (dark) ──────────────────────────────────────
-const AICapabilitiesSection: React.FC = () => (
-    <section className="py-20 md:py-28 bg-slate-900 text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12 md:mb-16">
-                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                    Powered by AI. Protected by design.
-                </h2>
-                <p className="text-lg text-slate-300 mt-4 max-w-2xl mx-auto">
-                    Your AI copilot is built for Nigerian legal and property practice — with privacy-first architecture that keeps client data safe.
-                </p>
+// ─── AI CAPABILITIES SECTION (dark, product-specific) ────────────────────
+const AI_CAPABILITIES = {
+    vega: {
+        assistantName: 'ALOA',
+        assistantFull: 'Advanced Legal Office Assistant',
+        headline: 'Powered by ALOA. Built for Nigerian law.',
+        subtitle: 'Your AI legal copilot drafts documents, researches precedents, and analyzes cases — with privacy-first architecture that keeps client data safe.',
+        capabilities: [
+            {
+                title: 'Legal Drafting & Analysis',
+                body: 'Draft writs, affidavits, and motions with Nigerian court-specific formatting. Analyze opposing counsel\'s arguments, identify weaknesses, and research locus classicus across jurisdictions.',
+                features: ['DraftPro editor with A4 pagination', 'Nigerian citation formats (NWLR, NSC)', 'Cross-jurisdictional analysis with caveats'],
+            },
+            {
+                title: 'PII Shield',
+                body: 'Client names, phone numbers, NIN, BVN, and bank accounts are automatically stripped before AI processing. Your client data never trains external models. NDPA 2023 compliant.',
+                features: ['Email & phone stripping', 'NIN/BVN/credit card detection', 'Nigerian bank account masking'],
+            },
+            {
+                title: 'Firm-Grade Security',
+                body: 'RAG and vector search are hard-filtered by firm_id. No cross-firm data leakage. Every query passes through requireFirmUser authentication. Matter-level access control.',
+                features: ['Row-level security by firm_id', 'Matter-scoped document access', 'Full audit trail on all AI queries'],
+            },
+        ],
+    },
+    atrium: {
+        assistantName: 'ARIA',
+        assistantFull: 'Asset & Revenue Intelligence Assistant',
+        headline: 'Powered by ARIA. Built for Nigerian property.',
+        subtitle: 'Your AI property copilot monitors revenue, drafts demand notices, and analyzes your portfolio — with privacy-first architecture that keeps tenant data safe.',
+        capabilities: [
+            {
+                title: 'Revenue Intelligence & Drafting',
+                body: 'Monitor rent collection, identify defaulters, and draft demand notices, quit notices, and tenancy agreements. Analyze portfolio performance and predict revenue at risk.',
+                features: ['Revenue Monitor with defaulter tracking', 'Nigerian property law (Land Use Act, Tenancy Law)', 'Automated demand notice generation'],
+            },
+            {
+                title: 'PII Shield',
+                body: 'Tenant names, phone numbers, NIN, BVN, and bank accounts are automatically stripped before AI processing. Your tenant data never trains external models. NDPA 2023 compliant.',
+                features: ['Email & phone stripping', 'NIN/BVN/credit card detection', 'Nigerian bank account masking'],
+            },
+            {
+                title: 'Portfolio-Grade Security',
+                body: 'RAG and vector search are hard-filtered by firm_id. No cross-firm data leakage. Every query passes through requireFirmUser authentication. Property-level access control.',
+                features: ['Row-level security by firm_id', 'Property-scoped document access', 'Full audit trail on all AI queries'],
+            },
+        ],
+    },
+};
+
+const AICapabilitiesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const config = AI_CAPABILITIES[activeProduct];
+    const accentColor = activeProduct === 'vega' ? 'text-amber-400' : 'text-emerald-400';
+    const accentBg = activeProduct === 'vega' ? 'bg-amber-500/20' : 'bg-emerald-500/20';
+    const accentBorder = activeProduct === 'vega' ? 'hover:border-amber-500/50' : 'hover:border-emerald-500/50';
+    return (
+        <section className="py-20 md:py-28 bg-slate-900 text-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-12 md:mb-16">
+                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 ${accentBg} rounded-full mb-4`}>
+                        <svg className={`w-4 h-4 ${accentColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        <span className={`text-sm font-bold ${accentColor}`}>{config.assistantName} — {config.assistantFull}</span>
+                    </div>
+                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+                        {config.headline}
+                    </h2>
+                    <p className="text-lg text-slate-300 mt-4 max-w-2xl mx-auto">
+                        {config.subtitle}
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
+                    {config.capabilities.map((cap, i) => (
+                        <div key={i} className={`bg-slate-800/50 border border-slate-700 rounded-2xl p-8 ${accentBorder} transition-colors`}>
+                            <div className={`w-12 h-12 rounded-xl ${accentBg} flex items-center justify-center mb-5`}>
+                                <svg className={`w-6 h-6 ${accentColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {i === 0 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />}
+                                    {i === 1 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />}
+                                    {i === 2 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />}
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold mb-3">{cap.title}</h3>
+                            <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                                {cap.body}
+                            </p>
+                            <ul className="space-y-2">
+                                {cap.features.map((f, j) => (
+                                    <li key={j} className="flex items-start gap-2 text-sm text-slate-400">
+                                        <svg className={`w-4 h-4 ${accentColor} flex-shrink-0 mt-0.5`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        <span>{f}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
-                {/* ALOA / ARIA Copilot */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:border-primary-500/50 transition-colors">
-                    <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center mb-5">
-                        <svg className="w-6 h-6 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    </div>
-                    <h3 className="text-xl font-bold mb-3">Your AI Assistant</h3>
-                    <p className="text-slate-300 text-sm leading-relaxed">
-                        4 modes: Auto, Flash, Pro, and Research. Get case summaries, draft documents, analyze opposing counsel, and research precedents. ALOA for legal, ARIA for property.
-                    </p>
-                </div>
-                {/* PII Shield */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:border-primary-500/50 transition-colors">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-5">
-                        <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                    </div>
-                    <h3 className="text-xl font-bold mb-3">Privacy-First AI</h3>
-                    <p className="text-slate-300 text-sm leading-relaxed">
-                        Personally identifiable information is automatically stripped before AI processing. Your client data never trains external models. NDPA 2023 compliant by design.
-                    </p>
-                </div>
-                {/* Workspace Isolation */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:border-primary-500/50 transition-colors">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center mb-5">
-                        <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                    </div>
-                    <h3 className="text-xl font-bold mb-3">Firm-Grade Security</h3>
-                    <p className="text-slate-300 text-sm leading-relaxed">
-                        RAG and vector search are hard-filtered by workspace_id. No cross-firm data leakage. Ever. Row-level security on every query.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-);
+        </section>
+    );
+};
 
 // ─── HOW IT WORKS SECTION (3 steps, product-specific) ────────────────────
 const HOW_IT_WORKS_STEPS = {
@@ -1971,7 +2024,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <StatsDemarcator activeProduct={activeProduct} />
                     <FeaturesSection activeProduct={activeProduct} />
                     <TrustBadgesStrip />
-                    <AICapabilitiesSection />
+                    <AICapabilitiesSection activeProduct={activeProduct} />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                     <HowItWorksSection activeProduct={activeProduct} />
                     <TestimonialsSection />

@@ -727,10 +727,10 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
         }
     };
 
-    // CRO AUDIT FIX: detect if current plan supports monthly billing.
-    // Komplete (unified) is annual-only. Atrium (property) is annual-only.
-    // Only Vega (legal) firms on Core/Growth/Pro can toggle monthly/yearly.
-    const isAnnualOnlyProduct = isUnified || productMode === 'property' || productMode === 'atrium';
+    // PRICING AUDIT: Komplete (unified) is annual-only.
+    // Atrium NOW supports monthly billing (was annual-only before pricing audit).
+    // Vega (legal) supports monthly/annual.
+    const isAnnualOnlyProduct = isUnified;
 
     // CRO AUDIT FIX: detect if the user is already on the highest available
     // plan for their product. If so, hide upgrade CTAs and show downgrade +

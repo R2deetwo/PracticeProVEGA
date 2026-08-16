@@ -18,7 +18,7 @@ const CHAKRA_PLANS = {
     currency: 'NGN',
     period: 'month',
     features: ['WhatsApp Business API', '1 Phone Number', 'Basic Templates', '1000 WhatsApp messages/mo', 'Portal messaging'],
-    recommendedFor: 'Atrium Core — up to 15 units (100 WhatsApp notices/mo)',
+    recommendedFor: 'Atrium Starter — up to 10 units (250 WhatsApp notices/mo)',
   },
   starter: {
     label: 'Starter',
@@ -29,7 +29,7 @@ const CHAKRA_PLANS = {
     currency: 'NGN',
     period: 'month',
     features: ['WhatsApp Business API', '2 Phone Numbers', 'Custom Templates', '5000 WhatsApp messages/mo', 'Portal messaging', 'Priority delivery'],
-    recommendedFor: 'Atrium Growth — up to 35 units (500 WhatsApp notices/mo)',
+    recommendedFor: 'Atrium Growth — up to 25 units (500 WhatsApp notices/mo)',
   },
   pro: {
     label: 'Professional',
@@ -79,10 +79,10 @@ export function estimateChakraPlan(
   let recommendedPlan: ChakraPlanKey;
   let reasoning: string;
 
-  if (totalUnits <= 15 && estimatedMonthlyMessages <= 100) {
+  if (totalUnits <= 10 && estimatedMonthlyMessages <= 250) {
     recommendedPlan = 'free';
-    reasoning = `With ${totalUnits} units and ~${estimatedMonthlyMessages} monthly messages, Chakra Free aligns with Atrium Core (100 WhatsApp notices/mo on PracticePro).`;
-  } else if (totalUnits <= 35 && estimatedMonthlyMessages <= 500) {
+    reasoning = `With ${totalUnits} units and ~${estimatedMonthlyMessages} monthly messages, Chakra Free aligns with Atrium Starter (250 WhatsApp notices/mo on PracticePro).`;
+  } else if (totalUnits <= 25 && estimatedMonthlyMessages <= 500) {
     recommendedPlan = 'starter';
     reasoning = `With ${totalUnits} units and ~${estimatedMonthlyMessages} monthly messages, Chakra Starter aligns with Atrium Growth (500 WhatsApp notices/mo).`;
   } else if (totalUnits <= 100) {

@@ -27,7 +27,8 @@ const PlanCard: React.FC<{
   productName?: 'Vega' | 'Atrium' | 'Komplete';
 }> = ({ tier, selected, onSelect, billingCycle, isAtrium, productName = 'Vega' }) => {
   const { price, per } = formatTierPrice(tier, billingCycle);
-  const effectiveBilling = isAtrium ? 'annual' : billingCycle;
+  // PRICING AUDIT: Atrium now supports monthly billing too (was annual-only)
+  const effectiveBilling = billingCycle;
   const sce = effectiveBilling === 'annual' ? tier.scePer_annual : tier.scePer;
 
   // CRO AUDIT Track C — C1: portfolio-size anchors per tier, per product.
@@ -349,7 +350,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
-                {showAllPlans ? 'Compare Plans — Pick What Fits Your Practice' : `You've Selected ${selectedTierId === 'Core' ? 'Core' : selectedTierId}`}
+                {showAllPlans ? 'Compare Plans — Pick What Fits Your Practice' : `You've Selected ${tiers[selectedTierId as keyof typeof tiers]?.label || selectedTierId}`}
               </h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
                 For your <span className="font-bold text-slate-700">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
@@ -371,8 +372,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               </div>
             )}
 
-            {/* Billing Toggle — Vega and Komplete only. Atrium is annual-only. */}
-            {!isAtrium && !isKomplete(product) && (
+            {/* Billing Toggle — PRICING AUDIT: now available for Vega AND Atrium (Komplete is annual-only) */}
+            {!isKomplete(product) && (
               <div className="flex items-center justify-center gap-4">
                 <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900 ' : 'text-slate-400'}`}>Monthly</span>
                 <button onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')} className="relative w-12 h-6 bg-slate-200  rounded-full transition-colors" aria-label="Toggle billing cycle">
@@ -385,8 +386,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               </div>
             )}
 
-            {/* Atrium + Komplete annual-only badge (both are annual-only products) */}
-            {(isAtrium || isKomplete(product)) && (
+            {/* Komplete annual-only badge (Komplete is the only annual-only product now) */}
+            {isKomplete(product) && (
               <div className="flex justify-center">
                 <span className="px-4 py-1.5 bg-slate-100 text-slate-700 text-2xs font-black uppercase tracking-widest rounded-full border border-slate-200">
                   Annual Billing Only

@@ -7,7 +7,7 @@
  *
  * PRICING RULES:
  *   VEGA   — Primary: Monthly. Annual optional (20% off).
- *   ATRIUM — Annual only. NO monthly billing option.
+ *   ATRIUM — Monthly or Annual (annual gets ~20% discount). PRICING AUDIT: was annual-only.
  *            SCE (Service Charge Equivalent) is a framing device
  *            (annual ÷ 12 ÷ units), NOT a monthly payment option.
  *   KOMPLETE — Single tier, all features. Monthly or Annual.
@@ -405,7 +405,7 @@ export function formatTierPrice(
     if (tier.annualPrice === null) return { price: 'Custom', per: '' };
     return { price: tier.annualPriceDisplay, per: 'Per Annum' };
   }
-  // Monthly billing: check monthlyPrice for null (Atrium annual-only = no monthly)
+  // Monthly billing: check monthlyPrice for null (Komplete annual-only = no monthly)
   if (tier.monthlyPrice === null) return { price: tier.annualPriceDisplay, per: 'Per Annum' };
   return { price: tier.monthlyPriceDisplay, per: '/mo' };
 }

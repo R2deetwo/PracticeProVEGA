@@ -160,7 +160,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>6.1 WhatsApp and SMS Notifications</h3>
                     <p>
-                        The Platform may send notifications via WhatsApp Business API and SMS gateways, including rent reminders, demand notices, <strong>court date reminders</strong>, and matter updates. <strong>Court date reminders</strong> (available on the Pro plan) are sent automatically 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s) on the matter. Client-facing court reminders are disabled by default — lawyers must explicitly opt in per matter if they want clients to receive hearing notifications. Message volumes are subject to your subscription tier's monthly limits (Core: 100, Growth: 500, Pro: unlimited). Monthly quotas reset on the 1st of each month. You are responsible for ensuring that your clients and residents have consented to receiving such communications under the NDPA 2023 before enabling notifications on their behalf.
+                        The Platform may send notifications via WhatsApp Business API and SMS gateways, including rent reminders, demand notices, <strong>court date reminders</strong>, and matter updates. <strong>Court date reminders</strong> (available on the Pro plan) are sent automatically 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s) on the matter. Client-facing court reminders are disabled by default — lawyers must explicitly opt in per matter if they want clients to receive hearing notifications. Message volumes are subject to your subscription tier's monthly limits (Starter: 250, Growth: 500, Pro: unlimited). Monthly quotas reset on the 1st of each month. You are responsible for ensuring that your clients and residents have consented to receiving such communications under the NDPA 2023 before enabling notifications on their behalf.
                     </p>
 
                     <h3>6.2 Email Communications</h3>
@@ -172,7 +172,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>7.1 Subscription Fees</h3>
                     <p>
-                        Subscription fees are billed in Nigerian Naira (NGN) according to your selected tier and billing cycle. Vega offers monthly or annual billing; Atrium is billed annually only. Komplete offers monthly or annual billing. Fees are payable in advance and are non-refundable except as expressly provided in our refund policy or required by law.
+                        Subscription fees are billed in Nigerian Naira (NGN) according to your selected tier and billing cycle. Both Vega and Atrium offer monthly or annual billing. Komplete is billed annually only. Fees are payable in advance and are non-refundable except as expressly provided in our refund policy or required by law. Annual plans include a 30-day money-back guarantee.
                     </p>
 
                     <h3>7.2 Service Charge Equivalent (SCE)</h3>

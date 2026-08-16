@@ -54,7 +54,7 @@ export const ADDON_CATALOG: AddonDef[] = [
     billingInterval: 'monthly',
     amount: 20000,
     unitLabel: 'per 5 seats/mo',
-    applicableProducts: 'all',
+    applicableProducts: ['legal', 'vega', 'property', 'atrium'], // PRICING AUDIT: exclude Komplete (unlimited seats)
     icon: '👥',
     popular: true,
   },
@@ -66,7 +66,7 @@ export const ADDON_CATALOG: AddonDef[] = [
     billingInterval: 'monthly',
     amount: 36000,
     unitLabel: 'per 10 seats/mo',
-    applicableProducts: 'all',
+    applicableProducts: ['legal', 'vega', 'property', 'atrium'], // PRICING AUDIT: exclude Komplete (unlimited seats)
     icon: '👥',
   },
 
