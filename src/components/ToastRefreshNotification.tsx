@@ -122,10 +122,10 @@ const ToastRefreshNotification: React.FC = () => {
           </div>
         </div>
 
-        {/* Pulsing green indicator dot — retained for the "Update Available" variant.
-            Standard toasts do NOT have this dot. */}
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full">
-          <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75" />
+        {/* Pulsing brand-color indicator dot — retained for the "Update Available" variant.
+            Standard toasts do NOT have this dot. Uses primary-500 (brand green) not emerald/teal. */}
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary-500 rounded-full">
+          <div className="absolute inset-0 bg-primary-500 rounded-full animate-ping opacity-75" />
         </div>
       </div>
     </div>
