@@ -20,11 +20,15 @@
  */
 
 // Vite ?raw imports — markdown files are bundled as strings at build time.
+import aloaIdentity from '../../ai/prompts/01-aloa-legal-identity.md?raw';
+import ariaIdentity from '../../ai/prompts/02-aria-property-identity.md?raw';
 import aloaGuardrail from '../../ai/prompts/03a-aloa-identity-guardrail.md?raw';
 import ariaGuardrail from '../../ai/prompts/03b-aria-identity-guardrail.md?raw';
 import formProtocol from '../../ai/prompts/04-interactive-form-protocol.md?raw';
 
 export const PROMPTS = {
+  aloaIdentity,
+  ariaIdentity,
   aloaGuardrail,
   ariaGuardrail,
   formProtocol,
@@ -33,9 +37,6 @@ export const PROMPTS = {
 /**
  * Render the interactive form protocol with the appropriate slider examples
  * for the current product mode.
- *
- * @param isAtriumMode - true for Atrium (property), false for Vega (legal)
- * @returns the rendered protocol string, ready to append to a system instruction
  */
 export function renderFormProtocol(isAtriumMode: boolean): string {
   const sliderExamples = isAtriumMode
@@ -46,11 +47,48 @@ export function renderFormProtocol(isAtriumMode: boolean): string {
 
 /**
  * Get the identity guardrail for the current product mode.
- * Replaces the getIdentityGuardrail() function in constants/identityGuardrails.ts.
- *
- * @param isProperty - true for Atrium (property), false for Vega (legal)
- * @returns the guardrail string to inject at the top of the system instruction
  */
 export function renderIdentityGuardrail(isProperty: boolean): string {
   return isProperty ? PROMPTS.ariaGuardrail : PROMPTS.aloaGuardrail;
+}
+
+/**
+ * Render the ALOA (Vega legal) system instruction with runtime placeholders.
+ * Replaces the inline 70-line string in AgencyHub.ts:260-328.
+ */
+export function renderAloaIdentity(params: {
+  userName: string;
+  userRole: string;
+  currentView: string;
+  selectedId: string;
+  currentTime: string;
+}): string {
+  return PROMPTS.aloaIdentity
+    .replace(/{{assistantName}}/g, 'ALOA')
+    .replace(/{{userName}}/g, params.userName)
+    .replace(/{{userRole}}/g, params.userRole)
+    .replace(/{{currentView}}/g, params.currentView)
+    .replace(/{{selectedId}}/g, params.selectedId)
+    .replace(/{{currentTime}}/g, params.currentTime);
+}
+
+/**
+ * Render the ARIA (Atrium property) system instruction with runtime placeholders.
+ * Replaces the inline string in PropertyManagementAgent.ts:19-84.
+ */
+export function renderAriaIdentity(params: {
+  userName: string;
+  userRole: string;
+  currentView: string;
+  selectedId: string;
+  currentTime: string;
+  propertySummary: string;
+}): string {
+  return PROMPTS.ariaIdentity
+    .replace(/{{userName}}/g, params.userName)
+    .replace(/{{userRole}}/g, params.userRole)
+    .replace(/{{currentView}}/g, params.currentView)
+    .replace(/{{selectedId}}/g, params.selectedId)
+    .replace(/{{currentTime}}/g, params.currentTime)
+    .replace(/{{propertySummary}}/g, params.propertySummary);
 }
