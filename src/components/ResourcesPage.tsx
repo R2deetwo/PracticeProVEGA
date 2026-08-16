@@ -223,7 +223,7 @@ Your first task is to mirror your physical properties in the digital workspace.
 - Navigate to the **Properties** tab.
 - Click **Add Property**.
 - **Define the Asset:** Is it a residential block, a commercial plaza, or a mixed-use facility?
-- **Ownership Type:** Crucially, select whether this is an "Owned" property (your personal portfolio) or a "Managed" property (you are acting as an agent). This setting dynamically adjusts how Atrium calculates your management fees.
+- **Ownership Type:** Select whether this is an "Owned" property (your personal portfolio) or a "Managed" property (you are acting as an agent). This setting determines how Atrium calculates your management fees.
 - **Generate Units:** Use the bulk unit generator to quickly create spaces (e.g., Apt 101, Apt 102).
 
 ### 2. Onboard Tenants

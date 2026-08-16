@@ -197,7 +197,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // ─── Web Fetch Results (for UI display) ──────────────────────────────
     // When ALOA fetches web content (either from URLs in the user's message
     // or from auto-searching in research mode), the results are stored here
-    // and displayed in collapsible panels (like Claude's search results).
+    // and displayed in collapsible panels (like expandable search results).
     //
     // The `content` field stores the full fetched text (up to 8000 chars)
     // so it can be pushed to the Research Studio as a source. It's populated
@@ -1507,7 +1507,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 ).join('\n');
                             }
 
-                            // Show web fetch results in the UI (like Claude's search panels)
+                            // Show web fetch results in the UI (like expandable search panels)
                             // Store the full content (up to 8000 chars) for "Push to Research"
                             setWebFetchResults(fetchResults.map(r => ({
                                 url: r.url,
@@ -1530,14 +1530,14 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                     }
 
-                    // ── PARALLEL WEB SEARCH IN RESEARCH MODE (like Claude) ──
+                    // ── PARALLEL WEB SEARCH IN RESEARCH MODE like a modern research tool ──
                     // In research mode, if the user's message doesn't contain a URL
                     // but asks a legal question, automatically search the web for
                     // relevant information using MULTIPLE PARALLEL QUERIES.
                     //
                     // Instead of one search, we generate 2-3 different search
                     // queries from the user's message and run them ALL IN PARALLEL.
-                    // This matches how Claude does it (the screenshot showed
+                    // This matches how modern research tools do it (the screenshot showed
                     // multiple search panels appearing at once).
                     if (effectiveModel === 'research' && (!urls || urls.length === 0)) {
                         const legalKeywords = /\b(law|legal|statute|regulation|compliance|contract|agreement|liability|jurisdiction|court|rights|obligations|duty|tort|negligence|breach|damages|injunction|liability|hipaa|gdpr|ccpa|privacy|employment|independent contractor|misclassification|AB5|professional|ethics|fee|referral|witness|expert|advisory|advise|counsel)\b/i;
@@ -1600,7 +1600,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 }
 
                                 if (allResults.length > 0) {
-                                    // Show ALL search results in the UI (like Claude's panels)
+                                    // Show ALL search results in the UI (like expandable panels)
                                     setWebFetchResults(allResults.map(r => ({
                                         url: r.url,
                                         title: r.title,
@@ -3074,7 +3074,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         </div>
                     ))}
 
-                    {/* ─── Web Fetch Results Panel (like Claude's search panels) ──
+                    {/* ─── Web Fetch Results Panel (like expandable search panels) ──
                         Shows the URLs ALOA has fetched and read, with titles
                         and snippets. Collapsible via the chevron toggle —
                         NOT dismissable (results persist so the user can

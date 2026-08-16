@@ -12,7 +12,7 @@ Built for the Nigerian jurisdiction, PracticePro combines practice management, f
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### Tech Stack
 - **Frontend:** React 18 + Vite 5 + TypeScript + Tailwind CSS
@@ -21,7 +21,7 @@ Built for the Nigerian jurisdiction, PracticePro combines practice management, f
 - **Mobile:** Capacitor 8 (Android APK)
 - **Deployment:** Vercel (primary) + Cloudflare Workers (secondary)
 - **Push Notifications:** Firebase Cloud Messaging (FCM)
-- **Payments:** Paystack integration
+- **Payments:** Paystack integration (bank transfer live, card/USSD activating)
 
 ### Product Architecture
 ```
@@ -29,7 +29,7 @@ PracticePro (Parent Company)
 ├── Vega OS (Legal)
 │   ├── Matter Management & Workflow Automation
 │   ├── ALDIA Document Intelligence (risk analysis, PII scanning)
-│   ├── DraftPro AI Document Editor
+│   ├── DraftPro AI Document Editor (A4 pagination, Nigerian legal fonts)
 │   ├── Research Studio (chronology, legal matrix, gap analysis)
 │   ├── Scale of Charges Compliance Engine
 │   └── ALOA AI Assistant (Legal)
@@ -46,15 +46,15 @@ PracticePro (Parent Company)
 
 ### Multi-Product Routing
 The app uses a `useProduct()` hook that determines which product context is active:
-- Legal firms → Vega mode (ALOA, matters, courts)
-- Property firms → Atrium mode (ARIA, properties, residents)
-- Unified firms → Komplete mode (both)
+- Legal firms see Vega mode (ALOA, matters, courts)
+- Property firms see Atrium mode (ARIA, properties, residents)
+- Unified firms see Komplete mode (both)
 
 Product context affects: AI assistant identity, terminology (matter vs property, client vs resident), available features, and tier gating.
 
 ---
 
-## 🚀 Local Development Setup
+## Local Development Setup
 
 ### Prerequisites
 - Node.js 20+ (see `.nvmrc`)
@@ -64,26 +64,23 @@ Product context affects: AI assistant identity, terminology (matter vs property,
 
 ### Installation
 ```bash
-# Clone the repository
 git clone https://github.com/R2deetwo/PracticeProVEGA.git
 cd PracticeProVEGA
-
-# Install dependencies
 npm ci
-
-# Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your values (see below)
+# Edit .env.local with your values
 ```
 
 ### Environment Variables
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_CONVEX_URL` | ✅ | Convex deployment URL (found in Convex dashboard) |
+| `VITE_CONVEX_URL` | Yes | Convex deployment URL |
 | `VITE_GEMINI_API_KEY` | Optional | Google Gemini API key for AI features |
+| `VITE_POSTHOG_KEY` | Optional | PostHog analytics key (visitor tracking, funnels) |
 | `CONVEX_DEPLOY_KEY` | Optional | For CI/CD Convex deploys |
-| `FCM_SERVER_KEY` | Optional | Firebase Cloud Messaging server key for push notifications |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Optional | Firebase service account JSON for FCM (recommended) |
+| `FCM_SERVER_KEY` | Optional | Firebase Cloud Messaging server key |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Optional | Firebase service account JSON for FCM |
+| `VERCEL_TOKEN` | Optional | For direct Vercel API deploys via scripts/vercel-deploy.cjs |
 
 ### Running the Dev Server
 ```bash
@@ -92,11 +89,11 @@ npm run dev
 ```
 
 ### Demo Mode
-Visit `http://localhost:5173/?impersonate=demo@practicepro.ng` to bypass login and explore the app with demo data. Set `sessionStorage.setItem('practicepro_demo_product', 'atrium')` before navigating for Atrium demo data.
+Visit `http://localhost:5173/?impersonateToken=<token>` (tokens issued via founder-only mutation). The legacy `?impersonate=demo@practicepro.ng` still works but logs a deprecation warning.
 
 ---
 
-## 📦 Building & Deploying
+## Building & Deploying
 
 ### Build
 ```bash
@@ -105,56 +102,67 @@ npm run build
 ```
 
 ### Deploy to Vercel
-Vercel auto-deploys on push to `main` via GitHub integration.
+Vercel auto-deploys on push to `master` via GitHub integration.
 - **URL:** https://practice-pro-vega.vercel.app
 - **Build command:** `npm run build`
 - **Output directory:** `dist`
+- **Production branch:** `master`
+
+If the GitHub webhook breaks, you can deploy directly:
+```bash
+npx vercel login
+npx vercel --prod
+```
 
 ### Deploy to Cloudflare Workers
 ```bash
-# Manual deploy (requires Cloudflare API token)
 CLOUDFLARE_API_TOKEN=your_token npx wrangler deploy
-
-# Or via GitHub Actions (auto-deploys on push to main)
-# Requires secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, VITE_CONVEX_URL
 ```
 - **URL:** https://practice-pro-vega.prototypechigo.workers.dev
 - **Config:** `wrangler.jsonc` (SPA mode with cache headers)
 
 ### Deploy Convex Backend
 ```bash
-# Set up Convex deploy key (found in Convex dashboard → Settings → API)
-CONVEX_DEPLOY_KEY=your_key npx convex deploy
+npx convex deploy
 ```
 
 ### Build Android APK
 ```bash
-npm run cap:sync    # Sync web assets to native
+npm run cap:sync
 cd android && ./gradlew assembleRelease
-# APK: android/app/build/outputs/apk/release/app-release.apk
 ```
 
 ### Build Founder/Admin APK
 ```bash
-npx vite build --config vite.admin.config.ts
 npm run cap:sync:admin
 cd android && ./gradlew assembleRelease
 ```
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
+├── ai/                        # ICM prompt architecture (Van Clief methodology)
+│   ├── README.md              # ICM philosophy + file mapping
+│   └── prompts/               # Numbered markdown prompt files
+│       ├── 01-aloa-legal-identity.md       # ALOA system instruction (Vega)
+│       ├── 02-aria-property-identity.md    # ARIA system instruction (Atrium)
+│       ├── 03a-aloa-identity-guardrail.md  # ALOA identity lock
+│       ├── 03b-aria-identity-guardrail.md  # ARIA identity lock
+│       └── 04-interactive-form-protocol.md # Anti-interrogation form schema
 ├── convex/                    # Backend (Convex functions + schema)
-│   ├── schema.ts              # Database schema (70+ tables)
-│   ├── myFunctions.ts         # Core CRUD + auth + business logic
+│   ├── schema.ts              # Database schema (65+ tables)
+│   ├── myFunctions.ts         # Core CRUD + auth + business logic (6,300 LOC)
+│   ├── portals.ts             # Resident/Client portal backend (6,000 LOC)
 │   ├── founderMetrics.ts      # Founder app analytics + admin queries
-│   ├── portals.ts             # Resident/Client portal backend
+│   ├── impersonation.ts       # Server-verified impersonation tokens (B1 fix)
+│   ├── proactive.ts           # AI morning briefing + deadline scanner
+│   ├── retainerBilling.ts     # Automated retainer billing engine
+│   ├── conversationMemory.ts  # Cross-session AI conversation memory
 │   ├── visitorManagement.ts   # VMS (access codes, gatehouse)
-│   ├── pushNotifications.ts   # Push notification infrastructure
-│   ├── pushNotificationsNode.ts # FCM dispatch (Node.js runtime)
-│   ├── feedback.ts            # User feedback + admin replies
+│   ├── feedback.ts            # User feedback + admin replies + idempotency
+│   ├── tierLimits.ts          # Pricing tier limits (mirrors src/constants/tiers.ts)
 │   └── http.ts                # HTTP routes (webhooks, AI streaming)
 ├── src/
 │   ├── components/
@@ -162,48 +170,71 @@ cd android && ./gradlew assembleRelease
 │   │   ├── aloa/              # ALOA/ARIA AI chat interface
 │   │   ├── atrium/            # Property management components
 │   │   ├── client/            # Client portal (Vega)
-│   │   ├── details/           # Detail views (matter, property, contact)
-│   │   ├── forms/             # Data entry forms
-│   │   ├── portal/            # Portal components (login, VMS, gatehouse)
 │   │   ├── tenant/            # Resident portal (Atrium)
+│   │   ├── marketing/         # ContactSalesDrawer, landing page components
 │   │   └── ...
 │   ├── agents/                # AI agent modules
 │   │   ├── AgencyHub.ts       # ALOA/ARIA identity + system prompt builder
-│   │   ├── AdvancedLegalDocumentIntelligenceAgent.ts  # ALDIA
-│   │   ├── ResearchAgent.ts   # Legal research analysis
-│   │   ├── ScaleOfChargesAgent.ts  # Legal billing compliance
+│   │   ├── PropertyManagementAgent.ts  # ARIA property system instruction
 │   │   └── ...
-│   ├── contexts/              # React contexts (Auth, Data, Core, Finance, etc.)
-│   ├── hooks/                 # Custom hooks (useFeatures, useVersionCheck, etc.)
-│   ├── constants/             # Tier configs, identity guardrails, products
-│   └── utils/                 # Utilities (analytics, haptics, formatting, etc.)
+│   ├── constants/
+│   │   ├── tiers.ts           # Pricing tiers (source of truth)
+│   │   ├── identityGuardrails.ts  # AI identity lock (ICM-sourced)
+│   │   ├── loadPrompts.ts     # ICM loader (Vite ?raw imports)
+│   │   └── addons.ts          # Add-on catalog
+│   ├── contexts/              # React contexts (Auth, Data, Core, UI, Product)
+│   ├── hooks/                 # useFeatures, useVersionCheck, usePermissions
+│   ├── utils/                 # Analytics, haptics, formatting, PII stripping
+│   └── raw-imports.d.ts       # Type declarations for ?raw imports
 ├── android/                   # Capacitor Android project
 ├── scripts/                   # Build + audit scripts
-│   ├── generate-version-manifest.cjs  # Version.json generator
-│   ├── mark-healthy.cjs       # Post-build health marker
-│   ├── vercel-deploy.cjs      # Direct Vercel API deploy
-│   ├── agent-audit.ts         # Playwright UI crawler
-│   └── audit-master-suite.ts  # 10-domain audit suite
-├── public/                    # Static assets
-│   ├── _headers               # Cloudflare cache headers
-│   ├── _redirects             # Cloudflare SPA routing
-│   └── version.json           # Build version manifest
-├── .github/workflows/         # CI/CD
-│   ├── build-apk.yml          # Android APK build
-│   └── build-admin-apk.yml    # Founder APK build
+│   ├── landing-page-audit.cjs # Playwright landing page crawler
+│   ├── product-page-audit.cjs # Playwright product page crawler
+│   ├── generate-version-manifest.cjs
+│   ├── mark-healthy.cjs
+│   └── vercel-deploy.cjs
+├── public/                    # Static assets + version.json
+├── .github/workflows/         # CI/CD (APK builds)
 ├── wrangler.jsonc             # Cloudflare Workers config
 ├── vercel.json                # Vercel deploy config
-└── tailwind.config.js         # Tailwind theme (custom colors, fonts, sizes)
+└── tailwind.config.js         # Tailwind theme
 ```
 
 ---
 
-## 🤖 AI Agents
+## Pricing
+
+### Vega (Legal) — Monthly or Annual
+| Tier | Price | Users | Matters | Storage |
+|------|-------|-------|---------|---------|
+| Free | N0 | 1 | 10 | 1 GB |
+| Growth | N45,000/mo or N432,000/yr | 5 | Unlimited | 20 GB |
+| Pro | N80,000/mo or N768,000/yr | Unlimited | Unlimited | 100 GB |
+| Enterprise | Custom | Unlimited | Unlimited | Unlimited |
+
+### Atrium (Property) — Monthly or Annual
+| Tier | Price | Units | Tenants | WhatsApp/mo |
+|------|-------|-------|---------|-------------|
+| Starter | N49,000/mo or N490,000/yr | 10 | 15 | 250 |
+| Growth | N96,500/mo or N965,000/yr | 25 | 40 | 500 |
+| Pro | N200,000/mo or N2,100,000/yr | 100 | Unlimited | Unlimited |
+| Enterprise | Custom | Unlimited | Unlimited | Unlimited |
+
+### Komplete (Unified) — Annual Only
+| Tier | Price | Seats | Features |
+|------|-------|-------|----------|
+| Komplete | N2,200,000/yr | Unlimited | All Vega + Atrium + Sentry Pass + 500GB + Dedicated AM |
+
+All plans include a **30-day free trial**. Annual plans include a **30-day money-back guarantee**.
+
+---
+
+## AI Agents
 
 | Agent | Purpose | Product |
 |-------|---------|---------|
 | **ALOA** (Vega) / **ARIA** (Atrium) | AI assistant for chat, drafting, task management | Both |
-| **ALDIA** | Document intelligence (risk scoring, PII scanning, metadata extraction) | Vega |
+| **ALDIA** | Document intelligence (risk scoring, PII scanning) | Vega |
 | **Research Agent** | Legal research (chronology, gap analysis, adversarial brief) | Vega |
 | **Scale of Charges** | Legal billing compliance (Remuneration Order 2023) | Vega |
 | **Jurisdiction Agent** | Court routing (Federal vs State High Court) | Vega |
@@ -212,38 +243,81 @@ cd android && ./gradlew assembleRelease
 | **RPC Guidance** | Professional conduct review for AI outputs | Vega |
 | **Tax Compliance** | WENR tax deductibility analysis | Both |
 
+### ICM (Interpretable Context Methodology)
+All 5 primary AI prompts are sourced from versioned markdown files in `/ai/prompts/` via Vite `?raw` imports. This allows prompt editing without code deploys. The loader (`src/constants/loadPrompts.ts`) provides `renderAloaIdentity()`, `renderAriaIdentity()`, `renderIdentityGuardrail()`, and `renderFormProtocol()` functions.
+
 ---
 
-## 🔐 Security & Compliance
+## Security & Compliance
 
 - **NDPA 2023 Compliant** — Nigerian Data Protection Act
-- **Row-Level Security** — `requireFirmUser()` enforces per-firm data isolation
+- **Row-Level Security** — `requireFirmUser()` enforces per-firm data isolation on all mutations
+- **Server-Verified Impersonation** — Replaced unsigned `?impersonate=email` URL param with short-lived, single-use, founder-only tokens (`convex/impersonation.ts`)
+- **API Key Security** — Gemini API key held in-memory only, never persisted to localStorage
+- **Notification Auth** — `markNotificationRead` verifies caller ownership before patching
 - **Portal User Isolation** — Tenant/Client roles blocked from firm-level operations
 - **Disposable Email Blocking** — 32+ disposable email domains blocked at signup
-- **Rate Limiting** — AI request queue prevents API abuse
+- **Idempotency Keys** — 5 critical tables support dedup on double-submit
+- **Soft Delete** — Audit trail preserved via `deletedAt`/`deletedBy` fields
 - **Content Protection** — FLAG_SECURE on Android, screenshot prevention
-- **Audit Trail** — All admin actions logged to `securityEvents` table
+- **Audit Trail** — All admin actions and security events logged
 
 ---
 
-## 📊 Audit & Testing
+## Trial System
 
-### Playwright Crawler
+- **30-day free trial** on all paid tiers (Vega + Atrium)
+- **30-day VMS add-on trial** for Sentry Pass
+- Trial milestones (in-app nudges):
+  - Day 0: Welcome + setup
+  - Day 1: First payment recorded
+  - Day 3: First invoice sent
+  - Day 7: Try WhatsApp messaging
+  - Day 14: Midpoint check-in
+  - Day 23: Trial ending soon (7 days)
+  - Day 29: Last-chance nudge
+- Backend cron sends "trial ending" notifications at 7 days and 1 day before expiry
+
+---
+
+## Routing
+
+The app uses React Router v6 (`BrowserRouter`) with URL-based navigation:
+- Public routes: `/`, `/vega`, `/atrium`, `/komplet`, `/resources`, `/privacy-policy`, `/terms-of-service`, `/data-processing-agreement`, `/cookie-policy`, `/usage-policy`
+- Portal routes: `/portal/tenant/:token`, `/portal/client/:token`, `/gatehouse`
+- Authenticated routes: `/matters`, `/properties`, `/billing`, `/settings`, `/messaging`, etc.
+
+All public routes are in the `publicPaths` array and accessible without authentication.
+
+---
+
+## Audit & Testing
+
+### Playwright Crawlers
 ```bash
-npm run audit:app     # UI crawler (20 routes, screenshots, console errors)
-npm run audit:all     # Master suite (10 audit domains, 44 checks)
-npm run dev-report    # Generate development report (JSON + Markdown)
+# Landing page audit (all sections, mobile nav, JSON-LD, pricing)
+node scripts/landing-page-audit.cjs
+
+# Product page audit (Vega or Atrium, full section verification)
+AUDIT_PRODUCT=vega node scripts/product-page-audit.cjs
+AUDIT_PRODUCT=atrium node scripts/product-page-audit.cjs
+
+# Master audit suite
+npm run audit:all
+
+# Development report
+npm run dev-report
 ```
 
 ### Audit Results
 Reports saved to `./audit-results/`:
-- `master-report.json` — Full 10-domain audit results
-- `dev-report.json` — Development metrics for founder app
-- `dev-report.md` — Human-readable summary
-- `screenshots/` — Visual captures of every route
+- `landing-report.json` — Landing page section checks
+- `product-vega-report.json` / `product-atrium-report.json` — Product page checks
+- `master-report.json` — Full 10-domain audit
+- `screenshots/` — Visual captures
 
 ---
 
-## 📝 License
+## License
 
 Proprietary — PracticePro Systems Limited, Lagos, Nigeria.
