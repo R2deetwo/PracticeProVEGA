@@ -320,7 +320,7 @@ const BillingCalculator: React.FC<{
                 {/* CRO AUDIT FIX: compact monthly/yearly toggle moved INSIDE the
                     billing calculator (between "Simulate Growth" and the cost display).
                     Smaller pill toggle with -20% badge. Hidden for annual-only products
-                    (Komplete, Atrium) — showBillingToggle prop controls visibility. */}
+                    (Komplete only) — showBillingToggle prop controls visibility. */}
                 <div className="flex items-center gap-3 flex-wrap">
                     {showBillingToggle && onToggleBilling && (
                         <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 text-2xs font-bold">
@@ -806,7 +806,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
 
             {/* Billing Widget — CRO AUDIT FIX: monthly/yearly toggle is now INSIDE
                 the BillingCalculator (passed as props), not a giant toggle at the top.
-                For annual-only products (Komplete, Atrium), the toggle is hidden entirely. */}
+                For annual-only products (Komplete only), the toggle is hidden entirely. */}
             <BillingCalculator
                 users={activeFirmUsers}
                 currentPlan={firmDetails.subscriptionPlan || SubscriptionPlan.Core}
@@ -1402,7 +1402,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                             disabled={busy}
                             className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-sm"
                         >
-                            {busy ? 'Starting...' : 'Start 14-Day Free Trial'}
+                            {busy ? 'Starting...' : 'Start 30-Day Free Trial'}
                         </button>
                     </div>
                 )}

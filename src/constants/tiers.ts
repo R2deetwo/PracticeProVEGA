@@ -68,7 +68,7 @@ function calcSce(annualPrice: number, units: number): { scePer: string; scePer_a
   const perUnitPerMonth = Math.round(annualPrice / 12 / units);
   return {
     scePer: `${fmt(perUnitPerMonth)}/mo`,
-    scePer_annual: `${fmt(perUnitPerMonth)}/mo`,   // Same calc — Atrium is annual-only
+    scePer_annual: `${fmt(perUnitPerMonth)}/mo`,   // Same calc for both billing cycles
   };
 }
 

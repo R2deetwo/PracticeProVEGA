@@ -27,7 +27,7 @@ The VMS lets residents generate 6-digit visitor access codes from their resident
 2. Navigate to **Settings → Subscription → Add-ons**.
 3. Find the **Visitor Management System** card.
 4. Click **Start 14-Day Free Trial**.
-5. Confirm. The trial is active for 14 days — no payment required.
+5. Confirm. The trial is active for 30 days — no payment required.
 
 To convert to a paid subscription after the trial:
 
@@ -134,7 +134,7 @@ The gatehouse terminal shows the last 50 check-ins/check-outs for the current da
 | Status | Description |
 |--------|-------------|
 | `none` | No VMS add-on. Residents cannot generate codes. |
-| `trial` | 14-day free trial active. All features unlocked. |
+| `trial` | 30-day free trial active. All features unlocked. |
 | `active` | Paid subscription active. |
 | `expired` | Trial ended or subscription cancelled. Residents cannot generate new codes. Existing tokens remain valid until they expire naturally. |
 | `suspended` | Founder-initiated suspension (e.g. payment failure). Same as expired. |
@@ -193,7 +193,7 @@ These logs are never deleted. They are available to firm admins for security inv
 
 **Possible causes**:
 1. **VMS add-on not active**: Ask the firm admin to subscribe or start a trial.
-2. **Trial expired**: The 14-day trial has ended. The firm admin needs to subscribe.
+2. **Trial expired**: The 30-day trial has ended. The firm admin needs to subscribe.
 3. **Property has no units**: VMS requires at least one unit on the property. The admin needs to add a unit in the property's Edit modal.
 4. **Resident not assigned to a unit**: The resident's portal account must be linked to a specific unit. The admin needs to assign them via the Portal Access settings.
 

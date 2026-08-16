@@ -18,13 +18,16 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
     if (targetPlan === SubscriptionPlan.Komplete) {
       return {
         title: "Komplete",
-        price: "₦130,000",
+        price: "₦2,200,000",
         features: [
           "Unlimited Users",
           isProperty ? 'Unlimited Properties & Units' : 'Unlimited Matters & Units',
           "Unlimited Active Tenants",
           "ARIA AI Copilot (Uncapped Priority)",
-          isProperty ? 'Full Property Suite' : 'Full Legal + Property Suite'
+          isProperty ? 'Full Property Suite' : 'Full Legal + Property Suite',
+          "Sentry Pass (VMS) included",
+          "500 GB shared storage",
+          "Dedicated account manager"
         ],
         buttonText: "Upgrade to Komplete",
         accentColor: "text-indigo-600"
@@ -40,7 +43,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
           isProperty ? 'Unlimited Active Properties' : 'Unlimited Active Matters',
           isProperty ? "Uncapped Residents' Portal Deployments" : 'Uncapped Client Portal Deployments'
         ],
-        buttonText: "Start 14-Day Free Trial",
+        buttonText: "Start 30-Day Free Trial",
         accentColor: "text-emerald-600"
       };
     }
@@ -74,7 +77,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
       <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700 text-center">
         <div className="flex items-baseline justify-center gap-1 mb-4">
           <span className={`text-3xl font-black ${planConfig.accentColor}`}>{planConfig.price}</span>
-          <span className="text-sm text-slate-500">/mo</span>
+          <span className="text-sm text-slate-500">{targetPlan === SubscriptionPlan.Komplete ? '/yr' : '/mo'}</span>
         </div>
         <button
           onClick={onUpgrade}

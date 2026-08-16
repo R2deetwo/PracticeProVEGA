@@ -564,7 +564,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     {isSubmitting ? 'Creating...' : `Confirm Plan — ${planLabel}`}
                   </button>
 
-                  {/* Start 14-Day Free Trial — NOT available on highest tier */}
+                  {/* Start 30-Day Free Trial — NOT available on highest tier */}
                   {!isHighestTier && (
                     <>
                       <div className="flex items-center gap-3 py-1">
@@ -577,7 +577,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                         disabled={isSubmitting || !hasAgreed}
                         className="w-full py-3 bg-white border-2 border-primary-200 text-primary-600 font-black text-xs uppercase tracking-wide-label rounded-2xl hover:bg-primary-50 transition-all disabled:opacity-50"
                       >
-                        Start 14-Day Free Trial
+                        Start 30-Day Free Trial
                       </button>
                       {/* Subtle upsell for Core tier — suggest trying the highest tier */}
                       {selectedTierId === 'Core' && !isKompleteTier && (

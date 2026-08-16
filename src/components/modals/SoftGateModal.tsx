@@ -14,7 +14,7 @@ import NairaSymbol from '../NairaSymbol';
  * to create an 11th matter on Core, or invite a 2nd teammate). The prompt
  * names the specific value being unlocked and offers two paths:
  *   1. "Pay Now" — opens PaymentGatewayModal with bank transfer details.
- *   2. "Start 14-Day Free Trial" — creates the firm at the target tier with
+ *   2. "Start 30-Day Free Trial" — creates the firm at the target tier with
  *      a 30-day trial window (via the createSubscriptionRequest flow OR
  *      direct trial activation, depending on whether the firm already exists).
  *
@@ -160,7 +160,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
             onClick={handleStartTrial}
             className="w-full py-3 bg-white dark:bg-zinc-800 border-2 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-wide-label rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
           >
-            Start 14-Day Free Trial
+            Start 30-Day Free Trial
           </button>
         </div>
 
