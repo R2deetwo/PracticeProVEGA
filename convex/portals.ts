@@ -3319,8 +3319,7 @@ export const getTenantInfo = query({
           // Try to find a unit whose tenant matches
           const matchingUnit = propRecord.units.find((u: any) => {
             const uTenantId = u.currentTenantId || u.tenantId || u.tenantEmail?.toLowerCase();
-            return possibleIds.has(String(uTenantId)) ||
-                   (email && u.tenantEmail?.toLowerCase() === email.toLowerCase());
+            return possibleIds.has(String(uTenantId));
           });
           // If no exact match but there's only 1 unit, use it (single-unit property)
           const fallbackUnit = matchingUnit || (propRecord.units.length === 1 ? propRecord.units[0] : null);

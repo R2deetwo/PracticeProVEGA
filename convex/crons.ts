@@ -25,6 +25,17 @@ crons.interval(
   {}
 );
 
+// Resident Wallet Auto-Deduct: daily at 6:15 AM UTC (7:15 AM WAT).
+// Scans due service charges and auto-deducts from resident wallets.
+// Runs BEFORE the reminder cron (6:30 UTC) so auto-deducted residents
+// never receive a WhatsApp reminder for a charge already paid.
+crons.daily(
+  "walletAutoDeduct",
+  { hourUTC: 6, minuteUTC: 15 },
+  internal.wallets.processAutoDeductions,
+  {}
+);
+
 // Atrium Daily Automation: overdue late notices, reminders (8:00 AM WAT = 7:00 AM UTC)
 crons.daily(
   "sentryDailyAutomation",

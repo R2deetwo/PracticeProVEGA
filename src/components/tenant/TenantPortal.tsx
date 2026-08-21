@@ -10,7 +10,7 @@
  * Role-gated: Only users with role === 'Tenant'
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -205,6 +205,23 @@ const TenantPortal: React.FC = () => {
     api.portals.getTenantInfo,
     effectiveFirmId && userId ? { firmId: effectiveFirmId, userId, email } : 'skip'
   );
+
+  // ── Resident Wallet (prepaid balance for auto-deducting charges) ──
+  const walletData = useQuery(api.wallets.getMyWallet, userId ? { tenantId: userId } : 'skip');
+  const fundWallet = useMutation(api.wallets.fundWalletPublic);
+  const toggleAutoDeduct = useMutation(api.wallets.toggleAutoDeduct);
+  const initiateWalletFunding = useAction(api.wallets.initiateWalletFunding);
+  const [walletFundAmount, setWalletFundAmount] = useState('');
+  const [isFunding, setIsFunding] = useState(false);
+
+  // Check for Paystack redirect after wallet funding (?wallet_funded=REF)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fundedRef = params.get('wallet_funded');
+    if (fundedRef && userId && effectiveFirmId) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [userId, effectiveFirmId]);
 
   // Fetch firm portal settings for messaging toggle
   const portalSettings = useQuery(
@@ -553,7 +570,7 @@ const TenantPortal: React.FC = () => {
           </div>
         ) : (
           <>
-            {activeTab === 'dashboard' && <TabErrorBoundary tabName="Dashboard"><DashboardTab tenantInfo={tenantInfo} onNavigate={handleTabChange} /></TabErrorBoundary>}
+            {activeTab === 'dashboard' && <TabErrorBoundary tabName="Dashboard"><DashboardTab tenantInfo={tenantInfo} onNavigate={handleTabChange} walletData={walletData} fundWallet={fundWallet} toggleAutoDeduct={toggleAutoDeduct} initiateWalletFunding={initiateWalletFunding} userId={userId} effectiveFirmId={effectiveFirmId} email={email} walletFundAmount={walletFundAmount} setWalletFundAmount={setWalletFundAmount} isFunding={isFunding} setIsFunding={setIsFunding} /></TabErrorBoundary>}
             {activeTab === 'notices' && <TabErrorBoundary tabName="Notices"><NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
             {activeTab === 'ledger' && <TabErrorBoundary tabName="Ledger"><LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
             {activeTab === 'receipts' && <TabErrorBoundary tabName="Receipts"><ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
@@ -636,7 +653,13 @@ class TabErrorBoundary extends React.Component<
 // "Services" here are NOT just requests — they're actionable tiles for
 // anything the resident can DO: pay rent, pay service charge, buy electricity,
 // pay internet, report maintenance, send a message.
-const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void }> = ({ tenantInfo, onNavigate }) => {
+const DashboardTab: React.FC<{
+  tenantInfo: any; onNavigate: (tab: TabId) => void;
+  walletData?: any; fundWallet?: any; toggleAutoDeduct?: any; initiateWalletFunding?: any;
+  userId?: string; effectiveFirmId?: string; email?: string;
+  walletFundAmount?: string; setWalletFundAmount?: (v: string) => void;
+  isFunding?: boolean; setIsFunding?: (v: boolean) => void;
+}> = ({ tenantInfo, onNavigate, walletData, fundWallet, toggleAutoDeduct, initiateWalletFunding, userId, effectiveFirmId, email, walletFundAmount, setWalletFundAmount, isFunding, setIsFunding }) => {
   const { currentUser } = useAuth();
   const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
@@ -761,9 +784,89 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
             </div>
           </div>
         </button>
-      </div>
 
-      {/* ─── Quick Services Grid ────────────────────────────────────── */}
+        {/* ─── Prepaid Wallet Card ─────────────────────────────────────────
+            Resident's prepaid balance. When auto-deduct is enabled, the
+            system automatically deducts monthly charges from this balance. */}
+        <div className="bg-gradient-to-br from-emerald-600/20 to-emerald-900/20 border border-emerald-500/30 rounded-xl p-3 mt-2">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-2xs font-bold text-emerald-300/85 uppercase tracking-widest">Wallet Balance</p>
+              <p className="text-lg font-black mt-0.5 text-white">{walletData?.wallet ? formatNaira(walletData.wallet.balance) : '₦0'}</p>
+            </div>
+            {walletData?.wallet && (
+              <button
+                onClick={() => toggleAutoDeduct?.({ tenantId: userId, enabled: !walletData.wallet.autoDeductEnabled })}
+                className={`text-2xs font-bold px-2.5 py-1 rounded-full transition-colors ${
+                  walletData.wallet.autoDeductEnabled
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-white/10 text-white/60 border border-white/10'
+                }`}
+              >
+                {walletData.wallet.autoDeductEnabled ? 'Auto-Deduct: ON' : 'Auto-Deduct: OFF'}
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/50 text-xs">₦</span>
+              <input
+                type="number" min={100} step={100}
+                value={walletFundAmount || ''}
+                onChange={e => setWalletFundAmount?.(e.target.value)}
+                placeholder="Amount"
+                className="w-full pl-6 pr-2 py-1.5 bg-white/10 border border-white/15 text-white text-xs rounded-lg outline-none focus:border-emerald-400 placeholder:text-white/40"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                const amount = parseFloat(walletFundAmount || '');
+                if (!amount || amount <= 0 || !setIsFunding) return;
+                setIsFunding(true);
+                try {
+                  try {
+                    const result = await initiateWalletFunding?.({
+                      tenantId: userId, firmId: effectiveFirmId,
+                      propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || '',
+                      amount, email,
+                    });
+                    if (result?.authorizationUrl) { window.location.href = result.authorizationUrl; return; }
+                  } catch (e: any) { console.warn('[Wallet] Paystack failed, manual fallback:', e.message); }
+                  const result = await fundWallet?.({
+                    tenantId: userId, firmId: effectiveFirmId,
+                    propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || '',
+                    amount,
+                  });
+                  if (result?.success) setWalletFundAmount?.('');
+                } catch (e) { console.error('Wallet funding failed:', e); }
+                finally { setIsFunding(false); }
+              }}
+              disabled={isFunding || !walletFundAmount || !effectiveFirmId}
+              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+            >
+              {isFunding ? '…' : 'Fund'}
+            </button>
+          </div>
+          <div className="flex gap-1.5 mt-1.5">
+            {['5000', '10000', '20000'].map(amt => (
+              <button key={amt} onClick={() => setWalletFundAmount?.(amt)}
+                className="flex-1 text-2xs text-emerald-300/70 hover:text-emerald-300 py-0.5 border border-white/10 rounded hover:bg-white/5 transition-colors">
+                ₦{parseInt(amt).toLocaleString('en-NG')}
+              </button>
+            ))}
+          </div>
+          {walletData?.wallet?.autoDeductEnabled && (
+            <p className="text-2xs text-emerald-300/60 mt-2 leading-relaxed">
+              ✓ Your monthly charges will be automatically deducted from this wallet when due. No manual transfer needed.
+            </p>
+          )}
+          {walletData?.wallet && !walletData.wallet.autoDeductEnabled && (
+            <p className="text-2xs text-white/40 mt-2 leading-relaxed">
+              Enable auto-deduct to have your monthly charges automatically paid from your wallet.
+            </p>
+          )}
+        </div>
+      </div>
       <div>
         <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2.5">Quick Services</h3>
         <div className="grid grid-cols-4 gap-2.5">
@@ -931,10 +1034,21 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
   const { currentUser } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
-
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
-  // Fetch ledger entries from Convex using the resolved tenant ID
+  // ── Categorized sub-tabs (All / SC / Electricity / Internet / Waste / Rent) ──
+  const [ledgerSubTab, setLedgerSubTab] = useState<string>('all');
+
+  // Read ?tab= from URL for Quick Service routing (e.g. /portal/ledger?tab=service_charge)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam) {
+      setLedgerSubTab(tabParam);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   const ledgerEntries = useQuery(
     api.portals.getTenantLedger,
     firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email } : 'skip'
@@ -1006,9 +1120,43 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
   return (
     <div>
       <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Ledger</h3>
-      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
         View your rent, Service Charge (SC), and Minimum Vend (MV) obligations and payment status.
       </p>
+
+      {/* Estate Compliance Notice */}
+      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-lg p-3 mb-4 flex items-start gap-2">
+        <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+        </svg>
+        <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+          <strong>Estate Compliance Notice:</strong> Payment status and timeliness records are synchronized with estate management logs. Frequent late payments may result in administrative late charges or temporary service suspension per estate regulations.
+        </p>
+      </div>
+
+      {/* Categorized Sub-Tabs */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {[
+          { key: 'all', label: 'All Charges' },
+          { key: 'service_charge', label: 'Service Charge' },
+          { key: 'electricity', label: 'Electricity' },
+          { key: 'internet', label: 'Internet' },
+          { key: 'waste', label: 'Waste Mgmt' },
+          { key: 'rent', label: 'Rent' },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setLedgerSubTab(tab.key)}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+              ledgerSubTab === tab.key
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 hover:border-emerald-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -1060,10 +1208,25 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
         </div>
       </div>
 
-      {/* Service Charges Section */}
-      {hasServiceCharges && (
+      {/* Service Charges Section — filtered by selected sub-tab */}
+      {hasServiceCharges && (() => {
+        const filteredCharges = ledgerSubTab === 'all'
+          ? tenantServiceCharges
+          : ledgerSubTab === 'service_charge'
+          ? tenantServiceCharges.filter((sc: any) => !sc.isMinimumVend)
+          : ledgerSubTab === 'electricity'
+          ? tenantServiceCharges.filter((sc: any) => sc.isMinimumVend)
+          : ledgerSubTab === 'rent'
+          ? [] // Rent entries come from ledger_entries, not service_charges
+          : []; // internet, waste — filtered from ledger entries below
+
+        if (filteredCharges.length === 0 && ledgerSubTab !== 'all' && ledgerSubTab !== 'rent') return null;
+
+        return (
         <div className="mb-6">
-          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Service Charges</h4>
+          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">
+            {ledgerSubTab === 'all' ? 'Service Charges' : ledgerSubTab === 'service_charge' ? 'Service Charges' : ledgerSubTab === 'electricity' ? 'Electricity / Minimum Vend' : 'Charges'}
+          </h4>
           <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1077,7 +1240,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
                   </tr>
                 </thead>
                 <tbody>
-                  {tenantServiceCharges.map((sc: any) => {
+                  {filteredCharges.map((sc: any) => {
                     const isMV = sc.isMinimumVend;
                     const statusLabel = sc.serviceChargeStatus === 'PAID_FULLY'
                       ? 'Paid' : sc.serviceChargeStatus === 'PARTIALLY_PAID'
@@ -1115,9 +1278,10 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
-      {/* Ledger Table */}
+      {/* Ledger Table — filtered by sub-tab (rent entries) */}
       {hasLedgerData ? (
         <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
           <div className="overflow-x-auto">

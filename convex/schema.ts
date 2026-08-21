@@ -252,7 +252,7 @@ export default defineSchema({
     .index("by_dueDate", ["firmId", "dueDate"])
     .index("by_assignee_type", ["firmId", "assigneeType"])
     .index("by_custom_id", ["id"])
-    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
+    .index("by_idempotency", ["idempotencyKey"]),
 
   documents: defineTable({
     firmId: nullableString,
@@ -1488,7 +1488,7 @@ export default defineSchema({
     .index("by_tenant", ["tenantId"])
     .index("by_firm_status", ["firmId", "status"])
     .index("by_paystack_reference", ["paystackReference"])
-    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
+    .index("by_idempotency", ["idempotencyKey"]),
 
   // ─── Portal Settings ──────────────────────────────────────────────
   // Per-firm portal configuration. Controls features like messaging,
@@ -1795,7 +1795,7 @@ export default defineSchema({
     .index("by_user_email", ["userEmail"])
     .index("by_custom_id", ["id"])
     .index("by_role_context", ["roleContext"])
-    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
+    .index("by_idempotency", ["idempotencyKey"]),
 
   // ─── SUBSCRIPTION REQUESTS (CRO Audit Track A — Revenue Protection) ──────
   // Replaces the broken flow where SubscriptionSettings.processUpgrade
@@ -1835,7 +1835,7 @@ export default defineSchema({
     .index("by_reference", ["transactionReference"])
     .index("by_auto_revert", ["autoRevertAt"])
     .index("by_custom_id", ["id"])
-    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
+    .index("by_idempotency", ["idempotencyKey"]),
 
   // ─── ADD-ONS (CRO Audit — upsellable extras: extra WhatsApp, extra seats, etc.) ──
   // Each row represents a single add-on purchase (one firm, one add-on type, one billing cycle).
@@ -1867,7 +1867,7 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_addon", ["addonId"])
     .index("by_custom_id", ["id"])
-    .index("by_idempotency", ["idempotencyKey", "_creationTime"]),
+    .index("by_idempotency", ["idempotencyKey"]),
 
   // ── Security Tables ──────────────────────────────────────────────────
   // Rate limiting: tracks request counts per IP + per user for throttling.
@@ -1965,5 +1965,55 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_founder", ["founderEmail"])
     .index("by_target", ["targetEmail"]),
+
+  // ─── RESIDENT WALLET (prepaid balance for auto-deducting charges) ──────
+  resident_wallets: defineTable({
+    tenantId: v.string(),
+    firmId: v.string(),
+    propertyId: v.string(),
+    balance: v.number(),
+    currency: v.string(),
+    autoDeductEnabled: v.boolean(),
+    status: v.union(
+      v.literal("active"),
+      v.literal("low_balance"),
+      v.literal("frozen"),
+    ),
+    lowBalanceThreshold: v.optional(v.number()),
+    paystackCustomerCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tenant", ["tenantId"])
+    .index("by_firm", ["firmId"])
+    .index("by_property", ["propertyId"])
+    .index("by_status", ["status"]),
+
+  wallet_transactions: defineTable({
+    walletId: v.string(),
+    tenantId: v.string(),
+    firmId: v.string(),
+    type: v.union(
+      v.literal("credit"),
+      v.literal("debit"),
+      v.literal("insufficient_funds"),
+      v.literal("reversal"),
+    ),
+    amount: v.number(),
+    previousBalance: v.number(),
+    newBalance: v.number(),
+    currency: v.string(),
+    reason: v.string(),
+    reference: v.string(),
+    chargeType: v.optional(v.string()),
+    chargeId: v.optional(v.string()),
+    paystackReference: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_wallet", ["walletId"])
+    .index("by_tenant", ["tenantId"])
+    .index("by_firm", ["firmId"])
+    .index("by_type", ["type"])
+    .index("by_timestamp", ["timestamp"]),
 
 }, { schemaValidation: false });

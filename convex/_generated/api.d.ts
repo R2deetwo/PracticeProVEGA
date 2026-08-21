@@ -25,6 +25,7 @@ import type * as feedback from "../feedback.js";
 import type * as founderMetrics from "../founderMetrics.js";
 import type * as founderNotifications from "../founderNotifications.js";
 import type * as http from "../http.js";
+import type * as impersonation from "../impersonation.js";
 import type * as indexer from "../indexer.js";
 import type * as legalRepo from "../legalRepo.js";
 import type * as migrations from "../migrations.js";
@@ -37,7 +38,6 @@ import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushNotificationsNode from "../pushNotificationsNode.js";
-import type * as impersonation from "../impersonation.js";
 import type * as retainerBilling from "../retainerBilling.js";
 import type * as salesInquiries from "../salesInquiries.js";
 import type * as securityHelpers from "../securityHelpers.js";
@@ -48,6 +48,7 @@ import type * as sentryWebhook from "../sentryWebhook.js";
 import type * as tierLimits from "../tierLimits.js";
 import type * as trustAccount from "../trustAccount.js";
 import type * as visitorManagement from "../visitorManagement.js";
+import type * as wallets from "../wallets.js";
 import type * as webFetch from "../webFetch.js";
 
 import type {
@@ -74,6 +75,7 @@ declare const fullApi: ApiFromModules<{
   founderMetrics: typeof founderMetrics;
   founderNotifications: typeof founderNotifications;
   http: typeof http;
+  impersonation: typeof impersonation;
   indexer: typeof indexer;
   legalRepo: typeof legalRepo;
   migrations: typeof migrations;
@@ -86,7 +88,6 @@ declare const fullApi: ApiFromModules<{
   proactive: typeof proactive;
   pushNotifications: typeof pushNotifications;
   pushNotificationsNode: typeof pushNotificationsNode;
-  impersonation: typeof impersonation;
   retainerBilling: typeof retainerBilling;
   salesInquiries: typeof salesInquiries;
   securityHelpers: typeof securityHelpers;
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   tierLimits: typeof tierLimits;
   trustAccount: typeof trustAccount;
   visitorManagement: typeof visitorManagement;
+  wallets: typeof wallets;
   webFetch: typeof webFetch;
 }>;
 
