@@ -1312,9 +1312,10 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
       };
     }
 
-    let selectedProduct: 'legal' | 'property' | 'unified' = 'legal';
-    if (args.product === 'property') selectedProduct = 'property';
-    if (args.product === 'unified') selectedProduct = 'unified';
+    // FIX: Don't default to 'legal' (Vega) when no product is passed.
+    // Pass undefined through to sendVerificationEmail so the email subject
+    // says "PracticePro — Your Verification Code" instead of "PracticePro Vega".
+    let selectedProduct: 'legal' | 'property' | 'unified' | undefined = args.product as any;
 
     // BUG FIX (Task 16): When no product is passed (e.g. resendConfirmation),
     // use the EXISTING user's product instead of defaulting to 'legal' (Vega).
@@ -3832,8 +3833,13 @@ function brandedEmailWrapper(opts: {
 }
 
 function getProductBranding(product?: string) {
-  const key = product || 'legal';
-  return PRODUCT_BRANDING[key] || PRODUCT_BRANDING.legal;
+  // FIX: Don't default to Vega when no product is selected. Return an empty
+  // brand so the email subject says "PracticePro — Your Verification Code"
+  // instead of "PracticePro Vega — Your Verification Code".
+  if (!product) {
+    return { name: "", accent: "#16A34A", tagline: "Practice Management OS", productColor: "#16A34A" };
+  }
+  return PRODUCT_BRANDING[product] || PRODUCT_BRANDING.legal;
 }
 
 async function sendBrevoEmail(args: {
@@ -3902,7 +3908,7 @@ export const sendVerificationEmail = internalAction({
 
     await sendBrevoEmail({
       to: args.email,
-      subject: `PracticePro ${brand.name} — Your Verification Code`,
+      subject: brand.name ? `PracticePro ${brand.name} — Your Verification Code` : `PracticePro — Your Verification Code`,
       html,
       productName: brand.name,
     });
@@ -3941,7 +3947,7 @@ export const sendRecoveryEmail = internalAction({
 
     await sendBrevoEmail({
       to: args.email,
-      subject: `Reset your PracticePro ${brand.name} Password`,
+      subject: brand.name ? `Reset your PracticePro ${brand.name} Password` : `Reset your PracticePro Password`,
       html,
       productName: brand.name,
     });
@@ -4003,7 +4009,7 @@ export const sendWelcomeEmail = internalAction({
     const bodyHtml = `
       <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Hi ${userName},</p>
       <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
-        Welcome to PracticePro ${brand.name}! Your email has been verified and your account is ready. We're excited to have you on board.
+        Welcome to PracticePro${brand.name ? ' ' + brand.name : ''}! Your email has been verified and your account is ready. We're excited to have you on board.
       </p>
       <p style="color:#1a202c;font-size:16px;font-weight:600;margin:0 0 16px 0;">Get Started in 3 Steps:</p>
       <div style="margin-bottom:32px;">${linksHtml}</div>
@@ -4026,7 +4032,7 @@ export const sendWelcomeEmail = internalAction({
 
     await sendBrevoEmail({
       to: args.email,
-      subject: `Welcome to PracticePro ${brand.name}!`,
+      subject: brand.name ? `Welcome to PracticePro ${brand.name}!` : `Welcome to PracticePro!`,
       html,
       productName: brand.name,
     });

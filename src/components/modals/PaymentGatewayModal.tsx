@@ -65,9 +65,12 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   const primaryBank = (!forcePracticeProAccount && bankAccounts && bankAccounts.length > 0) ? bankAccounts[0] : null;
 
   // PracticePro corporate bank details (used when firm hasn't configured their own)
+  // FIX: Use a generic bank name instead of "Providus Bank" — this is a
+  // placeholder that should be replaced with the actual company bank details.
+  // The account number is also a placeholder — update when the real account is available.
   const PRACTICEPRO_BANK = {
-    bankName: 'Providus Bank',
-    accountNumber: '1203984572',
+    bankName: 'PracticePro Systems Ltd',
+    accountNumber: '0000000000',
     accountName: 'PracticePro Systems Ltd',
   };
 
@@ -293,7 +296,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             disabled={!confirmChecked}
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
           >
-            Report Payment Transferred
+            I've Made Payment — Continue to App
           </button>
 
           <div className="text-center">

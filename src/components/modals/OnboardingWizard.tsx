@@ -381,7 +381,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           ))}
         </div>
         <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
-          {step <= 2 ? `Step ${step} of 2 — Setup` : `Step ${step} of 5 — Finish Setup`}
+          {`Step ${step} of 5 — ${step <= 2 ? 'Workspace' : step === 3 ? 'Communication' : step === 4 ? 'Team' : 'Review'}`}
         </p>
 
         {/* ── STEP 1: Workspace Name ─────────────────────────────── */}
@@ -544,8 +544,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     </div>
                   </div>
                 ) : (
-                  /* Full 3-tier grid with smooth cascade transition */
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+                  /* Full tier grid — show all 4 tiers in one row on desktop,
+                     2 columns on tablet, 1 column on mobile. */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in">
                     {tierIds.map(id => (
                       <PlanCard
                         key={id}

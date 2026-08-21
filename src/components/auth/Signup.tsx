@@ -18,12 +18,15 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  const { closeModal, addToast, navigateTo, modalContext } = useUI();
 
  const [step, setStep] = React.useState<'product_selection' | 'form' | 'verify' | 'restore'>('product_selection');
- const [selectedProduct, setSelectedProduct] = React.useState<'legal' | 'property' | 'unified'>('legal');
+ // FIX: Default to null instead of 'legal' (Vega). This ensures the user MUST
+ // select a product before proceeding — the verification email won't falsely
+ // say "PracticePro Vega" if they didn't pick Vega.
+ const [selectedProduct, setSelectedProduct] = React.useState<'legal' | 'property' | 'unified' | null>(null);
  // TASK 18: Use a REF to store the product. Unlike state, a ref persists
  // across ALL re-renders and is NEVER lost. This is the bulletproof fix
  // for the email branding bug — even if modalContext becomes null, the
  // ref preserves the product that was set when the modal opened.
- const productRef = React.useRef<'legal' | 'property' | 'unified'>('legal');
+ const productRef = React.useRef<'legal' | 'property' | 'unified' | null>(null);
  const [isLoading, setIsLoading] = React.useState(false);
 
  const [fullName, setFullName] = React.useState('');
@@ -123,6 +126,14 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    // preserves the correct product. This is the BULLETPROOF fix for
    // the "vega email from atrium signup" bug.
    const productToSend = productRef.current;
+
+   // FIX: Guard against null product — don't let signup proceed without a product
+   if (!productToSend) {
+    addToast("Please select a product (Vega, Atrium, or Komplete) to continue.", { type: 'error' });
+    setStep('product_selection');
+    setIsLoading(false);
+    return;
+   }
 
    const result = await signup(
     '',
