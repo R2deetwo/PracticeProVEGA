@@ -2542,12 +2542,14 @@ export const createItem = mutation({
     // Auto-inject creation timestamp and audit fields
     // PHASE 0 SECURITY FIX: Previously fell back to sanitizedData.firmId from
     // the client payload when the caller was anonymous — allowing any caller
-    // to write into any firm. Now we throw if no authenticated firmId is available.
-    // The only exception is the 'firms' table itself (which IS the firm record).
-    if (!firmId && table !== 'firms') {
+    // to write into any firm. Now we throw for firm-scoped tables.
+    // Exception: tables that legitimately don't require a firmId (users during
+    // signup, analytics_events with firmId='security', etc.) are allowed.
+    const PRE_AUTH_TABLES = ['firms', 'users', 'analytics_events', 'termsAcceptance', 'subscriptionRequests', 'subscriptionAddons', 'sales_inquiries', 'securityEvents'];
+    if (!firmId && !PRE_AUTH_TABLES.includes(table)) {
       throw new Error("Unauthorized: No firm context. Pass userEmail to authenticate.");
     }
-    const effectiveFirmId = firmId || (table === 'firms' ? sanitizedData.firmId : '');
+    const effectiveFirmId = firmId || (PRE_AUTH_TABLES.includes(table) ? (sanitizedData.firmId || '') : '');
     const dataWithTimestamp = {
       ...sanitizedData,
       firmId: effectiveFirmId,

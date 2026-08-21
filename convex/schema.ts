@@ -2016,4 +2016,9 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_timestamp", ["timestamp"]),
 
-}, { schemaValidation: true });
+// PHASE 0 REVERT: schemaValidation must stay false until all inserts are
+// audited. Enabling it broke signup because many existing mutations insert
+// data that doesn't conform to the strict schema validators (missing
+// createdAt/updatedAt, wrong timestamp types, extra fields not in schema).
+// To enable safely: run a full audit pass fixing every insert, THEN flip.
+}, { schemaValidation: false });
