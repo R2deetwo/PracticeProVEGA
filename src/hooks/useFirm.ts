@@ -69,7 +69,18 @@ export const useFirm = (appState: AppState, actions: any) => {
 
         try {
             const { id, _id, ...dataToSave } = details;
-            await updateItemMutation({ table: 'firms', id: firmId, data: dataToSave });
+            // CRITICAL FIX: pass userEmail so the backend requireAdmin() gate
+            // can identify the caller. Without userEmail, requireFirmUser returns
+            // an anonymous context (user: null), and requireAdmin throws
+            // "Permission denied" because null.role !== "Admin" — which the
+            // user sees as "Failed to sync firm settings" when saving a bank
+            // account or any other firmDetails update.
+            await updateItemMutation({
+                table: 'firms',
+                id: firmId,
+                data: dataToSave,
+                userEmail: currentUser?.email,
+            });
             addToast("Firm settings updated.", { type: 'success' });
         } catch (e) {
             console.error('[useFirm] handleUpdateFirmDetails failed:', e);

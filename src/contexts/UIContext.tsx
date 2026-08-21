@@ -337,7 +337,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     React.useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove(
-            'light', 'dark', 
+            'light', 'dark',
             'theme-midnight', 'theme-oled', 'theme-neon-cyber', 'theme-sunlight-soft', 'theme-city-lights',
             'theme-city-emerald', 'theme-midnight-emerald', 'theme-army-dark', 'theme-army-light'
         );
@@ -381,6 +381,29 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
 
         localStorage.setItem('practicepro_theme', theme);
     }, [theme, currentUser]);
+
+    // System theme change listener — when the user's OS theme changes and the
+    // app is in 'system' mode, re-apply the theme so the dark/light class
+    // updates in real time. Without this, switching the OS theme while the
+    // app is open has no effect until the user manually toggles or reloads.
+    // This also serves as a "force re-apply" mechanism: if the theme class
+    // somehow gets out of sync with the state, this listener fires on any
+    // matchMedia change and re-runs the effect above.
+    React.useEffect(() => {
+        if (theme !== 'system') return;
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => {
+            const root = window.document.documentElement;
+            root.classList.remove('light', 'dark');
+            if (mq.matches) {
+                root.classList.add('dark');
+            } else {
+                root.classList.add('light');
+            }
+        };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, [theme]);
     // Font Size Effect - Applies class to HTML root for global scaling
     React.useEffect(() => {
         const root = window.document.documentElement;
