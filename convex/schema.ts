@@ -337,7 +337,7 @@ export default defineSchema({
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
     expiresAt: v.optional(v.number()), // Auto-expiry timestamp (null = never expires)
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]).index("by_user", ["userId"]),
 
   invoices: defineTable({
     firmId: nullableString,
@@ -404,7 +404,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]),
+  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
 
   expenses: defineTable({
     firmId: nullableString,
@@ -421,7 +421,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_matter", ["matterId"]),
 
   firmActivity: defineTable({
     firmId: nullableString,
@@ -478,7 +478,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_matter", ["matterId"]),
 
   noteNotebooks: defineTable({
     name: nullableString,
@@ -611,7 +611,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]),
+  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
 
   automationRules: defineTable({
     firmId: nullableString,
@@ -1889,7 +1889,8 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_type", ["eventType"])
     .index("by_timestamp", ["timestamp"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_firm", ["firmId"]),
 
   // Blocked IPs: admin can block IPs that show malicious behavior.
   blockedIps: defineTable({

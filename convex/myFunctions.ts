@@ -6571,11 +6571,12 @@ export const getGettingStartedChecklist = query({
       : [];
     const hasBankAccount = bankAccounts.length > 0;
 
-    // "Billing rate" = matters with an assignedRate OR firmDetails.aiSettings
-    // (any signal that the user has touched billing configuration). For
-    // simplicity, we treat hasMatter as the proxy for "set your billing rate"
-    // because the Vega MatterForm collects the rate at matter creation time.
-    const hasBillingRate = allMatters.length > 0;
+    // PHASE 1.5 FIX: hasBillingRate was a dead item — it checked allMatters.length > 0
+    // which is the same as hasMatter. Now checks if ANY matter has a billingRate
+    // or if the firm has aiSettings configured (signals the user touched billing).
+    const hasBillingRate = allMatters.some((m: any) =>
+      !!(m.billingRate || m.hourlyRate || m.assignedRate)
+    ) || !!(firm as any).aiSettings?.billingConfigured;
 
     // DEEP AUDIT FIX: Court date = ANY matter with nextAdjournedDate set (legacy
     // intake-time field) OR any Event with type 'Court Hearing' or 'Mention'.

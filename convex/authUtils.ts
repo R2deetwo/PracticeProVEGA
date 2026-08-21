@@ -74,8 +74,12 @@ export const verifyPassword = internalAction({
       return { valid: legacyHash === args.storedHash, needsMigration: true };
     }
 
-    // ANCIENT FORMAT: plaintext
+    // ANCIENT FORMAT: plaintext — PHASE 0.6: Log security warning for migration.
+    // We don't remove this check because it would lock out ancient users.
+    // The needsMigration=true flag causes verifyLogin to re-hash on next login,
+    // so plaintext passwords are gradually eliminated.
     if (args.password === args.storedHash) {
+      console.warn("[SECURITY] Plaintext password matched — this user should be migrated to PBKDF2 on login.");
       return { valid: true, needsMigration: true };
     }
 
