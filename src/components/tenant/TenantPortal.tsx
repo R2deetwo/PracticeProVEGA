@@ -850,43 +850,14 @@ const DashboardTab: React.FC<{
               />
             </div>
             <button
-              onClick={async () => {
-                const amount = parseFloat(walletFundAmount || '');
-                if (!amount || amount <= 0) return;
-                setIsFunding?.(true);
-                try {
-                  // Try Paystack first (card payment)
-                  try {
-                    const result = await initiateWalletFunding?.({
-                      tenantId: userId || '',
-                      firmId: effectiveFirmId || '',
-                      propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || '',
-                      amount,
-                      email: email || '',
-                    });
-                    if (result?.authorizationUrl) {
-                      window.location.href = result.authorizationUrl;
-                      return;
-                    }
-                  } catch (e: any) {
-                    console.warn('[Wallet] Paystack failed, manual fallback:', e.message);
-                  }
-
-                  // Fallback: manual credit (for when Paystack is not configured)
-                  const result = await fundWallet?.({
-                    tenantId: userId || '',
-                    firmId: effectiveFirmId || '',
-                    propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || '',
-                    amount,
-                  });
-                  if (result?.success) {
-                    setWalletFundAmount?.('');
-                  }
-                } catch (e: any) {
-                  console.error('Wallet funding failed:', e.message || e);
-                } finally {
-                  setIsFunding?.(false);
-                }
+              onClick={() => {
+                // Navigate to the Payments tab where the resident can:
+                // 1. See the firm's bank account details
+                // 2. Do a bank transfer
+                // 3. Upload proof of payment
+                // 4. OR pay via Paystack if configured
+                // The wallet is credited AFTER the property manager verifies the proof.
+                onNavigate('payments');
               }}
               disabled={isFunding || !walletFundAmount}
               className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
