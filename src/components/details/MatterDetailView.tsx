@@ -35,10 +35,12 @@ import { useFinanceState } from '../../contexts/FinanceContext';
 // CRO AUDIT FIX — MatterBrief import removed (unused, dead code)
 import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../toolkit/Skeleton';
+import { useHighlight } from '../../hooks/useHighlight';
 
-const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number }> = ({ label, isActive, onClick, badgeCount }) => (
+const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number; 'data-tour-id'?: string }> = ({ label, isActive, onClick, badgeCount, ...rest }) => (
     <button
         onClick={onClick}
+        data-tour-id={rest['data-tour-id']}
         className={`flex-none text-center relative whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors ${isActive
             ? 'border-primary-500 text-primary-600 dark:text-primary-400 bg-primary-50/50 dark:bg-primary-900/10'
             : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -68,6 +70,11 @@ type MatterTab = 'notes' | 'schedule_tasks' | 'billing' | 'documents';
 const MatterDetailViewContent: React.FC = () => {
     const { addToast, closeModal, openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
     const { openWithContext } = useAloa();
+
+    // DEEP AUDIT FIX: Wire useHighlight so the "New Event" button gets a pulse
+    // ring when the user clicks "Add a court date" in the Getting Started checklist.
+    const matterDetailContainerRef = useRef<HTMLDivElement>(null);
+    useHighlight(matterDetailContainerRef, 'matterDetail', 'ring');
     const { matterState, matterActions } = useMatterState();
     const { coreState, coreActions } = useCoreState();
     const { documentState, documentActions } = useDocumentState();
@@ -369,7 +376,7 @@ const MatterDetailViewContent: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
+        <div ref={matterDetailContainerRef} className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
             <header className="sticky top-0 z-10 glass flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 shadow-sm">
                 <div className="px-4 pt-3 sm:px-6">
                     <div className="flex items-center justify-between mb-2">
@@ -501,7 +508,10 @@ const MatterDetailViewContent: React.FC = () => {
                         (MatterBrief component rendered mostly-empty widgets that duplicated
                         info already shown in Endorsements and Tasks). */}
                     <TabButton label="Endorsements" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
-                    <TabButton label="Tasks" isActive={activeTab === 'schedule_tasks'} onClick={() => handleTabClick('schedule_tasks')} badgeCount={tabBadges.tasks} />
+                    {/* DEEP AUDIT FIX: Renamed "Tasks" to "Tasks & Events" so users know
+                        court dates (which are events) live here. The checklist hint
+                        previously said "Schedule tab" which didn't exist. */}
+                    <TabButton label="Tasks & Events" isActive={activeTab === 'schedule_tasks'} onClick={() => handleTabClick('schedule_tasks')} badgeCount={tabBadges.tasks} data-tour-id="matter-tab-tasks" />
                     {canViewBilling && <TabButton label="Finance" isActive={activeTab === 'billing'} onClick={() => handleTabClick('billing')} />}
                     <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => handleTabClick('documents')} badgeCount={tabBadges.docs} />
                 </nav>

@@ -2026,6 +2026,26 @@ export const createFirm = mutation({
       });
     }
 
+    // DEEP AUDIT FIX: Seed default event types so new firms can immediately use
+    // the EventForm (which requires event types to exist for the type dropdown).
+    // Without this, the EventForm's <select required> has no options and the form
+    // can't be saved — meaning the "Add a court date" checklist item is impossible.
+    const defaultEventTypes = [
+      { name: "Court Hearing", color: "#ef4444" },
+      { name: "Mention", color: "#f59e0b" },
+      { name: "Client Meeting", color: "#3b82f6" },
+      { name: "Filing Deadline", color: "#f97316" },
+      { name: "Consultation", color: "#10b981" },
+    ];
+    for (const et of defaultEventTypes) {
+      await ctx.db.insert("eventTypes", {
+        firmId,
+        name: et.name,
+        color: et.color,
+        isSystem: true,
+      } as any);
+    }
+
     return firmId;
   },
 });
@@ -6471,8 +6491,13 @@ export const getGettingStartedChecklist = query({
     // record. If the user added a tenant to the SECOND property, the check
     // returned false and the checklist item never ticked off.
     // Now we use .take(N) + .some() to check ALL records in each table.
+    //
+    // DEEP AUDIT FIX: Court dates are stored as Event records (type='Court Hearing'
+    // or 'Mention'), NOT on the matter object. Previously checked phantom fields
+    // (nextCourtDate, courtDate) that don't exist in the schema. Now we also query
+    // the events table.
     const [allMatters, allProperties, firstContact, allServiceCharges,
-          usersInFirm, portalInvitesSent] = await Promise.all([
+          usersInFirm, portalInvitesSent, allCourtEvents] = await Promise.all([
       ctx.db.query("matters")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
         .take(500),
@@ -6494,6 +6519,17 @@ export const getGettingStartedChecklist = query({
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
         .take(50)
         .catch(() => []),
+      // DEEP AUDIT FIX: Court dates are Event records with type 'Court Hearing' or 'Mention'
+      ctx.db.query("events")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .filter((q: any) =>
+          q.or(
+            q.eq(q.field("type"), "Court Hearing"),
+            q.eq(q.field("type"), "Mention")
+          )
+        )
+        .take(500)
+        .catch(() => []),
     ]);
 
     // Has at least one property with a tenant assigned — check ALL properties,
@@ -6514,11 +6550,14 @@ export const getGettingStartedChecklist = query({
     // because the Vega MatterForm collects the rate at matter creation time.
     const hasBillingRate = allMatters.length > 0;
 
-    // Court date = ANY matter with nextAdjournedDate / nextCourtDate / courtDate
-    // set. Previously only checked the first matter (BRIEF #1 fix).
-    const hasCourtDateOnMatter = allMatters.some((m: any) =>
-      !!(m.nextAdjournedDate || m.nextCourtDate || m.courtDate)
-    );
+    // DEEP AUDIT FIX: Court date = ANY matter with nextAdjournedDate set (legacy
+    // intake-time field) OR any Event with type 'Court Hearing' or 'Mention'.
+    // Previously checked phantom fields (nextCourtDate, courtDate) that don't
+    // exist in the schema, and never queried the events table — so creating a
+    // court date event never ticked off the checklist item.
+    const hasCourtDateOnMatter =
+      allMatters.some((m: any) => !!m.nextAdjournedDate) ||
+      allCourtEvents.length > 0;
 
     // Invited at least one teammate (more than 1 user in firm, OR has any
     // portal invite records — residents/clients are also "invites" in the
@@ -6559,6 +6598,10 @@ export const getGettingStartedChecklist = query({
       hasInvitedResidentToPortal,
       hasSentReminder,
       userCount: usersInFirm.length,
+      // DEEP AUDIT FIX: Return the first matter/property IDs so the checklist
+      // can deep-link directly to the detail view instead of the bare list page.
+      firstMatterId: allMatters.length > 0 ? String((allMatters[0] as any)._id || (allMatters[0] as any).id) : null,
+      firstPropertyId: allProperties.length > 0 ? String((allProperties[0] as any)._id || (allProperties[0] as any).id) : null,
     };
   },
 });

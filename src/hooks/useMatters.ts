@@ -19,12 +19,28 @@ export const useMatters = (appState: any, actions: any) => {
 
     /**
      * Add a new matter.
+     *
+     * DEEP AUDIT FIX: Previously, when a new client was created alongside a
+     * matter (the "+ Create Profile" flow), the matter was saved with
+     * clientId: '' and the contact was created afterward with a back-link
+     * (matterId) — but the matter's clientId was NEVER updated to point
+     * at the new contact. This left the matter permanently orphaned, showing
+     * "Unknown Client" in every list view.
+     *
+     * Fix: After creating the contact, backfill the matter's clientId field
+     * so the display logic can resolve the client name.
      */
     const onAddMatter = useCallback(async (matter: any, client?: any) => {
         const m = await actions.addItem('matters', matter, 'Matter');
         if (client && client.data) {
             try {
-                await actions.addItem('contacts', { ...client.data, matterId: m.id }, 'Contact');
+                const newContact = await actions.addItem('contacts', { ...client.data, matterId: m.id }, 'Contact');
+                // DEEP AUDIT FIX: Backfill the matter's clientId so display logic
+                // can resolve the new contact. Without this, the matter shows
+                // "Unknown Client" permanently.
+                if (newContact?.id && !m.clientId) {
+                    await actions.updateItem('matters', { id: m.id, clientId: newContact.id }, 'Matter Client Link');
+                }
             } catch (e) {
                 try {
                     await actions.deleteItem('matters', m.id, 'Matter');

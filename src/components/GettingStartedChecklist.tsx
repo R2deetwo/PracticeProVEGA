@@ -45,7 +45,7 @@ const VEGA_ITEMS: ChecklistItem[] = [
   { key: 'hasContact',       label: 'Add a client contact',      action: { kind: 'modal', modalType: 'newContact' },    hint: 'Clients you can bill and message.' },
   { key: 'hasBankAccount',   label: 'Configure a bank account',  action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For trust and operating accounts.' },
   { key: 'hasBillingRate',   label: 'Set your billing rate',     action: { kind: 'view',  view: 'billing' },            hint: 'Hourly, fixed fee, or retainer.' },
-  { key: 'hasCourtDateOnMatter', label: 'Add a court date',     action: { kind: 'view',  view: 'matters' },            hint: 'Open a matter → Schedule tab → Add court hearing.' },
+  { key: 'hasCourtDateOnMatter', label: 'Add a court date',     action: { kind: 'view',  view: 'matters' },            hint: 'Open a matter → Tasks & Events tab → New Event (Court Hearing).' },
   { key: 'hasInvitedUser',   label: 'Invite a team member',      action: { kind: 'view',  view: 'settings' },            hint: 'Lawyers, paralegals, accountants.' },
 ];
 
@@ -188,6 +188,28 @@ const GettingStartedChecklist: React.FC = () => {
       // The destination page uses the existing `useHighlight` hook which finds
       // elements by `data-item-id` attribute and applies a pulse animation.
       // Each target page's primary CTA has a `data-item-id` matching the key.
+
+      // DEEP AUDIT FIX: For "Add a court date", deep-link directly to the first
+      // matter's detail view with the Tasks & Events tab auto-opened, instead
+      // of navigating to the bare matters list. This actually guides the user
+      // to where they need to create the court date event.
+      if (item.key === 'hasCourtDateOnMatter' && (checklist as any).firstMatterId) {
+        navigateTo('matterDetail' as any, (checklist as any).firstMatterId, {
+          initialTab: 'schedule_tasks',
+          checklistAction: item.key,
+        });
+        return;
+      }
+
+      // DEEP AUDIT FIX: For "Add a resident to a unit", deep-link to the first
+      // property's detail view so the user can edit a unit directly.
+      if (item.key === 'hasTenantOnProperty' && (checklist as any).firstPropertyId) {
+        navigateTo('propertyDetail' as any, (checklist as any).firstPropertyId, {
+          checklistAction: item.key,
+        });
+        return;
+      }
+
       setHighlightTarget({
         view: item.action.view as any,
         filter: { id: `checklist-cta-${item.key}` },

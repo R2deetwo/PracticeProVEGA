@@ -240,6 +240,8 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs px-2 py-0.5 rounded-full">{displayEvents.length}</span>
                 </h4>
                 <button
+                    data-item-id="checklist-cta-hasCourtDateOnMatter"
+                    data-tour-id="new-event-button"
                     onClick={() => openModal('newEvent', null, { matterId })}
                     className="text-xs font-bold text-primary-600 hover:text-primary-700 transition-colors"
                 >

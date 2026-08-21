@@ -32,7 +32,9 @@ export const useHighlight = (
             
             const isShimmer = highlightColor === 'shimmer';
             const pulseClass = isShimmer ? 'animate-shimmer' : (type === 'bg' ? `animate-pulse-bg-${highlightColor}` : `animate-pulse-ring-${highlightColor}`);
-            const animationDuration = isShimmer ? 1500 : 4500;
+            // DEEP AUDIT FIX: Increased from 1500ms to 5000ms so the highlight is
+            // actually visible long enough for the user to notice it.
+            const animationDuration = isShimmer ? 5000 : 5000;
 
             const findAndHighlight = () => {
                 const element = containerRef.current?.querySelector(`[data-item-id="${targetId}"]`);
@@ -66,7 +68,7 @@ export const useHighlight = (
                                 observer.disconnect();
                             }
                         },
-                        { threshold: 0.8 }
+                        { threshold: 0.1 }
                     );
                     observer.observe(element);
                 } else {

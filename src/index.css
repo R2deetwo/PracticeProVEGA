@@ -2194,3 +2194,80 @@ nav,
   position: relative;
   z-index: 10;
 }
+
+/* ── DEEP AUDIT FIX: Missing CSS classes that useHighlight.ts references ──
+ * The useHighlight hook adds these classes via classList.add(), but they
+ * were NEVER defined in CSS — so the highlight was completely invisible.
+ * These classes provide the visible pulse ring animation. */
+@keyframes shimmer-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6), 0 0 0 0 rgba(22, 163, 74, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.4), 0 0 0 12px rgba(22, 163, 74, 0.1);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer-pulse 1.5s ease-in-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-ring-shimmer {
+  animation: pulse-ring 1.5s ease-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-ring-blue {
+  animation: pulse-ring 1.5s ease-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+  --pulse-color: 59, 130, 246;
+}
+
+.animate-pulse-ring-red {
+  animation: pulse-ring 1.5s ease-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-ring-orange {
+  animation: pulse-ring 1.5s ease-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-bg-shimmer {
+  animation: shimmer-pulse 1.5s ease-in-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-bg-blue {
+  animation: shimmer-pulse 1.5s ease-in-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-bg-red {
+  animation: shimmer-pulse 1.5s ease-in-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.animate-pulse-bg-orange {
+  animation: shimmer-pulse 1.5s ease-in-out 3;
+  position: relative;
+  z-index: 10;
+  border-radius: inherit;
+}
