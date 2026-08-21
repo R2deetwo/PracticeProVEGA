@@ -55,7 +55,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   const { matterState } = useMatterState();
   const { financeState } = useFinanceState();
   const { updateItem, handleGenerateInvoice, logActivity, addItem } = useDataActions();
-  const { addToast, modalContext } = useUI();
+  const { addToast, modalContext, navigateTo } = useUI();
   const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
 
   // Unit-specific overrides from context (if opened from a specific unit)
@@ -125,6 +125,9 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       const transactionRef = `TXN-${Date.now().toString().slice(-8)}`;
 
       // 1. Update Property Rent History — receipt records FULL amount
+      // BRIEF #3: Extract receiptNumber to a local variable so it can be
+      // referenced later (for the document record and the toast link).
+      const receiptNumber = `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
       const newPayment = {
         id: uuidv4(),
         dueDate: paymentDate,
@@ -132,7 +135,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         amount: amountValue, // FULL amount — receipt is always for what was paid
         status: 'paid' as const,
         paymentMethod,
-        receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+        receiptNumber,
         periodStart,
         periodEnd,
         transactionRef,
@@ -230,7 +233,17 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       );
 
       // 4. Automatically trigger receipt generation — FULL amount, no deductions
-      handleDownloadTenantReceipt(true);
+      // BRIEF #3: Track receipt generation success/failure. If generation fails,
+      // we must NOT show a success banner — only show the accurate error.
+      let receiptGenerated = false;
+      let receiptDocId: string | null = null;
+      try {
+        handleDownloadTenantReceipt(true);
+        receiptGenerated = true;
+      } catch (receiptError: any) {
+        console.error('[CollectRentModal] Receipt PDF generation failed:', receiptError);
+        receiptGenerated = false;
+      }
 
       // 5. DOCUMENT CROSS-PERSISTENCE — auto-save a document record
       // linking the receipt to both the property and any linked legal
@@ -261,13 +274,34 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           uploadedBy: 'system',
           createdAt: new Date().toISOString(),
         };
-        await addItem('documents', receiptDocRecord, 'Rent Receipt');
+        const docResult: any = await addItem('documents', receiptDocRecord, 'Rent Receipt');
+        receiptDocId = docResult?.id || docResult?._id || null;
       } catch (docError: any) {
         console.error('[CollectRentModal] Failed to persist receipt document record:', docError);
         // Non-blocking — receipt PDF was still generated and downloaded
       }
 
-      addToast(`Rent receipt issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, { type: 'success' });
+      // BRIEF #3: Consistent Status State — only show success if receipt was actually generated.
+      // BRIEF #4: Notification Dispatch Hygiene — this is an action confirmation toast,
+      // NOT a "Payment Received" notification. The admin who initiated the action sees a
+      // brief confirmation; no notification is pushed to the notification center.
+      // The receipt is dispatched to the RESIDENT via the portal message (if configured).
+      if (receiptGenerated) {
+        addToast(`Rent receipt issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, {
+          type: 'success',
+          duration: 6000,
+          link: receiptDocId ? {
+            text: 'View Receipt',
+            onClick: () => navigateTo('documentDetail', receiptDocId),
+          } : undefined,
+        });
+      } else {
+        // Receipt generation failed — show accurate error, NOT a success banner
+        addToast(`Payment recorded for ${formatNaira(amountValue)}, but receipt generation failed. You can download it manually from the property detail page.`, {
+          type: 'warning',
+          duration: 8000,
+        });
+      }
       onClose();
     } catch (error: any) {
       console.error("Failed to collect rent:", error);

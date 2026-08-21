@@ -2063,3 +2063,25 @@ nav,
   animation: emerald-pulse 2.5s ease-in-out;
   border-color: #10b981 !important;
 }
+
+/* ─── BRIEF #1a: Interactive Target Highlighting ──────────────────────────
+ * Pulsed ring animation for onboarding checklist CTAs. When a user clicks
+ * a checklist item, the destination page's primary button gets this
+ * animation applied via a `data-checklist-highlight` attribute. */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7), 0 0 0 0 rgba(22, 163, 74, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(22, 163, 74, 0), 0 0 0 16px rgba(22, 163, 74, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0), 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+[data-checklist-highlight] {
+  animation: pulse-ring 1.5s ease-out infinite;
+  position: relative;
+  z-index: 10;
+}

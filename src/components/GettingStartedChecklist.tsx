@@ -66,7 +66,7 @@ const KOMPLETE_ITEMS: ChecklistItem[] = [
 
 const GettingStartedChecklist: React.FC = () => {
   const { currentUser } = useAuth();
-  const { navigateTo, openModal } = useUI();
+  const { navigateTo, openModal, addToast, setHighlightTarget } = useUI();
   const { isProperty, isUnified } = useProduct();
   const firmId = (currentUser as any)?.firmId || '';
 
@@ -112,8 +112,55 @@ const GettingStartedChecklist: React.FC = () => {
 
   const handleItemClick = (item: ChecklistItem) => {
     if ((checklist as any)[item.key] === true) return; // already done — no-op
+
+    // BRIEF #1b: Prerequisite Interception
+    // If the user clicks "Add a resident to a unit" but no properties exist yet,
+    // intercept with a prompt to create a property first. This prevents the
+    // frustrating experience of landing on the properties page with no properties
+    // to add a resident to.
+    if (item.key === 'hasTenantOnProperty' && !(checklist as any).hasProperty) {
+      addToast?.('No properties found — add your first property before assigning residents.', {
+        type: 'info',
+        duration: 6000,
+        link: { text: 'Create Property', onClick: () => openModal('newProperty' as any) },
+      });
+      return;
+    }
+
+    // Also intercept "Set up service charges" if no properties exist — service
+    // charges are per-property, so there's nothing to configure without a property.
+    if (item.key === 'hasServiceCharge' && !(checklist as any).hasProperty) {
+      addToast?.('No properties found — add a property before setting up service charges.', {
+        type: 'info',
+        duration: 6000,
+        link: { text: 'Create Property', onClick: () => openModal('newProperty' as any) },
+      });
+      return;
+    }
+
+    // Also intercept "Invite a resident to portal" if no properties exist —
+    // you can't invite a resident without a property/unit for them to live in.
+    if (item.key === 'hasInvitedResidentToPortal' && !(checklist as any).hasProperty) {
+      addToast?.('No properties found — add a property before inviting residents to the portal.', {
+        type: 'info',
+        duration: 6000,
+        link: { text: 'Create Property', onClick: () => openModal('newProperty' as any) },
+      });
+      return;
+    }
+
     if (item.action.kind === 'view') {
-      navigateTo(item.action.view as any, null);
+      // BRIEF #1a: Interactive Target Highlighting — set a highlight target
+      // so the destination page can render a pulsed ring on the primary CTA.
+      // The destination page uses the existing `useHighlight` hook which finds
+      // elements by `data-item-id` attribute and applies a pulse animation.
+      // Each target page's primary CTA has a `data-item-id` matching the key.
+      setHighlightTarget({
+        view: item.action.view as any,
+        filter: { id: `checklist-cta-${item.key}` },
+        color: 'shimmer',
+      });
+      navigateTo(item.action.view as any, null, { checklistAction: item.key });
     } else {
       openModal(item.action.modalType as any);
     }

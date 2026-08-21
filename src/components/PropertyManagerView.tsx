@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Contact, Property, SubscriptionPlan } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
+import { useHighlight } from '../hooks/useHighlight';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { OfficeBuildingIcon, LockClosedIcon, SearchIcon, PlusIcon, CheckCircleIcon, TrashIcon, XIcon } from '../constants';
@@ -140,6 +141,11 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     // return, causing a "Rendered fewer hooks than expected" crash when
     // canUsePropertyManager toggled (e.g., on plan change).
     const { coreState, isDataLoaded } = useCoreState();
+
+    // BRIEF #1a: Interactive Target Highlighting — highlights the "New Property"
+    // button when the user clicks "Add your first property" in the checklist.
+    const propertiesContainerRef = React.useRef<HTMLDivElement>(null);
+    useHighlight(propertiesContainerRef, 'properties', 'ring');
 
     // CRITICAL FIX: All useMemo hooks must also be called BEFORE any
     // conditional return (Rules of Hooks). Previously these were AFTER
@@ -493,10 +499,11 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
     return (
         <ErrorBoundary>
-        <div className="h-full overflow-y-auto scroll-smooth-ios custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
+        <div ref={propertiesContainerRef} className="h-full overflow-y-auto scroll-smooth-ios custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
             <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Properties</h2>
                 <button
+                    data-item-id="checklist-cta-hasProperty"
                     onClick={() => openModal('newProperty')}
                     className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold"
                 >

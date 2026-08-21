@@ -1482,25 +1482,52 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Structural features or notes (e.g. "Penthouse Suite", "3-Bedroom with BQ"). The unit tab label ({unitsData[activeUnitIndex].unitName}) is separate and won't change.</p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                <div className="space-y-2 group">
-                                    <label className={labelClass}>Rent Amount (<NairaSymbol />)</label>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="text"
-                                        value={formatNumberWithCommas(unitsData[activeUnitIndex].rentAmount)}
-                                        onChange={e => updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value))}
-                                        className={commonInputClass}
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <div className="space-y-2 group">
-                                    <label className={labelClass}>Rent Frequency</label>
-                                    <select value={unitsData[activeUnitIndex].rentFrequency} onChange={e => updateUnit(activeUnitIndex, 'rentFrequency', e.target.value)} className={commonInputClass}>
-                                        <option value="Monthly">Monthly</option>
-                                        <option value="Annually">Per Annum</option>
-                                        <option value="Bi-Annually">Bi-Annually</option>
-                                        <option value="Quarterly">Quarterly</option>
-                                    </select>
-                                </div>
+                                {/* BRIEF #2: Management-Only Unit Validation
+                                    When rentCollectionMode is 'Management Only (No Rent)', hide the
+                                    Rent Amount and Rent Frequency fields entirely. This prevents
+                                    users from entering redundant financial data for properties
+                                    where the firm only manages (doesn't collect rent).
+                                    The existing `isManagementOnly` pattern is already used in
+                                    PropertyDetailView, PropertyTrackingView, and LeaseProgressBars. */}
+                                {rentCollectionMode === 'Management Only (No Rent)' ? (
+                                    <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                                        <div className="flex items-start gap-3">
+                                            <svg className="w-5 h-5 text-slate-400 dark:text-zinc-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">Management Only — No Rent Collection</p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                                                    Rent fields are hidden because this property is set to Management Only mode.
+                                                    You manage this property but do not collect rent from residents.
+                                                    Change the Collection Mode above to "Full (Collect Rent)" to enable rent tracking.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-2 group">
+                                            <label className={labelClass}>Rent Amount (<NairaSymbol />)</label>
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="text"
+                                                value={formatNumberWithCommas(unitsData[activeUnitIndex].rentAmount)}
+                                                onChange={e => updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value))}
+                                                className={commonInputClass}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <div className="space-y-2 group">
+                                            <label className={labelClass}>Rent Frequency</label>
+                                            <select value={unitsData[activeUnitIndex].rentFrequency} onChange={e => updateUnit(activeUnitIndex, 'rentFrequency', e.target.value)} className={commonInputClass}>
+                                                <option value="Monthly">Monthly</option>
+                                                <option value="Annually">Per Annum</option>
+                                                <option value="Bi-Annually">Bi-Annually</option>
+                                                <option value="Quarterly">Quarterly</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Unit Status</label>
                                     <select value={unitsData[activeUnitIndex].status} onChange={e => updateUnit(activeUnitIndex, 'status', e.target.value)} className={commonInputClass}>

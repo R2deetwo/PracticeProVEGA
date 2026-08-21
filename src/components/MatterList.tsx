@@ -8,6 +8,7 @@ import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
+import { useHighlight } from '../hooks/useHighlight';
 import { useAuth } from '../contexts/AuthContext';
 import { getInitials, getUserColor, formatDueDate, getDueDateColor } from '../utils/colorUtils';
 import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon } from '../constants';
@@ -214,6 +215,11 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
     const { currentUser } = useAuth();
     const navigateTo = onNavigate || uiNavigateTo;
 
+    // BRIEF #1a: Interactive Target Highlighting — highlights the "New" button
+    // when the user clicks "Create your first matter" in the checklist.
+    const mattersContainerRef = React.useRef<HTMLDivElement>(null);
+    useHighlight(mattersContainerRef, 'matters', 'ring');
+
     const [searchTerm, setSearchTerm] = useState('');
     const [preset, setPreset] = useState<Preset>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -307,7 +313,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
     if (!isDataLoaded) return <MattersSkeleton />;
 
     return (
-        <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950 border-r border-slate-200 dark:border-zinc-800">
+        <div ref={mattersContainerRef} className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950 border-r border-slate-200 dark:border-zinc-800">
 
             {/* ── Header ── */}
             <div className="sticky top-0 pt-safe z-30 flex-shrink-0 py-2.5 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
@@ -337,7 +343,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                             button is sufficient for creating matters. The
                             ingestion wizard is still accessible via the
                             modal system if needed elsewhere. */}
-                        <button id="new-matter-button" onClick={() => openModal('newMatter')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-xs font-bold">
+                        <button id="new-matter-button" data-item-id="checklist-cta-hasMatter" onClick={() => openModal('newMatter')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-xs font-bold">
                             <PlusIcon className="w-4 h-4" /> New
                         </button>
                     </div>

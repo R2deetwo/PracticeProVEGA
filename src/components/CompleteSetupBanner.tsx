@@ -52,7 +52,7 @@ const KOMPLETE_ITEMS = [...VEGA_ITEMS, ...ATRIUM_ITEMS.filter(a => !VEGA_ITEMS.s
 
 const CompleteSetupBanner: React.FC = () => {
   const { currentUser } = useAuth();
-  const { navigateTo, openModal } = useUI();
+  const { navigateTo, openModal, addToast } = useUI();
   const { isProperty, isUnified } = useProduct();
   const firmId = (currentUser as any)?.firmId || '';
   const [isDismissed, setIsDismissed] = useState(false);
@@ -83,6 +83,19 @@ const CompleteSetupBanner: React.FC = () => {
 
   const nextItem = incompleteItems[0];
   const handleCTA = () => {
+    // BRIEF #1b: Prerequisite Interception — same logic as GettingStartedChecklist.
+    // If the next incomplete item requires a property but none exists, prompt
+    // the user to create a property first instead of navigating to an empty page.
+    const requiresProperty = ['hasTenantOnProperty', 'hasServiceCharge', 'hasInvitedResidentToPortal'];
+    if (requiresProperty.includes(nextItem.key) && !(checklist as any).hasProperty) {
+      addToast('No properties found — add your first property to continue setup.', {
+        type: 'info',
+        duration: 6000,
+        link: { text: 'Create Property', onClick: () => openModal('newProperty' as any) },
+      });
+      return;
+    }
+
     if (nextItem.action.kind === 'view') {
       navigateTo(nextItem.action.view as any, null);
     } else {
