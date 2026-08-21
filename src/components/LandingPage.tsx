@@ -682,7 +682,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
                             {isVega
                                 ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
-                                : 'Purpose-built for Nigerian property portfolios — whether you manage from Lagos or London. Facilities management, service charge collection, a residents\' portal, and AI-powered revenue intelligence in one platform.'}
+                                : 'Purpose-built for Nigerian property portfolios — for professional property managers and diaspora property owners alike. Facilities management, service charge collection, a residents\' portal, and AI-powered revenue intelligence in one platform.'}
                         </p>
 
                         {/* CTAs */}
@@ -1921,7 +1921,7 @@ const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ a
                         What Nigerian {isVega ? 'lawyers' : 'property managers'} say
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
-                        Real results from {isVega ? 'law firms' : 'property managers'} across Nigeria and the diaspora.
+                        Real results from {isVega ? 'law firms' : 'property managers and owners'} across Nigeria and abroad.
                     </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
@@ -2012,11 +2012,11 @@ const FAQ_ITEMS = {
         },
         {
             q: "What happens if a resident doesn't pay?",
-            a: "The Revenue Monitor tracks defaulters by days overdue and sends automated WhatsApp demand notices. You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For diaspora property owners, this means full visibility into arrears and recovery actions without needing a local proxy — ARIA tracks every unit and drafts notices even while you're abroad.",
+            a: "The Revenue Monitor tracks defaulters by days overdue and sends automated WhatsApp demand notices. You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
         },
         {
-            q: "Can I manage my property from abroad?",
-            a: "Yes. PracticePro Atrium is built for diaspora property owners who need full operational control from anywhere in the world. You get real-time visibility into collections, service charges, maintenance tickets, and resident communications via the dashboard and WhatsApp alerts. Your residents use the Residents' Portal for payments and requests, while you receive automated notifications and can assign a local property manager with granular access controls. No local proxy required — though you can add team members if you want boots on the ground.",
+            q: "I'm a property owner living abroad. Can I use PracticePro to manage my Nigerian properties?",
+            a: "Yes. While PracticePro Atrium is built primarily for professional property managers, diaspora property owners can use it directly to manage their own portfolios. You get real-time visibility into collections, service charges, maintenance tickets, and resident communications via the dashboard and WhatsApp alerts. Your residents use the Residents' Portal for payments and requests. You can also assign a local property manager with granular access controls if you want boots on the ground — or run everything yourself remotely.",
         },
     ],
 };
