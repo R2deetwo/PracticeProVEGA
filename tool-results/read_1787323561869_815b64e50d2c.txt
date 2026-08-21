@@ -1,0 +1,1033 @@
+     1→
+     2→import React, { useState, useEffect } from 'react';
+     3→import { useCoreState } from '../../contexts/CoreContext';
+     4→import { useDataActions } from '../../contexts/DataContext';
+     5→import { SubscriptionPlan } from '../../types';
+     6→import { translateError } from '../../utils/errorTranslator';
+     7→import { openLegalDocument } from '../../utils/legalLinks';
+     8→import { useAuth } from '../../contexts/AuthContext';
+     9→import { LogoutIcon, CheckIcon, LockClosedIcon, RevertIcon } from '../../constants';
+    10→import { useMutation, useQuery } from "convex/react";
+    11→import { api } from "../../../convex/_generated/api";
+    12→import { useUI } from '../../contexts/UIContext';
+    13→import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
+    14→// CRO AUDIT Track A — A3: use the real PaymentGatewayModal instead of the stub.
+    15→import PaymentGatewayModal from './PaymentGatewayModal';
+    16→
+    17→// SETUP WIZARD EXTENSION (Steps 3-5):
+    18→// Channel-relevance copy for Step 3 (Communication Channels).
+    19→// IMPORTANT: per user spec, we ask the user which channels they INTEND to use
+    20→// and explain why each matters — but we do NOT collect phone numbers,
+    21→// WhatsApp Business API tokens, or Brevo/Sendgrid API keys during onboarding.
+    22→// Those credentials are configured later in Settings → Integrations.
+    23→const WHATSAPP_RELEVANCE =
+    24→  'Rent reminders, overdue notices, and lease-expiry nudges to tenants. Matter status updates, court-date alerts, and document-signing requests to clients. Best for time-sensitive, two-way conversations — most Nigerian recipients read WhatsApp within minutes.';
+    25→const EMAIL_RELEVANCE =
+    26→  'Invoice delivery, monthly statements, formal letters, and engagement letters. Best for documents the recipient needs to keep on file. Email is also the fallback channel when WhatsApp is undelivered.';
+    27→
+    28→interface OnboardingWizardProps {
+    29→  onComplete: () => void;
+    30→}
+    31→
+    32→const PlanCard: React.FC<{
+    33→  tier: TierDef;
+    34→  selected: boolean;
+    35→  onSelect: () => void;
+    36→  billingCycle: 'monthly' | 'annual';
+    37→  isAtrium: boolean;
+    38→  productName?: 'Vega' | 'Atrium' | 'Komplete';
+    39→}> = ({ tier, selected, onSelect, billingCycle, isAtrium, productName = 'Vega' }) => {
+    40→  const { price, per } = formatTierPrice(tier, billingCycle);
+    41→  // PRICING AUDIT: Atrium now supports monthly billing too (was annual-only)
+    42→  const effectiveBilling = billingCycle;
+    43→  const sce = effectiveBilling === 'annual' ? tier.scePer_annual : tier.scePer;
+    44→
+    45→  // CRO AUDIT Track C — C1: portfolio-size anchors per tier, per product.
+    46→  // Collapses the tier-choice decision from a feature-comparison task to a
+    47→  // self-identification task (cognitively cheaper, converts better).
+    48→  const portfolioAnchor = (() => {
+    49→    if (productName === 'Atrium') {
+    50→      switch (tier.id) {
+    51→        case 'Core': return 'For portfolios up to 10 units';
+    52→        case 'Growth': return 'For portfolios of 10–25 units';
+    53→        case 'Pro': return 'For portfolios of 25–100 units — most estate surveyors';
+    54→        case 'Enterprise': return 'For developers and PMs with 100+ units';
+    55→      }
+    56→    } else if (productName === 'Vega') {
+    57→      switch (tier.id) {
+    58→        case 'Core': return 'For solo practitioners getting started';
+    59→        case 'Growth': return 'For small teams of 2–5 lawyers';
+    60→        case 'Pro': return 'For firms with active litigation pipelines';
+    61→        case 'Enterprise': return 'For multi-branch firms with 50+ matters/month';
+    62→      }
+    63→    } else { // Komplete
+    64→      return 'Unified property + legal for diversified firms';
+    65→    }
+    66→    return null;
+    67→  })();
+    68→
+    69→  // CRO AUDIT Track C — C5: tier label badges. "Recommended" badge moves to
+    70→  // Atrium Growth (the modal Nigerian portfolio size) instead of always
+    71→  // being on Pro.
+    72→  const badgeText = (() => {
+    73→    if (tier.id === 'Growth' && productName === 'Atrium') return 'Recommended for most firms';
+    74→    if (tier.id === 'Growth' && productName === 'Vega') return 'Most Popular';
+    75→    if (tier.id === 'Pro' && productName === 'Vega') return 'For active practices';
+    76→    return null;
+    77→  })();
+    78→
+    79→  return (
+    80→    <div
+    81→      onClick={onSelect}
+    82→      className={`relative flex flex-col rounded-2xl border-2 cursor-pointer transition-all duration-200 h-full ${
+    83→        selected
+    84→          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30/20 shadow-lg shadow-primary-500/10'
+    85→          : 'border-slate-200  bg-white  hover:border-slate-300 hover:shadow-sm'
+    86→      }`}
+    87→    >
+    88→      {/* Recommended badge */}
+    89→      {badgeText && (
+    90→        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-3xs font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap z-10">
+    91→          {badgeText}
+    92→        </div>
+    93→      )}
+    94→
+    95→      <div className="p-5 flex flex-col h-full">
+    96→        {/* Tier name + check */}
+    97→        <div className="flex justify-between items-center mb-3">
+    98→          <h4 className="font-black text-2xs uppercase tracking-widest text-slate-400">{tier.label}</h4>
+    99→          {selected && <div className="w-4 h-4 bg-primary-600 rounded-full flex items-center justify-center text-white p-0.5"><CheckIcon className="w-full h-full" /></div>}
+   100→        </div>
+   101→
+   102→        {/* CRO AUDIT Track C — C1: portfolio-size anchor */}
+   103→        {portfolioAnchor && (
+   104→          <p className="text-3xs font-bold text-primary-600  mb-2 leading-snug">{portfolioAnchor}</p>
+   105→        )}
+   106→
+   107→        {/* Price */}
+   108→        <div className="mb-4">
+   109→          <p className="text-2xl font-bold text-slate-900  tracking-tight leading-none">{price}</p>
+   110→          <p className="text-2xs font-bold text-slate-400 mt-1">{per || (tier.annualPrice === null && tier.monthlyPrice === null ? 'Contact sales' : isAtrium ? '/yr' : '')}</p>
+   111→        </div>
+   112→
+   113→        {/* SCE block */}
+   114→        {sce && (
+   115→          <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40/80 border border-emerald-100">
+   116→            <p className="text-3xs font-black text-emerald-600  uppercase tracking-widest">SCE*</p>
+   117→            <div className="flex items-baseline gap-1">
+   118→              <p className="text-xs font-black text-slate-900  leading-tight">{sce}</p>
+   119→              <p className="text-3xs font-bold text-slate-400 uppercase">/tenant</p>
+   120→            </div>
+   121→          </div>
+   122→        )}
+   123→
+   124→        {/* Features — scrollable if tall */}
+   125→        <ul className="space-y-1.5 flex-grow overflow-y-auto custom-scrollbar text-left pr-1" style={{ maxHeight: '180px' }}>
+   126→          {tier.features.map((f, i) => (
+   127→            <li key={i} className="text-2xs text-slate-500 font-medium flex items-start gap-1.5 leading-snug">
+   128→              <CheckIcon className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />
+   129→              <span className="break-words">{f}</span>
+   130→            </li>
+   131→          ))}
+   132→        </ul>
+   133→
+   134→        {/* Setup fee notice */}
+   135→        {tier.requiresSetupFee && (
+   136→          <p className="text-3xs text-amber-600  font-black uppercase tracking-widest mt-3 border-t border-slate-100  pt-2">+ ₦150k One-Time Setup Fee</p>
+   137→        )}
+   138→      </div>
+   139→    </div>
+   140→  );
+   141→};
+   142→
+   143→const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
+   144→  const { createFirm, joinFirm, handleUpdateFirmDetails } = useDataActions();
+   145→  const { currentUser, logout, refreshUser } = useAuth();
+   146→  const { navigateTo, addToast } = useUI();
+   147→  const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
+   148→
+   149→  // Use the product the user selected during signup
+   150→  // This is stored on the user record by the backend
+   151→  const userProduct = (currentUser as any)?.product as ProductMode | undefined;
+   152→
+   153→  // Step 1: Workspace name | Step 2: Plan selection (product already known from signup)
+   154→  // Step 3: Communication channels | Step 4: Team setup | Step 5: Review & confirm
+   155→  const [step, setStep] = useState(1);
+   156→  const [mode, setMode] = useState<'create' | 'join'>('create');
+   157→  const [firmName, setFirmName] = useState('');
+   158→  const [product, setProduct] = useState<ProductMode>(userProduct || 'legal');
+   159→  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
+   160→  const [selectedTierId, setSelectedTierId] = useState<TierId>('Pro');
+   161→  const [inviteCode, setInviteCode] = useState('');
+   162→  const [isSubmitting, setIsSubmitting] = useState(false);
+   163→  const [isDataMigration, setIsDataMigration] = useState(false);
+   164→  const [error, setError] = useState<string | null>(null);
+   165→  // Show all plans or just the pre-selected one
+   166→  const [showAllPlans, setShowAllPlans] = useState(false);
+   167→  const [isRecovering, setIsRecovering] = useState(false);
+   168→  const [hasAgreed, setHasAgreed] = useState(false);
+   169→  // Payment/trial flow state
+   170→  const [showPaymentModal, setShowPaymentModal] = useState(false);
+   171→  const [paymentAction, setPaymentAction] = useState<'pay_now' | 'start_trial' | null>(null);
+   172→
+   173→  // SETUP WIZARD EXTENSION — Steps 3-5 state:
+   174→  // createdFirmId is the ID returned by createFirm (used to look up the
+   175→  // invite code on Step 4 even before DataProvider has finished syncing).
+   176→  const [createdFirmId, setCreatedFirmId] = useState<string | null>(null);
+   177→  // Communication channel intent — recorded to firmDetails.settings on Step 5.
+   178→  const [useWhatsapp, setUseWhatsapp] = useState<boolean | null>(null);
+   179→  const [useEmail, setUseEmail] = useState<boolean | null>(null);
+   180→  // "Will anyone else be working in this workspace?" (Step 4)
+   181→  const [willInviteTeam, setWillInviteTeam] = useState<boolean | null>(null);
+   182→  const [isSavingFinal, setIsSavingFinal] = useState(false);
+   183→
+   184→  // If user already chose product during signup, set it immediately
+   185→  useEffect(() => {
+   186→    if (userProduct) {
+   187→      setProduct(userProduct);
+   188→    }
+   189→  }, [userProduct]);
+   190→
+   191→  // Derive plan display from tiers matrix
+   192→  const tiers = getTiersForProduct(product);
+   193→  const tierIds: TierId[] = isKomplete(product) ? ['Core'] : DISPLAY_TIER_IDS;
+   194→  const isAtrium = product === 'property' || product === 'atrium';
+   195→  const productName = product === 'legal' ? 'Vega' : product === 'property' ? 'Atrium' : 'Komplete';
+   196→
+   197→  // Map TierId → SubscriptionPlan enum for backend
+   198→  const tierToSubscriptionPlan: Record<TierId, SubscriptionPlan> = {
+   199→    Core:    SubscriptionPlan.Core,
+   200→    Growth:   SubscriptionPlan.Growth,
+   201→    Pro:    SubscriptionPlan.Pro,
+   202→    Enterprise: SubscriptionPlan.Enterprise,
+   203→  };
+   204→
+   205→  const handleCreate = async (trial = false) => {
+   206→    if (!firmName.trim()) return;
+   207→    setIsSubmitting(true);
+   208→    setError(null);
+   209→    try {
+   210→      const plan = isKomplete(product) ? SubscriptionPlan.Komplete : tierToSubscriptionPlan[selectedTierId];
+   211→      // CRO AUDIT FIX (Track B — B2): pass trial flag to createFirm so the
+   212→      // backend sets trialStartsAt/trialEndsAt/trialPlan. The firm is created
+   213→      // at Core for billing but granted the selected plan's entitlements
+   214→      // during the 30-day trial window (see useFeatures.ts).
+   215→      const fid = await createFirm(
+   216→        firmName.trim(),
+   217→        'Address Pending',
+   218→        plan,
+   219→        { email: currentUser!.email, name: currentUser!.name },
+   220→        product,
+   221→        isDataMigration,
+   222→        trial,
+   223→      );
+   224→      if (fid) {
+   225→        // CRITICAL FIX: refreshUser() can hang if Convex is slow to sync
+   226→        // the new firmId onto the user record. Add a 10-second timeout —
+   227→        // if it takes too long, force-reload the page (the firm WAS
+   228→        // created successfully, the user just needs a fresh session).
+   229→        try {
+   230→          await Promise.race([
+   231→            refreshUser(),
+   232→            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+   233→          ]);
+   234→          sessionStorage.removeItem('practicepro_demo_product');
+   235→          // SETUP WIZARD EXTENSION: do NOT call onComplete() here — instead
+   236→          // advance the user to Step 3 (Communication Channels) so they can
+   237→          // record their WhatsApp/Email intent and team setup before landing
+   238→          // in the app. We keep the firmId so Step 4 can fetch the invite code
+   239→          // without waiting for the full DataProvider sync.
+   240→          setCreatedFirmId(fid);
+   241→          setStep(3);
+   242→        } catch (refreshErr) {
+   243→          // refreshUser timed out or failed — but the firm WAS created.
+   244→          // Force a page reload so the user's session picks up the new firmId.
+   245→          // After reload the App routes them into the main app (firm exists),
+   246→          // and they can configure communication channels / team from Settings.
+   247→          console.warn('[Onboarding] refreshUser timed out, force-reloading...', refreshErr);
+   248→          sessionStorage.removeItem('practicepro_demo_product');
+   249→          window.location.reload();
+   250→        }
+   251→      } else {
+   252→        throw new Error('Firm creation returned no ID.');
+   253→      }
+   254→    } catch (e: any) {
+   255→      console.error('Setup Error:', e);
+   256→      setError(translateError(e, 'create workspace'));
+   257→      setIsSubmitting(false);
+   258→    }
+   259→  };
+   260→
+   261→  const handleJoin = async () => {
+   262→    const cleanCode = inviteCode.trim().toUpperCase();
+   263→    if (!cleanCode) return;
+   264→    setIsSubmitting(true);
+   265→    setError(null);
+   266→    try {
+   267→      const fid = await joinFirm(cleanCode);
+   268→      if (fid) {
+   269→        setTimeout(() => window.location.reload(), 800);
+   270→      } else {
+   271→        throw new Error('Invalid Invite Code or Firm not found.');
+   272→      }
+   273→    } catch (e: any) {
+   274→      let msg = translateError(e, 'join workspace');
+   275→      if (msg.includes('Invalid')) msg = 'Invalid Invite Code. Please check and try again.';
+   276→      setError(msg);
+   277→      setIsSubmitting(false);
+   278→    }
+   279→  };
+   280→
+   281→  const handleRecovery = async () => {
+   282→    if (!currentUser?.email) return;
+   283→    setIsRecovering(true);
+   284→    setError(null);
+   285→    try {
+   286→      const result = await repairAccountMutation({ email: currentUser.email });
+   287→      if (result.success) { await refreshUser(); onComplete(); }
+   288→      else setError(result.message || 'Could not recover. Please create a new workspace.');
+   289→    } catch (e: any) {
+   290→      setError(translateError(e, 'recover connection'));
+   291→    } finally {
+   292→      setIsRecovering(false);
+   293→    }
+   294→  };
+   295→
+   296→  // ── SETUP WIZARD EXTENSION ────────────────────────────────────────────
+   297→  // Fetch the firm record so Step 4 can display the invite code immediately
+   298→  // (DataProvider may not have synced firmDetails yet when the user lands
+   299→  // on Step 4 right after creating the firm).
+   300→  const lookupFirmId = createdFirmId || currentUser?.firmId || '';
+   301→  const firmBasicInfo = useQuery(
+   302→    api.myFunctions.getFirmBasicInfo,
+   303→    lookupFirmId ? { firmId: lookupFirmId } : 'skip'
+   304→  );
+   305→  const firmInviteCode: string | undefined =
+   306→    (firmBasicInfo as any)?.inviteCode || undefined;
+   307→
+   308→  // Step 5 handler — persists the communication channel intent to
+   309→  // firmDetails.settings.communicationChannels, then calls onComplete().
+   310→  // Uses the patched handleUpdateFirmDetails which now falls back to
+   311→  // currentUser.firmId if firmDetails.id isn't loaded yet (the immediate
+   312→  // post-createFirm window).
+   313→  const handleCompleteWizard = async () => {
+   314→    setIsSavingFinal(true);
+   315→    try {
+   316→      // Persist communication channel intent. Stored under firmDetails.settings
+   317→      // so it doesn't require a schema migration (settings is v.any()).
+   318→      // If handleUpdateFirmDetails is unavailable for any reason, we still
+   319→      // proceed — the user can configure channels later from Settings.
+   320→      if (handleUpdateFirmDetails && lookupFirmId) {
+   321→        const now = Date.now();
+   322→        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+   323→        await handleUpdateFirmDetails({
+   324→          id: lookupFirmId,
+   325→          settings: {
+   326→            communicationChannels: {
+   327→              whatsapp: useWhatsapp === true,
+   328→              email: useEmail === true,
+   329→            },
+   330→            // If the user opted into either channel but hasn't connected
+   331→            // credentials, set a reminder 7 days out. The reminder cron can
+   332→            // pick this up to nudge them via in-app notification.
+   333→            communicationSetupReminderAt:
+   334→              (useWhatsapp === true || useEmail === true)
+   335→                ? now + SEVEN_DAYS_MS
+   336→                : null,
+   337→            onboardingCompletedAt: new Date(now).toISOString(),
+   338→          },
+   339→        });
+   340→      }
+   341→    } catch (e) {
+   342→      // Non-blocking — user can always configure channels later.
+   343→      console.warn('[OnboardingWizard] failed to persist communication channels:', e);
+   344→    } finally {
+   345→      setIsSavingFinal(false);
+   346→      onComplete();
+   347→    }
+   348→  };
+   349→
+   350→  const copyInviteCode = async () => {
+   351→    if (!firmInviteCode) return;
+   352→    try {
+   353→      await navigator.clipboard.writeText(firmInviteCode);
+   354→      addToast?.('Invite code copied — share it with your team.', { type: 'success' });
+   355→    } catch {
+   356→      // Clipboard API can be blocked by permissions — fallback to select hint.
+   357→      addToast?.('Could not copy automatically — please copy the code manually.', { type: 'info' });
+   358→    }
+   359→  };
+   360→
+   361→  return (
+   362→    <div className="flex flex-col items-center h-full w-full bg-white overflow-y-auto scroll-smooth py-20 px-6">
+   363→      {/* Force light theme — onboarding should always be white with green PracticePro branding,
+   364→          regardless of system dark mode preference. */}
+   365→      {/* SETUP WIZARD EXTENSION: hide the Sign Out button once the firm has
+   366→          been created (Steps 3-5) — signing out mid-wizard would lose the
+   367→          freshly-created firm's local state and confuse the user. */}
+   368→      {step <= 2 && (
+   369→        <div className="absolute top-6 right-6">
+   370→          <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-lg transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
+   371→        </div>
+   372→      )}
+   373→
+   374→      <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
+   375→        {error && <div className="p-3 bg-red-50  text-red-600  rounded-lg text-sm text-center border border-red-100  font-bold">{error}</div>}
+   376→
+   377→        {/* ── Progress Indicator — 5 steps total ── */}
+   378→        <div className="flex items-center justify-center gap-2 mb-2">
+   379→          {[1, 2, 3, 4, 5].map(n => (
+   380→            <div key={n} className={`h-2 rounded-full transition-all duration-500 ${step >= n ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
+   381→          ))}
+   382→        </div>
+   383→        <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+   384→          {step <= 2 ? `Step ${step} of 2 — Setup` : `Step ${step} of 5 — Finish Setup`}
+   385→        </p>
+   386→
+   387→        {/* ── STEP 1: Workspace Name ─────────────────────────────── */}
+   388→        {step === 1 && (
+   389→          <div className="space-y-8">
+   390→            <div className="text-center">
+   391→              {/* CRO AUDIT Track C — C5: fork Step 1 copy by product.
+   392→                  Vega: "Welcome, {name}. Let's set up your practice."
+   393→                  Atrium: "Welcome, {name}. Let's set up your portfolio."
+   394→                  Komplete: "Welcome, {name}. Let's set up your unified workspace." */}
+   395→              <h2 className="text-4xl font-bold text-slate-900  tracking-tight">Welcome, {currentUser?.name?.split(' ')[0]}</h2>
+   396→              <p className="text-slate-500 mt-2 text-sm font-medium">
+   397→                {productName === 'Atrium'
+   398→                  ? "Let's set up your property portfolio. Atrium tracks rents, invoicing, and tenants across all your properties."
+   399→                  : productName === 'Vega'
+   400→                  ? "Let's set up your practice. Vega manages matters, deadlines, documents, and billable hours."
+   401→                  : "Let's set up your unified workspace. Komplete bridges property assets and legal matters in one place."}
+   402→              </p>
+   403→            </div>
+   404→
+   405→            <div className="max-w-md mx-auto space-y-6">
+   406→              <div className="flex p-1.5 bg-slate-50   rounded-2xl border border-slate-100 ">
+   407→                <button onClick={() => { setMode('create'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${mode === 'create' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Create New</button>
+   408→                <button onClick={() => { setMode('join'); setError(null); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${mode === 'join' ? 'bg-white  shadow-lg shadow-slate-200 text-primary-600 ' : 'text-slate-400'}`}>Join Existing</button>
+   409→              </div>
+   410→
+   411→              {mode === 'create' ? (
+   412→                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+   413→                  <div>
+   414→                    <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+   415→                      {productName === 'Atrium'
+   416→                        ? 'Property Company / PM Firm Name'
+   417→                        : productName === 'Vega'
+   418→                        ? 'Law Firm / Practice Name'
+   419→                        : 'Firm / Organization Name'}
+   420→                    </label>
+   421→                    <input autoComplete="off" data-lpignore="true" type="text" placeholder={
+   422→                      productName === 'Atrium' ? 'e.g. Landmark Properties, Adeyemi Surveyors'
+   423→                      : productName === 'Vega' ? 'e.g. Adeyemi & Co. Solicitors'
+   424→                      : 'e.g. Adeyemi & Co.'
+   425→                    } value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-300" autoFocus />
+   426→                  </div>
+   427→                  <button onClick={() => { setStep(2); setShowAllPlans(false); }} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Confirm Plan</button>
+   428→                </div>
+   429→              ) : (
+   430→                <div className="space-y-6">
+   431→                  <div>
+   432→                    <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Invite Code</label>
+   433→                    <input autoComplete="off" data-lpignore="true" type="text" placeholder="INV-XXXX" value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())} className="w-full p-4 text-center font-mono font-bold text-2xl border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-200 uppercase" autoFocus />
+   434→                  </div>
+   435→                  <button onClick={handleJoin} disabled={!inviteCode || isSubmitting} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 flex justify-center disabled:opacity-50 disabled:translate-y-0">
+   436→                    {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Join Workspace'}
+   437→                  </button>
+   438→                </div>
+   439→              )}
+   440→
+   441→              <div className="pt-8 border-t border-slate-50 text-center">
+   442→                <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-3">System Recovery</p>
+   443→                <button onClick={handleRecovery} disabled={isRecovering} className="text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors">
+   444→                  {isRecovering ? <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <RevertIcon className="w-4 h-4" />}
+   445→                  Recover Connection
+   446→                </button>
+   447→              </div>
+   448→            </div>
+   449→          </div>
+   450→        )}
+   451→
+   452→        {/* ── STEP 2: Plan Selection ─────────────────────────────── */}
+   453→        {step === 2 && (
+   454→          <div className="space-y-6">
+   455→            <div className="text-center">
+   456→              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+   457→                {showAllPlans ? 'Compare Plans — Pick What Fits Your Practice' : `You've Selected ${tiers[selectedTierId as keyof typeof tiers]?.label || selectedTierId}`}
+   458→              </h2>
+   459→              <p className="text-slate-500 mt-1 text-sm font-medium">
+   460→                For your <span className="font-bold text-slate-700">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
+   461→              </p>
+   462→            </div>
+   463→
+   464→            {/* Product switcher — only if no product was pre-selected from signup */}
+   465→            {!userProduct && (
+   466→              <div className="flex justify-center gap-3">
+   467→                {(['legal', 'property', 'unified'] as ProductMode[]).map(p => {
+   468→                  const name = p === 'legal' ? 'Vega' : p === 'property' ? 'Atrium' : 'Komplete';
+   469→                  const active = product === p;
+   470→                  return (
+   471→                    <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-2xs font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 ' : 'border-slate-200  text-slate-400 hover:border-slate-300'}`}>
+   472→                      {name}
+   473→                    </button>
+   474→                  );
+   475→                })}
+   476→              </div>
+   477→            )}
+   478→
+   479→            {/* Billing Toggle — PRICING AUDIT: now available for Vega AND Atrium (Komplete is annual-only) */}
+   480→            {!isKomplete(product) && (
+   481→              <div className="flex items-center justify-center gap-4">
+   482→                <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900 ' : 'text-slate-400'}`}>Monthly</span>
+   483→                <button onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')} className="relative w-12 h-6 bg-slate-200  rounded-full transition-colors" aria-label="Toggle billing cycle">
+   484→                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white  rounded-full shadow-sm transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-6 bg-primary-500' : ''}`} />
+   485→                </button>
+   486→                <div className="flex items-center gap-2">
+   487→                  <span className={`text-xs font-bold ${billingCycle === 'annual' ? 'text-slate-900 ' : 'text-slate-400'}`}>Annual</span>
+   488→                  <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600  text-3xs font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
+   489→                </div>
+   490→              </div>
+   491→            )}
+   492→
+   493→            {/* Komplete annual-only badge (Komplete is the only annual-only product now) */}
+   494→            {isKomplete(product) && (
+   495→              <div className="flex justify-center">
+   496→                <span className="px-4 py-1.5 bg-slate-100 text-slate-700 text-2xs font-black uppercase tracking-widest rounded-full border border-slate-200">
+   497→                  Annual Billing Only
+   498→                </span>
+   499→              </div>
+   500→            )}
+   501→
+   502→            {/* Komplete single-tier display */}
+   503→            {isKomplete(product) ? (
+   504→              <div className="max-w-md mx-auto">
+   505→                <PlanCard
+   506→                  tier={tiers.Core}
+   507→                  selected={selectedTierId === 'Core'}
+   508→                  onSelect={() => setSelectedTierId('Core')}
+   509→                  billingCycle={billingCycle}
+   510→                  isAtrium={false}
+   511→                  productName="Komplete"
+   512→                />
+   513→              </div>
+   514→            ) : (
+   515→              /* Plan display — pre-selected plan front and center by default.
+   516→                 'View other plans' button reveals the full 3-tier grid. */
+   517→              <div className="max-w-3xl mx-auto">
+   518→                {!showAllPlans ? (
+   519→                  <div className="space-y-3">
+   520→                    {/* Show only the selected plan */}
+   521→                    {tierIds.filter(id => id === selectedTierId).map(id => (
+   522→                      <div key={id} className="max-w-md mx-auto transition-all duration-300">
+   523→                        <PlanCard
+   524→                          tier={tiers[id]}
+   525→                          selected={true}
+   526→                          onSelect={() => setSelectedTierId(id)}
+   527→                          billingCycle={billingCycle}
+   528→                          isAtrium={isAtrium}
+   529→                          productName={productName}
+   530→                        />
+   531→                      </div>
+   532→                    ))}
+   533→                    {/* View other plans toggle */}
+   534→                    <div className="text-center">
+   535→                      <button
+   536→                        onClick={() => setShowAllPlans(true)}
+   537→                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-500 hover:text-primary-600 hover:bg-slate-50 rounded-lg transition-colors"
+   538→                      >
+   539→                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   540→                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+   541→                        </svg>
+   542→                        Compare with other plans
+   543→                      </button>
+   544→                    </div>
+   545→                  </div>
+   546→                ) : (
+   547→                  /* Full 3-tier grid with smooth cascade transition */
+   548→                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+   549→                    {tierIds.map(id => (
+   550→                      <PlanCard
+   551→                        key={id}
+   552→                        tier={tiers[id]}
+   553→                        selected={selectedTierId === id}
+   554→                        onSelect={() => { setSelectedTierId(id); setShowAllPlans(false); }}
+   555→                        billingCycle={billingCycle}
+   556→                        isAtrium={isAtrium}
+   557→                        productName={productName}
+   558→                      />
+   559→                    ))}
+   560→                  </div>
+   561→                )}
+   562→                {/* Collapse button when showing all plans */}
+   563→                {showAllPlans && (
+   564→                  <div className="text-center mt-3">
+   565→                    <button
+   566→                      onClick={() => setShowAllPlans(false)}
+   567→                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-500 hover:text-primary-600 hover:bg-slate-50 rounded-lg transition-colors"
+   568→                    >
+   569→                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   570→                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+   571→                      </svg>
+   572→                      Show selected plan only
+   573→                    </button>
+   574→                  </div>
+   575→                )}
+   576→              </div>
+   577→            )}
+   578→
+   579→            {isAtrium && (
+   580→              <div className="text-2xs text-slate-400 font-bold text-center">
+   581→                * SCE: Service Charge Equivalent — estimated monthly cost per tenant unit.
+   582→              </div>
+   583→            )}
+   584→
+   585→            {/* Managed Migration opt-in */}
+   586→            {isAtrium && (
+   587→              <div className="max-w-md mx-auto p-4 rounded-lg bg-slate-50 border border-slate-200">
+   588→                <div className="flex items-center gap-3">
+   589→                  <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+   590→                  <label htmlFor="data-migration" className="text-xs font-bold text-slate-700 cursor-pointer flex-1">
+   591→                    Managed Data Migration <span className="font-normal text-slate-500">(+₦150k)</span>
+   592→                  </label>
+   593→                  <details className="group/det">
+   594→                    <summary className="text-2xs font-semibold text-primary-600 cursor-pointer hover:text-primary-800 transition-colors list-none inline-flex items-center gap-1">
+   595→                      What's included
+   596→                      <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+   597→                    </summary>
+   598→                    <div className="absolute mt-2 p-3 bg-white border border-slate-200 rounded-lg shadow-lg z-10 max-w-xs space-y-1.5 text-2xs text-slate-600 leading-relaxed">
+   599→                      <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
+   600→                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+   601→                        <div className="flex items-center gap-1.5">
+   602→                          <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
+   603→                            <span>Up to <strong>50 tenant/unit</strong> entries</span>
+   604→                          </div>
+   605→                          <div className="flex items-center gap-1.5">
+   606→                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
+   607→                            <span><strong>Lease terms</strong> & rent cycles</span>
+   608→                          </div>
+   609→                          <div className="flex items-center gap-1.5">
+   610→                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
+   611→                            <span><strong>Property details</strong> & unit specs</span>
+   612→                          </div>
+   613→                          <div className="flex items-center gap-1.5">
+   614→                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
+   615→                            <span><strong>Opening balances</strong> if available</span>
+   616→                          </div>
+   617→                        </div>
+   618→                        <p className="text-slate-500 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
+   619→                      </div>
+   620→                    </details>
+   621→                </div>
+   622→              </div>
+   623→            )}
+   624→
+   625→            {/* DPA Agreement */}
+   626→            <div className="max-w-md mx-auto pt-2 flex items-start gap-3">
+   627→              <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 text-primary-600  border-slate-200  rounded focus:ring-primary-500 cursor-pointer transition-all" />
+   628→              <label htmlFor="agree-dpa" className="text-2xs text-slate-400 font-medium leading-relaxed cursor-pointer select-none">
+   629→                I agree to the <button type="button" onClick={() => openLegalDocument('dpa')} className="text-primary-600  hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => openLegalDocument('terms')} className="text-primary-600  hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
+   630→              </label>
+   631→            </div>
+   632→
+   633→            {/* Tier-specific action buttons */}
+   634→            {(() => {
+   635→              const isKompleteTier = isKomplete(product);
+   636→              const isHighestTier = isKompleteTier || selectedTierId === 'Pro' || selectedTierId === 'Enterprise';
+   637→              const planLabel = isKompleteTier ? 'Komplete' : selectedTierId;
+   638→              // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr. Always use annualPrice
+   639→              // from the tier definition (never hardcode). For Komplete, billingCycle is
+   640→              // forced to 'annual' regardless of the toggle.
+   641→              const effectiveBilling = isKompleteTier ? 'annual' : billingCycle;
+   642→              const planPrice = isKompleteTier
+   643→                ? (tiers.Core?.annualPrice || 0)
+   644→                : (tiers[selectedTierId]?.[effectiveBilling === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
+   645→
+   646→              return (
+   647→                <div className="max-w-md mx-auto pt-2 space-y-3">
+   648→                  {/* Back button */}
+   649→                  <button onClick={() => {
+   650→                    setStep(1);
+   651→                    // CRO AUDIT FIX (Track C — C2): auto-reset showAllPlans to false
+   652→                    // when the user returns to the plan step, so they see their
+   653→                    // selected tier centered rather than the full comparison grid.
+   654→                    setShowAllPlans(false);
+   655→                  }} className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all" disabled={isSubmitting}>
+   656→                    ← Back
+   657→                  </button>
+   658→
+   659→                  {/* CRO AUDIT FIX (Track C — C2): renamed "Pay Now" → "Confirm Plan".
+   660→                      The Step 1 CTA already says "Next: Confirm Plan", so the Step 2
+   661→                      primary CTA must match that language. */}
+   662→                  <button
+   663→                    onClick={() => { setPaymentAction('pay_now'); setShowPaymentModal(true); }}
+   664→                    disabled={isSubmitting || !hasAgreed}
+   665→                    className={`w-full py-4 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}
+   666→                  >
+   667→                    {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+   668→                    {isSubmitting ? 'Creating...' : `Confirm Plan — ${planLabel}`}
+   669→                  </button>
+   670→
+   671→                  {/* Start 30-Day Free Trial — NOT available on highest tier */}
+   672→                  {!isHighestTier && (
+   673→                    <>
+   674→                      <div className="flex items-center gap-3 py-1">
+   675→                        <div className="flex-1 h-px bg-slate-100" />
+   676→                        <span className="text-2xs text-slate-400 font-bold uppercase">or</span>
+   677→                        <div className="flex-1 h-px bg-slate-100" />
+   678→                      </div>
+   679→                      <button
+   680→                        onClick={() => { setPaymentAction('start_trial'); handleCreate(true); }}
+   681→                        disabled={isSubmitting || !hasAgreed}
+   682→                        className="w-full py-3 bg-white border-2 border-primary-200 text-primary-600 font-black text-xs uppercase tracking-wide-label rounded-2xl hover:bg-primary-50 transition-all disabled:opacity-50"
+   683→                      >
+   684→                        Start 30-Day Free Trial
+   685→                      </button>
+   686→                      {/* Subtle upsell for Core tier — suggest trying the highest tier */}
+   687→                      {selectedTierId === 'Core' && !isKompleteTier && (
+   688→                        <p className="text-center text-2xs text-slate-400 mt-1">
+   689→                          Want full features? <button onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 30 days</button> instead.
+   690→                        </p>
+   691→                      )}
+   692→                    </>
+   693→                  )}
+   694→
+   695→                  {/* Highest tier — payment only, no trial */}
+   696→                  {isHighestTier && (
+   697→                    <p className="text-center text-2xs text-slate-400">
+   698→                      The {planLabel} tier requires payment to activate. Click "Confirm Plan" to proceed with bank transfer.
+   699→                    </p>
+   700→                  )}
+   701→                </div>
+   702→              );
+   703→            })()}
+   704→
+   705→            {/* CRO AUDIT FIX (Track A — A3): replaced the stub "Payment Reported"
+   706→                modal with the real PaymentGatewayModal component. Users now see
+   707→                actual bank details, amount, and a generated transaction reference.
+   708→                The modal calls createSubscriptionRequest to write a pending row
+   709→                (no immediate plan flip) — the founder admin or Paystack webhook
+   710→                activates the subscription after verification. */}
+   711→            {paymentAction === 'pay_now' && showPaymentModal && (
+   712→              <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50">
+   713→                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+   714→                  <PaymentGatewayModal
+   715→                    amount={(() => {
+   716→                      const isKompleteTier = isKomplete(product);
+   717→                      // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr (no monthly option).
+   718→                      const planPrice = isKompleteTier
+   719→                        ? (tiers.Core?.annualPrice || 0)
+   720→                        : (tiers[selectedTierId]?.[billingCycle === 'annual' ? 'annualPrice' : 'monthlyPrice'] || 0);
+   721→                      return planPrice;
+   722→                    })()}
+   723→                    email={currentUser?.email || ''}
+   724→                    title={`Confirm Plan — ${isKomplete(product) ? 'Komplete' : selectedTierId}`}
+   725→                    description={`${isKomplete(product) ? 'Annual' : (billingCycle === 'annual' ? 'Annual' : 'Monthly')} subscription — ${firmName}`}
+   726→                    forcePracticeProAccount={true}
+   727→                    // No subscriptionContext for onboarding — the firm doesn't exist yet.
+   728→                    // The user pays AFTER workspace creation via the in-app SubscriptionSettings.
+   729→                    // For onboarding, "Confirm Plan" just creates the firm at Core (or trial).
+   730→                    onSuccess={() => {
+   731→                      setShowPaymentModal(false);
+   732→                      // After the user reports payment, create the firm at Core.
+   733→                      // The founder admin will see the pending payment and activate
+   734→                      // the requested plan once verified.
+   735→                      handleCreate(false);
+   736→                    }}
+   737→                    onClose={() => setShowPaymentModal(false)}
+   738→                  />
+   739→                </div>
+   740→              </div>
+   741→            )}
+   742→          </div>
+   743→        )}
+   744→
+   745→        {/* ── STEP 3: Communication Channels ─────────────────────────── */}
+   746→        {/* Per user spec: ask whether the user will use email or WhatsApp,
+   747→            clarify the relevance of both, and do NOT ask for their phone
+   748→            number, WhatsApp Business API token, or Brevo/Sendgrid API key.
+   749→            We record intent only — credentials are configured later in
+   750→            Settings → Integrations. */}
+   751→        {step === 3 && (
+   752→          <div className="space-y-6">
+   753→            <div className="text-center">
+   754→              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+   755→                How will you reach {productName === 'Atrium' ? 'tenants' : productName === 'Vega' ? 'clients' : 'clients & tenants'}?
+   756→              </h2>
+   757→              <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+   758→                Pick the channels you intend to use. You can connect credentials later from <span className="font-bold text-slate-700">Settings → Integrations</span> — we'll send a friendly reminder in 7 days if you haven't.
+   759→              </p>
+   760→            </div>
+   761→
+   762→            {/* WhatsApp channel card */}
+   763→            <div className={`max-w-md mx-auto p-5 rounded-2xl border-2 transition-all ${useWhatsapp === true ? 'border-emerald-400 bg-emerald-50/40' : useWhatsapp === false ? 'border-slate-100 opacity-60' : 'border-slate-100'}`}>
+   764→              <div className="flex items-start justify-between gap-3">
+   765→                <div className="flex-1">
+   766→                  <div className="flex items-center gap-2">
+   767→                    <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.967-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.27 9.27 0 01-4.726-1.293l-.339-.202-3.511.921.938-3.426-.219-.351a9.264 9.264 0 01-1.421-4.951c.002-5.12 4.165-9.282 9.286-9.282 2.481 0 4.811.967 6.563 2.721a9.244 9.244 0 012.72 6.569c-.002 5.118-4.165 9.282-9.286 9.282"/></svg>
+   768→                    <h3 className="text-base font-bold text-slate-900">WhatsApp</h3>
+   769→                  </div>
+   770→                  <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+   771→                    {WHATSAPP_RELEVANCE}
+   772→                  </p>
+   773→                </div>
+   774→              </div>
+   775→              <div className="flex gap-2 mt-4">
+   776→                <button
+   777→                  onClick={() => setUseWhatsapp(true)}
+   778→                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useWhatsapp === true ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+   779→                >
+   780→                  Yes — I'll use WhatsApp
+   781→                </button>
+   782→                <button
+   783→                  onClick={() => setUseWhatsapp(false)}
+   784→                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useWhatsapp === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+   785→                >
+   786→                  Not yet
+   787→                </button>
+   788→              </div>
+   789→            </div>
+   790→
+   791→            {/* Email channel card */}
+   792→            <div className={`max-w-md mx-auto p-5 rounded-2xl border-2 transition-all ${useEmail === true ? 'border-blue-400 bg-blue-50/40' : useEmail === false ? 'border-slate-100 opacity-60' : 'border-slate-100'}`}>
+   793→              <div className="flex items-start justify-between gap-3">
+   794→                <div className="flex-1">
+   795→                  <div className="flex items-center gap-2">
+   796→                    <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+   797→                    <h3 className="text-base font-bold text-slate-900">Email</h3>
+   798→                  </div>
+   799→                  <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+   800→                    {EMAIL_RELEVANCE}
+   801→                  </p>
+   802→                </div>
+   803→              </div>
+   804→              <div className="flex gap-2 mt-4">
+   805→                <button
+   806→                  onClick={() => setUseEmail(true)}
+   807→                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useEmail === true ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+   808→                >
+   809→                  Yes — I'll use Email
+   810→                </button>
+   811→                <button
+   812→                  onClick={() => setUseEmail(false)}
+   813→                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useEmail === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+   814→                >
+   815→                  Not yet
+   816→                </button>
+   817→              </div>
+   818→            </div>
+   819→
+   820→            {/* Soft note if both are skipped */}
+   821→            {useWhatsapp === false && useEmail === false && (
+   822→              <p className="text-center text-2xs text-slate-500 font-medium max-w-md mx-auto">
+   823→                No problem — we'll send in-app notifications only. You can connect WhatsApp and Email anytime from <span className="font-bold text-slate-700">Settings → Integrations</span>.
+   824→              </p>
+   825→            )}
+   826→
+   827→            <div className="max-w-md mx-auto pt-2 space-y-3">
+   828→              <button
+   829→                onClick={() => setStep(4)}
+   830→                disabled={useWhatsapp === null || useEmail === null}
+   831→                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+   832→              >
+   833→                Next: Team Setup
+   834→              </button>
+   835→              <p className="text-center text-2xs text-slate-400">
+   836→                You can change these anytime from Settings → Integrations.
+   837→              </p>
+   838→            </div>
+   839→          </div>
+   840→        )}
+   841→
+   842→        {/* ── STEP 4: Team Setup ─────────────────────────────────────── */}
+   843→        {step === 4 && (
+   844→          <div className="space-y-6">
+   845→            <div className="text-center">
+   846→              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+   847→                Will anyone else work in this workspace?
+   848→              </h2>
+   849→              <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+   850→                Invite teammates now, or skip and add them later from <span className="font-bold text-slate-700">Settings → Team</span>.
+   851→              </p>
+   852→            </div>
+   853→
+   854→            <div className="max-w-md mx-auto space-y-3">
+   855→              <button
+   856→                onClick={() => setWillInviteTeam(true)}
+   857→                className={`w-full p-4 text-left rounded-2xl border-2 transition-all ${willInviteTeam === true ? 'border-primary-500 bg-primary-50/40' : 'border-slate-100 hover:border-slate-200'}`}
+   858→              >
+   859→                <div className="flex items-center justify-between">
+   860→                  <div>
+   861→                    <p className="text-sm font-bold text-slate-900">Yes — invite my team</p>
+   862→                    <p className="text-2xs text-slate-500 font-medium mt-0.5">Lawyers, paralegals, property officers, accountants — anyone who'll work in PracticePro.</p>
+   863→                  </div>
+   864→                  {willInviteTeam === true && <CheckIcon className="w-5 h-5 text-primary-600 flex-shrink-0" />}
+   865→                </div>
+   866→              </button>
+   867→              <button
+   868→                onClick={() => setWillInviteTeam(false)}
+   869→                className={`w-full p-4 text-left rounded-2xl border-2 transition-all ${willInviteTeam === false ? 'border-primary-500 bg-primary-50/40' : 'border-slate-100 hover:border-slate-200'}`}
+   870→              >
+   871→                <div className="flex items-center justify-between">
+   872→                  <div>
+   873→                    <p className="text-sm font-bold text-slate-900">Not right now — it's just me</p>
+   874→                    <p className="text-2xs text-slate-500 font-medium mt-0.5">You can invite team members anytime from Settings → Team.</p>
+   875→                  </div>
+   876→                  {willInviteTeam === false && <CheckIcon className="w-5 h-5 text-primary-600 flex-shrink-0" />}
+   877→                </div>
+   878→              </button>
+   879→            </div>
+   880→
+   881→            {/* Invite code panel — shown whenever the user has answered the question.
+   882→                Either way, we surface the code so they can copy & share it now
+   883→                or come back to it later. */}
+   884→            {willInviteTeam !== null && (
+   885→              <div className="max-w-md mx-auto p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+   886→                <div className="flex items-center justify-between">
+   887→                  <div>
+   888→                    <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Your Workspace Invite Code</p>
+   889→                    <p className="text-2xs text-slate-500 font-medium mt-0.5">
+   890→                      {willInviteTeam
+   891→                        ? 'Share this code with your team — they enter it on the signup page to join your workspace.'
+   892→                        : 'Save this code in case you want to invite someone later.'}
+   893→                    </p>
+   894→                  </div>
+   895→                </div>
+   896→                <div className="flex items-center gap-3">
+   897→                  <div className="flex-1 px-4 py-3 bg-white rounded-xl border border-slate-200 font-mono font-bold text-lg text-center text-slate-900 tracking-widest">
+   898→                    {firmInviteCode || (firmBasicInfo === undefined ? 'Loading…' : '—')}
+   899→                  </div>
+   900→                  <button
+   901→                    onClick={copyInviteCode}
+   902→                    disabled={!firmInviteCode}
+   903→                    className="px-4 py-3 bg-primary-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50"
+   904→                  >
+   905→                    Copy
+   906→                  </button>
+   907→                </div>
+   908→                {willInviteTeam && (
+   909→                  <p className="text-2xs text-slate-500 font-medium leading-relaxed">
+   910→                    Team members join with the role <span className="font-bold">Lawyer</span> by default — you can change roles and permissions from <span className="font-bold">Settings → Team</span> once they're in.
+   911→                  </p>
+   912→                )}
+   913→              </div>
+   914→            )}
+   915→
+   916→            <div className="max-w-md mx-auto pt-2 space-y-3">
+   917→              <button
+   918→                onClick={() => setStep(5)}
+   919→                disabled={willInviteTeam === null}
+   920→                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+   921→              >
+   922→                Next: Review & Confirm
+   923→              </button>
+   924→              <button
+   925→                onClick={() => setStep(3)}
+   926→                className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all"
+   927→              >
+   928→                ← Back
+   929→              </button>
+   930→            </div>
+   931→          </div>
+   932→        )}
+   933→
+   934→        {/* ── STEP 5: Review & Confirm ───────────────────────────────── */}
+   935→        {step === 5 && (
+   936→          <div className="space-y-6">
+   937→            <div className="text-center">
+   938→              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+   939→                You're all set, {currentUser?.name?.split(' ')[0] || 'there'}!
+   940→              </h2>
+   941→              <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+   942→                Review your setup below. You can change any of this from Settings once you're in.
+   943→              </p>
+   944→            </div>
+   945→
+   946→            <div className="max-w-md mx-auto rounded-2xl border border-slate-100 overflow-hidden">
+   947→              {/* Workspace row */}
+   948→              <div className="px-5 py-4 border-b border-slate-50">
+   949→                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Workspace</p>
+   950→                <p className="text-sm font-bold text-slate-900 mt-0.5">{firmName || 'My Workspace'}</p>
+   951→                <p className="text-2xs text-slate-500 font-medium">
+   952→                  {productName === 'Atrium' ? 'Atrium · Property Management' : productName === 'Vega' ? 'Vega · Legal Practice' : 'Komplete · Unified Workspace'}
+   953→                </p>
+   954→              </div>
+   955→
+   956→              {/* Plan row */}
+   957→              <div className="px-5 py-4 border-b border-slate-50">
+   958→                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Plan</p>
+   959→                <p className="text-sm font-bold text-slate-900 mt-0.5">
+   960→                  {isKomplete(product) ? 'Komplete' : selectedTierId}
+   961→                  <span className="text-2xs text-slate-500 font-medium ml-1.5">
+   962→                    ({billingCycle === 'annual' && !isKomplete(product) ? 'Annual' : isKomplete(product) ? 'Annual (only)' : 'Monthly'})
+   963→                  </span>
+   964→                </p>
+   965→              </div>
+   966→
+   967→              {/* Communication channels row */}
+   968→              <div className="px-5 py-4 border-b border-slate-50">
+   969→                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Communication Channels</p>
+   970→                <div className="flex flex-wrap gap-1.5 mt-1">
+   971→                  {useWhatsapp === true && (
+   972→                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-2xs font-bold uppercase tracking-widest rounded-full border border-emerald-200">WhatsApp</span>
+   973→                  )}
+   974→                  {useEmail === true && (
+   975→                    <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-2xs font-bold uppercase tracking-widest rounded-full border border-blue-200">Email</span>
+   976→                  )}
+   977→                  {useWhatsapp !== true && useEmail !== true && (
+   978→                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-2xs font-bold uppercase tracking-widest rounded-full border border-slate-200">In-app only</span>
+   979→                  )}
+   980→                </div>
+   981→                {(useWhatsapp === true || useEmail === true) && (
+   982→                  <p className="text-2xs text-slate-500 font-medium mt-2">
+   983→                    We'll remind you to connect credentials in 7 days if you haven't yet.
+   984→                  </p>
+   985→                )}
+   986→              </div>
+   987→
+   988→              {/* Team row */}
+   989→              <div className="px-5 py-4">
+   990→                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Team</p>
+   991→                <p className="text-sm font-bold text-slate-900 mt-0.5">
+   992→                  {willInviteTeam ? 'Invite my team now' : 'Just me for now'}
+   993→                </p>
+   994→                {firmInviteCode && (
+   995→                  <p className="text-2xs text-slate-500 font-medium mt-1">
+   996→                    Invite code: <span className="font-mono font-bold text-slate-700">{firmInviteCode}</span>
+   997→                  </p>
+   998→                )}
+   999→              </div>
+  1000→            </div>
+  1001→
+  1002→            <div className="max-w-md mx-auto pt-2 space-y-3">
+  1003→              <button
+  1004→                onClick={handleCompleteWizard}
+  1005→                disabled={isSavingFinal}
+  1006→                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 flex justify-center disabled:opacity-50"
+  1007→              >
+  1008→                {isSavingFinal ? (
+  1009→                  <span className="flex items-center gap-2">
+  1010→                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  1011→                    Saving…
+  1012→                  </span>
+  1013→                ) : (
+  1014→                  'Start using PracticePro'
+  1015→                )}
+  1016→              </button>
+  1017→              <button
+  1018→                onClick={() => setStep(4)}
+  1019→                disabled={isSavingFinal}
+  1020→                className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50"
+  1021→              >
+  1022→                ← Back
+  1023→              </button>
+  1024→            </div>
+  1025→          </div>
+  1026→        )}
+  1027→      </div>
+  1028→    </div>
+  1029→  );
+  1030→};
+  1031→
+  1032→export default OnboardingWizard;
+  1033→

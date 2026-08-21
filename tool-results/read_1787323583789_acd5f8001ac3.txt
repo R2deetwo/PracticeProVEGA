@@ -1,0 +1,702 @@
+     1→   600→    firmId: nullableString,
+     2→   601→    matterId: nullableString,
+     3→   602→    email: nullableString,
+     4→   603→    name: nullableString,
+     5→   604→    firmName: nullableString,
+     6→   605→    roleInMatter: nullableString,
+     7→   606→    accessLevel: nullableString,
+     8→   607→    expiresAt: nullableString,
+     9→   608→    status: nullableString,
+    10→   609→    invitedBy: nullableString,
+    11→   610→    createdAt: nullableString,
+    12→   611→    updatedAt: nullableString,
+    13→   612→    _lastModifiedBy: nullableString,
+    14→   613→    _version: nullableNumber,
+    15→   614→  }).index("by_firm", ["firmId"]),
+    16→   615→
+    17→   616→  automationRules: defineTable({
+    18→   617→    firmId: nullableString,
+    19→   618→    name: nullableString,
+    20→   619→    triggerType: nullableString,
+    21→   620→    triggerValue: nullableString,
+    22→   621→    actions: v.optional(v.array(v.any())),
+    23→   622→    isEnabled: nullableBoolean,
+    24→   623→    createdAt: nullableString,
+    25→   624→    updatedAt: nullableString,
+    26→   625→    _lastModifiedBy: nullableString,
+    27→   626→    _version: nullableNumber,
+    28→   627→  }).index("by_firm", ["firmId"]),
+    29→   628→
+    30→   629→  intakeForms: defineTable({
+    31→   630→    firmId: nullableString,
+    32→   631→    name: nullableString,
+    33→   632→    description: nullableString,
+    34→   633→    fields: v.optional(v.array(v.any())),
+    35→   634→    publicLink: nullableString,
+    36→   635→    responsesCount: nullableNumber,
+    37→   636→    isEnabled: nullableBoolean,
+    38→   637→    createdAt: nullableString,
+    39→   638→    updatedAt: nullableString,
+    40→   639→    _lastModifiedBy: nullableString,
+    41→   640→    _version: nullableNumber,
+    42→   641→  }).index("by_firm", ["firmId"]),
+    43→   642→
+    44→   643→  documentGenerationMetadata: defineTable({
+    45→   644→    firmId: nullableString,
+    46→   645→    documentType: nullableString,
+    47→   646→    propertyId: nullableString,
+    48→   647→    matterId: nullableString,
+    49→   648→    templateId: nullableString,
+    50→   649→    generatedBy: nullableString,
+    51→   650→    metadata: v.optional(v.any()),
+    52→   651→    fieldMappings: nullableString,
+    53→   652→    renderedOutput: nullableString,
+    54→   653→    createdBy: nullableString,
+    55→   654→    missingFields: nullableString,
+    56→   655→    createdAt: nullableNumber,
+    57→   656→    updatedAt: nullableString,
+    58→   657→    _lastModifiedBy: nullableString,
+    59→   658→    _version: nullableNumber,
+    60→   659→  }).index("by_firm", ["firmId"]).index("by_property", ["propertyId"]).index("by_matter", ["matterId"]),
+    61→   660→
+    62→   661→  clientMessages: defineTable({
+    63→   662→    firmId: nullableString,
+    64→   663→    matterId: nullableString,
+    65→   664→    authorId: nullableString,
+    66→   665→    content: nullableString,
+    67→   666→    timestamp: nullableString,
+    68→   667→    isRead: nullableBoolean,
+    69→   668→    status: nullableString,
+    70→   669→    createdAt: nullableString,
+    71→   670→    updatedAt: nullableString,
+    72→   671→    _lastModifiedBy: nullableString,
+    73→   672→    _version: nullableNumber,
+    74→   673→  }).index("by_firm", ["firmId"]),
+    75→   674→
+    76→   675→  archive: defineTable({
+    77→   676→    firmId: nullableString,
+    78→   677→    itemType: nullableString,
+    79→   678→    itemId: nullableString,
+    80→   679→    itemName: nullableString,
+    81→   680→    archivedAt: nullableString,
+    82→   681→    archiverId: nullableString,
+    83→   682→    archiverName: nullableString,
+    84→   683→    originalData: v.optional(v.any()),
+    85→   684→    createdAt: nullableString,
+    86→   685→    updatedAt: nullableString,
+    87→   686→    _lastModifiedBy: nullableString,
+    88→   687→    _version: nullableNumber,
+    89→   688→  }).index("by_firm", ["firmId"]),
+    90→   689→
+    91→   690→  researchNotebooks: defineTable({
+    92→   691→    firmId: nullableString,
+    93→   692→    userId: nullableString,
+    94→   693→    name: nullableString,
+    95→   694→    matterId: nullableString,
+    96→   695→    id: nullableString,
+    97→   696→    createdAt: nullableString,
+    98→   697→    updatedAt: nullableString,
+    99→   698→    _lastModifiedBy: nullableString,
+   100→   699→    _version: nullableNumber,
+   101→   700→  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+   102→   701→
+   103→   702→  researchSources: defineTable({
+   104→   703→    firmId: nullableString,
+   105→   704→    notebookId: nullableString,
+   106→   705→    name: nullableString,
+   107→   706→    type: nullableString,
+   108→   707→    content: nullableString,
+   109→   708→    file: v.optional(v.any()),
+   110→   709→    id: nullableString,
+   111→   710→    createdAt: nullableString,
+   112→   711→    updatedAt: nullableString,
+   113→   712→    _lastModifiedBy: nullableString,
+   114→   713→    _version: nullableNumber,
+   115→   714→  }).index("by_notebook", ["notebookId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+   116→   715→
+   117→   716→  researchMessages: defineTable({
+   118→   717→    firmId: nullableString,
+   119→   718→    notebookId: nullableString,
+   120→   719→    role: nullableString,
+   121→   720→    content: nullableString,
+   122→   721→    timestamp: nullableString,
+   123→   722→    citations: v.optional(v.array(v.any())),
+   124→   723→    id: nullableString,
+   125→   724→    createdAt: nullableString,
+   126→   725→    updatedAt: nullableString,
+   127→   726→    _lastModifiedBy: nullableString,
+   128→   727→    _version: nullableNumber,
+   129→   728→  }).index("by_notebook", ["notebookId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+   130→   729→
+   131→   730→  researchAnalysisResults: defineTable({
+   132→   731→    firmId: nullableString,
+   133→   732→    notebookId: nullableString,
+   134→   733→    type: nullableString,
+   135→   734→    title: nullableString,
+   136→   735→    content: nullableString,
+   137→   736→    timestamp: nullableString,
+   138→   737→    createdAt: nullableString,
+   139→   738→    updatedAt: nullableString,
+   140→   739→    _lastModifiedBy: nullableString,
+   141→   740→    _version: nullableNumber,
+   142→   741→  }).index("by_notebook", ["notebookId"]).index("by_firm", ["firmId"]),
+   143→   742→
+   144→   743→  presence: defineTable({
+   145→   744→    firmId: nullableString,
+   146→   745→    userId: nullableString,
+   147→   746→    userName: nullableString,
+   148→   747→    updatedAt: nullableNumber,
+   149→   748→  }).index("by_firm", ["firmId"]).index("by_user", ["userId"]),
+   150→   749→
+   151→   750→  properties: defineTable({
+   152→   751→    firmId: nullableString,
+   153→   752→    contactId: nullableString,
+   154→   753→    ownerId: nullableString,
+   155→   754→    landlordId: nullableString,
+   156→   755→    tenantId: nullableString,
+   157→   756→    currentTenantId: nullableString,
+   158→   757→    matterId: nullableString,
+   159→   758→    address: nullableString,
+   160→   759→    category: nullableString,
+   161→   760→    ownershipType: nullableString,
+   162→   761→    propertyType: nullableString,
+   163→   762→    description: nullableString,
+   164→   763→    status: nullableString,
+   165→   764→    rentCollectionMode: nullableString,
+   166→   765→    value: nullableNumber,
+   167→   766→    rentalDetails: v.optional(v.any()),
+   168→   767→    disputeDetails: v.optional(v.any()),
+   169→   768→    saleDetails: v.optional(v.any()),
+   170→   769→    managementFeePercentage: nullableNumber,
+   171→   770→    numberOfUnits: nullableNumber,
+   172→   771→    units: v.optional(v.array(v.any())),
+   173→   772→    images: v.optional(v.array(v.any())),
+   174→   773→    automationSettings: v.optional(v.any()),
+   175→   774→    trackingTimeline: v.optional(v.array(v.any())),
+   176→   775→    maintenanceHistory: v.optional(v.array(v.any())),
+   177→   776→    rentPaymentHistory: v.optional(v.array(v.any())),
+   178→   777→    // Minimum Vend / Estate Fees toggle (property-wide)
+   179→   778→    minimumVendEnabled: nullableBoolean,
+   180→   779→    minimumVendAmount: nullableNumber,
+   181→   780→    minimumVendLabel: nullableString,
+   182→   781→    // ─── CORE SERVICES (Configurable-by-Default) ──────────────────────
+   183→   782→    // Per-property toggles for standard services. When a service is
+   184→   783→    // 'active', it appears as a functional icon in the Resident Portal.
+   185→   784→    // When 'inactive', the icon is grayed out with a tooltip:
+   186→   785→    //   "This service is not applicable for your property."
+   187→   786→    // This replaces the old "Management-Only" static message with a
+   188→   787→    // data-driven, manager-configurable service architecture.
+   189→   788→    // Defaults to all-active for backward compatibility with existing
+   190→   789→    // properties that don't have this field yet.
+   191→   790→    coreServices: v.optional(v.object({
+   192→   791→      serviceCharge: v.optional(v.boolean()),
+   193→   792→      electricity: v.optional(v.boolean()),
+   194→   793→      internet: v.optional(v.boolean()),
+   195→   794→      wasteManagement: v.optional(v.boolean()),
+   196→   795→    })),
+   197→   796→    // Custom fees added by the property manager (label + amount).
+   198→   797→    // Rendered in the Resident Portal alongside core services.
+   199→   798→    customFees: v.optional(v.array(v.object({
+   200→   799→      label: v.string(),
+   201→   800→      amount: v.number(),
+   202→   801→      active: v.optional(v.boolean()),
+   203→   802→    }))),
+   204→   803→    // ─── Notification Guardrails ─────────────────────────
+   205→   804→    // Property-level global toggle for morning utility reminders
+   206→   805→    remindersEnabled: nullableBoolean,
+   207→   806→    // Max consecutive reminders before auto-pause (default 7)
+   208→   807→    reminderCoolOffDays: nullableNumber,
+   209→   808→    id: nullableString, // Legacy ID from frontend
+   210→   809→    userId: nullableString, // Legacy ID from frontend
+   211→   810→    createdAt: nullableString,
+   212→   811→    updatedAt: nullableString,
+   213→   812→    _lastModifiedBy: nullableString,
+   214→   813→    _version: nullableNumber,
+   215→   814→  })
+   216→   815→    .index("by_firm", ["firmId"])
+   217→   816→    .index("by_contact", ["contactId"])
+   218→   817→    .index("by_matter", ["matterId"])
+   219→   818→    .index("by_custom_id", ["id"]),
+   220→   819→
+   221→   820→  tenancies: defineTable({
+   222→   821→    firmId: nullableString,
+   223→   822→    propertyId: nullableString,
+   224→   823→    tenantId: nullableString,
+   225→   824→    status: nullableString,
+   226→   825→    startDate: nullableString,
+   227→   826→    endDate: nullableString,
+   228→   827→    rentAmount: nullableNumber,
+   229→   828→    paymentFrequency: nullableString,
+   230→   829→    arrearsFrom: nullableString,
+   231→   830→    arrearsTo: nullableString,
+   232→   831→    totalArrears: nullableNumber,
+   233→   832→    createdAt: nullableString,
+   234→   833→    updatedAt: nullableString,
+   235→   834→    _lastModifiedBy: nullableString,
+   236→   835→    _version: nullableNumber,
+   237→   836→  }).index("by_firm", ["firmId"]).index("by_property", ["propertyId"]).index("by_tenant", ["tenantId"]),
+   238→   837→
+   239→   838→  // 4. Pre-typed / System Tables (Maintained as-is)
+   240→   839→  memories: defineTable({
+   241→   840→    text: v.string(),
+   242→   841→    embedding: v.array(v.number()),
+   243→   842→    metadata: v.any(),
+   244→   843→    firmId: v.string(),
+   245→   844→    scope: v.optional(v.string()), 
+   246→   845→    userId: v.optional(v.string()),
+   247→   846→  })
+   248→   847→    .vectorIndex("by_embedding", {
+   249→   848→      vectorField: "embedding",
+   250→   849→      dimensions: 768,
+   251→   850→      filterFields: ["firmId", "scope"],
+   252→   851→    })
+   253→   852→    .index("by_firm", ["firmId"])
+   254→   853→    .index("by_scope", ["scope"]),
+   255→   854→
+   256→   855→  aloaConversations: defineTable({
+   257→   856→    firmId: v.string(),
+   258→   857→    userId: v.string(),
+   259→   858→    title: v.string(),
+   260→   859→    createdAt: v.number(),
+   261→   860→    updatedAt: v.number(),
+   262→   861→  }).index("by_firm", ["firmId"]).index("by_user", ["userId"]),
+   263→   862→
+   264→   863→  aloaMessages: defineTable({
+   265→   864→    conversationId: v.string(),
+   266→   865→    firmId: v.string(),
+   267→   866→    role: v.string(),
+   268→   867→    content: v.optional(v.string()),
+   269→   868→    toolCalls: v.optional(v.any()),
+   270→   869→    toolResult: v.optional(v.any()),
+   271→   870→    modelUsed: v.optional(v.string()),
+   272→   871→    isError: v.optional(v.boolean()),
+   273→   872→    errorDetails: v.optional(v.string()),
+   274→   873→    toolAction: v.optional(v.any()),
+   275→   874→    id: v.string(),
+   276→   875→    createdAt: v.number(),
+   277→   876→  }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]),
+   278→   877→
+   279→   878→  analytics_events: defineTable({
+   280→   879→    firmId: v.string(),
+   281→   880→    userId: v.string(),
+   282→   881→    event: v.string(),
+   283→   882→    properties: v.any(),
+   284→   883→    timestamp: v.number(),
+   285→   884→  })
+   286→   885→    .index("by_firm", ["firmId"])
+   287→   886→    .index("by_user", ["userId"])
+   288→   887→    .index("by_event", ["event"])
+   289→   888→    .index("by_timestamp", ["timestamp"]),
+   290→   889→
+   291→   890→  usage_snapshots: defineTable({
+   292→   891→    date: v.string(),
+   293→   892→    firmId: v.string(),
+   294→   893→    totalMatters: v.number(),
+   295→   894→    activeUsers: v.number(),
+   296→   895→    revenueToDate: v.number(),
+   297→   896→  }).index("by_firm_date", ["firmId", "date"]),
+   298→   897→
+   299→   898→  firm_health_scores: defineTable({
+   300→   899→    firmId: v.string(),
+   301→   900→    score: v.number(),
+   302→   901→    factors: v.object({
+   303→   902→      recentLogins: v.number(),
+   304→   903→      matterGrowth: v.number(),
+   305→   904→    }),
+   306→   905→  }).index("by_firm", ["firmId"]),
+   307→   906→
+   308→   907→  user_feedback: defineTable({
+   309→   908→    firmId: v.string(),
+   310→   909→    userId: v.string(),
+   311→   910→    userName: v.string(),
+   312→   911→    userEmail: v.string(),
+   313→   912→    type: v.optional(v.string()),
+   314→   913→    title: v.optional(v.string()),
+   315→   914→    message: v.string(),
+   316→   915→    rating: v.optional(v.number()),
+   317→   916→    status: v.string(),
+   318→   917→    adminReply: v.optional(v.string()),
+   319→   918→    replies: v.optional(v.array(v.object({
+   320→   919→      adminId: v.string(),
+   321→   920→      message: v.string(),
+   322→   921→      timestamp: v.number(),
+   323→   922→    }))),
+   324→   923→    source: v.optional(v.string()),  // "feedback" | "aloa_echo" — distinguishes real feedback from Aloa chat echoes
+   325→   924→    timestamp: v.number(),
+   326→   925→    // ─── IDEMPOTENCY KEY ───────────────────────────────────────────────
+   327→   926→    // Prevents duplicate feedback threads on double-submit or network retry.
+   328→   927→    // See submitFeedback mutation for the dedup logic.
+   329→   928→    idempotencyKey: v.optional(v.string()),
+   330→   929→    // ─── SOFT DELETE ───────────────────────────────────────────────────
+   331→   930→    // When true, the thread is hidden from both user and admin inboxes.
+   332→   931→    // We don't hard-delete to preserve audit trail (founder can review
+   333→   932→    // deleted threads if needed for compliance).
+   334→   933→    deletedAt: v.optional(v.number()),
+   335→   934→    deletedBy: v.optional(v.string()),  // userId or 'admin' for admin-initiated deletion
+   336→   935→  }).index("by_firm", ["firmId"])
+   337→   936→    .index("by_status", ["status"])
+   338→   937→    .index("by_timestamp", ["timestamp"])
+   339→   938→    .index("by_user_id", ["userId"]),
+   340→   939→
+   341→   940→  // ─── ORGANIZATION PAYOUT DETAILS ───────────────────────────────────
+   342→   941→  // Single source of truth for PracticePro Systems Limited's corporate
+   343→   942→  // bank account. Used by all manual bank transfer checkouts across
+   344→   943→  // Vega, Atrium, Komplete, and add-on purchases.
+   345→   944→  // Managed exclusively by the Founder App.
+   346→   945→  organization_payout_details: defineTable({
+   347→   946→    corporateName: v.string(),         // "PracticePro Systems Limited"
+   348→   947→    bankName: v.string(),              // e.g. "Providus Bank"
+   349→   948→    accountNumber: v.string(),         // 10-digit NUBAN
+   350→   949→    accountName: v.string(),           // verified corporate holder name
+   351→   950→    isActive: v.boolean(),
+   352→   951→    updatedBy: v.string(),             // founder email
+   353→   952→    updatedAt: v.number(),
+   354→   953→  }).index("by_active", ["isActive"]),
+   355→   954→
+   356→   955→  // Feature flags — per-firm gating of features without a full deploy
+   357→   956→  feature_flags: defineTable({
+   358→   957→    firmId: v.string(),
+   359→   958→    flagKey: v.string(),        // e.g. 'beta_ai_features', 'new_pricing_tier'
+   360→   959→    enabled: v.boolean(),
+   361→   960→    setBy: v.optional(v.string()), // founder email who set it
+   362→   961→    setAt: v.optional(v.number()),
+   363→   962→  }).index("by_firm", ["firmId"])
+   364→   963→    .index("by_firm_flag", ["firmId", "flagKey"]),
+   365→   964→
+   366→   965→  legal_modules: defineTable({
+   367→   966→    moduleKey: v.string(),
+   368→   967→    name: v.string(),
+   369→   968→    shortName: v.string(),
+   370→   969→    category: v.string(),
+   371→   970→    jurisdiction: v.string(),
+   372→   971→    authority: v.string(),
+   373→   972→    version: v.optional(v.string()),
+   374→   973→    description: v.optional(v.string()),
+   375→   974→    coverageAreas: v.array(v.string()),
+   376→   975→    primaryMatterTypes: v.array(v.string()),
+   377→   976→    status: v.string(),
+   378→   977→    isBundled: v.boolean(),
+   379→   978→    lastUpdated: v.optional(v.string()),
+   380→   979→    pricingType: v.optional(v.string()),
+   381→   980→    priceAmount: v.optional(v.number()),
+   382→   981→    currency: v.optional(v.string()),
+   383→   982→    billingInterval: v.optional(v.string()),
+   384→   983→  })
+   385→   984→  .index("by_moduleKey", ["moduleKey"])
+   386→   985→  .index("by_category", ["category"])
+   387→   986→  .index("by_status", ["status"]),
+   388→   987→
+   389→   988→  statutes: defineTable({
+   390→   989→    moduleKey: v.string(),
+   391→   990→    title: v.string(),
+   392→   991→    year: v.optional(v.number()),
+   393→   992→    chapter: v.optional(v.string()),
+   394→   993→    documentType: v.optional(v.string()),
+   395→   994→    court: v.optional(v.string()),
+   396→   995→    parties: v.optional(v.string()),
+   397→   996→    suitNumber: v.optional(v.string()),
+   398→   997→    dateOfDelivery: v.optional(v.string()),
+   399→   998→    fullText: v.optional(v.string()),
+   400→   999→    summary: v.optional(v.string()),
+   401→  1000→    citation: v.optional(v.string()),
+   402→  1001→    tags: v.array(v.string()),
+   403→  1002→    sourceUrl: v.optional(v.string()),
+   404→  1003→    embedding: v.optional(v.array(v.number())),
+   405→  1004→  })
+   406→  1005→  .index("by_moduleKey", ["moduleKey"])
+   407→  1006→  .vectorIndex("by_embedding", {
+   408→  1007→    vectorField: "embedding",
+   409→  1008→    dimensions: 768,
+   410→  1009→    filterFields: ["moduleKey"],
+   411→  1010→  }),
+   412→  1011→
+   413→  1012→  firm_licenses: defineTable({
+   414→  1013→    firmId: v.string(),
+   415→  1014→    moduleKey: v.string(),
+   416→  1015→    isActive: v.boolean(),
+   417→  1016→    plan: v.string(),
+   418→  1017→    grantedAt: v.string(),
+   419→  1018→    revokedAt: v.optional(v.string()),
+   420→  1019→    expiresAt: v.optional(v.string()),
+   421→  1020→  })
+   422→  1021→  .index("by_firmId", ["firmId"])
+   423→  1022→  .index("by_moduleKey", ["moduleKey"])
+   424→  1023→  .index("by_firmId_moduleKey", ["firmId", "moduleKey"]),
+   425→  1024→
+   426→  1025→  ledger_entries: defineTable({
+   427→  1026→    firmId: v.string(),
+   428→  1027→    propertyId: v.optional(v.string()),
+   429→  1028→    unitId: v.string(),
+   430→  1029→    tenantId: v.optional(v.string()),
+   431→  1030→    amount: v.number(),
+   432→  1031→    type: v.union(v.literal("rent"), v.literal("service_charge"), v.literal("penalty"), v.literal("deposit"), v.literal("management_fee")),
+   433→  1032→    status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
+   434→  1033→    timestamp: v.number(),
+   435→  1034→    paymentRef: v.optional(v.string()),
+   436→  1035→    channel: v.optional(v.string()),
+   437→  1036→    txHash: v.string(), 
+   438→  1037→    description: v.optional(v.string()),
+   439→  1038→    period: v.optional(v.string()), 
+   440→  1039→  })
+   441→  1040→    .index("by_firm", ["firmId"])
+   442→  1041→    .index("by_unit", ["unitId"])
+   443→  1042→    .index("by_status", ["status"])
+   444→  1043→    .index("by_timestamp", ["timestamp"])
+   445→  1044→    .index("by_firm_unit", ["firmId", "unitId"]),
+   446→  1045→
+   447→  1046→  service_charges: defineTable({
+   448→  1047→    firmId: v.string(),
+   449→  1048→    unitId: v.string(),
+   450→  1049→    tenantId: v.optional(v.string()),
+   451→  1050→    category: v.union(v.literal("Diesel"), v.literal("Security"), v.literal("Cleaning"), v.literal("Water"), v.literal("Other")),
+   452→  1051→    amount: v.number(),
+   453→  1052→    cycle: v.union(v.literal("Monthly"), v.literal("Quarterly"), v.literal("Annually")),
+   454→  1053→    nextDueDate: v.number(), 
+   455→  1054→    lastPaidDate: v.optional(v.number()),
+   456→  1055→    isDefaulter: v.boolean(),
+   457→  1056→    daysOverdue: v.optional(v.number()),
+   458→  1057→    penaltyApplied: v.optional(v.boolean()),
+   459→  1058→    notes: v.optional(v.string()),
+   460→  1059→    // Granular payment status (replaces simple boolean)
+   461→  1060→    serviceChargeStatus: v.optional(v.union(
+   462→  1061→      v.literal("PAID_FULLY"),
+   463→  1062→      v.literal("PARTIALLY_PAID"),
+   464→  1063→      v.literal("UNPAID"),
+   465→  1064→    )),
+   466→  1065→    // Outstanding balance when PARTIALLY_PAID
+   467→  1066→    outstandingBalance: v.optional(v.number()),
+   468→  1067→    // Amount paid so far in current cycle
+   469→  1068→    amountPaidThisCycle: v.optional(v.number()),
+   470→  1069→    // Last reset timestamp (monthly reset cron)
+   471→  1070→    lastResetAt: v.optional(v.number()),
+   472→  1071→    // Whether this is a minimum vend charge
+   473→  1072→    isMinimumVend: v.optional(v.boolean()),
+   474→  1073→    // ─── Reminder Guardrails ─────────────────────────────
+   475→  1074→    // Consecutive days a reminder has been sent without engagement
+   476→  1075→    consecutiveReminderCount: v.optional(v.number()),
+   477→  1076→    // Timestamp of last reminder sent for this charge
+   478→  1077→    lastReminderSentAt: v.optional(v.number()),
+   479→  1078→    // Per-unit mute toggle — admin can silence reminders for this unit/tenant
+   480→  1079→    remindersMuted: v.optional(v.boolean()),
+   481→  1080→    // Auto-paused by cool-off mechanism after max consecutive reminders
+   482→  1081→    remindersPaused: v.optional(v.boolean()),
+   483→  1082→  })
+   484→  1083→    .index("by_firm", ["firmId"])
+   485→  1084→    .index("by_unit", ["unitId"])
+   486→  1085→    .index("by_defaulter", ["isDefaulter"])
+   487→  1086→    .index("by_next_due", ["nextDueDate"])
+   488→  1087→    .index("by_firm_defaulter", ["firmId", "isDefaulter"])
+   489→  1088→    .index("by_status", ["serviceChargeStatus"])
+   490→  1089→    .index("by_firm_status", ["firmId", "serviceChargeStatus"])
+   491→  1090→    .index("by_reminders_paused", ["remindersPaused"]),
+   492→  1091→
+   493→  1092→  leads_pipeline: defineTable({
+   494→  1093→    firmId: v.string(),
+   495→  1094→    unitId: v.string(),
+   496→  1095→    applicantName: v.string(),
+   497→  1096→    contactInfo: v.string(), 
+   498→  1097→    stage: v.union(
+   499→  1098→      v.literal("Inquiry"),
+   500→  1099→      v.literal("Vetted"),
+   501→  1100→      v.literal("Lease_Generated"),
+   502→  1101→      v.literal("Closed")
+   503→  1102→    ),
+   504→  1103→    vettingScore: v.optional(v.number()), 
+   505→  1104→    proposedRent: v.optional(v.number()),
+   506→  1105→    notes: v.optional(v.string()),
+   507→  1106→    createdAt: v.number(),
+   508→  1107→    updatedAt: v.number(),
+   509→  1108→    convertedTenantId: v.optional(v.string()),
+   510→  1109→  })
+   511→  1110→    .index("by_firm", ["firmId"])
+   512→  1111→    .index("by_unit", ["unitId"])
+   513→  1112→    .index("by_stage", ["stage"])
+   514→  1113→    .index("by_firm_stage", ["firmId", "stage"]),
+   515→  1114→
+   516→  1115→  automation_logs: defineTable({
+   517→  1116→    firmId: v.string(),
+   518→  1117→    unitId: v.optional(v.string()),
+   519→  1118→    tenantId: v.optional(v.string()),
+   520→  1119→    messageType: v.union(
+   521→  1120→      v.literal("custom"),
+   522→  1121→      v.literal("rent_reminder"),
+   523→  1122→      v.literal("late_notice"),
+   524→  1123→      v.literal("payment_receipt"),
+   525→  1124→      v.literal("service_charge_alert"),
+   526→  1125→      v.literal("access_restriction"),
+   527→  1126→      v.literal("penalty_notice"),
+   528→  1127→      v.literal("lease_renewal"),
+   529→  1128→      v.literal("welcome_note"),
+   530→  1129→      v.literal("promotion"),
+   531→  1130→      v.literal("vendor_update"),
+   532→  1131→      v.literal("general_announcement"),
+   533→  1132→      v.literal("maintenance_update")
+   534→  1133→    ),
+   535→  1134→    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
+   536→  1135→    recipient: v.string(), 
+   537→  1136→    messagePreview: v.optional(v.string()),
+   538→  1137→    messageContent: v.optional(v.string()),
+   539→  1138→    direction: v.optional(v.union(v.literal("outbound"), v.literal("inbound"))),
+   540→  1139→    senderName: v.optional(v.string()),
+   541→  1140→    sentAt: v.number(),
+   542→  1141→    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
+   543→  1142→    triggeredBy: v.optional(v.string()), 
+   544→  1143→  })
+   545→  1144→    .index("by_firm", ["firmId"])
+   546→  1145→    .index("by_unit", ["unitId"])
+   547→  1146→    .index("by_tenant", ["tenantId"])
+   548→  1147→    .index("by_sentAt", ["sentAt"])
+   549→  1148→    .index("by_firm_type", ["firmId", "messageType"])
+   550→  1149→    .index("by_firm_channel", ["firmId", "channel"]),
+   551→  1150→
+   552→  1151→  atrium_inbound_messages: defineTable({
+   553→  1152→    firmId: v.string(),
+   554→  1153→    unitId: v.optional(v.string()),
+   555→  1154→    tenantId: v.optional(v.string()),
+   556→  1155→    senderName: v.optional(v.string()),
+   557→  1156→    senderContact: v.string(), 
+   558→  1157→    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
+   559→  1158→    content: v.string(),
+   560→  1159→    mediaUrl: v.optional(v.string()), 
+   561→  1160→    mimeType: v.optional(v.string()), 
+   562→  1161→    receivedAt: v.number(),
+   563→  1162→    isRead: v.boolean(),
+   564→  1163→    aiAnalysis: v.optional(v.object({
+   565→  1164→      intent: v.string(), 
+   566→  1165→      sentiment: v.string(),
+   567→  1166→      suggestedReply: v.optional(v.string()),
+   568→  1167→    })),
+   569→  1168→  })
+   570→  1169→    .index("by_firm", ["firmId"])
+   571→  1170→    .index("by_unit", ["unitId"])
+   572→  1171→    .index("by_tenant", ["tenantId"])
+   573→  1172→    .index("by_receivedAt", ["receivedAt"])
+   574→  1173→    .index("by_firm_read", ["firmId", "isRead"])
+   575→  1174→    .index("by_firm_channel", ["firmId", "channel"]),
+   576→  1175→
+   577→  1176→  index_checkpoints: defineTable({
+   578→  1177→    sessionId: v.string(),
+   579→  1178→    sourceFile: v.string(),
+   580→  1179→    lastProcessedFrame: v.number(),
+   581→  1180→    totalFrames: v.number(),
+   582→  1181→    cumulativeText: v.string(),
+   583→  1182→    metadataSnapshot: v.any(),
+   584→  1183→    completedFrameIds: v.array(v.string()),
+   585→  1184→    updatedAt: v.string(),
+   586→  1185→  }).index("by_sessionId", ["sessionId"]),
+   587→  1186→
+   588→  1187→  module_usage_logs: defineTable({
+   589→  1188→    firmId: v.string(),
+   590→  1189→    moduleKey: v.string(),
+   591→  1190→    action: v.string(),
+   592→  1191→    sourceType: v.string(),
+   593→  1192→    loggedAt: v.string(),
+   594→  1193→    details: v.optional(v.any()),
+   595→  1194→  })
+   596→  1195→  .index("by_firmId", ["firmId"])
+   597→  1196→  .index("by_moduleKey", ["moduleKey"])
+   598→  1197→  .index("by_firmId_moduleKey", ["firmId", "moduleKey"])
+   599→  1198→  .index("by_loggedAt", ["loggedAt"]),
+   600→  1199→
+   601→  1200→  aloa_documents: defineTable({
+   602→  1201→    sessionId: v.string(),
+   603→  1202→    firmId: v.optional(v.string()),
+   604→  1203→    fileName: v.string(),
+   605→  1204→    documentType: v.string(),
+   606→  1205→    totalPages: v.number(),
+   607→  1206→    totalChunks: v.number(),
+   608→  1207→    indexData: v.any(),
+   609→  1208→    processedAt: v.number(),
+   610→  1209→    status: v.string(),
+   611→  1210→    confidence: v.optional(v.number()),
+   612→  1211→    confidenceReasons: v.optional(v.array(v.string())),
+   613→  1212→    metadata: v.optional(v.any()),
+   614→  1213→    fullTextLength: v.optional(v.number()),
+   615→  1214→    fullText: v.optional(v.string()),
+   616→  1215→  })
+   617→  1216→  .index("by_sessionId", ["sessionId"])
+   618→  1217→  .index("by_firmId", ["firmId"])
+   619→  1218→  .index("by_processedAt", ["processedAt"]),
+   620→  1219→  // ─── Unauthenticated Sales Inquiries (public-facing Contact Sales drawer) ───
+   621→  1220→  // NO firmId — these come from anonymous visitors on the marketing site
+   622→  1221→  sales_inquiries: defineTable({
+   623→  1222→    email: v.string(),
+   624→  1223→    name: v.string(),
+   625→  1224→    companyName: v.optional(v.string()),
+   626→  1225→    message: v.string(),
+   627→  1226→    source: v.optional(v.string()),
+   628→  1227→    productInterest: v.optional(v.string()), // "Vega" | "Atrium" | "Komplete"
+   629→  1228→    status: v.union(
+   630→  1229→      v.literal("unread"),
+   631→  1230→      v.literal("contacted"),
+   632→  1231→      v.literal("qualified"),
+   633→  1232→      v.literal("converted"),
+   634→  1233→      v.literal("closed"),
+   635→  1234→      v.literal("spam"),
+   636→  1235→    ),
+   637→  1236→    notes: v.optional(v.string()),
+   638→  1237→    createdAt: v.number(),
+   639→  1238→    updatedAt: v.number(),
+   640→  1239→  })
+   641→  1240→    .index("by_status", ["status"])
+   642→  1241→    .index("by_createdAt", ["createdAt"])
+   643→  1242→    .index("by_email", ["email"]),
+   644→  1243→
+   645→  1244→  // ─── Service Request Types (admin-configurable catalog) ────────────────
+   646→  1245→  // Each firm defines its own menu of request types shown in the portal
+   647→  1246→  // (e.g., "Plumbing", "Electrical", "Document Review", "Meeting Request").
+   648→  1247→  // Portal users pick from this list when submitting a service request.
+   649→  1248→  // Falls back to a sensible default set if no firm-specific types exist.
+   650→  1249→  service_request_types: defineTable({
+   651→  1250→    firmId: v.string(),
+   652→  1251→    portalType: v.union(v.literal("resident"), v.literal("client")),
+   653→  1252→    key: v.string(),                        // stable identifier (slug), e.g. "plumbing"
+   654→  1253→    label: v.string(),                      // human label, e.g. "Plumbing"
+   655→  1254→    description: v.optional(v.string()),    // helper text shown under the label
+   656→  1255→    category: v.optional(v.string()),       // broad bucket: "maintenance" | "legal" | "administrative" | "billing" | "other"
+   657→  1256→    defaultPriority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+   658→  1257→    icon: v.optional(v.string()),           // optional emoji or icon name for display
+   659→  1258→    isActive: v.boolean(),                  // admin can disable without deleting
+   660→  1259→    sortOrder: v.optional(v.number()),      // lower numbers appear first
+   661→  1260→    createdAt: v.number(),
+   662→  1261→    updatedAt: v.number(),
+   663→  1262→  })
+   664→  1263→    .index("by_firm", ["firmId"])
+   665→  1264→    .index("by_firm_portal", ["firmId", "portalType"])
+   666→  1265→    .index("by_firm_active", ["firmId", "isActive"]),
+   667→  1266→
+   668→  1267→  // ─── Client Service Requests (Vega / legal portal) ─────────────────────
+   669→  1268→  // The client-portal equivalent of maintenance_tickets. A client submits a
+   670→  1269→  // request ("Document Review", "Meeting Request", "Billing Inquiry", etc.),
+   671→  1270→  // and a portal_message is created in their conversation so the practitioner
+   672→  1271→  // sees it in the unified inbox.
+   673→  1272→  client_service_requests: defineTable({
+   674→  1273→    firmId: v.string(),
+   675→  1274→    clientId: v.optional(v.string()),       // userId of the client who submitted
+   676→  1275→    clientName: v.optional(v.string()),
+   677→  1276→    clientEmail: v.optional(v.string()),
+   678→  1277→    matterId: v.optional(v.string()),       // optional matter context
+   679→  1278→    requestTypeKey: v.string(),             // key from service_request_types
+   680→  1279→    requestTypeLabel: v.string(),           // human label snapshot
+   681→  1280→    subject: v.string(),
+   682→  1281→    description: v.string(),
+   683→  1282→    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed"), v.literal("cancelled")),
+   684→  1283→    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+   685→  1284→    assignedTo: v.optional(v.string()),     // userId of staff assigned
+   686→  1285→    resolution: v.optional(v.string()),
+   687→  1286→    cancellationNote: v.optional(v.string()), // reason the portal user cancelled
+   688→  1287→    cancelledAt: v.optional(v.number()),
+   689→  1288→    conversationId: v.optional(v.string()), // links to portal_conversations
+   690→  1289→    attachments: v.optional(v.array(v.string())),
+   691→  1290→    createdAt: v.number(),
+   692→  1291→    updatedAt: v.number(),
+   693→  1292→  })
+   694→  1293→    .index("by_firm", ["firmId"])
+   695→  1294→    .index("by_client", ["clientId"])
+   696→  1295→    .index("by_status", ["status"])
+   697→  1296→    .index("by_firm_status", ["firmId", "status"])
+   698→  1297→    .index("by_firm_client", ["firmId", "clientId"])
+   699→  1298→    .index("by_conversation", ["conversationId"]),
+   700→  1299→
+   701→
+   702→[showing lines 600-1299 of 2020; use offset=1300 with limit to continue reading]

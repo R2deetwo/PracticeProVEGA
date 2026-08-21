@@ -1,0 +1,1099 @@
+     1→import React from 'react';
+     2→import { CheckCircle2, Clock, XCircle } from 'lucide-react';
+     3→import { useMutation } from 'convex/react';
+     4→import { api } from '../../../convex/_generated/api';
+     5→import { Modal } from './Modal';
+     6→import { useUI } from '../../contexts/UIContext';
+     7→import { useMatterState } from '../../contexts/MatterContext';
+     8→import { useFinanceState } from '../../contexts/FinanceContext';
+     9→import { useExecutionState } from '../../contexts/ExecutionContext';
+    10→import { useDocumentState } from '../../contexts/DocumentContext';
+    11→import { useCoreState } from '../../contexts/CoreContext';
+    12→import { useDataActions } from '../../contexts/DataContext';
+    13→import { useAuth } from '../../contexts/AuthContext';
+    14→import { useIsProperty, useTerminology } from '../../contexts/ProductContext';
+    15→import { ModalType, FileDetails } from '../../types';
+    16→
+    17→// Auth
+    18→import Login from '../auth/Login';
+    19→import Signup from '../auth/Signup';
+    20→
+    21→// Forms
+    22→import { MatterForm } from '../forms/MatterForm';
+    23→import { SmartMatterModal } from '../forms/SmartMatterModal';
+    24→import { SubscriptionPlan } from '../../types';
+    25→import { DocumentForm } from '../forms/DocumentForm';
+    26→import TaskForm from '../forms/TaskForm';
+    27→import ContactForm from '../forms/ContactForm';
+    28→import { EventForm } from '../forms/EventForm';
+    29→import { InvoiceForm } from '../forms/InvoiceForm';
+    30→import { InvoiceGeneratorForm } from '../forms/InvoiceGeneratorForm';
+    31→import UserForm from '../forms/UserForm';
+    32→import TimeEntryForm from '../forms/TimeEntryForm';
+    33→import ExpenseForm from '../forms/ExpenseForm';
+    34→import BankAccountForm from '../forms/BankAccountForm';
+    35→import WorkflowForm from '../forms/WorkflowForm';
+    36→import EventTypeForm from '../forms/EventTypeForm';
+    37→import ContactCategoryForm from '../forms/ContactCategoryForm';
+    38→import DocumentCategoryForm from '../forms/DocumentCategoryForm';
+    39→import ChecklistTemplateForm from '../forms/ChecklistTemplateForm';
+    40→import FirmDetailsForm from '../forms/FirmDetailsForm';
+    41→import TemplateForm from '../forms/TemplateForm';
+    42→import TemplateCategoryForm from '../forms/TemplateCategoryForm';
+    43→import FeedbackForm from '../forms/FeedbackForm';
+    44→import RequestFinancialDocumentForm from '../forms/RequestFinancialDocumentForm';
+    45→import NewChannelForm from '../forms/NewChannelForm';
+    46→import NewDirectMessageForm from '../forms/NewDirectMessageForm';
+    47→import AssignUsersForm from '../forms/AssignUsersForm';
+    48→import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
+    49→import { StageChecklistForm } from '../forms/StageChecklistForm';
+    50→import NewResearchNotebookForm from '../forms/NewResearchNotebookForm';
+    51→import PropertyForm from '../forms/PropertyForm';
+    52→import CollectRentModal from './CollectRentModal';
+    53→import MergeContactModal from './MergeContactModal';
+    54→import NotebookForm from '../forms/NotebookForm';
+    55→import LeadForm from '../forms/LeadForm';
+    56→import { SaveToNoteForm } from '../forms/SaveToNoteForm';
+    57→import { LinkMatterToContactForm } from '../forms/LinkMatterToContactForm';
+    58→import NotePageForm from '../forms/NotePageForm';
+    59→import BatchUploadModal from './BatchUploadModal';
+    60→import JoinFirmModal from './JoinFirmModal';
+    61→import MatterIngestionWizard from './MatterIngestionWizard';
+    62→import { BulkEditPropertyModal } from './BulkEditPropertyModal';
+    63→
+    64→// Modals
+    65→import DemoUpsellModal from './DemoUpsellModal';
+    66→import ArchiveMatterModal from './ArchiveMatterModal';
+    67→import CloseMatterModal from './CloseMatterModal';
+    68→import ConfirmationModal from './DeleteConfirmationModal';
+    69→import { ShareDocumentModal } from './ShareDocumentModal';
+    70→import { SignDocumentModal } from './SignDocumentModal';
+    71→import { DocumentComparisonModal } from './DocumentComparisonModal';
+    72→import ComposeEmailModal from './ComposeEmailModal';
+    73→// GoogleDrivePickerModal import removed — not yet implemented
+    74→import NoTeamMembersModal from './NoTeamMembersModal';
+    75→import AloaHelpModal from './AloaHelpModal';
+    76→import LinkContactModal from './LinkContactModal';
+    77→import AddResearchSourceModal from './AddResearchSourceModal';
+    78→import AddCaseToNotebookModal from './AddCaseToNotebookModal';
+    79→import KeyboardShortcutsModal from './KeyboardShortcutsModal';
+    80→import QuickLookModal from './QuickLookModal';
+    81→import PaymentGatewayModal from './PaymentGatewayModal';
+    82→import UpgradeModal from './UpgradeModal';
+    83→import TaskDetailModal from './TaskDetailModal';
+    84→import { EventDetailModal } from '../details/EventDetailModal';
+    85→import LeadCaptureModal from './LeadCaptureModal';
+    86→import WorkspaceSetupModal from './WorkspaceSetupModal';
+    87→import SendPostActivationEmailModal from './SendPostActivationEmailModal';
+    88→import FolderPermissionsModal from './FolderPermissionsModal';
+    89→import SendIntakeLinkModal from './SendIntakeLinkModal';
+    90→import { expandRecurringEvents } from '../../utils/calendarUtils';
+    91→import AIConsentModal from './AIConsentModal';
+    92→
+    93→// Wrapper that gives AIConsentModal access to React hooks (recordConsent mutation)
+    94→const AIConsentModalWrapper: React.FC<{ modalContext: any; closeModal: () => void }> = ({ modalContext, closeModal }) => {
+    95→  const recordConsent = useMutation(api.myFunctions.recordConsent);
+    96→  const { currentUser } = useAuth();
+    97→
+    98→  const handleAccept = async () => {
+    99→    localStorage.setItem('practicepro_ai_consent', 'true');
+   100→    // Persist consent to DB for audit trail
+   101→    if (currentUser?.email) {
+   102→      try {
+   103→        await recordConsent({
+   104→          email: currentUser.email,
+   105→          consentType: 'ai_processing',
+   106→          granted: true,
+   107→          ipHint: Intl.DateTimeFormat().resolvedOptions().timeZone,
+   108→        });
+   109→      } catch (e) {
+   110→        console.warn('[Compliance] Failed to persist AI consent to DB:', e);
+   111→      }
+   112→    }
+   113→    closeModal();
+   114→    if (modalContext?.onConsent) modalContext.onConsent();
+   115→  };
+   116→
+   117→  const handleDecline = async () => {
+   118→    localStorage.setItem('practicepro_ai_consent', 'false');
+   119→    if (currentUser?.email) {
+   120→      try {
+   121→        await recordConsent({
+   122→          email: currentUser.email,
+   123→          consentType: 'ai_processing',
+   124→          granted: false,
+   125→          ipHint: Intl.DateTimeFormat().resolvedOptions().timeZone,
+   126→        });
+   127→      } catch (e) {
+   128→        console.warn('[Compliance] Failed to persist AI decline to DB:', e);
+   129→      }
+   130→    }
+   131→    closeModal();
+   132→    if (modalContext?.onDecline) modalContext.onDecline();
+   133→  };
+   134→
+   135→  return <AIConsentModal onAccept={handleAccept} onDecline={handleDecline} />;
+   136→};
+   137→
+   138→// Record Rent Payment — calls the Atrium ledger directly from the cog menu
+   139→const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: () => void }> = ({ modalContext, closeModal }) => {
+   140→  const addEntry = useMutation(api.sentry.addLedgerEntry);
+   141→  const { coreState } = useCoreState();
+   142→  const { updateItem } = useDataActions();
+   143→  const { addToast } = useUI();
+   144→  const isProperty = useIsProperty();
+   145→  const firmId = coreState.firmDetails?.id || '';
+   146→  const [amount, setAmount] = React.useState(modalContext?.rentAmount ? String(modalContext.rentAmount) : '');
+   147→  const [status, setStatus] = React.useState<'cleared' | 'pending' | 'defaulted'>('cleared');
+   148→  const [loading, setLoading] = React.useState(false);
+   149→  const unitId = modalContext?.unitId || '';
+   150→  const unitName = modalContext?.unitName || 'Unit';
+   151→  const tenantName = modalContext?.tenantName || '';
+   152→
+   153→  const handleSubmit = async (e: React.FormEvent) => {
+   154→    e.preventDefault();
+   155→    if (!unitId || !amount) return;
+   156→    const amountNum = parseFloat(amount);
+   157→    if (Number.isNaN(amountNum) || amountNum <= 0) return;
+   158→    setLoading(true);
+   159→    try {
+   160→      const propertyRecord = (coreState.properties || []).find(p => p.id === unitId);
+   161→      const today = new Date().toISOString().split('T')[0];
+   162→
+   163→      await addEntry({
+   164→        firmId,
+   165→        propertyId: propertyRecord?.id || unitId,
+   166→        unitId,
+   167→        amount: amountNum,
+   168→        type: 'rent',
+   169→        status,
+   170→        channel: 'Bank Transfer',
+   171→        description: `Rent payment${tenantName ? ' from ' + tenantName : ''}`,
+   172→        paymentRef: '',
+   173→      });
+   174→
+   175→      if (propertyRecord) {
+   176→        const newPayment = {
+   177→          id: `pay_${Date.now()}`,
+   178→          dueDate: today,
+   179→          paidDate: today,
+   180→          amount: amountNum,
+   181→          status: 'paid' as const,
+   182→          paymentMethod: 'Bank Transfer',
+   183→          receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+   184→        };
+   185→        await updateItem('properties', {
+   186→          ...propertyRecord,
+   187→          id: propertyRecord.id,
+   188→          rentPaymentHistory: [newPayment, ...(propertyRecord.rentPaymentHistory || [])],
+   189→          status: propertyRecord.status === 'Vacant' ? 'Occupied' : propertyRecord.status,
+   190→        }, 'Property Payment');
+   191→      }
+   192→
+   193→      addToast(`Rent payment recorded for ${unitName}`, { type: 'success' });
+   194→      closeModal();
+   195→    } catch (err) {
+   196→      addToast('Failed to record payment', { type: 'error' });
+   197→    } finally { setLoading(false); }
+   198→  };
+   199→
+   200→  return (
+   201→    <div className="p-6 space-y-5">
+   202→      <div>
+   203→        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Rent Payment</h3>
+   204→        <p className="text-xs text-slate-500 mt-0.5">
+   205→          {unitName}{tenantName ? ` • Tenant: ${tenantName}` : ''}
+   206→        </p>
+   207→        {/* Ledger vs Invoice explainer */}
+   208→        <div className="mt-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100">
+   209→          <p className="text-2xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+   210→            <strong>Atrium Ledger</strong> tracks rent & service charges for this property.
+   211→            Formal <strong>Invoices</strong> (for {isProperty ? 'professional fees' : 'professional/legal fees'}) are managed separately in Billing.
+   212→          </p>
+   213→        </div>
+   214→      </div>
+   215→      <form onSubmit={handleSubmit} className="space-y-4">
+   216→        <div>
+   217→          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Amount</label>
+   218→          <div className="relative">
+   219→            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₦</span>
+   220→            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required min="0"
+   221→              className="w-full pl-8 pr-3 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+   222→              placeholder="0.00" />
+   223→          </div>
+   224→        </div>
+   225→        <div>
+   226→          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Did they pay?</label>
+   227→          <div className="grid grid-cols-3 gap-2">
+   228→            {([
+   229→              ['cleared', 'Yes, paid', 'border-emerald-500 bg-emerald-50 text-emerald-700', <CheckCircle2 className="w-3.5 h-3.5" />], 
+   230→              ['pending', 'Pending', 'border-amber-500 bg-amber-50 text-amber-700', <Clock className="w-3.5 h-3.5" />], 
+   231→              ['defaulted', 'Defaulted', 'border-rose-500 bg-rose-50 text-rose-700', <XCircle className="w-3.5 h-3.5" />]
+   232→            ] as const).map(([val, label, activeClass, icon]) => (
+   233→              <button key={val as string} type="button" onClick={() => setStatus(val as any)}
+   234→                className={`py-2 rounded-lg border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+   235→                  status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
+   236→                }`}>{icon} {label as string}</button>
+   237→            ))}
+   238→          </div>
+   239→        </div>
+   240→        <div className="flex gap-3 pt-2">
+   241→          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors">Cancel</button>
+   242→          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
+   243→            {loading ? 'Saving...' : 'Record Payment'}
+   244→          </button>
+   245→        </div>
+   246→      </form>
+   247→    </div>
+   248→  );
+   249→};
+   250→
+   251→const ModalManager: React.FC = () => {
+   252→  const { modal, closeModal, modalContext, editingId, getModalTitle, navigateTo, setHighlightTarget, openModal, updateCurrentHistoryEntry, addToast } = useUI();
+   253→  const { matterState } = useMatterState();
+   254→  const { financeState } = useFinanceState();
+   255→  const { executionState, executionActions } = useExecutionState();
+   256→  const { documentState } = useDocumentState();
+   257→  const { coreState, isDataLoaded } = useCoreState();
+   258→  const dataHandlers = useDataActions();
+   259→  const { currentUser, appMode } = useAuth();
+   260→  const isProperty = useIsProperty();
+   261→  const terminology = useTerminology();
+   262→
+   263→  if (!modal) return null;
+   264→
+   265→  let content = null;
+   266→
+   267→  switch (modal) {
+   268→    case 'login':
+   269→      content = <Login onSwitchToSignup={() => { closeModal(); setTimeout(() => openModal('signup'), 10); }} forClient={modalContext?.forClient} />;
+   270→      break;
+   271→    case 'signup':
+   272→      content = <Signup onSwitchToLogin={() => { closeModal(); setTimeout(() => openModal('login'), 10); }} />;
+   273→      break;
+   274→    case 'newMatter': {
+   275→      // Enterprise firms: render the intake wizard as its own full-screen overlay
+   276→      // (outside the Modal wrapper to avoid overflow clipping)
+   277→      const isEnterprise = coreState.firmDetails?.subscriptionPlan === SubscriptionPlan.Enterprise;
+   278→      if (isEnterprise) {
+   279→        return (
+   280→          <SmartMatterModal
+   281→            users={coreState.users || []}
+   282→            contacts={matterState.contacts || []}
+   283→            currentUser={currentUser!}
+   284→            onClose={closeModal}
+   285→            onAddMatter={async (matter, client) => {
+   286→              const res = await dataHandlers.onAddMatter(matter, client);
+   287→              if (res) {
+   288→                navigateTo('matterDetail', res, { initialTab: 'intake' });
+   289→              }
+   290→              return res;
+   291→            }}
+   292→            onNavigate={navigateTo}
+   293→            openModal={openModal}
+   294→            initialContext={modalContext}
+   295→          />
+   296→        );
+   297→      }
+   298→      // Non-Enterprise: fall through to standard MatterForm in modal
+   299→      content = (
+   300→        <MatterForm
+   301→          matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
+   302→          onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
+   303→          onClose={closeModal} currentUser={currentUser!} appMode={appMode}
+   304→          handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
+   305→          onNavigate={navigateTo} initialContext={modalContext}
+   306→          openModal={openModal}
+   307→          isCompact={false}
+   308→        />
+   309→      );
+   310→      break;
+   311→    }
+   312→    case 'editMatter': {
+   313→      const matter = matterState.matters.find(m => m.id === editingId);
+   314→      content = (
+   315→        <MatterForm
+   316→          matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
+   317→          onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
+   318→          onClose={closeModal} matterToEdit={matter} currentUser={currentUser!} appMode={appMode}
+   319→          handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
+   320→          onNavigate={navigateTo} initialContext={modalContext}
+   321→          openModal={openModal}
+   322→          isCompact={false}
+   323→        />
+   324→      );
+   325→      break;
+   326→    }
+   327→    case 'closeMatter': {
+   328→      const matter = matterState.matters.find(m => m.id === editingId);
+   329→      if (matter) {
+   330→        const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
+   331→        const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
+   332→        content = <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={async (id, note) => {
+   333→          dataHandlers.handleUpdateMatterStage(id, 'Closed');
+   334→          // Persist the closing note so it's not silently discarded
+   335→          if (note && note.trim()) {
+   336→            try {
+   337→              await dataHandlers.handleAddMatterNote(id, 'Closing Summary', note.trim(), 'user');
+   338→            } catch (e) { /* non-fatal — matter is already closed */ }
+   339→          }
+   340→          // Also update the matter status to Closed
+   341→          await dataHandlers.handleUpdateMatter({ id, status: 'Closed' } as any);
+   342→          closeModal();
+   343→        }} onClose={closeModal} />;
+   344→      }
+   345→      break;
+   346→    }
+   347→    case 'archiveMatter': {
+   348→      const matter = matterState.matters.find(m => m.id === editingId);
+   349→      if (matter) content = <ArchiveMatterModal matter={matter} onConfirm={(id) => { dataHandlers.archiveItem('Matter', id, matter.title, matter); closeModal(); }} onClose={closeModal} />;
+   350→      break;
+   351→    }
+   352→    case 'newContact':
+   353→    case 'editContact': {
+   354→      const contact = matterState.contacts.find(c => c.id === editingId);
+   355→      const handleAddContact = async (contactData: any, createPortal: boolean) => {
+   356→        const newContact = await dataHandlers.handleAddContact(contactData, createPortal);
+   357→        if (newContact && modalContext?.returnTo === 'newProperty') {
+   358→          openModal('newProperty', newContact.id);
+   359→        } else {
+   360→          closeModal();
+   361→        }
+   362→      };
+   363→      content = <ContactForm onAddContact={handleAddContact} onUpdateContact={dataHandlers.handleUpdateContact} onClose={closeModal} contactToEdit={contact} contactCategories={coreState.contactCategories} initialContext={modalContext} />;
+   364→      break;
+   365→    }
+   366→    case 'mergeContact': {
+   367→      const contact = matterState.contacts.find(c => c.id === editingId);
+   368→      if (contact) {
+   369→        content = <MergeContactModal sourceContact={contact} allContacts={matterState.contacts} onConfirm={dataHandlers.handleMergeContacts} onClose={closeModal} />;
+   370→      }
+   371→      break;
+   372→    }
+   373→    case 'collectRent': {
+   374→      const propertyId = editingId;
+   375→      const property = coreState.properties.find(p => p.id === propertyId) || 
+   376→              matterState.contacts.flatMap(c => c.properties || []).find(p => p.id === propertyId);
+   377→      if (property) {
+   378→        content = <CollectRentModal property={property} onClose={closeModal} />;
+   379→      }
+   380→      break;
+   381→    }
+   382→    case 'recordRentPayment': {
+   383→      return (
+   384→        <Modal isOpen={true} onClose={closeModal} title="" size="sm">
+   385→          <RecordRentPaymentModalWrapper modalContext={modalContext} closeModal={closeModal} />
+   386→        </Modal>
+   387→      );
+   388→    }
+   389→    case 'linkContactToMatter': {
+   390→      const matter = matterState.matters.find(m => m.id === editingId);
+   391→      if (matter) content = <LinkContactModal matter={matter} allContacts={matterState.contacts} onSave={dataHandlers.handleLinkContactToMatter} onClose={closeModal} />;
+   392→      break;
+   393→    }
+   394→    case 'linkMatterToContact': {
+   395→      const contact = matterState.contacts.find(c => c.id === editingId);
+   396→      if (contact) {
+   397→        content = (
+   398→          <LinkMatterToContactForm
+   399→            contact={contact}
+   400→            matters={matterState.matters}
+   401→            onSave={dataHandlers.handleLinkMatterToContact}
+   402→            onClose={closeModal}
+   403→          />
+   404→        );
+   405→      }
+   406→      break;
+   407→    }
+   408→    case 'bulkEditProperty': {
+   409→      const propertyIds = modalContext?.propertyIds || [];
+   410→      content = (
+   411→        <BulkEditPropertyModal
+   412→          propertyIds={propertyIds}
+   413→          onClose={closeModal}
+   414→          onConfirm={async (data) => {
+   415→            await dataHandlers.handleBulkUpdateProperties(propertyIds, data);
+   416→            closeModal();
+   417→          }}
+   418→        />
+   419→      );
+   420→      break;
+   421→    }
+   422→    case 'newProperty':
+   423→    case 'editProperty': {
+   424→      const propertyId = modal === 'editProperty' ? (editingId as string) : undefined;
+   425→      let contactId = modal === 'editProperty' ? modalContext?.contactId : (editingId || modalContext?.contactId);
+   426→
+   427→      // FIX: if no contactId was passed, try to find the property's owner
+   428→      // from the property record itself. Properties store a `contactId` field
+   429→      // that links to the owner. Without this, the modal shows "Select Owner"
+   430→      // instead of the PropertyForm when owner?.id is undefined.
+   431→      if (!contactId && propertyId) {
+   432→        const prop = coreState.properties.find(p => p.id === propertyId);
+   433→        contactId = prop?.contactId || (prop as any)?._id || undefined;
+   434→      }
+   435→
+   436→      let contact = matterState.contacts.find(c => c.id === contactId || (c as any)._id === contactId);
+   437→      const propertyToEdit = coreState.properties.find(p => p.id === propertyId) ||
+   438→                 (contact?.properties || []).find(p => p.id === propertyId);
+   439→
+   440→      // FIX: if still no contact but we have a property to edit, create a
+   441→      // minimal fallback contact object so the PropertyForm can render.
+   442→      // This handles the case where a property exists without a linked owner
+   443→      // (e.g. standalone multi-unit properties).
+   444→      if (!contact && propertyToEdit) {
+   445→        contact = {
+   446→          id: propertyToEdit.contactId || 'standalone',
+   447→          name: 'Property Owner',
+   448→          email: '',
+   449→          phone: '',
+   450→          category: 'Client',
+   451→          contactType: 'Individual' as any,
+   452→          firmId: propertyToEdit.firmId || '',
+   453→          properties: [],
+   454→        } as any;
+   455→      }
+   456→
+   457→      if (contact) {
+   458→        content = <PropertyForm contact={contact} propertyToEdit={propertyToEdit} activeUnitId={modalContext?.activeUnitId} autoExpandRental={modalContext?.autoExpandRental} autoAddUnit={modalContext?.autoAddUnit} onSave={dataHandlers.onUpdateContactProperties} onClose={closeModal} />;
+   459→      } else {
+   460→        // If no contact selected yet, show a selector
+   461→        content = (
+   462→          <div className="p-1 sm:p-4">
+   463→            <div className="flex justify-between items-center mb-6">
+   464→              <div>
+   465→                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Select Owner</h3>
+   466→                <p className="text-sm text-slate-500">Select a contact to manage or add properties to their portfolio.</p>
+   467→              </div>
+   468→              <button 
+   469→                onClick={() => openModal('newContact', null, { returnTo: 'newProperty' })}
+   470→                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2"
+   471→              >
+   472→                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+   473→                Add New Contact
+   474→              </button>
+   475→            </div>
+   476→            <div className="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+   477→              {matterState.contacts.length > 0 ? matterState.contacts.sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+   478→                <button
+   479→                  key={c.id}
+   480→                  onClick={() => openModal('newProperty', c.id)}
+   481→                  className="w-full text-left p-4 rounded-lg border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
+   482→                >
+   483→                  <div className="flex items-center gap-3">
+   484→                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold group-hover:bg-primary-100 group-hover:text-primary-600">
+   485→                      {c.name.charAt(0)}
+   486→                    </div>
+   487→                    <div>
+   488→                      <p className="font-bold text-slate-700 dark:text-zinc-300 group-hover:text-primary-700">{c.name}</p>
+   489→                      <p className="text-xs text-slate-500">{c.category} • {c.email || 'No email'}</p>
+   490→                    </div>
+   491→                  </div>
+   492→                  <div className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-primary-600 text-white shadow-lg -translate-x-2 group-hover:translate-x-0 transition-all">
+   493→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+   494→                  </div>
+   495→                </button>
+   496→              )) : (
+   497→                <div className="text-center py-20 bg-slate-50 dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+   498→                  <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+   499→                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+   500→                  </div>
+   501→                  <p className="text-slate-500 font-medium mb-6">No contacts found in your workspace.</p>
+   502→                  <button 
+   503→                    onClick={() => openModal('newContact', null, { returnTo: 'newProperty' })}
+   504→                    className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-primary-500/30 transition-all inline-flex items-center gap-2"
+   505→                  >
+   506→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+   507→                    Create First Contact
+   508→                  </button>
+   509→                </div>
+   510→              )}
+   511→            </div>
+   512→          </div>
+   513→        );
+   514→      }
+   515→      break;
+   516→    }
+   517→
+   518→    case 'newDocument':
+   519→    case 'editDocument':
+   520→    case 'newDraft': {
+   521→      const doc = documentState.documents.find(d => d.id === editingId);
+   522→      let ctx = modalContext;
+   523→      if (modal === 'newDraft' && (modalContext?.fields || modalContext)) {
+   524→        const aiFields = modalContext.fields || modalContext;
+   525→        ctx = {
+   526→          ...modalContext,
+   527→          draftTitle: aiFields.title || aiFields.draftTitle || 'New Draft',
+   528→          draftContent: aiFields.content || aiFields.body || aiFields.draftContent || ''
+   529→        };
+   530→      }
+   531→
+   532→      content = <DocumentForm documents={documentState.documents} matters={matterState.matters} contacts={matterState.contacts} documentCategories={coreState.documentCategories} documentTemplates={coreState.documentTemplates} documentTemplateCategories={coreState.documentTemplateCategories} firmDetails={coreState.firmDetails} onAddDocument={dataHandlers.handleAddDocumentAndAnalyze} onUpdateDocument={(d) => dataHandlers.updateItem('documents', d, d.title)} onClose={closeModal} documentToEdit={doc} currentUser={currentUser!} onNavigate={navigateTo} initialContext={ctx} />;
+   533→      break;
+   534→    }
+   535→    case 'batchUpload': {
+   536→      content = <BatchUploadModal files={modalContext.files} context={modalContext} onClose={closeModal} />;
+   537→      break;
+   538→    }
+   539→    case 'shareDocument': {
+   540→      const doc = documentState.documents.find(d => d.id === editingId);
+   541→      if (doc) content = <ShareDocumentModal document={doc} matter={doc.matter ? matterState.matters.find(m => m.id === doc.matter?.id) : undefined} onClose={closeModal} />;
+   542→      break;
+   543→    }
+   544→    case 'signDocument': {
+   545→      const doc = documentState.documents.find(d => d.id === editingId);
+   546→      if (doc) content = <SignDocumentModal document={doc} onSign={dataHandlers.handleSignDocument} onClose={closeModal} />;
+   547→      break;
+   548→    }
+   549→    case 'compareDocuments': {
+   550→      const { document, version } = modalContext;
+   551→      if (document && version) content = <DocumentComparisonModal currentDocument={document} versionToCompare={version} onClose={closeModal} />;
+   552→      break;
+   553→    }
+   554→    // googleDrivePicker case removed — integration not yet implemented.
+   555→    // Re-add when Google Drive API integration is ready.
+   556→    case 'folderPermissions': {
+   557→      const folder = coreState.documentCategories.find(c => c.id === editingId);
+   558→      if (folder) {
+   559→        content = <FolderPermissionsModal
+   560→          folder={folder}
+   561→          allRoles={(isProperty ? ['Manager', 'Associate', 'Admin'] : ['Lawyer', 'Paralegal', 'Admin']) as any}
+   562→          currentPermissions={coreState.folderPermissions?.[folder.id] || []}
+   563→          onUpdatePermissions={(fid, roles) => {
+   564→            const updatedPermissions = { ...(coreState.folderPermissions || {}), [fid]: roles };
+   565→            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, folderPermissions: updatedPermissions });
+   566→            closeModal();
+   567→          }}
+   568→          onClose={closeModal}
+   569→        />;
+   570→      }
+   571→      break;
+   572→    }
+   573→    case 'editTask':
+   574→    case 'newTask': {
+   575→      const taskToEdit = editingId ? executionState.tasks.find(t => t.id === editingId) : undefined;
+   576→      content = <TaskForm
+   577→        matters={matterState.matters}
+   578→        tasks={executionState.tasks}
+   579→        users={coreState.users}
+   580→        documents={documentState.documents}
+   581→        checklistTemplates={coreState.checklistTemplates}
+   582→        onAddTask={dataHandlers.handleAddTask}
+   583→        onUpdateTask={(t) => executionActions.updateTask(t)}
+   584→        onClose={closeModal}
+   585→        initialContext={modalContext}
+   586→        currentUser={currentUser!}
+   587→        appMode={appMode}
+   588→        taskToEdit={taskToEdit}
+   589→        openModal={openModal}
+   590→        onNavigate={navigateTo}
+   591→      />;
+   592→      break;
+   593→    }
+   594→    case 'viewTask': {
+   595→      const task = executionState.tasks.find(t => t.id === editingId);
+   596→      if (task && currentUser) {
+   597→        content = <TaskDetailModal
+   598→          task={task}
+   599→          users={coreState.users}
+   600→          matters={matterState.matters}
+   601→          documents={documentState.documents}
+   602→          onEdit={() => {
+   603→            openModal('newTask', task.id);
+   604→          }}
+   605→          onDelete={() => {
+   606→            dataHandlers.deleteItem('tasks', task.id, task.title);
+   607→            closeModal();
+   608→          }}
+   609→          onUpdateTask={(t) => executionActions.updateTask(t)}
+   610→          onViewInTasks={(id, color) => {
+   611→            closeModal();
+   612→            setTimeout(() => {
+   613→              updateCurrentHistoryEntry({ taskUserFilter: '__all__' });
+   614→              navigateTo('tasks');
+   615→              setTimeout(() => {
+   616→                setHighlightTarget({ view: 'tasks', filter: { id }, color: color || 'blue' });
+   617→              }, 300);
+   618→            }, 50);
+   619→          }}
+   620→          currentUser={currentUser}
+   621→          onNavigateToMatter={(mId, taskId) => {
+   622→            closeModal();
+   623→            setTimeout(() => {
+   624→              setHighlightTarget({ view: 'matterDetail', filter: { id: taskId }, color: 'blue' });
+   625→              navigateTo('matterDetail', mId, { initialTab: 'schedule_tasks' });
+   626→            }, 50);
+   627→          }}
+   628→          onNavigateToCalendar={modalContext?.openedFrom !== 'calendar' ? (date) => { closeModal(); navigateTo('calendar', null, { date }); } : undefined}
+   629→          openedFrom={modalContext?.openedFrom}
+   630→        />;
+   631→      }
+   632→      break;
+   633→    }
+   634→    case 'assignUsers': {
+   635→      const item = modalContext?.item;
+   636→      const itemType = modalContext?.itemType || 'Matter';
+   637→      const itemTitle = modalContext?.itemTitle || 'Item';
+   638→      if (item) {
+   639→        const handleAssign = (itemId: string, userIds: string[]) => {
+   640→          if (itemType === 'Matter') {
+   641→            const matter = matterState.matters.find(m => m.id === itemId);
+   642→            if (matter) dataHandlers.handleUpdateMatter({ ...matter, assignedUsers: userIds });
+   643→          } else if (itemType === 'Event') {
+   644→            const event = executionState.events.find(e => e.id === itemId);
+   645→            if (event) dataHandlers.updateItem('events', { ...event, assignedUsers: userIds }, event.title);
+   646→          }
+   647→          closeModal();
+   648→        };
+   649→        content = <AssignUsersForm item={item} itemType={itemType} itemTitle={itemTitle} users={coreState.users} onUpdate={handleAssign} onClose={closeModal} />;
+   650→      }
+   651→      break;
+   652→    }
+   653→    case 'newEvent':
+   654→    case 'editEvent': {
+   655→      const actualId = editingId?.includes('_') ? editingId.split('_')[0] : editingId;
+   656→      const event = executionState.events.find(e => e.id === actualId);
+   657→      content = <EventForm matters={matterState.matters} users={coreState.users} appMode={appMode} eventTypes={coreState.eventTypes} onSave={(e) => dataHandlers.addItem('events', e, e.title)} onUpdateEvent={(e) => dataHandlers.updateItem('events', e, e.title)} onClose={closeModal} onNavigate={navigateTo} currentUser={currentUser!} eventToEdit={event} initialContext={modalContext?.fields || modalContext} />;
+   658→      break;
+   659→    }
+   660→    case 'viewEvent': {
+   661→      let event = executionState.events.find(e => e.id === editingId);
+   662→
+   663→      // Handle recurring instances that aren't in the main array
+   664→      if (!event && editingId?.includes('_')) {
+   665→        const [originalId] = editingId.split('_');
+   666→        const originalEvent = executionState.events.find(e => e.id === originalId);
+   667→
+   668→        if (originalEvent && originalEvent.recurrence) {
+   669→          // Re-expand to find this specific instance. We use the date from context if available, 
+   670→          // or parse it from the synthetic ID.
+   671→          const dateInstanceStr = modalContext?.instanceDate || editingId.split('_')[1];
+   672→          const instanceDate = new Date(dateInstanceStr);
+   673→          const endDateLimit = new Date(instanceDate);
+   674→          endDateLimit.setDate(endDateLimit.getDate() + 1);
+   675→
+   676→          const instances = expandRecurringEvents([originalEvent], instanceDate, endDateLimit);
+   677→          event = instances.find(inst => inst.id === editingId);
+   678→        }
+   679→      }
+   680→
+   681→      if (event && currentUser) {
+   682→        content = <EventDetailModal
+   683→          event={event}
+   684→          matters={matterState.matters}
+   685→          users={coreState.users}
+   686→          eventTypes={coreState.eventTypes}
+   687→          onEdit={() => {
+   688→            closeModal();
+   689→            setTimeout(() => openModal('editEvent', event.id, modalContext), 100);
+   690→          }}
+   691→          onDelete={() => {
+   692→            closeModal();
+   693→            setTimeout(() => openModal('deleteConfirmation', null, {
+   694→              title: 'Delete Event?',
+   695→              message: "Are you sure you want to permanently delete this event?",
+   696→              onConfirm: () => {
+   697→                dataHandlers.deleteItem('events', (event as any).originalId || event.id, event.title);
+   698→                closeModal();
+   699→              },
+   700→              confirmText: 'Delete Event',
+   701→              confirmButtonClass: 'bg-red-600 hover:bg-red-700'
+   702→            }), 100);
+   703→          }}
+   704→          onAssign={() => {
+   705→            closeModal();
+   706→            setTimeout(() => openModal('editEvent', event.id, modalContext), 100);
+   707→          }}
+   708→          onNavigateToMatter={(mId) => {
+   709→            closeModal();
+   710→            setTimeout(() => {
+   711→              setHighlightTarget({ view: 'matterDetail', filter: { id: event.id }, color: 'blue' });
+   712→              navigateTo('matterDetail', mId, { initialTab: 'schedule_tasks' });
+   713→            }, 50);
+   714→          }}
+   715→          onNavigateToCalendar={(date, eventId) => {
+   716→            setHighlightTarget({ view: 'calendar', filter: { id: eventId }, color: 'red' });
+   717→            closeModal();
+   718→            navigateTo('calendar', null, { date });
+   719→          }}
+   720→          openedFrom={modalContext?.openedFrom}
+   721→        />;
+   722→      }
+   723→      break;
+   724→    }
+   725→    case 'viewInvoice':
+   726→    case 'newInvoice':
+   727→    case 'editInvoice': {
+   728→      const invoice = (financeState.invoices || []).find(i => i.id === editingId);
+   729→      const clients = (matterState.contacts || []).filter(c => c.category === 'Client');
+   730→      const bankAccounts = coreState.firmDetails?.bankAccounts || [];
+   731→
+   732→      content = <InvoiceForm clients={clients} matters={matterState.matters || []} bankAccounts={bankAccounts} invoiceToEdit={invoice} onAddInvoice={(inv) => dataHandlers.addItem('invoices', inv, inv.invoiceNumber)} onUpdateInvoice={(inv) => dataHandlers.updateItem('invoices', inv, inv.invoiceNumber)} onClose={closeModal} />;
+   733→      break;
+   734→    }
+   735→    case 'generateInvoice': {
+   736→      const matter = matterState.matters.find(m => m.id === editingId);
+   737→      if (matter) {
+   738→        const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
+   739→        const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
+   740→        const safeBankAccounts = coreState.firmDetails?.bankAccounts || [];
+   741→        content = <InvoiceGeneratorForm matter={matter} unbilledTimeEntries={unbilledTime} unbilledExpenses={unbilledExpenses} bankAccounts={safeBankAccounts} onGenerateInvoice={dataHandlers.handleGenerateInvoice} onClose={closeModal} />;
+   742→      }
+   743→      break;
+   744→    }
+   745→    case 'paymentGateway': {
+   746→      content = <PaymentGatewayModal
+   747→        amount={modalContext.amount}
+   748→        email={currentUser?.email || ''}
+   749→        title={modalContext.title}
+   750→        description={modalContext.description}
+   751→        invoiceId={modalContext.invoiceId}
+   752→        // CRO AUDIT Track A — pass through subscription context + forcePracticeProAccount
+   753→        forcePracticeProAccount={modalContext.forcePracticeProAccount ?? false}
+   754→        subscriptionContext={modalContext.subscriptionContext}
+   755→        onSuccess={modalContext.onConfirm}
+   756→        onClose={closeModal}
+   757→      />;
+   758→      break;
+   759→    }
+   760→
+   761→    case 'newUser':
+   762→    case 'editUser': {
+   763→      const userToEdit = coreState.users.find(u => u.id === editingId);
+   764→      content = <UserForm userToEdit={userToEdit} onAddUser={(u) => dataHandlers.addItem('users', u, u.name)} onUpdateUser={(u) => dataHandlers.handleUpdateUser(u.id, u)} onClose={closeModal} />;
+   765→      break;
+   766→    }
+   767→    case 'editFirmDetails':
+   768→      content = <FirmDetailsForm firmDetails={coreState.firmDetails} onUpdateFirmDetails={dataHandlers.handleUpdateFirmDetails} onClose={closeModal} />;
+   769→      break;
+   770→    case 'newWorkflow':
+   771→    case 'editWorkflow': {
+   772→      const wf = executionState.workflows.find(w => w.id === editingId);
+   773→      content = <WorkflowForm onAddWorkflow={(w) => dataHandlers.handleAddWorkflow(w)} onUpdateWorkflow={dataHandlers.handleUpdateWorkflow} onDelete={() => { /* Handle delete workflow */ }} onClose={closeModal} workflowToEdit={wf} workflows={executionState.workflows} context={modalContext} />;
+   774→      break;
+   775→    }
+   776→    case 'newEventType':
+   777→    case 'editEventType': {
+   778→      const et = coreState.eventTypes.find(e => e.id === editingId);
+   779→      content = <EventTypeForm onAddEventType={(e) => dataHandlers.addItem('eventTypes', e, e.name)} onUpdateEventType={(e) => dataHandlers.updateItem('eventTypes', e, e.name)} onDelete={() => dataHandlers.deleteItem('eventTypes', editingId!, 'Event Type')} onClose={closeModal} eventTypeToEdit={et} />;
+   780→      break;
+   781→    }
+   782→    case 'newContactCategory':
+   783→    case 'editContactCategory': {
+   784→      const cc = coreState.contactCategories.find(c => c.id === editingId);
+   785→      content = <ContactCategoryForm onAddCategory={(c) => dataHandlers.addItem('contactCategories', c, c.name)} onUpdateCategory={(c) => dataHandlers.updateItem('contactCategories', c, c.name)} onDelete={() => dataHandlers.deleteItem('contactCategories', editingId!, 'Contact Category')} onClose={closeModal} categoryToEdit={cc} />;
+   786→      break;
+   787→    }
+   788→    case 'newDocumentCategory':
+   789→    case 'editDocumentCategory': {
+   790→      const dc = coreState.documentCategories.find(c => c.id === editingId);
+   791→      content = <DocumentCategoryForm onAddCategory={(c) => dataHandlers.addItem('documentCategories', c, c.name)} onUpdateCategory={(c) => dataHandlers.updateItem('documentCategories', c, c.name)} onDelete={() => dataHandlers.deleteItem('documentCategories', editingId!, 'Document Category')} onClose={closeModal} categoryToEdit={dc} allCategories={coreState.documentCategories} context={modalContext} />;
+   792→      break;
+   793→    }
+   794→    case 'newChecklistTemplate':
+   795→    case 'editChecklistTemplate': {
+   796→      const ct = coreState.checklistTemplates.find(t => t.id === editingId);
+   797→      content = <ChecklistTemplateForm onAddTemplate={(t) => dataHandlers.addItem('checklistTemplates', t, t.name)} onUpdateTemplate={(t) => dataHandlers.updateItem('checklistTemplates', t, t.name)} onDelete={() => dataHandlers.deleteItem('checklistTemplates', editingId!, 'Checklist Template')} onClose={closeModal} templateToEdit={ct} workflows={executionState.workflows} />;
+   798→      break;
+   799→    }
+   800→    case 'newTemplate':
+   801→    case 'editTemplate': {
+   802→      const dt = coreState.documentTemplates.find(t => t.id === editingId);
+   803→      content = <TemplateForm onAddTemplate={(t) => dataHandlers.addItem('documentTemplates', t, t.name)} onUpdateTemplate={(t) => dataHandlers.updateItem('documentTemplates', t, t.name)} onDelete={() => dataHandlers.deleteItem('documentTemplates', editingId!, 'Document Template')} onClose={closeModal} templateToEdit={dt} documentTemplateCategories={coreState.documentTemplateCategories} />;
+   804→      break;
+   805→    }
+   806→    case 'newTemplateCategory':
+   807→    case 'editTemplateCategory': {
+   808→      const dtc = coreState.documentTemplateCategories.find(c => c.id === editingId);
+   809→      content = <TemplateCategoryForm onAdd={(c) => dataHandlers.addItem('documentTemplateCategories', c, c.name)} onUpdate={(c) => dataHandlers.updateItem('documentTemplateCategories', c, c.name)} onDelete={() => dataHandlers.deleteItem('documentTemplateCategories', editingId!, 'Template Category')} onClose={closeModal} categoryToEdit={dtc} />;
+   810→      break;
+   811→    }
+   812→    case 'newBankAccount':
+   813→    case 'editBankAccount': {
+   814→      const bankAccounts = coreState.firmDetails?.bankAccounts || [];
+   815→      const account = bankAccounts.find(a => a.id === editingId);
+   816→      content = <BankAccountForm accountToEdit={account}
+   817→        onAddAccount={(a) => {
+   818→          const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }];
+   819→          dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
+   820→          // Close the modal so the user sees the settings page underneath.
+   821→          closeModal();
+   822→          // Navigate to the firm settings page so the user sees their saved
+   823→          // bank account in context, alongside other firm configuration.
+   824→          navigateTo('settings', null, { settingsTargetId: 'firm-details' });
+   825→          // Tell the user they can add MULTIPLE bank accounts and WHY — this
+   826→          // is important for firms that need separate accounts for:
+   827→          //   - Operating (general business income/expenses)
+   828→          //   - Trust/Client (held on behalf of clients — legally separate)
+   829→          //   - Rent collection (for Atrium property managers)
+   830→          //   - Service charge collections (for Atrium estates)
+   831→          // Without this nudge, users add one account and never realize they
+   832→          // can add more for different purposes.
+   833→          setTimeout(() => {
+   834→            addToast(
+   835→              newAccounts.length === 1
+   836→                ? "Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, a Trust/Client account for funds held on behalf of clients, or a Rent Collection account for Atrium. Click 'Add Bank Account' again to set up another."
+   837→                : `Bank account saved. You now have ${newAccounts.length} account${newAccounts.length === 1 ? '' : 's'}. Set a default for rent collections and invoice payments, or add more for different purposes (Trust, Operating, Service Charge).`,
+   838→              { type: 'success', duration: 8000 }
+   839→            );
+   840→          }, 400);
+   841→        }}
+   842→        onUpdateAccount={(a) => { const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }}
+   843→        onSetDefault={(id) => { const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id })); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }}
+   844→        onDelete={(id) => { const newAccounts = bankAccounts.filter(acc => acc.id !== id); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); closeModal(); }}
+   845→        onClose={closeModal} />;
+   846→      break;
+   847→    }
+   848→    case 'newTimeEntry':
+   849→    case 'editTimeEntry': {
+   850→      const entry = financeState.timeEntries.find(t => t.id === editingId);
+   851→      const matterId = editingId || modalContext;
+   852→      const matter = matterState.matters.find(m => m.id === (entry ? entry.matterId : matterId));
+   853→      if (matter) content = <TimeEntryForm matter={matter} timeEntryToEdit={entry} onAddTimeEntry={(t) => dataHandlers.addItem('timeEntries', t, 'Time Entry')} onUpdateTimeEntry={(t) => dataHandlers.updateItem('timeEntries', t, 'Time Entry')} onClose={closeModal} />;
+   854→      break;
+   855→    }
+   856→    case 'newExpense':
+   857→    case 'editExpense': {
+   858→      const exp = financeState.expenses.find(e => e.id === editingId);
+   859→      const matterId = editingId || modalContext;
+   860→      const matter = matterState.matters.find(m => m.id === (exp ? exp.matterId : matterId));
+   861→      if (matter) content = <ExpenseForm matter={matter} expenseToEdit={exp} onAddExpense={(e) => dataHandlers.addItem('expenses', e, 'Expense')} onUpdateExpense={(e) => dataHandlers.updateItem('expenses', e, 'Expense')} onClose={closeModal} />;
+   862→      break;
+   863→    }
+   864→    case 'newChannel':
+   865→      content = <NewChannelForm users={coreState.users} onCreateChannel={dataHandlers.handleCreateChannel} onClose={closeModal} />;
+   866→      break;
+   867→    case 'newDirectMessage':
+   868→      content = <NewDirectMessageForm users={coreState.users} onClose={closeModal} />;
+   869→      break;
+   870→    case 'deleteConfirmation':
+   871→      content = <ConfirmationModal title={modalContext.title} message={modalContext.message} onConfirm={modalContext.onConfirm} onCancel={closeModal} confirmText={modalContext.confirmText} confirmButtonClass={modalContext.confirmButtonClass} onConfirmArchive={modalContext.onConfirmArchive} archiveText={modalContext.archiveText} verificationText={modalContext.verificationText} requiresPassword={modalContext.requiresPassword} />;
+   872→      break;
+   873→    case 'noTeamMembers':
+   874→      content = <NoTeamMembersModal onNavigate={() => { closeModal(); navigateTo('settings', null, { settingsTargetId: 'user-management' }); }} onClose={closeModal} />;
+   875→      break;
+   876→    case 'aloaHelp':
+   877→      content = <AloaHelpModal />;
+   878→      break;
+   879→    case 'feedback':
+   880→      content = <FeedbackForm />;
+   881→      break;
+   882→    case 'matterIngestion':
+   883→      content = <MatterIngestionWizard />;
+   884→      break;
+   885→    case 'joinFirm':
+   886→      content = <JoinFirmModal onClose={closeModal} />;
+   887→      break;
+   888→    case 'newNotebook':
+   889→    case 'editNotebook': {
+   890→      const nb = coreState.noteNotebooks.find(n => n.id === editingId);
+   891→      content = <NotebookForm notebookToEdit={nb} onAdd={(n) => dataHandlers.addItem('noteNotebooks', n, n.name)} onUpdate={(n) => dataHandlers.updateItem('noteNotebooks', n, n.name)} onClose={closeModal} currentUser={currentUser!} appMode={appMode} />;
+   892→      break;
+   893→    }
+   894→    case 'newPage': {
+   895→      content = (
+   896→        <NotePageForm
+   897→          onAdd={(p) => dataHandlers.addItem('notePages', p, p.title)}
+   898→          onClose={closeModal}
+   899→          initialContext={modalContext}
+   900→        />
+   901→      );
+   902→      break;
+   903→    }
+   904→    case 'requestFinancialDocument': {
+   905→      const m = matterState.matters.find(x => x.id === editingId);
+   906→      if (m) content = <RequestFinancialDocumentForm matter={m} />;
+   907→      break;
+   908→    }
+   909→    case 'stageChecklist': {
+   910→      const m = matterState.matters.find(x => x.id === editingId);
+   911→      if (m && modalContext) content = <StageChecklistForm matter={m} stage={modalContext.stage} workflow={modalContext.workflow} checklistTemplates={coreState.checklistTemplates} onClose={closeModal} />;
+   912→      break;
+   913→    }
+   914→    case 'newExternalCounsel': {
+   915→      content = <ExternalCounselInviteForm matterId={editingId!} onInvite={dataHandlers.handleInviteExternalCounsel} onClose={closeModal} />;
+   916→      break;
+   917→    }
+   918→    case 'upgradePlan': {
+   919→      content = <UpgradeModal
+   920→        featureName={modalContext?.featureName}
+   921→        targetPlan={modalContext?.targetPlan} // Pass target plan to modal
+   922→        onUpgrade={() => { closeModal(); navigateTo('settings', null, { settingsTargetId: 'subscription-management' }); }}
+   923→        onClose={closeModal}
+   924→      />;
+   925→      break;
+   926→    }
+   927→    case 'keyboardShortcuts':
+   928→      content = <KeyboardShortcutsModal />;
+   929→      break;
+   930→    case 'quickLook':
+   931→      content = <QuickLookModal />;
+   932→      break;
+   933→    case 'saveToNote':
+   934→      content = <SaveToNoteForm initialContent={modalContext?.content || ''} onClose={closeModal} />;
+   935→      break;
+   936→    case 'newResearchNotebook':
+   937→      content = (
+   938→        <NewResearchNotebookForm
+   939→          matters={matterState.matters}
+   940→          onSubmit={async (data) => {
+   941→            const { name, matterId, files } = data;
+   942→
+   943→            const notebook = dataHandlers.handleAddResearchNotebook({
+   944→              firmId: coreState.firmDetails.id,
+   945→              userId: currentUser!.id,
+   946→              name,
+   947→              matterId
+   948→            });
+   949→
+   950→            if (files.length > 0) {
+   951→              for (const file of files) {
+   952→                const reader = new FileReader();
+   953→                await new Promise<void>((resolve) => {
+   954→                  reader.onload = () => {
+   955→                    const fileDetails: FileDetails = {
+   956→                      name: file.name,
+   957→                      type: file.type,
+   958→                      size: file.size,
+   959→                      filePath: `research/${notebook.id}/${file.name}`,
+   960→                      dataUrl: reader.result as string
+   961→                    };
+   962→
+   963→                    dataHandlers.handleAddResearchSource(notebook.id, {
+   964→                      name: file.name,
+   965→                      type: file.type === 'application/pdf' ? 'pdf' : 'text',
+   966→                      content: '',
+   967→                      file: fileDetails
+   968→                    });
+   969→                    resolve();
+   970→                  };
+   971→                  reader.readAsDataURL(file);
+   972→                });
+   973→              }
+   974→            }
+   975→
+   976→            if (updateCurrentHistoryEntry) {
+   977→              updateCurrentHistoryEntry({ selectedResearchNotebookId: notebook.id });
+   978→            }
+   979→            closeModal();
+   980→          }}
+   981→          onClose={closeModal}
+   982→        />
+   983→      );
+   984→      break;
+   985→    case 'addResearchSource':
+   986→      content = <AddResearchSourceModal notebookId={modalContext?.notebookId} onAdd={dataHandlers.handleAddResearchSource} onClose={closeModal} />;
+   987→      break;
+   988→    case 'addCaseToNotebook':
+   989→      content = <AddCaseToNotebookModal caseData={modalContext?.caseData} notebooks={documentState.researchNotebooks.filter(nb => nb.userId === currentUser?.id)} matters={matterState.matters} onAdd={(nbId, cData) => dataHandlers.handleAddResearchSource(nbId, { name: cData.parties, type: 'text', content: JSON.stringify(cData) })} onCreateNotebook={dataHandlers.handleAddResearchNotebook} onClose={closeModal} />;
+   990→      break;
+   991→    case 'workspaceSetup':
+   992→      content = <WorkspaceSetupModal onSuccess={() => { }} pendingAction={modalContext?.pendingAction} onClose={closeModal} />;
+   993→      break;
+   994→    case 'newLead':
+   995→      content = <LeadForm onClose={closeModal} initialContext={modalContext?.fields || modalContext} />;
+   996→      break;
+   997→    case 'sendIntakeLink': {
+   998→      content = <SendIntakeLinkModal />;
+   999→      break;
+  1000→    }
+  1001→    case 'activateLead': {
+  1002→      const lead = coreState.leads?.find(l => l.id === editingId);
+  1003→      if (lead) {
+  1004→        content = <ConfirmationModal
+  1005→          title="Convert Lead to Contact?"
+  1006→          message={`Are you sure you want to convert "${lead.name}" from a lead to a full contact? This will create a new Contact record and remove them from your Lead pipeline.`}
+  1007→          confirmText="Convert to Contact"
+  1008→          confirmButtonClass="bg-primary-600 hover:bg-primary-700"
+  1009→          onConfirm={() => {
+  1010→            dataHandlers.handleAddLead({ name: lead.name, email: lead.email || '' }, false);
+  1011→            closeModal();
+  1012→          }}
+  1013→          onCancel={closeModal}
+  1014→        />;
+  1015→      }
+  1016→      break;
+  1017→    }
+  1018→    case 'sendPostActivationEmail':
+  1019→      content = <SendPostActivationEmailModal />;
+  1020→      break;
+  1021→    case 'composeEmail':
+  1022→      content = <ComposeEmailModal onClose={closeModal} initialContext={modalContext} />;
+  1023→      break;
+  1024→    case 'demoUpsell':
+  1025→      content = <DemoUpsellModal context={modalContext?.context} onSignup={() => openModal('signup')} onClose={closeModal} />;
+  1026→      break;
+  1027→    case 'leadCapture':
+  1028→      content = <LeadCaptureModal />;
+  1029→      break;
+  1030→    case 'aiConsent':
+  1031→      content = <AIConsentModalWrapper modalContext={modalContext} closeModal={closeModal} />;
+  1032→      break;
+  1033→
+  1034→    default:
+  1035→      content = <div className="p-4">Modal content for {modal} not found.</div>;
+  1036→  }
+  1037→
+  1038→  if (!content) return null;
+  1039→
+  1040→  let modalTitle = getModalTitle(modal);
+  1041→  if ((modal === 'newTask' || modal === 'editTask') && editingId) {
+  1042→    modalTitle = 'Edit Task';
+  1043→  }
+  1044→  if (modal === 'newDraft' || modal === 'newDocument' || modal === 'editDocument') {
+  1045→    const doc = documentState.documents.find(d => d.id === editingId);
+  1046→    const ctx = modalContext?.fields || modalContext;
+  1047→    const name = doc?.title || ctx?.draftTitle || ctx?.title || 'New Document';
+  1048→    modalTitle = modal === 'editDocument' ? `Edit Document: ${name}` : (modal === 'newDraft' ? `Draft: ${name}` : 'New Document');
+  1049→  }
+  1050→  if (modal === 'batchUpload') {
+  1051→    modalTitle = 'Uploading Files';
+  1052→  }
+  1053→  if (modal === 'composeEmail') {
+  1054→    modalTitle = 'Compose Email';
+  1055→  }
+  1056→  // Product-aware title: 'Link Matter to Contact' → 'Link Property to Contact' for Atrium
+  1057→  if (modal === 'linkMatterToContact') {
+  1058→    modalTitle = `Link ${terminology.matter} to ${terminology.client}`;
+  1059→  }
+  1060→  // Product-aware title: 'ARIA Help' → 'ALOA Help' for Vega/Komplete
+  1061→  if (modal === 'aloaHelp') {
+  1062→    modalTitle = 'AI Assistant Help';
+  1063→  }
+  1064→  // Missing titles in getModalTitle switch
+  1065→  if (modal === 'workspaceSetup') {
+  1066→    modalTitle = 'Workspace Setup';
+  1067→  }
+  1068→  if (modal === 'demoUpsell') {
+  1069→    modalTitle = 'Upgrade to PracticePro';
+  1070→  }
+  1071→
+  1072→  // Size mapping based on form complexity:
+  1073→  //  lg → multi-section forms (contacts, properties, invoices, events, matters, matter ingest, email)
+  1074→  //  md → default (documents, tasks, most forms)
+  1075→  //  sm → simple confirmations and tiny forms
+  1076→  const lgModals = ['matterIngestion', 'editMatter', 'newMatter', 'composeEmail',
+  1077→           'newContact', 'editContact', 'newProperty', 'editProperty',
+  1078→           'newInvoice', 'editInvoice', 'viewInvoice', 'generateInvoice',
+  1079→           'newEvent', 'editEvent', 'bulkEditProperty'];
+  1080→  const smModals = ['leadCapture', 'deleteConfirmation', 'aiConsent', 'keyboardShortcuts',
+  1081→           'noTeamMembers', 'aloaHelp', 'upgradePlan', 'sendIntakeLink',
+  1082→           'sendPostActivationEmail', 'newPage', 'newNotebook', 'newResearchNotebook',
+  1083→           'addResearchSource', 'addCaseToNotebook', 'mergeContact', 'linkContact',
+  1084→           'linkContactToMatter', 'linkMatterToContact', 'closeMatter', 'archiveMatter',
+  1085→           'workspaceSetup', 'joinFirm', 'folderPermissions', 'signDocument',
+  1086→           'demoUpsell', 'googleDrivePicker'];
+  1087→  const modalSize = lgModals.includes(modal) ? 'lg'
+  1088→    : smModals.includes(modal) ? 'sm'
+  1089→    : 'md';
+  1090→
+  1091→  return (
+  1092→    <Modal isOpen={!!modal} onClose={() => closeModal()} title={modalTitle} size={modalSize} hideHeader={modal === 'deleteConfirmation'}>
+  1093→      {content}
+  1094→    </Modal>
+  1095→  );
+  1096→};
+  1097→
+  1098→export default ModalManager;
+  1099→
