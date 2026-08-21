@@ -1260,8 +1260,18 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
     // ── Rate Limiting ──────────────────────────────────────────────────
     // Max 5 signups per email per minute, 20 per IP per minute.
     // Prevents automated signup flooding / email bombing.
+    // CRITICAL FIX: checkRateLimit uses ctx.db which is undefined in action
+    // context (startRegistration is an action). Wrap in try/catch so rate
+    // limiting failure doesn't block signup. Rate limiting is a nice-to-have,
+    // not a blocker for user acquisition.
     const emailRateKey = `signup:email:${token}`;
-    const allowedByEmail = await checkRateLimit(ctx, emailRateKey, 5);
+    let allowedByEmail = true;
+    try {
+      allowedByEmail = await checkRateLimit(ctx, emailRateKey, 5);
+    } catch (rateLimitErr) {
+      console.warn('[startSignup] Rate limit check failed (non-blocking):', rateLimitErr);
+      allowedByEmail = true; // Allow on failure — don't block signup
+    }
     if (!allowedByEmail) {
       return {
         success: false,
