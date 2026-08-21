@@ -682,7 +682,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
                             {isVega
                                 ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
-                                : 'Purpose-built for Nigerian property portfolios — facilities management, service charge collection, and a residents\' portal.'}
+                                : 'Purpose-built for Nigerian property portfolios — whether you manage from Lagos or London. Facilities management, service charge collection, a residents\' portal, and AI-powered revenue intelligence in one platform.'}
                         </p>
 
                         {/* CTAs */}
@@ -1128,7 +1128,7 @@ const SceCalculatorModal: React.FC<{
                 <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
                     <div>
                         <h2 id="sce-calc-title" className="font-display text-lg font-bold text-slate-900">SCE Calculator</h2>
-                        <p className="text-xs text-slate-500 mt-0.5">Drag the slider to see your per-tenant cost</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Drag the slider to see your per-resident cost</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -1144,7 +1144,7 @@ const SceCalculatorModal: React.FC<{
                     {/* Explanation — shorter and clearer than before */}
                     <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
                         <p className="text-xs text-emerald-900 leading-relaxed">
-                            <strong>Service Charge Equivalent (SCE)</strong> is your Atrium subscription divided across your tenants — shown as a per-tenant monthly amount. You can add this line to your service charge invoices to recover the cost. It is <strong>not</strong> an extra fee from Atrium.
+                            <strong>Service Charge Equivalent (SCE)</strong> is your Atrium subscription divided across your residents — shown as a per-resident monthly amount. You can add this line to your service charge invoices to recover the cost. It is <strong>not</strong> an extra fee from Atrium.
                         </p>
                     </div>
 
@@ -1307,7 +1307,7 @@ const SceCalculatorModal: React.FC<{
 
                                     {/* Big SCE number — the headline */}
                                     <div className="mb-3">
-                                        <p className="text-3xs text-slate-400 uppercase tracking-wider font-bold mb-0.5">SCE per tenant / mo</p>
+                                        <p className="text-3xs text-slate-400 uppercase tracking-wider font-bold mb-0.5">SCE per resident / mo</p>
                                         <p className={`font-display text-2xl font-extrabold nums-tabular transition-all duration-150 ${absorbabilityStyles.text}`}>
                                             {fmtNaira(calc.scePerTenantMonthly)}
                                         </p>
@@ -1366,7 +1366,7 @@ const SceCalculatorModal: React.FC<{
                         <ol className="space-y-1.5 text-xs text-slate-600 leading-relaxed list-decimal list-inside">
                             <li>Pick the tier whose SCE feels comfortable for your residents.</li>
                             <li>Add the SCE as a line item on your monthly service charge invoice.</li>
-                            <li>Your tenants pay it as part of their normal service charge — no separate collection needed.</li>
+                            <li>Your residents pay it as part of their normal service charge — no separate collection needed.</li>
                             <li>The subscription cost is recovered; the platform effectively pays for itself.</li>
                         </ol>
                     </div>
@@ -1375,7 +1375,7 @@ const SceCalculatorModal: React.FC<{
                     <div className="space-y-1.5 text-xs text-slate-500">
                         <p className="font-semibold text-slate-700">What the colors mean:</p>
                         <p><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 align-middle"></span> <strong>Easy</strong> — under ₦2,000/mo. Residents barely notice it on their service charge invoice.</p>
-                        <p><span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle"></span> <strong>Moderate</strong> — ₦2,000-5,000/mo. Noticeable but reasonable vs typical Lagos service charges.</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle"></span> <strong>Moderate</strong> — ₦2,000-5,000/mo. Noticeable but reasonable vs typical Nigerian service charges.</p>
                         <p><span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5 align-middle"></span> <strong>Tight</strong> — over ₦5,000/mo. Consider a higher tier with more units to spread the cost.</p>
                     </div>
                 </div>
@@ -1508,7 +1508,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                 }`}
                             >
                                 <strong className="block mb-1">What is SCE?</strong>
-                                Service Charge Equivalent is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is not an additional fee charged by Atrium.
+                                Service Charge Equivalent is your annual Atrium subscription divided across your resident base — shown as a per-resident monthly amount. You can itemize this on service charge invoices to offset the cost. It is not an additional fee charged by Atrium.
                                 {/* Arrow */}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900" />
                             </div>
@@ -1559,7 +1559,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         {/* For Atrium: show SCE per tenant as a clean inline line (no tooltip, no box) */}
                         {!isVega && plan.tenantContribution && (
                             <p className={`text-xs mb-2 ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>
-                                <span className="font-semibold">~{plan.tenantContribution}</span> per tenant/mo (SCE)
+                                <span className="font-semibold">~{plan.tenantContribution}</span> per resident/mo (SCE)
                             </p>
                         )}
 
@@ -1698,7 +1698,7 @@ const AI_CAPABILITIES = {
         assistantName: 'ARIA',
         assistantFull: 'Asset & Revenue Intelligence Assistant',
         headline: 'Powered by ARIA. Built for Nigerian property.',
-        subtitle: 'Your AI property copilot monitors revenue, drafts demand notices, and analyzes your portfolio — with privacy-first architecture that keeps tenant data safe.',
+        subtitle: 'Your AI property copilot monitors revenue, drafts demand notices, and analyzes your portfolio — with privacy-first architecture that keeps resident data safe.',
         capabilities: [
             {
                 title: 'Revenue Intelligence & Drafting',
@@ -1707,12 +1707,12 @@ const AI_CAPABILITIES = {
             },
             {
                 title: 'PII Shield',
-                body: 'Tenant names, phone numbers, NIN, BVN, and bank accounts are automatically stripped before AI processing. Your tenant data never trains external models. NDPA 2023 compliant.',
+                body: 'Resident names, phone numbers, NIN, BVN, and bank accounts are automatically stripped before AI processing. Your resident data never trains external models. NDPA 2023 compliant.',
                 features: ['Email & phone stripping', 'NIN/BVN/credit card detection', 'Nigerian bank account masking'],
             },
             {
                 title: 'Portfolio-Grade Security',
-                body: 'Your portfolio data is fully isolated from every other organization on the platform. AI queries only access your properties, your tenants, and your financials. No cross-organization data leakage — ever.',
+                body: 'Your portfolio data is fully isolated from every other organization on the platform. AI queries only access your properties, your residents, and your financials. No cross-organization data leakage — ever.',
                 features: ['Complete data isolation between organizations', 'Property-level access control', 'Full audit trail on all AI activity'],
             },
         ],
@@ -1805,13 +1805,13 @@ const HOW_IT_WORKS_STEPS = {
         },
         {
             num: '2',
-            title: 'Add your properties & tenants',
-            body: 'Create properties, add units, and assign tenants. Set rent amounts and service charges. Optionally request our Managed Data Migration service to digitize your records for you.',
+            title: 'Add your properties & residents',
+            body: 'Create properties, add units, and assign residents. Set rent amounts and service charges. Optionally request our Managed Data Migration service to digitize your records for you.',
         },
         {
             num: '3',
             title: 'Start collecting',
-            body: 'Send your first WhatsApp rent reminder, collect a payment via bank transfer with proof upload, or generate a visitor pass with Sentry Pass.',
+            body: 'Send your first WhatsApp collection reminder, collect a payment via bank transfer with proof upload, or generate a visitor pass with Sentry Pass.',
         },
     ],
 };
@@ -1831,7 +1831,7 @@ const HowItWorksSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ act
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
                         {activeProduct === 'vega'
                             ? 'From sign-up to your first legal draft — in minutes, not weeks.'
-                            : 'From sign-up to your first rent collection — in minutes, not weeks.'}
+                            : 'From sign-up to your first collection — in minutes, not weeks.'}
                     </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
@@ -1894,7 +1894,7 @@ const TESTIMONIALS: Record<'vega' | 'atrium', Array<{
             color: "bg-emerald-500",
         },
         {
-            quote: "Our tenants love the Residents' Portal. We went from 20 'where is my receipt?' calls per week to zero. Receipts generate automatically now.",
+            quote: "Our residents love the Residents' Portal. We went from 20 'where is my receipt?' calls per week to zero. Receipts generate automatically now.",
             name: "Funmi Adewale",
             role: "Estate Surveyor, Lekki",
             initials: "FA",
@@ -1921,7 +1921,7 @@ const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ a
                         What Nigerian {isVega ? 'lawyers' : 'property managers'} say
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
-                        Real results from {isVega ? 'law firms' : 'property managers'} across Lagos, Abuja, and Port Harcourt.
+                        Real results from {isVega ? 'law firms' : 'property managers'} across Nigeria and the diaspora.
                     </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
@@ -2000,19 +2000,23 @@ const FAQ_ITEMS = {
     atrium: [
         {
             q: "How does rent collection work?",
-            a: "Tenants pay via bank transfer with proof upload, or through Paystack (card, bank, USSD — currently activating). Receipts generate automatically. The Revenue Monitor shows you who has paid, who hasn't, and how much is outstanding — in real time.",
+            a: "Residents pay via bank transfer with proof upload, or through Paystack (card, bank, USSD — currently activating). Receipts generate automatically. The Revenue Monitor shows you who has paid, who hasn't, and how much is outstanding — in real time.",
         },
         {
-            q: "Can tenants use the portal on their phones?",
-            a: "Yes. The Resident Portal is mobile-first. Tenants can view payment status, download receipts, log maintenance tickets, and generate visitor passes — all from their phone, no app install required.",
+            q: "Can residents use the portal on their phones?",
+            a: "Yes. The Resident Portal is mobile-first. Residents can view payment status, download receipts, log maintenance tickets, and generate visitor passes — all from their phone, no app install required.",
         },
         {
             q: "How does Sentry Pass (visitor management) work?",
             a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 30-day free trial, then N15,000/month as an add-on.",
         },
         {
-            q: "What happens if a tenant doesn't pay?",
-            a: "The Revenue Monitor tracks defaulters by days overdue. You can send automated WhatsApp demand notices, calculate outstanding balances with late penalties, and draft statutory quit notices using Nigerian property law (Lagos State Tenancy Law, Land Use Act).",
+            q: "What happens if a resident doesn't pay?",
+            a: "The Revenue Monitor tracks defaulters by days overdue and sends automated WhatsApp demand notices. You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For diaspora property owners, this means full visibility into arrears and recovery actions without needing a local proxy — ARIA tracks every unit and drafts notices even while you're abroad.",
+        },
+        {
+            q: "Can I manage my property from abroad?",
+            a: "Yes. PracticePro Atrium is built for diaspora property owners who need full operational control from anywhere in the world. You get real-time visibility into collections, service charges, maintenance tickets, and resident communications via the dashboard and WhatsApp alerts. Your residents use the Residents' Portal for payments and requests, while you receive automated notifications and can assign a local property manager with granular access controls. No local proxy required — though you can add team members if you want boots on the ground.",
         },
     ],
 };
@@ -2071,7 +2075,7 @@ const FINAL_CTA_COPY = {
     },
     atrium: {
         headline: 'Ready to stop managing chaos?',
-        body: 'Join Nigerian property managers who have already switched to PracticePro Atrium — rent collection, tenant portals, and revenue intelligence built for portfolios that scale.',
+        body: 'Join Nigerian property managers who have already switched to PracticePro Atrium — rent collection, resident portals, and revenue intelligence built for portfolios that scale.',
     },
 };
 
