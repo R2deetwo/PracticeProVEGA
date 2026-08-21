@@ -52,7 +52,7 @@ const VEGA_ITEMS: ChecklistItem[] = [
 const ATRIUM_ITEMS: ChecklistItem[] = [
   { key: 'hasProperty',              label: 'Add your first property',     action: { kind: 'modal', modalType: 'newProperty' },    hint: 'Residential, commercial, or estate.' },
   { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → edit a unit → enter resident name.' },
-  { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Service Charge tab → add charge.' },
+  { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Units tab → edit a unit → set service charge.' },
   { key: 'hasBankAccount',           label: 'Configure bank account',       action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For rent collections.' },
   { key: 'hasInvitedResidentToPortal', label: 'Invite a resident to portal', action: { kind: 'view', view: 'settings' },           hint: 'Residents self-serve rent payments.' },
   { key: 'hasSentReminder',         label: 'Send your first rent reminder', action: { kind: 'view', view: 'messaging' },          hint: 'WhatsApp or email nudge to a defaulter.' },
@@ -95,12 +95,14 @@ const GettingStartedChecklist: React.FC = () => {
     const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
     const allDone = items.every(item => (checklist as any)[item.key] === true);
     if (allDone) {
+      // PHASE 1 FIX: Show celebration before auto-dismissing.
+      addToast?.('🎉 You\'re all set! You\'ve completed the Getting Started checklist. Explore the rest of PracticePro at your own pace.', { type: 'success', duration: 8000 });
       setIsDismissed(true);
       try {
         localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
       } catch {}
     }
-  }, [checklist, isDismissed, isProperty, isUnified, firmId]);
+  }, [checklist, isDismissed, isProperty, isUnified, firmId, addToast]);
 
   // BRIEF #7: Completion celebration toast — when an item transitions from
   // incomplete → complete, show a brief success toast acknowledging the
@@ -183,28 +185,67 @@ const GettingStartedChecklist: React.FC = () => {
     }
 
     if (item.action.kind === 'view') {
-      // BRIEF #1a: Interactive Target Highlighting — set a highlight target
-      // so the destination page can render a pulsed ring on the primary CTA.
-      // The destination page uses the existing `useHighlight` hook which finds
-      // elements by `data-item-id` attribute and applies a pulse animation.
-      // Each target page's primary CTA has a `data-item-id` matching the key.
+      // PHASE 1 ONBOARDING FIX: Each checklist item now deep-links to the right
+      // page AND passes the right tab/context so the user lands exactly where
+      // they need to take action. Previously items navigated to bare list pages
+      // with no guidance.
 
-      // DEEP AUDIT FIX: For "Add a court date", deep-link directly to the first
-      // matter's detail view with the Tasks & Events tab auto-opened, instead
-      // of navigating to the bare matters list. This actually guides the user
-      // to where they need to create the court date event.
+      // "Add a court date" → deep-link to first matter's detail with Tasks & Events tab
       if (item.key === 'hasCourtDateOnMatter' && (checklist as any).firstMatterId) {
+        setHighlightTarget({
+          view: 'matterDetail' as any,
+          filter: { id: 'checklist-cta-hasCourtDateOnMatter' },
+          color: 'shimmer',
+        });
         navigateTo('matterDetail' as any, (checklist as any).firstMatterId, {
           initialTab: 'schedule_tasks',
+          initialSubView: 'events',
           checklistAction: item.key,
         });
         return;
       }
 
-      // DEEP AUDIT FIX: For "Add a resident to a unit", deep-link to the first
-      // property's detail view so the user can edit a unit directly.
+      // "Add a resident to a unit" → deep-link to first property's Units tab
       if (item.key === 'hasTenantOnProperty' && (checklist as any).firstPropertyId) {
+        setHighlightTarget({
+          view: 'propertyDetail' as any,
+          filter: { id: 'checklist-cta-hasTenantOnProperty' },
+          color: 'shimmer',
+        });
         navigateTo('propertyDetail' as any, (checklist as any).firstPropertyId, {
+          tab: 'units',
+          checklistAction: item.key,
+        });
+        return;
+      }
+
+      // "Set up service charges" → deep-link to first property's Units tab
+      if (item.key === 'hasServiceCharge' && (checklist as any).firstPropertyId) {
+        setHighlightTarget({
+          view: 'propertyDetail' as any,
+          filter: { id: 'checklist-cta-hasServiceCharge' },
+          color: 'shimmer',
+        });
+        navigateTo('propertyDetail' as any, (checklist as any).firstPropertyId, {
+          tab: 'units',
+          checklistAction: item.key,
+        });
+        return;
+      }
+
+      // "Invite a team member" → deep-link to Settings → User Management
+      if (item.key === 'hasInvitedUser') {
+        navigateTo('settings' as any, null, {
+          settingsTargetId: 'user-management',
+          checklistAction: item.key,
+        });
+        return;
+      }
+
+      // "Invite a resident to portal" → deep-link to Settings → Portal Access
+      if (item.key === 'hasInvitedResidentToPortal') {
+        navigateTo('settings' as any, null, {
+          settingsTargetId: 'portal-access',
           checklistAction: item.key,
         });
         return;

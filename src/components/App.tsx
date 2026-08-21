@@ -1071,7 +1071,11 @@ export const App: React.FC = () => {
             const hasCompletedTourLocal = localStorage.getItem('practicepro_tour_completed');
             const hasCompletedTourDB = (currentUser as any)?.onboardingCompleted === true;
             if (hasCompletedTourLocal !== 'true' && !hasCompletedTourDB) {
-                const timer = setTimeout(() => startTour(), 800);
+                // PHASE 1 FIX: Defer tour start to 5000ms (was 800ms) so it
+                // doesn't collide with the auto-open create modal (which fires
+                // at 800ms). The tour's z-[9999] backdrop was covering the
+                // modal, making both invisible/confusing.
+                const timer = setTimeout(() => startTour(), 5000);
                 return () => clearTimeout(timer);
             }
         }

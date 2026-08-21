@@ -16,10 +16,9 @@ import { ATRIUM_LIMITS } from "./tierLimits";
 export const sendHeartbeat = mutation({
   args: { firmId: v.string(), userId: v.string(), userName: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // SECURITY: Verify the caller belongs to the firm they're sending presence for.
-    // Skip the firmId match check when auth.firmId is empty (legacy call without userEmail).
+    // PHASE 0 SECURITY FIX: Fail CLOSED — throw if firmId doesn't match.
     const auth = await requireFirmUser(ctx, args.userEmail);
-    if (auth.firmId && auth.firmId !== args.firmId) {
+    if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. firmId does not match your session.");
     }
 
@@ -43,7 +42,7 @@ export const getActivePeers = query({
     if (args.userEmail) {
       try {
         const auth = await requireFirmUser(ctx, args.userEmail);
-        if (auth.firmId && auth.firmId !== args.firmId) return [];
+        if (!auth.firmId || auth.firmId !== args.firmId) return [];
       } catch { return []; }
     }
     if (!args.firmId) return [];
@@ -315,7 +314,10 @@ export const getFirmData = query({
           const matches = all.filter((i: any) => {
             const iFirmId = i.firmId?.toString();
             const tFirmId = targetFirmId.toString();
-            return iFirmId === tFirmId || iFirmId === "system" || (tableName === "notePages" && i.matterId);
+            // PHASE 0 SECURITY FIX: Previously returned ANY notePages row with
+            // a matterId set, regardless of which firm owned it — cross-firm
+            // data leak. Now requires the notePage's firmId to match.
+            return iFirmId === tFirmId || iFirmId === "system";
           });
           combined = [...combined, ...matches];
         }
@@ -2392,7 +2394,8 @@ export const deleteFirm = mutation({
     
     // SECURITY: Require admin auth and verify firm ownership
     const auth = await requireAdmin(ctx, args.userEmail);
-    if (auth.firmId && auth.firmId !== args.firmId) {
+    // PHASE 0 SECURITY FIX: Fail CLOSED — throw if firmId doesn't match.
+    if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete your own firm.");
     }
 
@@ -2537,12 +2540,17 @@ export const createItem = mutation({
     }
 
     // Auto-inject creation timestamp and audit fields
-    // When requireFirmUser returns empty firmId (anonymous/legacy context),
-    // fall back to the firmId from the client-supplied data payload.
-    const effectiveFirmId = firmId || sanitizedData.firmId || '';
+    // PHASE 0 SECURITY FIX: Previously fell back to sanitizedData.firmId from
+    // the client payload when the caller was anonymous — allowing any caller
+    // to write into any firm. Now we throw if no authenticated firmId is available.
+    // The only exception is the 'firms' table itself (which IS the firm record).
+    if (!firmId && table !== 'firms') {
+      throw new Error("Unauthorized: No firm context. Pass userEmail to authenticate.");
+    }
+    const effectiveFirmId = firmId || (table === 'firms' ? sanitizedData.firmId : '');
     const dataWithTimestamp = {
       ...sanitizedData,
-      firmId: effectiveFirmId, // DATA ISOLATION (with fallback for legacy calls)
+      firmId: effectiveFirmId,
       createdAt: sanitizedData.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -3049,10 +3057,10 @@ async function resolveRecordForUpdate(
   }
 
   if (existing) {
-    // Only enforce firm ownership when we have a verified firmId from auth.
-    // When firmId is empty (legacy/anonymous call), skip the check for
-    // backward compatibility — the record was found, allow the update.
-    if (firmId && existing.firmId && existing.firmId !== firmId) {
+    // PHASE 0 SECURITY FIX: Previously failed OPEN when either firmId was
+    // empty (anonymous caller could update any record). Now fails CLOSED —
+    // throws if either firmId is missing or they don't match.
+    if (!firmId || !existing.firmId || existing.firmId !== firmId) {
       throw new Error("Unauthorized. This record belongs to another organization.");
     }
     return { docId: id };
@@ -3655,7 +3663,8 @@ export const purgeFirmData = mutation({
   args: { firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
-    if (auth.firmId && auth.firmId !== args.firmId) {
+    // PHASE 0 SECURITY FIX: Fail CLOSED — throw if firmId doesn't match.
+    if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only purge data for your own firm.");
     }
     const { firmId } = args;
@@ -4339,8 +4348,14 @@ export const markAloaActionCompleted = mutation({
  * are wiped in a single transaction to prevent orphaned "ghost" records.
  */
 export const deleteMatterCascade = mutation({
-  args: { matterId: v.string(), firmId: v.string() },
+  args: { matterId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // PHASE 0 SECURITY FIX: Previously had NO auth check at all — accepted
+    // firmId from client and deleted all child records. Now requires Admin auth.
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (!auth.firmId || auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete matters in your own firm.");
+    }
     const { matterId, firmId } = args;
     const results: Record<string, number> = {};
 
@@ -4409,8 +4424,13 @@ export const deleteMatterCascade = mutation({
 
 
 export const deletePropertyCascade = mutation({
-  args: { propertyId: v.string(), firmId: v.string() },
+  args: { propertyId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // PHASE 0 SECURITY FIX: Previously had NO auth check. Now requires Admin auth.
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (!auth.firmId || auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete properties in your own firm.");
+    }
     const { propertyId, firmId } = args;
 
     // 1. Find the property record first
@@ -4465,8 +4485,13 @@ export const deletePropertyCascade = mutation({
  * Removes all PII and associated operational data when a contact is removed.
  */
 export const deleteContactCascade = mutation({
-  args: { contactId: v.string(), firmId: v.string() },
+  args: { contactId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // PHASE 0 SECURITY FIX: Previously had NO auth check. Now requires Admin auth.
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (!auth.firmId || auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete contacts in your own firm.");
+    }
     const { contactId, firmId } = args;
     const results: Record<string, number> = { properties: 0, matters: 0, matterOperationalData: 0 };
 

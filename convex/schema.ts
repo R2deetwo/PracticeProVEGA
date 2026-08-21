@@ -2016,4 +2016,4 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_timestamp", ["timestamp"]),
 
-}, { schemaValidation: false });
+}, { schemaValidation: true });
