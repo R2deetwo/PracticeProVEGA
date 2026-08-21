@@ -1,0 +1,2002 @@
+     1→
+     2→import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
+     3→import { v } from "convex/values";
+     4→import { internal, api } from "./_generated/api";
+     5→import { Id } from "./_generated/dataModel";
+     6→import { checkRateLimit } from "./securityHelpers";
+     7→import { requireFirmUser, requireAdmin } from "./authHelpers";
+     8→import { notifyFounders } from "./founderNotifications";
+     9→import { roundMoney, sanitizeMoney } from "./moneyUtils";
+    10→
+    11→// --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
+    12→import { ATRIUM_LIMITS } from "./tierLimits";
+    13→
+    14→// --- PRESENCE ---
+    15→
+    16→export const sendHeartbeat = mutation({
+    17→  args: { firmId: v.string(), userId: v.string(), userName: v.string(), userEmail: v.optional(v.string()) },
+    18→  handler: async (ctx, args) => {
+    19→    // SECURITY: Verify the caller belongs to the firm they're sending presence for.
+    20→    // Skip the firmId match check when auth.firmId is empty (legacy call without userEmail).
+    21→    const auth = await requireFirmUser(ctx, args.userEmail);
+    22→    if (auth.firmId && auth.firmId !== args.firmId) {
+    23→      throw new Error("Unauthorized. firmId does not match your session.");
+    24→    }
+    25→
+    26→    const existing = await ctx.db
+    27→      .query("presence")
+    28→      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+    29→      .first();
+    30→
+    31→    if (existing) {
+    32→      await ctx.db.patch(existing._id, { updatedAt: Date.now(), userName: args.userName, firmId: args.firmId });
+    33→    } else {
+    34→      await ctx.db.insert("presence", { firmId: args.firmId, userId: args.userId, userName: args.userName, updatedAt: Date.now() });
+    35→    }
+    36→  },
+    37→});
+    38→
+    39→export const getActivePeers = query({
+    40→  args: { firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+    41→  handler: async (ctx, args) => {
+    42→    // SECURITY: Verify the caller belongs to the firm they're querying
+    43→    if (args.userEmail) {
+    44→      try {
+    45→        const auth = await requireFirmUser(ctx, args.userEmail);
+    46→        if (auth.firmId && auth.firmId !== args.firmId) return [];
+    47→      } catch { return []; }
+    48→    }
+    49→    if (!args.firmId) return [];
+    50→
+    51→    // Fetch ALL presence records for the firm (not just active ones).
+    52→    // We return both active and inactive users with their lastSeen timestamp
+    53→    // so the frontend can show an inactivity indicator (greyed out) and
+    54→    // last-seen time on hover.
+    55→    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(100);
+    56→
+    57→    // Fetch users to check their visibility preferences
+    58→    const users: any[] = [];
+    59→    for (const p of allPresence) {
+    60→      try {
+    61→        const user = await ctx.db.get(p.userId as any);
+    62→        if (user) users.push(user);
+    63→      } catch (e) { /* skip invalid IDs */ }
+    64→    }
+    65→
+    66→    // Build a set of user IDs that should be hidden from presence
+    67→    const hiddenUserIds = new Set<string>();
+    68→    for (const user of users) {
+    69→      if (user.role === 'Tenant' && user.portalPresenceHidden !== false) {
+    70→        hiddenUserIds.add(user._id.toString());
+    71→      }
+    72→      if (user.portalPresenceHidden === true) {
+    73→        hiddenUserIds.add(user._id.toString());
+    74→      }
+    75→    }
+    76→
+    77→    // Return rich presence data: userId, updatedAt (last seen), and isOnline
+    78→    // Active = heartbeat within the last 60 seconds
+    79→    const now = Date.now();
+    80→    const ACTIVE_THRESHOLD = 60 * 1000;
+    81→    return allPresence
+    82→      .filter((p: any) => !hiddenUserIds.has(p.userId))
+    83→      .map((p: any) => ({
+    84→        userId: p.userId,
+    85→        updatedAt: p.updatedAt,
+    86→        isOnline: (now - p.updatedAt) < ACTIVE_THRESHOLD,
+    87→      }));
+    88→  },
+    89→});
+    90→
+    91→// --- DIAGNOSTICS & REPAIR ---
+    92→
+    93→export const diagnoseConnectivity = mutation({
+    94→  args: { email: v.string(), userEmail: v.optional(v.string()) },
+    95→  handler: async (ctx, args) => {
+    96→    // SECURITY: Only authenticated users can diagnose their own account
+    97→    let authenticatedEmail: string | undefined;
+    98→    try {
+    99→      const identity = await ctx.auth.getUserIdentity();
+   100→      if (identity) authenticatedEmail = identity.email || undefined;
+   101→    } catch {}
+   102→
+   103→    // If the caller is authenticated, they can only diagnose their own email
+   104→    // (unless no auth context exists — legacy fallback for repair flows)
+   105→    if (authenticatedEmail && args.userEmail) {
+   106→      const auth = await requireFirmUser(ctx, args.userEmail);
+   107→      // Verify the email being diagnosed belongs to the authenticated user
+   108→      if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+   109→        throw new Error("Unauthorized. You can only diagnose your own account.");
+   110→      }
+   111→    }
+   112→
+   113→    const emailInput = args.email.toLowerCase().trim();
+   114→
+   115→    const allUsers = await ctx.db.query("users").take(500);
+   116→    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === emailInput);
+   117→
+   118→    const diagnosis = {
+   119→      emailSearched: emailInput,
+   120→      userFound: !!user,
+   121→      userId: user?._id || null,
+   122→      currentFirmId: user?.firmId || null,
+   123→      firmFound: false,
+   124→      availableFirms: [] as any[]
+   125→    };
+   126→
+   127→    if (user && user.firmId) {
+   128→      const firm = await ctx.db.get(user.firmId as any) as any;
+   129→      if (firm) {
+   130→        diagnosis.firmFound = true;
+   131→        diagnosis.availableFirms.push({
+   132→          id: firm._id,
+   133→          name: firm.name,
+   134→          status: 'Linked',
+   135→          createdAt: firm._creationTime
+   136→        });
+   137→      }
+   138→    }
+   139→
+   140→    const allFirms = await ctx.db.query("firms").take(500);
+   141→    const joinedIds = user?.joinedFirmIds || [];
+   142→    
+   143→    const availableFirmsFiltered = allFirms.filter((f: any) => {
+   144→      // 1. Created by this user
+   145→      const creatorIdMatch = f.createdBy === user?._id || f.createdBy === user?.tokenIdentifier;
+   146→      const settingsEmailMatch = f.settings && f.settings.creatorEmail && f.settings.creatorEmail.toLowerCase() === emailInput;
+   147→      
+   148→      // 2. Already joined - check the persistence list
+   149→      const previouslyJoined = joinedIds.includes(f._id);
+   150→      
+   151→      // 3. Current firm
+   152→      const isCurrentlyIn = user && user.firmId === f._id;
+   153→      
+   154→      // We want to show firms NOT currently active but where user has access
+   155→      return (creatorIdMatch || settingsEmailMatch || previouslyJoined || isCurrentlyIn) && f._id !== diagnosis.currentFirmId;
+   156→    });
+   157→
+   158→    availableFirmsFiltered.forEach(f => {
+   159→      diagnosis.availableFirms.push({
+   160→        id: f._id,
+   161→        name: f.name,
+   162→        status: 'Available',
+   163→        createdAt: f._creationTime
+   164→      });
+   165→    });
+   166→
+   167→    if (!diagnosis.firmFound && diagnosis.availableFirms.length > 0) {
+   168→      diagnosis.firmFound = true;
+   169→    }
+   170→
+   171→    return diagnosis;
+   172→  }
+   173→});
+   174→
+   175→
+   176→export const repairAccountConnection = mutation({
+   177→  args: { email: v.string(), targetFirmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+   178→  handler: async (ctx, args) => {
+   179→    // SECURITY: Only the account owner can repair their own connection
+   180→    let authenticatedEmail: string | undefined;
+   181→    try {
+   182→      const identity = await ctx.auth.getUserIdentity();
+   183→      if (identity) authenticatedEmail = identity.email || undefined;
+   184→    } catch {}
+   185→
+   186→    if (authenticatedEmail && args.userEmail) {
+   187→      try {
+   188→        const auth = await requireFirmUser(ctx, args.userEmail);
+   189→        if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+   190→          throw new Error("Unauthorized. You can only repair your own account.");
+   191→        }
+   192→      } catch (e: any) {
+   193→        if (e.message?.includes('Unauthorized')) throw e;
+   194→        // If requireFirmUser fails (e.g. user has no firm yet), still allow self-repair
+   195→        // but only if the authenticated email matches
+   196→        if (authenticatedEmail.toLowerCase() !== args.email.toLowerCase().trim()) {
+   197→          throw new Error("Unauthorized. You can only repair your own account.");
+   198→        }
+   199→      }
+   200→    }
+   201→
+   202→    const emailInput = args.email.toLowerCase().trim();
+   203→
+   204→    const allUsers = await ctx.db.query("users").take(500);
+   205→    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === emailInput);
+   206→
+   207→    if (!user) {
+   208→      return { success: false, code: 'USER_NOT_FOUND', message: "User account not found." };
+   209→    }
+   210→
+   211→    if (args.targetFirmId) {
+   212→      const firm = await ctx.db.get(args.targetFirmId as any) as any;
+   213→      if (!firm) return { success: false, message: "Target firm does not exist." };
+   214→
+   215→      const joinedIds = user.joinedFirmIds || [];
+   216→      const updatedJoinedIds = joinedIds.includes(args.targetFirmId) ? joinedIds : [...joinedIds, args.targetFirmId];
+   217→
+   218→      await ctx.db.patch(user._id, { 
+   219→        firmId: args.targetFirmId, 
+   220→        role: 'Admin', 
+   221→        onboardingCompleted: true,
+   222→        joinedFirmIds: updatedJoinedIds 
+   223→      });
+   224→      return { success: true, code: 'LINK_RESTORED', firmId: args.targetFirmId, message: `Successfully connected to ${firm.name}` };
+   225→    }
+   226→
+   227→    return { success: false, code: 'MANUAL_SELECTION_REQUIRED', message: "Please select a specific firm to connect." };
+   228→  }
+   229→});
+   230→
+   231→// --- ============================================================== ---
+   232→// ---  PHASE 1: OPTIMIZED MAIN QUERY (Data Minimization / Projections) ---
+   233→// ---  Heavy fields stripped. NO chatMessages, firmActivity, or      ---
+   234→// ---  researchMessages loaded here. Those have dedicated queries.   ---
+   235→// --- ============================================================== ---
+   236→
+   237→export const getFirmData = query({
+   238→  args: {
+   239→    firmId: v.optional(v.string()),
+   240→    userEmail: v.optional(v.string())
+   241→  },
+   242→  handler: async (ctx, args) => {
+   243→    // RLS: Require firm user authentication. This prevents portal users
+   244→    // and unauthenticated callers from reading the entire firm dataset.
+   245→    const { firmId: authFirmId } = await requireFirmUser(ctx, args.userEmail);
+   246→    let targetFirmId = args.firmId || authFirmId;
+   247→    const userEmail = args.userEmail;
+   248→
+   249→    // Recovery logic: find firm from email if firmId is missing
+   250→    if (!targetFirmId && userEmail) {
+   251→      const allUsers = await ctx.db.query("users").collect();
+   252→      const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === userEmail.toLowerCase());
+   253→
+   254→      if (user && user.firmId) {
+   255→        targetFirmId = user.firmId;
+   256→      } else {
+   257→        const allFirms = await ctx.db.query("firms").take(500);
+   258→        const foundFirm = allFirms.find((f: any) => {
+   259→          const creator = f.createdBy || (f.settings && f.settings.creatorEmail);
+   260→          return creator && creator.toLowerCase() === userEmail.toLowerCase();
+   261→        });
+   262→        if (foundFirm) targetFirmId = foundFirm._id;
+   263→      }
+   264→    }
+   265→
+   266→    if (!targetFirmId) {
+   267→        console.warn(`[getFirmData] No firmId found for the given email. Returning null.`);
+   268→        return null;
+   269→    }
+   270→
+   271→    // CRITICAL: Normalize targetFirmId to a string to prevent type-mismatch in index queries
+   272→    targetFirmId = targetFirmId.toString();
+   273→
+   274→    let firmDetails = null;
+   275→    try { 
+   276→        firmDetails = await ctx.db.get(targetFirmId as any); 
+   277→    } catch (e) { 
+   278→        console.error(`[getFirmData] Failed to fetch firmDetails for ${targetFirmId}:`, e);
+   279→    }
+   280→
+   281→    if (!firmDetails) {
+   282→        if (targetFirmId === 'demo_firm_id' || targetFirmId === 'atrium-demo-firm-id') {
+   283→            firmDetails = {
+   284→                _id: targetFirmId as any,
+   285→                name: targetFirmId === 'atrium-demo-firm-id' ? "Atrium Demo Firm" : "Vega Demo Firm",
+   286→                subscriptionPlan: "Enterprise",
+   287→                product: targetFirmId === 'atrium-demo-firm-id' ? "atrium" : "vega",
+   288→                aiSettings: { enableAllAiFeatures: true, enableJurisdictionalAnalysis: true }
+   289→            } as any;
+   290→        } else {
+   291→            console.warn(`[getFirmData] Firm record missing for ID: ${targetFirmId}.`);
+   292→            return null;
+   293→        }
+   294→    }
+   295→
+   296→    // Helper: fetch by firmId index with robust recovery for legacy/untagged data
+   297→    const fetchByFirm = async (tableName: string) => {
+   298→      try {
+   299→        // 1. Primary Attempt: Use by_firm index for speed
+   300→        const firmItems = await ctx.db.query(tableName as any)
+   301→          .withIndex("by_firm", (q: any) => q.eq("firmId", targetFirmId))
+   302→          .take(1000);
+   303→
+   304→        // 2. Secondary Attempt: Fetch 'system' tagged items
+   305→        const systemItems = await ctx.db.query(tableName as any)
+   306→          .withIndex("by_firm", (q: any) => q.eq("firmId", "system"))
+   307→          .take(500);
+   308→
+   309→        let combined = [...firmItems, ...systemItems];
+   310→
+   311→        // 3. RECOVERY LOGIC: For specific tables, perform a scan to catch legacy/untagged data.
+   312→        const RECOVERY_TABLES = ["eventTypes", "contactCategories", "documentCategories", "checklistTemplates", "notePages", "researchSources", "properties"];
+   313→        if (RECOVERY_TABLES.includes(tableName)) {
+   314→          const all = await ctx.db.query(tableName as any).take(1000);
+   315→          const matches = all.filter((i: any) => {
+   316→            const iFirmId = i.firmId?.toString();
+   317→            const tFirmId = targetFirmId.toString();
+   318→            return iFirmId === tFirmId || iFirmId === "system" || (tableName === "notePages" && i.matterId);
+   319→          });
+   320→          combined = [...combined, ...matches];
+   321→        }
+   322→
+   323→        const uniqueResults = Array.from(new Map(combined.map(item => [item._id, item])).values());
+   324→        if (tableName === "properties") {
+   325→        }
+   326→        return uniqueResults;
+   327→      } catch (e) {
+   328→        // Ultimate fallback: Full scan (safe for small firms)
+   329→        try {
+   330→          console.warn(`[getFirmData] Index failure for ${tableName}, falling back to scan.`);
+   331→          const all = await ctx.db.query(tableName as any).take(1000);
+   332→           return all.filter((i: any) => {
+   333→             const iFirmId = i.firmId?.toString();
+   334→             return iFirmId === targetFirmId || iFirmId === "system";
+   335→           });
+   336→        } catch (innerError) {
+   337→          console.error(`FATAL fetch for ${tableName}:`, innerError);
+   338→          return [];
+   339→        }
+   340→      }
+   341→    };
+   342→
+   343→    // chatMessages: by conversation index (phase 2 - excluded from main query)
+   344→    // firmActivity: excluded (phase 2, dedicated paginated query)
+   345→    // researchMessages: excluded (phase 2, dedicated query)
+   346→    // researchAnalysisResults: excluded (phase 2, low-usage)
+   347→
+   348→    // 1. Fetch primary tables (Firm-indexed)
+   349→    const [
+   350→      matters, contacts, tasks, documents, users, workflows, leads, notifications,
+   351→      chatConversations, clientMessages, events, invoices, timeEntries, expenses,
+   352→      noteNotebooks, researchNotebooks, eventTypes, contactCategories,
+   353→      documentCategories, checklistTemplates, documentTemplates,
+   354→      documentTemplateCategories, externalCounselInvites, automationRules,
+   355→      intakeForms, archive, notePages, researchSources, properties,
+   356→      ledgerEntries, serviceCharges, firmLicenses,
+   357→      legalModules, statutes
+   358→    ] = await Promise.all([
+   359→      fetchByFirm("matters"),
+   360→      fetchByFirm("contacts"),
+   361→      fetchByFirm("tasks"),
+   362→      fetchByFirm("documents"),
+   363→      (async () => {
+   364→        const allUsers = await ctx.db.query("users").take(500);
+   365→        return allUsers.filter((u: any) => 
+   366→          u.firmId === targetFirmId || (u.joinedFirmIds && u.joinedFirmIds.includes(targetFirmId))
+   367→        );
+   368→      })(),
+   369→      fetchByFirm("workflows"),
+   370→      fetchByFirm("leads"),
+   371→      fetchByFirm("notifications"),
+   372→      fetchByFirm("chatConversations"),
+   373→      fetchByFirm("clientMessages"),
+   374→      fetchByFirm("events"),
+   375→      fetchByFirm("invoices"),
+   376→      fetchByFirm("timeEntries"),
+   377→      fetchByFirm("expenses"),
+   378→      fetchByFirm("noteNotebooks"),
+   379→      fetchByFirm("researchNotebooks"),
+   380→      fetchByFirm("eventTypes"),
+   381→      fetchByFirm("contactCategories"),
+   382→      fetchByFirm("documentCategories"),
+   383→      fetchByFirm("checklistTemplates"),
+   384→      fetchByFirm("documentTemplates"),
+   385→      fetchByFirm("documentTemplateCategories"),
+   386→      fetchByFirm("externalCounselInvites"),
+   387→      fetchByFirm("automationRules"),
+   388→      fetchByFirm("intakeForms"),
+   389→      fetchByFirm("archive"),
+   390→      fetchByFirm("notePages"),
+   391→      fetchByFirm("researchSources"),
+   392→      fetchByFirm("properties"),
+   393→      fetchByFirm("ledger_entries"),
+   394→      fetchByFirm("service_charges"),
+   395→      fetchByFirm("firm_licenses"),
+   396→      ctx.db.query("legal_modules").take(100),
+   397→      ctx.db.query("statutes").take(500)
+   398→    ]);
+   399→
+   400→    // Nested tables are now fetched directly by firmId to catch items outside notebooks (e.g. endorsements)
+   401→
+   402→    // --- PHASE 1: DATA MINIMIZATION (SERVER-SIDE PROJECTIONS) ---
+   403→    // NOTE: We NO LONGER strip 'content' from documents. Previously this
+   404→    // was stripped to reduce bandwidth, but it caused documents to appear
+   405→    // empty in the Documents section — the user could see the title but
+   406→    // not the actual content. The content field is essential for the
+   407→    // DocumentDetailView to render the document.
+   408→    // We still strip AI analysis fields (those are fetched on-demand).
+   409→    const lightDocuments = (documents || []).map((doc: any) => {
+   410→      const { summary, riskAnalysis, extractedMetadata, dataProtectionAnalysis, rpcReview, intakeAnalysis, ...lightDoc } = doc;
+   411→      return lightDoc;
+   412→    });
+   413→
+   414→    // Do NOT strip content from notePages as it's used directly in lists and inline editors
+   415→    const lightNotePages = notePages || [];
+   416→
+   417→    // Research Sources: strip ONLY the heavy binary 'file' object, but KEEP
+   418→    // the 'content' field (text). Previously both were stripped, which broke
+   419→    // AI Notebook chat — the AI received zero source context because
+   420→    // source.content was always undefined on the client. The content field
+   421→    // is needed by useResearch.handleSendResearchMessage to build the AI
+   422→    // prompt with source text. The 'file' field (binary PDF data) is still
+   423→    // stripped for bandwidth and fetched on-demand via getResearchSourceContent.
+   424→    const lightResearchSources = (researchSources || []).map((src: any) => {
+   425→      const { file, ...lightSrc } = src;
+   426→      return lightSrc;
+   427→    });
+   428→
+   429→    // Strip heavy internal data from leads
+   430→    const lightLeads = (leads || []).map((lead: any) => {
+   431→      const { intakeAnalysis, intakeRecordings, intakeTranscription, ...lightLead } = lead;
+   432→      return lightLead;
+   433→    });
+   434→
+   435→    return {
+   436→      firmDetails,
+   437→      matters: matters || [],
+   438→      contacts: contacts || [],
+   439→      tasks: tasks || [],
+   440→      documents: lightDocuments,
+   441→      users: users || [],
+   442→      workflows: workflows || [],
+   443→      leads: lightLeads,
+   444→      notifications: notifications || [],
+   445→      chatConversations: chatConversations || [],
+   446→      // Note: chatMessages is NO longer here. Loaded separately via getChatMessages.
+   447→      chatMessages: [], // keep key to avoid breaking StateProvider destructuring
+   448→      clientMessages: clientMessages || [],
+   449→      events: events || [],
+   450→      invoices: invoices || [],
+   451→      timeEntries: timeEntries || [],
+   452→      expenses: expenses || [],
+   453→      // Note: firmActivity is NO longer here. Loaded separately via getFirmActivity.
+   454→      firmActivity: [], // keep key for backward compatibility
+   455→      noteNotebooks: noteNotebooks || [],
+   456→      notePages: lightNotePages,
+   457→      researchNotebooks: researchNotebooks || [],
+   458→      researchSources: lightResearchSources,
+   459→      // Note: researchMessages excluded. Loaded separately via getResearchMessages.
+   460→      researchMessages: [], // keep key for backward compatibility
+   461→      researchAnalysisResults: [], // keep key for backward compatibility
+   462→      eventTypes: eventTypes || [],
+   463→      contactCategories: contactCategories || [],
+   464→      documentCategories: documentCategories || [],
+   465→      checklistTemplates: checklistTemplates || [],
+   466→      documentTemplates: documentTemplates || [],
+   467→      documentTemplateCategories: documentTemplateCategories || [],
+   468→      externalCounselInvites: externalCounselInvites || [],
+   469→      automationRules: automationRules || [],
+   470→      intakeForms: intakeForms || [],
+   471→      archive: archive || [],
+   472→      properties: properties || [],
+   473→      ledgerEntries: ledgerEntries || [],
+   474→      serviceCharges: serviceCharges || [],
+   475→    };
+   476→  },
+   477→});
+   478→
+   479→// --- ============================================================== ---
+   480→// ---  PORTAL-SPECIFIC: Lightweight firm info for portal users       ---
+   481→// ---  getFirmBasicInfo: returns just firm record (plan, product)    ---
+   482→// ---  so portal dashboards can evaluate feature gates correctly.    ---
+   483→// --- ============================================================== ---
+   484→
+   485→/**
+   486→ * getFirmBasicInfo — Ultra-lightweight query that returns only the firm record.
+   487→ * Used by portal users (Client/Tenant) who don't need the full data pipeline
+   488→ * but DO need firmDetails.subscriptionPlan and firmDetails.product so that
+   489→ * useFeatures() can evaluate feature gates correctly.
+   490→ *
+   491→ * Without this, portal users see "Portal Unavailable" because DataProvider
+   492→ * skips firm data loading for them, causing useFeatures to default to Core plan.
+   493→ */
+   494→export const getFirmBasicInfo = query({
+   495→  args: { firmId: v.string() },
+   496→  handler: async (ctx, args) => {
+   497→    if (!args.firmId) return null;
+   498→    try {
+   499→      const firm = await ctx.db.get(args.firmId as any);
+   500→      return firm || null;
+   501→    } catch (e) {
+   502→      // Fallback: scan by string ID match
+   503→      const allFirms = await ctx.db.query("firms").take(50);
+   504→      return allFirms.find((f: any) => String(f._id) === args.firmId) || null;
+   505→    }
+   506→  },
+   507→});
+   508→
+   509→// --- ============================================================== ---
+   510→// ---  PERFORMANCE OVERHAUL: METADATA-FIRST HYDRATION               ---
+   511→// ---  getFirmMetadata: lightweight index-only data for list views.  ---
+   512→// ---  getMatterDetails / getPropertyDetails: on-demand full state.  ---
+   513→// --- ============================================================== ---
+   514→
+   515→/**
+   516→ * getFirmMetadata — Phase 1 of the performance overhaul.
+   517→ * Fetches only the fields required to render list views & sidebars.
+   518→ * Heavy fields (content, file, histories, notes) are excluded.
+   519→ * Target: resolves in < 500ms for firms with up to 500 records.
+   520→ */
+   521→export const getFirmMetadata = query({
+   522→  args: { firmId: v.string() },
+   523→  handler: async (ctx, args) => {
+   524→    const { firmId } = args;
+   525→    if (!firmId) return null;
+   526→
+   527→    const fid = firmId.toString();
+   528→
+   529→    const [matters, contacts, properties, tasks, events, invoices, ledgerEntries, serviceCharges] = await Promise.all([
+   530→      // Matters — essential list fields only
+   531→      ctx.db.query("matters")
+   532→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   533→        .take(500)
+   534→        .then((rows: any[]) => rows.map((m: any) => ({
+   535→          _id: m._id,
+   536→          id: m.id || m._id,
+   537→          isPrivate: m.isPrivate,
+   538→          firmId: m.firmId,
+   539→          title: m.title,
+   540→          referenceNumber: m.referenceNumber,
+   541→          type: m.type,
+   542→          subCategory: m.subCategory,
+   543→          status: m.status,
+   544→          stage: m.stage,
+   545→          clientId: m.clientId,
+   546→          court: m.court,
+   547→          nextAdjournedDate: m.nextAdjournedDate,
+   548→          assignedUsers: m.assignedUsers,
+   549→          billingModel: m.billingModel,
+   550→          fixedFeeAmount: m.fixedFeeAmount,
+   551→          hourlyRate: m.hourlyRate,
+   552→          createdAt: m.createdAt,
+   553→          updatedAt: m.updatedAt,
+   554→        }))),
+   555→
+   556→      // Contacts — core fields only
+   557→      ctx.db.query("contacts")
+   558→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   559→        .take(500)
+   560→        .then((rows: any[]) => rows.map((c: any) => ({
+   561→          _id: c._id,
+   562→          id: c.id || c._id,
+   563→          firmId: c.firmId,
+   564→          name: c.name,
+   565→          email: c.email,
+   566→          phone: c.phone,
+   567→          contactType: c.contactType,
+   568→          category: c.category,
+   569→          companyName: c.companyName,
+   570→          matterIds: c.matterIds,
+   571→          createdAt: c.createdAt,
+   572→        }))),
+   573→
+   574→      // Properties — address + status + rent info only
+   575→      ctx.db.query("properties")
+   576→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   577→        .take(500)
+   578→        .then((rows: any[]) => rows.map((p: any) => ({
+   579→          _id: p._id,
+   580→          id: p.id || p._id,
+   581→          firmId: p.firmId,
+   582→          address: p.address,
+   583→          status: p.status,
+   584→          propertyType: p.propertyType,
+   585→          category: p.category,
+   586→          landlordId: p.landlordId,
+   587→          tenantId: p.tenantId,
+   588→          numberOfUnits: p.numberOfUnits,
+   589→          value: p.value,
+   590→          rentalDetails: p.rentalDetails, // needed for revenue monitor
+   591→          createdAt: p.createdAt,
+   592→          updatedAt: p.updatedAt,
+   593→        }))),
+   594→
+   595→      // Tasks — title + status + due date only
+   596→      ctx.db.query("tasks")
+   597→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   598→        .take(500)
+   599→        .then((rows: any[]) => rows.map((t: any) => ({
+   600→          _id: t._id,
+   601→          id: t.id || t._id,
+   602→          firmId: t.firmId,
+   603→          title: t.title,
+   604→          status: t.status,
+   605→          dueDate: t.dueDate,
+   606→          priority: t.priority,
+   607→          matterId: t.matterId,
+   608→          assignedUsers: t.assignedUsers,
+   609→          assigneeType: t.assigneeType,
+   610→          isSharedWithPortal: t.isSharedWithPortal,
+   611→          createdAt: t.createdAt,
+   612→        }))),
+   613→
+   614→      // Events — date + title only
+   615→      ctx.db.query("events")
+   616→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   617→        .take(300)
+   618→        .then((rows: any[]) => rows.map((e: any) => ({
+   619→          _id: e._id,
+   620→          firmId: e.firmId,
+   621→          title: e.title,
+   622→          date: e.date,
+   623→          endDate: e.endDate,
+   624→          type: e.type,
+   625→          status: e.status,
+   626→          matterId: e.matterId,
+   627→          assignedUsers: e.assignedUsers,
+   628→        }))),
+   629→
+   630→      // Invoices — status + amounts only
+   631→      ctx.db.query("invoices")
+   632→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   633→        .take(300)
+   634→        .then((rows: any[]) => rows.map((i: any) => ({
+   635→          _id: i._id,
+   636→          id: i.id || i._id,
+   637→          firmId: i.firmId,
+   638→          invoiceNumber: i.invoiceNumber,
+   639→          status: i.status,
+   640→          total_amount: i.total_amount,
+   641→          dueDate: i.dueDate,
+   642→          client: i.client,
+   643→          matter: i.matter,
+   644→        }))),
+   645→
+   646→      // Ledger Entries - essential fields
+   647→      ctx.db.query("ledger_entries")
+   648→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   649→        .take(1000)
+   650→        .then((rows: any[]) => rows.map((e: any) => ({
+   651→          _id: e._id,
+   652→          id: e.id || e._id,
+   653→          firmId: e.firmId,
+   654→          propertyId: e.propertyId,
+   655→          unitId: e.unitId,
+   656→          amount: e.amount,
+   657→          type: e.type,
+   658→          status: e.status,
+   659→          timestamp: e.timestamp,
+   660→        }))),
+   661→
+   662→      // Service Charges - essential fields
+   663→      ctx.db.query("service_charges")
+   664→        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   665→        .take(1000)
+   666→        .then((rows: any[]) => rows.map((s: any) => ({
+   667→          _id: s._id,
+   668→          id: s.id || s._id,
+   669→          firmId: s.firmId,
+   670→          propertyId: s.propertyId,
+   671→          amount: s.amount,
+   672→          description: s.description,
+   673→          status: s.status,
+   674→          date: s.date,
+   675→        }))),
+   676→    ]);
+   677→
+   678→    // Also fetch workflows in Phase A — they're needed immediately for the
+   679→    // MatterForm practice area dropdown and MatterDetailView stage tracker.
+   680→    // Without this, workflows only arrive in Phase B (getFirmData), which
+   681→    // means the MatterForm shows an empty dropdown until Phase B completes.
+   682→    const workflows = await ctx.db
+   683→      .query("workflows")
+   684→      .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+   685→      .take(200)
+   686→      .then((rows: any[]) => rows.map((w: any) => ({
+   687→        _id: w._id,
+   688→        id: w.id || w._id,
+   689→        firmId: w.firmId,
+   690→        type: w.type,
+   691→        default: w.default,
+   692→        subCategories: w.subCategories,
+   693→        createdAt: w.createdAt,
+   694→        updatedAt: w.updatedAt,
+   695→      })));
+   696→
+   697→    return { matters, contacts, properties, tasks, events, invoices, ledgerEntries, serviceCharges, workflows };
+   698→  },
+   699→});
+   700→
+   701→/**
+   702→ * getMatterDetails — On-demand full matter state.
+   703→ * Called only when the user navigates to a specific matter's detail view.
+   704→ * Includes full notes, documents, tasks, timeline, and party data.
+   705→ */
+   706→export const getMatterDetails = query({
+   707→  args: { matterId: v.string(), firmId: v.string(), requestUserId: v.optional(v.string()) },
+   708→  handler: async (ctx, args) => {
+   709→    const { matterId, firmId, requestUserId } = args;
+   710→    if (!matterId || !firmId) return null;
+   711→
+   712→    let matter: any = null;
+   713→    try { matter = await ctx.db.get(matterId as any); } catch (e) { return null; }
+   714→    if (!matter) return null;
+   715→
+   716→    // Security: validate caller's firm matches resource's firm
+   717→    if (matter.firmId?.toString() !== firmId.toString()) {
+   718→      console.error(`[SECURITY] getMatterDetails: firmId mismatch for matter ${matterId}`);
+   719→      return null;
+   720→    }
+   721→
+   722→    // Privacy isolation: if matter is private, only assigned users and creator may access
+   723→    if (matter.isPrivate && requestUserId) {
+   724→      const assigned: string[] = matter.assignedUsers || [];
+   725→      const isAssigned = assigned.includes(requestUserId);
+   726→      const isCreator = matter._lastModifiedBy === requestUserId;
+   727→      if (!isAssigned && !isCreator) {
+   728→        console.warn(`[RBAC] getMatterDetails: user ${requestUserId} denied access to private matter ${matterId}`);
+   729→        return null;
+   730→      }
+   731→    }
+   732→
+   733→    // Fetch related data in parallel — all scoped to this matter
+   734→    const [notes, documents, tasks, events, timeEntries, expenses] = await Promise.all([
+   735→      ctx.db.query("notePages")
+   736→        .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
+   737→        .take(200),
+   738→      ctx.db.query("documents")
+   739→        .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
+   740→        .take(200)
+   741→        .then((rows: any[]) => rows.map((d: any) => {
+   742→          const { content, file, ...light } = d;
+   743→          return light; // Strip heavy content; fetched on-demand via getDocumentContent
+   744→        })),
+   745→      ctx.db.query("tasks")
+   746→        .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
+   747→        .take(100),
+   748→      ctx.db.query("events")
+   749→        .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
+   750→        .take(100),
+   751→      ctx.db.query("timeEntries")
+   752→        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+   753→        .take(500)
+   754→        .then((rows: any[]) => rows.filter((t: any) => t.matterId === matterId)),
+   755→      ctx.db.query("expenses")
+   756→        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+   757→        .take(500)
+   758→        .then((rows: any[]) => rows.filter((e: any) => e.matterId === matterId)),
+   759→    ]);
+   760→
+   761→    return { ...matter, notes, documents, tasks, events, timeEntries, expenses };
+   762→  },
+   763→});
+   764→
+   765→/**
+   766→ * getPropertyDetails — On-demand full property state.
+   767→ * Called only when the user navigates to a specific property's detail view.
+   768→ * Includes full units, maintenance history, rent payment history, and notes.
+   769→ */
+   770→export const getPropertyDetails = query({
+   771→  args: { propertyId: v.string(), firmId: v.string() },
+   772→  handler: async (ctx, args) => {
+   773→    const { propertyId, firmId } = args;
+   774→    if (!propertyId || !firmId) return null;
+   775→
+   776→    let property: any = null;
+   777→    try { property = await ctx.db.get(propertyId as any); } catch (e) {
+   778→      // Fallback: search by custom id field
+   779→      const all = await ctx.db.query("properties")
+   780→        .withIndex("by_custom_id", (q: any) => q.eq("id", propertyId))
+   781→        .first();
+   782→      property = all;
+   783→    }
+   784→    if (!property) return null;
+   785→
+   786→    // Security: validate firm ownership
+   787→    if (property.firmId?.toString() !== firmId.toString()) {
+   788→      console.error(`[SECURITY] getPropertyDetails: firmId mismatch for property ${propertyId}`);
+   789→      return null;
+   790→    }
+   791→
+   792→    // Fetch related notes in parallel
+   793→    const [notes, documents] = await Promise.all([
+   794→      ctx.db.query("notePages")
+   795→        .withIndex("by_property", (q: any) => q.eq("propertyId", propertyId))
+   796→        .take(100),
+   797→      ctx.db.query("documentGenerationMetadata")
+   798→        .withIndex("by_property", (q: any) => q.eq("propertyId", propertyId))
+   799→        .take(50),
+   800→    ]);
+   801→
+   802→    return { ...property, notes, generatedDocuments: documents };
+   803→  },
+   804→});
+   805→
+   806→// --- ============================================================== ---
+   807→// ---  PHASE 2 + 3: DEDICATED QUERIES FOR HEAVY/INFINITE-GROWTH     ---
+   808→// ---  TABLES. These are loaded separately and support pagination.   ---
+   809→// --- ============================================================== ---
+   810→
+   811→/**
+   812→ * PHASE 2+3: Chat Messages — loaded per conversation, NOT firm-wide.
+   813→ * Uses the existing by_conversation index which was always deployed.
+   814→ * For the firm-wide unread count query, uses .filter() safely.
+   815→ */
+   816→export const getChatMessages = query({
+   817→  args: {
+   818→    conversationId: v.optional(v.string()),
+   819→    firmId: v.optional(v.string()),
+   820→  },
+   821→  handler: async (ctx, args) => {
+   822→    try {
+   823→      if (!args.conversationId && !args.firmId) return [];
+   824→
+   825→      if (args.conversationId) {
+   826→        // Most efficient: use the by_conversation index
+   827→        // CRITICAL: Sort by _creationTime ASCENDING so messages render in
+   828→        // chronological order (oldest first, newest at bottom). Without
+   829→        // this, messages load out of order on refresh (e.g. Aug 14 messages
+   830→        // appearing above Aug 13 messages).
+   831→        return await ctx.db
+   832→          .query("chatMessages")
+   833→          .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId as any))
+   834→          .order("asc")
+   835→          .collect();
+   836→      }
+   837→
+   838→      const firmId = args.firmId;
+   839→      if (!firmId) return [];
+   840→
+   841→      // 1. Try fetching by firmId index directly (fastest for new data)
+   842→      const messagesByFirm = await ctx.db
+   843→        .query("chatMessages")
+   844→        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+   845→        .order("desc")
+   846→        .take(1000);
+   847→
+   848→      // 2. Fetch firm conversations to find legacy messages without firmId
+   849→      const firmConvos = await ctx.db
+   850→          .query("chatConversations")
+   851→          .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+   852→          .take(300);
+   853→          
+   854→      const convoIds = new Set(firmConvos.map(c => c._id.toString()));
+   855→
+   856→      // 3. Pull recent messages and filter for legacy ones belonging to these conversations
+   857→      const recentMessages = await ctx.db
+   858→        .query("chatMessages")
+   859→        .order("desc")
+   860→        .take(1000);
+   861→
+   862→      const legacyMessages = recentMessages.filter(m => !m.firmId && m.conversationId && convoIds.has(m.conversationId.toString()));
+   863→
+   864→      // 4. Combine and return unique, sorted by creation time ascending
+   865→      const combined = [...messagesByFirm, ...legacyMessages];
+   866→      const unique = Array.from(new Map(combined.map(m => [m._id, m])).values());
+   867→      // Sort by _creationTime ascending (oldest first) so the chat renders
+   868→      // in chronological order with the newest message at the bottom.
+   869→      return unique.sort((a: any, b: any) => (a._creationTime || 0) - (b._creationTime || 0));
+   870→
+   871→    } catch (e) {
+   872→      console.error("getChatMessages error:", e);
+   873→      return [];
+   874→    }
+   875→  },
+   876→});
+   877→
+   878→/**
+   879→ * PHASE 2+3: Firm Activity — paginated log. NOT loaded on app start.
+   880→ * Uses .filter() safely since by_firm on firmActivity may not be deployed yet.
+   881→ */
+   882→export const getFirmActivity = query({
+   883→  args: {
+   884→    firmId: v.optional(v.string()),
+   885→    limit: v.optional(v.number()),
+   886→  },
+   887→  handler: async (ctx, args) => {
+   888→    try {
+   889→      if (!args.firmId) return [];
+   890→      const limit = args.limit ?? 50;
+   891→
+   892→      // Use .filter() for safety — avoids dependency on new index deployment
+   893→      const results = await ctx.db
+   894→        .query("firmActivity")
+   895→        .filter((q) => q.eq(q.field("firmId"), args.firmId))
+   896→        .order("desc")
+   897→        .take(limit);
+   898→
+   899→      return results;
+   900→    } catch (e) {
+   901→      console.error("getFirmActivity error:", e);
+   902→      return [];
+   903→    }
+   904→  },
+   905→});
+   906→
+   907→/**
+   908→ * PHASE 2+3: Research Messages — loaded per notebook, NOT globally.
+   909→ * This prevents all chat history from all research notebooks being loaded.
+   910→ */
+   911→export const getResearchMessages = query({
+   912→  args: {
+   913→    notebookId: v.optional(v.string()),
+   914→  },
+   915→  handler: async (ctx, args) => {
+   916→    try {
+   917→      if (!args.notebookId) return [];
+   918→      return await ctx.db
+   919→        .query("researchMessages")
+   920→        .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
+   921→        .take(500);
+   922→    } catch (e) {
+   923→      console.error("getResearchMessages error:", e);
+   924→      return [];
+   925→    }
+   926→  },
+   927→});
+   928→
+   929→/**
+   930→ * PHASE 2+3: Research Analysis Results — loaded per notebook.
+   931→ */
+   932→export const getResearchAnalysisResults = query({
+   933→  args: {
+   934→    notebookId: v.optional(v.string()),
+   935→  },
+   936→  handler: async (ctx, args) => {
+   937→    try {
+   938→      if (!args.notebookId) return [];
+   939→      return await ctx.db
+   940→        .query("researchAnalysisResults")
+   941→        .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
+   942→        .take(200);
+   943→    } catch (e) {
+   944→      console.error("getResearchAnalysisResults error:", e);
+   945→      return [];
+   946→    }
+   947→  },
+   948→});
+   949→
+   950→/**
+   951→ * PHASE 1+3: Full note page content — fetched on-demand when user opens a note.
+   952→ * This keeps notePages in getFirmData as metadata-only (no content).
+   953→ */
+   954→export const getNotePage = query({
+   955→  args: { pageId: v.string(), firmId: v.string() },
+   956→  handler: async (ctx, args) => {
+   957→    const page: any = await ctx.db.get(args.pageId as any);
+   958→    if (!page) return null;
+   959→    if (page.firmId !== args.firmId && page.firmId !== "system") {
+   960→      console.warn(`[getNotePage] SECURITY ALERT: Cross-firm access blocked for ${args.pageId} by ${args.firmId}`);
+   961→      return null;
+   962→    }
+   963→    return page;
+   964→  },
+   965→});
+   966→
+   967→export const getDocumentContent = query({
+   968→  args: { documentId: v.string(), firmId: v.string() },
+   969→  handler: async (ctx, args) => {
+   970→    const doc: any = await ctx.db.get(args.documentId as any);
+   971→    if (!doc) return null;
+   972→    if (doc.firmId !== args.firmId) {
+   973→      console.warn(`[getDocumentContent] SECURITY ALERT: Cross-firm access blocked for ${args.documentId} by ${args.firmId}`);
+   974→      return null;
+   975→    }
+   976→    return doc;
+   977→  },
+   978→});
+   979→
+   980→export const getResearchSourceContent = query({
+   981→  args: { sourceId: v.string(), firmId: v.string() },
+   982→  handler: async (ctx, args) => {
+   983→    const src: any = await ctx.db.get(args.sourceId as any);
+   984→    if (!src) return null;
+   985→    if (src.firmId !== args.firmId) {
+   986→      console.warn(`[getResearchSourceContent] SECURITY ALERT: Cross-firm access blocked for ${args.sourceId} by ${args.firmId}`);
+   987→      return null;
+   988→    }
+   989→    return src;
+   990→  },
+   991→});
+   992→
+   993→// --- CORE QUERIES ---
+   994→
+   995→export const getUser = query({
+   996→  args: { tokenIdentifier: v.string(), preferPortalRole: v.optional(v.boolean()) },
+   997→  handler: async (ctx, args) => {
+   998→    try {
+   999→      const token = args.tokenIdentifier;
+  1000→      const preferPortalRole = args.preferPortalRole === true;
+  1001→
+  1002→      // 1. Primary: indexed lookup — collect ALL matching records, not just the first,
+  1003→      //    so we can disambiguate when the same email exists as both an admin
+  1004→      //    record AND a portal record (the "residents see admin dashboard" bug).
+  1005→      //    Indexed lookups return rows in index order; .first() was returning
+  1006→      //    whichever came first — usually the older Admin record.
+  1007→      const directMatches = await ctx.db
+  1008→        .query("users")
+  1009→        .withIndex("by_token", (q) => q.eq("tokenIdentifier", token))
+  1010→        .collect();
+  1011→
+  1012→      // 2. Case-insensitive indexed lookup
+  1013→      const lowerMatches = directMatches.length === 0
+  1014→        ? await ctx.db
+  1015→            .query("users")
+  1016→            .withIndex("by_token", (q) => q.eq("tokenIdentifier", token.toLowerCase()))
+  1017→            .collect()
+  1018→        : [];
+  1019→
+  1020→      // 3. Fallback: bounded scan — take only 500 to prevent timeout
+  1021→      const allMatches = directMatches.length > 0 || lowerMatches.length > 0
+  1022→        ? [...directMatches, ...lowerMatches]
+  1023→        : (await ctx.db.query("users").take(500))
+  1024→            .filter((u: any) =>
+  1025→              u.tokenIdentifier &&
+  1026→              u.tokenIdentifier.toLowerCase() === token.toLowerCase()
+  1027→            );
+  1028→
+  1029→      if (allMatches.length === 0) return null;
+  1030→
+  1031→      // Pick the right record when duplicates exist. The "residents see admin
+  1032→      // dashboard" bug occurred because the same email existed as BOTH an Admin
+  1033→      // user record AND a Tenant/Client record, and .first() was returning the
+  1034→      // Admin record when the user logged in via the portal.
+  1035→      //
+  1036→      // Resolution strategy:
+  1037→      //   - If preferPortalRole is true (login via /portal/* route) AND a
+  1038→      //     portal-role record exists, prefer it.
+  1039→      //   - Otherwise, prefer the first record (preserves existing behavior
+  1040→      //     for admin-side logins).
+  1041→      //   - We also filter out 'Pending' records — those are revoked accounts
+  1042→      //     that should never be the resolved user.
+  1043→      const PORTAL_ROLES = new Set(["Client", "Tenant"]);
+  1044→      const nonPending = allMatches.filter((u: any) => u.role !== "Pending");
+  1045→
+  1046→      // If everything is Pending, fall through and let the existing
+  1047→      // revoked-user handling in AuthContext take over.
+  1048→      const pool = nonPending.length > 0 ? nonPending : allMatches;
+  1049→
+  1050→      let user: any;
+  1051→      if (preferPortalRole) {
+  1052→        const portalRecord = pool.find((u: any) => PORTAL_ROLES.has(u.role));
+  1053→        user = portalRecord || pool[0];
+  1054→      } else {
+  1055→        user = pool[0];
+  1056→      }
+  1057→
+  1058→      // ============================================================
+  1059→      // NDPA COMPLIANCE: Server-side privacy projection.
+  1060→      // Strip ALL sensitive authentication fields before transmitting
+  1061→      // to the frontend. These fields MUST NEVER leave the server.
+  1062→      // ============================================================
+  1063→      const { 
+  1064→        password, 
+  1065→        mfaCode, 
+  1066→        verificationCode, 
+  1067→        failedLoginAttempts, 
+  1068→        lockedUntil,
+  1069→        // @ts-ignore - destructure to exclude, even if not always present
+  1070→        passwordHash,
+  1071→        ...safeUser 
+  1072→      } = user as any;
+  1073→
+  1074→      return safeUser;
+  1075→    } catch (e) {
+  1076→      // Never throw to the client — return null so AuthContext falls back gracefully
+  1077→      console.error("[getUser] Query error:", e);
+  1078→      return null;
+  1079→    }
+  1080→  },
+  1081→});
+  1082→
+  1083→export const dumpAll = query({
+  1084→  args: {},
+  1085→  handler: async (ctx) => {
+  1086→    // SECURE: Endpoint disabled. Data export should be done via proper scoped user/firm exports.
+  1087→    return { users: [], firms: [] };
+  1088→  }
+  1089→});
+  1090→
+  1091→/**
+  1092→ * findDuplicateEmails — DIAGNOSTIC QUERY (admin only)
+  1093→ *
+  1094→ * Returns every email (tokenIdentifier) that has MORE THAN ONE user record.
+  1095→ * Used to identify the data corruption that caused the "residents see admin
+  1096→ * dashboard" bug: the same email existed as BOTH an Admin record AND a Tenant
+  1097→ * record, and getUser() was returning whichever came first in the index.
+  1098→ *
+  1099→ * The query also flags each duplicate group with a `conflict` field describing
+  1100→ * the combination of roles present (e.g. "Admin+Tenant", "Admin+Client",
+  1101→ * "Lawyer+Tenant") so the admin can prioritize cleanup.
+  1102→ *
+  1103→ * Returns: Array of {
+  1104→ *   email: string,
+  1105→ *   count: number,
+  1106→ *   roles: string[],                    // unique roles across all records
+  1107→ *   conflict: string,                   // joined role names for quick scan
+  1108→ *   records: Array<{ id, name, role, firmId, isVerified, product }>
+  1109→ * }
+  1110→ *
+  1111→ * NOTE: This query is intentionally bounded by .take(2000) — sufficient for
+  1112→ * thousands of users. If the user count exceeds this, increase the limit or
+  1113→ * paginate. Disabled for non-admin callers (returns empty array).
+  1114→ */
+  1115→export const findDuplicateEmails = query({
+  1116→  args: { requesterRole: v.optional(v.string()) },
+  1117→  handler: async (ctx, args) => {
+  1118→    // Only admins should be able to run this diagnostic. If the frontend
+  1119→    // forgets to pass the role, return empty (defensive).
+  1120→    if (args.requesterRole && args.requesterRole !== "Admin") return [];
+  1121→
+  1122→    const allUsers = await ctx.db.query("users").take(2000);
+  1123→
+  1124→    // Group by lowercased tokenIdentifier (email)
+  1125→    const groups = new Map<string, any[]>();
+  1126→    for (const u of allUsers as any[]) {
+  1127→      const email = (u.tokenIdentifier || "").toLowerCase().trim();
+  1128→      if (!email) continue;
+  1129→      if (!groups.has(email)) groups.set(email, []);
+  1130→      groups.get(email)!.push(u);
+  1131→    }
+  1132→
+  1133→    const duplicates: Array<{
+  1134→      email: string;
+  1135→      count: number;
+  1136→      roles: string[];
+  1137→      conflict: string;
+  1138→      records: Array<{ id: string; name: string; role: string; firmId: string | null; isVerified: boolean; product: string | null }>;
+  1139→    }> = [];
+  1140→
+  1141→    for (const [email, records] of groups.entries()) {
+  1142→      if (records.length < 2) continue;
+  1143→      const roles = Array.from(new Set(records.map((r) => r.role || "(none)")));
+  1144→      duplicates.push({
+  1145→        email,
+  1146→        count: records.length,
+  1147→        roles,
+  1148→        conflict: roles.join("+"),
+  1149→        records: records.map((r) => ({
+  1150→          id: String(r._id),
+  1151→          name: r.name || "",
+  1152→          role: r.role || "(none)",
+  1153→          firmId: r.firmId || null,
+  1154→          isVerified: !!r.isVerified,
+  1155→          product: r.product || null,
+  1156→        })),
+  1157→      });
+  1158→    }
+  1159→
+  1160→    // Sort: biggest conflict groups first, then alphabetically by email
+  1161→    duplicates.sort((a, b) => b.count - a.count || a.email.localeCompare(b.email));
+  1162→    return duplicates;
+  1163→  }
+  1164→});
+  1165→
+  1166→// --- MUTATIONS ---
+  1167→
+  1168→export const checkIncompleteRegistration = query({
+  1169→  args: { email: v.string() },
+  1170→  handler: async (ctx, args) => {
+  1171→    const token = args.email.toLowerCase().trim();
+  1172→    if (!token) return null;
+  1173→
+  1174→    const allUsers = await ctx.db.query("users").take(500);
+  1175→    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+  1176→
+  1177→    // Case 1: Fully verified account with a firm — already registered
+  1178→    if (user && user.isVerified && user.firmId) {
+  1179→      return {
+  1180→        alreadyVerified: true,
+  1181→        product: user.product || 'legal',
+  1182→      };
+  1183→    }
+  1184→
+  1185→    // Case 2: Incomplete registration — unverified, no firmId
+  1186→    if (user && !user.isVerified && !user.firmId) {
+  1187→      return {
+  1188→        isIncomplete: true,
+  1189→        email: user.email,
+  1190→        name: user.name,
+  1191→        product: user.product || 'legal',
+  1192→      };
+  1193→    }
+  1194→
+  1195→    return null;
+  1196→  }
+  1197→});
+  1198→
+  1199→// --- HELPER INTERNAL MUTATIONS (used by actions that can't write DB directly) ---
+  1200→
+  1201→export const updateUserSecurityFields = internalMutation({
+  1202→  args: { userId: v.id("users"), fields: v.any() },
+  1203→  handler: async (ctx, args) => {
+  1204→    await ctx.db.patch(args.userId, args.fields);
+  1205→  },
+  1206→});
+  1207→
+  1208→export const updateUserPassword = internalMutation({
+  1209→  args: { userId: v.id("users"), newPasswordHash: v.string() },
+  1210→  handler: async (ctx, args) => {
+  1211→    await ctx.db.patch(args.userId, { password: args.newPasswordHash });
+  1212→  },
+  1213→});
+  1214→
+  1215→export const createUser = internalMutation({
+  1216→  // Internal mutation — accepts any user fields for flexibility across callers
+  1217→  // (signup, portal invitation, etc.). Public-facing actions use strict validation.
+  1218→  args: v.any(),
+  1219→  handler: async (ctx, args) => {
+  1220→    return await ctx.db.insert("users", args);
+  1221→  },
+  1222→});
+  1223→
+  1224→export const startSignup = action({
+  1225→  args: {
+  1226→    fullName: v.string(),
+  1227→    email: v.string(),
+  1228→    password: v.optional(v.string()),
+  1229→    product: v.optional(v.string()),
+  1230→  },
+  1231→  handler: async (ctx: any, args: any): Promise<any> => {
+  1232→    return await startSignupLogic(ctx, args);
+  1233→  }
+  1234→});
+  1235→
+  1236→export const startRegistration = action({
+  1237→  args: {
+  1238→    fullName: v.string(),
+  1239→    email: v.string(),
+  1240→    password: v.optional(v.string()),
+  1241→    product: v.optional(v.string()),
+  1242→  },
+  1243→  handler: async (ctx: any, args: any): Promise<any> => {
+  1244→    return await startSignupLogic(ctx, args);
+  1245→  }
+  1246→});
+  1247→
+  1248→async function startSignupLogic(ctx: any, args: any): Promise<{
+  1249→  success: boolean;
+  1250→  code?: string;
+  1251→  message?: string;
+  1252→  debugCode?: string;
+  1253→}> {
+  1254→    const token: string = args.email.toLowerCase().trim();
+  1255→    const code: string = Math.floor(100000 + Math.random() * 900000).toString();
+  1256→
+  1257→    // ── Rate Limiting ──────────────────────────────────────────────────
+  1258→    // Max 5 signups per email per minute, 20 per IP per minute.
+  1259→    // Prevents automated signup flooding / email bombing.
+  1260→    const emailRateKey = `signup:email:${token}`;
+  1261→    const allowedByEmail = await checkRateLimit(ctx, emailRateKey, 5);
+  1262→    if (!allowedByEmail) {
+  1263→      return {
+  1264→        success: false,
+  1265→        code: 'RATE_LIMITED',
+  1266→        message: 'Too many signup attempts. Please wait a minute and try again.'
+  1267→      };
+  1268→    }
+  1269→
+  1270→    // ── Disposable / Temporary Email Blocking ──────────────────────────
+  1271→    // Block signups from known disposable email providers to prevent
+  1272→    // automated abuse, spam registrations, and trial farming.
+  1273→    const DISPOSABLE_DOMAINS = [
+  1274→      'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
+  1275→      'throwaway.email', 'trashmail.com', 'yopmail.com', 'getnada.com',
+  1276→      'temp-mail.org', 'sharklasers.com', 'guerrillamail.info', 'grr.la',
+  1277→      'dispostable.com', 'maildrop.cc', 'mintemail.com', 'tempinbox.com',
+  1278→      'fakeinbox.com', 'mailnesia.com', 'spam4.me', 'tempr.email',
+  1279→      'emailondeck.com', 'moakt.com', 'tmpmail.org', 'tmpmail.net',
+  1280→      'burnermail.io', 'inboxbear.com', 'mohmal.com', 'netmail.net',
+  1281→      'mailcatch.com', 'tempmailo.com', 'mytemp.email', 'discard.email',
+  1282→    ];
+  1283→    const emailDomain = token.split('@')[1] || '';
+  1284→    if (DISPOSABLE_DOMAINS.includes(emailDomain)) {
+  1285→      // Log as a security event for the admin Security Center
+  1286→      try {
+  1287→        await ctx.db.insert("analytics_events", {
+  1288→          firmId: 'security',
+  1289→          userId: 'system',
+  1290→          event: "disposable_email_blocked",
+  1291→          properties: { email: token, domain: emailDomain },
+  1292→          timestamp: Date.now(),
+  1293→        } as any);
+  1294→      } catch {}
+  1295→      return {
+  1296→        success: false,
+  1297→        code: 'DISPOSABLE_EMAIL',
+  1298→        message: 'Please use a valid business or personal email address. Disposable/temporary email services are not allowed.'
+  1299→      };
+  1300→    }
+  1301→
+  1302→    let selectedProduct: 'legal' | 'property' | 'unified' = 'legal';
+  1303→    if (args.product === 'property') selectedProduct = 'property';
+  1304→    if (args.product === 'unified') selectedProduct = 'unified';
+  1305→
+  1306→    // BUG FIX (Task 16): When no product is passed (e.g. resendConfirmation),
+  1307→    // use the EXISTING user's product instead of defaulting to 'legal' (Vega).
+  1308→    // This was the root cause of "vega email heading from an atrium signup" —
+  1309→    // the user signed up from Atrium (product='property'), but when resending
+  1310→    // the verification code, the backend defaulted to Vega branding.
+  1311→    if (!args.product) {
+  1312→      const existingUserForProduct: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: args.email.toLowerCase().trim() });
+  1313→      if (existingUserForProduct?.product) {
+  1314→        selectedProduct = existingUserForProduct.product as 'legal' | 'property' | 'unified';
+  1315→      }
+  1316→    }
+  1317→
+  1318→    // Hash password server-side if provided
+  1319→    let hashedPassword: string | undefined;
+  1320→    if (args.password) {
+  1321→      hashedPassword = (await ctx.runAction(internal.authUtils.hashPassword, { password: args.password })) as string;
+  1322→    }
+  1323→
+  1324→    const existingUser: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: token });
+  1325→
+  1326→    if (existingUser) {
+  1327→      // GUARD 1: Block verified accounts with a firm — they must log in
+  1328→      if (existingUser.isVerified && existingUser.firmId) {
+  1329→        return {
+  1330→          success: false,
+  1331→          code: 'EMAIL_EXISTS',
+  1332→          message: 'An account with this email already exists. Please log in instead.'
+  1333→        };
+  1334→      }
+  1335→
+  1336→      // GUARD 2: Block product cross-contamination
+  1337→      if (existingUser.isVerified && existingUser.product && existingUser.product !== selectedProduct) {
+  1338→        const existingProductName: string = existingUser.product === 'legal' ? 'Vega' : existingUser.product === 'property' ? 'Atrium' : 'Unified';
+  1339→        return {
+  1340→          success: false,
+  1341→          code: 'PRODUCT_MISMATCH',
+  1342→          message: `This email is already registered for ${existingProductName}. Please log in or use a different email address.`
+  1343→        };
+  1344→      }
+  1345→
+  1346→      // Resume incomplete registration — patch code, product, and password if provided
+  1347→      const patchFields: Record<string, any> = { verificationCode: code, product: selectedProduct };
+  1348→      if (hashedPassword) patchFields.password = hashedPassword;
+  1349→      await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+  1350→        userId: existingUser._id,
+  1351→        fields: patchFields,
+  1352→      });
+  1353→    } else {
+  1354→      await ctx.runMutation(internal.myFunctions.createUser, {
+  1355→        tokenIdentifier: token,
+  1356→        name: args.fullName,
+  1357→        email: args.email,
+  1358→        password: hashedPassword,
+  1359→        role: "Admin",
+  1360→        product: selectedProduct,
+  1361→        onboardingCompleted: false,
+  1362→        verificationCode: code,
+  1363→        isVerified: false,
+  1364→        avatarUrl: `https://ui-avatars.com/api/?name=${args.fullName}&background=random`
+  1365→      });
+  1366→    }
+  1367→
+  1368→    try {
+  1369→      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code: code, product: selectedProduct });
+  1370→    } catch (e) {
+  1371→      console.error("Failed to schedule email", e);
+  1372→    }
+  1373→    return { success: true };
+  1374→}
+  1375→
+  1376→/**
+  1377→ * ISO 27001 / NDPA 2023 COMPLIANCE
+  1378→ * Backend Authentication & Brute Force Prevention
+  1379→ *
+  1380→ * Receives the raw password over TLS, hashes server-side with PBKDF2-SHA512.
+  1381→ * Enforces a 15-minute lockout after 5 consecutive failed attempts.
+  1382→ * Automatically migrates legacy SHA-256 and plaintext hashes to PBKDF2 on successful login.
+  1383→ */
+  1384→export const verifyLogin = action({
+  1385→  args: {
+  1386→    email: v.string(),
+  1387→    passwordHash: v.string(),
+  1388→    rawPassword: v.optional(v.string()),
+  1389→    mfaCode: v.optional(v.string()),
+  1390→    // When the login is initiated from a portal route (/portal/tenant/login or
+  1391→    // /portal/client/login), the frontend passes portalType so we can resolve
+  1392→    // the correct user record when the same email exists as BOTH an admin
+  1393→    // record AND a portal record (the "residents see admin dashboard" bug).
+  1394→    portalType: v.optional(v.union(v.literal("tenant"), v.literal("client"))),
+  1395→  },
+  1396→  handler: async (ctx, args) => {
+  1397→    const token = args.email.toLowerCase().trim();
+  1398→
+  1399→    // 1. Find User — when portalType is set, prefer the matching portal-role record.
+  1400→    //    This is the critical fix: without it, getUser() returns the first matching
+  1401→    //    record (usually the older Admin record), the password check passes against
+  1402→    //    the Admin record (whose password was overwritten by setupPortalPassword),
+  1403→    //    and the user ends up logged in as Admin — seeing the admin dashboard.
+  1404→    const user: any = await ctx.runQuery(api.myFunctions.getUser, {
+  1405→      tokenIdentifier: token,
+  1406→      preferPortalRole: args.portalType !== undefined,
+  1407→    });
+  1408→
+  1409→    if (!user) return { success: false, message: "Account not found. Please sign up." };
+  1410→
+  1411→    // PORTAL-ROUTE GUARD: If the user explicitly logged in via a portal route
+  1412→    // (portalType is set), but the resolved user is NOT a portal user, refuse
+  1413→    // the login. This is defense-in-depth: even if getUser somehow returned
+  1414→    // the Admin record (e.g. no portal-role record exists for this email),
+  1415→    // we don't let them through to the portal UI with admin privileges.
+  1416→    if (args.portalType && user.role !== "Client" && user.role !== "Tenant") {
+  1417→      return {
+  1418→        success: false,
+  1419→        message: "This email is registered as an admin account, not a portal account. Please log in from the main app, or ask your manager to send a portal invitation to a different email address.",
+  1420→      };
+  1421→    }
+  1422→
+  1423→    // REVERSE GUARD: If the user logged in via the MAIN APP (no portalType)
+  1424→    // but their role is Tenant or Client, block them. Portal users must
+  1425→    // log in through the portal login page, not the main app login.
+  1426→    // This prevents portal users from accessing firm-wide data through
+  1427→    // the main app's Convex subscriptions.
+  1428→    if (!args.portalType && (user.role === "Tenant" || user.role === "Client")) {
+  1429→      const portalUrl = user.role === "Client" ? "/portal/client/login" : "/portal/tenant/login";
+  1430→      return {
+  1431→        success: false,
+  1432→        message: `This email is a portal account. Please log in through the portal: ${portalUrl}`,
+  1433→        redirect: portalUrl,
+  1434→      };
+  1435→    }
+  1436→
+  1437→    // Distinguish between "email not confirmed" (never verified) and "account revoked/deactivated"
+  1438→    // Portal users who were deleted via deletePortalInviteAndCleanup get role="Pending" + isVerified=false
+  1439→    if (!user.isVerified) {
+  1440→      if (user.role === "Pending" && !user.password) {
+  1441→        // This user's portal access was revoked/deleted — they previously had an account
+  1442→        // but it was cleaned up. Give them a clear message instead of the misleading
+  1443→        // "Email not confirmed" error.
+  1444→        return { success: false, message: "Your portal access has been revoked. Please contact your manager to request a new invitation.", isRevoked: true };
+  1445→      }
+  1446→      return { success: false, message: "Email not confirmed. Please check your inbox or resend code." };
+  1447→    }
+  1448→
+  1449→    // Defense-in-depth: A user with role="Pending" should not be able to log in
+  1450→    // even if isVerified was somehow still true.
+  1451→    if (user.role === "Pending") {
+  1452→      return { success: false, message: "Your portal access has been revoked. Please contact your manager to request a new invitation.", isRevoked: true };
+  1453→    }
+  1454→
+  1455→    // ─── DEACTIVATION CHECK ────────────────────────────────────────────
+  1456→    // If a firm admin has deactivated this user (deactivatedAt is set),
+  1457→    // block the login with a clear message. The user record still exists
+  1458→    // (for audit/authorship) but they cannot access the app.
+  1459→    if (user.deactivatedAt) {
+  1460→      return {
+  1461→        success: false,
+  1462→        message: "Your account has been deactivated. Please contact your firm administrator to request reactivation.",
+  1463→        isDeactivated: true,
+  1464→      };
+  1465→    }
+  1466→
+  1467→    const MAX_ATTEMPTS = 5;
+  1468→    const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+  1469→    const now = Date.now();
+  1470→
+  1471→    // 2. Check lockout
+  1472→    if (user.lockedUntil && user.lockedUntil > now) {
+  1473→      const remainingMinutes = Math.ceil((user.lockedUntil - now) / 60000);
+  1474→      return {
+  1475→        success: false,
+  1476→        isLocked: true,
+  1477→        message: `Account locked due to too many failed attempts. Please try again in ${remainingMinutes} minutes.`
+  1478→      };
+  1479→    } else if (user.lockedUntil && user.lockedUntil <= now) {
+  1480→      await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+  1481→        userId: user._id,
+  1482→        fields: { lockedUntil: null, failedLoginAttempts: 0 },
+  1483→      });
+  1484→      user.lockedUntil = null;
+  1485→      user.failedLoginAttempts = 0;
+  1486→    }
+  1487→
+  1488→    // 3. Verify Password via PBKDF2-aware internal action
+  1489→    let isPasswordCorrect = false;
+  1490→    let needsMigration = false;
+  1491→    const rawPw = args.rawPassword || "";
+  1492→
+  1493→    if (user.password && user.password !== 'admin') {
+  1494→      const result: any = await ctx.runAction(internal.authUtils.verifyPassword, {
+  1495→        password: rawPw,
+  1496→        storedHash: user.password,
+  1497→      });
+  1498→      isPasswordCorrect = result.valid;
+  1499→      needsMigration = result.needsMigration;
+  1500→    } else if (!user.password && rawPw && rawPw !== 'admin') {
+  1501→      // No password stored — trust on first use, migrate them
+  1502→      isPasswordCorrect = true;
+  1503→      needsMigration = true;
+  1504→    }
+  1505→    // user.password === 'admin' → intentionally blocked
+  1506→
+  1507→    if (isPasswordCorrect) {
+  1508→      if (user.isMfaEnabled) {
+  1509→        if (!args.mfaCode) {
+  1510→          const code = Math.floor(100000 + Math.random() * 900000).toString();
+  1511→          await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+  1512→            userId: user._id,
+  1513→            fields: { mfaCode: code },
+  1514→          });
+  1515→          try {
+  1516→            await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code, product: user.product || 'legal' });
+  1517→          } catch (e) {
+  1518→            console.error("Failed to send MFA email", e);
+  1519→          }
+  1520→          return { success: false, requiresMfa: true, mfaType: 'email' };
+  1521→        } else {
+  1522→          if (user.mfaCode !== args.mfaCode) {
+  1523→            return { success: false, message: "Incorrect security code. Please try again." };
+  1524→          }
+  1525→        }
+  1526→      }
+  1527→
+  1528→      // Success! Build patch updates.
+  1529→      const updates: Record<string, any> = {};
+  1530→      if (user.failedLoginAttempts > 0) updates.failedLoginAttempts = 0;
+  1531→      if (user.lockedUntil) updates.lockedUntil = null;
+  1532→      if (user.mfaCode) updates.mfaCode = null;
+  1533→
+  1534→      // Upgrade legacy hash to PBKDF2 on successful login
+  1535→      if (needsMigration && rawPw) {
+  1536→        const newHash: any = await ctx.runAction(internal.authUtils.hashPassword, { password: rawPw });
+  1537→        updates.password = newHash;
+  1538→      }
+  1539→
+  1540→      if (Object.keys(updates).length > 0) {
+  1541→        await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+  1542→          userId: user._id,
+  1543→          fields: updates,
+  1544→        });
+  1545→      }
+  1546→
+  1547→      // AUTO-REPAIR: If a portal user (Client/Tenant) has no firmId, try to repair it
+  1548→      // on login. This handles the case where a previous version of
+  1549→      // deletePortalInviteAndCleanup cleared firmId and deleted invite records,
+  1550→      // leaving the user unable to load any portal data. We search multiple sources
+  1551→      // to find the correct firmId and patch the user record.
+  1552→      if ((user.role === "Client" || user.role === "Tenant") && !user.firmId) {
+  1553→        try {
+  1554→          const repairResult: any = await ctx.runMutation(api.portals.repairPortalUserFirmId, {
+  1555→            email: token,
+  1556→          });
+  1557→          if (repairResult.success) {
+  1558→            // Update the user object we're about to return so the client
+  1559→            // gets the firmId immediately without needing a refresh
+  1560→            (user as any).firmId = repairResult.firmId;
+  1561→            (user as any).product = repairResult.firmId ? undefined : (user as any).product;
+  1562→          }
+  1563→        } catch (e) {
+  1564→          // Non-blocking: if repair fails, the user can still log in
+  1565→          // and will see the "Repair My Account" UI in their portal
+  1566→          console.warn("[verifyLogin] Auto-repair of firmId failed:", e);
+  1567→        }
+  1568→      }
+  1569→
+  1570→      // Strip sensitive fields before returning user to client
+  1571→      const { password: _pw, mfaCode: _mfa, verificationCode: _vc, recoveryCode: _rc, ...safeUser } = user;
+  1572→      return { success: true, user: safeUser };
+  1573→    } else {
+  1574→      const currentAttempts = (user.failedLoginAttempts || 0) + 1;
+  1575→      const failureUpdates: any = { failedLoginAttempts: currentAttempts };
+  1576→      if (currentAttempts >= MAX_ATTEMPTS) {
+  1577→        failureUpdates.lockedUntil = now + LOCKOUT_DURATION_MS;
+  1578→      }
+  1579→      await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+  1580→        userId: user._id,
+  1581→        fields: failureUpdates,
+  1582→      });
+  1583→      return {
+  1584→        success: false,
+  1585→        message: failureUpdates.lockedUntil
+  1586→          ? "Account locked due to too many failed attempts. Please try again in 15 minutes."
+  1587→          : `Incorrect password. You have ${MAX_ATTEMPTS - currentAttempts} attempts remaining.`
+  1588→      };
+  1589→    }
+  1590→  }
+  1591→});
+  1592→
+  1593→export const updateUserSecurity = mutation({
+  1594→  args: { userId: v.id("users"), isMfaEnabled: v.boolean(), userEmail: v.optional(v.string()) },
+  1595→  handler: async (ctx, args) => {
+  1596→    // RLS: Require firm user — only authenticated firm members can update security
+  1597→    await requireFirmUser(ctx, args.userEmail);
+  1598→    await ctx.db.patch(args.userId, { isMfaEnabled: args.isMfaEnabled });
+  1599→    return { success: true };
+  1600→  }
+  1601→});
+  1602→
+  1603→/**
+  1604→ * mutation: deactivateTeamMember
+  1605→ * Soft-deactivates a team member. The user record is preserved (so their
+  1606→ * historical contributions — matters, tasks, messages — remain attributed),
+  1607→ * but they can no longer log in. They appear with a "Deactivated" badge in
+  1608→ * the team directory, grayed out and sorted to the bottom.
+  1609→ *
+  1610→ * AUTH: only firm admins (role='Admin' or 'Founding Partner') can deactivate.
+  1611→ * The founder@practicepro.ng email can also deactivate any user.
+  1612→ *
+  1613→ * SAFETY: deactivating yourself is blocked (would lock the firm out).
+  1614→ */
+  1615→export const deactivateTeamMember = mutation({
+  1616→  args: {
+  1617→    userId: v.id("users"),
+  1618→    deactivatedBy: v.string(),        // admin's email
+  1619→    reason: v.optional(v.string()),
+  1620→  },
+  1621→  handler: async (ctx, args) => {
+  1622→    const auth = await requireFirmUser(ctx, args.deactivatedBy);
+  1623→    const adminUser = auth.user;
+  1624→    if (!adminUser) throw new Error("Admin user not found");
+  1625→
+  1626→    // AUTH CHECK: only Admin or Founder (or platform founder) can deactivate
+  1627→    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+  1628→    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+  1629→    if (!FOUNDER_EMAILS.includes(args.deactivatedBy) && !isAdminRole) {
+  1630→      throw new Error("Only administrators can deactivate team members");
+  1631→    }
+  1632→
+  1633→    const targetUser = await ctx.db.get(args.userId);
+  1634→    if (!targetUser) throw new Error("User not found");
+  1635→
+  1636→    // SAFETY: can't deactivate yourself
+  1637→    if (targetUser.email === args.deactivatedBy) {
+  1638→      throw new Error("You cannot deactivate your own account");
+  1639→    }
+  1640→
+  1641→    // SAFETY: can't deactivate the firm's founding partner
+  1642→    // The Founder role maps to the firm's primary admin — deactivating
+  1643→    // would lock the firm out of admin functions.
+  1644→    if (targetUser.role === 'Founder') {
+  1645→      throw new Error("The Founding Partner account cannot be deactivated");
+  1646→    }
+  1647→
+  1648→    // Idempotent: already deactivated → return success
+  1649→    if (targetUser.deactivatedAt) {
+  1650→      return { success: true, alreadyDeactivated: true };
+  1651→    }
+  1652→
+  1653→    await ctx.db.patch(args.userId, {
+  1654→      deactivatedAt: Date.now(),
+  1655→      deactivatedBy: args.deactivatedBy,
+  1656→      deactivationReason: args.reason || null,
+  1657→      updatedAt: new Date().toISOString(),
+  1658→    });
+  1659→
+  1660→    return { success: true };
+  1661→  },
+  1662→});
+  1663→
+  1664→/**
+  1665→ * mutation: reactivateTeamMember
+  1666→ * Clears the deactivatedAt field, restoring login access.
+  1667→ */
+  1668→export const reactivateTeamMember = mutation({
+  1669→  args: {
+  1670→    userId: v.id("users"),
+  1671→    reactivatedBy: v.string(),
+  1672→  },
+  1673→  handler: async (ctx, args) => {
+  1674→    const auth = await requireFirmUser(ctx, args.reactivatedBy);
+  1675→    const adminUser = auth.user;
+  1676→    if (!adminUser) throw new Error("Admin user not found");
+  1677→
+  1678→    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+  1679→    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+  1680→    if (!FOUNDER_EMAILS.includes(args.reactivatedBy) && !isAdminRole) {
+  1681→      throw new Error("Only administrators can reactivate team members");
+  1682→    }
+  1683→
+  1684→    const targetUser = await ctx.db.get(args.userId);
+  1685→    if (!targetUser) throw new Error("User not found");
+  1686→
+  1687→    await ctx.db.patch(args.userId, {
+  1688→      deactivatedAt: undefined,
+  1689→      deactivatedBy: undefined,
+  1690→      deactivationReason: undefined,
+  1691→      updatedAt: new Date().toISOString(),
+  1692→    });
+  1693→
+  1694→    return { success: true };
+  1695→  },
+  1696→});
+  1697→
+  1698→/**
+  1699→ * query: getFirmMembersWithDeactivationStatus
+  1700→ * Returns all users for a firm, sorted with active members first and
+  1701→ * deactivated members at the bottom. Each row includes deactivatedAt,
+  1702→ * deactivatedBy, and deactivationReason for the team directory UI.
+  1703→ */
+  1704→export const getFirmMembersWithDeactivationStatus = query({
+  1705→  args: {
+  1706→    firmId: v.string(),
+  1707→    userEmail: v.optional(v.string()),
+  1708→  },
+  1709→  handler: async (ctx, args) => {
+  1710→    await requireFirmUser(ctx, args.userEmail);
+  1711→    const users = await ctx.db
+  1712→      .query("users")
+  1713→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1714→      .collect();
+  1715→
+  1716→    // Sort: active first (deactivatedAt falsy), then deactivated (most recent first)
+  1717→    return users.sort((a: any, b: any) => {
+  1718→      const aDeactivated = !!a.deactivatedAt;
+  1719→      const bDeactivated = !!b.deactivatedAt;
+  1720→      if (aDeactivated && !bDeactivated) return 1;
+  1721→      if (!aDeactivated && bDeactivated) return -1;
+  1722→      if (aDeactivated && bDeactivated) return (b.deactivatedAt || 0) - (a.deactivatedAt || 0);
+  1723→      // Both active — preserve existing order (by name)
+  1724→      return (a.name || '').localeCompare(b.name || '');
+  1725→    });
+  1726→  },
+  1727→});
+  1728→
+  1729→/**
+  1730→ * mutation: saveUserApiKey
+  1731→ * Saves the user's Gemini API key to their user record so it syncs
+  1732→ * across devices. The key is stored server-side and synced to
+  1733→ * localStorage on login — preventing the "API key disappears on
+  1734→ * refresh" bug.
+  1735→ */
+  1736→export const saveUserApiKey = mutation({
+  1737→  args: { tokenIdentifier: v.string(), apiKey: v.string() },
+  1738→  handler: async (ctx, args) => {
+  1739→    const token = args.tokenIdentifier.toLowerCase().trim();
+  1740→    const users = await ctx.db
+  1741→      .query("users")
+  1742→      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+  1743→      .collect();
+  1744→    const user = users[0];
+  1745→    if (!user) return { success: false, message: "User not found." };
+  1746→    await ctx.db.patch(user._id, { geminiApiKey: args.apiKey });
+  1747→    return { success: true };
+  1748→  },
+  1749→});
+  1750→
+  1751→/**
+  1752→ * query: getUserApiKey
+  1753→ * Retrieves the user's stored Gemini API key from their user record.
+  1754→ * Used on login to sync the key to localStorage.
+  1755→ */
+  1756→export const getUserApiKey = query({
+  1757→  args: { tokenIdentifier: v.string() },
+  1758→  handler: async (ctx, args) => {
+  1759→    const token = args.tokenIdentifier.toLowerCase().trim();
+  1760→    const users = await ctx.db
+  1761→      .query("users")
+  1762→      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+  1763→      .collect();
+  1764→    const user = users[0];
+  1765→    return user?.geminiApiKey || null;
+  1766→  },
+  1767→});
+  1768→
+  1769→export const verifyCode = mutation({
+  1770→  args: { email: v.string(), code: v.string() },
+  1771→  handler: async (ctx, args) => {
+  1772→    const token = args.email;
+  1773→    const allUsers = await ctx.db.query("users").take(500);
+  1774→    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token.toLowerCase());
+  1775→
+  1776→    if (!user) return { success: false, message: "User not found." };
+  1777→    if (user.verificationCode !== args.code) return { success: false, message: "Invalid code." };
+  1778→
+  1779→    // ─── Trigger welcome email on first verification ──────────────────
+  1780→    // The welcome email is sent ONCE — guarded by the welcomeEmailSent
+  1781→    // field. If the user re-verifies (e.g., after a password reset),
+  1782→    // we don't send another welcome email. This keeps verification
+  1783→    // (transactional code) and welcome (onboarding) separate.
+  1784→    if (!user.welcomeEmailSent) {
+  1785→      await ctx.db.patch(user._id, {
+  1786→        isVerified: true,
+  1787→        verificationCode: null,
+  1788→        welcomeEmailSent: true,
+  1789→      });
+  1790→      // Send welcome email via scheduler (async — doesn't block verification)
+  1791→      await ctx.scheduler.runAfter(0, internal.myFunctions.sendWelcomeEmail, {
+  1792→        email: user.email || args.email,
+  1793→        product: user.product || undefined,
+  1794→        name: user.name || undefined,
+  1795→      });
+  1796→
+  1797→      // ─── Notify the founder of a new user signup ──────────────────
+  1798→      // Sends an email to the founder's notification address so they
+  1799→      // know when someone new joins the platform. Also CCs any
+  1800→      // additional notification recipients (e.g., marketing team).
+  1801→      await ctx.scheduler.runAfter(0, internal.myFunctions.sendFounderSignupNotification, {
+  1802→        newUserEmail: user.email || args.email,
+  1803→        newUserName: user.name || '',
+  1804→        product: user.product || 'legal',
+  1805→      });
+  1806→    } else {
+  1807→      await ctx.db.patch(user._id, { isVerified: true, verificationCode: null });
+  1808→    }
+  1809→
+  1810→    return { success: true };
+  1811→  }
+  1812→});
+  1813→
+  1814→export const resetPassword = action({
+  1815→  args: { email: v.string(), newPassword: v.string(), overrideCode: v.optional(v.string()) },
+  1816→  handler: async (ctx, args) => {
+  1817→    const token = args.email.toLowerCase().trim();
+  1818→
+  1819→    const user: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: token });
+  1820→
+  1821→    if (!user) return { success: false, message: "User account not found." };
+  1822→
+  1823→    // ISO 27001: Match the recovery code generated by the forgot-password flow
+  1824→    if (!args.overrideCode || (args.overrideCode !== user.verificationCode && args.overrideCode !== user.recoveryCode)) {
+  1825→      return { success: false, message: "Invalid Recovery Key or OTP Code." };
+  1826→    }
+  1827→
+  1828→    // Hash the new password with PBKDF2 before storing
+  1829→    const hashedPassword: any = await ctx.runAction(internal.authUtils.hashPassword, {
+  1830→      password: args.newPassword,
+  1831→    });
+  1832→
+  1833→    await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+  1834→      userId: user._id,
+  1835→      fields: { password: hashedPassword, verificationCode: null, recoveryCode: null },
+  1836→    });
+  1837→
+  1838→    return { success: true };
+  1839→  }
+  1840→});
+  1841→
+  1842→export const requestPasswordReset = mutation({
+  1843→  args: { email: v.string() },
+  1844→  handler: async (ctx, args) => {
+  1845→    const token = args.email.toLowerCase().trim();
+  1846→    const allUsers = await ctx.db.query("users").take(500);
+  1847→    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+  1848→
+  1849→    // Always return success to prevent email enumeration attacks
+  1850→    if (!user) return { success: true };
+  1851→
+  1852→    const code = "RCV-" + Math.floor(100000 + Math.random() * 900000).toString();
+  1853→    await ctx.db.patch(user._id, { recoveryCode: code });
+  1854→
+  1855→    try {
+  1856→      const appDomain = "https://practice-pro-vega.vercel.app";
+  1857→      const recoveryLink = `${appDomain}/?view=login&recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
+  1858→
+  1859→      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendRecoveryEmail, { 
+  1860→        email: user.email, 
+  1861→        code: code,
+  1862→        recoveryLink: recoveryLink
+  1863→      });
+  1864→    } catch (e) {
+  1865→      console.error("Failed to send recovery email", e);
+  1866→    }
+  1867→
+  1868→    return { success: true };
+  1869→  }
+  1870→});
+  1871→
+  1872→/**
+  1873→ * requestPortalPasswordReset — Password reset for portal users (Client/Tenant).
+  1874→ *
+  1875→ * Similar to requestPasswordReset but sends the recovery link to the
+  1876→ * appropriate portal login page (/portal/client/login or /portal/tenant/login)
+  1877→ * so the user can reset their password within the portal context.
+  1878→ */
+  1879→export const requestPortalPasswordReset = mutation({
+  1880→  args: { email: v.string(), portalType: v.union(v.literal("client"), v.literal("tenant")) },
+  1881→  handler: async (ctx, args) => {
+  1882→    const token = args.email.toLowerCase().trim();
+  1883→    const allUsers = await ctx.db.query("users").take(500);
+  1884→    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+  1885→
+  1886→    // Always return success to prevent email enumeration attacks
+  1887→    if (!user) return { success: true };
+  1888→
+  1889→    // Only allow password reset for portal users (Client or Tenant role)
+  1890→    const userRole = (user as any).role;
+  1891→    if (userRole !== "Client" && userRole !== "Tenant") {
+  1892→      // Non-portal user trying to use portal reset — silently ignore
+  1893→      // to avoid revealing that this email is a non-portal account
+  1894→      return { success: true };
+  1895→    }
+  1896→
+  1897→    const code = "RCV-" + Math.floor(100000 + Math.random() * 900000).toString();
+  1898→    await ctx.db.patch(user._id, { recoveryCode: code });
+  1899→
+  1900→    try {
+  1901→      const appDomain = "https://practice-pro-vega.vercel.app";
+  1902→      const recoveryLink = `${appDomain}/portal/${args.portalType}/login?recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
+  1903→
+  1904→      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendPortalRecoveryEmail, { 
+  1905→        email: user.email, 
+  1906→        code: code,
+  1907→        recoveryLink: recoveryLink,
+  1908→        portalType: args.portalType,
+  1909→      });
+  1910→    } catch (e) {
+  1911→      console.error("Failed to send portal recovery email", e);
+  1912→    }
+  1913→
+  1914→    return { success: true };
+  1915→  }
+  1916→});
+  1917→
+  1918→export const createFirm = mutation({
+  1919→  args: { 
+  1920→    name: v.string(), 
+  1921→    address: v.string(), 
+  1922→    subscriptionPlan: v.string(), 
+  1923→    user_email: v.string(), 
+  1924→    user_name: v.string(), 
+  1925→    tokenIdentifier: v.string(),
+  1926→    product: v.optional(v.union(v.literal("legal"), v.literal("property"), v.literal("unified"), v.literal("vega"), v.literal("atrium"))),
+  1927→    isDataMigration: v.optional(v.boolean()),
+  1928→    // ─── CRO Audit Track B: Trial system support ───────────────────────
+  1929→    // When trial=true, the firm is created with subscriptionPlan='Core' but
+  1930→    // trialPlan/trialStartsAt/trialEndsAt set to track the 30-day trial of
+  1931→    // the originally-selected plan. useFeatures.ts reads trialPlan to grant
+  1932→    // entitlements during the trial window. The expireTrials cron downgrades
+  1933→    // expired trials back to Core.
+  1934→    trial: v.optional(v.boolean()),
+  1935→  },
+  1936→  handler: async (ctx, args) => {
+  1937→    const inviteCode = "INV-" + Math.floor(1000 + Math.random() * 9000);
+  1938→    const now = Date.now();
+  1939→    const TRIAL_DAYS = 30;  // Changed from 14 to 30 — gives users time to experience automations, WhatsApp, email cycles
+  1940→    const trialEndsAt = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  1941→
+  1942→    // If trial=true, the firm runs at Core for billing but is granted the
+  1943→    // selected plan's entitlements during the trial window.
+  1944→    const effectivePlan = args.trial ? 'Core' : args.subscriptionPlan;
+  1945→    const trialPlan = args.trial ? args.subscriptionPlan : null;
+  1946→    const trialStartsAt = args.trial ? now : null;
+  1947→    const trialEndsAtFinal = args.trial ? trialEndsAt : null;
+  1948→
+  1949→    const firmId = await ctx.db.insert("firms", {
+  1950→      name: args.name,
+  1951→      address: args.address,
+  1952→      subscriptionPlan: effectivePlan,
+  1953→      inviteCode: inviteCode,
+  1954→      createdBy: args.user_email,
+  1955→      aiSettings: { enableAllAiFeatures: true },
+  1956→      product: args.product || "unified",
+  1957→      maxUnits: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.units || 5) : 999999,
+  1958→      maxActiveTenants: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.tenants || 5) : 999999,
+  1959→      whatsappLimit: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.whatsapp || 0) : 0,
+  1960→      whatsappMessagesSent: 0,
+  1961→      setupFeePaid: (args.subscriptionPlan === "Enterprise" || args.isDataMigration) ? false : true, // If they need a setup fee, it's NOT paid yet
+  1962→      // ─── Trial fields ──────────────────────────────────────────────────
+  1963→      trialStartsAt,
+  1964→      trialEndsAt: trialEndsAtFinal,
+  1965→      trialPlan,
+  1966→      // ─── Billing metadata defaults ─────────────────────────────────────
+  1967→      adminStatus: args.trial ? 'trial' : 'active',
+  1968→      createdAt: new Date(now).toISOString(),
+  1969→      updatedAt: new Date(now).toISOString(),
+  1970→    });
+  1971→    let user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", args.user_email)).first();
+  1972→    if (!user) {
+  1973→      user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", args.user_email.toLowerCase())).first();
+  1974→    }
+  1975→    if (!user) {
+  1976→      const allUsers = await ctx.db.query("users").take(500);
+  1977→      user = allUsers.find(u => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === args.user_email.toLowerCase()) || null;
+  1978→    }
+  1979→
+  1980→    if (user) {
+  1981→      const joinedIds = user.joinedFirmIds || [];
+  1982→      const updatedJoinedIds = joinedIds.includes(firmId) ? joinedIds : [...joinedIds, firmId];
+  1983→      await ctx.db.patch(user._id, { 
+  1984→        firmId: firmId, 
+  1985→        onboardingCompleted: true, 
+  1986→        role: 'Admin',
+  1987→        joinedFirmIds: updatedJoinedIds
+  1988→      });
+  1989→    }
+  1990→
+  1991→    // Seed default document categories
+  1992→    const defaultCategories = [
+  1993→      { name: "Pleadings", description: "Court filings, statements of claim, and defenses", color: "#3b82f6" },
+  1994→      { name: "Correspondence", description: "Letters, emails, and client communications", color: "#10b981" },
+  1995→      { name: "Evidence", description: "Exhibits, witness statements, and factual documents", color: "#8b5cf6" },
+  1996→      { name: "Agreements", description: "Contracts, deeds, and legal agreements", color: "#f59e0b" },
+  1997→      { name: "Corporate", description: "CAC filings, board resolutions, and company documents", color: "#64748b" },
+  1998→      { name: "Other", description: "Miscellaneous documents", color: "#94a3b8" }
+  1999→    ];
+  2000→
+
+[showing lines 1-2000 of 6564; use offset=2001 with limit to continue reading]

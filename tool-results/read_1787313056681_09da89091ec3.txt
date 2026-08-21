@@ -1,0 +1,562 @@
+     1→
+     2→import React, { useState, useMemo } from 'react';
+     3→import { useMutation } from "convex/react";
+     4→import { api } from "../../../convex/_generated/api";
+     5→import { Property, Contact, InvoiceStatus, InvoiceLineItem, BankAccount, RentPayment } from '../../types';
+     6→import { useCoreState } from '../../contexts/CoreContext';
+     7→import { useDataActions } from '../../contexts/DataContext';
+     8→import { useUI } from '../../contexts/UIContext';
+     9→import { useMatterState } from '../../contexts/MatterContext';
+    10→import { useFinanceState } from '../../contexts/FinanceContext';
+    11→import { generateReceiptNumber } from '../../utils/invoiceHelpers';
+    12→import { 
+    13→  CalendarIcon, 
+    14→  CheckCircleIcon, 
+    15→  XIcon, 
+    16→  OfficeBuildingIcon, 
+    17→  UserIcon, 
+    18→  CalculatorIcon,
+    19→  DownloadIcon
+    20→} from '../../constants';
+    21→import { Receipt } from 'lucide-react';
+    22→import NairaSymbol from '../NairaSymbol';
+    23→import { formatNaira, formatDateWithOrdinal } from '../../utils/formatting';
+    24→import { v4 as uuidv4 } from 'uuid';
+    25→import { generateReceiptPdf } from '../../services/reportGenerator';
+    26→
+    27→interface CollectRentModalProps {
+    28→  property: Property;
+    29→  onClose: () => void;
+    30→}
+    31→
+    32→/**
+    33→ * CollectRentModal — Accounting Principles
+    34→ * 
+    35→ * 1. RECEIPTS ARE FULL: The receipt issued to the tenant always reflects the full
+    36→ *  amount paid. No deductions are shown on the receipt. This is the standard
+    37→ *  practice for proper accounting and tax compliance.
+    38→ * 
+    39→ * 2. MANAGEMENT FEES ARE INVOICED: The agent/manager's fee is a separate obligation.
+    40→ *  When rent is collected, an invoice is auto-generated for the management fee,
+    41→ *  tied back to the rent receipt. The landlord owes this to the agent — it is NOT
+    42→ *  deducted from source on the receipt.
+    43→ * 
+    44→ * 3. FLEXIBLE ACCOUNTING: The "Net to Client" view is shown as an informational
+    45→ *  breakdown (what the landlord keeps after paying the agent), not as a receipt line.
+    46→ *  This accommodates different arrangements:
+    47→ *  - Landlord collects in full, pays agent separately
+    48→ *  - Agent collects and remits net (internal tracking only)
+    49→ * 
+    50→ * 4. LEDGER INTEGRITY: The ledger records the full rent amount. The management fee
+    51→ *  invoice creates a separate payable entry. Both are tied via a shared transactionRef.
+    52→ */
+    53→const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }) => {
+    54→  const { coreState } = useCoreState();
+    55→  const { matterState } = useMatterState();
+    56→  const { financeState } = useFinanceState();
+    57→  const { updateItem, handleGenerateInvoice, logActivity, addItem } = useDataActions();
+    58→  const { addToast, modalContext } = useUI();
+    59→  const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+    60→
+    61→  // Unit-specific overrides from context (if opened from a specific unit)
+    62→  const overrideUnitId = modalContext?.unitId;
+    63→  const overrideUnitName = modalContext?.unitName;
+    64→  const overrideTenantName = modalContext?.tenantName;
+    65→  const overrideRentAmount = modalContext?.rentAmount;
+    66→
+    67→  // Find the owner/contact
+    68→  const owner = matterState.contacts.find(c => 
+    69→    c.id === property.contactId || (c.properties || []).some(p => p.id === property.id)
+    70→  );
+    71→
+    72→  // Get last payment
+    73→  const sortedHistory = [...(property.rentPaymentHistory || [])].sort((a, b) => {
+    74→    const dateA = a.paidDate ? new Date(a.paidDate).getTime() : 0;
+    75→    const dateB = b.paidDate ? new Date(b.paidDate).getTime() : 0;
+    76→    return dateB - dateA;
+    77→  });
+    78→  const lastPayment = sortedHistory[0];
+    79→
+    80→  // FIX: removed property.value and lastPayment?.amount from the fallback
+    81→  // chain. Falling back to property.value (the property valuation) is
+    82→  // semantically wrong — if rent was never configured but the property is
+    83→  // valued at ₦50M, the rent-collection modal would open pre-filled with
+    84→  // ₦50M. lastPayment?.amount conflates "what was paid last time" with
+    85→  // "what is owed this time." Now falls back to 0 if no rent is configured.
+    86→  const initialAmount = overrideRentAmount || property.rentalDetails?.rentAmount || 0;
+    87→  const [amountValue, setAmountValue] = useState(initialAmount);
+    88→  const [displayAmount, setDisplayAmount] = useState(initialAmount.toLocaleString());
+    89→  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    90→  const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
+    91→  const [periodStart, setPeriodStart] = useState(new Date().toISOString().split('T')[0]);
+    92→  const [periodEnd, setPeriodEnd] = useState('');
+    93→  const [isProcessing, setIsProcessing] = useState(false);
+    94→
+    95→  const handleAmountChange = (val: string) => {
+    96→    // Remove commas and non-numeric chars except decimal
+    97→    const numeric = val.replace(/,/g, '').replace(/[^0-9.]/g, '');
+    98→    const num = parseFloat(numeric) || 0;
+    99→    setAmountValue(num);
+   100→    
+   101→    // Format with commas for display
+   102→    if (numeric === '') {
+   103→      setDisplayAmount('');
+   104→    } else {
+   105→      setDisplayAmount(num.toLocaleString());
+   106→    }
+   107→  };
+   108→
+   109→  // Fee Calculation — informational only, NOT deducted from receipt
+   110→  const feePercentage = property.managementFeePercentage || 0;
+   111→  const feeAmount = useMemo(() => (amountValue * feePercentage) / 100, [amountValue, feePercentage]);
+   112→  const tenantName = overrideTenantName || property.rentalDetails?.tenantName;
+   113→  // Build display label — allow wrapping instead of truncating
+   114→  const unitDisplayLabel = overrideUnitName ? `${property.address} - ${overrideUnitName}` : property.address;
+   115→
+   116→  const handleCollect = async () => {
+   117→    if (!owner) {
+   118→      addToast("Owner not found for this property.", { type: 'error' });
+   119→      return;
+   120→    }
+   121→
+   122→    setIsProcessing(true);
+   123→    try {
+   124→      // Generate a shared transaction reference to link receipt, invoice, and ledger
+   125→      const transactionRef = `TXN-${Date.now().toString().slice(-8)}`;
+   126→
+   127→      // 1. Update Property Rent History — receipt records FULL amount
+   128→      const newPayment = {
+   129→        id: uuidv4(),
+   130→        dueDate: paymentDate,
+   131→        paidDate: paymentDate,
+   132→        amount: amountValue, // FULL amount — receipt is always for what was paid
+   133→        status: 'paid' as const,
+   134→        paymentMethod,
+   135→        receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+   136→        periodStart,
+   137→        periodEnd,
+   138→        transactionRef,
+   139→      };
+   140→
+   141→      const updatedHistory = [...(property.rentPaymentHistory || []), newPayment];
+   142→      
+   143→      // Update standalone property record
+   144→      await updateItem('properties', { id: property.id, rentPaymentHistory: updatedHistory, status: 'Occupied' }, 'Property Payment');
+   145→
+   146→      // Legacy support: also update contact if it has the nested property
+   147→      if (owner.properties?.some(p => p.id === property.id)) {
+   148→        const updatedProperties = owner.properties.map(p => 
+   149→          p.id === property.id ? { ...p, rentPaymentHistory: updatedHistory, status: 'Occupied' as const } : p
+   150→        );
+   151→        await updateItem('contacts', { id: owner.id, properties: updatedProperties }, 'Property Payment');
+   152→      }
+   153→
+   154→      // 2. Generate Invoice for Management Fee (if applicable)
+   155→      //  This is a SEPARATE invoice the landlord owes the agent — not deducted from the receipt.
+   156→      //  It is tied back to the rent transaction via transactionRef.
+   157→      if (feeAmount > 0 && feePercentage > 0) {
+   158→        const linkedMatter = matterState.matters.find(m => m.clientId === owner.id && m.title.includes(property.address));
+   159→
+   160→        const feeItem: InvoiceLineItem = {
+   161→          id: uuidv4(),
+   162→          description: `Management Fee — ${unitDisplayLabel} (${new Date(paymentDate).toLocaleString('default', { month: 'long', year: 'numeric' })})`,
+   163→          hours: 1,
+   164→          rate: feeAmount,
+   165→          total: feeAmount
+   166→        };
+   167→
+   168→        const defaultAccount: BankAccount = coreState.firmDetails?.bankAccounts?.[0] || {
+   169→          id: '1',
+   170→          bankName: 'PracticePro Default',
+   171→          accountName: coreState.firmDetails?.name || 'Firm',
+   172→          accountNumber: '0000000000'
+   173→        };
+   174→
+   175→        // Generate the management fee invoice — NOT marked as paid (landlord pays agent separately)
+   176→        await handleGenerateInvoice(
+   177→          linkedMatter || { id: property.id, title: `Property Management — ${property.address}`, clientId: owner.id } as any,
+   178→          [feeItem],
+   179→          { issueDate: paymentDate, dueDate: paymentDate }, // Due same day, but not auto-paid
+   180→          [], [],
+   181→          defaultAccount,
+   182→          { applicable: false }
+   183→        );
+   184→      }
+   185→
+   186→      // 3. Record in Atrium Ledger — full rent received
+   187→      const targetUnitId = overrideUnitId || property.id;
+   188→      const tenantContact = matterState.contacts.find(c => 
+   189→        (c.email && c.email === property.rentalDetails?.tenantEmail) || 
+   190→        (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
+   191→        (c.name && c.name === property.rentalDetails?.tenantName)
+   192→      );
+   193→
+   194→      if (targetUnitId) {
+   195→        await addLedgerEntry({
+   196→          firmId: property.firmId || coreState.firmDetails?.id || '',
+   197→          propertyId: property.id,
+   198→          unitId: targetUnitId,
+   199→          tenantId: tenantContact?.id || 'tenant-legacy', 
+   200→          amount: amountValue, // Full rent amount
+   201→          type: 'rent',
+   202→          status: 'cleared',
+   203→          description: `Rent collection for ${unitDisplayLabel}`,
+   204→          period: `${periodStart} to ${periodEnd}`,
+   205→          channel: transactionRef,
+   206→        });
+   207→
+   208→        // If there's a management fee, record it as a separate payable entry
+   209→        if (feeAmount > 0 && feePercentage > 0) {
+   210→          await addLedgerEntry({
+   211→            firmId: property.firmId || coreState.firmDetails?.id || '',
+   212→            propertyId: property.id,
+   213→            unitId: targetUnitId,
+   214→            tenantId: owner.id, // Payable TO the firm, FROM the landlord
+   215→            amount: feeAmount,
+   216→            type: 'management_fee',
+   217→            status: 'pending', // Not yet paid — landlord owes this
+   218→            description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
+   219→            period: `${periodStart} to ${periodEnd}`,
+   220→            channel: transactionRef, // Linked to the same transaction
+   221→          });
+   222→        }
+   223→      }
+   224→
+   225→      logActivity(
+   226→        `Collected rent for ${unitDisplayLabel}${feeAmount > 0 ? `. Mgmt fee invoice: ${formatNaira(feeAmount)}` : ''}`,
+   227→        'Contact',
+   228→        property.id,
+   229→        unitDisplayLabel
+   230→      );
+   231→
+   232→      // 4. Automatically trigger receipt generation — FULL amount, no deductions
+   233→      handleDownloadTenantReceipt(true);
+   234→
+   235→      // 5. DOCUMENT CROSS-PERSISTENCE — auto-save a document record
+   236→      // linking the receipt to both the property and any linked legal
+   237→      // matter. Previously, receipts were only downloadable as PDFs but
+   238→      // never persisted to the documents table, so they didn't appear
+   239→      // in the matter's Documents tab. Now they do.
+   240→      try {
+   241→        const linkedMatter = matterState.matters.find(m =>
+   242→          m.specialtyData?.realEstate?.propertyId === property.id ||
+   243→          m.title.includes(property.address.split(',')[0])
+   244→        );
+   245→        const receiptDocRecord = {
+   246→          firmId: property.firmId || coreState.firmDetails?.id || '',
+   247→          title: `Rent Receipt — ${unitDisplayLabel} (${new Date(paymentDate).toLocaleDateString('en-GB')})`,
+   248→          matter: linkedMatter ? { id: linkedMatter.id, title: linkedMatter.title } : undefined,
+   249→          matterId: linkedMatter?.id,
+   250→          propertyId: property.id,
+   251→          categoryId: 'receipts',
+   252→          dateFiled: paymentDate,
+   253→          assignedUsers: [],
+   254→          file: {
+   255→            name: `Receipt_${receiptNumber || `REC-${Date.now()}`}.pdf`,
+   256→            type: 'application/pdf',
+   257→            size: 0,
+   258→            dataUrl: '', // PDF is generated client-side; record serves as index
+   259→          },
+   260→          source: 'generated' as const,
+   261→          uploadedBy: 'system',
+   262→          createdAt: new Date().toISOString(),
+   263→        };
+   264→        await addItem('documents', receiptDocRecord, 'Rent Receipt');
+   265→      } catch (docError: any) {
+   266→        console.error('[CollectRentModal] Failed to persist receipt document record:', docError);
+   267→        // Non-blocking — receipt PDF was still generated and downloaded
+   268→      }
+   269→
+   270→      addToast(`Rent receipt issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, { type: 'success' });
+   271→      onClose();
+   272→    } catch (error: any) {
+   273→      console.error("Failed to collect rent:", error);
+   274→      addToast(`Failed to process rent collection: ${error.message || 'Unknown error'}`, { type: 'error' });
+   275→    } finally {
+   276→      setIsProcessing(false);
+   277→    }
+   278→  };
+   279→
+   280→  const handleDownloadTenantReceipt = (isSilentOrPayment: boolean | RentPayment = false) => {
+   281→    const isSilent = typeof isSilentOrPayment === 'boolean' ? isSilentOrPayment : false;
+   282→    const payment = typeof isSilentOrPayment === 'object' ? isSilentOrPayment : null;
+   283→
+   284→    try {
+   285→
+   286→      
+   287→      // Receipt ALWAYS reflects the FULL amount paid — no deductions
+   288→      const receiptAmount = payment ? payment.amount : amountValue;
+   289→      const receiptDate = payment ? (payment.paidDate || payment.dueDate) : paymentDate;
+   290→      const receiptNumber = payment?.receiptNumber || generateReceiptNumber({
+   291→        firmName: coreState.firmDetails?.name,
+   292→        users: coreState.users || [],
+   293→        existingInvoiceCount: financeState.invoices?.length || 0,
+   294→      });
+   295→
+   296→      // Find actual tenant contact for the receipt
+   297→      const tenantContact = matterState.contacts.find(c => 
+   298→        (c.email && c.email === property.rentalDetails?.tenantEmail) || 
+   299→        (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
+   300→        (c.name && c.name === property.rentalDetails?.tenantName)
+   301→      );
+   302→
+   303→      const mockInvoice: any = {
+   304→        id: uuidv4(),
+   305→        invoiceNumber: receiptNumber,
+   306→        client: tenantContact || { id: 'tenant-legacy', name: tenantName || 'The Tenant' },
+   307→        matter: { id: property.id, title: `Rent Payment: ${unitDisplayLabel}` },
+   308→        lineItems: [{
+   309→          id: uuidv4(),
+   310→          description: `Rent for ${unitDisplayLabel}`,
+   311→          hours: 1,
+   312→          rate: receiptAmount,
+   313→          total: receiptAmount // FULL amount — receipt reflects what was actually paid
+   314→        }],
+   315→        status: InvoiceStatus.Paid,
+   316→        issueDate: receiptDate,
+   317→        dueDate: receiptDate,
+   318→        paidDate: receiptDate,
+   319→        paymentDetails: coreState.firmDetails?.bankAccounts?.[0] || { 
+   320→          bankName: 'PracticePro Default', 
+   321→          accountNumber: '0000000000',
+   322→          accountName: coreState.firmDetails?.name || 'Firm'
+   323→        },
+   324→        subTotal: receiptAmount,
+   325→        taxAmount: 0,
+   326→        total_amount: receiptAmount
+   327→      };
+   328→
+   329→      const pStart = payment ? payment.periodStart : periodStart;
+   330→      const pEnd = payment ? payment.periodEnd : periodEnd;
+   331→      
+   332→      const tenancyPeriod = (pStart && pEnd)
+   333→        ? `${formatDateWithOrdinal(pStart)} to ${formatDateWithOrdinal(pEnd)}`
+   334→        : property.rentalDetails?.leaseStart && property.rentalDetails?.leaseEnd 
+   335→          ? `${formatDateWithOrdinal(property.rentalDetails.leaseStart)} to ${formatDateWithOrdinal(property.rentalDetails.leaseEnd)}`
+   336→          : undefined;
+   337→
+   338→      generateReceiptPdf(mockInvoice, coreState.firmDetails, (tenantContact || { name: tenantName || 'The Tenant' }) as any, { tenancyPeriod });
+   339→      if (!isSilent) addToast("Tenant receipt generated.", { type: 'success' });
+   340→    } catch (error: any) {
+   341→      console.error("[CollectRentModal] Receipt generation failed:", error);
+   342→      if (!isSilent) addToast("Failed to generate receipt PDF.", { type: 'error' });
+   343→    }
+   344→  };
+   345→
+   346→  return (
+   347→    <div className="p-1 sm:p-4">
+   348→      <div className="mb-6 flex items-start gap-4">
+   349→        <div className="p-3 bg-green-100 dark:bg-green-900/40 rounded-2xl text-green-600 dark:text-green-400">
+   350→          <Receipt className="w-6 h-6" />
+   351→        </div>
+   352→        <div className="flex-1 min-w-0">
+   353→          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 tracking-tight">Issue Rent Receipt</h3>
+   354→          <p className="text-sm text-slate-500">Record rent collection for:</p>
+   355→          <p className="text-sm font-bold text-slate-700 dark:text-zinc-300 break-words">{unitDisplayLabel}</p>
+   356→        </div>
+   357→        {lastPayment && (
+   358→          <button
+   359→            onClick={() => handleDownloadTenantReceipt(lastPayment)}
+   360→            className="flex-shrink-0 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 border border-slate-200 dark:border-zinc-700"
+   361→            title={lastPayment.paidDate ? `Last paid: ${new Date(lastPayment.paidDate).toLocaleDateString('en-GB')} for ${formatNaira(lastPayment.amount)}` : undefined}
+   362→          >
+   363→            <DownloadIcon className="w-4 h-4" /> Download Last Receipt
+   364→          </button>
+   365→        )}
+   366→      </div>
+   367→
+   368→      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+   369→        {/* Left: Input Form */}
+   370→        <div className="space-y-4">
+   371→          <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-4">
+   372→            <div className="space-y-1.5">
+   373→              <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Rent Amount</label>
+   374→              <div className="relative">
+   375→                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold"><NairaSymbol /></span>
+   376→                <input autoComplete="off" data-lpignore="true" 
+   377→                  type="text"
+   378→                  value={displayAmount}
+   379→                  onChange={e => handleAmountChange(e.target.value)}
+   380→                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg font-bold text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+   381→                />
+   382→              </div>
+   383→            </div>
+   384→
+   385→            <div className="grid grid-cols-2 gap-4">
+   386→              <div className="space-y-1.5">
+   387→                <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Date Paid</label>
+   388→                <div className="relative">
+   389→                  <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+   390→                  <input autoComplete="off" data-lpignore="true"
+   391→                    type="date"
+   392→                    value={paymentDate}
+   393→                    onChange={e => {
+   394→                      setPaymentDate(e.target.value);
+   395→                      if (!periodStart) setPeriodStart(e.target.value);
+   396→                    }}
+   397→                    className="w-full pl-11 pr-3 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+   398→                  />
+   399→                </div>
+   400→                {/* Formatted date display — shows full "15 Sep 2027" format
+   401→                    below the native date input so the user can always read
+   402→                    the date clearly, even when the input is narrow. */}
+   403→                {paymentDate && (
+   404→                  <p className="text-2xs text-slate-500 dark:text-zinc-500 font-semibold ml-1">
+   405→                    {new Date(paymentDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+   406→                  </p>
+   407→                )}
+   408→              </div>
+   409→              <div className="space-y-1.5">
+   410→                <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Method</label>
+   411→                <select
+   412→                  value={paymentMethod}
+   413→                  onChange={e => setPaymentMethod(e.target.value)}
+   414→                  className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+   415→                >
+   416→                  <option>Bank Transfer</option>
+   417→                  <option>Cheque</option>
+   418→                  <option>Cash</option>
+   419→                  <option>Other</option>
+   420→                </select>
+   421→              </div>
+   422→            </div>
+   423→
+   424→            <div className="grid grid-cols-2 gap-4">
+   425→              <div className="space-y-1.5">
+   426→                <label className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest ml-1">Period Start</label>
+   427→                <div className="relative">
+   428→                  <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
+   429→                  <input autoComplete="off" data-lpignore="true"
+   430→                    type="date"
+   431→                    value={periodStart}
+   432→                    onChange={e => setPeriodStart(e.target.value)}
+   433→                    className="w-full pl-11 pr-3 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+   434→                  />
+   435→                </div>
+   436→                {periodStart && (
+   437→                  <p className="text-2xs text-primary-600 dark:text-primary-400 font-semibold ml-1">
+   438→                    {new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+   439→                  </p>
+   440→                )}
+   441→              </div>
+   442→              <div className="space-y-1.5">
+   443→                <label className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest ml-1">Period End</label>
+   444→                <div className="relative">
+   445→                  <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
+   446→                  <input autoComplete="off" data-lpignore="true"
+   447→                    type="date"
+   448→                    value={periodEnd}
+   449→                    onChange={e => setPeriodEnd(e.target.value)}
+   450→                    className="w-full pl-11 pr-3 py-3 bg-white dark:bg-zinc-900 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+   451→                  />
+   452→                </div>
+   453→                {periodEnd && (
+   454→                  <p className="text-2xs text-primary-600 dark:text-primary-400 font-semibold ml-1">
+   455→                    {new Date(periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+   456→                  </p>
+   457→                )}
+   458→              </div>
+   459→            </div>
+   460→          </div>
+   461→
+   462→          <div className="flex items-center gap-3 p-4 bg-primary-50 dark:bg-primary-900/30 rounded-2xl border border-primary-100">
+   463→            <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg text-primary-600 dark:text-primary-300">
+   464→              <OfficeBuildingIcon className="w-4 h-4" />
+   465→            </div>
+   466→            <div className="min-w-0 flex-1">
+   467→              <p className="text-2xs font-bold text-primary-600 dark:text-primary-300 uppercase tracking-tight">Property / Unit</p>
+   468→              <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 break-words">{unitDisplayLabel}</p>
+   469→            </div>
+   470→          </div>
+   471→        </div>
+   472→
+   473→        {/* Right: Receipt Summary & Accounting Breakdown */}
+   474→        <div className="bg-slate-900 rounded-3xl p-6 text-white flex flex-col shadow-xl">
+   475→          <div className="flex items-center gap-2 mb-6 opacity-60">
+   476→            <CalculatorIcon className="w-4 h-4" />
+   477→            <span className="text-2xs font-black uppercase tracking-wide-label">Receipt Summary</span>
+   478→          </div>
+   479→
+   480→          <div className="space-y-4 flex-grow">
+   481→            {/* Receipt amount — always the FULL amount.
+   482→                CLEANED UP: reduced from text-3xl to text-2xl to prevent
+   483→                visual overflow/overlap with surrounding text. Added
+   484→                clear spacing. */}
+   485→            <div className="p-4 bg-white dark:bg-zinc-900/5 rounded-2xl border border-white/10">
+   486→              <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-3">Amount Received (Full)</p>
+   487→              <p className="text-2xl font-black text-white leading-tight"><NairaSymbol />{formatNaira(amountValue)}</p>
+   488→              <p className="text-3xs text-slate-500 mt-2">Receipt reflects full payment — no deductions</p>
+   489→            </div>
+   490→
+   491→            {/* Management fee breakdown — informational only */}
+   492→            {feePercentage > 0 && feeAmount > 0 && (
+   493→              <div className="p-3 bg-primary-500/10 rounded-lg border border-primary-500/20">
+   494→                <div className="flex justify-between items-start text-sm mb-2">
+   495→                  <div>
+   496→                    <span className="text-slate-300 font-semibold">Management Fee</span>
+   497→                    <span className="ml-2 text-3xs px-1.5 py-0.5 bg-primary-500/20 text-primary-400 rounded font-bold uppercase">{feePercentage}%</span>
+   498→                  </div>
+   499→                  <span className="font-bold text-primary-400"><NairaSymbol />{formatNaira(feeAmount)}</span>
+   500→                </div>
+   501→                <p className="text-3xs text-slate-500 leading-relaxed">
+   502→                  Fee is invoiced separately to the landlord. Receipt remains at full amount for proper accounting.
+   503→                </p>
+   504→                <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10 text-2xs">
+   505→                  <span className="text-slate-400">Landlord retains (after fee)</span>
+   506→                  <span className="font-bold text-emerald-400"><NairaSymbol />{formatNaira(amountValue - feeAmount)}</span>
+   507→                </div>
+   508→              </div>
+   509→            )}
+   510→
+   511→            {/* Zero-fee properties */}
+   512→            {feePercentage <= 0 && (
+   513→              <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+   514→                <p className="text-2xs text-emerald-400 font-semibold">No management fee configured</p>
+   515→                <p className="text-3xs text-slate-500 mt-0.5">Full amount is remitted to the landlord.</p>
+   516→              </div>
+   517→            )}
+   518→          </div>
+   519→
+   520→          <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
+   521→            <div className="flex flex-col gap-2">
+   522→              <div className="flex items-center gap-2 text-2xs text-slate-400">
+   523→                <UserIcon className="w-3 h-3" />
+   524→                <span>Client: <strong className="text-white">{owner?.name || 'Unknown'}</strong></span>
+   525→              </div>
+   526→              {tenantName && (
+   527→                <div className="flex items-center gap-2 text-2xs text-slate-400">
+   528→                  <UserIcon className="w-3 h-3 opacity-50" />
+   529→                  <span>Tenant: <strong className="text-white/80">{tenantName}</strong></span>
+   530→                </div>
+   531→              )}
+   532→            </div>
+   533→            <button
+   534→              onClick={handleCollect}
+   535→              disabled={isProcessing || amountValue <= 0}
+   536→              className="w-full py-4 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-700 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-lg shadow-primary-900/20 group"
+   537→            >
+   538→              {isProcessing ? 'Processing...' : 'Confirm & Issue Receipt'}
+   539→            </button>
+   540→            <button
+   541→              onClick={() => handleDownloadTenantReceipt()}
+   542→              type="button"
+   543→              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-2xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-white/5"
+   544→            >
+   545→              <DownloadIcon className="w-3.5 h-3.5" />
+   546→              Preview Receipt
+   547→            </button>
+   548→          </div>
+   549→        </div>
+   550→      </div>
+   551→
+   552→      <div className="flex justify-center">
+   553→        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+   554→          <XIcon className="w-4 h-4" /> Cancel
+   555→        </button>
+   556→      </div>
+   557→    </div>
+   558→  );
+   559→};
+   560→
+   561→export default CollectRentModal;
+   562→

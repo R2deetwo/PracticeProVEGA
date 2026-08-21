@@ -1,0 +1,243 @@
+/home/z/my-project/src/types.ts-265-    category: PropertyCategory;
+/home/z/my-project/src/types.ts-266-    ownershipType?: 'owned' | 'managed';
+/home/z/my-project/src/types.ts-267-    propertyType?: 'Residential' | 'Commercial' | 'Industrial' | 'Land' | 'Mixed Use';
+/home/z/my-project/src/types.ts-268-    description?: string;
+/home/z/my-project/src/types.ts-269-    status: PropertyStatus;
+/home/z/my-project/src/types.ts:270:    rentCollectionMode?: 'Full (Collect Rent)' | 'Management Only (No Rent)';
+/home/z/my-project/src/types.ts-271-    value?: number;
+/home/z/my-project/src/types.ts-272-    rentalDetails?: {
+/home/z/my-project/src/types.ts-273-        id?: string;
+/home/z/my-project/src/types.ts-274-        unitName?: string;
+/home/z/my-project/src/types.ts-275-        rentAmount: number;
+--
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1040-                            </div>
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1041-                            <div className="space-y-2 group">
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1042-                                <label className={labelClass}>Collection Mode</label>
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1043-                                <select value={rentCollectionMode} onChange={e => setRentCollectionMode(e.target.value as any)} className={commonInputClass}>
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1044-                                    <option value="Full (Collect Rent)">Full (Collect Rent)</option>
+/home/z/my-project/src/components/forms/PropertyForm.tsx:1045:                                    <option value="Management Only (No Rent)">Management Only (No Rent)</option>
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1046-                                </select>
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1047-                            </div>
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1048-                            {/* ─── Core Services Toggles ──────────────────────────
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1049-                                Per-property Active/Inactive toggles for standard
+/home/z/my-project/src/components/forms/PropertyForm.tsx-1050-                                services. Inactive services are grayed out in the
+--
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-47-
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-48-export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, unitRental, unitPayments }) => {
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-49-    const rental = unitRental || property.rentalDetails;
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-50-    const payments = unitPayments || property.rentPaymentHistory || [];
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-51-
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx:52:    // Management Only properties don't collect rent via the system — hide the
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-53-    // rent collection bar entirely. Only lease timeline + service charge show.
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx:54:    const isManagementOnly = property.rentCollectionMode === 'Management Only (No Rent)';
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-55-
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-56-    // ── 1. Lease Timeline progress ───────────────────────────────────────────
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-57-    const leaseTimeline = useMemo(() => {
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-58-        if (!rental?.leaseStart || !rental?.leaseEnd) return null;
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-59-        const start = new Date(rental.leaseStart).getTime();
+--
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-81-        };
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-82-    }, [rental?.leaseStart, rental?.leaseEnd]);
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-83-
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-84-    // ── 2. Rent Collection progress ──────────────────────────────────────────
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-85-    const rentCollection = useMemo(() => {
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx:86:        // Hide rent collection bar for Management Only properties
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-87-        if (isManagementOnly) return null;
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-88-        if (!rental?.rentAmount || !rental?.leaseStart) return null;
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-89-        const rentPerPeriod = rental.rentAmount;
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-90-        const periodM = periodMonths(rental.rentFrequency);
+/home/z/my-project/src/components/details/LeaseProgressBars.tsx-91-        const start = new Date(rental.leaseStart).getTime();
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1745-                                                                <div className="flex flex-wrap items-center gap-2">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1746-                                                                    {/* Close (X) button removed per user request.
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1747-                                                                        Toggling/clicking the unit card itself handles
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1748-                                                                        collapse and accordion state switching. */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1749-
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:1750:                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1751-                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" aria-label="Record Payment & Issue Receipt" title="Record Payment & Issue Receipt">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1752-                                                                            <Receipt className="w-3 h-3" /> Receipt
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1753-                                                                        </button>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1754-                                                                    )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:1755:                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1756-                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-amber-200 dark:border-amber-800" aria-label="Rent Demand Notice" title="Rent Demand Notice">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1757-                                                                            <Megaphone className="w-3 h-3" /> Demand
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1758-                                                                        </button>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1759-                                                                    )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1760-                                                                    <button
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1913-                                                                        </div>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1914-
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1915-                                                                        {/* Details grid — compact 3-col metadata */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1916-                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 mb-3">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1917-                                                                            {d.tenantName && <DetailItem label="Resident" value={d.tenantName} />}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:1918:                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1919-                                                                                <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-2xs text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1920-                                                                            )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1921-                                                                            {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1922-                                                                            {tenantPhone && <DetailItem label="Phone" value={tenantPhone} />}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1923-                                                                            {tenantEmail && <DetailItem label="Email" value={<span className="truncate block">{tenantEmail}</span>} />}
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1984-                                                                            padding (px-3 py-1.5), font size (text-xs font-medium),
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1985-                                                                            rounded corners (rounded-md), icon sizes (w-3.5 h-3.5).
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1986-                                                                            Styled as subtle outline chips with gentle hover fills.
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1987-                                                                            Single horizontal flex row with flex-wrap for small screens. */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1988-                                                                        <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:1989:                                                                            {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1990-                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 whitespace-nowrap" aria-label="Ledger-only entry (no receipt)" title="Ledger-only entry (no receipt)">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1991-                                                                                    <Wallet className="w-3.5 h-3.5" /> Ledger
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1992-                                                                                </button>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1993-                                                                            )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-1994-                                                                            {/* STATE GATING — when a notice is served, the "Quit Notice"
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2149-                                //    text as a fallback for non-marquee users.
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2150-                                const collectionStatusText = `${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Outstanding`;
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2151-                                return (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2152-                                    <>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2153-                                        {/* TOTAL ANNUAL RENT + RECURRING REVENUE — hidden for
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2154:                                            Management Only properties (no rent collection). */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2155:                                        {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2156-                                            <>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2157-                                                <StatCard
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2158-                                                    title="TOTAL ANNUAL RENT"
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2159-                                                    value={formatNairaCompact(totalAnnual)}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2160-                                                    tooltipText={formatNairaFull(totalAnnual)}
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2187-                                                icon={<Wallet />}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2188-                                                colorClass="bg-teal-600"
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2189-                                            />
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2190-                                        )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2191-                                        {/* COLLECTION STATUS — hidden when property is
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2192:                                            Management Only (no rent collection tracking). */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2193:                                        {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2194-                                            <StatCard
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2195-                                                title="COLLECTION STATUS"
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2196-                                                value={collectionStatusText}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2197-                                                tooltipText={collectionStatusText}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2198-                                                scrollOnOverflow={true}
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2217-                                <table className="w-full text-sm">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2218-                                    <thead className="bg-slate-50 dark:bg-zinc-900/50">
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2219-                                        <tr>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2220-                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Unit</th>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2221-                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Resident</th>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2222:                                            {/* RENT column — hidden for Management Only properties */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2223:                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2224-                                                <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Rent</th>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2225-                                            )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2226-                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2227-                                            {/* MINIMUM VEND column — shown when property has MV enabled */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2228-                                            {property.minimumVendEnabled && (
+--
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2258-                                                    data-entry-id={unit.id}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2259-                                                    className={`hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-all ${isHighlighted ? 'ring-2 ring-amber-500/50 animate-pulse bg-amber-50 dark:bg-amber-900/20' : ''}`}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2260-                                                >
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2261-                                                    <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-white">{d.name}</td>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2262-                                                    <td className="px-4 py-2.5 text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</td>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2263:                                                    {/* RENT cell — hidden for Management Only */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx:2264:                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2265-                                                        <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2266-                                                    )}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2267-                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2268-                                                    {/* MINIMUM VEND cell — shown when MV enabled */}
+/home/z/my-project/src/components/details/PropertyDetailView.tsx-2269-                                                    {property.minimumVendEnabled && (
+--
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-40-    const { executionActions } = useExecutionState();
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-41-    const { addToast, openModal, navigateTo } = useUI();
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-42-    const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-43-    const isLeased = property.category === 'Tenanted Property';
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-44-    const isSale = property.category === 'Property For Sale';
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx:45:    // Management Only properties don't collect rent via the system — hide all
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-46-    // rent collection modules (Quick Stats cards, rent tab, rent history table,
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-47-    // rent collection progress bar). Only show lease timeline + service charge.
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx:48:    const isManagementOnly = property.rentCollectionMode === 'Management Only (No Rent)';
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-49-    const [activeSection, setActiveSection] = useState<'timeline' | 'rent' | 'maintenance'>(isLeased ? 'timeline' : 'timeline');
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-50-    const [showAddModal, setShowAddModal] = useState(false);
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-51-    const [addType, setAddType] = useState<'rent' | 'maintenance' | 'event' | 'lease_setup'>('event');
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-52-    
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-53-    // Local state for formatted inputs in the modal
+--
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-63-    const timeline = property.trackingTimeline || [];
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-64-    const maintenance = property.maintenanceHistory || [];
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-65-    const rentHistory = property.rentPaymentHistory || [];
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-66-
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-67-    // Sorting
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx:68:    // For Management Only properties, filter out rent_collected events from
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-69-    // the timeline — they don't apply when rent collection is disabled.
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-70-    const filteredTimeline = isManagementOnly
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-71-        ? timeline.filter(e => e.type !== 'rent_collected')
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-72-        : timeline;
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-73-    const sortedTimeline = [...filteredTimeline].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+--
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-534-                    </p>
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-535-                </div>
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-536-            </div>
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-537-
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-538-            {/* Visual Progress Bars — lease timeline + rent collection.
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx:539:                For Management Only properties, the LeaseProgressBars component
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-540-                internally hides the rent collection bar (it checks
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-541-                rentCollectionMode). So we can always mount it for leased
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-542-                properties — only the lease timeline + service charge bars
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-543-                will show for management-only properties. */}
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-544-            {isLeased && (
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-545-                <LeaseProgressBars property={property} />
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-546-            )}
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-547-
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx:548:            {/* Navigation Tabs — hide 'rent' tab for Management Only properties */}
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-549-            <div className="flex space-x-2 bg-slate-100 dark:bg-zinc-800/50 p-1 rounded-lg w-fit">
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-550-                {(['timeline', 'rent', 'maintenance'] as const)
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-551-                    .filter(tab => (isLeased && !isManagementOnly) || tab !== 'rent')
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-552-                    .map(tab => (
+/home/z/my-project/src/components/details/PropertyTrackingView.tsx-553-                    <button
+--
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-697-  // Derive outstanding balance from tenantInfo (if available)
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-698-  const outstandingBalance = tenantInfo?.outstandingBalance || 0;
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-699-  const hasOutstanding = outstandingBalance > 0;
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-700-
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-701-  // ── Rent info (only shown when rent collection is enabled) ──
+/home/z/my-project/src/components/tenant/TenantPortal.tsx:702:  const isRentCollection = tenantInfo?.primaryRentCollectionMode !== 'Management Only (No Rent)';
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-703-  const rentAmount = tenantInfo?.units?.[0]?.rentAmount || tenantInfo?.primaryRentAmount || 0;
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-704-  const rentFrequency = tenantInfo?.units?.[0]?.rentFrequency || 'Monthly';
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-705-  const leaseStart = tenantInfo?.units?.[0]?.leaseStart;
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-706-  const leaseEnd = tenantInfo?.units?.[0]?.leaseEnd;
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-707-
+--
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-724-  // Per-property service toggles fetched from the backend. When a service
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-725-  // is 'inactive', the icon is grayed out with a tooltip:
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-726-  //   "This service is not applicable for your property."
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-727-  // This replaces the old static "Management-Only" message with a
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-728-  // data-driven, manager-configurable service architecture.
+/home/z/my-project/src/components/tenant/TenantPortal.tsx:729:  const isManagementOnly = tenantInfo?.primaryRentCollectionMode === 'Management Only (No Rent)';
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-730-  const coreServices = tenantInfo?.primaryCoreServices || {
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-731-    serviceCharge: true,
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-732-    electricity: true,
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-733-    internet: true,
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-734-    wasteManagement: true,
+--
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2663-  const firmId = effectiveFirmId || currentUser?.firmId || '';
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2664-  const userId = currentUser?.id || '';
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2665-  const resolvedTenantId = tenantInfo?.tenantId || userId;
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2666-
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2667-  // ─── MANAGEMENT-ONLY CHECK ──────────────────────────────────────────
+/home/z/my-project/src/components/tenant/TenantPortal.tsx:2668:  // If the property is marked 'Management Only (No Rent)', the entire
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2669-  // Payments tab shows a notice instead of payment options.
+/home/z/my-project/src/components/tenant/TenantPortal.tsx:2670:  const isManagementOnly = tenantInfo?.primaryRentCollectionMode === 'Management Only (No Rent)';
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2671-
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2672-  const [description, setDescription] = useState('');
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2673-  const [amount, setAmount] = useState('');
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2674-  const [period, setPeriod] = useState('');
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-2675-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+--
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3464-        </div>
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3465-      )}
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3466-
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3467-      {/* ─── Lease Agreement Section ───────────────────────────────────────
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3468-          MANAGEMENT-ONLY SUPPRESSION: When the property is marked
+/home/z/my-project/src/components/tenant/TenantPortal.tsx:3469:          'Management Only (No Rent)', the Lease Agreement link is hidden.
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3470-          This prevents residents from viewing lease terms for properties
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3471-          where rent is not collected through the portal. */}
+/home/z/my-project/src/components/tenant/TenantPortal.tsx:3472:      {hasLease && tenantInfo?.primaryRentCollectionMode !== 'Management Only (No Rent)' && (
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3473-        <div className="mb-6">
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3474-          <div className="flex items-center gap-2 mb-3">
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3475-            <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3476-            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Lease Agreement</h4>
+/home/z/my-project/src/components/tenant/TenantPortal.tsx-3477-          </div>
