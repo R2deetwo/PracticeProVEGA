@@ -18,6 +18,7 @@ import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
 import { Skeleton } from './toolkit/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 import BroadcastBanner from './BroadcastBanner';
+import CompleteSetupBanner from './CompleteSetupBanner';
 // CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
 import TrialNudgeBanner from './TrialNudgeBanner';
 
@@ -254,6 +255,12 @@ const Dashboard: React.FC = () => {
                     Sits below Overview header, above the operational grid.
                     Never overlaps the left sidebar or top navigation. */}
                 <BroadcastBanner />
+
+                {/* Complete Setup Banner — drives users to finish their onboarding
+                    checklist. Renders only when checklist has incomplete items and
+                    the user hasn't dismissed it. Higher-contrast than the sidebar
+                    checklist widget so it catches attention on first dashboard load. */}
+                <CompleteSetupBanner />
 
                 {/* CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
                     Shows contextual value-driven messages on Days 0, 1, 3, 5, 7, 10, 13.

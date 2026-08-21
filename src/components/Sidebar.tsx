@@ -15,6 +15,7 @@ import {
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
     ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon
 } from '../constants';
+import GettingStartedChecklist from './GettingStartedChecklist';
 
 // ARIA-X inline icon
 const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -344,6 +345,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     </div>
                 )}
             </div>
+
+            {/* Getting Started Checklist — Phase 2 widget from SETUP_WIZARD_DESIGN.md.
+                Persistent, dismissible, auto-completes items when actions are done.
+                Only shown for non-portal users (Admins and Lawyers) and only when
+                the sidebar is expanded — when retracted, the icon-only mode doesn't
+                have room for a multi-item card. */}
+            {!isSidebarRetracted && currentUser?.firmId &&
+             currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && (
+                <GettingStartedChecklist />
+            )}
 
             {/* Nav List */}
             <div key={product} className="flex-1 overflow-y-auto py-4 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent animate-fade-in-up">

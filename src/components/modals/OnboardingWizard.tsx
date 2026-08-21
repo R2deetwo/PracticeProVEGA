@@ -7,12 +7,23 @@ import { translateError } from '../../utils/errorTranslator';
 import { openLegalDocument } from '../../utils/legalLinks';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogoutIcon, CheckIcon, LockClosedIcon, RevertIcon } from '../../constants';
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUI } from '../../contexts/UIContext';
 import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
 // CRO AUDIT Track A — A3: use the real PaymentGatewayModal instead of the stub.
 import PaymentGatewayModal from './PaymentGatewayModal';
+
+// SETUP WIZARD EXTENSION (Steps 3-5):
+// Channel-relevance copy for Step 3 (Communication Channels).
+// IMPORTANT: per user spec, we ask the user which channels they INTEND to use
+// and explain why each matters — but we do NOT collect phone numbers,
+// WhatsApp Business API tokens, or Brevo/Sendgrid API keys during onboarding.
+// Those credentials are configured later in Settings → Integrations.
+const WHATSAPP_RELEVANCE =
+  'Rent reminders, overdue notices, and lease-expiry nudges to tenants. Matter status updates, court-date alerts, and document-signing requests to clients. Best for time-sensitive, two-way conversations — most Nigerian recipients read WhatsApp within minutes.';
+const EMAIL_RELEVANCE =
+  'Invoice delivery, monthly statements, formal letters, and engagement letters. Best for documents the recipient needs to keep on file. Email is also the fallback channel when WhatsApp is undelivered.';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -130,9 +141,9 @@ const PlanCard: React.FC<{
 };
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
-  const { createFirm, joinFirm } = useDataActions();
+  const { createFirm, joinFirm, handleUpdateFirmDetails } = useDataActions();
   const { currentUser, logout, refreshUser } = useAuth();
-  const { navigateTo } = useUI();
+  const { navigateTo, addToast } = useUI();
   const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
 
   // Use the product the user selected during signup
@@ -140,6 +151,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const userProduct = (currentUser as any)?.product as ProductMode | undefined;
 
   // Step 1: Workspace name | Step 2: Plan selection (product already known from signup)
+  // Step 3: Communication channels | Step 4: Team setup | Step 5: Review & confirm
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [firmName, setFirmName] = useState('');
@@ -157,6 +169,17 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // Payment/trial flow state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAction, setPaymentAction] = useState<'pay_now' | 'start_trial' | null>(null);
+
+  // SETUP WIZARD EXTENSION — Steps 3-5 state:
+  // createdFirmId is the ID returned by createFirm (used to look up the
+  // invite code on Step 4 even before DataProvider has finished syncing).
+  const [createdFirmId, setCreatedFirmId] = useState<string | null>(null);
+  // Communication channel intent — recorded to firmDetails.settings on Step 5.
+  const [useWhatsapp, setUseWhatsapp] = useState<boolean | null>(null);
+  const [useEmail, setUseEmail] = useState<boolean | null>(null);
+  // "Will anyone else be working in this workspace?" (Step 4)
+  const [willInviteTeam, setWillInviteTeam] = useState<boolean | null>(null);
+  const [isSavingFinal, setIsSavingFinal] = useState(false);
 
   // If user already chose product during signup, set it immediately
   useEffect(() => {
@@ -209,10 +232,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
           ]);
           sessionStorage.removeItem('practicepro_demo_product');
-          onComplete();
+          // SETUP WIZARD EXTENSION: do NOT call onComplete() here — instead
+          // advance the user to Step 3 (Communication Channels) so they can
+          // record their WhatsApp/Email intent and team setup before landing
+          // in the app. We keep the firmId so Step 4 can fetch the invite code
+          // without waiting for the full DataProvider sync.
+          setCreatedFirmId(fid);
+          setStep(3);
         } catch (refreshErr) {
           // refreshUser timed out or failed — but the firm WAS created.
           // Force a page reload so the user's session picks up the new firmId.
+          // After reload the App routes them into the main app (firm exists),
+          // and they can configure communication channels / team from Settings.
           console.warn('[Onboarding] refreshUser timed out, force-reloading...', refreshErr);
           sessionStorage.removeItem('practicepro_demo_product');
           window.location.reload();
@@ -262,23 +293,96 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     }
   };
 
+  // ── SETUP WIZARD EXTENSION ────────────────────────────────────────────
+  // Fetch the firm record so Step 4 can display the invite code immediately
+  // (DataProvider may not have synced firmDetails yet when the user lands
+  // on Step 4 right after creating the firm).
+  const lookupFirmId = createdFirmId || currentUser?.firmId || '';
+  const firmBasicInfo = useQuery(
+    api.myFunctions.getFirmBasicInfo,
+    lookupFirmId ? { firmId: lookupFirmId } : 'skip'
+  );
+  const firmInviteCode: string | undefined =
+    (firmBasicInfo as any)?.inviteCode || undefined;
+
+  // Step 5 handler — persists the communication channel intent to
+  // firmDetails.settings.communicationChannels, then calls onComplete().
+  // Uses the patched handleUpdateFirmDetails which now falls back to
+  // currentUser.firmId if firmDetails.id isn't loaded yet (the immediate
+  // post-createFirm window).
+  const handleCompleteWizard = async () => {
+    setIsSavingFinal(true);
+    try {
+      // Persist communication channel intent. Stored under firmDetails.settings
+      // so it doesn't require a schema migration (settings is v.any()).
+      // If handleUpdateFirmDetails is unavailable for any reason, we still
+      // proceed — the user can configure channels later from Settings.
+      if (handleUpdateFirmDetails && lookupFirmId) {
+        const now = Date.now();
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        await handleUpdateFirmDetails({
+          id: lookupFirmId,
+          settings: {
+            communicationChannels: {
+              whatsapp: useWhatsapp === true,
+              email: useEmail === true,
+            },
+            // If the user opted into either channel but hasn't connected
+            // credentials, set a reminder 7 days out. The reminder cron can
+            // pick this up to nudge them via in-app notification.
+            communicationSetupReminderAt:
+              (useWhatsapp === true || useEmail === true)
+                ? now + SEVEN_DAYS_MS
+                : null,
+            onboardingCompletedAt: new Date(now).toISOString(),
+          },
+        });
+      }
+    } catch (e) {
+      // Non-blocking — user can always configure channels later.
+      console.warn('[OnboardingWizard] failed to persist communication channels:', e);
+    } finally {
+      setIsSavingFinal(false);
+      onComplete();
+    }
+  };
+
+  const copyInviteCode = async () => {
+    if (!firmInviteCode) return;
+    try {
+      await navigator.clipboard.writeText(firmInviteCode);
+      addToast?.('Invite code copied — share it with your team.', { type: 'success' });
+    } catch {
+      // Clipboard API can be blocked by permissions — fallback to select hint.
+      addToast?.('Could not copy automatically — please copy the code manually.', { type: 'info' });
+    }
+  };
+
   return (
     <div className="flex flex-col items-center h-full w-full bg-white overflow-y-auto scroll-smooth py-20 px-6">
       {/* Force light theme — onboarding should always be white with green PracticePro branding,
           regardless of system dark mode preference. */}
-      <div className="absolute top-6 right-6">
-        <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-lg transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
-      </div>
+      {/* SETUP WIZARD EXTENSION: hide the Sign Out button once the firm has
+          been created (Steps 3-5) — signing out mid-wizard would lose the
+          freshly-created firm's local state and confuse the user. */}
+      {step <= 2 && (
+        <div className="absolute top-6 right-6">
+          <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-lg transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
+        </div>
+      )}
 
       <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
         {error && <div className="p-3 bg-red-50  text-red-600  rounded-lg text-sm text-center border border-red-100  font-bold">{error}</div>}
 
-        {/* ── Progress Indicator ── */}
+        {/* ── Progress Indicator — 5 steps total ── */}
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className={`h-2 rounded-full transition-all duration-500 ${step >= 1 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
-          <div className={`h-2 rounded-full transition-all duration-500 ${step >= 2 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
+          {[1, 2, 3, 4, 5].map(n => (
+            <div key={n} className={`h-2 rounded-full transition-all duration-500 ${step >= n ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
+          ))}
         </div>
-        <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Step {step} of 2</p>
+        <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+          {step <= 2 ? `Step ${step} of 2 — Setup` : `Step ${step} of 5 — Finish Setup`}
+        </p>
 
         {/* ── STEP 1: Workspace Name ─────────────────────────────── */}
         {step === 1 && (
@@ -635,6 +739,289 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── STEP 3: Communication Channels ─────────────────────────── */}
+        {/* Per user spec: ask whether the user will use email or WhatsApp,
+            clarify the relevance of both, and do NOT ask for their phone
+            number, WhatsApp Business API token, or Brevo/Sendgrid API key.
+            We record intent only — credentials are configured later in
+            Settings → Integrations. */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                How will you reach {productName === 'Atrium' ? 'tenants' : productName === 'Vega' ? 'clients' : 'clients & tenants'}?
+              </h2>
+              <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+                Pick the channels you intend to use. You can connect credentials later from <span className="font-bold text-slate-700">Settings → Integrations</span> — we'll send a friendly reminder in 7 days if you haven't.
+              </p>
+            </div>
+
+            {/* WhatsApp channel card */}
+            <div className={`max-w-md mx-auto p-5 rounded-2xl border-2 transition-all ${useWhatsapp === true ? 'border-emerald-400 bg-emerald-50/40' : useWhatsapp === false ? 'border-slate-100 opacity-60' : 'border-slate-100'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.967-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.27 9.27 0 01-4.726-1.293l-.339-.202-3.511.921.938-3.426-.219-.351a9.264 9.264 0 01-1.421-4.951c.002-5.12 4.165-9.282 9.286-9.282 2.481 0 4.811.967 6.563 2.721a9.244 9.244 0 012.72 6.569c-.002 5.118-4.165 9.282-9.286 9.282"/></svg>
+                    <h3 className="text-base font-bold text-slate-900">WhatsApp</h3>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+                    {WHATSAPP_RELEVANCE}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setUseWhatsapp(true)}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useWhatsapp === true ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                >
+                  Yes — I'll use WhatsApp
+                </button>
+                <button
+                  onClick={() => setUseWhatsapp(false)}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useWhatsapp === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                >
+                  Not yet
+                </button>
+              </div>
+            </div>
+
+            {/* Email channel card */}
+            <div className={`max-w-md mx-auto p-5 rounded-2xl border-2 transition-all ${useEmail === true ? 'border-blue-400 bg-blue-50/40' : useEmail === false ? 'border-slate-100 opacity-60' : 'border-slate-100'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <h3 className="text-base font-bold text-slate-900">Email</h3>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+                    {EMAIL_RELEVANCE}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setUseEmail(true)}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useEmail === true ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                >
+                  Yes — I'll use Email
+                </button>
+                <button
+                  onClick={() => setUseEmail(false)}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useEmail === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                >
+                  Not yet
+                </button>
+              </div>
+            </div>
+
+            {/* Soft note if both are skipped */}
+            {useWhatsapp === false && useEmail === false && (
+              <p className="text-center text-2xs text-slate-500 font-medium max-w-md mx-auto">
+                No problem — we'll send in-app notifications only. You can connect WhatsApp and Email anytime from <span className="font-bold text-slate-700">Settings → Integrations</span>.
+              </p>
+            )}
+
+            <div className="max-w-md mx-auto pt-2 space-y-3">
+              <button
+                onClick={() => setStep(4)}
+                disabled={useWhatsapp === null || useEmail === null}
+                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+              >
+                Next: Team Setup
+              </button>
+              <p className="text-center text-2xs text-slate-400">
+                You can change these anytime from Settings → Integrations.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 4: Team Setup ─────────────────────────────────────── */}
+        {step === 4 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                Will anyone else work in this workspace?
+              </h2>
+              <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+                Invite teammates now, or skip and add them later from <span className="font-bold text-slate-700">Settings → Team</span>.
+              </p>
+            </div>
+
+            <div className="max-w-md mx-auto space-y-3">
+              <button
+                onClick={() => setWillInviteTeam(true)}
+                className={`w-full p-4 text-left rounded-2xl border-2 transition-all ${willInviteTeam === true ? 'border-primary-500 bg-primary-50/40' : 'border-slate-100 hover:border-slate-200'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Yes — invite my team</p>
+                    <p className="text-2xs text-slate-500 font-medium mt-0.5">Lawyers, paralegals, property officers, accountants — anyone who'll work in PracticePro.</p>
+                  </div>
+                  {willInviteTeam === true && <CheckIcon className="w-5 h-5 text-primary-600 flex-shrink-0" />}
+                </div>
+              </button>
+              <button
+                onClick={() => setWillInviteTeam(false)}
+                className={`w-full p-4 text-left rounded-2xl border-2 transition-all ${willInviteTeam === false ? 'border-primary-500 bg-primary-50/40' : 'border-slate-100 hover:border-slate-200'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Not right now — it's just me</p>
+                    <p className="text-2xs text-slate-500 font-medium mt-0.5">You can invite team members anytime from Settings → Team.</p>
+                  </div>
+                  {willInviteTeam === false && <CheckIcon className="w-5 h-5 text-primary-600 flex-shrink-0" />}
+                </div>
+              </button>
+            </div>
+
+            {/* Invite code panel — shown whenever the user has answered the question.
+                Either way, we surface the code so they can copy & share it now
+                or come back to it later. */}
+            {willInviteTeam !== null && (
+              <div className="max-w-md mx-auto p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Your Workspace Invite Code</p>
+                    <p className="text-2xs text-slate-500 font-medium mt-0.5">
+                      {willInviteTeam
+                        ? 'Share this code with your team — they enter it on the signup page to join your workspace.'
+                        : 'Save this code in case you want to invite someone later.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 px-4 py-3 bg-white rounded-xl border border-slate-200 font-mono font-bold text-lg text-center text-slate-900 tracking-widest">
+                    {firmInviteCode || (firmBasicInfo === undefined ? 'Loading…' : '—')}
+                  </div>
+                  <button
+                    onClick={copyInviteCode}
+                    disabled={!firmInviteCode}
+                    className="px-4 py-3 bg-primary-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50"
+                  >
+                    Copy
+                  </button>
+                </div>
+                {willInviteTeam && (
+                  <p className="text-2xs text-slate-500 font-medium leading-relaxed">
+                    Team members join with the role <span className="font-bold">Lawyer</span> by default — you can change roles and permissions from <span className="font-bold">Settings → Team</span> once they're in.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="max-w-md mx-auto pt-2 space-y-3">
+              <button
+                onClick={() => setStep(5)}
+                disabled={willInviteTeam === null}
+                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+              >
+                Next: Review & Confirm
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all"
+              >
+                ← Back
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 5: Review & Confirm ───────────────────────────────── */}
+        {step === 5 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                You're all set, {currentUser?.name?.split(' ')[0] || 'there'}!
+              </h2>
+              <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+                Review your setup below. You can change any of this from Settings once you're in.
+              </p>
+            </div>
+
+            <div className="max-w-md mx-auto rounded-2xl border border-slate-100 overflow-hidden">
+              {/* Workspace row */}
+              <div className="px-5 py-4 border-b border-slate-50">
+                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Workspace</p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">{firmName || 'My Workspace'}</p>
+                <p className="text-2xs text-slate-500 font-medium">
+                  {productName === 'Atrium' ? 'Atrium · Property Management' : productName === 'Vega' ? 'Vega · Legal Practice' : 'Komplete · Unified Workspace'}
+                </p>
+              </div>
+
+              {/* Plan row */}
+              <div className="px-5 py-4 border-b border-slate-50">
+                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Plan</p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">
+                  {isKomplete(product) ? 'Komplete' : selectedTierId}
+                  <span className="text-2xs text-slate-500 font-medium ml-1.5">
+                    ({billingCycle === 'annual' && !isKomplete(product) ? 'Annual' : isKomplete(product) ? 'Annual (only)' : 'Monthly'})
+                  </span>
+                </p>
+              </div>
+
+              {/* Communication channels row */}
+              <div className="px-5 py-4 border-b border-slate-50">
+                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Communication Channels</p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {useWhatsapp === true && (
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-2xs font-bold uppercase tracking-widest rounded-full border border-emerald-200">WhatsApp</span>
+                  )}
+                  {useEmail === true && (
+                    <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-2xs font-bold uppercase tracking-widest rounded-full border border-blue-200">Email</span>
+                  )}
+                  {useWhatsapp !== true && useEmail !== true && (
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-2xs font-bold uppercase tracking-widest rounded-full border border-slate-200">In-app only</span>
+                  )}
+                </div>
+                {(useWhatsapp === true || useEmail === true) && (
+                  <p className="text-2xs text-slate-500 font-medium mt-2">
+                    We'll remind you to connect credentials in 7 days if you haven't yet.
+                  </p>
+                )}
+              </div>
+
+              {/* Team row */}
+              <div className="px-5 py-4">
+                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Team</p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">
+                  {willInviteTeam ? 'Invite my team now' : 'Just me for now'}
+                </p>
+                {firmInviteCode && (
+                  <p className="text-2xs text-slate-500 font-medium mt-1">
+                    Invite code: <span className="font-mono font-bold text-slate-700">{firmInviteCode}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="max-w-md mx-auto pt-2 space-y-3">
+              <button
+                onClick={handleCompleteWizard}
+                disabled={isSavingFinal}
+                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 flex justify-center disabled:opacity-50"
+              >
+                {isSavingFinal ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving…
+                  </span>
+                ) : (
+                  'Start using PracticePro'
+                )}
+              </button>
+              <button
+                onClick={() => setStep(4)}
+                disabled={isSavingFinal}
+                className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50"
+              >
+                ← Back
+              </button>
+            </div>
           </div>
         )}
       </div>

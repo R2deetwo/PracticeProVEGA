@@ -3,7 +3,9 @@ import Accordion, { AccordionItem } from '../Accordion';
 import { useOnboarding } from '../../contexts/OnboardingProvider';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { getAssistantName } from '../../utils/assistantIdentity';
+import { CHECKLIST_DISMISSED_KEY_PREFIX, BANNER_DISMISSED_KEY_PREFIX } from '../GettingStartedChecklist';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
@@ -19,11 +21,49 @@ export const HelpSettings: React.FC = () => {
     const { resetTour } = useOnboarding();
     const { addToast } = useUI();
     const { isProperty, isVega } = useProduct();
+    const { currentUser } = useAuth();
     const assistantName = getAssistantName(isProperty);
 
     const handleRestartTour = () => {
         resetTour();
         addToast("App tour has been reset and will restart now.", { type: 'success' });
+    };
+
+    /**
+     * Reset Setup Checklist — clears BOTH localStorage dismissal flags (sidebar
+     * widget + Dashboard banner) so the Getting Started checklist re-appears
+     * for users who previously dismissed it but want to revisit the onboarding
+     * steps. Per-firm keyed so the reset only affects the current workspace.
+     *
+     * The next time the sidebar or Dashboard re-renders, the checklist widget
+     * / banner will re-appear because their `useEffect` reads the cleared
+     * localStorage state and flips `isDismissed` back to false.
+     *
+     * NOTE: This does NOT reset any of the actual checklist progress (which is
+     * computed from real data via the getGettingStartedChecklist Convex query).
+     * It only re-shows the widget/banner so the user can see what's left.
+     */
+    const handleResetChecklist = () => {
+        const firmId = (currentUser as any)?.firmId;
+        if (!firmId) {
+            addToast("Could not reset — no workspace is currently active.", { type: 'error' });
+            return;
+        }
+        try {
+            localStorage.removeItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`);
+            localStorage.removeItem(`${BANNER_DISMISSED_KEY_PREFIX}${firmId}`);
+            addToast(
+                "Setup checklist reset. The Getting Started widget and banner will reappear on your next dashboard visit.",
+                { type: 'success' }
+            );
+            // Give the toast a moment to render before reload — the components
+            // read localStorage on mount, so a reload is the simplest way to
+            // surface the re-enabled widget/banner.
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (e) {
+            console.error('[HelpSettings] handleResetChecklist failed:', e);
+            addToast("Could not reset the checklist — please try again.", { type: 'error' });
+        }
     };
 
     return (
@@ -40,6 +80,23 @@ export const HelpSettings: React.FC = () => {
                         className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700"
                     >
                         Restart Tour
+                    </button>
+                </div>
+
+                {/* Reset Setup Checklist — re-shows the sidebar widget + Dashboard
+                    banner for users who dismissed them. Per-firm keyed, so the reset
+                    only affects the current workspace. Does NOT reset progress — only
+                    re-displays the checklist so the user can see what's left to do. */}
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <h4 className="font-semibold text-lg">Setup Checklist</h4>
+                    <p className="text-gray-600 dark:text-gray-300 mt-2">
+                        Dismissed the "Getting Started" sidebar widget or the "Finish your setup" banner on the dashboard? Reset them here to see what onboarding steps you haven't completed yet. Your actual progress isn't affected — only the visibility of the prompts.
+                    </p>
+                    <button
+                        onClick={handleResetChecklist}
+                        className="mt-4 px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                        Reset Setup Checklist
                     </button>
                 </div>
 

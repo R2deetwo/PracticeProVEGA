@@ -6317,3 +6317,247 @@ export const updateOrgPayoutDetails = mutation({
     return { success: true };
   },
 });
+
+// =====================================================================
+// SETUP WIZARD: COMMUNICATION SETUP REMINDER + CHECKLIST QUERIES
+// =====================================================================
+
+/**
+ * sendCommunicationSetupReminders — internal cron mutation.
+ *
+ * Scans firms whose `settings.communicationSetupReminderAt` has passed and
+ * whose integrations are still not connected. Inserts one in-app notification
+ * per missing channel, then clears the reminder timestamp so we don't nag
+ * them again (the user can still see the prompt on Settings → Integrations).
+ *
+ * Runs daily at 8:00 AM UTC (9:00 AM WAT). See crons.ts.
+ */
+export const sendCommunicationSetupReminders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    // Scan all firms — there's no dedicated index for the reminder timestamp
+    // (settings is v.any(), so we can't index it). Take a bounded slice to
+    // keep the cron fast even as the user base grows. Firms created in the
+    // last 7 days won't have passed their reminder yet, so the .filter()
+    // below skips them cheaply.
+    const candidateFirms = await ctx.db.query("firms").take(2000);
+    const dueFirms = candidateFirms.filter((f: any) => {
+      const reminderAt = (f.settings as any)?.communicationSetupReminderAt;
+      if (!reminderAt || typeof reminderAt !== 'number') return false;
+      return reminderAt <= now;
+    });
+
+    let notifiedWhatsapp = 0;
+    let notifiedEmail = 0;
+
+    for (const firm of dueFirms) {
+      const settings = (firm as any).settings || {};
+      const intent = settings.communicationChannels || {};
+      const integrations = (firm as any).integrations || {};
+      // Heuristic: a channel is "connected" if any of these flags is true.
+      // We intentionally check loose booleans because the integrations shape
+      // varies (Google integrations live here too) and we don't want a
+      // strict schema check to block the reminder.
+      const whatsappConnected = !!(
+        integrations.whatsappConnected ||
+        integrations.whatsappBusinessConnected ||
+        integrations.chakraApiKeySet ||
+        integrations.chakraConnected
+      );
+      const emailConnected = !!(
+        integrations.brevoApiKeySet ||
+        integrations.sendgridApiKeySet ||
+        integrations.smtpConfigured ||
+        integrations.emailConnected
+      );
+
+      // Find the firm admin to address the notification to.
+      const admin = await ctx.db
+        .query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firm._id))
+        .filter((q: any) => q.eq(q.field("role"), "Admin"))
+        .first();
+
+      if (!admin) continue;
+
+      const baseNotif = {
+        firmId: firm._id,
+        userId: admin._id,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        type: 'communication_setup_reminder',
+        link: { view: 'settings', id: 'integrations', context: {} },
+      };
+
+      if (intent.whatsapp === true && !whatsappConnected) {
+        await ctx.db.insert("notifications", {
+          ...baseNotif,
+          title: 'Connect WhatsApp to send reminders',
+          message: `You said you'd use WhatsApp during setup — it's been 7 days. Connect your WhatsApp Business number in Settings → Integrations to start sending automated reminders to ${firm.product === 'property' ? 'tenants' : 'clients'}.`,
+        } as any);
+        notifiedWhatsapp++;
+      }
+
+      if (intent.email === true && !emailConnected) {
+        await ctx.db.insert("notifications", {
+          ...baseNotif,
+          title: 'Connect Email to send invoices',
+          message: `You said you'd use Email during setup — it's been 7 days. Connect an email provider (Brevo, Sendgrid, or SMTP) in Settings → Integrations to start sending invoices and formal notices.`,
+        } as any);
+        notifiedEmail++;
+      }
+
+      // Clear the reminder timestamp so we don't nag them again tomorrow.
+      // The user will continue to see an "integrated/not integrated" badge
+      // on Settings → Integrations, which is sufficient.
+      await ctx.db.patch(firm._id, {
+        settings: {
+          ...settings,
+          communicationSetupReminderAt: null,
+          communicationSetupReminderSentAt: now,
+        },
+        updatedAt: new Date().toISOString(),
+      } as any);
+    }
+
+    console.log(
+      `[setupReminder] scanned ${candidateFirms.length} firms, ${dueFirms.length} due, sent ${notifiedWhatsapp} WhatsApp + ${notifiedEmail} Email reminders`
+    );
+    return { due: dueFirms.length, notifiedWhatsapp, notifiedEmail };
+  },
+});
+
+/**
+ * getGettingStartedChecklist — query that returns the completion state
+ * of each onboarding checklist item for a given firm. Used by the
+ * GettingStartedChecklist sidebar widget and the CompleteSetupBanner.
+ *
+ * Items returned depend on the firm's product:
+ *   Vega (legal):    hasMatter, hasContact, hasBankAccount, hasBillingRate,
+ *                    hasCourtDateOnMatter, hasInvitedUser
+ *   Atrium (property): hasProperty, hasTenantOnProperty, hasServiceCharge,
+ *                    hasBankAccount, hasInvitedResidentToPortal, hasSentReminder
+ *   Komplete (unified): union of both (client decides what to render based on
+ *                    which features are active)
+ *
+ * Designed to be CHEAP — each existence check uses .first() on an indexed
+ * query, so even firms with thousands of records resolve in < 50ms.
+ */
+export const getGettingStartedChecklist = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const { firmId } = args;
+    if (!firmId) return null;
+
+    const fid = firmId.toString();
+
+    // Fetch the firm record once — we need its product and bankAccounts.
+    const firm: any = await ctx.db.get(fid as any).catch(() => null);
+    if (!firm) return null;
+
+    const product = firm.product || 'unified';
+    const isProperty = product === 'property' || product === 'atrium';
+    const isUnified = product === 'unified';
+    const isLegal = !isProperty && !isUnified;
+
+    // Suppress unused-var lint — product breakdown is documented above.
+    void isLegal;
+
+    // ── Existence checks ───────────────────────────────────────────────
+    // Each uses .first() on the by_firm index — bounded, fast.
+    const [firstMatter, firstProperty, firstContact, firstServiceCharge,
+          usersInFirm, portalInvitesSent] = await Promise.all([
+      ctx.db.query("matters")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .first(),
+      ctx.db.query("properties")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .first(),
+      ctx.db.query("contacts")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .first(),
+      ctx.db.query("service_charges")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .first(),
+      // Users OTHER than the current admin (i.e. invited teammates)
+      ctx.db.query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .take(50),
+      // Portal invites sent (resident or client)
+      ctx.db.query("portal_invites")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .take(50)
+        .catch(() => []),
+    ]);
+
+    // Has at least one property with a tenant assigned
+    const hasTenantOnProperty = firstProperty
+      ? !!(firstProperty as any).rentalDetails?.tenantContactId ||
+         !!(firstProperty as any).rentalDetails?.tenantPhone
+      : false;
+
+    // Bank accounts live on firmDetails.bankAccounts (added via BankAccountForm)
+    const bankAccounts: any[] = Array.isArray((firm as any).bankAccounts)
+      ? (firm as any).bankAccounts
+      : [];
+    const hasBankAccount = bankAccounts.length > 0;
+
+    // "Billing rate" = matters with an assignedRate OR firmDetails.aiSettings
+    // (any signal that the user has touched billing configuration). For
+    // simplicity, we treat hasMatter as the proxy for "set your billing rate"
+    // because the Vega MatterForm collects the rate at matter creation time.
+    const hasBillingRate = !!firstMatter;
+
+    // Court date = matters with nextAdjournedDate set
+    const hasCourtDateOnMatter = !!(
+      firstMatter &&
+      ((firstMatter as any).nextAdjournedDate ||
+       (firstMatter as any).nextCourtDate ||
+       (firstMatter as any).courtDate)
+    );
+
+    // Invited at least one teammate (more than 1 user in firm, OR has any
+    // portal invite records — residents/clients are also "invites" in the
+    // broader sense)
+    const hasInvitedUser = usersInFirm.length > 1 || portalInvitesSent.length > 0;
+    const hasInvitedResidentToPortal = portalInvitesSent.length > 0;
+
+    // Has sent at least one WhatsApp or email reminder — check notifications
+    // of type 'service_charge_reminder' or 'invoice_sent' as a proxy.
+    const hasSentReminder = await (async () => {
+      try {
+        const sentReminderNotif = await ctx.db
+          .query("notifications")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+          .filter((q: any) => q.or(
+            q.eq(q.field("type"), "service_charge_reminder"),
+            q.eq(q.field("type"), "rent_reminder"),
+            q.eq(q.field("type"), "invoice_sent")
+          ))
+          .first();
+        return !!sentReminderNotif;
+      } catch {
+        return false;
+      }
+    })();
+
+    return {
+      product,
+      hasMatter: !!firstMatter,
+      hasProperty: !!firstProperty,
+      hasContact: !!firstContact,
+      hasServiceCharge: !!firstServiceCharge,
+      hasTenantOnProperty,
+      hasBankAccount,
+      hasBillingRate,
+      hasCourtDateOnMatter,
+      hasInvitedUser,
+      hasInvitedResidentToPortal,
+      hasSentReminder,
+      userCount: usersInFirm.length,
+    };
+  },
+});

@@ -779,7 +779,35 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                         );
                         (newState as any)[key] = [...filteredBackendValue, ...optimisticItems];
                     } else if (backendValue !== undefined) {
-                        (newState as any)[key] = backendValue;
+                        // CRITICAL FIX (workspace-id-for-save bug):
+                        // When merging the `firmDetails` object from the backend,
+                        // Convex firm records only carry `_id` — there is NO `id`
+                        // field. Without mirroring `_id` → `id`, every component
+                        // that reads `coreState.firmDetails.id` (BankAccountForm,
+                        // IntegrationsSettings, SubscriptionSettings, dozens of
+                        // forms) silently gets `undefined` and either crashes the
+                        // save ("Could not determine workspace ID for save") or
+                        // writes a firmId of `undefined` into child records.
+                        // We also preserve `bankAccounts` and any other
+                        // locally-edited fields that the backend may not echo back.
+                        if (key === 'firmDetails' && backendValue && typeof backendValue === 'object') {
+                            const backendFirm = backendValue as any;
+                            const prevFirm = (prev.firmDetails as any) || {};
+                            (newState as any)[key] = {
+                                ...backendFirm,
+                                id: backendFirm.id || backendFirm._id || prevFirm.id || prevFirm._id,
+                                // Preserve locally-edited bank accounts if the backend
+                                // record doesn't echo them back (e.g. immediately after
+                                // createFirm, before the next firmData sync).
+                                bankAccounts: Array.isArray(backendFirm.bankAccounts)
+                                    ? backendFirm.bankAccounts
+                                    : (prevFirm.bankAccounts || []),
+                                integrations: backendFirm.integrations || prevFirm.integrations,
+                                aiSettings: backendFirm.aiSettings || prevFirm.aiSettings,
+                            };
+                        } else {
+                            (newState as any)[key] = backendValue;
+                        }
                     }
                 }
                 return newState;

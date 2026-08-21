@@ -239,4 +239,18 @@ crons.daily(
   {}
 );
 
+// ─── SETUP WIZARD: COMMUNICATION SETUP REMINDER ────────────────────────────
+// Daily at 8:00 AM UTC (9:00 AM WAT). Scans firms whose
+// settings.communicationSetupReminderAt has passed (set 7 days after onboarding
+// if the user opted into WhatsApp or Email during the Setup Wizard but hasn't
+// connected credentials yet). Sends one in-app notification per missing channel,
+// then clears the timestamp so we don't nag again. See
+// convex/myFunctions.ts:sendCommunicationSetupReminders.
+crons.daily(
+  "sendCommunicationSetupReminders",
+  { hourUTC: 8, minuteUTC: 0 },
+  internal.myFunctions.sendCommunicationSetupReminders,
+  {}
+);
+
 export default crons;

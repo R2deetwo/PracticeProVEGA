@@ -43,7 +43,7 @@ export interface ExtendedDataActions extends DataActionsContextType {
     retryMessage: (messageId: string, isClientMessage: boolean) => void;
 
     // ATOMIC RPC FUNCTIONS
-    createFirm: (firmName: string, address: string, plan: SubscriptionPlan, userDetails?: { email: string, name: string }, product?: Product, isDataMigration?: boolean) => Promise<string | null>;
+    createFirm: (firmName: string, address: string, plan: SubscriptionPlan, userDetails?: { email: string, name: string }, product?: Product, isDataMigration?: boolean, trial?: boolean) => Promise<string | null>;
     joinFirm: (inviteCode: string) => Promise<string | null>;
     validateInviteCode: (inviteCode: string) => Promise<{ valid: boolean, firmName?: string, firmId?: string }>;
     regenerateInviteCode: (firmId: string) => Promise<string | null>;

@@ -34,25 +34,48 @@ export const useFirm = (appState: AppState, actions: any) => {
 
     /**
      * Update global firm details and settings.
+     *
+     * CRITICAL FIX (workspace-id-for-save bug):
+     * The Convex `firms` table stores the firm's identifier in `_id` (auto-generated
+     * by Convex) — there is NO separate `id` field on the document. After
+     * `DataProvider` merges the backend firm record into `appState.firmDetails`,
+     * the local object ends up with `_id` set but `id` undefined, which caused
+     * "Could not determine workspace ID for save" whenever the user tried to
+     * save bank accounts, integrations, AI settings, etc.
+     *
+     * Fix: resolve the firm id from ANY of `details.id`, `details._id`,
+     * `appState.firmDetails?.id`, `appState.firmDetails?._id`, or
+     * `currentUser.firmId` (last one covers the immediate post-createFirm
+     * window where appState.firmDetails is still the default empty state but
+     * currentUser.firmId is already set). The DataProvider merge is also
+     * patched to always mirror `_id` onto `id`, but this hook stays defensive
+     * so older cached state still works.
      */
     const handleUpdateFirmDetails = useCallback(async (details: any) => {
         if (!details) return;
-        const firmId = details.id || appState.firmDetails?.id;
-        
+        const existingFirm = appState.firmDetails as any;
+        const firmId =
+            details.id ||
+            details._id ||
+            existingFirm?.id ||
+            existingFirm?._id ||
+            currentUser?.firmId;
+
         if (!firmId) {
-            addToast("Error: Could not determine workspace ID for save.", { type: 'error' });
+            addToast("Error: Could not determine workspace ID for save. Please refresh the page and try again.", { type: 'error' });
+            console.error('[useFirm] handleUpdateFirmDetails: no firmId found in', { details, appStateFirmDetails: appState.firmDetails });
             return;
         }
 
         try {
-            const { id, ...dataToSave } = details; 
+            const { id, _id, ...dataToSave } = details;
             await updateItemMutation({ table: 'firms', id: firmId, data: dataToSave });
             addToast("Firm settings updated.", { type: 'success' });
         } catch (e) {
             console.error('[useFirm] handleUpdateFirmDetails failed:', e);
             addToast("Failed to sync firm settings.", { type: 'error' });
         }
-    }, [appState.firmDetails, updateItemMutation, addToast]);
+    }, [appState.firmDetails, updateItemMutation, addToast, currentUser]);
 
     /**
      * Create a new firm (Onboarding).
