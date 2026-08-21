@@ -206,6 +206,16 @@ body {
 }
 
 /* ===== Standard Dark (Zinc) ===== */
+/* ROOT CAUSE FIX: Previously .dark only overrode --bg-main, --bg-card, --text-main,
+ * --text-muted, --primary-light. But --color-white was NEVER overridden, so every
+ * element using `bg-white` (cards, modals, sidebars, content areas) stayed pure
+ * white (#FFFFFF) in dark mode — making the app look like "just black and white"
+ * instead of a proper dark theme.
+ *
+ * Fix: override --color-white to the same value as --bg-card so bg-white elements
+ * render as dark surfaces. Also override the full gray scale so bg-gray-* elements
+ * match the dark theme. And override --color-black to a light color so text-black
+ * elements are visible in dark mode. */
 .dark {
   color-scheme: dark;
   --bg-main:  24, 24, 27;
@@ -213,6 +223,26 @@ body {
   --text-main: 244, 244, 245;
   --text-muted: 161, 161, 170;
   --primary-light: 30, 30, 35;
+
+  /* CRITICAL: Override --color-white so bg-white elements become dark surfaces.
+   * Without this, every card/modal/sidebar stays pure white in dark mode. */
+  --color-white: 39, 39, 42;  /* zinc-800 — same as --bg-card */
+
+  /* Override --color-black so text-black is visible in dark mode */
+  --color-black: 244, 244, 245;  /* zinc-100 */
+
+  /* Map the gray scale to the zinc scale so bg-gray-* elements match dark mode */
+  --color-gray-50:  24, 24, 27;
+  --color-gray-100: 39, 39, 42;
+  --color-gray-200: 63, 63, 70;
+  --color-gray-300: 82, 82, 91;
+  --color-gray-400: 113, 113, 122;
+  --color-gray-500: 161, 161, 170;
+  --color-gray-600: 212, 212, 216;
+  --color-gray-700: 228, 228, 231;
+  --color-gray-800: 244, 244, 245;
+  --color-gray-900: 250, 250, 250;
+  --color-gray-950: 250, 250, 250;
 }
 
 /* ===== Midnight Royal (deep navy) ===== */
@@ -229,7 +259,7 @@ html.theme-midnight {
   --color-zinc-200: 226 232 240;
   --color-zinc-100: 241 245 249;
   --color-zinc-50:  248 250 252;
-  
+
   /* Also remap Slate to match the deep navy so light: components fall back gracefully */
   --color-slate-950: 2 6 23;
   --color-slate-900: 15 23 42;
@@ -246,6 +276,22 @@ html.theme-midnight {
   --bg-main: 2, 6, 23;
   --bg-card: 15, 23, 42;
   --primary-light: 15, 23, 42;
+
+  /* CRITICAL THEME FIX: Override --color-white so bg-white elements render as
+   * midnight navy instead of pure white. Same for --color-black and gray scale. */
+  --color-white: 15, 23, 42;  /* navy — matches --bg-card */
+  --color-black: 241, 245, 249;  /* light slate for text */
+  --color-gray-50:  2, 6, 23;
+  --color-gray-100: 15, 23, 42;
+  --color-gray-200: 30, 41, 59;
+  --color-gray-300: 51, 65, 85;
+  --color-gray-400: 71, 85, 105;
+  --color-gray-500: 100, 116, 139;
+  --color-gray-600: 148, 163, 184;
+  --color-gray-700: 203, 213, 225;
+  --color-gray-800: 226, 232, 240;
+  --color-gray-900: 241, 245, 249;
+  --color-gray-950: 248, 250, 252;
 }
 
 
@@ -297,6 +343,22 @@ html.theme-army-dark {
   --color-primary-800: 40 58 42;
   --color-primary-900: 30 45 32;
   --color-primary-950: 15 25 18;
+
+  /* CRITICAL THEME FIX: Override --color-white so bg-white elements render as
+   * army green dark instead of pure white. */
+  --color-white: 15, 20, 15;  /* matches --bg-card */
+  --color-black: 220, 235, 220;  /* light green for text */
+  --color-gray-50:  5, 10, 5;
+  --color-gray-100: 10, 15, 10;
+  --color-gray-200: 20, 30, 20;
+  --color-gray-300: 40, 55, 40;
+  --color-gray-400: 60, 80, 60;
+  --color-gray-500: 90, 115, 90;
+  --color-gray-600: 120, 145, 120;
+  --color-gray-700: 150, 175, 150;
+  --color-gray-800: 185, 205, 185;
+  --color-gray-900: 220, 235, 220;
+  --color-gray-950: 240, 250, 240;
 }
 
 /* ===== Army Green Light (Soft Sage) ===== */
@@ -408,6 +470,22 @@ html.theme-midnight-emerald {
   
   --text-main: 232, 247, 240;
   --text-muted: 153, 209, 183;
+
+  /* CRITICAL THEME FIX: Override --color-white so bg-white elements render as
+   * midnight emerald instead of pure white. */
+  --color-white: 11, 28, 19;  /* matches --bg-card */
+  --color-black: 232, 247, 240;  /* light green for text */
+  --color-gray-50:  5, 13, 9;
+  --color-gray-100: 11, 28, 19;
+  --color-gray-200: 18, 43, 31;
+  --color-gray-300: 31, 71, 52;
+  --color-gray-400: 44, 99, 73;
+  --color-gray-500: 66, 138, 104;
+  --color-gray-600: 105, 178, 143;
+  --color-gray-700: 153, 209, 183;
+  --color-gray-800: 198, 235, 218;
+  --color-gray-900: 232, 247, 240;
+  --color-gray-950: 246, 252, 248;
 }
 
 /* ===== OLED True Black ===== */
@@ -440,6 +518,22 @@ html.theme-oled {
   --bg-main: 0, 0, 0;
   --bg-card: 17, 17, 17;
   --primary-light: 0, 0, 0;
+
+  /* CRITICAL THEME FIX: Override --color-white so bg-white elements render as
+   * OLED true black instead of pure white. */
+  --color-white: 17, 17, 17;  /* matches --bg-card */
+  --color-black: 230, 230, 230;  /* light gray for text */
+  --color-gray-50:  0, 0, 0;
+  --color-gray-100: 17, 17, 17;
+  --color-gray-200: 34, 34, 34;
+  --color-gray-300: 50, 50, 50;
+  --color-gray-400: 80, 80, 80;
+  --color-gray-500: 130, 130, 130;
+  --color-gray-600: 170, 170, 170;
+  --color-gray-700: 200, 200, 200;
+  --color-gray-800: 230, 230, 230;
+  --color-gray-900: 245, 245, 245;
+  --color-gray-950: 250, 250, 250;
 }
 
 /* ===== Neon Cyber ===== */
@@ -481,7 +575,22 @@ html.theme-neon-cyber {
   --color-slate-100: 236 230 245;
   --color-slate-50:  248 245 252;
   
-  --color-white: 255 255 255;
+  /* CRITICAL THEME FIX: Override --color-white so bg-white elements render as
+   * neon cyber purple instead of pure white. Previously this was set to
+   * 255 255 255 (pure white) which was the bug — all surfaces stayed white. */
+  --color-white: 43, 33, 58;  /* matches --bg-card */
+  --color-black: 236, 230, 245;  /* light purple for text */
+  --color-gray-50:  20, 15, 28;
+  --color-gray-100: 36, 27, 47;
+  --color-gray-200: 43, 33, 58;
+  --color-gray-300: 56, 42, 75;
+  --color-gray-400: 84, 62, 110;
+  --color-gray-500: 104, 77, 138;
+  --color-gray-600: 135, 111, 163;
+  --color-gray-700: 171, 157, 197;
+  --color-gray-800: 206, 195, 222;
+  --color-gray-900: 236, 230, 245;
+  --color-gray-950: 248, 245, 252;
 }
 
 /* ===== Sunlight Soft ===== */
