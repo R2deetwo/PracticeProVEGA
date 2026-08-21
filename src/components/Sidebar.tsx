@@ -92,7 +92,7 @@ const NavItemLink: React.FC<{
                 group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
                 ${locked ? 'opacity-60 cursor-not-allowed' : ''}
                 ${isActive
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-md shadow-slate-900/10 dark:shadow-white/10'
+                    ? 'bg-emerald-600 text-white dark:bg-emerald-500 font-bold shadow-md shadow-emerald-600/20'
                     : locked
                     ? 'text-slate-400 dark:text-zinc-500'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
@@ -142,7 +142,7 @@ const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebar
             className={`
                 group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
                 ${isActive
-                    ? 'bg-slate-900 text-white font-bold shadow-md shadow-slate-900/10'
+                    ? 'bg-emerald-600 text-white dark:bg-emerald-500 font-bold shadow-md shadow-emerald-600/20'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
                 }
             `}

@@ -46,7 +46,7 @@ const IntegrationSettings: React.FC = () => {
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl">
       {/* WhatsApp Business API Configuration */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#25D366]/10 rounded-lg flex items-center justify-center p-2">
