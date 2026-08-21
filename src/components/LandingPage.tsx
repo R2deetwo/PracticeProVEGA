@@ -2299,11 +2299,26 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     // when the user has already chosen a product by navigating to /vega or
     // /atrium, while still asking the question on the root hub page when
     // the user hasn't committed to a product yet.
+    // FIX: When the user clicks "Start Free Trial" from the main landing page
+    // (root hub, not a product-specific page like /vega or /atrium), they
+    // should see the product selection step in the signup modal — NOT skip
+    // directly to the create account form.
+    //
+    // The previous logic passed `undefined` as selectedProduct when the user
+    // hadn't explicitly chosen a product (productChosen=false). But Signup.tsx's
+    // useEffect treats `modalContext.selectedProduct` being falsy as "show
+    // product_selection step" — EXCEPT the migration flow check at line 49-55
+    // can override this and skip to the form.
+    //
+    // The fix: explicitly pass `null` (not `undefined`) when no product is
+    // chosen, AND add a `forceProductSelection: true` flag that Signup.tsx
+    // reads to guarantee the product_selection step is shown.
     const openSignup = (productOverride?: ProductMode) => {
-        // Priority: explicit override > current activeProduct (if chosen) > none
-        const product = productOverride || (productChosen ? activeProduct : undefined);
+        // Priority: explicit override > current activeProduct (if chosen) > null
+        const product = productOverride || (productChosen ? activeProduct : null);
         openModal('signup', null, {
             selectedProduct: product,
+            forceProductSelection: !product, // true when no product chosen
         });
     };
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);

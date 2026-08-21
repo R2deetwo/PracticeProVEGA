@@ -57,11 +57,19 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    return;
   }
 
+  // FIX: If forceProductSelection is set (from the root landing page "Start
+  // Free Trial" button), ALWAYS show the product selection step — even if
+  // a stale modalContext from a previous session exists.
+  if (modalContext?.forceProductSelection) {
+   setStep('product_selection');
+   return;
+  }
+
   // Handle direct product selection from Landing Page
   if (modalContext?.selectedProduct) {
-   const mappedProduct = 
-    modalContext.selectedProduct === 'vega' ? 'legal' : 
-    modalContext.selectedProduct === 'atrium' ? 'property' : 
+   const mappedProduct =
+    modalContext.selectedProduct === 'vega' ? 'legal' :
+    modalContext.selectedProduct === 'atrium' ? 'property' :
     modalContext.selectedProduct;
    setSelectedProduct(mappedProduct as any);
    // TASK 18: Also store in the ref — this is the bulletproof path.
