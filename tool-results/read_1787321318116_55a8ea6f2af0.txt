@@ -1,0 +1,445 @@
+     1→import React, { useState, useEffect } from 'react';
+     2→import { CalendarEvent, Matter, CustomEventType, EventTypeString, View, User, CourtType, EventStatus, AppMode } from '../../types';
+     3→import { SettingsIcon, CalendarIcon, ClockIcon, MapPinIcon, OfficeBuildingIcon, PlusIcon, XIcon, SaveIcon, UserCircleIcon, BellIcon, RepeatIcon, GavelIconLarge, InfoIcon, UserIcon } from '../../constants';
+     4→import { inputModern } from '../../utils/formStyles';
+     5→import Tooltip from '../Tooltip';
+     6→import { useCoreState } from '../../contexts/CoreContext';
+     7→import { useUI } from '../../contexts/UIContext';
+     8→import { UserAssignment } from './UserAssignment';
+     9→import { useProduct } from '../../contexts/ProductContext';
+    10→
+    11→const commonInputClass = inputModern;
+    12→
+    13→interface EventFormProps {
+    14→    matters: Matter[];
+    15→    users: User[];
+    16→    appMode: AppMode;
+    17→    eventTypes: CustomEventType[];
+    18→    onSave: (eventData: Omit<CalendarEvent, 'id'>) => void;
+    19→    onUpdateEvent?: (updatedEvent: CalendarEvent) => void;
+    20→    onClose: () => void;
+    21→    onNavigate?: (view: View, targetId?: string | null, context?: any) => void;
+    22→    currentUser: User;
+    23→    eventToEdit?: CalendarEvent;
+    24→    initialContext?: { matterId?: string; fromNoteContent?: string; date?: Date; title?: string; type?: EventTypeString, openedFrom?: string; addMeetLink?: boolean };
+    25→    isCompact?: boolean;
+    26→}
+    27→
+    28→const toDatetimeLocalString = (date: Date): string => {
+    29→    if (!date || isNaN(date.getTime())) return '';
+    30→    const year = date.getFullYear();
+    31→    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    32→    const day = date.getDate().toString().padStart(2, '0');
+    33→    const hours = date.getHours().toString().padStart(2, '0');
+    34→    const minutes = date.getMinutes().toString().padStart(2, '0');
+    35→    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    36→};
+    37→
+    38→export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, eventTypes, onSave, onUpdateEvent, onClose, onNavigate, currentUser, eventToEdit, initialContext, isCompact }) => {
+    39→    const { coreState, isDataLoaded } = useCoreState();
+    40→    const { addToast } = useUI();
+    41→    const { isProperty } = useProduct();
+    42→    const [isSubmitting, setIsSubmitting] = useState(false);
+    43→    const [title, setTitle] = useState('');
+    44→    const [description, setDescription] = useState('');
+    45→    const [matterId, setMatterId] = useState<string>('');
+    46→    const [type, setType] = useState<EventTypeString>(eventTypes[0]?.name || '');
+    47→
+    48→    const [date, setDate] = useState(() => {
+    49→        const d = new Date();
+    50→        d.setSeconds(0, 0);
+    51→        return d;
+    52→    });
+    53→    const [endDate, setEndDate] = useState(() => {
+    54→        const d = new Date();
+    55→        d.setHours(d.getHours() + 1);
+    56→        d.setSeconds(0, 0);
+    57→        return d;
+    58→    });
+    59→
+    60→    const [addMeetLink, setAddMeetLink] = useState(false);
+    61→    const [assignedUsers, setAssignedUsers] = useState<Set<string>>(new Set());
+    62→
+    63→    const [reminderEnabled, setReminderEnabled] = useState(false);
+    64→    // Use a STRING for the input so the user can freely delete and retype
+    65→    // digits without the controlled-input bug where `parseInt('') || 1`
+    66→    // immediately resets the field to "1". The number is parsed at submit
+    67→    // time with a sane fallback. The stepper buttons (+/-) provide an even
+    68→    // smoother touch UX.
+    69→    const [reminderValueStr, setReminderValueStr] = useState('30');
+    70→    const [reminderUnit, setReminderUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
+    71→
+    72→    const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
+    73→    const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+    74→    const [recurrenceEndDate, setRecurrenceEndDate] = useState<string>('');
+    75→
+    76→    const [court, setCourt] = useState<CourtType | undefined>(undefined);
+    77→    const [judicialDivision, setJudicialDivision] = useState('');
+    78→
+    79→    const isEditing = !!eventToEdit;
+    80→    const isCourtEventType = type === 'Court Hearing' || type === 'Mention';
+    81→
+    82→    useEffect(() => {
+    83→        if (isEditing && eventToEdit) {
+    84→            setTitle(eventToEdit.title);
+    85→            setDescription(eventToEdit.description || '');
+    86→            setMatterId(eventToEdit.matterId || '');
+    87→            setType(eventToEdit.type);
+    88→            setDate(new Date(eventToEdit.date));
+    89→            setEndDate(eventToEdit.endDate ? new Date(eventToEdit.endDate) : new Date(new Date(eventToEdit.date).getTime() + 60 * 60 * 1000));
+    90→            setCourt(eventToEdit.court as CourtType);
+    91→            setJudicialDivision(eventToEdit.judicialDivision || '');
+    92→            setAssignedUsers(new Set(eventToEdit.assignedUsers || []));
+    93→            setReminderEnabled(!!eventToEdit.reminder);
+    94→            setReminderValueStr(String(eventToEdit.reminder?.value ?? 30));
+    95→            setReminderUnit(eventToEdit.reminder?.unit || 'minutes');
+    96→            setRecurrenceEnabled(!!eventToEdit.recurrence);
+    97→            setRecurrenceFrequency(eventToEdit.recurrence?.frequency || 'weekly');
+    98→            setRecurrenceEndDate(eventToEdit.recurrence?.endDate?.split('T')[0] || '');
+    99→        } else if (initialContext) {
+   100→            const context = initialContext;
+   101→            if (context.matterId) setMatterId(context.matterId || '');
+   102→            if (context.fromNoteContent) setDescription(context.fromNoteContent.replace(/<[^>]*>/g, ''));
+   103→            if (context.title) setTitle(context.title);
+   104→            if (context.type) setType(context.type);
+   105→            if (context.addMeetLink) setAddMeetLink(true);
+   106→
+   107→            const inputDate = context.date || (context as any).startDate || (context as any).when;
+   108→            if (inputDate) {
+   109→                const selectedDay = new Date(inputDate);
+   110→                if (!isNaN(selectedDay.getTime())) {
+   111→                    const isMidnight = selectedDay.getHours() === 0 && selectedDay.getMinutes() === 0;
+   112→                    if (isMidnight) selectedDay.setHours(9, 0, 0, 0);
+   113→                    setDate(selectedDay);
+   114→                    const end = new Date(selectedDay);
+   115→                    end.setHours(selectedDay.getHours() + 1);
+   116→                    setEndDate(end);
+   117→                }
+   118→            }
+   119→        } else {
+   120→            // Check for saved draft in localStorage
+   121→            const savedDraft = localStorage.getItem('draft_newEvent');
+   122→            if (savedDraft) {
+   123→                try {
+   124→                    const draft = JSON.parse(savedDraft);
+   125→                    if (draft.title) setTitle(draft.title);
+   126→                    if (draft.description) setDescription(draft.description);
+   127→                    if (draft.matterId) setMatterId(draft.matterId);
+   128→                    if (draft.type) setType(draft.type);
+   129→                    if (draft.date) setDate(new Date(draft.date));
+   130→                    if (draft.endDate) setEndDate(new Date(draft.endDate));
+   131→                } catch (e) {
+   132→                    console.error("Failed to parse event draft", e);
+   133→                }
+   134→            } else {
+   135→                setMatterId(matters[0]?.id || '');
+   136→            }
+   137→        }
+   138→    }, [isEditing, eventToEdit, initialContext, matters]);
+   139→
+   140→    // --- EFFECT: Save Draft ---
+   141→    useEffect(() => {
+   142→        if (!isEditing && title) {
+   143→            const draft = {
+   144→                title, description, matterId, type,
+   145→                date: date.toISOString(),
+   146→                endDate: endDate.toISOString(),
+   147→                lastSaved: new Date().toISOString()
+   148→            };
+   149→            localStorage.setItem('draft_newEvent', JSON.stringify(draft));
+   150→        }
+   151→    }, [title, description, matterId, type, date, endDate, isEditing]);
+   152→
+   153→    useEffect(() => {
+   154→        if (!isEditing && matterId) {
+   155→            const selectedMatter = matters.find(m => m.id === matterId);
+   156→            if (selectedMatter) {
+   157→                if (isCourtEventType) {
+   158→                    setCourt(selectedMatter.court as CourtType);
+   159→                    setJudicialDivision(selectedMatter.judicialDivision);
+   160→                }
+   161→                setAssignedUsers(new Set(selectedMatter.assignedUsers || []));
+   162→            }
+   163→        }
+   164→    }, [matterId, isCourtEventType, isEditing, matters]);
+   165→
+   166→    const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   167→        const val = e.target.value;
+   168→        if (!val) return;
+   169→        const newDate = new Date(val);
+   170→        if (!isNaN(newDate.getTime())) {
+   171→            setDate(newDate);
+   172→            if (endDate <= newDate) {
+   173→                const newEnd = new Date(newDate);
+   174→                newEnd.setHours(newDate.getHours() + 1);
+   175→                setEndDate(newEnd);
+   176→            }
+   177→        }
+   178→    };
+   179→
+   180→    const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   181→        const val = e.target.value;
+   182→        if (!val) return;
+   183→        const newDate = new Date(val);
+   184→        if (!isNaN(newDate.getTime())) setEndDate(newDate);
+   185→    };
+   186→
+   187→    const handleSubmit = async (e: React.FormEvent) => {
+   188→        e.preventDefault();
+   189→        if (isSubmitting) return;
+   190→        if (!title) {
+   191→            addToast("Please provide an event title.", { type: 'info' });
+   192→            return;
+   193→        }
+   194→        if (endDate < date) {
+   195→            addToast('Event end time cannot be before the start time.', { type: 'info' });
+   196→            return;
+   197→        }
+   198→        const selectedMatter = matters.find(m => m.id === matterId);
+   199→
+   200→        let finalDescription = description;
+   201→        if (addMeetLink) {
+   202→            finalDescription = `Google Meet Link: https://meet.google.com/lookup/simulated-meet-id\n\n${description}`;
+   203→        }
+   204→
+   205→        const eventData: Omit<CalendarEvent, 'id'> = {
+   206→            firmId: coreState.firmDetails.id,
+   207→            title,
+   208→            description: finalDescription,
+   209→            matterTitle: selectedMatter?.title,
+   210→            type,
+   211→            date: date.toISOString(),
+   212→            endDate: endDate.toISOString(),
+   213→            matterId: selectedMatter?.id,
+   214→            status: 'Active',
+   215→            court: isCourtEventType ? court : undefined,
+   216→            judicialDivision: isCourtEventType ? judicialDivision : undefined,
+   217→            assignedUsers: Array.from(assignedUsers),
+   218→            // Parse the reminder value at submit time. Empty / invalid → fallback to 1.
+   219→            reminder: reminderEnabled ? {
+   220→                value: Math.max(1, parseInt(reminderValueStr, 10) || 1),
+   221→                unit: reminderUnit
+   222→            } : undefined,
+   223→            recurrence: recurrenceEnabled ? { frequency: recurrenceFrequency, endDate: recurrenceEndDate || undefined } : undefined,
+   224→        };
+   225→
+   226→        setIsSubmitting(true);
+   227→        try {
+   228→            if (isEditing && onUpdateEvent) {
+   229→                await onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
+   230→            } else {
+   231→                await onSave(eventData);
+   232→                localStorage.removeItem('draft_newEvent');
+   233→            }
+   234→            onClose();
+   235→        } catch (e: any) {
+   236→            addToast(e?.message || 'Failed to save event.', { type: 'error' });
+   237→        } finally {
+   238→            setIsSubmitting(false);
+   239→        }
+   240→    };
+   241→
+   242→    const commonInputClass = inputModern;
+   243→    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
+   244→    const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
+   245→
+   246→    return (
+   247→        <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
+   248→            <div className="space-y-2 sm:space-y-3 pb-32">
+   249→                {/* Core Event Info */}
+   250→                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
+   251→                    <div className="flex items-center gap-4 mb-2 px-1">
+   252→                        <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
+   253→                            <CalendarIcon className="w-3.5 h-3.5" />
+   254→                        </div>
+   255→                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Matter association</h3>
+   256→                    </div>
+   257→
+   258→                    <div className="space-y-2 group">
+   259→                        <label htmlFor="title" className={labelClass}>Event Title</label>
+   260→                        <input autoComplete="off" data-lpignore="true"  type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder="e.g. Strategy Meeting with Lead Counsel" required autoFocus />
+   261→                    </div>
+   262→
+   263→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+   264→                        <div className="space-y-2 group">
+   265→                            <div className="flex justify-between items-center mb-0.5">
+   266→                                <label htmlFor="type" className={labelClass}>Activity Type</label>
+   267→                                {onNavigate && (
+   268→                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-3xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline">Customize</button>
+   269→                                )}
+   270→                            </div>
+   271→                            <select id="type" value={type} onChange={e => setType(e.target.value)} className={commonInputClass} required>
+   272→                                {eventTypes.map(et => <option key={et.id} value={et.name}>{et.name}</option>)}
+   273→                            </select>
+   274→                        </div>
+   275→                        <div className="space-y-2 group">
+   276→                            <label htmlFor="matterId" className={labelClass}>{isProperty ? 'Property Association' : 'Case Association'}</label>
+   277→                            <div className="relative">
+   278→                                <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+   279→                                <select id="matterId" value={matterId} onChange={e => setMatterId(e.target.value)} className={`${commonInputClass} pl-11`}>
+   280→                                    <option value="">-- No Matter Association --</option>
+   281→                                    {matters.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+   282→                                </select>
+   283→                            </div>
+   284→                        </div>
+   285→                    </div>
+   286→
+   287→                    <div className="space-y-2 group">
+   288→                        <label htmlFor="description" className={labelClass}>Description</label>
+   289→                        <textarea id="description" value={description} onChange={e => setDescription(e.target.value)} rows={3} className={`${commonInputClass} resize-none`} placeholder="Additional context or meeting agenda..." />
+   290→                    </div>
+   291→                </div>
+   292→
+   293→                {/* Scheduling Section */}
+   294→                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
+   295→                    <div className="flex items-center gap-4 px-1">
+   296→                        <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
+   297→                            <ClockIcon className="w-3.5 h-3.5" />
+   298→                        </div>
+   299→                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Time & dates</h3>
+   300→                    </div>
+   301→
+   302→                    <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
+   303→                        <div className="space-y-2 group">
+   304→                            <label htmlFor="startDate" className={labelClass}>Start</label>
+   305→                            <input autoComplete="off" data-lpignore="true"  type="datetime-local" id="startDate" value={toDatetimeLocalString(date)} onChange={handleStartDateChange} className={commonInputClass} required />
+   306→                        </div>
+   307→                        <div className="space-y-2 group">
+   308→                            <label htmlFor="endDate" className={labelClass}>End</label>
+   309→                            <input autoComplete="off" data-lpignore="true"  type="datetime-local" id="endDate" value={toDatetimeLocalString(endDate)} onChange={handleEndDateChange} className={commonInputClass} required />
+   310→                        </div>
+   311→                    </div>
+   312→
+   313→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+   314→                        <div className={`flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800 shadow-sm transition-all ${reminderEnabled ? 'ring-2 ring-primary-500' : ''}`}>
+   315→                             <div className={`p-2 rounded-lg transition-colors ${reminderEnabled ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 dark:bg-primary-900/30' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
+   316→                                <BellIcon className="w-5 h-5" />
+   317→                             </div>
+   318→                             <div className="flex-grow">
+   319→                                <label htmlFor="reminderEnabled" className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest cursor-pointer block mb-1">Notifications</label>
+   320→                                <div className="flex items-center gap-3">
+   321→                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" id="reminderEnabled" checked={reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500 cursor-pointer" />
+   322→                                    {reminderEnabled && (
+   323→                                        <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+   324→                                            {/* Stepper UI — touch-friendly +/- buttons + free-text input.
+   325→                                                The input is a STRING so users can delete and retype freely.
+   326→                                                parseInt('') || 1 no longer clobbers their typing. */}
+   327→                                            <div className="flex items-center bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg overflow-hidden">
+   328→                                                <button
+   329→                                                    type="button"
+   330→                                                    onClick={() => {
+   331→                                                        const current = parseInt(reminderValueStr, 10) || 1;
+   332→                                                        setReminderValueStr(String(Math.max(1, current - 1)));
+   333→                                                    }}
+   334→                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
+   335→                                                    aria-label="Decrease reminder value"
+   336→                                                >
+   337→                                                    −
+   338→                                                </button>
+   339→                                                <input
+   340→                                                    autoComplete="off"
+   341→                                                    data-lpignore="true"
+   342→                                                    type="text"
+   343→                                                    inputMode="numeric"
+   344→                                                    pattern="[0-9]*"
+   345→                                                    value={reminderValueStr}
+   346→                                                    onChange={e => {
+   347→                                                        // Allow only digits and empty string. No more forced "1".
+   348→                                                        const cleaned = e.target.value.replace(/[^\d]/g, '');
+   349→                                                        setReminderValueStr(cleaned);
+   350→                                                    }}
+   351→                                                    onBlur={() => {
+   352→                                                        // On blur, if empty or 0, fall back to 1.
+   353→                                                        const num = parseInt(reminderValueStr, 10);
+   354→                                                        if (isNaN(num) || num < 1) setReminderValueStr('1');
+   355→                                                    }}
+   356→                                                    className="w-12 py-1.5 text-center text-xs font-black bg-transparent outline-none border-0"
+   357→                                                    placeholder="1"
+   358→                                                />
+   359→                                                <button
+   360→                                                    type="button"
+   361→                                                    onClick={() => {
+   362→                                                        const current = parseInt(reminderValueStr, 10) || 1;
+   363→                                                        setReminderValueStr(String(Math.min(999, current + 1)));
+   364→                                                    }}
+   365→                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
+   366→                                                    aria-label="Increase reminder value"
+   367→                                                >
+   368→                                                    +
+   369→                                                </button>
+   370→                                            </div>
+   371→                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+   372→                                                <option value="minutes">Min</option>
+   373→                                                <option value="hours">Hrs</option>
+   374→                                                <option value="days">Day</option>
+   375→                                            </select>
+   376→                                            <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">before</span>
+   377→                                        </div>
+   378→                                    )}
+   379→                                </div>
+   380→                             </div>
+   381→                        </div>
+   382→
+   383→                        <div className={`flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800 shadow-sm transition-all ${recurrenceEnabled ? 'ring-2 ring-indigo-500' : ''}`}>
+   384→                             <div className={`p-2 rounded-lg transition-colors ${recurrenceEnabled ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 dark:bg-indigo-900/30' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
+   385→                                <RepeatIcon className="w-5 h-5" />
+   386→                             </div>
+   387→                             <div className="flex-grow">
+   388→                                <label htmlFor="recurrenceEnabled" className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest cursor-pointer block mb-1">Recurrence</label>
+   389→                                <div className="flex items-center gap-3">
+   390→                                    <input autoComplete="off" data-lpignore="true"  type="checkbox" id="recurrenceEnabled" checked={recurrenceEnabled} onChange={e => setRecurrenceEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 dark:text-indigo-300 focus:ring-indigo-500 cursor-pointer" />
+   391→                                    {recurrenceEnabled && (
+   392→                                        <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2 duration-300">
+   393→                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+   394→                                                <option value="daily">Daily</option>
+   395→                                                <option value="weekly">Weekly</option>
+   396→                                                <option value="monthly">Monthly</option>
+   397→                                            </select>
+   398→                                        </div>
+   399→                                    )}
+   400→                                </div>
+   401→                             </div>
+   402→                        </div>
+   403→                    </div>
+   404→                </div>
+   405→
+   406→                {isCourtEventType && (
+   407→                    <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-950/40/50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/30 space-y-2 sm:space-y-3">
+   408→                        <div className="flex items-center gap-4 px-1">
+   409→                            <div className="p-1.5 bg-amber-600 text-white rounded-lg shadow-sm ring-2 ring-amber-500/10">
+   410→                                <MapPinIcon className="w-3.5 h-3.5" />
+   411→                            </div>
+   412→                            <h3 className="text-base font-black text-amber-900 dark:text-amber-200 tracking-tight">Court details</h3>
+   413→                        </div>
+   414→                        <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
+   415→                            <div className="space-y-2 group">
+   416→                                <label htmlFor="court" className={labelClass}>Tribunal / Court</label>
+   417→                                <select id="court" value={court} onChange={e => setCourt(e.target.value as CourtType)} className={commonInputClass}>
+   418→                                    {Object.values(CourtType).map(ct => <option key={ct} value={ct}>{ct}</option>)}
+   419→                                </select>
+   420→                            </div>
+   421→                            <div className="space-y-2 group">
+   422→                                <label htmlFor="judicialDivision" className={labelClass}>Division</label>
+   423→                                <input autoComplete="off" data-lpignore="true"  type="text" id="judicialDivision" value={judicialDivision} onChange={e => setJudicialDivision(e.target.value)} className={commonInputClass} placeholder="e.g. Lagos Island" />
+   424→                            </div>
+   425→                        </div>
+   426→                    </div>
+   427→                )}
+   428→
+   429→                <div className="px-1">
+   430→                    <UserAssignment allUsers={users} assignedUserIds={assignedUsers} onToggle={(id) => setAssignedUsers(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; })} appMode={appMode} />
+   431→                </div>
+   432→            </div>
+   433→
+   434→            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20 pb-safe-extra">
+   435→                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+   436→                    <XIcon className="w-4 h-4" /> Cancel
+   437→                </button>
+   438→                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-lg sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+   439→                    <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Event'}
+   440→                </button>
+   441→            </div>
+   442→        </form>
+   443→    );
+   444→};
+   445→

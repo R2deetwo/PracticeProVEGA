@@ -1,0 +1,1402 @@
+     1→import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+     2→import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
+     3→import { useUI } from '../../contexts/UIContext';
+     4→import { useExecutionState } from '../../contexts/ExecutionContext';
+     5→import { useCoreState } from '../../contexts/CoreContext';
+     6→import { useDataActions } from '../../contexts/DataContext';
+     7→import { useProduct } from '../../contexts/ProductContext';
+     8→import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+     9→import { useFeatures } from '../../hooks/useFeatures';
+    10→import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon, DocumentTextIcon } from '../../constants';
+    11→import { UserAssignment } from './UserAssignment';
+    12→import { formatNaira, formatNumberWithCommas, parseFormattedNumber, autoFormatSuitTitle } from '../../utils/formatting';
+    13→import { analyzePartyName, analyzeMatterIntelligence } from '../../utils/defenseUtils';
+    14→import { inputModern } from '../../utils/formStyles';
+    15→import { getInitials, getUserColor } from '../../utils/colorUtils';
+    16→import { useMutation } from 'convex/react';
+    17→import { api } from '../../../convex/_generated/api';
+    18→import { MatterIntakeWizard } from './MatterIntakeWizard';
+    19→import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
+    20→import { translateError } from '../../utils/errorTranslator';
+    21→
+    22→const commonInputClass = inputModern;
+    23→
+    24→// ─── AccordionSection (MODULE-LEVEL — outside MatterForm) ──────────
+    25→// CRITICAL: This component MUST be defined outside the component render
+    26→// function. When defined inside (as a closure), React treats it as a new
+    27→// component type on every render, causing all children to unmount/remount
+    28→// on every keystroke — which causes input focus loss.
+    29→// By defining it at module level with React.memo, the component identity
+    30→// is stable across re-renders, preserving DOM focus.
+    31→// (Mirrors the pattern used in PropertyForm.tsx and SmartMatterModal.tsx.)
+    32→interface AccordionSectionProps {
+    33→    id: string;
+    34→    title: string;
+    35→    subtitle: string;
+    36→    icon: React.ReactNode;
+    37→    iconBg: string;
+    38→    children: React.ReactNode;
+    39→    isOpen: boolean;
+    40→    onToggle: (id: string) => void;
+    41→    badge?: React.ReactNode;
+    42→    /** Optional right-side accessory rendered inline with the chevron (e.g. a toggle switch). */
+    43→    accessory?: React.ReactNode;
+    44→    /** When true, clicking the header does NOT toggle — used when the header has its own toggle (e.g. litigation). */
+    45→    disableHeaderToggle?: boolean;
+    46→}
+    47→const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle, badge, accessory, disableHeaderToggle }) => {
+    48→    const headerRef = useRef<HTMLButtonElement>(null);
+    49→    return (
+    50→        <div
+    51→            className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
+    52→            style={{ willChange: 'height', contain: 'layout style' }}
+    53→        >
+    54→            <div
+    55→                className="w-full flex items-center gap-4 p-3 sm:p-4 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
+    56→            >
+    57→                <button
+    58→                    ref={headerRef}
+    59→                    type="button"
+    60→                    tabIndex={0}
+    61→                    onClick={() => {
+    62→                        if (disableHeaderToggle) return;
+    63→                        onToggle(id);
+    64→                        if (!isOpen) {
+    65→                            setTimeout(() => {
+    66→                                headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    67→                            }, 50);
+    68→                        }
+    69→                    }}
+    70→                    onKeyDown={(e) => {
+    71→                        if (disableHeaderToggle) return;
+    72→                        if (e.key === 'Enter' || e.key === ' ') {
+    73→                            e.preventDefault();
+    74→                            onToggle(id);
+    75→                        }
+    76→                    }}
+    77→                    className={`flex items-center gap-4 flex-1 min-w-0 text-left focus:outline-none ${disableHeaderToggle ? 'cursor-default' : 'focus:ring-2 focus:ring-primary-500/30'}`}
+    78→                >
+    79→                    <div className={`p-1.5 ${iconBg} text-white rounded-lg shadow-sm flex-shrink-0`}>
+    80→                        {icon}
+    81→                    </div>
+    82→                    <div className="flex-1 min-w-0">
+    83→                        <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
+    84→                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
+    85→                    </div>
+    86→                    {badge}
+    87→                </button>
+    88→                {accessory}
+    89→                {!disableHeaderToggle && (
+    90→                    <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    91→                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    92→                    </svg>
+    93→                )}
+    94→            </div>
+    95→            {isOpen && (
+    96→                <div className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
+    97→                    {children}
+    98→                </div>
+    99→            )}
+   100→        </div>
+   101→    );
+   102→};
+   103→const AccordionSection = React.memo(AccordionSectionInner);
+   104→
+   105→interface MatterFormProps {
+   106→    matters: Matter[];
+   107→    users: User[];
+   108→    contacts: Contact[];
+   109→    workflows: WorkflowDefinition[];
+   110→    onAddMatter: (matter: Omit<Matter, 'id' | 'referenceNumber'>, client: { data: Omit<Contact, 'id'>, createPortal: boolean } | null) => Promise<void> | void;
+   111→    onUpdateMatter: (matter: Matter) => Promise<void> | void;
+   112→    onClose: () => void;
+   113→    currentUser: User;
+   114→    matterToEdit?: Matter;
+   115→    appMode: AppMode;
+   116→    handleAddWorkflow: (workflow: any) => Promise<WorkflowDefinition> | WorkflowDefinition;
+   117→    handleAddWorkflowSubCategory: (id: string, subCategory: any) => void;
+   118→    onNavigate: (view: View, id?: string | null, context?: any) => void;
+   119→    initialContext?: any;
+   120→    openModal?: (modalType: ModalType, id?: string | null, context?: any) => void;
+   121→    isCompact?: boolean;
+   122→}
+   123→
+   124→export const MatterForm: React.FC<MatterFormProps> = (props) => {
+   125→    const { contacts, matters, workflows, onAddMatter, onUpdateMatter, onClose, currentUser, matterToEdit, appMode, initialContext, openModal, handleAddWorkflow, handleAddWorkflowSubCategory } = props;
+   126→    const { addToast } = useUI();
+   127→    const { executionState } = useExecutionState();
+   128→    const { coreState, isDataLoaded } = useCoreState();
+   129→    const { isProperty, terminology } = useProduct();
+   130→    const features = useFeatures();
+   131→    const dataHandlers = useDataActions();
+   132→    const { handleAddContact } = dataHandlers;
+   133→    const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
+   134→    const upsertRetainerSchedule = useMutation(api.retainerBilling.upsertMatterRetainerSchedule);
+   135→    const { queueMutation, isOnline } = useOfflineQueue();
+   136→
+   137→    const availableWorkflows = executionState.workflows && executionState.workflows.length > 0 ? executionState.workflows : workflows;
+   138→
+   139→    // ── Enterprise Routing ──────────────────────────────────────────────────
+   140→    // New matters (not edits) on Enterprise plan go through the guided Intake Wizard
+   141→    const isEnterpriseFirm = coreState.firmDetails?.subscriptionPlan === SubscriptionPlan.Enterprise;
+   142→    const isCreatingNew = !matterToEdit;
+   143→    if (isEnterpriseFirm && isCreatingNew) {
+   144→        return (
+   145→            <MatterIntakeWizard
+   146→                users={coreState.users || []}
+   147→                contacts={contacts}
+   148→                currentUser={currentUser}
+   149→                onClose={onClose}
+   150→                onAddMatter={onAddMatter}
+   151→            />
+   152→        );
+   153→    }
+   154→    // ────────────────────────────────────────────────────────────────────────
+   155→
+   156→    // --- State ---
+   157→    const [isSubmitting, setIsSubmitting] = useState(false);
+   158→
+   159→    // Core
+   160→    const [title, setTitle] = useState('');
+   161→    const [matterType, setMatterType] = useState<string>(currentUser.defaultMatterType || (availableWorkflows && availableWorkflows[0]?.type) || '');
+   162→    const [isCreatingNewType, setIsCreatingNewType] = useState(false);
+   163→    const [newMatterTypeName, setNewMatterTypeName] = useState('');
+   164→
+   165→    const [subCategory, setSubCategory] = useState<string>('');
+   166→    const [clientId, setClientId] = useState<string>('');
+   167→    const [billingModel, setBillingModel] = useState<BillingModel>(BillingModel.Hourly);
+   168→    const [hourlyRate, setHourlyRate] = useState(100000);
+   169→    const [fixedFeeAmount, setFixedFeeAmount] = useState(0);
+   170→    const [billingPercentage, setBillingPercentage] = useState(2.5);
+   171→    const [billingBase, setBillingBase] = useState<'Rent' | 'Value' | 'Outcome' | 'Custom'>('Rent');
+   172→    // Retainer auto-billing fields — only active when billingModel === Retainer
+   173→    const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>(BillingFrequency.Monthly);
+   174→    const [retainerAutoBillingEnabled, setRetainerAutoBillingEnabled] = useState<boolean>(true);
+   175→    const [assignedUsers, setAssignedUsers] = useState<Set<string>>(new Set());
+   176→
+   177→    // Litigation Toggle & Fields
+   178→    const [isLitigation, setIsLitigation] = useState(false);
+   179→    const [suitNumber, setSuitNumber] = useState('');
+   180→    const [court, setCourt] = useState<string>(CourtType.FederalHighCourt);
+   181→    const [judicialDivision, setJudicialDivision] = useState('');
+   182→    const [presidingJudge, setPresidingJudge] = useState('');
+   183→    const [courtRoom, setCourtRoom] = useState('');
+   184→    const [nextAdjournedDate, setNextAdjournedDate] = useState('');
+   185→    const [originatingProcess, setOriginatingProcess] = useState('');
+   186→    // Enhanced Multi-Party State
+   187→    const [claimants, setClaimants] = useState<LitigationParty[]>([]);
+   188→    const [defendants, setDefendants] = useState<LitigationParty[]>([]);
+   189→    const [representingSide, setRepresentingSide] = useState<'Claimant'|'Defendant'>('Claimant');
+   190→    const [titleAutoGenerated, setTitleAutoGenerated] = useState(true);
+   191→
+   192→    // Corporate
+   193→    const [cacAvailabilityCode, setCacAvailabilityCode] = useState('');
+   194→    const [rcNumber, setRcNumber] = useState('');
+   195→    const [shareCapital, setShareCapital] = useState<number>(0);
+   196→    const [annualReturnsDueDate, setAnnualReturnsDueDate] = useState('');
+   197→
+   198→    // Real Estate
+   199→    const [propertyValue, setPropertyValue] = useState<number>(0);
+   200→    const [titleRegistrationDetails, setTitleRegistrationDetails] = useState('');
+   201→    const [transactionStage, setTransactionStage] = useState('');
+   202→    const [linkedPropertyId, setLinkedPropertyId] = useState<string>(matterToEdit?.specialtyData?.realEstate?.propertyId || '');
+   203→
+   204→    // Enterprise Specialty Data
+   205→    const [specialtyData, setSpecialtyData] = useState<Partial<any>>({});
+   206→    // New Client Logic
+   207→    const [isCreatingClient, setIsCreatingClient] = useState(false);
+   208→    const [newClientName, setNewClientName] = useState('');
+   209→    const [newClientType, setNewClientType] = useState<ContactType>(ContactType.Individual);
+   210→    const [newClientEmail, setNewClientEmail] = useState('');
+   211→    const [newClientPhone, setNewClientPhone] = useState('');
+   212→
+   213→    const isEditing = !!matterToEdit;
+   214→
+   215→    // TASK: Matters ALWAYS use "Client" terminology — never "Tenant".
+   216→    // Even in Komplete firms and even for Real Estate matters, the person
+   217→    // you're representing in a legal matter is your CLIENT.
+   218→    // The user explicitly stated: "in matters you are dealing with clients
+   219→    // even if they come from a landlord/tenant issue from the properties section."
+   220→    const clientLabel = 'Client';
+   221→
+   222→    // --- EFFECT: ALOA Form Update Listener ---
+   223→    useEffect(() => {
+   224→        const handleAloaUpdate = (e: any) => {
+   225→            const data = e.detail;
+   226→            if (!data) return;
+   227→
+   228→            if (data.title !== undefined) setTitle(data.title);
+   229→            if (data.matterType !== undefined) setMatterType(data.matterType);
+   230→            if (data.subCategory !== undefined) setSubCategory(data.subCategory);
+   231→            if (data.clientId !== undefined) setClientId(data.clientId);
+   232→            if (data.suitNumber !== undefined) {
+   233→                setSuitNumber(data.suitNumber);
+   234→                setIsLitigation(true);
+   235→            }
+   236→            if (data.court !== undefined) {
+   237→                setCourt(data.court);
+   238→                setIsLitigation(true);
+   239→            }
+   240→            if (data.presidingJudge !== undefined) setPresidingJudge(data.presidingJudge);
+   241→            if (data.billingModel !== undefined) setBillingModel(data.billingModel);
+   242→            if (data.propertyValue !== undefined) setPropertyValue(Number(data.propertyValue));
+   243→            
+   244→            // New client fields
+   245→            if (data.newClientName) {
+   246→                setIsCreatingClient(true);
+   247→                setNewClientName(data.newClientName);
+   248→            }
+   249→            if (data.newClientEmail) setNewClientEmail(data.newClientEmail);
+   250→            if (data.newClientPhone) setNewClientPhone(data.newClientPhone);
+   251→            
+   252→            addToast("ALOA updated the form with new details.", { type: 'info' });
+   253→        };
+   254→
+   255→        window.addEventListener('aloa_update_form', handleAloaUpdate);
+   256→        return () => window.removeEventListener('aloa_update_form', handleAloaUpdate);
+   257→    }, [addToast]);
+   258→
+   259→    useEffect(() => {
+   260→        if (isEditing && matterToEdit) {
+   261→            setTitle(matterToEdit.title);
+   262→            setMatterType(matterToEdit.type);
+   263→            setSubCategory(matterToEdit.subCategory || '');
+   264→            const clientExists = contacts.some(c => c.id === matterToEdit.clientId);
+   265→            setClientId(clientExists ? matterToEdit.clientId : '');
+   266→
+   267→            setBillingModel(matterToEdit.billingModel);
+   268→            setHourlyRate(matterToEdit.hourlyRate);
+   269→            setFixedFeeAmount(matterToEdit.fixedFeeAmount || 0);
+   270→            setBillingPercentage(matterToEdit.billingPercentage || 2.5);
+   271→            setBillingBase(matterToEdit.billingBase || 'Rent');
+   272→            // Retainer auto-billing fields — only meaningful when billingModel is Retainer
+   273→            setBillingFrequency(matterToEdit.billingFrequency || BillingFrequency.Monthly);
+   274→            setRetainerAutoBillingEnabled(matterToEdit.retainerAutoBillingEnabled ?? true);
+   275→            setAssignedUsers(new Set(matterToEdit.assignedUsers));
+   276→
+   277→            if (matterToEdit.suitNumber || matterToEdit.court) {
+   278→                setIsLitigation(true);
+   279→                setSuitNumber(matterToEdit.suitNumber || '');
+   280→                setCourt(matterToEdit.court);
+   281→                setJudicialDivision(matterToEdit.judicialDivision);
+   282→                setPresidingJudge(matterToEdit.presidingJudge || '');
+   283→                setCourtRoom(matterToEdit.courtRoom || '');
+   284→                setNextAdjournedDate(matterToEdit.nextAdjournedDate || '');
+   285→                setOriginatingProcess(matterToEdit.originatingProcess || '');
+   286→                if (matterToEdit.parties) {
+   287→                    setClaimants(matterToEdit.parties.filter(p => ['Claimant', 'Applicant'].includes(p.role)));
+   288→                    setDefendants(matterToEdit.parties.filter(p => ['Defendant', 'Respondent'].includes(p.role)));
+   289→                }
+   290→                setRepresentingSide((matterToEdit.specialtyData?.firmRepresentingRole as 'Claimant' | 'Defendant') || 'Claimant');
+   291→            }
+   292→
+   293→            setRcNumber(matterToEdit.rcNumber || '');
+   294→            setShareCapital(matterToEdit.shareCapital || 0);
+   295→            setAnnualReturnsDueDate(matterToEdit.annualReturnsDueDate || '');
+   296→
+   297→            setPropertyValue(matterToEdit.propertyValue || 0);
+   298→            setTitleRegistrationDetails(matterToEdit.titleRegistrationDetails || '');
+   299→            setTransactionStage(matterToEdit.transactionStage || '');
+   300→
+   301→        } else if (initialContext) {
+   302→            const context = initialContext.fields || initialContext;
+   303→            if (context.title) setTitle(context.title);
+   304→            if (context.clientId) setClientId(context.clientId);
+   305→            if (context.matterType) {
+   306→                setMatterType(context.matterType);
+   307→                if (context.matterType === MatterType.CivilLitigation || context.matterType === MatterType.CriminalDefense) {
+   308→                    setIsLitigation(true);
+   309→                }
+   310→            }
+   311→            if (context.subCategory) setSubCategory(context.subCategory);
+   312→            if (context.suitNumber) {
+   313→                setSuitNumber(context.suitNumber);
+   314→                setIsLitigation(true);
+   315→            }
+   316→            if (context.court) setCourt(context.court);
+   317→            if (context.presidingJudge) setPresidingJudge(context.presidingJudge);
+   318→            if (context.rcNumber) setRcNumber(context.rcNumber);
+   319→            if (context.propertyValue) {
+   320→                setPropertyValue(Number(context.propertyValue));
+   321→                setBillingModel(BillingModel.FixedFee);
+   322→            }
+   323→            if (appMode === 'multi' && currentUser) setAssignedUsers(new Set([currentUser.id]));
+   324→            if (context.newClientName) {
+   325→                setIsCreatingClient(true);
+   326→                setNewClientName(context.newClientName);
+   327→                if (context.newClientPhone) setNewClientPhone(context.newClientPhone);
+   328→                if (context.newClientEmail) setNewClientEmail(context.newClientEmail);
+   329→            }
+   330→        } else {
+   331→            // Check for saved draft in localStorage
+   332→            const savedDraft = localStorage.getItem(`draft_newMatter_${currentUser.id}`);
+   333→            if (savedDraft) {
+   334→                try {
+   335→                    const draft = JSON.parse(savedDraft);
+   336→                    if (draft.title) setTitle(draft.title);
+   337→                    if (draft.matterType) setMatterType(draft.matterType);
+   338→                    if (draft.subCategory) setSubCategory(draft.subCategory);
+   339→                    if (draft.clientId) setClientId(draft.clientId);
+   340→                    if (draft.isLitigation) setIsLitigation(draft.isLitigation);
+   341→                    if (draft.suitNumber) setSuitNumber(draft.suitNumber);
+   342→                    if (draft.court) setCourt(draft.court);
+   343→                    if (draft.billingModel) setBillingModel(draft.billingModel);
+   344→                    if (draft.billingFrequency) setBillingFrequency(draft.billingFrequency);
+   345→                    if (typeof draft.retainerAutoBillingEnabled === 'boolean') setRetainerAutoBillingEnabled(draft.retainerAutoBillingEnabled);
+   346→                } catch (e) {
+   347→                    console.error("Failed to parse matter draft", e);
+   348→                }
+   349→            }
+   350→            if (appMode === 'multi' && currentUser) setAssignedUsers(new Set([currentUser.id]));
+   351→        }
+   352→    }, [isEditing, matterToEdit, initialContext, appMode, currentUser, contacts, addToast]);
+   353→
+   354→    // --- EFFECT: Save Draft ---
+   355→    useEffect(() => {
+   356→        if (!isEditing && !isSubmitting && title && currentUser?.id) {
+   357→            const draft = {
+   358→                title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel,
+   359→                billingFrequency, retainerAutoBillingEnabled,
+   360→                lastSaved: new Date().toISOString()
+   361→            };
+   362→            localStorage.setItem(`draft_newMatter_${currentUser.id}`, JSON.stringify(draft));
+   363→        }
+   364→    }, [title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel, billingFrequency, retainerAutoBillingEnabled, isEditing, isSubmitting, currentUser]);
+   365→
+   366→    const activeWorkflow = availableWorkflows.find(w => w.type === matterType);
+   367→    const subCategoryOptions = activeWorkflow?.subCategories ? Object.keys(activeWorkflow.subCategories) : [];
+   368→
+   369→    // Determine the stages that will be used for this matter.
+   370→    // If a sub-category is selected and has stages, use those.
+   371→    // Otherwise use the workflow's default stages.
+   372→    // This replaces the old generic ['Intake', 'Drafting', 'Review', 'Execution', 'Closed']
+   373→    // that was hardcoded when creating a new matter type.
+   374→    const effectiveStages = useMemo(() => {
+   375→        if (activeWorkflow) {
+   376→            if (subCategory && activeWorkflow.subCategories?.[subCategory]?.stages) {
+   377→                return activeWorkflow.subCategories[subCategory].stages;
+   378→            }
+   379→            return activeWorkflow.default?.stages || [];
+   380→        }
+   381→        return [];
+   382→    }, [activeWorkflow, subCategory]);
+   383→
+   384→    const [showWorkflowStages, setShowWorkflowStages] = useState(false);
+   385→
+   386→    // TASK: Removed the useEffect that was CLEARING the subCategory field when
+   387→    // the user typed custom text. The old logic was:
+   388→    //   if (!isEditing && subCategory && !subCategoryOptions.includes(subCategory)) {
+   389→    //       setSubCategory('');
+   390→    //   }
+   391→    //
+   392→    // When subCategoryOptions is empty (no presets), ANY text the user types
+   393→    // fails the .includes() check → the effect fires → clears the field.
+   394→    // This is why "letters get immediately erased".
+   395→    //
+   396→    // The fix: only clear subCategory when the MATTER TYPE changes (not when
+   397→    // subCategory itself changes), and only if the current subCategory is NOT
+   398→    // a custom value (i.e., it was a preset option that no longer applies).
+   399→    const prevMatterTypeRef = useRef(matterType);
+   400→    useEffect(() => {
+   401→        if (matterType !== prevMatterTypeRef.current) {
+   402→            // Matter type changed — check if the current subCategory is still valid
+   403→            if (!isEditing && subCategory && subCategoryOptions.length > 0 && !subCategoryOptions.includes(subCategory)) {
+   404→                setSubCategory('');
+   405→            }
+   406→            prevMatterTypeRef.current = matterType;
+   407→        }
+   408→    }, [matterType, subCategoryOptions, isEditing, subCategory]);
+   409→
+   410→    const handleSubmit = async (e: React.FormEvent) => {
+   411→        e.preventDefault();
+   412→        if (isSubmitting) return;
+   413→        if (!title.trim()) {
+   414→            addToast("Matter Title is required.", { type: 'error' });
+   415→            return;
+   416→        }
+   417→        if (!clientId && !newClientName.trim()) {
+   418→            addToast("Please select an existing client or add a new one.", { type: 'error' });
+   419→            return;
+   420→        }
+   421→        if (isCreatingNewType && !newMatterTypeName.trim()) {
+   422→            addToast("Please provide a name for the new practice area.", { type: 'error' });
+   423→            return;
+   424→        }
+   425→        if (isCreatingClient && (!newClientName.trim() || !newClientEmail.trim())) {
+   426→            addToast("New Client Name and Email are required.", { type: 'error' });
+   427→            return;
+   428→        }
+   429→
+   430→        setIsSubmitting(true);
+   431→        try {
+   432→            const activeFirmId = coreState.firmDetails?.id || currentUser.firmId;
+   433→            if (!activeFirmId) throw new Error("Critical Error: No Firm ID found.");
+   434→
+   435→            let finalMatterType = matterType;
+   436→            let workflow = availableWorkflows.find(w => w.type === finalMatterType);
+   437→
+   438→            if (isCreatingNewType && newMatterTypeName.trim()) {
+   439→                finalMatterType = newMatterTypeName.trim();
+   440→                workflow = availableWorkflows.find(w => w.type === finalMatterType);
+   441→                if (!workflow) {
+   442→                    // Use the effective stages from the workflow preview if available,
+   443→                    // otherwise use a sensible default. The old hardcoded generic
+   444→                    // ['Intake', 'Drafting', 'Review', 'Execution', 'Closed'] is kept
+   445→                    // as the fallback only when no stages were defined.
+   446→                    const stagesToUse = effectiveStages.length > 0
+   447→                        ? effectiveStages
+   448→                        : ['Intake', 'In Progress', 'Closed'];
+   449→                    workflow = await Promise.resolve(handleAddWorkflow({
+   450→                        firmId: activeFirmId,
+   451→                        type: finalMatterType,
+   452→                        default: { stages: stagesToUse, suggestions: {} },
+   453→                        subCategories: subCategory ? { [subCategory]: { stages: stagesToUse, suggestions: {} } } : {},
+   454→                    }));
+   455→                }
+   456→            }
+   457→
+   458→            // TASK: Removed handleAddWorkflowSubCategory call — it was NEVER
+   459→            // defined in the codebase, causing 'p is not a function' error.
+   460→            // The sub-category is saved as a plain text field on the matter
+   461→            // (matterData.subCategory at line 386). It doesn't need to be
+   462→            // registered as a workflow sub-category to function.
+   463→            // If we need workflow sub-categories in the future, we'll add a
+   464→            // proper mutation in Convex and wire it through the context.
+   465→
+   466→            let finalClientId = clientId;
+   467→            let clientToCreate: any = null;
+   468→            if (isCreatingClient) {
+   469→                const newContactData = {
+   470→                    firmId: activeFirmId,
+   471→                    name: newClientName,
+   472→                    email: newClientEmail,
+   473→                    phone: newClientPhone,
+   474→                    contactType: newClientType,
+   475→                    category: 'Client'
+   476→                };
+   477→                if (isEditing) {
+   478→                    const newContact = await handleAddContact(newContactData, false);
+   479→                    if (newContact) finalClientId = newContact.id;
+   480→                    else throw new Error("Failed to create new client contact");
+   481→                } else {
+   482→                    clientToCreate = { data: newContactData, createPortal: false };
+   483→                }
+   484→            }
+   485→
+   486→            const matterData: any = {
+   487→                firmId: activeFirmId,
+   488→                title,
+   489→                clientId: finalClientId,
+   490→                type: finalMatterType as MatterType,
+   491→                subCategory,
+   492→                billingModel, hourlyRate, fixedFeeAmount, billingPercentage, billingBase,
+   493→                // Retainer auto-billing config — passed to backend which enforces
+   494→                // premium-tier gating (Vega Growth+/Pro or Komplete).
+   495→                billingFrequency: billingModel === BillingModel.Retainer ? billingFrequency : undefined,
+   496→                retainerAutoBillingEnabled: billingModel === BillingModel.Retainer ? retainerAutoBillingEnabled : false,
+   497→                stage: isEditing ? matterToEdit!.stage : 'Intake',
+   498→                stageLastUpdated: new Date().toISOString(),
+   499→                status: isEditing ? matterToEdit!.status : MatterStatus.Active,
+   500→                assignedUsers: Array.from(assignedUsers),
+   501→                billingAccess: []
+   502→            };
+   503→
+   504→            if (isLitigation) {
+   505→                matterData.suitNumber = suitNumber;
+   506→                matterData.court = court;
+   507→                matterData.judicialDivision = judicialDivision;
+   508→                matterData.presidingJudge = presidingJudge;
+   509→                matterData.courtRoom = courtRoom;
+   510→                matterData.nextAdjournedDate = nextAdjournedDate;
+   511→                matterData.originatingProcess = originatingProcess;
+   512→                matterData.opposingCounsel = ''; // Deprecated, using parties
+   513→
+   514→                const partiesList: LitigationParty[] = [
+   515→                    ...claimants.filter(p => typeof p.name === 'string' && p.name.trim() !== ''),
+   516→                    ...defendants.filter(p => typeof p.name === 'string' && p.name.trim() !== '')
+   517→                ];
+   518→                matterData.parties = partiesList;
+   519→                matterData.specialtyData = {
+   520→                    ...(matterToEdit?.specialtyData || {}),
+   521→                    firmRepresentingRole: representingSide
+   522→                };
+   523→            } else {
+   524→                matterData.suitNumber = '';
+   525→                matterData.court = '';
+   526→                matterData.judicialDivision = '';
+   527→                matterData.presidingJudge = '';
+   528→                matterData.courtRoom = '';
+   529→                matterData.nextAdjournedDate = '';
+   530→                matterData.originatingProcess = '';
+   531→                matterData.opposingCounsel = '';
+   532→            }
+   533→
+   534→            if (finalMatterType === MatterType.CorporateCommercial) {
+   535→                matterData.cacAvailabilityCode = cacAvailabilityCode;
+   536→                matterData.rcNumber = rcNumber;
+   537→                matterData.shareCapital = shareCapital;
+   538→                matterData.annualReturnsDueDate = annualReturnsDueDate;
+   539→                matterData.specialtyData = { corporate: { rcNumber, shareCapital, annualReturnsDueDate } };
+   540→            } else if (finalMatterType === MatterType.RealEstate) {
+   541→                matterData.propertyValue = propertyValue;
+   542→                matterData.titleRegistrationDetails = titleRegistrationDetails;
+   543→                matterData.transactionStage = transactionStage;
+   544→                matterData.specialtyData = { 
+   545→                    realEstate: { 
+   546→                        purchasePrice: propertyValue, 
+   547→                        titleDocument: titleRegistrationDetails as any,
+   548→                        propertyId: linkedPropertyId 
+   549→                    } 
+   550→                };
+   551→            } else if (finalMatterType === MatterType.MaritimeAdmiralty) {
+   552→                matterData.specialtyData = { maritime: {} };
+   553→            } else if (finalMatterType === MatterType.OilGas) {
+   554→                matterData.specialtyData = { oilGas: {} };
+   555→            } else if (finalMatterType === MatterType.Tax) {
+   556→                matterData.specialtyData = { tax: {} };
+   557→            }
+   558→
+   559→            if (isEditing && matterToEdit) {
+   560→                await onUpdateMatter({ ...matterToEdit, ...matterData });
+   561→                // Update property link if changed
+   562→                if (linkedPropertyId) {
+   563→                    const prop = coreState.properties.find(p => p.id === linkedPropertyId);
+   564→                    if (prop && prop.matterId !== matterToEdit.id) {
+   565→                         await dataHandlers.updateItem('properties', { ...prop, id: linkedPropertyId, matterId: matterToEdit.id }, 'Property Link');
+   566→                    }
+   567→                }
+   568→                // ─── Sync retainer schedule on the backend ────────────────
+   569→                // This computes nextBillingDate and persists the auto-billing flag.
+   570→                // Non-premium firms will have autoBillingEnabled forced to false
+   571→                // by the backend (defense-in-depth).
+   572→                if (matterData.billingModel === BillingModel.Retainer && matterData.billingFrequency) {
+   573→                    try {
+   574→                        await upsertRetainerSchedule({
+   575→                            matterId: matterToEdit.id,
+   576→                            billingFrequency: matterData.billingFrequency,
+   577→                            autoBillingEnabled: matterData.retainerAutoBillingEnabled ?? false,
+   578→                        });
+   579→                    } catch (e) {
+   580→                        console.warn('Failed to sync retainer schedule:', e);
+   581→                    }
+   582→                }
+   583→                addToast("Matter updated successfully.", { type: 'success' });
+   584→            } else {
+   585→                // TASK: Offline queue — if the device is offline, queue the
+   586→                // matter creation in localStorage and notify the user.
+   587→                // The useOfflineQueue hook will auto-replay when connection returns.
+   588→                if (!isOnline) {
+   589→                    queueMutation({
+   590→                        table: 'matters',
+   591→                        data: { ...matterData, userEmail: currentUser?.email },
+   592→                        itemName: 'Matter',
+   593→                        userEmail: currentUser?.email,
+   594→                    });
+   595→                    if (clientToCreate) {
+   596→                        queueMutation({
+   597→                            table: 'contacts',
+   598→                            data: { ...clientToCreate.data, userEmail: currentUser?.email },
+   599→                            itemName: 'Contact',
+   600→                            userEmail: currentUser?.email,
+   601→                        });
+   602→                    }
+   603→                    localStorage.removeItem(`draft_newMatter_${currentUser.id}`);
+   604→                    addToast('Matter saved offline. It will sync automatically when you reconnect.', { type: 'info', duration: 6000 });
+   605→                    onClose();
+   606→                    return;
+   607→                }
+   608→
+   609→                const res = await onAddMatter(matterData, clientToCreate);
+   610→                const newMatter = res as any; // onAddMatter returns the matter
+   611→                
+   612→                // Bidirectional Link: Update property with new matterId
+   613→                if (newMatter && linkedPropertyId) {
+   614→                    const prop = coreState.properties.find(p => p.id === linkedPropertyId);
+   615→                    await dataHandlers.updateItem('properties', { ...(prop || {}), id: linkedPropertyId, matterId: newMatter.id }, 'Property Link');
+   616→                }
+   617→
+   618→                // ─── Sync retainer schedule on the backend ────────────────
+   619→                // Sets nextBillingDate = matter.createdAt + 1 cycle so the
+   620→                // cron-based retainer scheduler can pick it up at the right time.
+   621→                if (newMatter && matterData.billingModel === BillingModel.Retainer && matterData.billingFrequency) {
+   622→                    try {
+   623→                        await upsertRetainerSchedule({
+   624→                            matterId: newMatter.id,
+   625→                            billingFrequency: matterData.billingFrequency,
+   626→                            autoBillingEnabled: matterData.retainerAutoBillingEnabled ?? false,
+   627→                        });
+   628→                    } catch (e) {
+   629→                        console.warn('Failed to sync retainer schedule:', e);
+   630→                    }
+   631→                }
+   632→
+   633→                localStorage.removeItem(`draft_newMatter_${currentUser.id}`); // Clear draft on success
+   634→                addToast("Matter created successfully.", { type: 'success' });
+   635→                
+   636→                // MARK ALOA ACTION COMPLETED
+   637→                if (initialContext?.aloaMessageId) {
+   638→                    try {
+   639→                        await markAloaActionCompleted({ messageId: initialContext.aloaMessageId });
+   640→                    } catch (e) {
+   641→                        console.error("Failed to mark ALOA action completed:", e);
+   642→                    }
+   643→                }
+   644→            }
+   645→            onClose();
+   646→        } catch (err: any) {
+   647→            console.error("Submission Error:", err);
+   648→            addToast(translateError(err, "save matter"), { type: 'error' });
+   649→            setIsSubmitting(false);
+   650→        }
+   651→    };
+   652→
+   653→    const handleMatterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+   654→        const val = e.target.value;
+   655→        if (val === '___NEW___') {
+   656→            setIsCreatingNewType(true);
+   657→            setMatterType('');
+   658→        } else {
+   659→            setIsCreatingNewType(false);
+   660→            setMatterType(val);
+   661→            if (val === MatterType.CivilLitigation || val === MatterType.CriminalDefense) {
+   662→                setIsLitigation(true);
+   663→            }
+   664→        }
+   665→    };
+   666→
+   667→    const handleUserToggle = (id: string) => {
+   668→        setAssignedUsers(prev => {
+   669→            const newSet = new Set(prev);
+   670→            if (newSet.has(id)) newSet.delete(id);
+   671→            else newSet.add(id);
+   672→            return newSet;
+   673→        });
+   674→    };
+   675→
+   676→    const commonInputClass = inputModern;
+   677→    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
+   678→
+   679→    const updatePartyList = (side: 'claimants' | 'defendants', newList: LitigationParty[]) => {
+   680→        let newTitle = title;
+   681→        if (titleAutoGenerated) {
+   682→            newTitle = autoFormatSuitTitle(
+   683→                side === 'claimants' ? newList : claimants,
+   684→                side === 'defendants' ? newList : defendants
+   685→            );
+   686→        }
+   687→        if (side === 'claimants') setClaimants(newList);
+   688→        else setDefendants(newList);
+   689→        setTitle(newTitle);
+   690→    };
+   691→
+   692→    const addParty = (side: 'claimants' | 'defendants', defaultRole: string) => {
+   693→        updatePartyList(side, [...(side === 'claimants' ? claimants : defendants), { id: Math.random().toString(), name: '', role: defaultRole }]);
+   694→    };
+   695→    const removeParty = (side: 'claimants' | 'defendants', id: string) => {
+   696→        updatePartyList(side, (side === 'claimants' ? claimants : defendants).filter((x: any) => x.id !== id));
+   697→    };
+   698→    const updateParty = (side: 'claimants' | 'defendants', id: string, props: Partial<LitigationParty>) => {
+   699→        updatePartyList(side, (side === 'claimants' ? claimants : defendants).map((x: any) => x.id === id ? { ...x, ...props } : x));
+   700→    };
+   701→
+   702→    const PartySection = ({ side, roleLabel }: { side: 'claimants' | 'defendants', roleLabel: string }) => {
+   703→        const list = side === 'claimants' ? claimants : defendants;
+   704→        return (
+   705→            <div className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700/50 rounded-lg space-y-2">
+   706→                <div className="flex items-center justify-between px-1">
+   707→                    <span className="text-2xs uppercase font-black tracking-widest text-slate-500 dark:text-zinc-400">
+   708→                        {roleLabel}s ({list.length})
+   709→                    </span>
+   710→                    <button type="button" onClick={() => addParty(side, roleLabel)} className="text-2xs font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400 flex items-center gap-1">
+   711→                        <PlusIcon className="w-3 h-3" /> Add
+   712→                    </button>
+   713→                </div>
+   714→                {list.length === 0 && (
+   715→                    <div className="py-2 text-center text-2xs text-slate-400 dark:text-zinc-500 italic border border-dashed border-slate-200 dark:border-zinc-700 rounded-lg">
+   716→                        No {roleLabel.toLowerCase()}s added
+   717→                    </div>
+   718→                )}
+   719→                <div className="space-y-2">
+   720→                    {list.map((p, idx) => (
+   721→                        <div key={p.id} className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-700/50 rounded-lg relative">
+   722→                            <div className="flex gap-2 items-start">
+   723→                                <span className="text-2xs font-bold text-slate-300 dark:text-zinc-600 w-4 t-1">{idx+1}.</span>
+   724→                                <div className="flex-1 space-y-1.5 min-w-0">
+   725→                                    <input autoComplete="off" data-lpignore="true" 
+   726→                                        className="w-full bg-transparent border-0 outline-none text-sm font-medium p-0 placeholder-slate-300 dark:placeholder-zinc-600 focus:ring-0 dark:text-white"
+   727→                                        placeholder={`${roleLabel} Name`}
+   728→                                        value={p.name}
+   729→                                        onChange={e => updateParty(side, p.id, { name: e.target.value })}
+   730→                                    />
+   731→                                    {p.isRepresentative && (
+   732→                                        <input autoComplete="off" data-lpignore="true" 
+   733→                                            className="w-full bg-transparent border-0 outline-none text-2xs p-0 placeholder-slate-300 dark:placeholder-zinc-600 focus:ring-0 text-amber-600 dark:text-amber-400 font-semibold"
+   734→                                            placeholder="Capacity (e.g. Suing as...)"
+   735→                                            value={p.capacity || ''}
+   736→                                            onChange={e => updateParty(side, p.id, { capacity: e.target.value })}
+   737→                                            autoFocus
+   738→                                        />
+   739→                                    )}
+   740→                                </div>
+   741→                                <button type="button" onClick={() => removeParty(side, p.id)} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0">
+   742→                                    <XIcon className="w-3 h-3" />
+   743→                                </button>
+   744→                            </div>
+   745→                            <div className="flex items-center gap-1.5 pl-6 mt-0.5">
+   746→                                <button 
+   747→                                    type="button"
+   748→                                    onClick={() => updateParty(side, p.id, { isRepresentative: !p.isRepresentative, capacity: '' })}
+   749→                                    className={`text-3xs font-bold px-1.5 py-0.5 rounded border transition-colors ${
+   750→                                        p.isRepresentative 
+   751→                                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/50' 
+   752→                                        : 'text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800'
+   753→                                    }`}
+   754→                                >
+   755→                                    Rep. Action?
+   756→                                </button>
+   757→                            </div>
+   758→                        </div>
+   759→                    ))}
+   760→                </div>
+   761→            </div>
+   762→        );
+   763→    };
+   764→
+   765→    const isApplicant = originatingProcess?.includes('Summons') || originatingProcess?.includes('Motion');
+   766→    const cRole = isApplicant ? 'Applicant' : 'Claimant';
+   767→    const dRole = isApplicant ? 'Respondent' : 'Defendant';
+   768→
+   769→    // ─── Accordion State ──────────────────────────────────────────────
+   770→    // Auto-expand: Practice Area + Client on initial mount. When editing
+   771→    // an existing matter with litigation, expand litigation too.
+   772→    const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
+   773→        classification: true,
+   774→        title: false,
+   775→        client: true,
+   776→        assignedTeam: false,
+   777→        billing: false,
+   778→        litigation: isLitigation,
+   779→    }));
+   780→    // Re-sync litigation accordion state when isLitigation flips on via
+   781→    // initialContext or matterToEdit load (the useState initializer only
+   782→    // runs once on mount, so we need this effect to catch late loads).
+   783→    useEffect(() => {
+   784→        if (isLitigation && !openSections.litigation) {
+   785→            setOpenSections(prev => ({ ...prev, litigation: true }));
+   786→        }
+   787→        // eslint-disable-next-line react-hooks/exhaustive-deps
+   788→    }, [isLitigation]);
+   789→    const toggleSection = useCallback((id: string) => {
+   790→        setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+   791→    }, []);
+   792→
+   793→    // Avatar-stack badge for Assigned Team (shown when section is collapsed).
+   794→    // Renders up to 3 user avatars + an overflow "+N" pill.
+   795→    const assignedTeamBadge = useMemo(() => {
+   796→        if (openSections.assignedTeam) return null;
+   797→        const list = (props.users || []).filter(u => assignedUsers.has(u.id));
+   798→        if (list.length === 0) return null;
+   799→        const shown = list.slice(0, 3);
+   800→        const extra = list.length - shown.length;
+   801→        return (
+   802→            <div className="flex items-center -space-x-1.5 mr-1">
+   803→                {shown.map(u => (
+   804→                    <div
+   805→                        key={u.id}
+   806→                        className={`h-6 w-6 rounded-full flex items-center justify-center text-white font-bold text-[10px] ring-2 ring-white dark:ring-zinc-800 ${getUserColor(u.name)}`}
+   807→                        title={u.name}
+   808→                    >
+   809→                        {getInitials(u.name)}
+   810→                    </div>
+   811→                ))}
+   812→                {extra > 0 && (
+   813→                    <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-[10px] ring-2 ring-white dark:ring-zinc-800">
+   814→                        +{extra}
+   815→                    </div>
+   816→                )}
+   817→            </div>
+   818→        );
+   819→    }, [props.users, assignedUsers, openSections.assignedTeam]);
+   820→
+   821→    return (
+   822→        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+   823→            {/* 2. SCROLLABLE FORM BODY — only this section scrolls.
+   824→                flex-1 + min-h-0 + overflow-y-auto makes it the scroll
+   825→                container. The footer below is a flex-shrink-0 sibling
+   826→                that always pins to the bottom of the modal.
+   827→                -mt-3 sm:-mt-5 cancels the Modal body's top padding so
+   828→                the form content starts flush at the top. */}
+   829→            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 -mt-3 sm:-mt-5 pb-4">
+   830→
+   831→                {/* ── CLASSIFICATION (accordion) ── */}
+   832→                <AccordionSection
+   833→                    id="classification"
+   834→                    isOpen={!!openSections.classification}
+   835→                    onToggle={toggleSection}
+   836→                    title={isProperty ? 'Category' : 'Practice Area'}
+   837→                    subtitle="Classification"
+   838→                    icon={<BriefcaseIcon className="w-3.5 h-3.5" />}
+   839→                    iconBg="bg-indigo-600"
+   840→                >
+   841→
+   842→                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
+   843→                        <div className="space-y-1.5">
+   844→                            <label className={labelClass}>{isProperty ? 'Category' : 'Practice Area'}</label>
+   845→                            {!isCreatingNewType ? (
+   846→                                <select
+   847→                                    value={matterType}
+   848→                                    onChange={handleMatterTypeChange}
+   849→                                    className={commonInputClass}
+   850→                                    required
+   851→                                >
+   852→                                    <option value="" disabled>{isProperty ? '-- Select Category --' : '-- Select Area --'}</option>
+   853→                                    {(availableWorkflows || []).map(w => <option key={w.id} value={w.type}>{w.type}</option>)}
+   854→                                    <option value="___NEW___">{isProperty ? '+ Add New Category' : '+ Add New Area'}</option>
+   855→                                </select>
+   856→                            ) : (
+   857→                                <div className="flex gap-2">
+   858→                                    <input autoComplete="off" data-lpignore="true" 
+   859→                                        type="text"
+   860→                                        value={newMatterTypeName}
+   861→                                        onChange={e => setNewMatterTypeName(e.target.value)}
+   862→                                        placeholder="Enter Area Name..."
+   863→                                        className={commonInputClass}
+   864→                                        autoFocus
+   865→                                    />
+   866→                                    <button
+   867→                                        type="button"
+   868→                                        onClick={() => setIsCreatingNewType(false)}
+   869→                                        className="text-xs text-red-500 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-950/40 dark:hover:bg-red-900/10 px-3 rounded-lg transition-colors"
+   870→                                    >
+   871→                                        Cancel
+   872→                                    </button>
+   873→                                </div>
+   874→                            )}
+   875→                        </div>
+   876→                        <div className="space-y-1.5">
+   877→                            <label className={labelClass}>Sub-Category</label>
+   878→                            {subCategoryOptions.length > 0 ? (
+   879→                                <select
+   880→                                    value={subCategory}
+   881→                                    onChange={e => setSubCategory(e.target.value)}
+   882→                                    className={commonInputClass}
+   883→                                >
+   884→                                    <option value="">-- No Sub-Category --</option>
+   885→                                    {subCategoryOptions.map(sc => (
+   886→                                        <option key={sc} value={sc}>{sc}</option>
+   887→                                    ))}
+   888→                                    <option value="">Other / Custom</option>
+   889→                                </select>
+   890→                            ) : (
+   891→                                <input autoComplete="off" data-lpignore="true" 
+   892→                                    type="text"
+   893→                                    value={subCategory}
+   894→                                    onChange={e => setSubCategory(e.target.value)}
+   895→                                    className={commonInputClass}
+   896→                                    placeholder="Optional Sub-Category..."
+   897→                                />
+   898→                            )}
+   899→                        </div>
+   900→                    </div>
+   901→
+   902→                    {/* WORKFLOW STAGES PREVIEW — subtle, collapsible */}
+   903→                    {matterType && (
+   904→                        <div className="mt-1">
+   905→                            <button
+   906→                                type="button"
+   907→                                onClick={() => setShowWorkflowStages(v => !v)}
+   908→                                className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+   909→                            >
+   910→                                <svg className={`w-3 h-3 transition-transform ${showWorkflowStages ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+   911→                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+   912→                                </svg>
+   913→                                {effectiveStages.length > 0
+   914→                                    ? `Workflow: ${effectiveStages.length} stages`
+   915→                                    : 'No workflow stages — click to create'}
+   916→                            </button>
+   917→                            {showWorkflowStages && (
+   918→                                <div className="mt-2 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700/50">
+   919→                                    {effectiveStages.length > 0 ? (
+   920→                                        <div className="flex flex-wrap gap-1.5">
+   921→                                            {effectiveStages.map((stage, i) => (
+   922→                                                <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-2xs font-bold text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+   923→                                                    <span className="text-primary-500">{i + 1}.</span> {stage}
+   924→                                                </span>
+   925→                                            ))}
+   926→                                        </div>
+   927→                                    ) : (
+   928→                                        <p className="text-2xs text-slate-400 italic mb-2">No workflow defined for this type. A default will be created on save.</p>
+   929→                                    )}
+   930→                                    <button
+   931→                                        type="button"
+   932→                                        onClick={() => openModal('editWorkflow', activeWorkflow?.id, {
+   933→                                            isNewSub: !activeWorkflow,
+   934→                                            matterType: matterType,
+   935→                                            subCategoryName: subCategory || undefined,
+   936→                                        })}
+   937→                                        className="mt-2 text-2xs font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400 hover:underline flex items-center gap-1"
+   938→                                    >
+   939→                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   940→                                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+   941→                                        </svg>
+   942→                                        {effectiveStages.length > 0 ? 'Edit stages' : 'Create workflow'}
+   943→                                    </button>
+   944→                                </div>
+   945→                            )}
+   946→                        </div>
+   947→                    )}
+   948→
+   949→                </AccordionSection>
+   950→
+   951→                {/* ── MATTER TITLE (accordion) ── */}
+   952→                <AccordionSection
+   953→                    id="title"
+   954→                    isOpen={!!openSections.title}
+   955→                    onToggle={toggleSection}
+   956→                    title="Matter Title"
+   957→                    subtitle="Identification"
+   958→                    icon={<DocumentTextIcon className="w-3.5 h-3.5" />}
+   959→                    iconBg="bg-slate-600"
+   960→                >
+   961→                    <div className="space-y-1.5">
+   962→                        <label className={labelClass}>Matter Title</label>
+   963→                        <div className="relative">
+   964→                            <input autoComplete="off" data-lpignore="true"
+   965→                                type="text"
+   966→                                value={title}
+   967→                                onChange={e => {
+   968→                                    setTitle(e.target.value);
+   969→                                    if (isLitigation) setTitleAutoGenerated(false);
+   970→                                }}
+   971→                                disabled={isLitigation && titleAutoGenerated}
+   972→                                className={`${commonInputClass} ${isLitigation && titleAutoGenerated ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 italic' : ''}`}
+   973→                                placeholder="e.g. In the Matter of Land Recovery at Lekki Phase I"
+   974→                                required
+   975→                            />
+   976→                            {isLitigation && (
+   977→                                <button
+   978→                                    type="button"
+   979→                                    onClick={() => {
+   980→                                        if (!titleAutoGenerated) {
+   981→                                            setTitleAutoGenerated(true);
+   982→                                            setTitle(autoFormatSuitTitle(claimants, defendants));
+   983→                                        } else {
+   984→                                            setTitleAutoGenerated(false);
+   985→                                        }
+   986→                                    }}
+   987→                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-2xs uppercase font-black tracking-widest text-primary-500 hover:text-primary-600"
+   988→                                >
+   989→                                    {titleAutoGenerated ? 'Unlock' : 'Auto'}
+   990→                                </button>
+   991→                            )}
+   992→                        </div>
+   993→                    </div>
+   994→                </AccordionSection>
+   995→
+   996→                {/* ── CLIENT (accordion) ── */}
+   997→                <AccordionSection
+   998→                    id="client"
+   999→                    isOpen={!!openSections.client}
+  1000→                    onToggle={toggleSection}
+  1001→                    title="Client"
+  1002→                    subtitle="Engagement"
+  1003→                    icon={<UserIcon className="w-3.5 h-3.5" />}
+  1004→                    iconBg="bg-indigo-600"
+  1005→                >
+  1006→                    <div className="space-y-2 sm:space-y-3">
+  1007→                        <div className="flex justify-between items-center mb-1">
+  1008→                            <label className={labelClass}>{clientLabel}</label>
+  1009→                            <button
+  1010→                                type="button"
+  1011→                                onClick={() => setIsCreatingClient(!isCreatingClient)}
+  1012→                                className="text-2xs font-black text-primary-600 dark:text-primary-300 uppercase tracking-widest hover:underline flex items-center gap-1"
+  1013→                            >
+  1014→                                {isCreatingClient ? 'Cancel & Select' : '+ Create Profile'}
+  1015→                            </button>
+  1016→                        </div>
+  1017→
+  1018→                        {isCreatingClient ? (
+  1019→                            <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+  1020→                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+  1021→                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder="Client Legal Name" />
+  1022→                                    <input autoComplete="off" data-lpignore="true"  type="email" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} className={commonInputClass} placeholder="Contact Email" />
+  1023→                                </div>
+  1024→                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+  1025→                                    <div className="relative">
+  1026→                                        <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+  1027→                                        <input autoComplete="off" data-lpignore="true"  type="tel" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} className={`${commonInputClass} pl-11`} placeholder="Phone Number" />
+  1028→                                    </div>
+  1029→                                    <select value={newClientType} onChange={e => setNewClientType(e.target.value as ContactType)} className={commonInputClass}>
+  1030→                                        <option value={ContactType.Individual}>Individual</option>
+  1031→                                        <option value={ContactType.Company}>Company</option>
+  1032→                                    </select>
+  1033→                                </div>
+  1034→                            </div>
+  1035→                        ) : (
+  1036→                            <div className="relative group">
+  1037→                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
+  1038→                                <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${commonInputClass} pl-11 ring-primary-500/0 focus:ring-primary-500/20`} required>
+  1039→                                    <option value="" disabled>-- Select Client --</option>
+  1040→                                    {contacts.filter(c => c.category === 'Client').map(c => (
+  1041→                                        <option key={c.id} value={c.id}>{c.name}</option>
+  1042→                                    ))}
+  1043→                                </select>
+  1044→                            </div>
+  1045→                        )}
+  1046→
+  1047→                        {/* Property Link for Real Estate */}
+  1048→                        {matterType === 'Real Estate' && clientId && (
+  1049→                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+  1050→                                <label className={labelClass}>Link to Property Portfolio</label>
+  1051→                                <select
+  1052→                                    value={linkedPropertyId}
+  1053→                                    onChange={e => setLinkedPropertyId(e.target.value)}
+  1054→                                    className={commonInputClass}
+  1055→                                >
+  1056→                                    <option value="">-- No Linked Property --</option>
+  1057→                                    {(coreState.properties || []).filter(p => p.contactId === clientId).map(p => (
+  1058→                                        <option key={p.id} value={p.id}>{p.address.split('\n')[0]}</option>
+  1059→                                    ))}
+  1060→                                </select>
+  1061→                                <p className="text-2xs text-slate-400 px-1 italic">
+  1062→                                    Linking a property synchronizes dispute details and status tracking.
+  1063→                                </p>
+  1064→                            </div>
+  1065→                        )}
+  1066→                    </div>
+  1067→                </AccordionSection>
+  1068→
+  1069→                {/* ── ASSIGNED TEAM (separate accordion — multi-user mode only) ── */}
+  1070→                {appMode === 'multi' && (
+  1071→                    <AccordionSection
+  1072→                        id="assignedTeam"
+  1073→                        isOpen={!!openSections.assignedTeam}
+  1074→                        onToggle={toggleSection}
+  1075→                        title="Assigned Team"
+  1076→                        subtitle="Matter Access"
+  1077→                        icon={<UserIcon className="w-3.5 h-3.5" />}
+  1078→                        iconBg="bg-violet-600"
+  1079→                        badge={assignedTeamBadge}
+  1080→                    >
+  1081→                        <UserAssignment
+  1082→                            allUsers={props.users}
+  1083→                            assignedUserIds={assignedUsers}
+  1084→                            onToggle={handleUserToggle}
+  1085→                            appMode={appMode}
+  1086→                        />
+  1087→                    </AccordionSection>
+  1088→                )}
+  1089→
+  1090→                {/* ── BILLING (accordion) ── */}
+  1091→                <AccordionSection
+  1092→                    id="billing"
+  1093→                    isOpen={!!openSections.billing}
+  1094→                    onToggle={toggleSection}
+  1095→                    title="Billing Settings"
+  1096→                    subtitle="Fee Structure"
+  1097→                    icon={<CurrencyDollarIcon className="w-3.5 h-3.5" />}
+  1098→                    iconBg="bg-emerald-600"
+  1099→                >
+  1100→                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
+  1101→                        <div className="space-y-1.5">
+  1102→                            <label className={labelClass}>Billing Model</label>
+  1103→                            <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-800 p-1 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
+  1104→                                {Object.values(BillingModel).map((model) => (
+  1105→                                    <button
+  1106→                                        key={model}
+  1107→                                        type="button"
+  1108→                                        onClick={() => setBillingModel(model)}
+  1109→                                        className={`px-3 py-1.5 text-3xs font-black uppercase tracking-widest rounded-lg transition-all ${billingModel === model ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+  1110→                                    >
+  1111→                                        {model}
+  1112→                                    </button>
+  1113→                                ))}
+  1114→                            </div>
+  1115→                        </div>
+  1116→
+  1117→                        <div className="space-y-2 sm:space-y-3">
+  1118→                            {billingModel === BillingModel.Hourly && (
+  1119→                                <div className="animate-in fade-in slide-in-from-right-2 duration-300">
+  1120→                                    <label className={labelClass}>Standard Hourly Rate (₦)</label>
+  1121→                                    <div className="relative">
+  1122→                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₦</div>
+  1123→                                        <input autoComplete="off" data-lpignore="true" 
+  1124→                                            type="text"
+  1125→                                            value={formatNumberWithCommas(hourlyRate)}
+  1126→                                            onChange={e => setHourlyRate(parseFormattedNumber(e.target.value))}
+  1127→                                            className={`${commonInputClass} pl-10 text-right`}
+  1128→                                        />
+  1129→                                    </div>
+  1130→                                    <p className="text-2xs font-medium text-slate-400 mt-2 px-1">Applied to time entries.</p>
+  1131→                                </div>
+  1132→                            )}
+  1133→                            {(billingModel === BillingModel.FixedFee || billingModel === BillingModel.Retainer || billingModel === BillingModel.Contingency) && (
+  1134→                                <div className="animate-in fade-in slide-in-from-right-2 duration-300">
+  1135→                                    <label className={labelClass}>{billingModel === BillingModel.FixedFee ? 'Total Fee' : billingModel === BillingModel.Retainer ? 'Retainer Amount' : 'Contingency Fee'} (₦)</label>
+  1136→                                    <div className="relative">
+  1137→                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₦</div>
+  1138→                                        <input autoComplete="off" data-lpignore="true" 
+  1139→                                            type="text"
+  1140→                                            value={formatNumberWithCommas(fixedFeeAmount)}
+  1141→                                            onChange={e => setFixedFeeAmount(parseFormattedNumber(e.target.value))}
+  1142→                                            className={`${commonInputClass} pl-10 text-right`}
+  1143→                                        />
+  1144→                                    </div>
+  1145→                                    <p className="text-2xs font-medium text-slate-400 mt-2 px-1">Consolidated fee structure for the engagement.</p>
+  1146→                                </div>
+  1147→                            )}
+  1148→                            
+  1149→                            {billingModel === BillingModel.Percentage && (
+  1150→                                <div className="animate-in fade-in slide-in-from-right-2 duration-300 grid grid-cols-2 gap-3">
+  1151→                                    <div>
+  1152→                                        <label className={labelClass}>Percentage (%)</label>
+  1153→                                        <div className="relative">
+  1154→                                            <input autoComplete="off" data-lpignore="true" 
+  1155→                                                type="number"
+  1156→                                                step="0.1"
+  1157→                                                value={billingPercentage}
+  1158→                                                onChange={e => setBillingPercentage(parseFloat(e.target.value))}
+  1159→                                                className={`${commonInputClass} pr-10`}
+  1160→                                                placeholder="2.5"
+  1161→                                            />
+  1162→                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">%</div>
+  1163→                                        </div>
+  1164→                                    </div>
+  1165→                                    <div>
+  1166→                                        <label className={labelClass}>Basis</label>
+  1167→                                        <select 
+  1168→                                            value={billingBase} 
+  1169→                                            onChange={e => setBillingBase(e.target.value as any)}
+  1170→                                            className={commonInputClass}
+  1171→                                        >
+  1172→                                            <option value="Rent">of Rent</option>
+  1173→                                            <option value="Value">of Property Value</option>
+  1174→                                            <option value="Outcome">of Outcome / Judgement</option>
+  1175→                                            <option value="Custom">Custom Base</option>
+  1176→                                        </select>
+  1177→                                    </div>
+  1178→                                    <p className="col-span-2 text-2xs font-medium text-slate-400 px-1">Calculated as {billingPercentage}% of the selected basis.</p>
+  1179→                                </div>
+  1180→                            )}
+  1181→
+  1182→                            {/* ─── RETAINER AUTO-BILLING SUB-CONFIG ──────────────────────────
+  1183→                                Only visible when the user picks "Retainer" as the billing model.
+  1184→                                Exposes a Payment Frequency selector (Weekly/Monthly/Quarterly/
+  1185→                                Bi-Annually/Annually) and an auto-invoicing toggle.
+  1186→
+  1187→                                Feature gate: `canUseRetainerAutoBilling` (Vega Growth+/Pro +
+  1188→                                Komplete only). Lower-tier users can still select the Retainer
+  1189→                                model itself (manual invoicing), but the auto-billing toggle is
+  1190→                                locked and prompts an upgrade.
+  1191→                            */}
+  1192→                            {billingModel === BillingModel.Retainer && (
+  1193→                                <div className="animate-in fade-in slide-in-from-right-2 duration-300 col-span-full mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40/60 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/30 space-y-3">
+  1194→                                    <div className="flex items-center justify-between gap-3">
+  1195→                                        <div>
+  1196→                                            <p className="text-2xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Recurring Retainer</p>
+  1197→                                            <h4 className="text-sm font-bold text-slate-800 dark:text-white">Payment Frequency</h4>
+  1198→                                            <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
+  1199→                                                System auto-generates a draft invoice per cycle, staged for your review in the Billing Monitor.
+  1200→                                            </p>
+  1201→                                        </div>
+  1202→                                        <div className={`shrink-0 px-2 py-1 rounded-full text-3xs font-black uppercase tracking-wider ${features.canUseRetainerAutoBilling ? 'bg-emerald-600 text-white' : 'bg-slate-300 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'}`}>
+  1203→                                            {features.canUseRetainerAutoBilling ? 'Premium' : 'Upgrade'}
+  1204→                                        </div>
+  1205→                                    </div>
+  1206→
+  1207→                                    <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-800 p-1 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
+  1208→                                        {Object.values(BillingFrequency).map((freq) => (
+  1209→                                            <button
+  1210→                                                key={freq}
+  1211→                                                type="button"
+  1212→                                                onClick={() => setBillingFrequency(freq)}
+  1213→                                                className={`px-3 py-1.5 text-3xs font-black uppercase tracking-widest rounded-lg transition-all ${billingFrequency === freq ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+  1214→                                            >
+  1215→                                                {freq}
+  1216→                                            </button>
+  1217→                                        ))}
+  1218→                                    </div>
+  1219→
+  1220→                                    {/* Auto-billing toggle — locked for non-premium tiers */}
+  1221→                                    <div className="flex items-center justify-between gap-3 pt-1">
+  1222→                                        <div className="flex-1">
+  1223→                                            <p className="text-2xs font-bold text-slate-700 dark:text-zinc-200">
+  1224→                                                Automated Invoicing
+  1225→                                            </p>
+  1226→                                            <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
+  1227→                                                {features.canUseRetainerAutoBilling
+  1228→                                                    ? 'Enables cron-based invoice generation + email staging.'
+  1229→                                                    : 'Upgrade to Vega Growth+ or Komplete to enable cron-based auto-invoicing.'}
+  1230→                                            </p>
+  1231→                                        </div>
+  1232→                                        <button
+  1233→                                            type="button"
+  1234→                                            onClick={() => {
+  1235→                                                if (!features.canUseRetainerAutoBilling) {
+  1236→                                                    openModal('upgradePlan');
+  1237→                                                    return;
+  1238→                                                }
+  1239→                                                setRetainerAutoBillingEnabled(prev => !prev);
+  1240→                                            }}
+  1241→                                            className={`w-11 h-6 rounded-full p-0.5 transition-all duration-500 ease-in-out shrink-0 ${retainerAutoBillingEnabled && features.canUseRetainerAutoBilling ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
+  1242→                                            aria-label="Toggle automated retainer invoicing"
+  1243→                                        >
+  1244→                                            <div className={`w-5 h-5 bg-white dark:bg-zinc-900 rounded-full shadow-sm transform transition-transform duration-300 ${retainerAutoBillingEnabled && features.canUseRetainerAutoBilling ? 'translate-x-5' : 'translate-x-0'}`} />
+  1245→                                        </button>
+  1246→                                    </div>
+  1247→
+  1248→                                    {retainerAutoBillingEnabled && features.canUseRetainerAutoBilling && (
+  1249→                                        <div className="flex items-center gap-2 pt-1 text-2xs text-emerald-700 dark:text-emerald-400 font-medium">
+  1250→                                            <CalendarIcon className="w-3 h-3" />
+  1251→                                            <span>
+  1252→                                                Next invoice will stage automatically based on the {billingFrequency.toLowerCase()} cycle starting from matter creation.
+  1253→                                            </span>
+  1254→                                        </div>
+  1255→                                    )}
+  1256→                                </div>
+  1257→                            )}
+  1258→                        </div>
+  1259→                    </div>
+  1260→                </AccordionSection>
+  1261→
+  1262→                {/* ── CASE DETAILS / LITIGATION (accordion with toggle accessory) ── */}
+  1263→                <AccordionSection
+  1264→                    id="litigation"
+  1265→                    isOpen={!!openSections.litigation}
+  1266→                    onToggle={toggleSection}
+  1267→                    title={isProperty ? 'Property Details' : 'Case Details'}
+  1268→                    subtitle="Litigation"
+  1269→                    icon={<GavelIconLarge className="w-3 h-3" />}
+  1270→                    iconBg={isLitigation ? 'bg-rose-600' : 'bg-slate-400'}
+  1271→                    disableHeaderToggle={true}
+  1272→                    accessory={
+  1273→                        <button
+  1274→                            type="button"
+  1275→                            onClick={() => {
+  1276→                                const next = !isLitigation;
+  1277→                                setIsLitigation(next);
+  1278→                                // Auto-expand when turning litigation on, auto-collapse when off.
+  1279→                                setOpenSections(prev => ({ ...prev, litigation: next }));
+  1280→                            }}
+  1281→                            className={`w-14 h-7 rounded-full p-1 transition-all duration-500 ease-in-out shrink-0 ${isLitigation ? 'bg-rose-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
+  1282→                            aria-label="Toggle litigation details"
+  1283→                        >
+  1284→                            <div className={`w-5 h-5 bg-white dark:bg-zinc-900 rounded-full shadow-sm transform transition-transform duration-300 ${isLitigation ? 'translate-x-7' : 'translate-x-0'}`} />
+  1285→                        </button>
+  1286→                    }
+  1287→                >
+  1288→                    {isLitigation ? (
+  1289→                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+  1290→                            <div className="space-y-1.5">
+  1291→                                <label className={labelClass}>Jurisdiction / Court</label>
+  1292→                                <select value={court} onChange={e => setCourt(e.target.value)} className={commonInputClass}>
+  1293→                                    {Object.values(CourtType).map(ct => <option key={ct} value={ct}>{ct}</option>)}
+  1294→                                </select>
+  1295→                            </div>
+  1296→                            <div className="space-y-1.5">
+  1297→                                <label className={labelClass}>Suit Number</label>
+  1298→                                <input autoComplete="off" data-lpignore="true"  type="text" value={suitNumber} onChange={e => setSuitNumber(e.target.value)} className={commonInputClass} placeholder="e.g. FHC/L/CS/2024" />
+  1299→                            </div>
+  1300→                            <div className="space-y-1.5">
+  1301→                                <label className={labelClass}>Judicial Division</label>
+  1302→                                <input autoComplete="off" data-lpignore="true"  type="text" value={judicialDivision} onChange={e => setJudicialDivision(e.target.value)} className={commonInputClass} placeholder="e.g. Lagos Mainland" />
+  1303→                            </div>
+  1304→                            <div className="space-y-1.5">
+  1305→                                <label className={labelClass}>Presiding Judge</label>
+  1306→                                <input autoComplete="off" data-lpignore="true"  type="text" value={presidingJudge} onChange={e => setPresidingJudge(e.target.value)} className={commonInputClass} placeholder="Enter Name..." />
+  1307→                            </div>
+  1308→                            <div className="space-y-1.5 md:col-span-2 mt-2">
+  1309→                                <div className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700/50">
+  1310→                                    <div className="flex items-center justify-between mb-3">
+  1311→                                        <div>
+  1312→                                            <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Litigation Parties</p>
+  1313→                                        </div>
+  1314→                                        <div className="flex items-center gap-2">
+  1315→                                            <span className="text-2xs font-bold text-slate-400">Firm Reps:</span>
+  1316→                                            <div className="flex gap-1">
+  1317→                                                {['Claimant', 'Defendant'].map(r => (
+  1318→                                                    <button
+  1319→                                                        key={r} type="button"
+  1320→                                                        onClick={() => setRepresentingSide(r as any)}
+  1321→                                                        className={`px-2 py-1 text-3xs font-bold rounded transition-colors ${
+  1322→                                                            representingSide === r
+  1323→                                                            ? 'bg-primary-500 text-white shadow-sm'
+  1324→                                                            : 'bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
+  1325→                                                        }`}
+  1326→                                                    >
+  1327→                                                        {r === 'Claimant' ? cRole : dRole}s
+  1328→                                                    </button>
+  1329→                                                ))}
+  1330→                                            </div>
+  1331→                                        </div>
+  1332→                                    </div>
+  1333→                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1334→                                        <PartySection side="claimants" roleLabel={cRole} />
+  1335→                                        <PartySection side="defendants" roleLabel={dRole} />
+  1336→                                    </div>
+  1337→                                </div>
+  1338→                            </div>
+  1339→                            <div className="space-y-1.5">
+  1340→                                <label className={labelClass}>Court Room</label>
+  1341→                                <div className="relative">
+  1342→                                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+  1343→                                    <input autoComplete="off" data-lpignore="true"  type="text" value={courtRoom} onChange={e => setCourtRoom(e.target.value)} className={`${commonInputClass} pl-11`} placeholder="e.g. Court 4, Floor 1" />
+  1344→                                </div>
+  1345→                            </div>
+  1346→                            <div className="space-y-1.5 md:col-span-2">
+  1347→                                <label className={labelClass}>Originating Process</label>
+  1348→                                <input autoComplete="off" data-lpignore="true"  type="text" value={originatingProcess} onChange={e => setOriginatingProcess(e.target.value)} className={commonInputClass} placeholder="e.g. Originating Summons, Petition..." />
+  1349→                            </div>
+  1350→                            <div className="space-y-1.5 md:col-span-2">
+  1351→                                <label className={labelClass}>Next Adjourned / Hearing Date</label>
+  1352→                                <div className="relative">
+  1353→                                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+  1354→                                    <input
+  1355→                                        autoComplete="off"
+  1356→                                        data-lpignore="true"
+  1357→                                        type="date"
+  1358→                                        value={nextAdjournedDate}
+  1359→                                        onChange={e => setNextAdjournedDate(e.target.value)}
+  1360→                                        className={`${commonInputClass} pl-11`}
+  1361→                                        placeholder="Select next hearing date"
+  1362→                                    />
+  1363→                                </div>
+  1364→                                <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before). <span className="font-semibold text-primary-600 dark:text-primary-300">Pro plan feature.</span></p>
+  1365→                            </div>
+  1366→                        </div>
+  1367→                    ) : (
+  1368→                        <p className="text-xs text-slate-500 dark:text-zinc-400 italic px-1 py-2">
+  1369→                            Toggle on to add court details, suit number, parties, and hearing dates for this matter.
+  1370→                        </p>
+  1371→                    )}
+  1372→                </AccordionSection>
+  1373→            </div>
+  1374→
+  1375→            {/* 3. PINNED BOTTOM FOOTER — flex-shrink-0 sibling of the scroll
+  1376→                body. Always locks to the absolute bottom of the modal.
+  1377→                No sticky positioning needed — the flex column layout keeps
+  1378→                it pinned. Negative margins (-mx-3 -mb-3 sm:-mx-6 sm:-mb-5)
+  1379→                cancel the Modal body's padding so the footer spans the full
+  1380→                width edge-to-edge. bg-white + border-t + shadow ensures
+  1381→                content doesn't bleed under the buttons when scrolling. */}
+  1382→            <div className="flex-shrink-0 z-20 -mx-3 -mb-3 sm:-mx-6 sm:-mb-5 px-3 py-3 sm:px-6 sm:py-4 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)] flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3">
+  1383→                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+  1384→                    <XIcon className="w-3.5 h-3.5" /> Cancel
+  1385→                </button>
+  1386→                <button
+  1387→                    type="submit"
+  1388→                    disabled={isSubmitting}
+  1389→                    className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-lg sm:rounded-lg shadow-sm shadow-primary-500/20 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  1390→                >
+  1391→                    {isSubmitting ? (
+  1392→                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+  1393→                    ) : (
+  1394→                        <SaveIcon className="w-3.5 h-3.5" />
+  1395→                    )}
+  1396→                    {isEditing ? 'Save' : `Create ${terminology.matter}`}
+  1397→                </button>
+  1398→            </div>
+  1399→        </form>
+  1400→    );
+  1401→};
+  1402→

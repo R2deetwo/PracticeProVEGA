@@ -1,0 +1,838 @@
+     1→import * as React from 'react';
+     2→
+     3→// Enums
+     4→// Founder = platform-level founder (PracticePro owner). Distinct from
+     5→// firm-level Admin (a law firm administrator). Only Founder role users
+     6→// can access the Founder APK's platform dashboard.
+     7→export enum UserRole { Founder = 'Founder', Admin = 'Admin', Lawyer = 'Lawyer', Paralegal = 'Paralegal', Client = 'Client', Tenant = 'Tenant', ExternalCounsel = 'External Counsel', Pending = 'Pending' }
+     8→export enum AppMode { Solo = 'solo', Multi = 'multi' }
+     9→export enum TaskStatus { Todo = 'todo', InProgress = 'in_progress', PendingVerification = 'pending_verification', Done = 'done' }
+    10→export const TaskStatusValues = [TaskStatus.Todo, TaskStatus.InProgress, TaskStatus.PendingVerification, TaskStatus.Done];
+    11→export enum TaskPriority { High = 'High', Medium = 'Medium', Low = 'Low' }
+    12→export enum MatterStatus { Active = 'Active', Closed = 'Closed', Archived = 'Archived' }
+    13→export enum MatterType { CivilLitigation = 'Civil Litigation', CriminalDefense = 'Criminal Defense', CorporateCommercial = 'Corporate & Commercial', RealEstate = 'Real Estate', FamilyLaw = 'Family Law', IntellectualProperty = 'Intellectual Property', Immigration = 'Immigration', EmploymentLabor = 'Employment & Labor', Tax = 'Tax Law', MaritimeAdmiralty = 'Maritime & Admiralty', OilGas = 'Oil & Gas', Other = 'Other' }
+    14→export enum InvoiceStatus { Draft = 'Draft', Sent = 'Sent', Paid = 'Paid', Overdue = 'Overdue', Unpaid = 'Unpaid', Reversed = 'Reversed', Void = 'Void' }
+    15→// Fix: Enum member name cannot contain spaces; changed 'Fixed Fee' to 'FixedFee'
+    16→export enum BillingModel { Hourly = 'Hourly', FixedFee = 'Fixed Fee', Retainer = 'Retainer', Contingency = 'Contingency', Percentage = 'Percentage' }
+    17→
+    18→/**
+    19→ * Recurring retainer billing frequency. Only meaningful when the matter's
+    20→ * billingModel === Retainer. Used by the automated invoice scheduler
+    21→ * (convex/retainerBilling.ts) to compute the next billing date.
+    22→ */
+    23→export enum BillingFrequency {
+    24→  Weekly = 'Weekly',
+    25→  Monthly = 'Monthly',
+    26→  Quarterly = 'Quarterly',
+    27→  BiAnnually = 'Bi-Annually',
+    28→  Annually = 'Annually',
+    29→}
+    30→
+    31→/**
+    32→ * State machine for automated invoice outbox entries.
+    33→ * - Staged: System-generated draft, awaiting review window or manual trigger
+    34→ * - Queued: Approved & scheduled for delivery
+    35→ * - Sent: Successfully delivered via email/WhatsApp
+    36→ * - Failed: Errored (missing client email, gateway error, etc.)
+    37→ * - Skipped: Lawyer cancelled this cycle but kept the recurring schedule
+    38→ * - Paused: Manually frozen for editing
+    39→ */
+    40→export enum InvoiceOutboxState {
+    41→  Staged = 'Staged',
+    42→  Queued = 'Queued',
+    43→  Sent = 'Sent',
+    44→  Failed = 'Failed',
+    45→  Skipped = 'Skipped',
+    46→  Paused = 'Paused',
+    47→}
+    48→export enum ContactType { Individual = 'Individual', Company = 'Company', Court = 'Court' }
+    49→export enum NoteScope { Private = 'private', Firm = 'firm' }
+    50→export enum LeadStatus { New = 'New', IntakeSent = 'Intake Sent', IntakeSubmitted = 'Intake Submitted', Analyzing = 'Analyzing', Activated = 'Activated', Converted = 'Converted', Lost = 'Lost' }
+    51→export enum CourtType { FederalHighCourt = 'Federal High Court', StateHighCourt = 'State High Court', NationalIndustrialCourt = 'National Industrial Court', MagistrateCourt = 'Magistrate Court', CustomaryCourt = 'Customary Court', CourtOfAppeal = 'Court of Appeal', SupremeCourt = 'Supreme Court' }
+    52→export enum SubscriptionPlan { Core = 'Core', Growth = 'Growth', Pro = 'Pro', Enterprise = 'Enterprise', Komplete = 'Komplete' }
+    53→export enum FirmSpecialty { Maritime = 'Maritime & Admiralty', OilGas = 'Oil & Gas', Corporate = 'Corporate & Commercial', Tax = 'Tax Law', RealEstate = 'Real Estate & Property', Litigation = 'Civil Litigation', General = 'General Practice' }
+    54→
+    55→// Basic Types
+    56→export type Theme = 'light' | 'dark' | 'system' | 'midnight' | 'oled' | 'neon-cyber' | 'sunlight-soft' | 'city-lights' | 'city-emerald' | 'midnight-emerald' | 'army-dark' | 'army-light';
+    57→export type FontSize = 'sm' | 'md' | 'lg';
+    58→export type View = 'dashboard' | 'matters' | 'matterDetail' | 'contacts' | 'contactDetail' | 'documents' | 'documentDetail' | 'tasks' | 'calendar' | 'billing' | 'invoiceDetail' | 'receiptDetail' | 'reporting' | 'compliance' | 'settings' | 'messaging' | 'notes' | 'help' | 'archive' | 'editor' | 'research' | 'timeline' | 'properties' | 'propertyDetail' | 'intake' | 'privacyPolicy' | 'termsOfService' | 'portalTermsOfUse' | 'dataProcessingAgreement' | 'cookiePolicy' | 'usagePolicy' | 'resources' | 'indexer' | 'atriumEngine' | 'tenantPortal' | 'billingMonitor' | 'founderDashboard' | 'securityAccess';
+    59→export type ModalType = 'login' | 'signup' | 'leadCapture' | 'newMatter' | 'editMatter' | 'closeMatter' | 'archiveMatter' | 'newContact' | 'editContact' | 'mergeContact' | 'collectRent' | 'newDocument' | 'editDocument' | 'shareDocument' | 'signDocument' | 'newEvent' | 'editEvent' | 'viewEvent' | 'newInvoice' | 'editInvoice' | 'viewInvoice' | 'generateInvoice' | 'newUser' | 'editUser' | 'newTimeEntry' | 'editTimeEntry' | 'newExpense' | 'editExpense' | 'deleteConfirmation' | 'newWorkflow' | 'editWorkflow' | 'newEventType' | 'editEventType' | 'newContactCategory' | 'editContactCategory' | 'newChecklistTemplate' | 'editChecklistTemplate' | 'editFirmDetails' | 'newTemplate' | 'editTemplate' | 'newTemplateCategory' | 'editTemplateCategory' | 'googleDrivePicker' | 'noTeamMembers' | 'folderPermissions' | 'assignUsers' | 'viewTask' | 'newTask' | 'editTask' | 'stageChecklist' | 'newChannel' | 'newDirectMessage' | 'externalCounsel' | 'newExternalCounsel' | 'aloaHelp' | 'feedback' | 'newBankAccount' | 'editBankAccount' | 'newNotebook' | 'editNotebook' | 'newPage' | 'copyPage' | 'newLead' | 'activateLead' | 'sendIntakeLink' | 'sendPostActivationEmail' | 'requestFinancialDocument' | 'linkContactToMatter' | 'newProperty' | 'editProperty' | 'bulkEditProperty' | 'newDocumentCategory' | 'editDocumentCategory' | 'newResearchNotebook' | 'addResearchSource' | 'addCaseToNotebook' | 'keyboardShortcuts' | 'quickLook' | 'requestTrustDeposit' | 'compareDocuments' | 'composeEmail' | 'paymentGateway' | 'upgradePlan' | 'onboarding' | 'demoUpsell' | 'newDraft' | 'workspaceSetup' | 'saveToNote' | 'linkMatterToContact' | 'batchUpload' | 'joinFirm' | 'aiConsent' | 'recordRentPayment'
+    60→    | 'create_matter' | 'create_contact' | 'create_task' | 'matterIngestion'; // Aliases for AI tools
+    61→export type SelectedId = string | null;
+    62→
+    63→// Interfaces
+    64→export interface BankAccount { id: string; bankName: string; accountNumber: string; accountName?: string; isDefault?: boolean; firmId?: string; }
+    65→export interface TaxSettings { vatRate: number; whtRate?: number; }
+    66→export interface AiSettings { enableAllAiFeatures?: boolean; enableJurisdictionalAnalysis?: boolean; firmGeminiApiKey?: string; firmDeepSeekApiKey?: string; enabledAgents?: { jurisdictionScout: boolean; rpcGuardian: boolean; privacyShield: boolean; billingAuditor: boolean; draftingAssistant: boolean; }; }
+    67→export interface Integrations { googleCalendar: boolean; googleDrive: boolean; googleContacts: boolean; googleMeet: boolean; }
+    68→export interface SubscriptionAddons { lawReports: boolean; }
+    69→export interface PracticeJurisdictions { federalCourts: string[]; stateCourts: string[]; }
+    70→
+    71→// =====================================================================
+    72→// ENTERPRISE SPECIALTY DATA STRUCTURES
+    73→// =====================================================================
+    74→
+    75→// --- Maritime & Admiralty ---
+    76→export interface MaritimeSpecialtyData {
+    77→    vesselName?: string;           // Full registered name of the vessel
+    78→    imoNumber?: string;            // IMO unique vessel identifier
+    79→    vesselType?: string;           // e.g., Bulk Carrier, Tanker, Container Ship
+    80→    portOfRegistry?: string;       // e.g., Port Harcourt, Lagos
+    81→    flagState?: string;            // Country of registry/flag
+    82→    grossTonnage?: number;         // GT measurement
+    83→    pAndIClub?: string;            // Protection & Indemnity insurer (e.g., UK P&I Club)
+    84→    charterpartyType?: 'Voyage' | 'Time' | 'Bareboat' | 'None'; // Type of charterparty in dispute
+    85→    arrestStatus?: 'None' | 'Warrant Issued' | 'Vessel Arrested' | 'Released' | 'Sold By Order'; // Current arrest position
+    86→    arrestPort?: string;           // Port where vessel is arrested
+    87→    cargoType?: string;            // Nature of cargo if cargo claim
+    88→    billOfLadingNo?: string;       // Relevant bill of lading number
+    89→    opposingUnderwriter?: string;  // Cargo insurer on the other side
+    90→}
+    91→
+    92→// --- Oil & Gas ---
+    93→export type OilGasLicenseType = 'OML' | 'OPL' | 'Marginal Field' | 'DSO' | 'Gas Flare-Out Licence';
+    94→export interface OilGasSpecialtyData {
+    95→    licenseType?: OilGasLicenseType;   // Type of NUPRC license involved
+    96→    licenseNumber?: string;             // Actual license number (e.g., OML 58)
+    97→    blockNumber?: string;               // Offshore/onshore block designation
+    98→    fieldLocation?: string;             // Field name / state
+    99→    nuprcLicenseId?: string;            // NUPRC internal tracking ID
+   100→    licenseIssueDate?: string;          // ISO date of original grant
+   101→    licenseExpiryDate?: string;         // ISO date of expiry (auto-triggers alerts)
+   102→    relinquishmentDate?: string;        // Relevant relinquishment deadline
+   103→    pscPartner?: string;                // Production Sharing Contract partner (e.g., NNPC)
+   104→    farmInFarmOutParty?: string;        // Counterparty in farm-in/out deals
+   105→    regulatoryBody?: 'NUPRC' | 'NMDPRA' | 'NBET' | 'FIRS'; // Regulatory body for this matter
+   106→    environmentalPermitNo?: string;     // NESREA / EIA permit reference
+   107→    piaComplianceStatus?: 'Pending Assessment' | 'Compliant' | 'Non-Compliant' | 'Under Review'; // Status under the PIA
+   108→}
+   109→
+   110→// --- Corporate & Commercial ---
+   111→export interface CorporateSpecialtyData {
+   112→    rcNumber?: string;               // CAC Registration Number
+   113→    cacAvailabilityCode?: string;    // Pre-reservation name availability code
+   114→    incorporationDate?: string;      // ISO date of incorporation
+   115→    companyType?: 'Private Limited (LTD)' | 'Public Limited (PLC)' | 'Unlimited' | 'Company Limited by Guarantee' | 'Business Name' | 'Incorporated Trustee';
+   116→    shareCapital?: number;           // Authorised share capital (₦)
+   117→    paidUpCapital?: number;          // Paid-up capital (₦)
+   118→    numberOfDirectors?: number;      // Total directors on the board
+   119→    boardSecretary?: string;         // Name of company secretary
+   120→    annualReturnsDueDate?: string;   // ISO date of next CAC annual return
+   121→    annualReturnsStatus?: 'Filed' | 'Pending' | 'Overdue'; // Auto-calculated from due date
+   122→    transactionType?: 'Incorporation' | 'M&A' | 'Share Allotment' | 'Winding Up' | 'Directors Change' | 'CAMA Compliance' | 'Joint Venture';
+   123→    mnaTargetCompany?: string;       // Name of target company in M&A matters
+   124→    dueDiligenceStatus?: 'Not Started' | 'In Progress' | 'Complete' | 'Red Flags Identified';
+   125→}
+   126→
+   127→// --- Tax Law ---
+   128→export interface TaxSpecialtyData {
+   129→    tin?: string;                        // FIRS Tax Identification Number
+   130→    firsTaxOffice?: string;              // FIRS office handling the matter (e.g., FIRS LTO Lagos)
+   131→    taxType?: 'CIT' | 'PAYE' | 'VAT' | 'WHT' | 'CGT' | 'TET' | 'Stamp Duties' | 'Transfer Pricing'; // Type of tax
+   132→    auditYear?: string;                  // e.g., "2022" or "2019–2022" for compound audits
+   133→    assessmentDate?: string;             // ISO date FIRS issued the assessment
+   134→    objectionDeadline?: string;          // ISO date: 30 days from assessmentDate (auto-calculated)
+   135→    disputedTaxLiability?: number;       // FIRS-assessed figure in dispute (₦)
+   136→    penaltyAmount?: number;              // Penalties imposed (₦)
+   137→    interestAmount?: number;             // Interest accrued on underpayment (₦)
+   138→    totalExposure?: number;              // Combined disputed + penalties + interest (₦)
+   139→    assessmentStatus?: 'Objection Stage' | 'Settled' | 'TAT Appeal Filed' | 'Federal High Court' | 'Court of Appeal';
+   140→    tatCaseNo?: string;                  // Tax Appeal Tribunal Case Number
+   141→    taxClearanceCertStatus?: 'Pending' | 'Issued' | 'Rejected'; // TCC processing status
+   142→}
+   143→
+   144→// --- Real Estate & Property ---
+   145→export type TitleDocumentType = 'Certificate of Occupancy (C of O)' | "Governor's Consent" | 'Deed of Assignment' | 'Deed of Lease' | 'Statutory Right of Occupancy' | 'Customary Right of Occupancy' | 'Registered Conveyance';
+   146→export interface RealEstateUnit {
+   147→    id: string;
+   148→    unitName: string;
+   149→    rentAmount: number;
+   150→    rentFrequency: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
+   151→    leaseStart?: string;
+   152→    leaseEnd?: string;
+   153→    tenantName?: string;
+   154→    occupantTitle?: string;
+   155→    occupantFirstName?: string;
+   156→    occupantLastName?: string;
+   157→    tenantPhone?: string;
+   158→    tenantEmail?: string;
+   159→    nextRentReview?: string;
+   160→    isPeriodicReviewEnabled?: boolean;
+   161→    tenancyPeriod?: string;
+   162→}
+   163→
+   164→export interface RealEstateSpecialtyData {
+   165→    titleDocument?: TitleDocumentType;     // Highest form of title
+   166→    surveyPlanNo?: string;                 // Survey plan file number
+   167→    plotSize?: string;                     // e.g., "1,200 sqm"
+   168→    plotLocation?: string;                 // Street/estate description
+   169→    stateLandsBureau?: string;             // State registry handling perfection (e.g., Lagos LSMLR)
+   170→    transactionType?: 'Purchase' | 'Sale' | 'Lease' | 'Mortgage' | 'Title Perfection' | 'Tenancy' | 'Recovery of Premises';
+   171→    purchasePrice?: number;                // Agreed transaction value (₦)
+   172→    stampDutyStatus?: 'Pending' | 'Paid' | 'Assessed - Unpaid'; // Stamp duty payment status
+   173→    governorConsentStatus?: 'Not Applied' | 'Application Submitted' | 'Approved' | 'Rejected'; // Consent tracking
+   174→    registrationStatus?: 'Not Registered' | 'Application Lodged' | 'Registered'; // Final registration step
+   175→    tenantName?: string;                   // For Recovery of Premises matters
+   176→    recoveryStage?: 'Notice to Quit' | 'Notice of Intention to Recover' | 'Court Proceedings' | 'Warrant of Possession';
+   177→    units?: RealEstateUnit[];              // Multi-unit support
+   178→    propertyId?: string;                   // Link to a specific property/portfolio item
+   179→}
+   180→
+   181→// Combined specialty object stored on each Matter
+   182→export interface MatterSpecialtyData {
+   183→    maritime?: MaritimeSpecialtyData;
+   184→    oilGas?: OilGasSpecialtyData;
+   185→    corporate?: CorporateSpecialtyData;
+   186→    tax?: TaxSpecialtyData;
+   187→    realEstate?: RealEstateSpecialtyData;
+   188→    firmRepresentingRole?: string;
+   189→    rulesState?: string;
+   190→    moduleKey?: string;
+   191→}
+   192→
+   193→// Versioned statutory form template (for the Form Library)
+   194→export interface LegalFormTemplate {
+   195→    id: string;
+   196→    firmId: string;
+   197→    name: string;                   // e.g., "Notice of Objection to FIRS Assessment"
+   198→    specialty: FirmSpecialty;       // Which practice area this belongs to
+   199→    statutoryAuthority?: string;    // e.g., "FIRS Establishment Act s.63"
+   200→    version: string;                // e.g., "2024 Edition"
+   201→    effectiveDate: string;          // ISO date this version came into force
+   202→    supersededById?: string;        // Links to a newer version if this one is outdated
+   203→    isLatest: boolean;              // True if this is the current authoritative version
+   204→    content: string;                // Template body (HTML/markdown with {{placeholders}})
+   205→    autoFillMapping?: Record<string, string>; // Maps {{placeholder}} -> Matter field path
+   206→}
+   207→export interface FirmDetails { id: string; name: string; address: string; logoUrl: string; letterheadUrl?: string; digitalStampUrl?: string; headerTextColor?: string; inviteCode?: string; areWorkflowsEnabled: boolean; aloaFirmPersonality?: string; bankAccounts: BankAccount[]; aiSettings?: AiSettings; integrations: Integrations; monthlyRevenueTarget?: number; subscriptionPlan: SubscriptionPlan; subscriptionAddons?: SubscriptionAddons; practiceJurisdictions?: PracticeJurisdictions; customHolidays?: string[]; taxSettings?: TaxSettings; created_by?: string; settings?: any; localFolderPath?: string;
+   208→    // Enterprise Specialization
+   209→    firmSpecialties?: FirmSpecialty[];      // Selected practice areas for this Enterprise firm
+   210→    legalFormLibrary?: LegalFormTemplate[]; // Versioned statutory form templates
+   211→    product?: Product;
+   212→    automationSettings?: any;
+   213→    trustAccountingEnabled?: boolean;        // Toggle: enable trust accounting
+   214→    defaultStateOfPractice?: string;          // Default jurisdiction for all drafts (e.g., "Lagos", "Delta", "FCT")
+   215→}
+   216→export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
+   217→export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; }
+   218→export type Product = 'legal' | 'property' | 'unified' | 'atrium' | 'vega';
+   219→export interface User { id: string; firmId?: string | null; joinedFirmIds?: string[]; name: string; email: string; role: UserRole; avatarUrl?: string; barNumber?: string; showProTips: boolean; professionalStandards?: ProfessionalStandards; notificationSettings?: NotificationSettings; defaultViewModes?: { matters?: 'list' | 'board'; tasks?: 'list' | 'board'; calendar?: 'month' | 'week' | 'diary'; }; accessibleMatterIds?: string[]; namePronunciation?: string; lastViewedPortalAt?: string; enableLiveFlashes?: boolean; defaultMatterType?: string; onboardingCompleted?: boolean; _id?: any; isMfaEnabled?: boolean; product?: Product; portalPresenceHidden?: boolean; portalAccessToken?: string; }
+   220→export interface ContactCategory { id: string; firmId: string; name: string; product?: Product; }
+   221→export interface PropertyEvent { id: string; type: 'rent_collected' | 'lease_signed' | 'maintenance' | 'inspection' | 'renewal' | 'tenant_change' | 'offer'; date: string; description: string; amount?: number; relatedTaskId?: string; }
+   222→export interface MaintenanceRecord { id: string; date: string; issue: string; status: 'reported' | 'in_progress' | 'escalated' | 'fulfilled' | 'cancelled'; cost?: number; resolvedDate?: string; notes?: string; priority?: 'low' | 'medium' | 'high' | 'emergency'; vendorId?: string; vendorName?: string; vendorPhone?: string; taskId?: string; }
+   223→export interface RentPayment { id: string; dueDate: string; paidDate?: string; amount: number; status: 'paid' | 'overdue' | 'pending'; paymentMethod?: string; receiptNumber?: string; periodStart?: string; periodEnd?: string; }
+   224→
+   225→/** Per-period tracking for Service Charge (SC) and Minimum Vend (MV).
+   226→ *  One entry per elapsed billing period from leaseStart to current date,
+   227→ *  plus optional advance pre-paid future periods.
+   228→ *
+   229→ *  Status semantics:
+   230→ *  - 'paid'          → balance settled (green pill)
+   231→ *  - 'late'          → paid after due date OR currently past due & unpaid (orange pill)
+   232→ *  - 'outstanding'   → unpaid, past due (red pill — default for historical periods)
+   233→ *  - 'advance_paid'  → settled ahead of future billing date (blue pill)
+   234→ *
+   235→ *  The `paidOnTime` flag retains the historical audit distinction:
+   236→ *  - paidOnTime: true  → "PAID ON TIME" (settled on or before due date)
+   237→ *  - paidOnTime: false → "PAID LATE" (settled after due date — still orange
+   238→ *                        in the historical timeline even though balance is ₦0)
+   239→ *  - undefined         → no payment logged yet
+   240→ *
+   241→ *  The `isAdvance` flag marks future pre-paid periods that haven't elapsed yet. */
+   242→export interface ServiceChargePeriod {
+   243→    index: number;       // 1-based period number
+   244→    dueDate: string;     // ISO date when this period's charge was due
+   245→    status: 'paid' | 'late' | 'outstanding' | 'advance_paid';
+   246→    paidDate?: string;   // ISO date when payment was recorded (if paid/late/advance_paid)
+   247→    amount: number;      // per-period charge amount
+   248→    /** Whether the payment was settled on time (≤ due date) vs late (> due date).
+   249→     *  Retained permanently for historical audit even after balance settles. */
+   250→    paidOnTime?: boolean;
+   251→    /** True for future pre-paid periods (advance cycles not yet elapsed). */
+   252→    isAdvance?: boolean;
+   253→    /** Receipt number if a receipt has been issued for this period.
+   254→     *  When set, the UI shows [View Issued Receipt] instead of [Generate Receipt]. */
+   255→    receiptNumber?: string;
+   256→}
+   257→export enum PropertyStatus { Occupied = 'Occupied', Vacant = 'Vacant', Listed = 'Listed', Maintenance = 'Maintenance', Sold = 'Sold' }
+   258→export enum PropertyCategory { Tenanted = 'Tenanted Property', ForSale = 'Property For Sale', Disputed = 'Disputed Property', Personal = 'Personal Residence', Other = 'Other' }
+   259→export interface Property {
+   260→    id: string;
+   261→    firmId: string;
+   262→    contactId?: string;
+   263→    matterId?: string;
+   264→    address: string;
+   265→    category: PropertyCategory;
+   266→    ownershipType?: 'owned' | 'managed';
+   267→    propertyType?: 'Residential' | 'Commercial' | 'Industrial' | 'Land' | 'Mixed Use';
+   268→    description?: string;
+   269→    status: PropertyStatus;
+   270→    rentCollectionMode?: 'Full (Collect Rent)' | 'Management Only (No Rent)';
+   271→    value?: number;
+   272→    rentalDetails?: {
+   273→        id?: string;
+   274→        unitName?: string;
+   275→        rentAmount: number;
+   276→        rentFrequency: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
+   277→        leaseStart?: string;
+   278→        leaseEnd?: string;
+   279→        tenantName?: string;
+   280→        occupantTitle?: string;
+   281→        occupantFirstName?: string;
+   282→        occupantLastName?: string;
+   283→        tenantPhone?: string;
+   284→        tenantEmail?: string;
+   285→        nextRentReview?: string;
+   286→        isPeriodicReviewEnabled?: boolean;
+   287→        tenancyPeriod?: string;
+   288→        serviceCharge?: number;
+   289→        serviceChargeAmount?: number;
+   290→        serviceChargeStatus?: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID';
+   291→        outstandingServiceChargeBalance?: number;
+   292→        /** Billing frequency for service charge (defaults to rentFrequency if unset). */
+   293→        serviceChargeFrequency?: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
+   294→        legalFee?: number;
+   295→        agencyFee?: number;
+   296→        cautionDeposit?: number;
+   297→        /** Per-period service charge tracking — one entry per elapsed billing period. */
+   298→        scPeriods?: ServiceChargePeriod[];
+   299→        /** Per-period minimum vend tracking — one entry per elapsed billing period. */
+   300→        mvPeriods?: ServiceChargePeriod[];
+   301→        /** Linked contact ID for the tenant (auto-synced to /contacts). */
+   302→        tenantContactId?: string;
+   303→    };
+   304→    disputeDetails?: { caseNumber?: string; court?: string; opposingParty?: string; status?: string; };
+   305→    saleDetails?: { listingAgent?: string; listingDate?: string; targetPrice?: number; };
+   306→    managementFeePercentage?: number;
+   307→    numberOfUnits?: number;
+   308→    units?: any[];
+   309→    images?: FileDetails[];
+   310→    automationSettings?: {
+   311→        remindLeaseExpiry?: boolean;
+   312→        remindRentDue?: boolean;
+   313→        autoCreateMaintenanceTask?: boolean;
+   314→        automationTemplates?: Record<string, string>;
+   315→        latePenaltyRate?: number;
+   316→    };
+   317→    amenities?: string[];
+   318→    // Minimum Vend / Estate Fees toggle (property-wide)
+   319→    minimumVendEnabled?: boolean;
+   320→    minimumVendAmount?: number;
+   321→    minimumVendLabel?: string;
+   322→    trackingTimeline?: PropertyEvent[];
+   323→    maintenanceHistory?: MaintenanceRecord[];
+   324→    rentPaymentHistory?: RentPayment[];
+   325→}
+   326→export interface Contact { id: string; firmId: string; name: string; email: string; phone: string; address?: string; contactType: ContactType; category: string; jobTitle?: string; companyName?: string; website?: string; notes?: string; properties?: Property[]; userId?: string; identificationNumber?: string; taxId?: string; nextOfKin?: string; dateOfBirth?: string; matterIds?: string[]; }
+   327→export interface WorkflowDefinition { id: string; firmId: string; type: MatterType; default: { stages: string[]; suggestions: Record<string, any>; }; subCategories?: Record<string, any>; }
+   328→export interface ChecklistItem { id: string; text: string; completed: boolean; }
+   329→export interface Checklist { id: string; templateName?: string; items: ChecklistItem[]; }
+   330→export interface MatterProcess { id: string; processName: string; filedDate: string; responseExpectedBy?: string; responseReceived?: boolean; responseDate?: string; responseStatus?: 'sufficient' | 'insufficient' | 'pending_review'; relatedDocumentId?: string; notes?: string; }
+   331→export interface ProcessSuggestion { id: string; type: 'reminder' | 'event' | 'task' | 'deadline'; title: string; description: string; dueDate?: string; dismissed: boolean; relatedProcessId?: string; }
+   332→export interface MatterReviewReminder { remindAt: string; note?: string; dismissed?: boolean; }
+   333→export interface LitigationParty { id: string; name: string; contactId?: string; role: 'Claimant' | 'Defendant' | 'Applicant' | 'Respondent' | string; isRepresentative?: boolean; capacity?: string; isRepresented?: boolean; }
+   334→export interface Matter { id: string; firmId: string; referenceNumber: string; suitNumber?: string; title: string; type: MatterType; subCategory?: string; clientId: string; court: string; judicialDivision: string; stage: string; stageLastUpdated: string; createdAt: string; opposingCounsel?: string; hourlyRate: number; fixedFeeAmount?: number; billingModel: BillingModel; billingPercentage?: number; billingBase?: 'Rent' | 'Value' | 'Outcome' | 'Custom'; billingFrequency?: BillingFrequency; nextBillingDate?: string; retainerAutoBillingEnabled?: boolean; withholdingTaxApplicable?: boolean; status: MatterStatus; assignedUsers: string[]; billingAccess?: string[]; trustBalance?: number; intakeAnalysis?: any; intakeRecordings?: any[]; intakeTranscription?: string; clientActionItems?: any[]; associatedContactIds?: string[]; attorneyNotes?: AttorneyNote[]; jurisdictionalAnalysis?: JurisdictionalAnalysis; presidingJudge?: string; courtRoom?: string; nextAdjournedDate?: string; originatingProcess?: string; cacAvailabilityCode?: string; rcNumber?: string; shareCapital?: number; annualReturnsDueDate?: string; propertyValue?: number; titleRegistrationDetails?: string; transactionStage?: string; billingCurrency?: 'NGN' | 'USD' | 'GBP' | 'EUR'; leadSource?: string; hasExternalAccess?: boolean; processTracking?: { activeProcesses: MatterProcess[]; suggestions: ProcessSuggestion[]; suggestionsEnabled: boolean; }; reviewReminder?: MatterReviewReminder; parties?: LitigationParty[];
+   335→    // Enterprise Specialty Data — keyed by specialty to allow multi-specialty matters
+   336→    specialtyData?: MatterSpecialtyData;
+   337→}
+   338→export interface Task { id: string; _id?: string; firmId: string; title: string; description?: string; status: TaskStatus; dueDate?: string | null; assignedUsers: string[]; assigneeType?: 'team' | 'client' | 'tenant'; isSharedWithPortal?: boolean; matterId?: string; createdAt: string; creatorId: string; priority: TaskPriority; checklist?: Checklist; }
+   339→export interface DocumentCategory { id: string; firmId: string; name: string; parentId: string | null; isCore?: boolean; product?: Product; }
+   340→export interface FileDetails { name: string; type: string; size: number; filePath: string; dataUrl?: string; storageId?: string; }
+   341→export interface DocumentComment { id: string; content: string; authorId: string; timestamp: string; }
+   342→export interface DocumentVersion { id: string; file: FileDetails; uploadedBy: string; uploadedAt: string; changesSummary?: string; }
+   343→export interface RiskAnalysis { legalRisk: number; commercialRisk: number; complianceRisk: number; operationalRisk: number; overallRiskScore: number; justification: string; highRiskClauses: { clause: string; summary: string; }[]; }
+   344→export interface ExtractedMetadata { contractType: string; partiesInvolved: string[]; effectiveDate: string | null; expirationDate: string | null; autoRenewalDate: string | null; governingLaw: string; jurisdiction: string; opposingCounselInfo?: { name: string; firmName?: string; phone?: string; email?: string; address?: string; }[]; }
+   345→export interface DataProtectionAnalysis { overallRiskLevel: 'Low' | 'Medium' | 'High'; identifiedPii: string[]; findings: { risk: string; recommendation: string; }[]; }
+   346→export interface RpcStatus { status: 'approved' | 'warning'; commentary: string; }
+   347→export interface Document { id: string; firmId: string; title: string; matter?: { id: string; title: string; }; property?: { id: string; title: string; }; categoryId: string; dateFiled: string; assignedUsers: string[]; file?: FileDetails; content?: string; source?: 'upload' | 'generated'; uploadedBy?: string; versions?: DocumentVersion[]; comments?: DocumentComment[]; analysisState?: 'pending' | 'complete' | 'failed'; summary?: string; riskAnalysis?: RiskAnalysis; extractedMetadata?: ExtractedMetadata; dataProtectionAnalysis?: DataProtectionAnalysis; rpcReview?: RpcStatus; analysisCompletedAt?: string; isSharedWithClient?: boolean; clientReviewStatus?: 'pending' | 'review_requested' | 'reviewed'; isSignatureRequested?: boolean; signatureData?: string; signedAt?: string; signerId?: string; metadata?: any; matterId?: string; propertyId?: string; isCourtProcess?: boolean; litigationStatus?: 'draft' | 'filed' | 'served' | 'acknowledged'; }
+   348→export interface CustomEventType { id: string; firmId: string; name: string; color: string; }
+   349→export interface CalendarEvent {
+   350→    id: string; firmId: string; title: string; description?: string; matterTitle?: string; type: string; date: string; endDate?: string; matterId?: string; status: EventStatus; court?: string; judicialDivision?: string; assignedUsers?: string[]; reminder?: { value: number; unit: 'minutes' | 'hours' | 'days'; }; recurrence?: { frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'; endDate?: string; }; originalId?: string; created_by?: string;
+   351→    createdAt?: string;
+   352→}
+   353→export interface InvoiceLineItem { id: string; description: string; hours: number; rate: number; total: number; timeEntryId?: string; expenseId?: string; }
+   354→export interface Invoice { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; provider?: 'manual' | 'paystack'; providerReference?: string; paymentMethod?: string; }
+   355→export interface TimeEntry { id: string; firmId: string; matterId: string; user_id: string; date: string; duration: number; rate: number; description: string; billable: boolean; billedInInvoiceId?: string | null; }
+   356→export interface Expense { id: string; firmId: string; matterId: string; date: string; amount: number; description: string; isBillable: boolean; billedInInvoiceId?: string | null; taxDeductibility?: { isDeductible: boolean; reason: string; }; }
+   357→export interface NoteNotebook { id: string; firmId?: string; userId?: string; name: string; color: string; scope: NoteScope; isCore?: boolean; matterId?: string; }
+   358→export interface NotePage { id: string; firmId: string; title: string; content: string; notebookId: string; parentId: string | null; matterId?: string; propertyId?: string; contextType?: string; archivedAt?: number; authorId: string; createdAt: string; updatedAt: string; order: number; type: 'user' | 'system' | 'endorsement'; systemNoteIcon?: string; }
+   359→export interface ChatConversation { id: string; firmId: string; type: 'direct' | 'channel'; name?: string; memberIds: string[]; creatorId?: string; hiddenForUserIds?: string[]; matterId?: string; createdAt?: string; }
+   360→export interface ChatMessage { id: string; firmId: string; conversationId: string; authorId: string; content: string; timestamp: string; deletedForUserIds?: string[]; isDeleted?: boolean; status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'; }
+   361→export interface ClientMessage { id: string; firmId: string; matterId: string; authorId: string; content: string; timestamp: string; isRead: boolean; status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'; }
+   362→export interface Notification { id: string; firmId: string; userId: string; message: string; link: { view: View; id: string | null; context?: any; }; timestamp: string; isRead: boolean; }
+   363→export interface FirmActivity { id: string; firmId: string; userId: string; userName: string; action: string; timestamp: string; targetType: 'Matter' | 'Client' | 'Document' | 'Task' | 'Event' | 'Invoice' | 'User' | 'Contact'; targetId?: string; targetName?: string; matterId?: string; metadata?: any; }
+   364→export interface ArchivedItem { id: string; firmId: string; itemType: string; itemId: string; itemName: string; archivedAt: string; archiverId: string; archiverName: string; originalData: any; }
+   365→export interface ExternalCounselInvite { id: string; firmId: string; matterId: string; email: string; name: string; firmName: string; roleInMatter: string; accessLevel: AccessLevel; expiresAt: string; status: 'pending' | 'accepted' | 'revoked' | 'expired'; invitedBy: string; }
+   366→export interface ResearchNotebook { id: string; firmId: string; userId: string; name: string; matterId?: string; }
+   367→export interface ResearchSource { id: string; firmId: string; notebookId: string; name: string; type: 'pdf' | 'text' | 'web'; content: string; file?: FileDetails; }
+   368→export interface ResearchCitation { sourceId: string; snippet: string; }
+   369→export interface ResearchMessage { id: string; firmId: string; notebookId: string; role: 'user' | 'model'; content: string; timestamp: string; citations?: ResearchCitation[]; }
+   370→export interface StudioAnalysisResult { id: string; firmId: string; notebookId: string; type: string; title: string; content: string; timestamp: string; }
+   371→export interface CaseResult { id: string; citation: string; equivalentCitations?: string[]; parties: string; court: string; year: number; subjectMatter?: string; ratioDecidendi?: string; summary: string; fullText?: string; tags?: string[]; status?: CaseStatus; referencedStatutes?: string[]; coram?: string[]; history?: { stage: string; verdict: string; }[]; counsel?: string[]; facts?: string; issues?: string[]; }
+   372→export type CaseStatus = 'Locus Classicus' | 'Good Law' | 'Overruled' | 'Distinguished';
+   373→export type CourtHierarchy = 'Supreme Court' | 'Court of Appeal' | 'National Industrial Court' | 'Federal High Court' | 'Investments & Securities Tribunal' | 'Election Petition Tribunal' | 'Magistrate Court' | 'Customary Court';
+   374→export interface ChecklistTemplate { id: string; firmId: string; name: string; items: { id: string; text: string; }[]; relevantMatterTypes?: MatterType[]; }
+   375→export interface DocumentTemplateCategory { id: string; firmId: string; name: string; }
+   376→export interface DocumentTemplate { 
+   377→    id: string; 
+   378→    firmId: string; 
+   379→    categoryId?: string; 
+   380→    categoryName?: string; 
+   381→    name: string; 
+   382→    description?: string;
+   383→    content: string; 
+   384→    createdAt: string;
+   385→    placeholders?: string[];
+   386→}
+   387→export interface Lead { id: string; firmId: string; name: string; email: string; status: LeadStatus; createdAt: string; intakeSentAt?: string; intakeSubmittedAt?: string; intakeRecordings?: { dataUrl: string; mimeType: string; }[]; intakeTranscription?: string; isAnalyzing?: boolean; intakeAnalysis?: any; convertedMatterId?: string; }
+   388→export interface Email { id: string; firmId: string; matterId?: string; from: string; to: string[]; subject: string; body: string; timestamp: string; isRead: boolean; attachments?: FileDetails[]; }
+   389→export interface AutomationAction { type: 'create_task' | 'send_email' | 'send_whatsapp' | 'generate_document' | 'notify_slack'; taskTitle?: string; dueInDays?: number; priority?: TaskPriority; emailSubject?: string; emailBody?: string; whatsappMessage?: string; templateId?: string; slackChannel?: string; description?: string; }
+   390→export type AutomationTriggerType = 'matter_stage_change' | 'matter_created' | 'invoice_overdue' | 'lead_created' | 'event_created' | 'task_overdue' | 'document_uploaded' | 'client_onboarding_incomplete' | 'property_rent_due' | 'property_lease_expiring' | 'property_maintenance_reported' | 'property_rent_overdue';
+   391→export interface AutomationRule { id: string; firmId: string; name: string; triggerType: AutomationTriggerType; triggerValue: string; actions: AutomationAction[]; isEnabled: boolean; }
+   392→export interface IntakeFormTemplate { id: string; firmId: string; name: string; description?: string; fields: FormField[]; publicLink: string; responsesCount: number; isEnabled: boolean; }
+   393→export interface FormField { id: string; label: string; type: 'text' | 'email' | 'phone' | 'textarea' | 'date' | 'select' | 'checkbox'; required: boolean; options?: string[]; }
+   394→export interface HeaderConfiguration {
+   395→    logo?: {
+   396→        url: string;
+   397→        position: 'left' | 'center' | 'right' | 'custom';
+   398→        height: number;
+   399→        // Canvas props
+   400→        x?: number;
+   401→        y?: number;
+   402→        width?: number; // Aspect ratio usually preserved, but useful for storage
+   403→    };
+   404→    firmName: {
+   405→        text: string;
+   406→        fontSize: number;
+   407→        fontWeight: 'normal' | 'bold';
+   408→        color: string;
+   409→        alignment: 'left' | 'center' | 'right' | 'custom';
+   410→        // Canvas props
+   411→        x?: number;
+   412→        y?: number;
+   413→        width?: number;
+   414→    };
+   415→    address: {
+   416→        text: string;
+   417→        fontSize: number;
+   418→        alignment: 'left' | 'center' | 'right' | 'custom';
+   419→        // Canvas props
+   420→        x?: number;
+   421→        y?: number;
+   422→        width?: number;
+   423→    };
+   424→    showOnAllPages: boolean;
+   425→}
+   426→export interface AppState { theme: Theme; appMode: AppMode; users: User[]; matters: Matter[]; contacts: Contact[]; documents: Document[]; tasks: Task[]; events: CalendarEvent[]; invoices: Invoice[]; timeEntries: TimeEntry[]; expenses: Expense[]; chatConversations: ChatConversation[]; chatMessages: ChatMessage[]; clientMessages: ClientMessage[]; noteNotebooks: NoteNotebook[]; notePages: NotePage[]; workflows: WorkflowDefinition[]; eventTypes: CustomEventType[]; contactCategories: ContactCategory[]; documentCategories: DocumentCategory[]; folderPermissions: Record<string, UserRole[]>; checklistTemplates: ChecklistTemplate[]; documentTemplates: DocumentTemplate[]; documentTemplateCategories: DocumentTemplateCategory[]; firmDetails: FirmDetails; firmActivity: FirmActivity[]; notifications: Notification[]; archive: ArchivedItem[]; firmNotices: any[]; dismissedConflictIds: string[]; externalCounselInvites: ExternalCounselInvite[]; researchNotebooks: ResearchNotebook[]; researchSources: ResearchSource[]; researchMessages: ResearchMessage[]; researchAnalysisResults: StudioAnalysisResult[]; bookmarkedCaseIds: string[]; savedViews: any[]; automationRules: AutomationRule[]; intakeForms: IntakeFormTemplate[]; emails: Email[]; leads: Lead[]; legalModules: any[]; properties: Property[]; ledgerEntries: LedgerEntry[]; serviceCharges: ServiceCharge[]; leadsPipeline: LeadPipelineEntry[]; automationLogs: AutomationLog[]; }
+   427→export const EMPTY_APP_STATE: AppState = {
+   428→    theme: 'light',
+   429→    appMode: AppMode.Solo,
+   430→    users: [],
+   431→    matters: [],
+   432→    contacts: [],
+   433→    documents: [],
+   434→    tasks: [],
+   435→    events: [],
+   436→    invoices: [],
+   437→    timeEntries: [],
+   438→    expenses: [],
+   439→    chatConversations: [],
+   440→    chatMessages: [],
+   441→    clientMessages: [],
+   442→    noteNotebooks: [],
+   443→    notePages: [],
+   444→    workflows: [],
+   445→    eventTypes: [],
+   446→    contactCategories: [],
+   447→    documentCategories: [],
+   448→    folderPermissions: {},
+   449→    checklistTemplates: [],
+   450→    documentTemplates: [],
+   451→    documentTemplateCategories: [],
+   452→    firmDetails: { 
+   453→        id: '', 
+   454→        name: '', 
+   455→        address: '', 
+   456→        logoUrl: '', 
+   457→        areWorkflowsEnabled: true, 
+   458→        bankAccounts: [], 
+   459→        integrations: { googleCalendar: false, googleDrive: false, googleContacts: false, googleMeet: false },
+   460→        subscriptionPlan: SubscriptionPlan.Core,
+   461→        product: 'unified'  // Permissive default — prevents hiding property features during loading
+   462→    },
+   463→    firmActivity: [],
+   464→    notifications: [],
+   465→    archive: [],
+   466→    firmNotices: [],
+   467→    dismissedConflictIds: [],
+   468→    externalCounselInvites: [],
+   469→    researchNotebooks: [],
+   470→    researchSources: [],
+   471→    researchMessages: [],
+   472→    researchAnalysisResults: [],
+   473→    bookmarkedCaseIds: [],
+   474→    savedViews: [],
+   475→    automationRules: [],
+   476→    intakeForms: [],
+   477→    emails: [],
+   478→    leads: [],
+   479→    legalModules: [],
+   480→    properties: [],
+   481→    ledgerEntries: [],
+   482→    serviceCharges: [],
+   483→    leadsPipeline: [],
+   484→    automationLogs: []
+   485→};
+   486→export interface HistoryEntry { view: View; selectedId: SelectedId; context?: any; initialTab?: string; activeContactCategory?: string; activeTab?: string; calendarDate?: string; calendarViewMode?: 'month' | 'diary' | 'week'; taskUserFilter?: string; notesSelectionPath?: string[]; selectedResearchNotebookId?: string | null; previousView?: View; }
+   487→export interface Toast { id: number; message: React.ReactNode; type: 'success' | 'error' | 'info' | 'warning'; link?: { text: string; onClick: () => void; }; }
+   488→export interface AloaArtifact { id: string; type: 'form' | 'draft' | 'confirmation' | 'note'; data: any; }
+   489→export interface AloaConfirmationData { question: string; originalForm: any; match: { id: string; }; }
+   490→export interface AloaMessage { id: string; role: 'user' | 'model' | 'tool'; content?: string; toolCalls?: any[]; toolResult?: any; modelUsed?: string; toolAction?: any; isError?: boolean; errorDetails?: string; completedResult?: { id: string; title: string; type: string; }; interactiveForm?: InteractiveFormSchema; attachments?: string[]; attachmentNames?: string[]; }
+   491→
+   492→// ─── Deep Context Injection ───────────────────────────────────────────────────
+   493→/** Carries the full hydrated entity payload into an ARIA/ALOA chat session. */
+   494→export interface AriaChatContext {
+   495→  entityType: 'property' | 'matter' | 'contact' | 'invoice';
+   496→  entityId: string;
+   497→  entityName: string;
+   498→  /** Core entity data + key sub-arrays (units, tasks, etc.) — kept lean intentionally. */
+   499→  payload: Record<string, any>;
+   500→}
+   501→
+   502→// ─── Inline Form Delegation ───────────────────────────────────────────────────
+   503→export type InteractiveFormFieldType =
+   504→  | 'text' | 'number' | 'date' | 'select' | 'chips' | 'checkbox_group' | 'slider';
+   505→
+   506→export interface InteractiveFormField {
+   507→  id: string;
+   508→  label: string;
+   509→  type: InteractiveFormFieldType;
+   510→  required?: boolean;
+   511→  placeholder?: string;
+   512→  /** Options for select / chips / checkbox_group types */
+   513→  options?: string[];
+   514→  /** Bounds for slider type */
+   515→  min?: number;
+   516→  max?: number;
+   517→  defaultValue?: any;
+   518→}
+   519→
+   520→export interface InteractiveFormSchema {
+   521→  type: 'INTERACTIVE_FORM';
+   522→  formId: string;
+   523→  title: string;
+   524→  description?: string;
+   525→  fields: InteractiveFormField[];
+   526→  submitLabel?: string;
+   527→}
+   528→export interface AloaFormInteractionState { highlightedFieldId: string | null; isReadyForSubmit: boolean; fieldValues: Record<string, any>; }
+   529→export interface EditorState { isOpen: boolean; documentId: string | null; }
+   530→export interface AloaHint {
+   531→    id: string;
+   532→    icon: React.ReactNode;
+   533→    text: string;
+   534→    type: 'warning' | 'info' | 'success' | 'error';
+   535→}
+   536→export interface ViewState { matters: { statusFilter: MatterStatus | 'All'; practiceAreaFilter: string; assigneeFilter: string; searchFilter: string; }; tasks: { statusFilter: TaskStatus | 'All'; userFilter: string; searchFilter: string; }; contacts: { categoryFilter: string; }; }
+   537→export interface ContextMenuState { isOpen: boolean; x: number; y: number; type: string | null; itemId: string | null; }
+   538→export interface DataActionsContextType {
+   539→    addItem: (key: keyof AppState, item: any, itemName: string) => Promise<any>;
+   540→    updateItem: (key: keyof AppState, item: any, itemName: string) => Promise<void>;
+   541→    deleteItem: (key: keyof AppState, itemId: string, itemName: string) => Promise<void>;
+   542→    handleUpdateFirmDetails: (d: FirmDetails) => void;
+   543→    createFirm: (firmName: string, address: string, plan: SubscriptionPlan, user: any) => Promise<string | null>;
+   544→    handlePurgeData: () => Promise<void>;
+   545→    logActivity: (action: string, targetType: FirmActivity['targetType'], targetId?: string, targetName?: string, matterId?: string) => void;
+   546→    onAddMatter: (newMatter: any, newClient: any) => Promise<void>;
+   547→    handleUpdateMatterStage: (id: string, stage: string) => void;
+   548→    handleUpdateMatter: (m: Matter) => void;
+   549→    handleReopenMatter: (id: string) => void;
+   550→    handleAddTask: (t: any) => void;
+   551→    handleUpdateTaskStatus: (id: string, status: TaskStatus) => void;
+   552→    handleAddMatterNote: (matterId: string, title: string, content: string, type?: 'user' | 'endorsement') => void;
+   553→    handleSendMessage: (conversationId: string, content: string, senderId: string, overrideMembers?: string[]) => void;
+   554→    handleOrderTask: (taskId: string, newOrder: number) => void;
+   555→    handleUpdateMatterAssignment: (id: string, userIds: string[]) => void;
+   556→    handleAddDocumentAndAnalyze: (docData: any) => void;
+   557→    handleClientUploadDocument: (matterId: string, fileDetails: FileDetails) => void;
+   558→    handleClearAllNotifications: () => void;
+   559→    handleMarkNotificationsRead: (ids: string[]) => void;
+   560→    handleAddLead: (leadData: { name: string, email: string }, isClientRequest?: boolean) => void;
+   561→    handleSendIntakeLink: (leadId: string) => void;
+   562→    handleClientSubmitIntakeAudio: (leadId: string, recordings: any[], transcription: string) => void;
+   563→    handleAnalyzeIntake: (leadId: string) => void;
+   564→    handleActivateLead: (lead: Lead, matterData: any, billingData: any) => void;
+   565→    handleCancelIntakeRequest: (leadId: string) => void;
+   566→    handleAnalyzeAttorneyDictation: (audio: string, matter: Matter) => Promise<any>;
+   567→    handleRequestTrustDeposit: (matterId: string, amount: number, description: string) => void;
+   568→    handleAddContact: (contact: Omit<Contact, 'id'>, createPortal: boolean) => Promise<Contact | null>;
+   569→    handleUpdateContact: (contact: Contact, createPortal: boolean) => void;
+   570→    handleMergeContacts: (sourceId: string, targetId: string) => Promise<void>;
+   571→    handleAddWorkflow: (workflow: Omit<WorkflowDefinition, 'id'>) => Promise<WorkflowDefinition>;
+   572→    handleAddWorkflowSubCategory: (id: string, subCategory: any) => void;
+   573→    handleUpdateWorkflow: (workflow: WorkflowDefinition) => void;
+   574→    handleDeleteUser: (id: string) => void;
+   575→    handleUpdateChecklistItem: (taskId: string, itemId: string, checked: boolean) => void;
+   576→    handleDeleteAllDoneTasks: () => void;
+   577→    handleArchiveAllDoneTasks: () => void;
+   578→    handleBulkArchiveTasks: (ids: string[]) => void;
+   579→    handleBulkUpdateTaskStatus: (ids: string[], status: TaskStatus) => void;
+   580→    handleBulkDeleteTasks: (ids: string[]) => void;
+   581→    handleUpdatePageContent: (id: string, title: string, content: string) => void;
+   582→    handleDeleteNotebook: (id: string, name: string) => void;
+   583→    handleRestoreItem: (item: ArchivedItem) => void;
+   584→    handlePermanentDeleteFromArchive: (id: string) => void;
+   585→    handleDeleteTimeEntry: (id: string, desc: string) => void;
+   586→    handleDeleteExpense: (id: string, desc: string) => void;
+   587→    handleSendInvoiceReminder: (id: string) => void;
+   588→    handleRevertPayment: (id: string) => void;
+   589→    handleGenerateInvoice: (matter: Matter, items: InvoiceLineItem[], details: any, timeIds: string[], expenseIds: string[], payment: BankAccount, tax: any) => void;
+   590→    handleUpdateInvoiceStatus: (id: string, status: InvoiceStatus) => void;
+   591→    handlePayInvoice: (id: string) => void;
+   592→    handleAddAttorneyNote: (matterId: string, note: AttorneyNote) => void;
+   593→    handleDeleteAttorneyNote: (matterId: string, noteId: string) => void;
+   594→    handleShareDocumentWithOptions: (id: string, options: any) => void;
+   595→    handleSignDocument: (id: string, data: string) => void;
+   596→    handleClientMarkDocumentAsReviewed: (id: string) => void;
+   597→    handleUpdateClientActionItem: (matterId: string, itemId: string, completed: boolean) => void;
+   598→    handleSendClientMessage: (matterId: string, content: string) => void;
+   599→    handleSaveEmailAsDocument: (email: Email) => void;
+   600→    handleSendEmail: (emailData: any) => void;
+   601→    handleRequestFinancialDocument: (matterId: string, type: string) => void;
+   602→    handleLinkContactToMatter: (matterId: string, contactIds: string[]) => void;
+   603→    onUpdateContactProperties: (contactId: string, properties: Property[]) => void;
+   604→    handleUpdateIntakeForm: (form: IntakeFormTemplate) => void;
+   605→    handleDeleteIntakeForm: (id: string) => void;
+   606→    handleAddAutomationRule: (rule: AutomationRule) => void;
+   607→    handleDeleteAutomationRule: (id: string) => void;
+   608→    handleToggleAutomationRule: (id: string) => void;
+   609→    handleUpdateTaskPriority: (id: string, priority: TaskPriority) => void;
+   610→    handleInviteExternalCounsel: (invite: Omit<ExternalCounselInvite, 'id'>) => void;
+   611→    handleAcceptExternalCounselInvite: (id: string) => void;
+   612→    handleClearMatterLogs: (id: string) => void;
+   613→    handleSyncGoogleContacts: () => void;
+   614→    handleAddResearchNotebook: (data: any) => ResearchNotebook;
+   615→    handleAddResearchSource: (nbId: string, data: any) => void;
+   616→    handleSendResearchMessage: (nbId: string, content: string) => void;
+   617→    handleDeleteResearchNotebook: (id: string, name: string) => void;
+   618→    handleSaveAnalysisResult: (result: StudioAnalysisResult) => void;
+   619→    handleDeleteAnalysisResult: (id: string) => void;
+   620→    handleToggleBookmarkCase: (id: string) => void;
+   621→    handleArchiveItem: (type: string, id: string, name: string, data: any) => void;
+   622→    handleClientViewedPortal: (userId: string) => void;
+   623→    handleAddSimulatedData: () => void;
+   624→    handleLoadFinancialData: () => void;
+   625→    handleAddMassiveData: () => void;
+   626→    handleLoadMassiveFinancialData: () => void;
+   627→    handleAdvanceTime: (days: number) => void;
+   628→    handleGenerateTestNotification: () => void;
+   629→    handleLoadCalendarData: () => void;
+   630→    handleGenerateTestTasks: (opts: { count: number }) => void;
+   631→    handleGenerateTestUsers: (opts: { count: number }) => void;
+   632→    handleDismissConflict: (eventId: string) => void;
+   633→    archiveItem: (type: string, id: string, name: string, data: any) => void;
+   634→    handleCancelDocumentAnalysis: (id: string) => void;
+   635→    handleDeleteChat: (conversationId: string, deleteForeveryone: boolean, userId: string) => void;
+   636→    handleDeleteMessage: (messageId: string, deleteForeveryone: boolean, userId: string) => void;
+   637→    handleRenamePage: (pageId: string, newTitle: string) => void;
+   638→    handleApplyStageChecklist: (matterId: string, stage: string, templateId: string, shareWithClient: boolean) => void;
+   639→    handleApplyCustomStageChecklist: (matterId: string, stage: string, name: string, items: { text: string }[], saveAsTemplate: boolean, shareWithClient: boolean) => void;
+   640→    handleEditMessage: (messageId: string, newContent: string) => void;
+   641→    handleLinkMatterToContact: (contactId: string, matterId: string, asClient: boolean) => void;
+   642→    retryMessage?: (messageId: string, isClientMessage: boolean) => void;
+   643→    joinFirm: (inviteCode: string) => Promise<string | null>;
+   644→    validateInviteCode: (inviteCode: string) => Promise<{ valid: boolean, firmName?: string, firmId?: string }>;
+   645→    regenerateInviteCode: (firmId: string) => Promise<string | null>;
+   646→    handleClearState: () => void;
+   647→}
+   648→export interface JurisdictionalAnalysis { recommendedCourt: string; reasoning: string; confidenceScore: number; judicialDivision?: string; }
+   649→export type AccessLevel = 'Standard' | 'Limited' | 'DocumentOnly';
+   650→export type EventTypeString = string;
+   651→export interface AttorneyNote { id: string; date: string; transcription: string; summary: string; audioUrl?: string; }
+   652→export interface ClientBillingSummary { totalBilled: number; totalPaid: number; outstanding: number; totalExpenses: number; netProfit: number; arAging: Record<string, number>; velocityData: { month: string; value: number }[]; currentMonthRevenue: number; monthlyTarget: number; }
+   653→export type ReportDateRangeOption = 'last_30' | 'last_90' | 'this_year' | 'all_time';
+   654→export interface TimesheetData { user: { id: string; name: string; role: string; }; entries: { date: string; matterTitle: string; clientName: string; duration: number; description: string; }[]; }
+   655→export interface UtilizationData { users: { user: { id: string; name: string; role: string; }; totalHours: number; billableHours: number; utilizationRate: number; }[]; }
+   656→export interface MatterStatusReportData { matters: { title: string; clientName: string; status: string; currentStage: string; assignedTeam: string; }[]; }
+   657→export interface ProfitLossData { revenue: { description: string; amount: number; }[]; expenses: { description: string; amount: number; }[]; totalRevenue: number; totalExpenses: number; netProfit: number; }
+   658→export interface ArAgingData { buckets: { '0-30': number; '31-60': number; '61-90': number; '90+': number; }; total: number; entries: { clientName: string; invoiceNumber: string; dueDate: string; daysOverdue: number; amount: number; }[]; }
+   659→export type MatterStage = string;
+   660→export type EventStatus = 'Active' | 'Cancelled';
+   661→
+   662→// =====================================================================
+   663→// ATRIUM REVENUE MONITOR TYPES
+   664→// =====================================================================
+   665→
+   666→export type LedgerEntryType = 'rent' | 'service_charge' | 'penalty' | 'deposit';
+   667→export type LedgerEntryStatus = 'pending' | 'cleared' | 'defaulted';
+   668→export type ServiceChargeCategory = 'Diesel' | 'Security' | 'Cleaning' | 'Water' | 'Other';
+   669→export type ServiceChargeCycle = 'Monthly' | 'Quarterly' | 'Annually';
+   670→export type LeadPipelineStage = 'Inquiry' | 'Vetted' | 'Lease_Generated' | 'Closed';
+   671→export type AutomationMessageType = 'rent_reminder' | 'late_notice' | 'payment_receipt' | 'service_charge_alert' | 'access_restriction' | 'penalty_notice' | 'lease_renewal' | 'welcome_note' | 'promotion' | 'vendor_update' | 'general_announcement' | 'maintenance_update' | 'custom';
+   672→export type AutomationChannel = 'whatsapp' | 'email' | 'portal' | 'in-app';
+   673→
+   674→// ── Communication Integration ────────────────────────────────────────────
+   675→export type CommunicationProvider = 'chakra' | 'twilio' | 'manual' | 'none';
+   676→export type IntegrationStatus = 'connected' | 'disconnected' | 'simulated' | 'not_configured';
+   677→
+   678→export interface ChakraHQConfig {
+   679→  /** ChakraHQ account ID linked to this firm */
+   680→  accountId?: string;
+   681→  /** Current ChakraHQ plan: free, starter, pro, enterprise */
+   682→  plan?: 'free' | 'starter' | 'pro' | 'enterprise';
+   683→  /** API key (stored server-side only, never exposed to client) */
+   684→  apiKeySet?: boolean;
+   685→  /** Webhook URL for receiving inbound messages */
+   686→  webhookUrl?: string;
+   687→  /** Phone number connected via ChakraHQ */
+   688→  connectedPhone?: string;
+   689→  /** Last sync timestamp */
+   690→  lastSyncAt?: number;
+   691→  /** Whether the integration is active */
+   692→  isActive: boolean;
+   693→}
+   694→
+   695→export interface CommunicationIntegration {
+   696→  /** Primary communication provider */
+   697→  provider: CommunicationProvider;
+   698→  /** ChakraHQ-specific configuration */
+   699→  chakra?: ChakraHQConfig;
+   700→  /** Integration status derived from config */
+   701→  status: IntegrationStatus;
+   702→  /** Available channels based on plan */
+   703→  availableChannels: ('whatsapp' | 'email' | 'portal')[];
+   704→  /** Monthly message limits (0 = unlimited) */
+   705→  monthlyLimits: {
+   706→    whatsapp: number;  // ChakraHQ free = 1000/mo, starter = 5000/mo, pro = unlimited
+   707→    email: number;     // Usually unlimited
+   708→    portal: number;    // Portal messages (no limit)
+   709→  };
+   710→  /** Current month usage */
+   711→  currentUsage?: {
+   712→    whatsapp: number;
+   713→    email: number;
+   714→    portal: number;
+   715→    period: string; // e.g. "2026-05"
+   716→  };
+   717→}
+   718→
+   719→
+   720→export interface LedgerEntry {
+   721→  _id: string;
+   722→  firmId: string;
+   723→  propertyId?: string;
+   724→  unitId: string;
+   725→  tenantId?: string;
+   726→  amount: number;
+   727→  type: LedgerEntryType;
+   728→  status: LedgerEntryStatus;
+   729→  timestamp: number;
+   730→  paymentRef?: string;
+   731→  channel?: string;
+   732→  txHash: string;
+   733→  description?: string;
+   734→  period?: string;
+   735→}
+   736→
+   737→export interface ServiceCharge {
+   738→  _id: string;
+   739→  firmId: string;
+   740→  unitId: string;
+   741→  tenantId?: string;
+   742→  category: ServiceChargeCategory;
+   743→  amount: number;
+   744→  cycle: ServiceChargeCycle;
+   745→  nextDueDate: number;
+   746→  lastPaidDate?: number;
+   747→  isDefaulter: boolean;
+   748→  daysOverdue?: number;
+   749→  penaltyApplied?: boolean;
+   750→  notes?: string;
+   751→  // Granular payment status
+   752→  serviceChargeStatus?: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID';
+   753→  // Outstanding balance when PARTIALLY_PAID
+   754→  outstandingBalance?: number;
+   755→  // Amount paid so far in current cycle
+   756→  amountPaidThisCycle?: number;
+   757→  // Last reset timestamp (monthly reset cron)
+   758→  lastResetAt?: number;
+   759→  // Whether this is a minimum vend charge
+   760→  isMinimumVend?: boolean;
+   761→}
+   762→
+   763→export interface LeadPipelineEntry {
+   764→  _id: string;
+   765→  firmId: string;
+   766→  unitId: string;
+   767→  applicantName: string;
+   768→  contactInfo: string;
+   769→  stage: LeadPipelineStage;
+   770→  vettingScore?: number;
+   771→  proposedRent?: number;
+   772→  notes?: string;
+   773→  createdAt: number;
+   774→  updatedAt: number;
+   775→  convertedTenantId?: string;
+   776→}
+   777→
+   778→export interface AutomationLog {
+   779→  _id: string;
+   780→  firmId: string;
+   781→  unitId?: string;
+   782→  tenantId?: string;
+   783→  messageType: AutomationMessageType;
+   784→  channel: AutomationChannel;
+   785→  recipient: string;
+   786→  messagePreview?: string;
+   787→  messageContent?: string;
+   788→  direction?: 'outbound' | 'inbound';
+   789→  senderName?: string;
+   790→  sentAt: number;
+   791→  status: 'sent' | 'failed' | 'simulated';
+   792→  triggeredBy?: string;
+   793→}
+   794→
+   795→export interface AuditTrailEntry {
+   796→  _id: string;
+   797→  direction: 'outbound' | 'inbound';
+   798→  channel: string;
+   799→  messageType?: string;
+   800→  recipient?: string;
+   801→  senderName?: string;
+   802→  senderContact?: string;
+   803→  content: string;
+   804→  timestamp: number;
+   805→  status?: string;
+   806→  triggeredBy?: string;
+   807→  unitId?: string;
+   808→  tenantId?: string;
+   809→}
+   810→
+   811→export interface AtriumInboundMessage {
+   812→  _id: string;
+   813→  firmId: string;
+   814→  unitId?: string;
+   815→  tenantId?: string;
+   816→  senderName?: string;
+   817→  senderContact: string;
+   818→  channel: AutomationChannel;
+   819→  content: string;
+   820→  mediaUrl?: string;
+   821→  mimeType?: string;
+   822→  receivedAt: number;
+   823→  isRead: boolean;
+   824→  aiAnalysis?: {
+   825→    intent: string;
+   826→    sentiment: string;
+   827→    suggestedReply?: string;
+   828→  };
+   829→}
+   830→
+   831→export interface CashFlowSummary {
+   832→  totalIncome: number;
+   833→  revenueAtRisk: number;
+   834→  totalTransactions: number;
+   835→  monthlyData: Record<string, { income: number; risk: number }>;
+   836→}
+   837→
+   838→
