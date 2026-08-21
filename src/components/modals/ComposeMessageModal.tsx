@@ -2,7 +2,7 @@
  * ComposeMessageModal — Unified multi-channel message composition.
  *
  * Three channels (tabs):
- *   1. WhatsApp — dispatches via Chakra Chat API (api.communications.sendWhatsApp).
+ *   1. WhatsApp — dispatches via WhatsApp Business API (api.communications.sendWhatsApp).
  *      If the API fails or is unconfigured, offers a "Open in WhatsApp Web" fallback
  *      (https://wa.me/...).
  *   2. Email — requires a valid email address. Subject + HTML/plaintext body.
@@ -122,18 +122,18 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                     });
                     if (result?.success) {
                         setSendResult({ success: true, channel: 'whatsapp' });
-                        addToast('WhatsApp message sent via Chakra Chat API.', { type: 'success' });
+                        addToast('WhatsApp message sent via WhatsApp Business API.', { type: 'success' });
                     } else {
                         // API returned failure — offer fallback
                         const fallbackUrl = `https://wa.me/${to}?text=${encodeURIComponent(finalMessage)}`;
                         setSendResult({ success: false, channel: 'whatsapp', fallbackUrl });
-                        addToast('Chakra Chat API unavailable. Use the WhatsApp Web fallback below.', { type: 'info' });
+                        addToast('WhatsApp Business API unavailable. Use the WhatsApp Web fallback below.', { type: 'info' });
                     }
                 } catch (err: any) {
                     // API threw — offer fallback
                     const fallbackUrl = `https://wa.me/${to}?text=${encodeURIComponent(finalMessage)}`;
                     setSendResult({ success: false, channel: 'whatsapp', fallbackUrl });
-                    addToast('Chakra Chat API error. WhatsApp Web fallback available.', { type: 'info' });
+                    addToast('WhatsApp Business API error. WhatsApp Web fallback available.', { type: 'info' });
                 }
             } else if (activeChannel === 'email' && hasEmail) {
                 try {
@@ -375,7 +375,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                             ) : (
                                 <div>
                                     <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
-                                        {sendResult.channel === 'whatsapp' ? 'Chakra Chat API unavailable.' : 'Delivery failed.'}
+                                        {sendResult.channel === 'whatsapp' ? 'WhatsApp Business API unavailable.' : 'Delivery failed.'}
                                     </p>
                                     {sendResult.fallbackUrl && (
                                         <a

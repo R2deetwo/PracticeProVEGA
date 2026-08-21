@@ -6,7 +6,7 @@
  *
  * Features:
  *   - Generate 6-digit visitor access codes
- *   - Two delivery modes: client-share (wa.me link) or portal-API (Chakra)
+ *   - Two delivery modes: client-share (wa.me link) or portal-API (WhatsApp)
  *   - Auto-fills estate name + address from resident's property
  *   - Active tokens list with revoke button
  *   - History of past tokens

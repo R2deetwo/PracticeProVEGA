@@ -418,9 +418,41 @@ const TenantPortal: React.FC = () => {
     return count;
   }, [portalConversations, unresolvedInboundMsgs]);
 
+  // ── Unread notices count (notices created in the last 3 days that the tenant
+  //    likely hasn't seen yet — we use a simple heuristic since there's no
+  //    per-tenant read tracking for notices) ──
+  const activeNotices = useQuery(
+    api.portals.getActiveNotices,
+    effectiveFirmId ? {
+      firmId: effectiveFirmId,
+      propertyId: tenantInfo?.primaryPropertyId || undefined,
+      unitId: tenantInfo?.primaryUnitId || undefined,
+    } : 'skip'
+  );
+  const unreadNoticesCount = useMemo(() => {
+    if (!activeNotices) return 0;
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    return activeNotices.filter((n: any) => n.createdAt > threeDaysAgo).length;
+  }, [activeNotices]);
+
+  // ── Open maintenance tickets count for badge ──
+  const maintenanceTickets = useQuery(
+    api.portals.getMaintenanceTicketsByTenant,
+    effectiveFirmId && (tenantInfo?.tenantId || userId) ? {
+      firmId: effectiveFirmId,
+      tenantId: tenantInfo?.tenantId || userId,
+    } : 'skip'
+  );
+  const openMaintenanceCount = useMemo(() => {
+    if (!maintenanceTickets) return 0;
+    return maintenanceTickets.filter((t: any) =>
+      t.status === 'open' || t.status === 'in_progress'
+    ).length;
+  }, [maintenanceTickets]);
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number; disabled?: boolean }[] = [
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
-    { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
+    { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" />, badge: unreadNoticesCount || undefined },
     // VISITORS TAB — always visible. Sentry Pass is AND-gated:
     //   1. Firm-level: portalSettings.vmsEnabled
     //   2. Property-level: tenantInfo.primaryPropertyVmsEnabled (defaults true)
@@ -428,7 +460,7 @@ const TenantPortal: React.FC = () => {
     { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" />, disabled: !portalSettings?.vmsEnabled || !(tenantInfo?.primaryPropertyVmsEnabled ?? true) },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
-    { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
+    { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" />, badge: openMaintenanceCount || undefined },
     ...(portalSettings?.tenantMessagingEnabled ? [
       { id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-4 h-4" />, badge: unreadMessageCount || undefined },
     ] : []),
@@ -498,7 +530,7 @@ const TenantPortal: React.FC = () => {
         </div>
       </div>
 
-      {/* Tab Bar */}
+      {/* Tab Bar — horizontal scroll on all devices */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6">
         <div className="flex gap-0 -mb-px overflow-x-auto">
           {tabs.map(tab => (
@@ -523,8 +555,8 @@ const TenantPortal: React.FC = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900">
+      {/* Content — extra padding-bottom on mobile so content isn't hidden behind the bottom nav */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900 pb-24 sm:pb-6">
         {hasNoPropertyAssignment ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
@@ -666,6 +698,28 @@ const DashboardTab: React.FC<{
   // Derive outstanding balance from tenantInfo (if available)
   const outstandingBalance = tenantInfo?.outstandingBalance || 0;
   const hasOutstanding = outstandingBalance > 0;
+
+  // ── Rent info (only shown when rent collection is enabled) ──
+  const isRentCollection = tenantInfo?.primaryRentCollectionMode !== 'Management Only (No Rent)';
+  const rentAmount = tenantInfo?.units?.[0]?.rentAmount || tenantInfo?.primaryRentAmount || 0;
+  const rentFrequency = tenantInfo?.units?.[0]?.rentFrequency || 'Monthly';
+  const leaseStart = tenantInfo?.units?.[0]?.leaseStart;
+  const leaseEnd = tenantInfo?.units?.[0]?.leaseEnd;
+
+  // Compute next rent due date from lease start + frequency
+  const nextRentDue = useMemo(() => {
+    if (!leaseStart || !isRentCollection) return null;
+    const start = new Date(leaseStart).getTime();
+    if (isNaN(start)) return null;
+    const intervalMs = rentFrequency === 'Annually' ? 365 * 86400000
+                     : rentFrequency === 'Quarterly' ? 90 * 86400000
+                     : rentFrequency === 'Bi-Annually' ? 182 * 86400000
+                     : 30 * 86400000;
+    const now = Date.now();
+    let next = start;
+    for (let i = 0; i < 240 && next < now; i++) next += intervalMs;
+    return next >= now ? next : null;
+  }, [leaseStart, rentFrequency, isRentCollection]);
 
   // ─── CORE SERVICES (Configurable-by-Default) ──────────────────────
   // Per-property service toggles fetched from the backend. When a service
@@ -865,8 +919,88 @@ const DashboardTab: React.FC<{
               Enable auto-deduct to have your monthly charges automatically paid from your wallet.
             </p>
           )}
+
+          {/* Wallet Transaction History (last 5) — tap-through inline */}
+          {walletData?.recentTransactions && walletData.recentTransactions.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-white/10">
+              <p className="text-2xs font-bold text-white/50 uppercase tracking-widest mb-1.5">Recent Activity</p>
+              <div className="space-y-1">
+                {walletData.recentTransactions.slice(0, 3).map((tx: any) => (
+                  <div key={tx._id} className="flex items-center justify-between text-2xs">
+                    <span className="text-white/60 truncate flex-1">{tx.reason}</span>
+                    <span className={tx.type === 'credit' ? 'text-emerald-300 font-bold ml-2' : 'text-white/80 font-bold ml-2'}>
+                      {tx.type === 'credit' ? '+' : '−'}{formatNaira(tx.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* ─── Rent Due + Lease Summary (only when rent collection is enabled) ─── */}
+      {isRentCollection && rentAmount > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+          {/* Next Rent Due Card */}
+          {nextRentDue && (
+            <button
+              onClick={() => onNavigate('payments')}
+              className="text-left bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 active:scale-[0.98] transition-transform"
+            >
+              <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Next Rent Due</p>
+              <p className="text-lg font-black text-slate-900 dark:text-white">{formatNaira(rentAmount)}</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
+                {new Date(nextRentDue).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                <span className="ml-1 text-slate-400">({rentFrequency})</span>
+              </p>
+            </button>
+          )}
+          {/* Lease Summary Card */}
+          {leaseStart && leaseEnd && (
+            <button
+              onClick={() => onNavigate('documents')}
+              className="text-left bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 active:scale-[0.98] transition-transform"
+            >
+              <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Lease Period</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                {new Date(leaseStart).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                {' → '}
+                {new Date(leaseEnd).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
+                {rentAmount > 0 ? `${formatNaira(rentAmount)} / ${rentFrequency.toLowerCase()}` : ''}
+              </p>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ─── Quick Action Buttons ─────────────────────────────────────────── */}
+      <div className="flex gap-2 mt-3">
+        {isRentCollection && (
+          <button
+            onClick={() => onNavigate('payments')}
+            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+          >
+            <NairaSymbol className="w-4 h-4" /> Pay Rent
+          </button>
+        )}
+        <button
+          onClick={() => onNavigate('maintenance')}
+          className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+        >
+          <WrenchIcon className="w-4 h-4" /> Report Issue
+        </button>
+        <button
+          onClick={() => onNavigate('payments')}
+          className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+        >
+          <UploadIcon className="w-4 h-4" /> Upload Proof
+        </button>
+      </div>
+
+      {/* ─── Quick Services Grid ────────────────────────────────────────── */}
       <div>
         <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2.5">Quick Services</h3>
         <div className="grid grid-cols-4 gap-2.5">
@@ -1038,6 +1172,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
 
   // ── Categorized sub-tabs (All / SC / Electricity / Internet / Waste / Rent) ──
   const [ledgerSubTab, setLedgerSubTab] = useState<string>('all');
+  const [ledgerSearch, setLedgerSearch] = useState('');
 
   // Read ?tab= from URL for Quick Service routing (e.g. /portal/ledger?tab=service_charge)
   useEffect(() => {
@@ -1157,6 +1292,19 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
           </button>
         ))}
       </div>
+
+      {/* Search box */}
+      {hasLedgerData && ledgerEntries.length > 5 && (
+        <div className="mb-4">
+          <input
+            type="text"
+            value={ledgerSearch}
+            onChange={e => setLedgerSearch(e.target.value)}
+            placeholder="Search by type, amount, or date…"
+            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg outline-none focus:border-emerald-400 dark:text-zinc-200"
+          />
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -2478,7 +2626,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
         </div>
       )}
 
-      {/* Inbound messages (WhatsApp/Email from PM — these come via Chakra) */}
+      {/* Inbound messages (WhatsApp/Email from PM — these come via WhatsApp) */}
       {inboundMessages && inboundMessages.length > 0 && (
         <div className="mb-6">
           <h4 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
@@ -4029,6 +4177,48 @@ const HelpAndSupportTab: React.FC<{
             )}
           </div>
         )}
+      </div>
+
+      {/* ─── Mobile Bottom Navigation (portrait only) ──────────────────────
+          A fixed bottom nav bar for mobile that provides quick access to the
+          most-used tabs. Only visible on small screens (sm:hidden).
+          Layout: Home | Ledger | Messages | More */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-around py-2 pb-safe">
+        {[
+          { id: 'dashboard' as TabId, label: 'Home', icon: <HomeIcon className="w-5 h-5" /> },
+          { id: 'ledger' as TabId, label: 'Ledger', icon: <ReceiptIcon className="w-5 h-5" /> },
+          ...(portalSettings?.tenantMessagingEnabled ? [{ id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-5 h-5" />, badge: unreadMessageCount }] : [{ id: 'maintenance' as TabId, label: 'Issues', icon: <WrenchIcon className="w-5 h-5" />, badge: openMaintenanceCount }]),
+          { id: 'payments' as TabId, label: 'Pay', icon: <NairaSymbol className="w-5 h-4 inline" /> },
+        ].map(item => (
+          <button
+            key={item.id}
+            onClick={() => handleTabChange(item.id)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors relative ${
+              activeTab === item.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'
+            }`}
+          >
+            {item.icon}
+            <span className="text-2xs font-bold">{item.label}</span>
+            {(item as any).badge && (item as any).badge > 0 && (
+              <span className="absolute top-0 right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-3xs font-bold rounded-full flex items-center justify-center">
+                {(item as any).badge > 99 ? '99+' : (item as any).badge}
+              </span>
+            )}
+          </button>
+        ))}
+        {/* More button — opens a sheet with all tabs */}
+        <button
+          onClick={() => {
+            const allTabs = tabs.filter(t => !['dashboard', 'ledger', 'messages', 'maintenance', 'payments'].includes(t.id));
+            if (allTabs.length > 0) handleTabChange(allTabs[0].id);
+          }}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-slate-400 dark:text-zinc-500"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span className="text-2xs font-bold">More</span>
+        </button>
       </div>
     </div>
   );

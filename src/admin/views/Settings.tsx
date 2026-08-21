@@ -320,7 +320,7 @@ export const Settings: React.FC = () => {
                                 <SystemStatusRow label="Email Service (Brevo)" status={envStatus?.hasPracticeProMailer || envStatus?.hasBrevoApiKey ? 'connected' : 'pending'} detail={envStatus?.hasPracticeProMailer ? `Key: ${envStatus.mailerPrefix || '...'}...` : envStatus?.hasBrevoApiKey ? 'BREVO_API_KEY set' : 'No API key configured'} />
                                 <SystemStatusRow label="Sender Email" status={envStatus?.hasBrevoSenderEmail ? 'connected' : 'pending'} detail={envStatus?.hasBrevoSenderEmail ? 'Custom domain' : 'Using default (practiceprosystems@gmail.com)'} />
                                 <SystemStatusRow label="Push Notifications" status={Capacitor.isNativePlatform() ? 'connected' : 'pending'} detail={Capacitor.isNativePlatform() ? 'Native (Capacitor)' : 'Web only'} />
-                                <SystemStatusRow label="WhatsApp (Chakra)" status={envStatus?.hasChakraToken ? 'connected' : 'pending'} detail={envStatus?.hasChakraToken ? 'Connected' : 'Not configured'} />
+                                <SystemStatusRow label="WhatsApp Business" status={envStatus?.hasChakraToken ? 'connected' : 'pending'} detail={envStatus?.hasChakraToken ? 'Connected' : 'Not configured'} />
                             </div>
                         </div>
                         <div className={CARD}>

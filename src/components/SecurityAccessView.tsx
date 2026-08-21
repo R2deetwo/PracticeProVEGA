@@ -92,7 +92,7 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
         'Enable: Portal Access Settings → Visitor Management System → Enable',
         'Config: vmsEnabled, vmsGracePeriodMinutes, vmsDefaultExpiryHours',
         'Notifications: vmsGatekeeperNotifications, vmsResidentNotifications',
-        'Delivery: client_share (free, resident shares via WhatsApp) or portal_api (system sends via Chakra API)',
+        'Delivery: client_share (free, resident shares via WhatsApp) or portal_api (system sends via WhatsApp API)',
       ],
     },
   ];

@@ -2509,7 +2509,7 @@ const PropertyDetailViewContent: React.FC = () => {
             )}
 
             {/* Unified ComposeMessageModal — opened by [Message] button on unit cards.
-                Handles WhatsApp (Chakra API + Web fallback), Email, and Portal Invite
+                Handles WhatsApp (WhatsApp API + Web fallback), Email, and Portal Invite
                 with email gating + tooltip. */}
             {composeModalRecipient && (
                 <ComposeMessageModal
