@@ -1,0 +1,598 @@
+
+Claude finished the response
+here is a prompt i am sending to my app builder now i want you to create a prompt that focuses only on the drafting side and i wnat you to help create a matrix (or markdowns that my app can  use ) so that it is able to draft simple and complext court/litigation processes for all courts in nigeria. 
+
+# Product Specification: Jurisdictional Intelligence, Heading Architecture, and AI Panel UI Refinement
+
+Please implement the following functional updates, document drafting rules, and UI/UX refinements across the platform.
+
+---
+
+## 1. Jurisdictional & State Context Intelligence
+* **Default Practice Jurisdiction:** Implement a global user profile setting allowing practitioners to set their default "State of Practice" (e.g., Lagos, Delta, FCT). Unless explicitly prompted otherwise, the system must fallback to this geographical jurisdiction for all automated templates and AI-generated drafts.
+* **Intelligent Jurisdiction Selection:** Empower the AI Copilot (ALOA/ARIA) to logically analyze the user's prompt and automatically determine the most appropriate court hierarchy (e.g., High Court of Lagos State, Federal High Court, Customary Court) and geographical location based on the context of the underlying matter or legal dispute.
+
+## 2. Advanced Heading & Document Generation Architecture
+* **Unified Heading Section Component:** The "Header" section tool in the ribbon must be refactored to dynamically handle two distinct legal presentation formats:
+    1. **Corporate/Firm Headings:** Standard letterheads, notices, and applications featuring the firm or organization details.
+    2. **Court Process Headings:** Formatted specifically for court filings (e.g., "IN THE HIGH COURT OF..."). 
+* **Dynamic Court Heading Margin Rules:** When a court process is selected or detected, fix the top margin. The court caption heading must sit cleanly at the top of the first page canvas rather than drifting low down onto the sheet.
+* **Multi-Process Document Bundling:** When a prompt requests a bundle of related court processes (e.g., *a Motion on Notice alongside a Supporting Affidavit*), the system must:
+    * Automatically synchronize and apply the exact same Court Heading metadata across both generated files.
+    * Establish an **intelligent sequential numbering/linking protocol** that logically pairs and references the processes to one another within the document workspace.
+
+## 3. Formatting Standard Updates
+* **Attestation Blocks:** For all generated processes and affidavits, the signature block reading:
+  `BEFORE ME,_____________________COMMISSIONER FOR OATHS` 
+  must strictly be **center-aligned** by default, conforming to standard litigation practice rules.
+
+## 4. AI Assistant Panel (ARIA/ALOA) UI Refinements
+Based on the latest UI execution in the panel interface:
+* **Slimmer Form Factor:** Condense the horizontal width and padding of the ARIA/ALOA chat panel to give it a sleeker, less intrusive footprint on the screen.
+* **Context-Aware Button Strip:** 
+    * Since the assistant's ultimate action is to draft and open a dynamic canvas element via the workspace, remove the redundant `Copy` button from the system action block message inside the chat panel. 
+    * Retain the main dashboard controls (e.g., `Open Item`, `Save`), but eliminate text-copying artifacts where the output is designed to be a fully structured document.
+Show more
+
+Architected comprehensive Nigerian court matrix with drafting templates and schemas
+Architected comprehensive Nigerian court matrix with drafting templates and schemas
+# PROMPT: Nigerian Court Process Drafting Intelligence Layer (DraftPro Extension)
+
+CONTEXT: PracticePro/Vega/DraftPro (React+TS+Vite+Tailwind+Convex). Existing litigation skeleton registry covers 8 civil litigation document types. TASK: extend registry to cover ALL Nigerian court tiers with a jurisdiction-aware caption/format matrix DraftPro's generation pipeline can consume at runtime.
+
+DELIVERABLES: 3 new data files + 1 resolver module + registry merge. No UI work in this pass.
+
+---
+
+## FILE 1: `src/data/courtHierarchy.matrix.ts`
+
+```typescript
+export type CourtTier =
+  | "SUPREME_COURT"
+  | "COURT_OF_APPEAL"
+  | "FEDERAL_HIGH_COURT"
+  | "NATIONAL_INDUSTRIAL_COURT"
+  | "STATE_HIGH_COURT"
+  | "FCT_HIGH_COURT"
+  | "SHARIA_COURT_OF_APPEAL"
+  | "CUSTOMARY_COURT_OF_APPEAL"
+  | "MAGISTRATE_COURT"
+  | "DISTRICT_COURT"
+  | "AREA_COURT"
+  | "CUSTOMARY_COURT"
+  | "SHARIA_COURT"
+  | "ELECTION_PETITION_TRIBUNAL"
+  | "TAX_APPEAL_TRIBUNAL"
+  | "INVESTMENTS_SECURITIES_TRIBUNAL"
+  | "RENT_TRIBUNAL"
+  | "CODE_OF_CONDUCT_TRIBUNAL"
+  | "COMPETITION_TRIBUNAL";
+
+export interface CourtDefinition {
+  tier: CourtTier;
+  label: string;
+  jurisdictionScope: "FEDERAL" | "STATE" | "FCT" | "DUAL";
+  requiresState: boolean;          // needs {STATE} substitution
+  requiresJudicialDivision: boolean; // e.g. "Ikeja Judicial Division"
+  governingRules: string[];        // e.g. ["Lagos State High Court (Civil Procedure) Rules 2019"]
+  captionTemplateId: string;       // FK -> captionTemplates.ts
+  availableDocumentTypeIds: string[]; // FK -> documentTypes.ts
+}
+
+export const COURT_HIERARCHY: CourtDefinition[] = [
+  {
+    tier: "SUPREME_COURT",
+    label: "Supreme Court of Nigeria",
+    jurisdictionScope: "FEDERAL",
+    requiresState: false,
+    requiresJudicialDivision: false,
+    governingRules: ["Supreme Court Rules 1985 (as amended)"],
+    captionTemplateId: "CAP_APEX",
+    availableDocumentTypeIds: ["NOTICE_OF_APPEAL","BRIEF_OF_ARGUMENT","MOTION_ON_NOTICE","MOTION_EXPARTE","RECORD_OF_APPEAL"],
+  },
+  {
+    tier: "COURT_OF_APPEAL",
+    label: "Court of Appeal",
+    jurisdictionScope: "FEDERAL",
+    requiresState: false,
+    requiresJudicialDivision: true, // Division e.g. "Lagos Division"
+    governingRules: ["Court of Appeal Rules 2021"],
+    captionTemplateId: "CAP_APPEAL_DIV",
+    availableDocumentTypeIds: ["NOTICE_OF_APPEAL","BRIEF_OF_ARGUMENT","MOTION_ON_NOTICE","MOTION_EXPARTE","RECORD_OF_APPEAL","RESPONDENTS_BRIEF"],
+  },
+  {
+    tier: "FEDERAL_HIGH_COURT",
+    label: "Federal High Court",
+    jurisdictionScope: "FEDERAL",
+    requiresState: true, // judicial division named by state/city
+    requiresJudicialDivision: true,
+    governingRules: ["Federal High Court (Civil Procedure) Rules 2019"],
+    captionTemplateId: "CAP_FHC",
+    availableDocumentTypeIds: ["WRIT_OF_SUMMONS","ORIGINATING_SUMMONS","MOTION_ON_NOTICE","MOTION_EXPARTE","AFFIDAVIT","STATEMENT_OF_CLAIM","STATEMENT_OF_DEFENCE","GARNISHEE_ORDER_NISI"],
+  },
+  {
+    tier: "NATIONAL_INDUSTRIAL_COURT",
+    label: "National Industrial Court of Nigeria",
+    jurisdictionScope: "FEDERAL",
+    requiresState: true,
+    requiresJudicialDivision: true,
+    governingRules: ["National Industrial Court (Civil Procedure) Rules 2017"],
+    captionTemplateId: "CAP_NIC",
+    availableDocumentTypeIds: ["COMPLAINT","MOTION_ON_NOTICE","MOTION_EXPARTE","AFFIDAVIT","STATEMENT_OF_FACTS"],
+  },
+  {
+    tier: "STATE_HIGH_COURT",
+    label: "High Court of {STATE} State",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: true,
+    governingRules: ["{STATE} State High Court (Civil Procedure) Rules — resolve per state"],
+    captionTemplateId: "CAP_STATE_HC",
+    availableDocumentTypeIds: ["WRIT_OF_SUMMONS","ORIGINATING_SUMMONS","ORIGINATING_MOTION","PETITION_MATRIMONIAL","MOTION_ON_NOTICE","MOTION_EXPARTE","AFFIDAVIT","COUNTER_AFFIDAVIT","FURTHER_AFFIDAVIT","STATEMENT_OF_CLAIM","STATEMENT_OF_DEFENCE","REPLY","COUNTERCLAIM","NOTICE_OF_PRELIMINARY_OBJECTION","NOTICE_OF_APPEAL","JUDGMENT_SUMMONS","GARNISHEE_ORDER_NISI","GARNISHEE_ORDER_ABSOLUTE","WRIT_OF_ATTACHMENT"],
+  },
+  {
+    tier: "FCT_HIGH_COURT",
+    label: "High Court of the Federal Capital Territory, Abuja",
+    jurisdictionScope: "FCT",
+    requiresState: false,
+    requiresJudicialDivision: true,
+    governingRules: ["FCT High Court (Civil Procedure) Rules 2018"],
+    captionTemplateId: "CAP_FCT_HC",
+    availableDocumentTypeIds: ["WRIT_OF_SUMMONS","ORIGINATING_SUMMONS","MOTION_ON_NOTICE","MOTION_EXPARTE","AFFIDAVIT","STATEMENT_OF_CLAIM","STATEMENT_OF_DEFENCE","NOTICE_OF_APPEAL"],
+  },
+  {
+    tier: "SHARIA_COURT_OF_APPEAL",
+    label: "Sharia Court of Appeal, {STATE}",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: false,
+    governingRules: ["Sharia Court of Appeal Rules — resolve per state"],
+    captionTemplateId: "CAP_SHARIA_APPEAL",
+    availableDocumentTypeIds: ["NOTICE_OF_APPEAL","MOTION_ON_NOTICE","PETITION_MATRIMONIAL"],
+  },
+  {
+    tier: "CUSTOMARY_COURT_OF_APPEAL",
+    label: "Customary Court of Appeal, {STATE}",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: false,
+    governingRules: ["Customary Court of Appeal Rules — resolve per state"],
+    captionTemplateId: "CAP_CUSTOMARY_APPEAL",
+    availableDocumentTypeIds: ["NOTICE_OF_APPEAL","MOTION_ON_NOTICE"],
+  },
+  {
+    tier: "MAGISTRATE_COURT",
+    label: "Magistrate Court, {JUDICIAL_DIVISION}, {STATE} State",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: true,
+    governingRules: ["{STATE} Magistrates' Courts (Civil Procedure) Rules — resolve per state"],
+    captionTemplateId: "CAP_MAGISTRATE",
+    availableDocumentTypeIds: ["COMPLAINT","PLAINT","SUMMONS","MOTION_ON_NOTICE","AFFIDAVIT","JUDGMENT_SUMMONS"],
+  },
+  {
+    tier: "AREA_COURT",
+    label: "Area Court, {JUDICIAL_DIVISION}, {STATE} State",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: true,
+    governingRules: ["Area Courts Edict/Law — resolve per state (mostly Northern Nigeria)"],
+    captionTemplateId: "CAP_AREA_COURT",
+    availableDocumentTypeIds: ["COMPLAINT","SUMMONS"],
+  },
+  {
+    tier: "CUSTOMARY_COURT",
+    label: "Customary Court, {JUDICIAL_DIVISION}, {STATE} State",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: true,
+    governingRules: ["Customary Courts Law — resolve per state"],
+    captionTemplateId: "CAP_CUSTOMARY_COURT",
+    availableDocumentTypeIds: ["COMPLAINT","SUMMONS"],
+  },
+  {
+    tier: "SHARIA_COURT",
+    label: "Sharia Court, {JUDICIAL_DIVISION}, {STATE} State",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: true,
+    governingRules: ["State Sharia Court Law — resolve per state (mostly Northern Nigeria)"],
+    captionTemplateId: "CAP_SHARIA_COURT",
+    availableDocumentTypeIds: ["COMPLAINT","PETITION_MATRIMONIAL"],
+  },
+  {
+    tier: "ELECTION_PETITION_TRIBUNAL",
+    label: "National/State Assembly Election Petition Tribunal, {STATE}",
+    jurisdictionScope: "DUAL",
+    requiresState: true,
+    requiresJudicialDivision: false,
+    governingRules: ["Electoral Act 2022", "First Schedule Election Tribunal and Court Practice Directions"],
+    captionTemplateId: "CAP_TRIBUNAL",
+    availableDocumentTypeIds: ["PETITION_ELECTION","MOTION_ON_NOTICE","REPLY_TO_PETITION"],
+  },
+  {
+    tier: "TAX_APPEAL_TRIBUNAL",
+    label: "Tax Appeal Tribunal, {ZONE} Zone",
+    jurisdictionScope: "FEDERAL",
+    requiresState: false,
+    requiresJudicialDivision: false,
+    governingRules: ["Federal Inland Revenue Service (Establishment) Act 2007, 5th Schedule"],
+    captionTemplateId: "CAP_TRIBUNAL",
+    availableDocumentTypeIds: ["NOTICE_OF_APPEAL_TAT","MOTION_ON_NOTICE"],
+  },
+  {
+    tier: "INVESTMENTS_SECURITIES_TRIBUNAL",
+    label: "Investments and Securities Tribunal, Abuja",
+    jurisdictionScope: "FEDERAL",
+    requiresState: false,
+    requiresJudicialDivision: false,
+    governingRules: ["Investments and Securities Act 2007"],
+    captionTemplateId: "CAP_TRIBUNAL",
+    availableDocumentTypeIds: ["ORIGINATING_APPLICATION","MOTION_ON_NOTICE"],
+  },
+  {
+    tier: "RENT_TRIBUNAL",
+    label: "Rent Tribunal, {STATE} State",
+    jurisdictionScope: "STATE",
+    requiresState: true,
+    requiresJudicialDivision: false,
+    governingRules: ["State Tenancy/Rent Laws — resolve per state"],
+    captionTemplateId: "CAP_TRIBUNAL",
+    availableDocumentTypeIds: ["COMPLAINT","MOTION_ON_NOTICE"],
+  },
+  {
+    tier: "CODE_OF_CONDUCT_TRIBUNAL",
+    label: "Code of Conduct Tribunal, Abuja",
+    jurisdictionScope: "FEDERAL",
+    requiresState: false,
+    requiresJudicialDivision: false,
+    governingRules: ["Code of Conduct Bureau and Tribunal Act"],
+    captionTemplateId: "CAP_TRIBUNAL",
+    availableDocumentTypeIds: ["CHARGE","MOTION_ON_NOTICE"],
+  },
+  {
+    tier: "COMPETITION_TRIBUNAL",
+    label: "Competition and Consumer Protection Tribunal, Abuja",
+    jurisdictionScope: "FEDERAL",
+    requiresState: false,
+    requiresJudicialDivision: false,
+    governingRules: ["Federal Competition and Consumer Protection Act 2018"],
+    captionTemplateId: "CAP_TRIBUNAL",
+    availableDocumentTypeIds: ["ORIGINATING_APPLICATION","MOTION_ON_NOTICE"],
+  },
+];
+```
+
+---
+
+## FILE 2: `src/data/captionTemplates.ts`
+
+```typescript
+export interface CaptionTemplate {
+  id: string;
+  lines: string[]; // rendered top-to-bottom, ALL CAPS where indicated, center-aligned
+  variables: string[]; // required substitution keys
+  suitNoFormat: string; // e.g. "SUIT NO: {COURT_CODE}/{SEQ}/{YEAR}"
+}
+
+export const CAPTION_TEMPLATES: CaptionTemplate[] = [
+  {
+    id: "CAP_APEX",
+    lines: ["IN THE SUPREME COURT OF NIGERIA", "HOLDEN AT ABUJA", "SUIT NO: {SUIT_NO}"],
+    variables: ["SUIT_NO"],
+    suitNoFormat: "SC.{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_APPEAL_DIV",
+    lines: ["IN THE COURT OF APPEAL", "{DIVISION} JUDICIAL DIVISION", "HOLDEN AT {DIVISION}", "APPEAL NO: {SUIT_NO}"],
+    variables: ["DIVISION", "SUIT_NO"],
+    suitNoFormat: "CA/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_FHC",
+    lines: ["IN THE FEDERAL HIGH COURT OF NIGERIA", "IN THE {JUDICIAL_DIVISION} JUDICIAL DIVISION", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "FHC/{DIVISION_CODE}/CS/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_NIC",
+    lines: ["IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA", "IN THE {JUDICIAL_DIVISION} JUDICIAL DIVISION", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "NICN/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_STATE_HC",
+    lines: ["IN THE HIGH COURT OF {STATE} STATE", "IN THE {JUDICIAL_DIVISION} JUDICIAL DIVISION", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["STATE", "JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "{STATE_CODE}/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_FCT_HC",
+    lines: ["IN THE HIGH COURT OF THE FEDERAL CAPITAL TERRITORY", "IN THE {JUDICIAL_DIVISION} JUDICIAL DIVISION", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "FCT/HC/CV/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_SHARIA_APPEAL",
+    lines: ["IN THE SHARIA COURT OF APPEAL OF {STATE} STATE", "HOLDEN AT {STATE}", "APPEAL NO: {SUIT_NO}"],
+    variables: ["STATE", "SUIT_NO"],
+    suitNoFormat: "SCA/{STATE_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_CUSTOMARY_APPEAL",
+    lines: ["IN THE CUSTOMARY COURT OF APPEAL OF {STATE} STATE", "HOLDEN AT {STATE}", "APPEAL NO: {SUIT_NO}"],
+    variables: ["STATE", "SUIT_NO"],
+    suitNoFormat: "CCA/{STATE_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_MAGISTRATE",
+    lines: ["IN THE MAGISTRATE COURT OF {STATE} STATE", "IN THE {JUDICIAL_DIVISION} MAGISTERIAL DISTRICT", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["STATE", "JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "MC/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_AREA_COURT",
+    lines: ["IN THE AREA COURT OF {STATE} STATE", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["STATE", "JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "AC/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_CUSTOMARY_COURT",
+    lines: ["IN THE CUSTOMARY COURT OF {STATE} STATE", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["STATE", "JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "CC/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_SHARIA_COURT",
+    lines: ["IN THE SHARIA COURT OF {STATE} STATE", "HOLDEN AT {JUDICIAL_DIVISION}", "SUIT NO: {SUIT_NO}"],
+    variables: ["STATE", "JUDICIAL_DIVISION", "SUIT_NO"],
+    suitNoFormat: "SC/{DIVISION_CODE}/{SEQ}/{YEAR}",
+  },
+  {
+    id: "CAP_TRIBUNAL",
+    lines: ["IN THE {TRIBUNAL_NAME}", "HOLDEN AT {SEAT}", "{PROCESS_NO_LABEL}: {SUIT_NO}"],
+    variables: ["TRIBUNAL_NAME", "SEAT", "PROCESS_NO_LABEL", "SUIT_NO"],
+    suitNoFormat: "{TRIBUNAL_CODE}/{SEQ}/{YEAR}",
+  },
+];
+```
+
+---
+
+## FILE 3: `src/data/documentTypes.matrix.md`
+
+Use this as the source-of-truth reference table (ingest into `documentTypes.ts` registry at build time or reference directly in AI system prompt as grounding context). Extends the existing 8-type litigation skeleton registry.
+
+```markdown
+| ID | Label | Category | Applies To Tiers | Requires Affidavit | Requires Attestation Block | Numbering Style |
+|---|---|---|---|---|---|---|
+| WRIT_OF_SUMMONS | Writ of Summons | Originating | STATE_HIGH_COURT, FCT_HIGH_COURT, FEDERAL_HIGH_COURT | No | No | Roman-numeral paragraphs |
+| ORIGINATING_SUMMONS | Originating Summons | Originating | STATE_HIGH_COURT, FCT_HIGH_COURT, FEDERAL_HIGH_COURT | Yes (supporting) | No | Numbered questions + reliefs |
+| ORIGINATING_MOTION | Originating Motion | Originating | STATE_HIGH_COURT | Yes (supporting) | No | Numbered reliefs |
+| PETITION_MATRIMONIAL | Petition (Matrimonial Causes) | Originating | STATE_HIGH_COURT, SHARIA_COURT_OF_APPEAL, SHARIA_COURT | No | No | Numbered paragraphs |
+| PETITION_ELECTION | Election Petition | Originating | ELECTION_PETITION_TRIBUNAL | No | No | Numbered paragraphs per 1st Schedule |
+| COMPLAINT | Complaint | Originating | MAGISTRATE_COURT, NATIONAL_INDUSTRIAL_COURT, AREA_COURT, CUSTOMARY_COURT, SHARIA_COURT | No | No | Numbered paragraphs |
+| MOTION_ON_NOTICE | Motion on Notice | Interlocutory | ALL superior courts + tribunals | Yes (supporting) | No | Numbered reliefs + grounds |
+| MOTION_EXPARTE | Motion Ex Parte | Interlocutory | ALL superior courts | Yes (supporting) | No | Numbered reliefs + grounds |
+| AFFIDAVIT | Affidavit | Interlocutory | ALL | N/A (is the affidavit) | Yes | Numbered paragraphs, deponent block |
+| COUNTER_AFFIDAVIT | Counter-Affidavit | Interlocutory | ALL | N/A | Yes | Numbered paragraphs, responds to originating affidavit paras |
+| FURTHER_AFFIDAVIT | Further and Better Affidavit | Interlocutory | ALL | N/A | Yes | Numbered paragraphs |
+| NOTICE_OF_PRELIMINARY_OBJECTION | Notice of Preliminary Objection | Interlocutory | STATE_HIGH_COURT, FEDERAL_HIGH_COURT, COURT_OF_APPEAL | No | No | Numbered grounds |
+| STATEMENT_OF_CLAIM | Statement of Claim | Pleading | STATE_HIGH_COURT, FCT_HIGH_COURT, FEDERAL_HIGH_COURT | No | No | Numbered paragraphs |
+| STATEMENT_OF_DEFENCE | Statement of Defence | Pleading | STATE_HIGH_COURT, FCT_HIGH_COURT, FEDERAL_HIGH_COURT | No | No | Numbered paragraphs, admit/deny structure |
+| REPLY | Reply | Pleading | STATE_HIGH_COURT, FEDERAL_HIGH_COURT | No | No | Numbered paragraphs |
+| COUNTERCLAIM | Counterclaim | Pleading | STATE_HIGH_COURT, FEDERAL_HIGH_COURT | No | No | Numbered paragraphs, separate reliefs |
+| NOTICE_OF_APPEAL | Notice of Appeal | Post-Judgment | COURT_OF_APPEAL, SUPREME_COURT, SHARIA_COURT_OF_APPEAL, CUSTOMARY_COURT_OF_APPEAL | No | No | Numbered grounds of appeal |
+| BRIEF_OF_ARGUMENT | Brief of Argument | Post-Judgment | COURT_OF_APPEAL, SUPREME_COURT | No | No | Issues for determination + argument |
+| RECORD_OF_APPEAL | Record of Appeal | Post-Judgment | COURT_OF_APPEAL, SUPREME_COURT | No | No | Compiled index + pagination |
+| JUDGMENT_SUMMONS | Judgment Summons | Post-Judgment | STATE_HIGH_COURT, MAGISTRATE_COURT | Yes | No | Numbered paragraphs |
+| GARNISHEE_ORDER_NISI | Garnishee Order Nisi | Post-Judgment | STATE_HIGH_COURT, FEDERAL_HIGH_COURT | Yes (supporting) | No | Order form |
+| GARNISHEE_ORDER_ABSOLUTE | Garnishee Order Absolute | Post-Judgment | STATE_HIGH_COURT, FEDERAL_HIGH_COURT | No | No | Order form |
+| WRIT_OF_ATTACHMENT | Writ of Attachment/Execution | Post-Judgment | STATE_HIGH_COURT, MAGISTRATE_COURT | No | No | Order form |
+| ORIGINATING_APPLICATION | Originating Application | Originating | INVESTMENTS_SECURITIES_TRIBUNAL, COMPETITION_TRIBUNAL | Yes | No | Numbered reliefs |
+| CHARGE | Charge | Originating | CODE_OF_CONDUCT_TRIBUNAL | No | No | Numbered counts |
+```
+
+---
+
+## FILE 4: `src/services/jurisdictionResolver.ts` — Implementation Checklist
+[ ] resolveCourtTier(promptContext, defaultStateOfPractice): CourtTier
+- Keyword match: subject matter (land/tenancy → STATE_HIGH_COURT or RENT_TRIBUNAL;
+labor/employment → NATIONAL_INDUSTRIAL_COURT; tax → TAX_APPEAL_TRIBUNAL;
+customs/immigration/federal agency party → FEDERAL_HIGH_COURT; election → ELECTION_PETITION_TRIBUNAL)
+- Party-type check: if a party is Federal Government/agency, prefer FEDERAL_HIGH_COURT per
+s.251 Constitution exclusive jurisdiction list; flag as suggestion, not silent override.
+- Fallback to user's defaultStateOfPractice -> STATE_HIGH_COURT if no stronger signal.
+[ ] resolveCaption(tier, state, judicialDivision, suitNo?): CaptionTemplate
+- Pull from CAPTION_TEMPLATES by court.captionTemplateId
+- Interpolate variables; if SUIT_NO unknown at draft time, render placeholder
+"SUIT NO: " (not blank) per litigation convention
+[ ] resolveDocumentType(tier, requestedDocLabel): DocumentType
+- Validate requested doc against court.availableDocumentTypeIds
+- If mismatch (e.g. user asks for "Petition" at a Magistrate Court), do NOT silently
+substitute — return a resolution warning for ALOA to surface as a single clarifying
+chip ("Did you mean Complaint instead of Petition for this court?")
+[ ] applyAttestationBlock(docType)
+- If docType.requiresAttestationBlock: inject center-aligned block:
+"BEFORE ME,\n\nCOMMISSIONER FOR OATHS"
+text-align: center; margin-top: 24pt; no left indent.
+[ ] applyCourtMarginRules(tier)
+- Court caption block: top margin fixed at 0.5in (not default 1in), no leading blank
+paragraphs before caption. Firm/corporate headings keep existing margin rules —
+branch on headingType, not globally.
+[ ] bundleLinkedProcesses(processIds[])
+- Same SUIT_NO + caption metadata propagated to all documents in bundle
+- Sequential internal reference: "MOTION_ON_NOTICE" auto-links to its
+"AFFIDAVIT" via bundleId; affidavit paragraph 1 auto-references
+"the Motion on Notice dated {DATE} filed herewith"
+
+
+---
+
+## SEQUENCING (build order)
+
+1. Ship FILE 1 + FILE 2 (data only, no UI) — unblocks jurisdiction resolver.
+2. Ship FILE 3 as markdown reference consumed by AI system prompt for ALOA generation grounding (not user-facing).
+3. Ship FILE 4 resolver, wire into existing DraftPro generation pipeline at the point where the 8-type skeleton registry is currently invoked.
+4. Defer: per-state civil procedure rule variations beyond caption (e.g. Lagos vs Rivers pleading numbering quirks) — flag as Phase 2, not blocking.
+5. Defer: multi-process bundling UI (linking chips in workspace) — Phase 2, depends on FILE 4 §bundleLinkedProcesses landing first.
+
+---
+
+## OPEN GAPS TO FLAG BACK TO USER
+- State-specific High Court Rules citations in `governingRules` are placeholders — need per-state legal research pass before going to production (36 states + FCT).
+- Suit number formats for Magistrate/Area/Customary courts vary by state registry convention, not standardized nationally — current formats are illustrative, verify against actual court registries before hard-coding.
+Two flags before you wire this in: the per-state civil procedure rule citations are placeholders (real research pass needed for all 36 states + FCT), and Magistrate/Area/Customary suit-number formats vary by registry — worth spot-checking against actual Lagos/FCT registries first since those are likely your initial rollout states.
+
+thank you for these flags now is my ai agent not able to do research on the rules for a specific court/state or as the case may be? there should be some standards which we may have already and some nuiances that aloa, my ai, should be able to detect apply and justify neatly. make a new prompt that iwll add to the above without replicating it
+
+
+Architected dynamic research layer for jurisdiction-specific civil procedure rules
+Architected dynamic research layer for jurisdiction-specific civil procedure rules
+# PROMPT: State Rule Intelligence & Justification Layer (ALOA Research Extension)
+
+CONTEXT: Extends the Jurisdictional Intelligence prompt above. That prompt hardcoded `governingRules` as placeholders per court. This prompt gives ALOA the ability to research, resolve, and justify the actual applicable procedural rule (including state-specific nuances) at draft time — instead of the app team pre-populating all 36 states + FCT manually.
+
+PRINCIPLE: Separate "national standard" (works everywhere, safe default) from "state nuance" (overrides the standard, must be justified and shown to the user). ALOA never silently applies a nuance — it always surfaces what it applied and why.
+
+---
+
+## FILE 5: `src/data/ruleKnowledgeBase.schema.ts`
+
+```typescript
+export interface ProceduralRule {
+  id: string;
+  tier: CourtTier;              // FK -> courtHierarchy
+  state?: string;                // null = national/federal standard
+  ruleCitation: string;          // e.g. "Order 3 Rule 2, Lagos State High Court (Civil Procedure) Rules 2019"
+  topic: RuleTopic;               // what this rule governs
+  standardBehavior: string;       // the national/default behavior if no state nuance exists
+  nuanceBehavior?: string;        // what THIS state does differently, if anything
+  divergesFromStandard: boolean;
+  sourceType: "VERIFIED_STATUTE" | "AI_RESEARCHED" | "USER_SUPPLIED" | "UNVERIFIED_INFERRED";
+  lastVerifiedDate?: string;      // null if never human-verified
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export type RuleTopic =
+  | "PLEADING_NUMBERING"
+  | "AFFIDAVIT_DEPONENT_FORMAT"
+  | "SERVICE_MODE"
+  | "FILING_FEE_SCHEDULE"
+  | "TIME_LIMITS"
+  | "PRE_ACTION_PROTOCOL"
+  | "ATTESTATION_FORMAT"
+  | "SUIT_NUMBERING_CONVENTION"
+  | "FRONTLOADING_REQUIREMENT"; // e.g. Lagos requires witness statements on oath filed with WoS
+
+// Seed only what's actually verified today — do NOT fabricate entries.
+// Everything else resolves through the research pipeline at runtime (see FILE 6).
+export const VERIFIED_RULES: ProceduralRule[] = [
+  {
+    id: "LAG-FRONTLOAD-01",
+    tier: "STATE_HIGH_COURT",
+    state: "Lagos",
+    ruleCitation: "Order 3 Rule 2(1), Lagos State High Court (Civil Procedure) Rules 2019",
+    topic: "FRONTLOADING_REQUIREMENT",
+    standardBehavior: "Statement of Claim filed alone with Writ of Summons.",
+    nuanceBehavior: "Writ of Summons must be accompanied by Statement of Claim, list of witnesses, written statements on oath, and copies of documents to be relied on — filed together as a frontloaded bundle.",
+    divergesFromStandard: true,
+    sourceType: "VERIFIED_STATUTE",
+    lastVerifiedDate: "2026-07-08",
+    confidence: "HIGH",
+  },
+  // Add remaining verified entries here as legal research confirms them.
+  // Do not pad this array with unverified guesses — that defeats the purpose of sourceType tracking.
+];
+```
+
+---
+
+## FILE 6: `src/services/ruleResearchPipeline.ts` — Implementation Checklist
+[ ] resolveApplicableRule(tier, state, topic): ResolvedRule
+ORDER OF RESOLUTION (stop at first hit):
+1. VERIFIED_RULES lookup (exact tier+state+topic match) -> sourceType VERIFIED_STATUTE, confidence HIGH
+2. If no state-specific entry exists, check for a national STANDARD entry
+(state: null) for that topic -> apply standard, flag "no state nuance on record"
+3. If neither exists, trigger AI_RESEARCH_FALLBACK (below) -> sourceType AI_RESEARCHED
+4. If research fallback also fails/low-confidence, apply STANDARD as safe default
+and flag sourceType UNVERIFIED_INFERRED — never block generation, always disclose.
+
+[ ] AI_RESEARCH_FALLBACK(tier, state, topic)
+- Fire a scoped Gemini API call with grounding/search enabled (not general knowledge recall)
+- System prompt constrains model to: (a) cite the specific rule/order/section,
+(b) state confidence, (c) explicitly compare to national standard, (d) refuse to
+invent a citation it cannot support — return UNVERIFIED_INFERRED instead of guessing
+- Cache successful lookups into a researchedRulesCache Convex table keyed by
+{tier, state, topic} with a humanReviewPending: true flag, so:
+- Same query never re-researches on every draft (cost + latency control)
+- A queue exists for periodic human legal review to promote cache entries
+into VERIFIED_RULES once confirmed
+- Cache TTL: 90 days, then re-verify (rules change; don't trust stale AI research forever)
+
+[ ] justifyRuleApplication(resolvedRule): JustificationChip
+- Every time a nuance is applied that changes document structure, ALOA surfaces
+a single inline chip in the chat panel, not buried in the document:
+"Applied Lagos frontloading rule (Order 3 Rule 2(1), HCCPR 2019) — witness
+statements on oath included with this Writ. [View standard vs. this state]"
+- If sourceType is AI_RESEARCHED or UNVERIFIED_INFERRED, chip must say so plainly:
+"Best-effort research, not yet human-verified — confirm before filing."
+- Never present AI_RESEARCHED or UNVERIFIED_INFERRED rules with the same visual
+confidence as VERIFIED_STATUTE. Confidence must be visually distinguishable
+(e.g. badge color/border), not just a tooltip.
+
+[ ] conflictDetection(tier, state, topic)
+- If VERIFIED_RULES has a divergesFromStandard: true entry, and the draft is
+about to apply the plain STANDARD instead (e.g. user overrides), warn once:
+"{State} deviates from the national standard on {topic} — proceeding with
+standard anyway may produce a non-compliant filing."
+
+
+---
+
+## BEHAVIORAL CONTRACT FOR ALOA (system prompt addition)
+When drafting a court process:
+
+Resolve court tier + state via jurisdictionResolver (existing).
+For each RuleTopic relevant to the requested document type, call resolveApplicableRule.
+Never fabricate a rule citation. If unverified, say so — a wrong citation is worse
+than an honest "not yet verified."
+Surface every applied nuance as a single justification chip, not a wall of text.
+Default to the national standard whenever no state-specific rule is resolved —
+this keeps unverified states from blocking drafting entirely.
+Treat VERIFIED_RULES as ground truth over anything researched live, even if the
+live research looks more specific — cache/verification exists precisely to prevent
+re-litigating settled rules on every draft.
+
+---
+
+## SEQUENCING (append to prior sequencing)
+
+6. Ship FILE 5 with only Lagos + FCT seeded (your likely rollout states) — do not
+   block launch on all 36 states.
+7. Ship FILE 6 resolver + Gemini grounding fallback, wired to fire only when FILE 5
+   has no match — this is additive, not a replacement for the courtHierarchy work.
+8. Stand up `researchedRulesCache` table + a lightweight internal review queue
+   (even a simple admin list view is enough for v1) so AI-researched entries have
+   a path to becoming verified over time.
+9. Defer: full 36-state seed of VERIFIED_RULES — this is an ongoing legal content
+   operation, not a one-time engineering task. Treat it as backlog, not a blocker.
+
+---
+
+## OPEN GAPS TO FLAG BACK TO USER
+- Gemini grounding quality on Nigerian state-specific procedural rules is unproven —
+  recommend a manual spot-check of the first ~20 AI_RESEARCHED entries before trusting
+  the cache/review queue pattern at scale.
+- Decide who owns the human-review queue (you, or a contracted NBA-qualified reviewer)
+  before this ships — an unreviewed AI_RESEARCHED cache growing unchecked is a
+  malpractice-exposure risk for your users, not just a data-quality issue.
+
+
+Want to be notified when Claude responds?
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses.
