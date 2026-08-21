@@ -7697,3 +7697,54 @@ Next actions:
 - If word count must hit 1,600 strictly, candidates for further cuts: compress §1 definitions further by removing some of the less-critical definitions (Data Subject could be merged with Personal Data; Sub-Processor could be defined inline at first use in §6.1); trim §8 security measures list (could remove "Vulnerability management" bullet — not strictly required by spec); shorten the "In short" summary box from 85 to 50 words
 - The plain-English rewrite of all four legal docs (CookiePolicy, PrivacyPolicy, TermsOfService, DataProcessingAgreement) is now complete; consider a final cross-document consistency pass to verify all four use the same "In short" summary-box style, the same plain-English tone, and the same handling of the NDPA 2023 / NDPR 2019 references
 - Consider whether the new contact sentence at the end of §15 should also appear in §1 (Definitions) under a new "Contact" definition — currently it appears only in §15, which is sufficient
+
+---
+Task ID: wizard-reset-affordance
+Agent: main
+Task: (1) Push previous wizard work to git (container had reset, files lost). (2) Add "Reset Setup Checklist" affordance in Settings → Help.
+
+Work Log:
+- Discovered the previous session's file changes (GettingStartedChecklist.tsx, CompleteSetupBanner.tsx, patches to useFirm/DataProvider/OnboardingWizard/Sidebar/Dashboard/myFunctions/crons) were NOT persisted to disk — the container was reset between sessions.
+- Re-applied ALL prior work in this session:
+  • useFirm.ts handleUpdateFirmDetails critical fix (resolve firmId from id/_id/firmDetails/currentUser.firmId)
+  • DataProvider.tsx Phase B merge mirror _id → id for firmDetails
+  • DataContext.tsx createFirm trial?: boolean signature
+  • OnboardingWizard.tsx Steps 3 (Communication Channels with relevance copy, no phone numbers), 4 (Team + invite code panel), 5 (Review & Confirm)
+  • convex/myFunctions.ts sendCommunicationSetupReminders internalMutation + getGettingStartedChecklist query
+  • convex/crons.ts daily cron at 08:00 UTC
+  • GettingStartedChecklist.tsx sidebar widget (6 product-specific items, dismissible, collapsible, auto-hide)
+  • CompleteSetupBanner.tsx Dashboard banner (gradient CTA, progress ring)
+  • Sidebar.tsx + Dashboard.tsx mounting
+  • SETUP_WIZARD_DESIGN.md spec doc
+- NEW: Added "Reset Setup Checklist" affordance in src/components/settings/HelpSettings.tsx:
+  • Imports CHECKLIST_DISMISSED_KEY_PREFIX + BANNER_DISMISSED_KEY_PREFIX from GettingStartedChecklist (single source of truth for storage key constants — exported there so HelpSettings can clear them without duplicating string literals)
+  • New "Setup Checklist" section under the existing "Application Tour" section, separated by a border-t
+  • handleResetChecklist clears BOTH localStorage keys (sidebar widget + Dashboard banner) per-firm
+  • Surfaces a success toast, then reloads the page after 1.2s so the re-enabled prompts appear
+  • Defensive: if no firmId (rare — user not in a workspace), shows an error toast and bails
+  • Does NOT reset actual checklist progress (computed from real data via Convex query) — only re-displays the prompts so the user can see what's left
+  • Verified the storage key constants match what GettingStartedChecklist.tsx and CompleteSetupBanner.tsx read in their useEffect hooks
+- TypeScript check: 322 → 322 errors (zero new). All my touched files compile cleanly. Remaining errors are pre-existing in ClientDashboard.tsx, AIUsageDashboard.tsx, and line 26 of useFirm.ts (tokenIdentifier issue I did not touch).
+- Production build (`npx vite build`) succeeds in 18.08s.
+- Git workflow: staged 11 files (1,176 insertions), committed with detailed multi-section message. Rebased on top of remote (5 new commits from origin/main — none conflicted with my changes). Pushed to origin/main successfully (commit 1c9fa50).
+
+Stage Summary:
+- Files committed and pushed (11 files, 1,176 insertions):
+  • convex/crons.ts — sendCommunicationSetupReminders daily cron registration
+  • convex/myFunctions.ts — sendCommunicationSetupReminders mutation + getGettingStartedChecklist query
+  • src/components/CompleteSetupBanner.tsx (new) — Dashboard banner
+  • src/components/Dashboard.tsx — mount CompleteSetupBanner
+  • src/components/GettingStartedChecklist.tsx (new) — sidebar widget, exports storage key constants
+  • src/components/Sidebar.tsx — mount GettingStartedChecklist (only when expanded, non-portal users)
+  • src/components/modals/OnboardingWizard.tsx — Steps 3-5 + state for createdFirmId/useWhatsapp/useEmail/willInviteTeam
+  • src/components/settings/HelpSettings.tsx — NEW "Reset Setup Checklist" section
+  • src/contexts/DataContext.tsx — createFirm trial?: boolean signature fix
+  • src/contexts/DataProvider.tsx — Phase B firmDetails.id mirror from _id
+  • src/hooks/useFirm.ts — handleUpdateFirmDetails firmId fallback chain
+- Storage key constants now exported from GettingStartedChecklist.tsx so HelpSettings can clear them without duplicating string literals. Single source of truth prevents drift if the prefix ever changes.
+- The "Reset Setup Checklist" affordance closes the loop on the dismissable UX: users who dismissed the prompts can bring them back without losing their actual progress.
+- Production build passes. Git push succeeded. Preview should auto-refresh within ~60-90 seconds (Cloudflare Pages deploy).
+
+Next actions:
+- Verify on the preview link that (a) the bank account save bug is fixed, (b) the wizard advances through all 5 steps, (c) the sidebar checklist + Dashboard banner appear after wizard completion, (d) the "Reset Setup Checklist" button in Settings → Help re-shows the prompts after dismissal.
+- The `hasSentReminder` check in getGettingStartedChecklist currently scans notifications of type 'service_charge_reminder'/'rent_reminder'/'invoice_sent' as a proxy — if those notification types aren't being written today, this item will never auto-complete. Verify the existing WhatsApp reminder cron writes notifications of those types, or change the check to look at the scheduled_messages table.

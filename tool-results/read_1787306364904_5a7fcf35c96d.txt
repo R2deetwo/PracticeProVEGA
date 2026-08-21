@@ -1,0 +1,441 @@
+     1→import React from 'react';
+     2→import Accordion, { AccordionItem } from '../Accordion';
+     3→import { useOnboarding } from '../../contexts/OnboardingProvider';
+     4→import { useUI } from '../../contexts/UIContext';
+     5→import { useProduct } from '../../contexts/ProductContext';
+     6→import { getAssistantName } from '../../utils/assistantIdentity';
+     7→
+     8→const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
+     9→    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
+    10→        <div className="relative z-10">
+    11→            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
+    12→            {children}
+    13→        </div>
+    14→    </div>
+    15→);
+    16→
+    17→
+    18→export const HelpSettings: React.FC = () => {
+    19→    const { resetTour } = useOnboarding();
+    20→    const { addToast } = useUI();
+    21→    const { isProperty, isVega } = useProduct();
+    22→    const assistantName = getAssistantName(isProperty);
+    23→
+    24→    const handleRestartTour = () => {
+    25→        resetTour();
+    26→        addToast("App tour has been reset and will restart now.", { type: 'success' });
+    27→    };
+    28→
+    29→    return (
+    30→        <div className="space-y-6">
+    31→        <SettingsCard title="Help & Support" id="help-and-support">
+    32→            <div className="space-y-6">
+    33→                <div>
+    34→                    <h4 className="font-semibold text-lg">Application Tour</h4>
+    35→                    <p className="text-gray-600 dark:text-gray-300 mt-2">
+    36→                        Need a refresher on the app's features? You can restart the introductory tour at any time.
+    37→                    </p>
+    38→                    <button
+    39→                        onClick={handleRestartTour}
+    40→                        className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700"
+    41→                    >
+    42→                        Restart Tour
+    43→                    </button>
+    44→                </div>
+    45→
+    46→                <div>
+    47→                    <h4 className="font-semibold text-lg mt-6">Frequently Asked Questions</h4>
+    48→                    <Accordion>
+    49→                        <AccordionItem title="Whole-App Overview" defaultOpen={false}>
+    50→                            <div className="space-y-6">
+    51→                                <div>
+    52→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">What is this Platform?</h4>
+    53→                                    <p>{isVega ? 'Vega' : 'Atrium'} is a {isProperty ? 'Property Management System' : 'Professional Operations System'} designed to help {isProperty ? 'property managers and real estate firms' : 'teams'} manage {isProperty ? 'properties' : 'matters'}, documents, tasks, {isProperty ? 'financials' : 'billing'}, and team collaboration — all in one place.</p>
+    54→                                </div>
+    55→
+    56→                                <div>
+    57→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">How the App Works – End-to-End Flow</h4>
+    58→                                    <ol className="list-decimal pl-5 space-y-2">
+    59→                                        <li><strong>{isProperty ? 'Portfolio' : 'Firm'} Setup:</strong> An <strong>Admin</strong> navigates to <code>Settings</code> and adds {isProperty ? 'portfolio' : 'firm'} details (name, address, logo) for letterheads and invoices. Users ({isProperty ? 'Managers, Associates' : 'Lawyers, Paralegals'}) are invited and assigned roles. {isProperty ? 'Operation' : 'Practice area'} workflows are configured for different {isProperty ? 'property' : 'matter'} types (e.g., {isProperty ? 'Residential Lease, Commercial Sale' : 'Civil Litigation, Company Incorporation'}).</li>
+    60→                                        <li><strong>{isProperty ? 'Property' : 'Matter'} Creation & Intake:</strong> A new {isProperty ? 'property record' : 'case/matter'} is dynamically opened via the {isProperty ? 'Intake Wizard' : 'Enterprise Matter Intake Wizard'}{!isProperty && ', providing real-time AI validation for Nigerian Court rules, catching party conflicts or informal joinders automatically'}.</li>
+    61→                                        <li><strong>Task Assignment:</strong> Tasks (e.g., {isProperty ? '“Conduct Inspection”' : '“Draft Statement of Claim”'}) are created and assigned to the relevant team members. Depending on your {isProperty ? 'portfolio\'s' : 'firm\'s'} structure, an <strong>Admin</strong> might assign work to a <strong>{isProperty ? 'Manager' : 'Lawyer'}</strong>, who can then delegate sub-tasks to a <strong>{isProperty ? 'Associate' : 'Paralegal'}</strong>.</li>
+    62→                                        <li><strong>Document Management:</strong> All {isProperty ? 'related' : 'case'} documents are uploaded and organized by {isProperty ? 'property' : 'matter'}. Version control ensures the latest draft is always available.</li>
+    63→                                        <li><strong>Scheduling & Calendar:</strong> {isProperty ? 'Inspections, rent reviews, and meetings' : 'Hearings, filing deadlines, and client meetings'} are added to the shared calendar. Reminders help avoid missed {isProperty ? 'deadlines' : 'court dates'}.</li>
+    64→                                        <li><strong>{isProperty ? 'Financials' : 'Billing'} & Payments:</strong> {isProperty ? 'Rent collections' : 'Time entries'} and expenses are recorded. {isProperty ? 'Receipts' : 'Invoices'} are generated and sent to {isProperty ? 'tenants' : 'clients'}. Payment status is tracked.</li>
+    65→                                        <li><strong>Closing a {isProperty ? 'Record' : 'Matter'}:</strong> Once completed, the {isProperty ? 'property record' : 'matter\'s stage'} is updated to “Close”. Files are archived for future reference.</li>
+    66→                                    </ol>
+    67→                                </div>
+    68→
+    69→                                <div>
+    70→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Modules & How They Connect</h4>
+    71→                                    <ul className="list-disc pl-5 space-y-1">
+    72→                                        <li><strong>Dashboard:</strong> Quick view of active {isProperty ? 'properties' : 'matters'}, your tasks, upcoming deadlines, and recent {isProperty ? 'activity' : 'firm activity'}.</li>
+    73→                                        <li><strong>{isProperty ? 'Properties' : 'Matters'}:</strong> Central hub for {isProperty ? 'property' : 'case'} details. Here you can track progress, and view all related documents, tasks, and notes for a specific {isProperty ? 'property' : 'case'}.</li>
+    74→                                        <li><strong>Tasks:</strong> Assign, track, and complete {isProperty ? 'operational' : 'legal'} or administrative tasks on a drag-and-drop board.</li>
+    75→                                        <li><strong>Documents:</strong> Upload, categorize, and manage all {isProperty ? 'property' : 'project'} files in a central repository, automatically organized by {isProperty ? 'owner' : 'client'} and {isProperty ? 'property' : 'matter'}.</li>
+    76→                                        <li><strong>Calendar:</strong> Track {isProperty ? 'inspections' : 'court dates'}, {isProperty ? 'lease expiries' : 'filing deadlines'}, and meetings. Includes automatic conflict detection.</li>
+    77→                                        <li><strong>{isProperty ? 'Financials' : 'Billing'}:</strong> Record {isProperty ? 'rent' : 'billable time'}, generate {isProperty ? 'receipts' : 'invoices'}, and manage payments (Admin only in multi-user mode).</li>
+    78→                                        <li><strong>Reporting:</strong> A multi-tabbed dashboard for deep analytics on your {isProperty ? 'portfolio\'s' : 'firm\'s'} financial, operational, and compliance health.</li>
+    79→                                        <li><strong>Messaging:</strong> Secure team communication linked to specific {isProperty ? 'properties' : 'matters'} (multi-user mode only).</li>
+    80→                                        <li><strong>Contacts:</strong> Store {isProperty ? 'tenant, owner' : 'client, opposing counsel'}, and vendor contact details.</li>
+    81→                                        <li><strong>Settings:</strong> Customize {isProperty ? 'portfolio' : 'firm'} workflows, templates, and user roles (Admin only).</li>
+    82→                                    </ul>
+    83→                                </div>
+    84→                            </div>
+    85→                        </AccordionItem>
+    86→
+    87→                        <AccordionItem title="Understanding the Reporting & Analytics Module">
+    88→                            <div className="space-y-6">
+    89→                                <div>
+    90→                                    <h4 className="font-bold text-lg">Overview</h4>
+    91→                                    <p>This module is your team's central hub for data-driven insights. It consolidates financial, operational, and compliance data into easy-to-understand dashboards.</p>
+    92→                                </div>
+    93→                                <div>
+    94→                                    <h4 className="font-bold text-lg">Financial Reports</h4>
+    95→                                    <p>Track your team's revenue with the {isProperty ? 'Tenant' : 'Client'} Billing Summary. Filter by date ranges to see total amounts billed, collected, and outstanding. This tab also includes a <strong>Tax Intelligence</strong> section to provide estimated VAT liability based on your {isProperty ? 'service charges' : 'professional fees'}. <br /><em>Note: This is for guidance only and is not a substitute for professional tax advice.</em></p>
+    96→                                </div>
+    97→                                <div>
+    98→                                    <h4 className="font-bold text-lg">Business Intelligence</h4>
+    99→                                    <p>This powerful, consolidated tab gives you a multi-faceted view of your team's health. Use the toggles to switch between:</p>
+   100→                                    <ul className="list-disc pl-5 mt-2">
+   101→                                        <li><strong>{isProperty ? 'Property Analytics' : 'Case Analytics'}:</strong> An operational dashboard to monitor the status of all {isProperty ? 'properties' : 'matters'} and identify {isProperty ? 'stale records' : 'stale cases'} needing attention.</li>
+   102→                                        <li><strong>{isProperty ? 'Tenant Analytics' : 'Client Analytics'}:</strong> A complete overview of your {isProperty ? 'tenant' : 'client'} portfolio, helping you identify {isProperty ? 'top tenants' : 'top clients'} and manage receivables.</li>
+   103→                                    </ul>
+   104→                                </div>
+   105→                                <div>
+   106→                                    <h4 className="font-bold text-lg">Compliance Reports</h4>
+   107→                                    <p>Stay on top of your professional obligations. This report provides a summary of your <strong>{isProperty ? 'Operating Account' : 'Client Account'}</strong> balances, flagging any overdue matters. It also {isProperty ? 'helps managers track compliance, including the status of regulatory requirements and health & safety obligations across the portfolio' : 'helps lawyers track their <strong>Professional Standards</strong>, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings \u2192 My Profile</code>)'}.</p>
+   108→                                </div>
+   109→                            </div>
+   110→                        </AccordionItem>
+   111→
+   112→                        <AccordionItem title={`Using ${assistantName} (AI Assistant)`}>
+   113→                            <div className="space-y-6">
+   114→                                <div>
+   115→                                    <h4 className="font-bold text-lg">What is {assistantName}?</h4>
+   116→                                    <p>{assistantName} is your AI-powered assistant, designed to help you with tasks, provide insights, and streamline your workflow. You can interact with it by typing or using your voice via the microphone icon.</p>
+   117→                                </div>
+   118→                                <div>
+   119→                                    <h4 className="font-bold text-lg">Knowledge Base & RAG</h4>
+   120→                                    <p>ARIA uses <strong>Retrieval Augmented Generation (RAG)</strong> to answer questions based directly on your {isProperty ? "portfolio's" : "firm's"} documents. {isProperty ? 'When you ask about a property' : 'When you ask about a case'}, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
+   121→                                </div>
+   122→                                <div>
+   123→                                    <h4 className="font-bold text-lg">Actionable Insights</h4>
+   124→                                    <p>ARIA doesn't just talk; it acts. Responses often include smart buttons to <strong>View Tasks</strong>, <strong>{isProperty ? 'Open Properties' : 'Open Matters'}</strong>, or <strong>Draft Replies</strong> based on the current context of your conversation.</p>
+   125→                                </div>
+   126→                                <div>
+   127→                                    <h4 className="font-bold text-lg">On-Demand Briefings</h4>
+   128→                                    <p>You can ask ARIA for a summary of your day at any time. Simply say "Give me a briefing" to see a snapshot of your overdue tasks, {isProperty ? 'upcoming inspections, and pending invoices' : 'upcoming court dates, and pending invoices'}.</p>
+   129→                                </div>
+   130→                            </div>
+   131→                        </AccordionItem>
+   132→
+   133→                        <AccordionItem title="Admin Guide">
+   134→                            <div className="space-y-6">
+   135→                                <div>
+   136→                                    <h4 className="font-bold text-lg">Managing {isProperty ? 'Portfolio' : 'Firm'} Details & Branding</h4>
+   137→                                    <p>Go to <code>Settings &gt; {isProperty ? 'Portfolio Details' : 'Firm Details'}</code> to customize your logo, letterhead, and digital stamp. These are used to brand all generated document PDFs, invoices, and the {isProperty ? 'tenant' : 'client'} portal.</p>
+   138→                                </div>
+   139→                                <div>
+   140→                                    <h4 className="font-bold text-lg">Team Member Roles & Onboarding</h4>
+   141→                                    <p>Admins can invite new users and assign roles ({isProperty ? 'Manager, Associate' : 'Lawyer, Paralegal'}, etc.). Each role has specific permissions. You can also monitor team performance via the Reporting module.</p>
+   142→                                </div>
+   143→                                <div>
+   144→                                    <h4 className="font-bold text-lg">Configuring {isProperty ? 'Operational' : 'Practice Area'} Workflows</h4>
+   145→                                    <p>Standardize your {isProperty ? 'operations' : 'firm\'s processes'} by creating custom stages for different {isProperty ? 'property' : 'matter'} types in <code>Settings &gt; Templates</code>. This ensures consistency across all {isProperty ? 'properties' : 'cases'}.</p>
+   146→                                </div>
+   147→                            </div>
+   148→                        </AccordionItem>
+   149→
+   150→                        <AccordionItem title={isProperty ? "Residents' Portal Guide" : "Client Portal Guide"}>
+   151→                            <div className="space-y-6">
+   152→                                <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-lg">
+   153→                                    <h4 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
+   154→                                        <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-2xs uppercase tracking-wider">Portal</span>
+   155→                                        {isProperty ? "Residents' Portal Overview" : 'Client Portal Overview'}
+   156→                                    </h4>
+   157→                                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-2 leading-relaxed">
+   158→                                        The {isProperty ? "Residents'" : 'Client'} Portal is a secure, self-service web interface that gives your {isProperty ? 'residents' : 'clients'} controlled access to their {isProperty ? 'financial and maintenance' : 'matter and document'} information — without needing to contact your office for every update. Portals are available on <strong>Growth</strong> and <strong>Pro</strong> plans. Core tier users will see an upgrade prompt instead.
+   159→                                    </p>
+   160→                                </div>
+   161→
+   162→                                <div>
+   163→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">What {isProperty ? 'Tenants' : 'Clients'} Can See</h4>
+   164→                                    {isProperty ? (
+   165→                                        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+   166→                                            <li><strong>SC/MV Payment Ledger:</strong> A real-time breakdown of Service Charge and Minimum Vend payments, outstanding balances, and payment history per unit.</li>
+   167→                                            <li><strong>Automated Rent Receipts:</strong> Download PDF receipts for every confirmed rent payment, branded with your portfolio's letterhead.</li>
+   168→                                            <li><strong>Maintenance Ticket System:</strong> Log maintenance issues (plumbing, electrical, structural, other) directly into your workflow. Tenants can see the status of their tickets from open to resolved.</li>
+   169→                                        </ul>
+   170→                                    ) : (
+   171→                                        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+   172→                                            <li><strong>Milestone Progress Tracker:</strong> A visual timeline of their matter's progress through each stage (Intake → Active → Resolution → Closed), so they always know where things stand.</li>
+   173→                                            <li><strong>Secure Document Vault:</strong> Access to all shared documents related to their matter — court filings, correspondence, contracts, and opinions. Documents are read-only and cannot be modified through the portal.</li>
+   174→                                            <li><strong>KYC Upload Portal:</strong> A secure upload area for Know-Your-Client documentation (identification, proof of address, corporate registration documents) that flows directly into {isProperty ? 'your portfolio records' : "your firm's matter records"}.</li>
+   175→                                        </ul>
+   176→                                    )}
+   177→                                </div>
+   178→
+   179→                                <div>
+   180→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">How to Activate the Portal</h4>
+   181→                                    <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+   182→                                        <li><strong>Check your plan:</strong> Portals are available on Growth and Pro plans only. If you're on Core, navigate to <code>Settings → Billing & Plans</code> to upgrade.</li>
+   183→                                        <li><strong>Open Portal Access settings:</strong> Navigate to <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code> to manage all portal invitations from one place. This is the central hub for inviting, monitoring, and revoking portal access.</li>
+   184→                                        <li><strong>Invite {isProperty ? 'residents' : 'clients'}:</strong> Click <strong>"Invite {isProperty ? 'Resident' : 'Client'}"</strong> and enter their email address (required), full name, phone/WhatsApp number (optional), and optionally link them to a specific {isProperty ? 'property' : 'matter'}. You can also add a personal message that will be included in the invitation.</li>
+   185→                                        <li><strong>Share the portal URL:</strong> After sending an invitation, share the portal login URL directly with the {isProperty ? 'resident' : 'client'}. The URL is displayed at the top of the Portal Access settings page and can be copied with one click. {isProperty ? 'Residents' : 'Clients'} will log in using their email and the password they set during first access.</li>
+   186→                                        <li><strong>Monitor invitation status:</strong> The Portal Access page shows all invitations with their status — <strong>Pending</strong> (sent but not yet accepted), <strong>Active</strong> (accepted and in use), <strong>Expired</strong> (30-day window passed), or <strong>Revoked</strong> (manually cancelled). Filter by status to quickly find what you need.</li>
+   187→                                        <li><strong>Revoke access if needed:</strong> If a {isProperty ? 'resident' : 'client'} should no longer have portal access (e.g., they moved out or the matter is closed), click the revoke button next to their invitation. This immediately disables their portal login.</li>
+   188→                                    </ol>
+   189→                                </div>
+   190→
+   191→                                <div>
+   192→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Sharing Login Details Securely</h4>
+   193→                                    <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg text-sm text-amber-800 dark:text-amber-300 mb-3">
+   194→                                        <strong>Important:</strong> {isProperty ? "Residents'" : 'Client'} portal credentials provide access to sensitive {isProperty ? 'financial and property' : 'legal and personal'} information. Always share login details through secure, encrypted channels.
+   195→                                    </div>
+   196→                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+   197→                                        <li><strong>Recommended:</strong> Use the Portal Access settings page in <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code> to send invitations. The invitation system generates a unique, secure link that the {isProperty ? 'resident' : 'client'} can use to set up their own password — you never need to share a temporary password manually.</li>
+   198→                                        <li><strong>Copy the portal URL:</strong> The Portal Access settings page shows the portal login URL with a one-click copy button. Share this URL with the {isProperty ? 'resident' : 'client'} via your preferred secure channel (encrypted email, secure WhatsApp, etc.).</li>
+   199→                                        <li><strong>First login:</strong> {isProperty ? 'Residents' : 'Clients'} will authenticate with their email and a password they set during their first visit. If they already have an account, they can use their existing credentials.</li>
+   200→                                        <li><strong>Legal consideration:</strong> {isVega && 'As a legal practitioner, you have a professional obligation to protect client data under NDPA 2023 and NBA professional standards. The client portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that privileged and confidential information remains protected at all times.'}{isProperty && "The Residents' Portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that financial and personal data remains protected at all times in compliance with NDPA 2023."}</li>
+   201→                                    </ul>
+   202→                                </div>
+   203→
+   204→                                <div>
+   205→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Portal URL</h4>
+   206→                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+   207→                                        {isProperty ? 'Residents' : 'Clients'} can access the portal at:
+   208→                                    </p>
+   209→                                    <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg font-mono text-sm text-primary-600 dark:text-primary-400 break-all">
+   210→                                        {isProperty ? 'https://practice-pro-vega.vercel.app/portal/tenant/login' : 'https://practice-pro-vega.vercel.app/portal/client/login'}
+   211→                                    </div>
+   212→                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+   213→                                        Note: This URL is shown for reference. The actual portal link is available on the Portal Access settings page with a one-click copy button. {isProperty ? 'Residents' : 'Clients'} can bookmark it for direct access.
+   214→                                    </p>
+   215→                                </div>
+   216→
+   217→                                <div>
+   218→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Managing Portal Access</h4>
+   219→                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+   220→                                        <li><strong>Sending invitations:</strong> Go to <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code> and click <strong>"Invite {isProperty ? 'Resident' : 'Client'}"</strong>. Fill in the email and optional details, then send. The invitation will appear in the list with a "Pending" status.</li>
+   221→                                        <li><strong>Revoking access:</strong> From the same Portal Access page, click the revoke icon (lock) next to any active or pending invitation. This immediately disables their login credentials. They will see an "Access Revoked" message when attempting to log in.</li>
+   222→                                        <li><strong>Resending invitations:</strong> If an invitation has expired (after 30 days), you can send a new one to the same email address from the Portal Access page.</li>
+   223→                                        <li><strong>Viewing access logs:</strong> The {isProperty ? 'tenant' : 'client'} detail page shows the last login timestamp and total number of portal sessions, helping you monitor engagement and detect unauthorized access.</li>
+   224→                                    </ul>
+   225→                                </div>
+   226→
+   227→                                <div>
+   228→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Security & Data Protection</h4>
+   229→                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+   230→                                        <li><strong>Encryption:</strong> All portal data is encrypted at rest (AES-256) and in transit (TLS 1.3), matching the security standards of the main PracticePro workspace.</li>
+   231→                                        <li><strong>Scope-limited access:</strong> {isProperty ? 'Tenants' : 'Clients'} can only see information specifically shared with them. They cannot access other {isProperty ? 'tenants\' records, portfolio-level data, or internal workflows' : 'clients\' matters, firm-level data, or internal workflows'}.</li>
+   232→                                        <li><strong>Session management:</strong> Portal sessions expire after 30 minutes of inactivity. {isProperty ? 'Tenants' : 'Clients'} must re-authenticate to continue.</li>
+   233→                                        <li><strong>Audit trail:</strong> Every portal access, document download, and action is logged with a timestamp and IP address, available in your compliance reporting module.</li>
+   234→                                        <li><strong>NDPA 2023 compliance:</strong> Portal operations comply with the Nigeria Data Protection Act 2023. {isProperty ? 'Tenants' : 'Clients'} can request data access or deletion through you as the data controller.</li>
+   235→                                    </ul>
+   236→                                </div>
+   237→                            </div>
+   238→                        </AccordionItem>
+   239→
+   240→                        <AccordionItem title={isProperty ? "Manager Guide" : "Lawyer Guide"}>
+   241→                            <div className="space-y-6">
+   242→                                <div>
+   243→                                    <h4 className="font-bold text-lg">Intake & Lifecycle Management</h4>
+   244→                                    <p>{isProperty ? 'Experience intelligent property onboarding through the Intake Wizard. ARIA safeguards data entry and seamlessly bridges you into the Drafting Lab to auto-populate agreements.' : 'Experience intelligent onboarding through the Enterprise Intake Wizard. ARIA safeguards data entry according to Nigerian procedural rules, and seamlessly bridges you into the Drafting Lab to auto-populate Writs and agreements.'}</p>
+   245→                                </div>
+   246→                                <div>
+   247→                                    <h4 className="font-bold text-lg">{isProperty ? 'Leasing & Maintenance' : 'Procedural Drafting Lab & Research'}</h4>
+   248→                                    <p>{isProperty ? 'Transition directly from property intake to the Drafting Lab for high-speed, precise lease execution, supported by maintenance tracking.' : 'Transition directly from matter intake to the Procedural Drafting Lab for high-speed, precise template execution, supported by the Research Studio.'}</p>
+   249→                                </div>
+   250→                                <div>
+   251→                                    <h4 className="font-bold text-lg">{isProperty ? 'Document Management' : 'Document Intelligence (ALDIA)'}</h4>
+   252→                                    <p>{isProperty ? 'Let ARIA organize your property documents, tenancy agreements, and title deeds in a central, searchable repository.' : 'Let ALDIA scan your documents for risks, Governing Law, and extracted metadata to save you hours of manual review.'}</p>
+   253→                                </div>
+   254→                            </div>
+   255→                        </AccordionItem>
+   256→
+   257→                        <AccordionItem title={isProperty ? "Associate Guide" : "Paralegal Guide"} defaultOpen={false}>
+   258→                            <div className="space-y-6">
+   259→                                <div>
+   260→                                    <h4 className="font-bold text-lg">Task Management & Delegation</h4>
+   261→                                    <p>Stay on top of deadlines with the Kanban Task Board. Receive assignments from {isProperty ? 'managers' : 'lawyers'} and update progress in real-time.</p>
+   262→                                </div>
+   263→                                {isProperty ? (
+   264→                                    <div>
+   265→                                        <h4 className="font-bold text-lg">Facility Management</h4>
+   266→                                        <p>Track maintenance requests, vendor quotes, and completion status across the entire portfolio.</p>
+   267→                                    </div>
+   268→                                ) : (
+   269→                                    <div>
+   270→                                        <h4 className="font-bold text-lg">Court Process Filing</h4>
+   271→                                        <p>Use the Litigation Pipeline to track the status of court documents from "Draft" to "Acknowledged", ensuring no filing deadline is missed.</p>
+   272→                                    </div>
+   273→                                )}
+   274→                                <div>
+   275→                                    <h4 className="font-bold text-lg">{isProperty ? 'Tenant & Payment Tracking' : 'Property & Maintenance Tracking'}</h4>
+   276→                                    <p>{isProperty ? 'Manage tenant records, track rent payments, lease expiries, and issue receipts efficiently.' : 'Manage real estate portfolios for clients, tracking rent payments, lease expiries, and maintenance requests efficiently.'}</p>
+   277→                                </div>
+   278→                            </div>
+   279→                        </AccordionItem>
+   280→
+   281→                        <AccordionItem title="AI Chat Features" defaultOpen={false}>
+   282→                            <div className="space-y-4">
+   283→                                <div>
+   284→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">File Uploads</h4>
+   285→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   286→                                        Click the paperclip icon next to the text input to attach documents, images, or PDFs to your message. Files upload to secure storage and appear as thumbnails or file chips in the conversation. You can attach multiple files at once (max 20MB each).
+   287→                                    </p>
+   288→                                </div>
+   289→                                <div>
+   290→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">PII Shield</h4>
+   291→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   292→                                        When you send a message containing private information (emails, phone numbers, NIN, BVN, bank account numbers), the PII Shield automatically strips them before sending to the AI. A green badge appears above your message showing what was removed. Click the badge to see exactly what was detected and replaced.
+   293→                                    </p>
+   294→                                </div>
+   295→                                <div>
+   296→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Edit & Resend</h4>
+   297→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   298→                                        Hover over any message you sent to see Copy and Edit buttons. Click Edit to put the message back in the input field, remove the old message and response, and resend with changes.
+   299→                                    </p>
+   300→                                </div>
+   301→                                <div>
+   302→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">AI Request Queue</h4>
+   303→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   304→                                        Messages are processed sequentially — if you send multiple messages quickly, they queue up and process one at a time. A pending count indicator shows how many requests are queued. Each request has a 15-second timeout to prevent UI freezes on slow connections.
+   305→                                    </p>
+   306→                                </div>
+   307→                            </div>
+   308→                        </AccordionItem>
+   309→
+   310→                        <AccordionItem title="DraftPro & Placeholders" defaultOpen={false}>
+   311→                            <div className="space-y-4">
+   312→                                <div>
+   313→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Color-Coded Placeholders</h4>
+   314→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   315→                                        When the AI generates a document, blank fields appear as color-coded pills. Each color represents a category: <span className="text-blue-600 font-semibold">blue</span> (parties/names), <span className="text-purple-600 font-semibold">purple</span> (dates), <span className="text-green-600 font-semibold">green</span> (financial), <span className="text-teal-600 font-semibold">teal</span> (addresses), <span className="text-rose-600 font-semibold">rose</span> (court/legal), <span className="text-indigo-600 font-semibold">indigo</span> (firm details), <span className="text-amber-600 font-semibold">amber</span> (free text).
+   316→                                    </p>
+   317→                                </div>
+   318→                                <div>
+   319→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Fill Blanks</h4>
+   320→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   321→                                        Click "Fill Blanks" in the toolbar to open a modal listing all placeholders, grouped by category. Use the "Auto-fill from matter" button to automatically pull client name, suit number, court name, and firm details from the linked matter. You can also ask the AI for suggestions per placeholder.
+   322→                                    </p>
+   323→                                </div>
+   324→                                <div>
+   325→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Litigation Skeletons</h4>
+   326→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   327→                                        When drafting litigation documents (Affidavits, Motions, Statements of Claim/Defence, etc.), the AI follows Nigerian legal document structures with mandatory boilerplate sections. Each document type has a "never omit" checklist that the AI self-checks before returning the draft.
+   328→                                    </p>
+   329→                                </div>
+   330→                            </div>
+   331→                        </AccordionItem>
+   332→
+   333→                        {isProperty && (
+   334→                        <AccordionItem title="Visitor Management System" defaultOpen={false}>
+   335→                            <div className="space-y-4">
+   336→                                <div>
+   337→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">How VMS Works</h4>
+   338→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   339→                                        Residents generate 6-digit access codes for their visitors from the Resident Portal (Visitors tab). They choose an expiry window (2h, 6h, 12h, or 24h) and a delivery method: share via their own WhatsApp (free) or have the portal send it automatically via WhatsApp API.
+   340→                                    </p>
+   341→                                </div>
+   342→                                <div>
+   343→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Gatekeeper Interface</h4>
+   344→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   345→                                        Gatekeepers use a lightweight verification interface optimized for gate tablets/phones. They enter the 6-digit code, see instant verification (green for valid, red for invalid/expired), and check visitors in/out. The interface works offline — the last 100 verifications are cached locally.
+   346→                                    </p>
+   347→                                </div>
+   348→                                <div>
+   349→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Admin Configuration</h4>
+   350→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   351→                                        Enable VMS in Settings → Portal Access. Configure gatekeeper notifications (WhatsApp alert on visitor arrival), resident notifications, grace periods (0-60 min), and default validity windows. VMS requires Atrium Growth+ plan.
+   352→                                    </p>
+   353→                                </div>
+   354→                            </div>
+   355→                        </AccordionItem>
+   356→                        )}
+   357→
+   358→                        <AccordionItem title="Trust Accounting" defaultOpen={false}>
+   359→                            <div className="space-y-4">
+   360→                                <div>
+   361→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">What is Trust Accounting?</h4>
+   362→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   363→                                        Trust accounts hold client funds separately from your firm's operating money. This is required for compliance in many Nigerian jurisdictions. PracticePro's trust ledger tracks deposits (money received into trust), withdrawals (money paid out), and transfers (moving earned fees to your operating account).
+   364→                                    </p>
+   365→                                </div>
+   366→                                <div>
+   367→                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Enabling Trust Accounting</h4>
+   368→                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+   369→                                        Go to Settings → Firm → Trust Accounting and toggle it on. A new "Trust Account" tab appears in your Financials page. The ledger shows a running balance after each transaction and prevents withdrawals that would make the balance negative. You can turn it off anytime — existing transactions are preserved.
+   370→                                    </p>
+   371→                                </div>
+   372→                            </div>
+   373→                        </AccordionItem>
+   374→
+   375→                        <AccordionItem title="Beta Features & Feedback" defaultOpen={false}>
+   376→                            <div className="space-y-6">
+   377→                                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg">
+   378→                                    <h4 className="font-bold text-lg text-amber-800 dark:text-amber-400 flex items-center gap-2">
+   379→                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-2xs uppercase tracking-wider">Beta</span>
+   380→                                        What is a Beta Feature?
+   381→                                    </h4>
+   382→                                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-2 leading-relaxed">
+   383→                                        Features marked as <strong>Beta</strong> (like DraftPro and Research Studio) are still being actively refined. While they are fully functional and safe for professional use, you may encounter minor UI polish issues or experimental tools. Your feedback helps us transition these features to General Availability.
+   384→                                    </p>
+   385→                                </div>
+   386→                                <div>
+   387→                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Active Beta Tools:</h4>
+   388→                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-2">
+   389→                                        <li><strong>DraftPro:</strong> {isProperty ? 'AI-augmented document editor' : 'AI-augmented legal word processor'} for high-speed drafting.</li>
+   390→                                        <li><strong>Research Studio:</strong> Advanced deep-dive analysis and chronology building tool.</li>
+   391→                                        <li><strong>ARIA Voice:</strong> {isProperty ? 'Real-time voice interaction with your property assistant.' : 'Real-time voice interaction with your legal assistant.'}</li>
+   392→                                    </ul>
+   393→                                </div>
+   394→                                <div>
+   395→                                    <h4 className="font-bold text-sm text-gray-800 dark:text-white">How to Provide Feedback</h4>
+   396→                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+   397→                                        Use the <strong>"Send Feedback"</strong> button found in the bottom right of the Settings screen to report any issues or suggest improvements for Beta features.
+   398→                                    </p>
+   399→                                </div>
+   400→                            </div>
+   401→                        </AccordionItem>
+   402→                    </Accordion>
+   403→                </div>
+   404→            </div>
+   405→        </SettingsCard>
+   406→
+   407→            {/* ─── Contact Support ─── */}
+   408→            <SettingsCard title="Contact Support" className="mt-6">
+   409→                <div className="space-y-4">
+   410→                    <p className="text-sm text-gray-600 dark:text-gray-400">
+   411→                        Need help that the articles above didn't cover? Our team is here for you.
+   412→                    </p>
+   413→                    <div className="flex flex-col sm:flex-row gap-3">
+   414→                        <a
+   415→                            href="mailto:practiceprosystems@gmail.com?subject=PracticePro%20Support%20Request"
+   416→                            className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 transition-all shadow-sm"
+   417→                        >
+   418→                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   419→                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+   420→                            </svg>
+   421→                            Email Support
+   422→                        </a>
+   423→                        <button
+   424→                            onClick={() => { resetTour(); addToast("App tour has been reset.", { type: 'success' }); }}
+   425→                            className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
+   426→                        >
+   427→                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   428→                                <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+   429→                            </svg>
+   430→                            Replay App Tour
+   431→                        </button>
+   432→                    </div>
+   433→                    <p className="text-xs text-slate-400 dark:text-zinc-500">
+   434→                        Response time: typically within 24 hours on business days.
+   435→                    </p>
+   436→                </div>
+   437→            </SettingsCard>
+   438→        </div>
+   439→    );
+   440→};
+   441→
