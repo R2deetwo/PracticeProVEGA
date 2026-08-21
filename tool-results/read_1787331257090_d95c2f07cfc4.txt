@@ -1,0 +1,840 @@
+     1→
+     2→import * as React from 'react';
+     3→import { ModalType, SelectedId, Theme, View, HistoryEntry, Toast, TaskStatus, FontSize, AloaFormInteractionState, EditorState, ViewState, ContextMenuState, MatterStatus } from '../types';
+     4→import { useNavigate, useLocation } from 'react-router-dom';
+     5→import { useQuery, useMutation } from "convex/react";
+     6→
+     7→
+     8→import { api } from "../../convex/_generated/api";
+     9→import { useAuth } from './AuthContext';
+    10→
+    11→export interface UIContextType {
+    12→    theme: Theme;
+    13→    setTheme: (theme: Theme) => void;
+    14→    fontSize: FontSize;
+    15→    setFontSize: (size: FontSize) => void;
+    16→    isSidebarOpen: boolean;
+    17→    toggleSidebar: () => void;
+    18→    closeSidebar: () => void;
+    19→    isSidebarRetracted: boolean;
+    20→    toggleSidebarRetraction: () => void;
+    21→    modal: ModalType | null;
+    22→    modalContext: any;
+    23→    editingId: SelectedId;
+    24→    openModal: (modalType: ModalType, id?: string | null, context?: any) => void;
+    25→    closeModal: (idToClose?: string) => void;
+    26→    getModalTitle: (modalType: ModalType) => string;
+    27→    setModalContext: React.Dispatch<React.SetStateAction<any>>;
+    28→    history: HistoryEntry[];
+    29→    setHistory: React.Dispatch<React.SetStateAction<HistoryEntry[]>>;
+    30→    historyIndex: number;
+    31→    setHistoryIndex: React.Dispatch<React.SetStateAction<number>>;
+    32→    currentHistoryEntry: HistoryEntry;
+    33→    view: View;
+    34→    selectedId: SelectedId;
+    35→    canGoBack: boolean;
+    36→    canGoForward: boolean;
+    37→    navigateTo: (newView: View, newSelectedId?: SelectedId, context?: any) => void;
+    38→    goBack: () => void;
+    39→    goForward: () => void;
+    40→    updateCurrentHistoryEntry: (updates: Partial<HistoryEntry>) => void;
+    41→    settingsTargetId: string | null;
+    42→    setSettingsTargetId: React.Dispatch<React.SetStateAction<string | null>>;
+    43→    searchQuery: string | null;
+    44→    setSearchQuery: React.Dispatch<React.SetStateAction<string | null>>;
+    45→    toasts: Toast[];
+    46→    addToast: (message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => void;
+    47→    removeToast: (id: number) => void;
+    48→    taskStatusFilter: TaskStatus | null;
+    49→    setTaskStatusFilter: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
+    50→    highlightTarget: { view: View; filter: any; color?: 'red' | 'orange' | 'blue' | 'shimmer' } | null;
+    51→    setHighlightTarget: React.Dispatch<React.SetStateAction<UIContextType['highlightTarget']>>;
+    52→    isMobileSearchOpen: boolean;
+    53→    setMobileSearchOpen: (isOpen: boolean) => void;
+    54→    dockedModalType: ModalType | null;
+    55→    setDockedModalType: React.Dispatch<React.SetStateAction<ModalType | null>>;
+    56→
+    57→    // Form Interaction & Persistence
+    58→    formInteractionState: AloaFormInteractionState;
+    59→    setFormInteractionState: React.Dispatch<React.SetStateAction<AloaFormInteractionState>>;
+    60→    activeFormSnapshot: any; // Persist form data even when closed
+    61→    setActiveFormSnapshot: React.Dispatch<React.SetStateAction<any>>;
+    62→
+    63→    editorState: EditorState;
+    64→    openEditor: (documentId?: string | null, context?: any) => void;
+    65→    closeEditor: () => void;
+    66→
+    67→    isCommandPaletteOpen: boolean;
+    68→    toggleCommandPalette: () => void;
+    69→    setCommandPaletteOpen: (isOpen: boolean) => void;
+    70→
+    71→    contextMenu: ContextMenuState;
+    72→    setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState>>;
+    73→    closeContextMenu: () => void;
+    74→
+    75→    viewState: ViewState;
+    76→    setViewState: React.Dispatch<React.SetStateAction<ViewState>>;
+    77→
+    78→    activePeers: Array<{ userId: string; updatedAt: number; isOnline: boolean }>;
+    79→    isOnline: boolean;
+    80→
+    81→    // Lock Screen Management
+    82→    isSessionLocked: boolean;
+    83→    setIsSessionLocked: (locked: boolean) => void;
+    84→}
+    85→
+    86→export const UIContext = React.createContext<UIContextType | undefined>(undefined);
+    87→
+    88→export const useUI = () => {
+    89→    const context = React.useContext(UIContext);
+    90→    if (context === undefined) {
+    91→        throw new Error('useUI must be used within a UIProvider');
+    92→    }
+    93→    return context;
+    94→};
+    95→
+    96→// ... (getModalTitle helper remains same)
+    97→const getModalTitle = (modalType: ModalType): string => {
+    98→    switch (modalType) {
+    99→        case 'login': return 'Sign In';
+   100→        case 'signup': return 'Create Account';
+   101→        case 'newMatter': return 'New Matter';
+   102→        case 'editMatter': return 'Edit Matter';
+   103→        case 'closeMatter': return 'Close Matter';
+   104→        case 'archiveMatter': return 'Archive Matter';
+   105→        case 'newContact': return 'New Contact';
+   106→        case 'editContact': return 'Edit Contact';
+   107→        case 'newDocument': return 'Upload Document';
+   108→        case 'editDocument': return 'Edit Document';
+   109→        case 'shareDocument': return 'Share Document';
+   110→        case 'signDocument': return 'Sign Document';
+   111→        case 'newEvent': return 'New Event';
+   112→        case 'editEvent': return 'Edit Event';
+   113→        case 'viewEvent': return 'Event Details';
+   114→        case 'newInvoice': return 'New Invoice';
+   115→        case 'editInvoice': return 'Edit Invoice';
+   116→        case 'viewInvoice': return 'Invoice Details';
+   117→        case 'generateInvoice': return 'Generate Invoice';
+   118→        case 'newUser': return 'Invite User';
+   119→        case 'editUser': return 'Edit User';
+   120→        case 'newTimeEntry': return 'Log Time';
+   121→        case 'editTimeEntry': return 'Edit Time Entry';
+   122→        case 'newExpense': return 'Log Expense';
+   123→        case 'editExpense': return 'Edit Expense';
+   124→        case 'deleteConfirmation': return 'Confirm Delete';
+   125→        case 'newWorkflow': return 'Create Workflow';
+   126→        case 'editWorkflow': return 'Edit Workflow';
+   127→        case 'newEventType': return 'New Event Type';
+   128→        case 'editEventType': return 'Edit Event Type';
+   129→        case 'newContactCategory': return 'New Contact Category';
+   130→        case 'mergeContact': return 'Merge Contact Record';
+   131→        case 'editContactCategory': return 'Edit Contact Category';
+   132→        case 'newChecklistTemplate': return 'New Checklist Template';
+   133→        case 'editChecklistTemplate': return 'Edit Checklist Template';
+   134→        case 'editFirmDetails': return 'Firm Details';
+   135→        case 'newTemplate': return 'New Document Template';
+   136→        case 'editTemplate': return 'Edit Document Template';
+   137→        case 'newTemplateCategory': return 'New Template Category';
+   138→        case 'editTemplateCategory': return 'Edit Template Category';
+   139→        case 'googleDrivePicker': return 'Select from Google Drive';
+   140→        case 'noTeamMembers': return 'Add Team Members';
+   141→        case 'folderPermissions': return 'Folder Permissions';
+   142→        case 'assignUsers': return 'Assign Users';
+   143→        case 'viewTask': return 'Task Details';
+   144→        case 'newTask': return 'New Task';
+   145→        case 'stageChecklist': return 'Stage Checklist';
+   146→        case 'newChannel': return 'New Channel';
+   147→        case 'newDirectMessage': return 'New Message';
+   148→        case 'externalCounsel': return 'External Counsel Access';
+   149→        case 'newExternalCounsel': return 'Invite External Counsel';
+   150→        case 'aloaHelp': return 'AI Assistant Help';
+   151→        case 'feedback': return 'Send Feedback';
+   152→        case 'newBankAccount': return 'Add Bank Account';
+   153→        case 'editBankAccount': return 'Edit Bank Account';
+   154→        case 'newNotebook': return 'New Notebook';
+   155→        case 'editNotebook': return 'Edit Notebook';
+   156→        case 'newPage': return 'New Page';
+   157→        case 'copyPage': return 'Copy Page';
+   158→        case 'newLead': return 'New Lead';
+   159→        case 'activateLead': return 'Activate Lead';
+   160→        case 'sendIntakeLink': return 'Send Intake Link';
+   161→        case 'sendPostActivationEmail': return 'Send Welcome Email';
+   162→        case 'requestFinancialDocument': return 'Request Document';
+   163→        case 'linkContactToMatter': return 'Link Contacts';
+   164→        case 'newProperty': return 'Add Property';
+   165→        case 'editProperty': return 'Edit Property';
+   166→        case 'newDocumentCategory': return 'New Folder';
+   167→        case 'editDocumentCategory': return 'Edit Folder';
+   168→        case 'newResearchNotebook': return 'New Research Notebook';
+   169→        case 'addResearchSource': return 'Add Source';
+   170→        case 'addCaseToNotebook': return 'Add Case to Notebook';
+   171→        case 'keyboardShortcuts': return 'Keyboard Shortcuts';
+   172→        case 'quickLook': return 'Quick Look';
+   173→        case 'requestTrustDeposit': return 'Request Trust Deposit';
+   174→        case 'compareDocuments': return 'Compare Documents';
+   175→        case 'composeEmail': return 'Compose Email';
+   176→        case 'paymentGateway': return 'Complete Payment';
+   177→        case 'upgradePlan': return 'Upgrade Plan';
+   178→        case 'onboarding': return 'Setup Your Firm';
+   179→
+   180→        case 'saveToNote': return 'Save to Note';
+   181→        case 'matterIngestion': return 'Smart Matter Ingestion';
+   182→        case 'leadCapture': return 'Demo Access';
+   183→        case 'collectRent': return 'Collect Rent';
+   184→        case 'bulkEditProperty': return 'Bulk Edit Properties';
+   185→        case 'editTask': return 'Edit Task';
+   186→        case 'newDraft': return 'New Draft';
+   187→        case 'linkMatterToContact': return 'Link Matter to Contact';
+   188→        case 'batchUpload': return 'Upload Files';
+   189→        case 'joinFirm': return 'Join Firm';
+   190→        case 'aiConsent': return 'AI Assistant Consent';
+   191→        case 'recordRentPayment': return 'Record Payment';
+   192→        case 'create_matter': return 'Create Matter';
+   193→        case 'create_contact': return 'Create Contact';
+   194→        case 'create_task': return 'Create Task';
+   195→        default: return 'Modal';
+   196→    }
+   197→};
+   198→
+   199→export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+   200→
+   201→    // Theme State - Initialize from LocalStorage to prevent flicker
+   202→    const [theme, setTheme] = React.useState<Theme>(() => {
+   203→        const stored = localStorage.getItem('practicepro_theme');
+   204→        return (stored as Theme) || 'system';
+   205→    });
+   206→
+   207→    const { currentUser } = useAuth();
+   208→    const navigate = useNavigate();
+   209→    const location = useLocation();
+   210→    const sendHeartbeatMutation = useMutation(api.myFunctions.sendHeartbeat);
+   211→    const activePeersQuery = useQuery(api.myFunctions.getActivePeers, currentUser?.firmId ? { firmId: currentUser.firmId, userEmail: currentUser?.email } : "skip");
+   212→
+   213→    const [fontSize, setFontSize] = React.useState<FontSize>(() => {
+   214→        const stored = localStorage.getItem('practicepro_fontSize');
+   215→        return (stored as FontSize) || 'md';
+   216→    });
+   217→    const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+   218→    const [isSidebarRetracted, setIsSidebarRetracted] = React.useState(false);
+   219→
+   220→    // ─── Terms Bar Visibility ─────────────────────────────────────────────
+   221→    // When a user dismisses the Terms bar with "Not Now" but later tries to
+   222→    // create a new entry, we need to re-show the bar so they can accept.
+   223→    // This state lets openModal trigger the bar re-display.
+   224→    const [showTermsBar, setShowTermsBar] = React.useState(false);
+   225→
+   226→    // ─── Mobile Landscape Auto-Collapse ──────────────────────────────────
+   227→    // On mobile devices in landscape orientation, the sidebar takes up too
+   228→    // much horizontal space, cramping the list + detail panes. We auto-
+   229→    // collapse it to the icon-only rail (w-20) when the viewport is narrow
+   230→    // AND in landscape. This maximizes the active workspace in the 3-pane
+   231→    // layout (Sidebar + List + Detail).
+   232→    //
+   233→    // Detection:
+   234→    //   - matchMedia('(orientation: landscape)') — true when width > height
+   235→    //   - matchMedia('(max-width: 1024px)') — tablet/phone landscape
+   236→    //   (We use 1024px instead of 768px because tablets in landscape can
+   237→    //    still benefit from the collapsed sidebar — the 3-pane layout needs
+   238→    //    all the width it can get.)
+   239→    React.useEffect(() => {
+   240→        if (typeof window === 'undefined' || !window.matchMedia) return;
+   241→        const landscapeMobile = window.matchMedia('(orientation: landscape) and (max-width: 1024px)');
+   242→        const handleLandscapeChange = (e: MediaQueryListEvent | MediaQueryList) => {
+   243→            const isLandscapeMobile = 'matches' in e ? e.matches : false;
+   244→            setIsSidebarRetracted(isLandscapeMobile);
+   245→        };
+   246→        // Set initial state
+   247→        handleLandscapeChange(landscapeMobile);
+   248→        // Listen for changes (rotation)
+   249→        try {
+   250→            landscapeMobile.addEventListener('change', handleLandscapeChange);
+   251→            return () => landscapeMobile.removeEventListener('change', handleLandscapeChange);
+   252→        } catch {
+   253→            // Safari < 14 fallback
+   254→            landscapeMobile.addListener(handleLandscapeChange);
+   255→            return () => landscapeMobile.removeListener(handleLandscapeChange);
+   256→        }
+   257→    }, []);
+   258→
+   259→    const [history, setHistory] = React.useState<HistoryEntry[]>([{ view: 'dashboard', selectedId: null }]);
+   260→    const [historyIndex, setHistoryIndex] = React.useState(0);
+   261→    const [modal, setModal] = React.useState<ModalType | null>(null);
+   262→    const [modalContext, setModalContext] = React.useState<any>(null);
+   263→    const [editingId, setEditingId] = React.useState<SelectedId>(null);
+   264→    const [dockedModalType, setDockedModalType] = React.useState<ModalType | null>(null);
+   265→    const [toasts, setToasts] = React.useState<Toast[]>([]);
+   266→    const [searchQuery, setSearchQuery] = React.useState<string | null>(null);
+   267→    const [settingsTargetId, setSettingsTargetId] = React.useState<string | null>(null);
+   268→    const [taskStatusFilter, setTaskStatusFilter] = React.useState<TaskStatus | null>(null);
+   269→    const [highlightTarget, setHighlightTarget] = React.useState<{ view: View; filter: any; color?: 'red' | 'orange' | 'blue' | 'shimmer' } | null>(null);
+   270→    const [isMobileSearchOpen, setMobileSearchOpen] = React.useState(false);
+   271→    const [formInteractionState, setFormInteractionState] = React.useState<AloaFormInteractionState>({ highlightedFieldId: null, isReadyForSubmit: false, fieldValues: {} });
+   272→    const [activeFormSnapshot, setActiveFormSnapshot] = React.useState<any>(null);
+   273→    const [editorState, setEditorState] = React.useState<EditorState>({ isOpen: false, documentId: null });
+   274→    const [isCommandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
+   275→    const [contextMenu, setContextMenu] = React.useState<ContextMenuState>({ isOpen: false, x: 0, y: 0, type: null, itemId: null });
+   276→    const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+   277→    const [viewState, setViewState] = React.useState<ViewState>({
+   278→        matters: { statusFilter: MatterStatus.Active, practiceAreaFilter: 'All', assigneeFilter: 'All', searchFilter: '' },
+   279→        tasks: { statusFilter: 'All', userFilter: 'All', searchFilter: '' },
+   280→        contacts: { categoryFilter: 'All' }
+   281→    });
+   282→
+   283→    // session lock persistence logic
+   284→    const [isSessionLocked, setIsSessionLocked] = React.useState<boolean>(() => {
+   285→        return localStorage.getItem('practicepro_session_locked') === 'true';
+   286→    });
+   287→
+   288→    // ── User switch guard: reset history when user changes ───────────────
+   289→    const prevUserIdRef = React.useRef<string | null | undefined>(currentUser?.id);
+   290→    React.useEffect(() => {
+   291→        const prevId = prevUserIdRef.current;
+   292→        const nextId = currentUser?.id;
+   293→        if (prevId && nextId && prevId !== nextId) {
+   294→            setHistory([{ view: 'dashboard', selectedId: null }]);
+   295→            setHistoryIndex(0);
+   296→            setModal(null);
+   297→            setDockedModalType(null);
+   298→        }
+   299→        prevUserIdRef.current = nextId;
+   300→    }, [currentUser?.id]);
+   301→
+   302→    React.useEffect(() => {
+   303→        localStorage.setItem('practicepro_session_locked', isSessionLocked ? 'true' : 'false');
+   304→    }, [isSessionLocked]);
+   305→
+   306→    // Heartbeat Effect
+   307→    React.useEffect(() => {
+   308→        if (!currentUser || !currentUser.firmId) return;
+   309→
+   310→        const sendPulse = () => {
+   311→            sendHeartbeatMutation({
+   312→                firmId: currentUser.firmId!,
+   313→                userId: currentUser.id,
+   314→                userName: currentUser.name,
+   315→                // Pass userEmail so requireFirmUser can authenticate via the
+   316→                // fallback path if ctx.auth.getUserIdentity() is unavailable.
+   317→                // Without this, the heartbeat can fail silently with
+   318→                // "Unauthenticated" — and no presence data is stored.
+   319→                userEmail: currentUser.email,
+   320→            }).catch(() => { /* Heartbeat failure is non-critical; retry on next interval */ });
+   321→        };
+   322→
+   323→        // Send immediately
+   324→        sendPulse();
+   325→
+   326→        // Then every 20s
+   327→        const interval = setInterval(sendPulse, 20000);
+   328→        return () => clearInterval(interval);
+   329→    }, [currentUser?.id, currentUser?.firmId, currentUser?.name, currentUser?.email]);
+   330→
+   331→    // Theme Effect - Applies class to HTML root
+   332→    // IMPORTANT: The user's saved theme (which may override brand colors)
+   333→    // is ONLY applied after login. On the landing page, login screen, and
+   334→    // signup screen, we always use the default brand green (#16A34A) so
+   335→    // the landing page looks consistent regardless of what theme the user
+   336→    // previously chose.
+   337→    React.useEffect(() => {
+   338→        const root = window.document.documentElement;
+   339→        root.classList.remove(
+   340→            'light', 'dark',
+   341→            'theme-midnight', 'theme-oled', 'theme-neon-cyber', 'theme-sunlight-soft', 'theme-city-lights',
+   342→            'theme-city-emerald', 'theme-midnight-emerald', 'theme-army-dark', 'theme-army-light'
+   343→        );
+   344→
+   345→        // Only apply the user's custom theme when they're logged in.
+   346→        // On the landing page / login / signup (no currentUser), use the
+   347→        // default light theme with brand green.
+   348→        if (!currentUser) {
+   349→            root.classList.add('light');
+   350→            return;
+   351→        }
+   352→
+   353→        let activeTheme = theme;
+   354→        if (theme === 'system') {
+   355→            activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+   356→        }
+   357→
+   358→        if (activeTheme === 'dark') {
+   359→            root.classList.add('dark');
+   360→        } else if (activeTheme === 'midnight') {
+   361→            root.classList.add('dark', 'theme-midnight');
+   362→        } else if (activeTheme === 'oled') {
+   363→            root.classList.add('dark', 'theme-oled');
+   364→        } else if (activeTheme === 'neon-cyber') {
+   365→            root.classList.add('dark', 'theme-neon-cyber');
+   366→        } else if (activeTheme === 'midnight-emerald') {
+   367→            root.classList.add('dark', 'theme-midnight-emerald');
+   368→        } else if (activeTheme === 'army-dark') {
+   369→            root.classList.add('dark', 'theme-army-dark');
+   370→        } else if (activeTheme === 'sunlight-soft') {
+   371→            root.classList.add('theme-sunlight-soft');
+   372→        } else if (activeTheme === 'city-lights') {
+   373→            root.classList.add('theme-city-lights');
+   374→        } else if (activeTheme === 'city-emerald') {
+   375→            root.classList.add('theme-city-emerald');
+   376→        } else if (activeTheme === 'army-light') {
+   377→            root.classList.add('theme-army-light');
+   378→        } else {
+   379→            root.classList.add('light');
+   380→        }
+   381→
+   382→        localStorage.setItem('practicepro_theme', theme);
+   383→    }, [theme, currentUser]);
+   384→
+   385→    // System theme change listener — when the user's OS theme changes and the
+   386→    // app is in 'system' mode, re-apply the theme so the dark/light class
+   387→    // updates in real time. Without this, switching the OS theme while the
+   388→    // app is open has no effect until the user manually toggles or reloads.
+   389→    // This also serves as a "force re-apply" mechanism: if the theme class
+   390→    // somehow gets out of sync with the state, this listener fires on any
+   391→    // matchMedia change and re-runs the effect above.
+   392→    React.useEffect(() => {
+   393→        if (theme !== 'system') return;
+   394→        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+   395→        const handler = () => {
+   396→            const root = window.document.documentElement;
+   397→            root.classList.remove('light', 'dark');
+   398→            if (mq.matches) {
+   399→                root.classList.add('dark');
+   400→            } else {
+   401→                root.classList.add('light');
+   402→            }
+   403→        };
+   404→        mq.addEventListener('change', handler);
+   405→        return () => mq.removeEventListener('change', handler);
+   406→    }, [theme]);
+   407→    // Font Size Effect - Applies class to HTML root for global scaling
+   408→    React.useEffect(() => {
+   409→        const root = window.document.documentElement;
+   410→        root.classList.remove('font-size-sm', 'font-size-md', 'font-size-lg');
+   411→        root.classList.add(`font-size-${fontSize}`);
+   412→        localStorage.setItem('practicepro_fontSize', fontSize);
+   413→    }, [fontSize]);
+   414→
+   415→    // Network Listener — robust offline detection for both web AND Capacitor APK.
+   416→    //
+   417→    // The previous implementation only listened to window 'online'/'offline'
+   418→    // events, which are unreliable in a Capacitor WebView:
+   419→    //   - They don't fire when the device loses internet but stays on Wi-Fi
+   420→    //     (no network interface state change).
+   421→    //   - They don't fire when the WebView caches a stale connection state.
+   422→    //
+   423→    // This new implementation adds THREE layers of detection:
+   424→    //   1. window 'online'/'offline' events (instant, when they fire)
+   425→    //   2. Convex connection status (subscription error = offline)
+   426→    //   3. Active polling every 15s using fetch() to a tiny endpoint
+   427→    //
+   428→    // The polling catches the cases where events don't fire — e.g. the user
+   429→    // turns off mobile data but the WebView still thinks it's online.
+   430→    React.useEffect(() => {
+   431→        const handleOnline = () => setIsOnline(true);
+   432→        const handleOffline = () => setIsOnline(false);
+   433→        window.addEventListener('online', handleOnline);
+   434→        window.addEventListener('offline', handleOffline);
+   435→
+   436→        // Active polling — every 15 seconds, try a HEAD request to Convex.
+   437→        // If it fails, we're offline. If it succeeds, we're online.
+   438→        // This catches the "Wi-Fi connected but no internet" case that
+   439→        // browser events miss.
+   440→        let pollInterval: ReturnType<typeof setInterval> | null = null;
+   441→        let lastReportedState = navigator.onLine;
+   442→        const pollNetwork = async () => {
+   443→            try {
+   444→                // Use a no-cors fetch to Convex's health endpoint. no-cors
+   445→                // means we can't read the response, but we don't care — we
+   446→                // just want to know if the request succeeds or throws.
+   447→                // A timeout of 5s ensures we don't hang forever on a slow
+   448→                // connection that's actually working.
+   449→                const controller = new AbortController();
+   450→                const timeoutId = setTimeout(() => controller.abort(), 5000);
+   451→                // Use Convex's query endpoint (valid HTTP path) instead of /health
+   452→                // which doesn't exist. This hits a real Convex API endpoint.
+   453→                await fetch('https://gregarious-malamute-537.convex.cloud/api/query', {
+   454→                    method: 'POST',
+   455→                    mode: 'no-cors',
+   456→                    signal: controller.signal,
+   457→                    cache: 'no-store',
+   458→                    headers: { 'Content-Type': 'application/json' },
+   459→                    body: JSON.stringify({ path: 'myFunctions:getServerTime', args: {} }),
+   460→                });
+   461→                clearTimeout(timeoutId);
+   462→                // If we got here, the request succeeded (or opaque response)
+   463→                if (!lastReportedState) {
+   464→                    lastReportedState = true;
+   465→                    setIsOnline(true);
+   466→                }
+   467→            } catch {
+   468→                // Request failed — we're offline
+   469→                if (lastReportedState) {
+   470→                    lastReportedState = false;
+   471→                    setIsOnline(false);
+   472→                }
+   473→            }
+   474→        };
+   475→
+   476→        // Start polling after a short delay (don't fire immediately on mount)
+   477→        setTimeout(() => {
+   478→            pollNetwork();
+   479→            pollInterval = setInterval(pollNetwork, 15000);
+   480→        }, 2000);
+   481→
+   482→        // Also try Capacitor's Network plugin if available (more reliable in APK)
+   483→        try {
+   484→            const capacitor = (window as any).Capacitor;
+   485→            if (capacitor?.Plugins?.Network) {
+   486→                const Network = capacitor.Plugins.Network;
+   487→                Network.addListener('networkStatusChange', (status: any) => {
+   488→                    const connected = status.connected && status.connectionType !== 'none';
+   489→                    lastReportedState = connected;
+   490→                    setIsOnline(connected);
+   491→                });
+   492→            }
+   493→        } catch {
+   494→            // Capacitor Network plugin not available — polling covers it
+   495→        }
+   496→
+   497→        return () => {
+   498→            window.removeEventListener('online', handleOnline);
+   499→            window.removeEventListener('offline', handleOffline);
+   500→            if (pollInterval) clearInterval(pollInterval);
+   501→        };
+   502→    }, []);
+   503→
+   504→    const view = React.useMemo(() => {
+   505→        const pathParts = location.pathname.split('/').filter(Boolean);
+   506→        const currentView = (pathParts[0] || 'dashboard') as View;
+   507→        const currentId = pathParts[1] || null;
+   508→
+   509→        let mappedView = currentView;
+   510→        if (location.pathname === '/') mappedView = 'dashboard';
+   511→        if (location.pathname === '/cookie-policy') mappedView = 'cookiePolicy' as any;
+   512→        if (location.pathname === '/privacy-policy') mappedView = 'privacyPolicy' as any;
+   513→        if (location.pathname === '/terms-of-service') mappedView = 'termsOfService' as any;
+   514→        if (location.pathname === '/data-processing-agreement') mappedView = 'dataProcessingAgreement' as any;
+   515→        if (location.pathname === '/usage-policy') mappedView = 'usagePolicy' as any;
+   516→        if (location.pathname === '/resources') mappedView = 'resources' as any;
+   517→        if (currentView === 'matters' && currentId) mappedView = 'matterDetail';
+   518→        if (currentView === 'contacts' && currentId) mappedView = 'contactDetail';
+   519→        if (currentView === 'documents' && currentId) mappedView = 'documentDetail';
+   520→        if (currentView === 'properties' && currentId) mappedView = 'propertyDetail';
+   521→        
+   522→        return mappedView;
+   523→    }, [location.pathname]);
+   524→
+   525→    const selectedId = React.useMemo(() => {
+   526→        const pathParts = location.pathname.split('/').filter(Boolean);
+   527→        const id = pathParts[1] || null;
+   528→        return id === 'null' ? null : id; // Sanitize string "null"
+   529→    }, [location.pathname]);
+   530→
+   531→    const currentHistoryEntry = history[historyIndex] || { view: 'dashboard', selectedId: null };
+   532→
+   533→    const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => {
+   534→        const id = Date.now();
+   535→        // DEBOUNCING — deduplicate identical toast messages within a 2-second
+   536→        // window to prevent UI spam (e.g. when a button is double-clicked or
+   537→        // a Convex subscription fires multiple rapid updates).
+   538→        const messageStr = typeof message === 'string' ? message : String(message);
+   539→        setToasts(prev => {
+   540→            const now = id;
+   541→            const isDuplicate = prev.some(t =>
+   542→                t.id > now - 2000 && // within 2 seconds
+   543→                (typeof t.message === 'string' ? t.message : String(t.message)) === messageStr &&
+   544→                t.type === (options?.type || 'info')
+   545→            );
+   546→            if (isDuplicate) return prev; // Skip — duplicate within debounce window
+   547→
+   548→            // CAP: maximum 3 visible toasts at any time. Older toasts
+   549→            // are dropped so the screen doesn't fill up with a cascade
+   550→            // of alerts (e.g. when deleting a multi-unit property).
+   551→            const newToasts = [...prev, { id, message, type: options?.type || 'info', link: options?.link }];
+   552→            if (newToasts.length > 3) {
+   553→                return newToasts.slice(-3);
+   554→            }
+   555→            return newToasts;
+   556→        });
+   557→        try {
+   558→            const type = options?.type || 'info';
+   559→            if (type === 'success') {
+   560→                import('../utils/haptics').then(m => m.haptics.success());
+   561→            } else if (type === 'error') {
+   562→                import('../utils/haptics').then(m => m.haptics.error());
+   563→            } else if (type === 'warning' || type === 'info') {
+   564→                import('../utils/haptics').then(m => m.haptics.light());
+   565→            }
+   566→        } catch {}
+   567→        const duration = options?.duration || 3500;
+   568→        setTimeout(() => {
+   569→            setToasts(prev => prev.filter(t => t.id !== id));
+   570→        }, duration);
+   571→    }, []);
+   572→
+   573→    React.useEffect(() => {
+   574→        const handleExternalToast = (e: any) => {
+   575→            const { message, options } = e.detail;
+   576→            addToast(message, options);
+   577→        };
+   578→        window.addEventListener('practicepro-toast', handleExternalToast);
+   579→
+   580→        return () => {
+   581→            window.removeEventListener('practicepro-toast', handleExternalToast);
+   582→        };
+   583→    }, [addToast]);
+   584→
+   585→    const navigateTo = React.useCallback((newView: View, newSelectedId: SelectedId = null, context?: any) => {
+   586→        // Sanitize string "null" or undefined IDs
+   587→        const safeId = (newSelectedId === 'null' || !newSelectedId) ? '' : newSelectedId;
+   588→        
+   589→        let path = `/${newView}`;
+   590→        
+   591→        // Map legacy view names to routes
+   592→        if (newView === 'dashboard') path = '/';
+   593→        else if (newView === 'cookiePolicy') path = '/cookie-policy';
+   594→        else if (newView === 'privacyPolicy') path = '/privacy-policy';
+   595→        else if (newView === 'termsOfService') path = '/terms-of-service';
+   596→        else if (newView === 'portalTermsOfUse') path = '/portal-terms-of-use';
+   597→        else if (newView === 'dataProcessingAgreement') path = '/data-processing-agreement';
+   598→        else if (newView === 'usagePolicy') path = '/usage-policy';
+   599→        else if (newView === 'resources') path = '/resources';
+   600→        else if (newView === 'matterDetail') path = `/matters/${safeId}`;
+   601→        else if (newView === 'contactDetail') path = `/contacts/${safeId}`;
+   602→        else if (newView === 'documentDetail') path = `/documents/${safeId}`;
+   603→        else if (newView === 'propertyDetail') path = `/properties/${safeId}`;
+   604→        else if (newView === 'properties') path = `/properties`;
+   605→        else if (safeId) {
+   606→            path = `/${newView}/${safeId}`;
+   607→        }
+   608→        
+   609→        // Remove trailing slashes resulting from empty IDs
+   610→        if (path.endsWith('/')) path = path.slice(0, -1);
+   611→        
+   612→        navigate(path, { state: context });
+   613→        
+   614→        // Sync custom history state
+   615→        // CRO AUDIT FIX — populate previousView so detail views know where
+   616→        // the user came from (e.g. matterDetail opened from matters list
+   617→        // → previousView = 'matters'). This was declared in the type but
+   618→        // never actually set, causing back buttons to go to the wrong place.
+   619→        const currentView = history[historyIndex]?.view || 'dashboard';
+   620→        setHistory(prev => {
+   621→            const newHistory = prev.slice(0, historyIndex + 1);
+   622→            newHistory.push({ view: newView, selectedId: newSelectedId, context, previousView: currentView });
+   623→            return newHistory;
+   624→        });
+   625→        setHistoryIndex(prev => prev + 1);
+   626→
+   627→        setMobileSearchOpen(false);
+   628→        // CRO AUDIT FIX — only close modal if there's no dirty form.
+   629→        // If a form has unsaved changes, we skip the modal close — the
+   630→        // navigation still happens, but the modal stays mounted so the
+   631→        // user can see their draft. This is a simpler approach than a
+   632→        // confirmation dialog and prevents silent data loss.
+   633→        if (!formInteractionState.isReadyForSubmit || Object.keys(formInteractionState.fieldValues || {}).length === 0) {
+   634→            setModal(null);
+   635→        }
+   636→    }, [navigate, historyIndex, formInteractionState]);
+   637→
+   638→    const goBack = React.useCallback(() => {
+   639→        if (historyIndex > 0) {
+   640→            setHistoryIndex(prev => prev - 1);
+   641→            navigate(-1);
+   642→        } else {
+   643→            // CRO AUDIT FIX — No in-app history to go back to. This happens
+   644→            // when a route was opened directly (e.g. deep link from a
+   645→            // notification). Previously fell through to window.history.back()
+   646→            // which could EJECT the user from the app entirely on a fresh tab.
+   647→            // Now: if we're on a detail view or legal doc, go to the parent
+   648→            // view. Otherwise, go to the dashboard.
+   649→            //
+   650→            // BUG FIX (this session): The previous implementation read
+   651→            // `history[historyIndex].view`, but `history` is initialised to
+   652→            // `[{view: 'dashboard'}]` on first mount — so for a deep-linked
+   653→            // URL like /privacy-policy, `currentEntry.view` was always
+   654→            // 'dashboard', never the actual current view. This caused legal
+   655→            // docs to fall through to the default 'dashboard' branch and call
+   656→            // `navigate('/dashboard')`, which is not a valid route (the real
+   657→            // dashboard lives at `/`). We now use the URL-derived `view`
+   658→            // (which IS the actual current view) and also map legal docs to
+   659→            // their parent ('resources') so deep-link visitors land on a
+   660→            // sensible page instead of being routed to a non-existent URL.
+   661→            const currentView = view;
+   662→            const parentMap: Record<string, string> = {
+   663→                'matterDetail': 'matters',
+   664→                'propertyDetail': 'properties',
+   665→                'invoiceDetail': 'billing',
+   666→                'documentDetail': 'documents',
+   667→                'contactDetail': 'contacts',
+   668→                'editor': 'matters',
+   669→                'atriumEngine': 'billing',
+   670→                // Public legal/docs pages — fall back to Resources, which is
+   671→                // the page that links to all of them. Better than 'dashboard'
+   672→                // for unauthenticated visitors (who can't access dashboard).
+   673→                'privacyPolicy': 'resources',
+   674→                'termsOfService': 'resources',
+   675→                'portalTermsOfUse': 'resources',
+   676→                'dataProcessingAgreement': 'resources',
+   677→                'cookiePolicy': 'resources',
+   678→                'usagePolicy': 'resources',
+   679→            };
+   680→            const parentView = parentMap[currentView] || 'dashboard';
+   681→            // BUG FIX: previously called `navigate(`/${parentView}`)` which
+   682→            // produces `/dashboard` for the default case — but `/dashboard` is
+   683→            // NOT a valid route (dashboard lives at `/`). Use the same
+   684→            // view→path mapping that `navigateTo` uses.
+   685→            const parentPath = parentView === 'dashboard' ? '/' : `/${parentView}`;
+   686→            navigate(parentPath);
+   687→        }
+   688→    }, [navigate, historyIndex, history, view]);
+   689→
+   690→    const goForward = React.useCallback(() => {
+   691→        if (historyIndex < history.length - 1) {
+   692→            setHistoryIndex(prev => prev + 1);
+   693→            navigate(1);
+   694→        }
+   695→    }, [navigate, historyIndex, history.length]);
+   696→
+   697→
+   698→    const updateCurrentHistoryEntry = React.useCallback((updates: Partial<HistoryEntry>) => {
+   699→        setHistory(prev => {
+   700→            const newHistory = [...prev];
+   701→            newHistory[historyIndex] = { ...newHistory[historyIndex], ...updates };
+   702→            return newHistory;
+   703→        });
+   704→    }, [historyIndex]);
+   705→
+   706→    // Modals that CREATE new entries — blocked when terms aren't accepted.
+   707→    // Users can still VIEW and EDIT existing data, but can't create new
+   708→    // entries until they accept the Terms of Service and Privacy Policy.
+   709→    const CREATE_MODAL_TYPES: string[] = [
+   710→        'newTask', 'newMatter', 'newContact', 'newProperty', 'newDocument',
+   711→        'newInvoice', 'newEvent', 'newNotebook', 'newResearchNotebook',
+   712→        'newDraft', 'newChannel', 'newDirectMessage', 'addResearchSource',
+   713→        'newEventType', 'newContactCategory', 'newDocumentCategory',
+   714→        'newChecklistTemplate', 'newWorkflow', 'addProperty', 'addContact',
+   715→        'addUnit', 'addBankAccount', 'newLead', 'newExpenseCategory',
+   716→        'newDocumentTemplate', 'newDocumentTemplateCategory',
+   717→        'sendIntakeLink', 'sendPostActivationEmail',
+   718→    ];
+   719→
+   720→    const openModal = React.useCallback((modalType: ModalType, id: string | null = null, context: any = null) => {
+   721→        // ─── Terms Gate ────────────────────────────────────────────────
+   722→        // Block creating new entries if the user hasn't accepted the Terms
+   723→        // of Service and Privacy Policy. Users can still VIEW and EDIT
+   724→        // existing data — this gate only blocks CREATION.
+   725→        if (CREATE_MODAL_TYPES.includes(modalType as string)) {
+   726→            try {
+   727→                const termsAccepted = localStorage.getItem('practicepro_terms_accepted_version') === '2026-07-27-v4';
+   728→                if (!termsAccepted) {
+   729→                    // Re-show the Terms bar so the user can accept, and show
+   730→                    // a toast explaining why their action was blocked.
+   731→                    setShowTermsBar(true);
+   732→                    setToasts(prev => [...prev, {
+   733→                        id: Date.now(),
+   734→                        message: 'You need to accept the Terms of Service and Privacy Policy before creating new entries. The acceptance bar is shown below.',
+   735→                        type: 'warning' as const,
+   736→                        link: undefined,
+   737→                    }]);
+   738→                    return; // Block the modal from opening
+   739→                }
+   740→            } catch {
+   741→                // localStorage might be blocked — allow the modal
+   742→            }
+   743→        }
+   744→
+   745→        const isAloaTriggered = context?.openedByAloa === true;
+   746→
+   747→        if (isAloaTriggered) {
+   748→            setDockedModalType(modalType);
+   749→            setModalContext(context);
+   750→            setEditingId(id);
+   751→            setModal(null); // Ensure regular modal is closed
+   752→        } else {
+   753→            // Default behavior: Center Modal
+   754→            setModal(modalType);
+   755→            setModalContext(context);
+   756→            setEditingId(id);
+   757→            setDockedModalType(null); // Ensure side modal is closed
+   758→        }
+   759→    }, []);
+   760→
+   761→    const closeModal = React.useCallback((idToClose?: string) => {
+   762→        setModal(null);
+   763→        setDockedModalType(null);
+   764→        setModalContext(null);
+   765→        setEditingId(null);
+   766→        setFormInteractionState({ highlightedFieldId: null, isReadyForSubmit: false, fieldValues: {} });
+   767→    }, []);
+   768→
+   769→    const removeToast = React.useCallback((id: number) => {
+   770→        setToasts(prev => prev.filter(t => t.id !== id));
+   771→    }, []);
+   772→
+   773→    const toggleSidebar = React.useCallback(() => setIsSidebarOpen(p => !p), []);
+   774→    const closeSidebar = React.useCallback(() => setIsSidebarOpen(false), []);
+   775→    const toggleSidebarRetraction = React.useCallback(() => setIsSidebarRetracted(p => !p), []);
+   776→
+   777→    const openEditor = React.useCallback((documentId: string | null = null, context: any = null) => {
+   778→        if (context) {
+   779→            updateCurrentHistoryEntry({ context: { ...currentHistoryEntry.context, ...context } });
+   780→        }
+   781→        if (documentId) {
+   782→            navigateTo('editor', documentId, context);
+   783→        } else {
+   784→            navigateTo('editor', null, context);
+   785→        }
+   786→    }, [navigateTo, updateCurrentHistoryEntry, currentHistoryEntry]);
+   787→
+   788→    const closeEditor = React.useCallback(() => {
+   789→        goBack();
+   790→    }, [goBack]);
+   791→
+   792→    const toggleCommandPalette = React.useCallback(() => setCommandPaletteOpen(p => !p), []);
+   793→    const closeContextMenu = React.useCallback(() => setContextMenu(prev => ({ ...prev, isOpen: false })), []);
+   794→
+   795→    const value = React.useMemo(() => ({
+   796→        theme, setTheme,
+   797→        fontSize, setFontSize,
+   798→        isSidebarOpen, toggleSidebar, closeSidebar,
+   799→        isSidebarRetracted, toggleSidebarRetraction,
+   800→        showTermsBar, setShowTermsBar,
+   801→        modal, modalContext, editingId, openModal, closeModal, getModalTitle, setModalContext,
+   802→        history, setHistory, historyIndex, setHistoryIndex, currentHistoryEntry,
+   803→        view, selectedId, canGoBack: historyIndex > 0, canGoForward: historyIndex < history.length - 1,
+   804→        navigateTo, goBack, goForward, updateCurrentHistoryEntry,
+   805→        settingsTargetId, setSettingsTargetId,
+   806→        searchQuery, setSearchQuery,
+   807→        toasts, addToast, removeToast,
+   808→        taskStatusFilter, setTaskStatusFilter,
+   809→        highlightTarget, setHighlightTarget,
+   810→        isMobileSearchOpen, setMobileSearchOpen,
+   811→        dockedModalType, setDockedModalType,
+   812→        formInteractionState, setFormInteractionState,
+   813→        activeFormSnapshot, setActiveFormSnapshot,
+   814→        editorState, openEditor, closeEditor,
+   815→        isCommandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen,
+   816→        contextMenu, setContextMenu, closeContextMenu,
+   817→        viewState, setViewState,
+   818→        activePeers: activePeersQuery || [],
+   819→        isOnline,
+   820→        isSessionLocked, setIsSessionLocked
+   821→    }), [
+   822→        theme, fontSize, isSidebarOpen, toggleSidebar, closeSidebar,
+   823→        isSidebarRetracted, toggleSidebarRetraction,
+   824→        modal, modalContext, editingId, openModal, closeModal,
+   825→        history, historyIndex, currentHistoryEntry,
+   826→        view, selectedId, navigateTo, goBack, goForward, updateCurrentHistoryEntry,
+   827→        settingsTargetId, searchQuery, toasts, addToast, removeToast,
+   828→        taskStatusFilter, highlightTarget, isMobileSearchOpen, dockedModalType,
+   829→        formInteractionState, activeFormSnapshot, editorState, openEditor, closeEditor,
+   830→        isCommandPaletteOpen, toggleCommandPalette, contextMenu, closeContextMenu,
+   831→        viewState, activePeersQuery, isOnline, isSessionLocked
+   832→    ]);
+   833→
+   834→    return (
+   835→        <UIContext.Provider value={value}>
+   836→            {children}
+   837→        </UIContext.Provider>
+   838→    );
+   839→};
+   840→

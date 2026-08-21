@@ -327,29 +327,49 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.1/purify.min.js"></script>
   <!-- Fuse.js removed from CDN — now imported as npm package in components -->
 
-  <script type="module" crossorigin src="/assets/index-BTlzqv9b.js"></script>
+  <script type="module" crossorigin src="/assets/index-DWLEwuL1.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/vendor-react-COY0iz7A.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-animation-XoWDvZcM.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-convex-CQJX0U6N.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-icons-CLxQCLdg.js">
-  <link rel="modulepreload" crossorigin href="/assets/module-settings-BxQZ1CXn.js">
-  <link rel="modulepreload" crossorigin href="/assets/module-research-B4UJx_pZ.js">
+  <link rel="modulepreload" crossorigin href="/assets/module-settings-C_Ap4QxO.js">
+  <link rel="modulepreload" crossorigin href="/assets/module-research-DjnN4v1z.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-ai-BEB5csrM.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-editor-BlLTNID1.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-DH9759yb.js">
-  <link rel="modulepreload" crossorigin href="/assets/module-documents-Y7qjwuzV.js">
-  <link rel="modulepreload" crossorigin href="/assets/module-atrium-IvleKEkE.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-YCIhBH73.js">
+  <link rel="modulepreload" crossorigin href="/assets/module-documents-BNEYwARv.js">
+  <link rel="modulepreload" crossorigin href="/assets/module-atrium-BJnyvz4t.js">
   <link rel="stylesheet" crossorigin href="/assets/index-4C8SmTNO.css">
 </head>
 
 <script>
   console.log("[index.html] Initializing head script...");
-  // Apply theme classes before first paint to prevent FOUC
+  // Apply theme classes before first paint to prevent FOUC.
+  // FIX: Only apply the user's saved theme when they have an active session.
+  // On the landing page, login, and signup pages, ALWAYS use the default light
+  // theme with brand green — so users don't see a stale theme from a previous
+  // session (e.g., army green) during signup.
   (function() {
     try {
       var root = document.documentElement;
-      const darkThemes = ['dark', 'midnight', 'oled', 'neon-cyber'];
-      const lightThemes = ['light', 'sunlight-soft', 'city-lights'];
+      const pathname = window.location.pathname;
+      const isPublicRoute = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
+                           pathname === '/vega' || pathname === '/atrium' || pathname === '/komplet' ||
+                           pathname.startsWith('/portal/') || pathname.startsWith('/legal/') ||
+                           pathname.startsWith('/resources') || pathname.startsWith('/privacy') ||
+                           pathname.startsWith('/terms') || pathname.startsWith('/cookie') ||
+                           pathname.startsWith('/usage') || pathname.startsWith('/data-processing');
+
+      // Check if the user has an active session (not just a cached theme)
+      const hasSession = localStorage.getItem('practicepro_user_session') || localStorage.getItem('convex_client_jwt');
+
+      if (isPublicRoute || !hasSession) {
+        // Always use light theme on public routes and when not logged in
+        root.classList.add('light');
+        return;
+      }
+
+      // Only apply the user's saved theme when logged in and on an app route
       const theme = localStorage.getItem('practicepro_theme') || 'system';
 
       if (theme === 'dark') {
