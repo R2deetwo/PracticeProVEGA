@@ -438,8 +438,7 @@ const TenantPortal: React.FC = () => {
   // ── Open maintenance tickets count for badge ──
   const maintenanceTickets = useQuery(
     api.portals.getMaintenanceTicketsByTenant,
-    effectiveFirmId && (tenantInfo?.tenantId || userId) ? {
-      firmId: effectiveFirmId,
+    (tenantInfo?.tenantId || userId) ? {
       tenantId: tenantInfo?.tenantId || userId,
     } : 'skip'
   );
