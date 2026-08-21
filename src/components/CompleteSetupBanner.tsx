@@ -96,6 +96,16 @@ const CompleteSetupBanner: React.FC = () => {
       return;
     }
 
+    // BRIEF #2: Intercept "Add a court date" if no matters exist yet.
+    if (nextItem.key === 'hasCourtDateOnMatter' && !(checklist as any).hasMatter) {
+      addToast('No matters found — create your first matter before adding a court date.', {
+        type: 'info',
+        duration: 6000,
+        link: { text: 'Create Matter', onClick: () => openModal('newMatter' as any) },
+      });
+      return;
+    }
+
     if (nextItem.action.kind === 'view') {
       navigateTo(nextItem.action.view as any, null);
     } else {

@@ -754,20 +754,25 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         chargeType: 'SC' | 'MV',
         periodsKey: 'scPeriods' | 'mvPeriods',
     ) => {
-        try {
-            const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
-            const tenantName = rental?.tenantName || 'Resident';
-            const unitName = rental?.unitName || unit.description || 'Unit';
-            const chargeTypeLabel = chargeType === 'SC' ? 'Service Charge' : 'Minimum Vend';
-            const billingPeriod = (() => {
-                try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
-                catch { return `Period ${period.index}`; }
-            })();
-            const receiptNumber = `RC-${Date.now().toString().slice(-6)}-${period.index}`;
-            const settlementMethod = period.paidOnTime === false ? 'Paid Late' :
-                                      period.isAdvance ? 'Advance Payment' : 'Paid On Time';
+        // BRIEF #4: Track receipt issuance success/failure.
+        // Only persist the receiptNumber to the period if the portal message
+        // was actually sent. If it fails, leave the period without a receipt
+        // number so the button shows "Generate Receipt" (not "View Issued Receipt").
+        const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
+        const tenantName = rental?.tenantName || 'Resident';
+        const unitName = rental?.unitName || unit.description || 'Unit';
+        const chargeTypeLabel = chargeType === 'SC' ? 'Service Charge' : 'Minimum Vend';
+        const billingPeriod = (() => {
+            try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
+            catch { return `Period ${period.index}`; }
+        })();
+        const receiptNumber = `RC-${Date.now().toString().slice(-6)}-${period.index}`;
+        const settlementMethod = period.paidOnTime === false ? 'Paid Late' :
+                                  period.isAdvance ? 'Advance Payment' : 'Paid On Time';
 
-            // 1. Publish receipt to resident's portal
+        try {
+            // 1. Publish receipt to resident's portal — if this fails, do NOT
+            // persist the receipt number (BRIEF #4: consistent status state).
             await sendPortalMessage({
                 firmId,
                 senderId: currentUser?.id || '',
@@ -793,7 +798,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
                 triggeredBy: currentUser?.id,
             } as any);
 
-            // 3. Persist receipt number to the period
+            // 3. Persist receipt number to the period — ONLY after successful send
             const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
             const updatedPeriods = currentPeriods.map(p =>
                 p.index === period.index ? { ...p, receiptNumber } : p
@@ -804,11 +809,14 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             } as Property['rentalDetails'];
             onUpdate(updatedRental!);
 
-            // 4. Toast confirmation
-            addToast(`Receipt ${receiptNumber} auto-issued to ${tenantName}'s portal.`, { type: 'success' });
+            // 4. Toast confirmation — action confirmation, NOT a self-notification
+            // (BRIEF #4: admin sees a brief toast, no notification center entry).
+            addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal.`, { type: 'success' });
         } catch (err: any) {
             console.warn('Auto-receipt issuance failed:', err);
-            addToast('Payment logged, but receipt auto-issuance failed. Use [Generate Receipt] manually.', { type: 'info' });
+            // BRIEF #4: Do NOT persist the receipt number — leave the button as
+            // "Generate Receipt" so the user knows it wasn't actually sent.
+            addToast('Payment logged, but receipt could not be sent to the resident. Click "Generate Receipt" to retry.', { type: 'warning', duration: 8000 });
         }
     }, [coreState, currentUser, rental, unit, sendPortalMessage, logAutomation, onUpdate, addToast]);
 

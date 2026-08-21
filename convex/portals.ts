@@ -4157,24 +4157,30 @@ export const sendPortalMessage = mutation({
       });
     }
 
-    // Notify firm admins that a portal user sent a new message — creates
-    // in-app notification (header bell) + email if enabled. (Tickets and
-    // service requests have their own dedicated notifications via
-    // createMaintenanceTicket / createClientServiceRequest, so we don't
-    // double-notify here. sendPortalMessage is only called for free-form
-    // chat messages from the portal.)
-    try {
-      await notifyFirmAdmins(ctx, {
-        firmId: args.firmId,
-        title: `New portal message from ${args.senderName || 'portal user'}`,
-        message: `${args.senderName || 'A portal user'} sent: ${args.content.substring(0, 120)}${args.content.length > 120 ? '...' : ''}`,
-        type: "portal_new_message",
-        link: { view: "messaging", initialTab: "inbox" },
-        actorName: args.senderName,
-        actorEmail: args.senderEmail,
-      });
-    } catch (err) {
-      console.warn("[sendPortalMessage] Failed to notify admins:", (err as any)?.message);
+    // BRIEF #4 + #5: Notification Dispatch Hygiene
+    // Only notify firm admins when the message is FROM a portal user (Tenant/Client).
+    // When an admin sends a receipt or message TO a resident, the admin already knows
+    // they sent it — no self-notification needed. Previously, every sendPortalMessage
+    // call (including admin-originated receipts) triggered a "New portal message from
+    // {yourself}" notification, which was confusing.
+    //
+    // isAdminMessage is computed earlier in this handler (line ~4032) from senderRole.
+    if (!isAdminMessage) {
+      try {
+        await notifyFirmAdmins(ctx, {
+          firmId: args.firmId,
+          title: `New portal message from ${args.senderName || 'portal user'}`,
+          message: `${args.senderName || 'A portal user'} sent: ${args.content.substring(0, 120)}${args.content.length > 120 ? '...' : ''}`,
+          type: "portal_new_message",
+          // BRIEF #3: Include the conversation ID so the "View" link can deep-link
+          // to the specific conversation, not just the generic messages inbox.
+          link: { view: "messaging", initialTab: "inbox", activeConversationId: conversation._id },
+          actorName: args.senderName,
+          actorEmail: args.senderEmail,
+        });
+      } catch (err) {
+        console.warn("[sendPortalMessage] Failed to notify admins:", (err as any)?.message);
+      }
     }
 
     return { messageId, conversationId };

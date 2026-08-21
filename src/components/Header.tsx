@@ -215,7 +215,19 @@ const Header: React.FC = React.memo(() => {
                         type: n.type === 'success' ? 'success' : 'info',
                         link: n.link ? {
                             text: 'View',
-                            onClick: () => navigateTo(n.link?.view as any, n.link?.id, n.link?.context)
+                            // BRIEF #3: Deep-link navigation — pass the full link
+                            // context through so the destination page can auto-select
+                            // the specific conversation, receipt, or matter.
+                            // Previously, only `n.link?.context` was passed, which
+                            // dropped top-level `initialTab` and `activeConversationId`.
+                            onClick: () => {
+                                const link = n.link;
+                                const navContext: any = { ...link?.context };
+                                if (link?.initialTab) navContext.initialTab = link.initialTab;
+                                if (link?.activeConversationId) navContext.activeConversationId = link.activeConversationId;
+                                if (link?.id) navContext.selectedInboxId = link.id;
+                                navigateTo(link?.view as any, link?.id || null, navContext);
+                            }
                         } : undefined
                     });
                     // Native push notification (mobile only) — shows in the

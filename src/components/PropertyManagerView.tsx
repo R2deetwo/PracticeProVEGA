@@ -40,15 +40,16 @@ const getDaysUntilLeaseEnd = (leaseEnd?: string): number | null => {
     return diff;
 };
 
-const PropertyListItem: React.FC<{ 
-    property: Property, 
-    ownerName: string, 
-    unitCount?: number, 
-    onClick: () => void, 
+const PropertyListItem: React.FC<{
+    property: Property,
+    ownerName: string,
+    unitCount?: number,
+    onClick: () => void,
     onDelete: (e: React.MouseEvent) => void,
     isSelected?: boolean,
-    onToggleSelect?: (e: React.MouseEvent) => void
-}> = ({ property, ownerName, unitCount, onClick, onDelete, isSelected, onToggleSelect }) => {
+    onToggleSelect?: (e: React.MouseEvent) => void,
+    dataItemId?: string,
+}> = ({ property, ownerName, unitCount, onClick, onDelete, isSelected, onToggleSelect, dataItemId }) => {
     const isOccupied = property.status === 'Occupied';
     const isListed = property.status === 'Listed';
     const rent = property.rentalDetails?.rentAmount;
@@ -68,6 +69,7 @@ const PropertyListItem: React.FC<{
 
     return (
         <div
+            data-item-id={dataItemId}
             onClick={onClick}
             className={`group relative p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${isSelected ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : leaseExpired ? 'border-l-red-400 bg-white dark:bg-zinc-900 shadow-sm' : leaseUrgent ? 'border-l-amber-400 bg-white dark:bg-zinc-900 shadow-sm' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
@@ -467,9 +469,10 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
                     <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">
                         {filteredProperties.length > 0 ? (
-                            filteredProperties.map(item => (
+                            filteredProperties.map((item, idx) => (
                                 <PropertyListItem
                                     key={item.property.id}
+                                    dataItemId={idx === 0 ? 'checklist-cta-hasTenantOnProperty' : undefined}
                                     property={item.property}
                                     ownerName={item.ownerName}
                                     unitCount={item.unitCount}
@@ -632,9 +635,10 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                 {/* List — card-style items matching Matters UI */}
                 <div className="p-2">
                     {filteredProperties.length > 0 ? (
-                        filteredProperties.map(item => (
+                        filteredProperties.map((item, idx) => (
                             <PropertyListItem
                                 key={item.property.id}
+                                dataItemId={idx === 0 ? 'checklist-cta-hasTenantOnProperty' : undefined}
                                 property={item.property}
                                 ownerName={item.ownerName}
                                 unitCount={item.unitCount}

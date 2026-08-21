@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Capacitor } from '@capacitor/core';
+import { useUI } from '../contexts/UIContext';
 
 interface NotificationCenterProps {
   userId: string;
@@ -21,6 +22,7 @@ interface NotificationCenterProps {
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { navigateTo } = useUI();
   const notifications = useQuery(api.pushNotifications.getUserNotifications,
     userId ? { userId, limit: 30 } : 'skip'
   );
@@ -50,6 +52,19 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }) => {
       }
     } else if (notif.actionType === 'external_url' && notif.actionUrl) {
       window.open(notif.actionUrl, '_blank');
+    } else if (notif.link?.view) {
+      // BRIEF #3: Deep-link navigation — pass the full link context through
+      // so the destination page can auto-select the specific conversation,
+      // receipt, or matter. Previously, only the view was navigated to,
+      // dropping the `activeConversationId` and other context fields.
+      const link = notif.link;
+      const navContext: any = { ...link.context };
+      // Flatten common link fields into the navigation context so the
+      // destination page's `currentHistoryEntry.context` reads them.
+      if (link.initialTab) navContext.initialTab = link.initialTab;
+      if (link.activeConversationId) navContext.activeConversationId = link.activeConversationId;
+      if (link.id) navContext.selectedInboxId = link.id;
+      navigateTo(link.view, link.id || null, navContext);
     }
 
     setIsOpen(false);

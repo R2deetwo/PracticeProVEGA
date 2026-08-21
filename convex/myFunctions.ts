@@ -6467,21 +6467,24 @@ export const getGettingStartedChecklist = query({
     void isLegal;
 
     // ── Existence checks ───────────────────────────────────────────────
-    // Each uses .first() on the by_firm index — bounded, fast.
-    const [firstMatter, firstProperty, firstContact, firstServiceCharge,
+    // BRIEF #1 FIX: Previously used .first() which only checked the FIRST
+    // record. If the user added a tenant to the SECOND property, the check
+    // returned false and the checklist item never ticked off.
+    // Now we use .take(N) + .some() to check ALL records in each table.
+    const [allMatters, allProperties, firstContact, allServiceCharges,
           usersInFirm, portalInvitesSent] = await Promise.all([
       ctx.db.query("matters")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
-        .first(),
+        .take(500),
       ctx.db.query("properties")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
-        .first(),
+        .take(500),
       ctx.db.query("contacts")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
         .first(),
       ctx.db.query("service_charges")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
-        .first(),
+        .take(500),
       // Users OTHER than the current admin (i.e. invited teammates)
       ctx.db.query("users")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
@@ -6493,11 +6496,11 @@ export const getGettingStartedChecklist = query({
         .catch(() => []),
     ]);
 
-    // Has at least one property with a tenant assigned
-    const hasTenantOnProperty = firstProperty
-      ? !!(firstProperty as any).rentalDetails?.tenantContactId ||
-         !!(firstProperty as any).rentalDetails?.tenantPhone
-      : false;
+    // Has at least one property with a tenant assigned — check ALL properties,
+    // not just the first (BRIEF #1 fix).
+    const hasTenantOnProperty = allProperties.some((p: any) =>
+      !!(p.rentalDetails?.tenantContactId || p.rentalDetails?.tenantPhone)
+    );
 
     // Bank accounts live on firmDetails.bankAccounts (added via BankAccountForm)
     const bankAccounts: any[] = Array.isArray((firm as any).bankAccounts)
@@ -6509,14 +6512,12 @@ export const getGettingStartedChecklist = query({
     // (any signal that the user has touched billing configuration). For
     // simplicity, we treat hasMatter as the proxy for "set your billing rate"
     // because the Vega MatterForm collects the rate at matter creation time.
-    const hasBillingRate = !!firstMatter;
+    const hasBillingRate = allMatters.length > 0;
 
-    // Court date = matters with nextAdjournedDate set
-    const hasCourtDateOnMatter = !!(
-      firstMatter &&
-      ((firstMatter as any).nextAdjournedDate ||
-       (firstMatter as any).nextCourtDate ||
-       (firstMatter as any).courtDate)
+    // Court date = ANY matter with nextAdjournedDate / nextCourtDate / courtDate
+    // set. Previously only checked the first matter (BRIEF #1 fix).
+    const hasCourtDateOnMatter = allMatters.some((m: any) =>
+      !!(m.nextAdjournedDate || m.nextCourtDate || m.courtDate)
     );
 
     // Invited at least one teammate (more than 1 user in firm, OR has any
@@ -6546,10 +6547,10 @@ export const getGettingStartedChecklist = query({
 
     return {
       product,
-      hasMatter: !!firstMatter,
-      hasProperty: !!firstProperty,
+      hasMatter: allMatters.length > 0,
+      hasProperty: allProperties.length > 0,
       hasContact: !!firstContact,
-      hasServiceCharge: !!firstServiceCharge,
+      hasServiceCharge: allServiceCharges.length > 0,
       hasTenantOnProperty,
       hasBankAccount,
       hasBillingRate,

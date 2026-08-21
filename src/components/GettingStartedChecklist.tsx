@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
@@ -45,14 +45,14 @@ const VEGA_ITEMS: ChecklistItem[] = [
   { key: 'hasContact',       label: 'Add a client contact',      action: { kind: 'modal', modalType: 'newContact' },    hint: 'Clients you can bill and message.' },
   { key: 'hasBankAccount',   label: 'Configure a bank account',  action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For trust and operating accounts.' },
   { key: 'hasBillingRate',   label: 'Set your billing rate',     action: { kind: 'view',  view: 'billing' },            hint: 'Hourly, fixed fee, or retainer.' },
-  { key: 'hasCourtDateOnMatter', label: 'Add a court date',     action: { kind: 'view',  view: 'matters' },            hint: 'So you get reminders before hearings.' },
+  { key: 'hasCourtDateOnMatter', label: 'Add a court date',     action: { kind: 'view',  view: 'matters' },            hint: 'Open a matter → Schedule tab → Add court hearing.' },
   { key: 'hasInvitedUser',   label: 'Invite a team member',      action: { kind: 'view',  view: 'settings' },            hint: 'Lawyers, paralegals, accountants.' },
 ];
 
 const ATRIUM_ITEMS: ChecklistItem[] = [
   { key: 'hasProperty',              label: 'Add your first property',     action: { kind: 'modal', modalType: 'newProperty' },    hint: 'Residential, commercial, or estate.' },
-  { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view',  view: 'properties' },           hint: 'So you can collect rent.' },
-  { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Diesel, security, cleaning, etc.' },
+  { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → edit a unit → enter resident name.' },
+  { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Service Charge tab → add charge.' },
   { key: 'hasBankAccount',           label: 'Configure bank account',       action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For rent collections.' },
   { key: 'hasInvitedResidentToPortal', label: 'Invite a resident to portal', action: { kind: 'view', view: 'settings' },           hint: 'Residents self-serve rent payments.' },
   { key: 'hasSentReminder',         label: 'Send your first rent reminder', action: { kind: 'view', view: 'messaging' },          hint: 'WhatsApp or email nudge to a defaulter.' },
@@ -102,6 +102,28 @@ const GettingStartedChecklist: React.FC = () => {
     }
   }, [checklist, isDismissed, isProperty, isUnified, firmId]);
 
+  // BRIEF #7: Completion celebration toast — when an item transitions from
+  // incomplete → complete, show a brief success toast acknowledging the
+  // progress. This gives the user immediate feedback that their action was
+  // registered and the checklist updated reactively.
+  const prevChecklistRef = useRef(checklist);
+  useEffect(() => {
+    if (!prevChecklistRef.current || !checklist) {
+      prevChecklistRef.current = checklist;
+      return;
+    }
+    const prev = prevChecklistRef.current;
+    const currentItems = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
+    for (const item of currentItems) {
+      const wasDone = (prev as any)[item.key] === true;
+      const isDone = (checklist as any)[item.key] === true;
+      if (!wasDone && isDone) {
+        addToast?.(`✓ ${item.label} — complete!`, { type: 'success', duration: 4000 });
+      }
+    }
+    prevChecklistRef.current = checklist;
+  }, [checklist, isProperty, isUnified, addToast]);
+
   // Don't render until checklist data is loaded — avoids a flash of empty items.
   if (!firmId || !checklist || isDismissed) return null;
 
@@ -145,6 +167,17 @@ const GettingStartedChecklist: React.FC = () => {
         type: 'info',
         duration: 6000,
         link: { text: 'Create Property', onClick: () => openModal('newProperty' as any) },
+      });
+      return;
+    }
+
+    // BRIEF #2: Intercept "Add a court date" if no matters exist yet —
+    // you can't add a court date without a matter to attach it to.
+    if (item.key === 'hasCourtDateOnMatter' && !(checklist as any).hasMatter) {
+      addToast?.('No matters found — create your first matter before adding a court date.', {
+        type: 'info',
+        duration: 6000,
+        link: { text: 'Create Matter', onClick: () => openModal('newMatter' as any) },
       });
       return;
     }
