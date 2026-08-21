@@ -1110,7 +1110,13 @@ export const App: React.FC = () => {
         // If a portal user (Client/Tenant) is authenticated but NOT on a portal route,
         // redirect them immediately. This prevents cross-boundary access where a portal
         // user could end up in the main app's dashboard or any admin-only view.
-        if (currentUser && isPortalUserRole) {
+        //
+        // EXCEPTION: Landing page routes (/, /vega, /atrium, /komplet) are public —
+        // even authenticated portal users should be able to view the landing page
+        // without being redirected away. This fixes the "landing page forces redirect
+        // to portal" bug.
+        const landingPaths = ['/', '/vega', '/atrium', '/komplet'];
+        if (currentUser && isPortalUserRole && !landingPaths.includes(location.pathname)) {
             const isOnPortalRoute = location.pathname.startsWith('/portal/');
             if (!isOnPortalRoute) {
                 // Use token-based URL if the user has a portalAccessToken

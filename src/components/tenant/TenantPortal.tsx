@@ -757,39 +757,24 @@ const DashboardTab: React.FC<{
 
   return (
     <div className="space-y-4 pb-8">
-      {/* ─── Hero Card with merged Outstanding Balance ─────────────── */}
-      {/* HEADER CORRECTION (Chunk 1):
-          - Removed initials avatar (was showing "MU" for "Mr. Ubah" etc.)
-            — names are now displayed clearly without truncated initials.
-          - Swapped icon/address hierarchy:
-            TOP line = Unit Identifier + Building Icon
-            BOTTOM line = Full Address + Map Pin Icon
-          - This matches universal real-estate convention (unit first,
-            then location) and improves scannability.
-          - MANAGEMENT-ONLY: Outstanding Balance section is hidden when
-            isManagementOnly is true (no rent collection = no balance). */}
-      <div className="bg-brand-primary text-white rounded-premium p-4 shadow-premium">
-        <div className="flex items-start justify-between mb-3">
+      {/* ─── Hero Card — slim, compact design ─────────────────────────── */}
+      <div className="bg-brand-primary text-white rounded-premium p-3.5 shadow-premium">
+        <div className="flex items-center justify-between mb-2">
           <div className="min-w-0 flex-1">
-            <p className="text-2xs font-bold text-white/85 uppercase tracking-widest mb-1">
+            <p className="text-2xs font-bold text-white/70 uppercase tracking-widest mb-0.5">
               Residents' Portal
             </p>
-            {/* Display name clearly WITHOUT truncated initials.
-                Removed the getInitials() avatar circle entirely. */}
-            <h2 className="text-2xl font-bold tracking-tight leading-tight">
+            <h2 className="text-xl font-bold tracking-tight leading-tight">
               {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
             </h2>
           </div>
         </div>
-        {/* Unit + Property + Address — swapped hierarchy:
-            TOP: Unit Identifier (with building icon)
-            BOTTOM: Full Address (with map pin icon)
-            No duplicate address lines. */}
-        <div className="space-y-1.5 mb-3">
-          {/* LINE 1: Unit only (no property name appended) */}
+        {/* Unit + Address — compact, single block */}
+        <div className="space-y-1 mb-2">
+          {/* LINE 1: Unit only */}
           {tenantInfo?.primaryUnitName && (
-            <div className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-white/85 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3 h-3 text-white/70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9-4 9 4M3 7v10l9 4 9-4V7M3 7l9 4 9-4M12 11v10" />
               </svg>
               <p className="text-xs text-white/90 font-medium truncate">
@@ -797,35 +782,30 @@ const DashboardTab: React.FC<{
               </p>
             </div>
           )}
-          {/* LINE 2: Address only (no unit — that's on line 1) */}
+          {/* LINE 2: Address only */}
           {tenantInfo?.primaryPropertyAddress && (
-            <div className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-white/85 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3 h-3 text-white/70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <p className="text-xs text-white/90 truncate">
+              <p className="text-xs text-white/80 truncate">
                 {tenantInfo.primaryPropertyAddress}
               </p>
             </div>
           )}
         </div>
-        {/* Merged Outstanding Balance — tap to view ledger.
-            Always shown (even for Management-Only properties) because
-            the property may still have active service charges even if
-            rent collection is disabled. The old Management-Only text
-            block has been removed — services are now individually
-            toggled by the property manager. */}
+        {/* Outstanding Balance — compact */}
         <button
           onClick={() => onNavigate('ledger')}
-          className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
+          className="w-full text-left bg-white/10 hover:bg-white/15 rounded-lg p-2 active:scale-[0.98] transition-all border border-white/10"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xs font-bold text-white/85 uppercase tracking-widest">
+              <p className="text-2xs font-bold text-white/70 uppercase tracking-widest">
                 Outstanding Balance
               </p>
-              <p className={`text-lg font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
+              <p className={`text-base font-black mt-0.5 ${hasOutstanding ? 'text-amber-200' : 'text-white'}`}>
                 {formatNaira(outstandingBalance)}
               </p>
             </div>
@@ -833,15 +813,13 @@ const DashboardTab: React.FC<{
               <p className="text-xs text-white/90 font-semibold">
                 {hasOutstanding ? 'View Breakdown' : 'All Caught Up'}
               </p>
-              <ReceiptIcon className="w-4 h-4 text-white/85 ml-auto mt-1" />
+              <ReceiptIcon className="w-3.5 h-3.5 text-white/70 ml-auto mt-0.5" />
             </div>
           </div>
         </button>
 
-        {/* ─── Prepaid Wallet Card ─────────────────────────────────────────
-            Resident's prepaid balance. When auto-deduct is enabled, the
-            system automatically deducts monthly charges from this balance. */}
-        <div className="bg-gradient-to-br from-emerald-600/20 to-emerald-900/20 border border-emerald-500/30 rounded-xl p-3 mt-2">
+        {/* ─── Prepaid Wallet Card — compact ──────────────────────────── */}
+        <div className="bg-gradient-to-br from-emerald-600/15 to-emerald-900/15 border border-emerald-500/20 rounded-lg p-2.5 mt-1.5">
           <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-2xs font-bold text-emerald-300/85 uppercase tracking-widest">Wallet Balance</p>
@@ -874,27 +852,43 @@ const DashboardTab: React.FC<{
             <button
               onClick={async () => {
                 const amount = parseFloat(walletFundAmount || '');
-                if (!amount || amount <= 0 || !setIsFunding) return;
-                setIsFunding(true);
+                if (!amount || amount <= 0) return;
+                setIsFunding?.(true);
                 try {
+                  // Try Paystack first (card payment)
                   try {
                     const result = await initiateWalletFunding?.({
-                      tenantId: userId, firmId: effectiveFirmId,
+                      tenantId: userId || '',
+                      firmId: effectiveFirmId || '',
                       propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || '',
-                      amount, email,
+                      amount,
+                      email: email || '',
                     });
-                    if (result?.authorizationUrl) { window.location.href = result.authorizationUrl; return; }
-                  } catch (e: any) { console.warn('[Wallet] Paystack failed, manual fallback:', e.message); }
+                    if (result?.authorizationUrl) {
+                      window.location.href = result.authorizationUrl;
+                      return;
+                    }
+                  } catch (e: any) {
+                    console.warn('[Wallet] Paystack failed, manual fallback:', e.message);
+                  }
+
+                  // Fallback: manual credit (for when Paystack is not configured)
                   const result = await fundWallet?.({
-                    tenantId: userId, firmId: effectiveFirmId,
+                    tenantId: userId || '',
+                    firmId: effectiveFirmId || '',
                     propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || '',
                     amount,
                   });
-                  if (result?.success) setWalletFundAmount?.('');
-                } catch (e) { console.error('Wallet funding failed:', e); }
-                finally { setIsFunding(false); }
+                  if (result?.success) {
+                    setWalletFundAmount?.('');
+                  }
+                } catch (e: any) {
+                  console.error('Wallet funding failed:', e.message || e);
+                } finally {
+                  setIsFunding?.(false);
+                }
               }}
-              disabled={isFunding || !walletFundAmount || !effectiveFirmId}
+              disabled={isFunding || !walletFundAmount}
               className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
             >
               {isFunding ? '…' : 'Fund'}
