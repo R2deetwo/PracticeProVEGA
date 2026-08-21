@@ -57,7 +57,7 @@ import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
 import UpgradeModal from './UpgradeModal';
 
 export const DockedModal: React.FC = () => {
-  const { dockedModalType, modalContext, editingId, closeModal, getModalTitle, navigateTo, openModal, setHighlightTarget } = useUI();
+  const { dockedModalType, modalContext, editingId, closeModal, getModalTitle, navigateTo, openModal, setHighlightTarget, addToast } = useUI();
   const { matterState } = useMatterState();
   const { executionState, executionActions } = useExecutionState();
   const { documentState } = useDocumentState();
@@ -437,26 +437,36 @@ export const DockedModal: React.FC = () => {
       case 'editBankAccount': {
         const bankAccounts = coreState.firmDetails?.bankAccounts || [];
         const account = bankAccounts.find(a => a.id === editingId);
-        content = <BankAccountForm 
-          accountToEdit={account} 
-          onAddAccount={(a) => { 
-            const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }]; 
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); 
-          }} 
-          onUpdateAccount={(a) => { 
-            const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc); 
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); 
-          }} 
-          onSetDefault={(id) => { 
-            const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id })); 
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); 
-          }} 
-          onDelete={(id) => { 
-            const newAccounts = bankAccounts.filter(acc => acc.id !== id); 
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); 
-            closeModal(); 
-          }} 
-          onClose={closeModal} 
+        content = <BankAccountForm
+          accountToEdit={account}
+          onAddAccount={(a) => {
+            const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }];
+            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
+            closeModal();
+            navigateTo('settings', null, { settingsTargetId: 'firm-details' });
+            setTimeout(() => {
+              addToast(
+                newAccounts.length === 1
+                  ? "Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, a Trust/Client account for funds held on behalf of clients, or a Rent Collection account for Atrium. Click 'Add Bank Account' again to set up another."
+                  : `Bank account saved. You now have ${newAccounts.length} account${newAccounts.length === 1 ? '' : 's'}. Set a default for rent collections and invoice payments, or add more for different purposes (Trust, Operating, Service Charge).`,
+                { type: 'success', duration: 8000 }
+              );
+            }, 400);
+          }}
+          onUpdateAccount={(a) => {
+            const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc);
+            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
+          }}
+          onSetDefault={(id) => {
+            const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id }));
+            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
+          }}
+          onDelete={(id) => {
+            const newAccounts = bankAccounts.filter(acc => acc.id !== id);
+            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
+            closeModal();
+          }}
+          onClose={closeModal}
         />;
         break;
       }

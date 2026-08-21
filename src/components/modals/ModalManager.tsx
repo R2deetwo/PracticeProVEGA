@@ -249,7 +249,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
 };
 
 const ModalManager: React.FC = () => {
-  const { modal, closeModal, modalContext, editingId, getModalTitle, navigateTo, setHighlightTarget, openModal, updateCurrentHistoryEntry } = useUI();
+  const { modal, closeModal, modalContext, editingId, getModalTitle, navigateTo, setHighlightTarget, openModal, updateCurrentHistoryEntry, addToast } = useUI();
   const { matterState } = useMatterState();
   const { financeState } = useFinanceState();
   const { executionState, executionActions } = useExecutionState();
@@ -813,7 +813,36 @@ const ModalManager: React.FC = () => {
     case 'editBankAccount': {
       const bankAccounts = coreState.firmDetails?.bankAccounts || [];
       const account = bankAccounts.find(a => a.id === editingId);
-      content = <BankAccountForm accountToEdit={account} onAddAccount={(a) => { const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }]; dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }} onUpdateAccount={(a) => { const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }} onSetDefault={(id) => { const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id })); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }} onDelete={(id) => { const newAccounts = bankAccounts.filter(acc => acc.id !== id); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); closeModal(); }} onClose={closeModal} />;
+      content = <BankAccountForm accountToEdit={account}
+        onAddAccount={(a) => {
+          const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }];
+          dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
+          // Close the modal so the user sees the settings page underneath.
+          closeModal();
+          // Navigate to the firm settings page so the user sees their saved
+          // bank account in context, alongside other firm configuration.
+          navigateTo('settings', null, { settingsTargetId: 'firm-details' });
+          // Tell the user they can add MULTIPLE bank accounts and WHY — this
+          // is important for firms that need separate accounts for:
+          //   - Operating (general business income/expenses)
+          //   - Trust/Client (held on behalf of clients — legally separate)
+          //   - Rent collection (for Atrium property managers)
+          //   - Service charge collections (for Atrium estates)
+          // Without this nudge, users add one account and never realize they
+          // can add more for different purposes.
+          setTimeout(() => {
+            addToast(
+              newAccounts.length === 1
+                ? "Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, a Trust/Client account for funds held on behalf of clients, or a Rent Collection account for Atrium. Click 'Add Bank Account' again to set up another."
+                : `Bank account saved. You now have ${newAccounts.length} account${newAccounts.length === 1 ? '' : 's'}. Set a default for rent collections and invoice payments, or add more for different purposes (Trust, Operating, Service Charge).`,
+              { type: 'success', duration: 8000 }
+            );
+          }, 400);
+        }}
+        onUpdateAccount={(a) => { const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }}
+        onSetDefault={(id) => { const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id })); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }}
+        onDelete={(id) => { const newAccounts = bankAccounts.filter(acc => acc.id !== id); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); closeModal(); }}
+        onClose={closeModal} />;
       break;
     }
     case 'newTimeEntry':
