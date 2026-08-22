@@ -290,6 +290,7 @@ export const markChargeAsPaid = mutation({
 
           if (recipient) {
             const confirmMessage = `Dear ${tenantName}, we confirm receipt of your ${chargeLabel} service charge payment of ₦${totalAmount.toLocaleString()} for ${unitName}. Your account is now fully settled. Thank you for your prompt payment.`;
+            // Log the automation
             await ctx.db.insert("automation_logs", {
               firmId,
               unitId: sc.unitId,
@@ -299,9 +300,23 @@ export const markChargeAsPaid = mutation({
               recipient,
               messagePreview: confirmMessage,
               sentAt: Date.now(),
-              status: "simulated",
+              status: "sent",
               triggeredBy: "admin_mark_paid",
             });
+            // FIX: Create a scheduled_message for real WhatsApp dispatch via processScheduledMessages
+            if (tenantPhone) {
+              await ctx.db.insert("scheduled_messages", {
+                firmId,
+                content: confirmMessage,
+                channel: "whatsapp",
+                scheduledFor: Date.now(), // Send immediately
+                status: "scheduled",
+                messageType: "payment_receipt",
+                tenantIds: [sc.tenantId || ''],
+                createdBy: "system_automation",
+                createdAt: Date.now(),
+              } as any);
+            }
           }
         }
       } catch (e) {

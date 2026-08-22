@@ -39,13 +39,14 @@ export const sendHeartbeat = mutation({
 export const getActivePeers = query({
   args: { firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // SECURITY: Verify the caller belongs to the firm they're querying
-    if (args.userEmail) {
-      try {
-        const auth = await requireFirmUser(ctx, args.userEmail);
-        if (!auth.firmId || auth.firmId !== args.firmId) return [];
-      } catch { return []; }
+    // SECURITY FIX: Fail CLOSED — require userEmail for peer queries.
+    if (!args.userEmail) {
+      throw new Error("Unauthenticated: userEmail required. Anonymous peer queries are no longer permitted.");
     }
+    try {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (!auth.firmId || auth.firmId !== args.firmId) return [];
+    } catch { return []; }
     if (!args.firmId) return [];
 
     // Fetch ALL presence records for the firm (not just active ones).
@@ -2551,11 +2552,9 @@ export const createItem = mutation({
     }
 
     // Auto-inject creation timestamp and audit fields
-    // SECURITY: Fall back to sanitizedData.firmId for backward compatibility.
-    // The requireFirmUser anonymous fallback returns firmId="" for legacy calls
-    // that don't pass userEmail. Without this fallback, signup and other
-    // pre-auth flows would break. To harden: migrate all callers to pass
-    // userEmail, then remove this fallback.
+    // SECURITY: Firm ID is verified by requireFirmUser above. If firmId is
+    // empty (anonymous caller), the throw above already rejected the request.
+    // Client-supplied data.firmId is NEVER trusted as a substitute for auth.
     if (!firmId) {
       throw new Error("Unauthenticated: userEmail required. Anonymous createItem calls are no longer permitted.");
     }
@@ -3069,11 +3068,9 @@ async function resolveRecordForUpdate(
   }
 
   if (existing) {
-    // SECURITY: Only enforce firm ownership when we have a verified firmId
-    // from auth. When firmId is empty (legacy/anonymous call), skip the
-    // check for backward compatibility.
-    // NOTE: This is fail-OPEN for backward compatibility. To harden, migrate
-    // all callers to pass userEmail so requireFirmUser always returns a valid firmId.
+    // SECURITY: Fail CLOSED — throws if firmId is empty (anonymous caller).
+    // This was previously fail-open (short-circuited on empty firmId), which
+    // allowed anonymous callers to update any record. Fixed to fail-closed.
     if (!firmId) {
       throw new Error("Unauthenticated: userEmail required. Anonymous updates are no longer permitted.");
     }
@@ -3372,7 +3369,7 @@ export const updateTaskStatus = mutation({
       throw new Error(`Task not found (looked for id: ${args.taskId}). The task may have been deleted or you may not have access.`);
     }
 
-    if (task.firmId && task.firmId !== firmId) {
+    if (!firmId || (task.firmId && task.firmId !== firmId)) {
       throw new Error("Unauthorized. This task belongs to another organization.");
     }
 
@@ -3440,7 +3437,7 @@ export const updateTask = mutation({
       throw new Error(`Task not found (id: ${args.taskId}).`);
     }
 
-    if (task.firmId && task.firmId !== firmId) {
+    if (!firmId || (task.firmId && task.firmId !== firmId)) {
       throw new Error("Unauthorized. This task belongs to another organization.");
     }
 
@@ -3730,11 +3727,16 @@ export const forceDeleteItem = mutation({
     const { firmId } = await requireFirmUser(ctx, args.userEmail);
     const { id } = args;
 
+    // SECURITY FIX: Fail CLOSED — throw on empty firmId (same fix as deleteItem).
+    if (!firmId) {
+      throw new Error("Unauthenticated: userEmail required. Anonymous deletes are no longer permitted.");
+    }
+
     // Strategy A: Direct delete by internal ID with firm check.
     try {
       const existing = await ctx.db.get(id as any) as any;
       if (existing) {
-        if (existing.firmId && existing.firmId !== firmId) {
+        if (!existing.firmId || existing.firmId !== firmId) {
           throw new Error("Unauthorized. This record belongs to another organization.");
         }
         await ctx.db.delete(id as any);
@@ -3760,7 +3762,8 @@ export const forceDeleteItem = mutation({
           item = sample.find((i: any) => i.id === id);
         }
         if (item) {
-          if (item.firmId && item.firmId !== firmId) {
+          // SECURITY FIX: Fail CLOSED — check firmId is not empty AND matches.
+          if (!item.firmId || item.firmId !== firmId) {
             throw new Error("Unauthorized. This record belongs to another organization.");
           }
           await ctx.db.delete(item._id);
