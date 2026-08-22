@@ -2177,9 +2177,15 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
         const savedClasses = html.className;
         // Strip all theme-related classes
         html.classList.remove('dark', 'theme-midnight', 'theme-oled', 'theme-neon-cyber', 'theme-sunlight-soft', 'theme-city-lights', 'theme-city-emerald', 'theme-midnight-emerald', 'theme-army-dark', 'theme-army-light');
+        // FIX: Also strip font-size-sm if the user had it set from a previous
+        // session. The landing page should always use the default font size (md).
+        // Without this, the entire landing page renders at 87.5% scale if the
+        // user previously set their font preference to "small" in the app.
+        html.classList.remove('font-size-sm', 'font-size-lg');
+        html.classList.add('font-size-md');
         return () => {
             // Restore on unmount — needed if user navigates away from landing
-            // to the app (which should respect their saved theme)
+            // to the app (which should respect their saved theme and font size)
             html.className = savedClasses;
         };
     }, []);

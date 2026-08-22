@@ -405,12 +405,29 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         return () => mq.removeEventListener('change', handler);
     }, [theme]);
     // Font Size Effect - Applies class to HTML root for global scaling
+    // FIX: Don't apply the user's saved font size on public routes (landing,
+    // login, signup). The landing page should always use the default font size.
     React.useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove('font-size-sm', 'font-size-md', 'font-size-lg');
+
+        // Check if we're on a public route where font size shouldn't apply
+        const pathname = window.location.pathname;
+        const isPublicRoute = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
+                           pathname === '/vega' || pathname === '/atrium' || pathname === '/komplet' ||
+                           pathname.startsWith('/portal/') || pathname.startsWith('/legal/') ||
+                           pathname.startsWith('/resources') || pathname.startsWith('/privacy') ||
+                           pathname.startsWith('/terms') || pathname.startsWith('/cookie') ||
+                           pathname.startsWith('/usage') || pathname.startsWith('/data-processing');
+
+        if (isPublicRoute || !currentUser) {
+            root.classList.add('font-size-md'); // Default font size on public routes
+            return;
+        }
+
         root.classList.add(`font-size-${fontSize}`);
         localStorage.setItem('practicepro_fontSize', fontSize);
-    }, [fontSize]);
+    }, [fontSize, currentUser, location.pathname]);
 
     // Network Listener — robust offline detection for both web AND Capacitor APK.
     //
