@@ -242,4 +242,67 @@ Annual-only. Includes everything from Vega Pro + Atrium Pro + Sentry Pass (₦15
 
 ---
 
+## 17. WhatsApp Architecture (IMPORTANT — Read Before Making Copy Changes)
+
+### How It Actually Works
+
+ChakraHQ is configured at the **PLATFORM LEVEL**, not per-firm. ONE ChakraHQ account serves ALL firms on PracticePro:
+
+1. **Credentials:** Set ONCE as Convex environment variables:
+   - `CHAKRA_ACCESS_TOKEN` — Bearer token from Chakra Chat
+   - `CHAKRA_PLUGIN_ID` — Found in Chakra Chat → WhatsApp setup → 3-dot menu
+   - `CHAKRA_PHONE_NUMBER_ID` — Found in Chakra Chat → WhatsApp setup → gear icon
+   - `CHAKRA_WA_API_VERSION` — e.g. "v19.0" (optional, defaults to v19.0)
+
+2. **All firms share** the same WhatsApp Business number and Meta-approved templates. Firms do NOT need their own ChakraHQ account, API keys, or phone number verification.
+
+3. **Firm-level toggle:** In Settings → Integrations, each firm has a simple ON/OFF toggle (`firmDetails.automationSettings.chakra.isActive`). When enabled, messages are sent through the platform-level ChakraHQ credentials.
+
+4. **Meta-approved templates:** The platform admin (you) submits WhatsApp message templates to Meta for approval. Once approved, these templates are used for business-initiated messages outside the 24-hour session window. The sendWhatsApp action supports both template messages and free-form text.
+
+5. **Per-firm fair-use quotas:** The platform tracks `firm.whatsappMessagesSent` and `firm.whatsappLimit`. Currently all tiers are set to `999999` (unlimited sentinel). The `incrementWhatsAppQuota` mutation still runs on every send — it can be used for fair-use anomaly detection without changing the UI.
+
+### How Automated Messages Are Dispatched
+
+The automation pipeline works in two stages:
+
+1. **Cron jobs (internalMutation):**
+   - `sendServiceChargeReminders` (daily 6:30 UTC) — scans unpaid service charges, creates `scheduled_messages` rows
+   - `runDailyAutomation` (daily 7:00 UTC) — scans T+1 defaulters, creates `scheduled_messages` rows
+   - `sendCourtReminders` (daily 6:00 UTC) — scans matters with nextAdjournedDate, creates `scheduled_messages` rows
+
+2. **Dispatch (internalAction):**
+   - `processScheduledMessages` (every 5 minutes) — picks up `scheduled_messages` with `status: "scheduled"` and `scheduledFor <= now`, calls the real `sendWhatsApp` action via `ctx.runAction(api.communications.sendWhatsApp)` which makes a real API call to ChakraHQ → Meta Cloud API
+
+### Why Two Stages?
+
+`internalMutation` (cron context) can't call `ctx.runAction` — only `internalAction` can. So the cron creates `scheduled_messages` rows (DB writes), and the `processScheduledMessages` internalAction (which runs every 5 minutes) picks them up and calls the real `sendWhatsApp` action.
+
+### What This Means for Copy
+
+- **"Automated WhatsApp reminders"** is ACCURATE — the cron creates the message, the processScheduledMessages cron dispatches it via the real ChakraHQ API
+- Firms do NOT need to "set up integration" or configure API keys — they just toggle WhatsApp ON in Settings → Integrations
+- The platform admin (you) just needs to ensure the Convex env vars are set (which you've confirmed they are)
+- Meta-approved templates are managed at the platform level — some are approved, some are pending
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `convex/communications.ts` | `sendWhatsApp` action — real API call to ChakraHQ; `sendWhatsAppInternal` wrapper for internal callers |
+| `convex/sentry.ts` | `sendServiceChargeReminders` + `runDailyAutomation` — crons that create scheduled_messages |
+| `convex/proactive.ts` | `sendCourtReminders` — cron that creates court date scheduled_messages |
+| `convex/portals.ts` | `processScheduledMessages` — internalAction that dispatches scheduled_messages via real sendWhatsApp |
+| `src/components/settings/IntegrationSettings.tsx` | Firm-level WhatsApp ON/OFF toggle |
+| `convex/sentryWebhook.ts` | ChakraHQ webhook handler (inbound messages from tenants) |
+
+### DO NOT
+
+- Do NOT change copy to say "requires integration setup" — firms just toggle it on
+- Do NOT assume each firm needs their own ChakraHQ account — it's platform-level
+- Do NOT describe WhatsApp as "simulated" — the dispatch is real once env vars are set
+- Do NOT add "Coming Soon" labels — WhatsApp automation IS live
+
+---
+
 *Generated from comprehensive codebase audit on August 22, 2026. All details verified against actual source code.*
