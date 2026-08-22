@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { CheckIcon, SparklesIcon } from '../../constants';
 import { SubscriptionPlan } from '../../types';
 import { useIsProperty } from '../../contexts/ProductContext';
+import { VEGA_TIERS, ATRIUM_TIERS, KOMPLETE_TIER } from '../../constants/tiers';
 
 interface UpgradeModalProps {
   featureName: string;
@@ -18,7 +19,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
     if (targetPlan === SubscriptionPlan.Komplete) {
       return {
         title: "Komplete",
-        price: "₦2,500,000",
+        price: KOMPLETE_TIER.annualPriceDisplay,
         features: [
           "Unlimited Users",
           isProperty ? 'Unlimited Properties & Units' : 'Unlimited Matters & Units',
@@ -33,9 +34,11 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
         accentColor: "text-indigo-600"
       };
     } else {
+      // FIX: Use product-aware pricing — Atrium Pro is ₦210,000/mo, Vega Pro is ₦80,000/mo
+      const proTier = isProperty ? ATRIUM_TIERS.Pro : VEGA_TIERS.Pro;
       return {
         title: "Pro Plan",
-        price: "₦80,000",
+        price: proTier.monthlyPriceDisplay + "/mo",
         features: [
           "ARIA AI Assistant (Uncapped Priority)",
           "Unlimited Team Users",

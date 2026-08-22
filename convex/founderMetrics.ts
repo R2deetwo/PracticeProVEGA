@@ -30,7 +30,7 @@ const VEGA_PLAN_ANNUAL_PRICE: Record<string, number> = {
 const ATRIUM_PLAN_MONTHLY_PRICE: Record<string, number> = {
   Core: 49000,       // Starter
   Growth: 96500,
-  Pro: 200000,
+  Pro: 210000,
   Enterprise: 0,
 };
 const ATRIUM_PLAN_ANNUAL_PRICE: Record<string, number> = {

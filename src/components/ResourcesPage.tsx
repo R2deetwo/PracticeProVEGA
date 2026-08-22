@@ -1041,7 +1041,7 @@ const WHATS_NEW_ENTRIES: WhatsNewEntry[] = [
         products: ['vega'],
         category: 'feature',
         items: [
-            { label: 'Court Date Reminders', body: 'Automated WhatsApp reminders sent 7, 3, and 1 day(s) before each scheduled hearing to assigned lawyers.', badge: 'Pro' },
+            { label: 'Court Date Reminders', body: 'Automated WhatsApp reminders sent 7, 3, and 1 day(s) before each scheduled hearing to assigned lawyers.', badge: 'Growth+' },
             { label: 'Paystack-Ready Billing', body: 'Payment provider abstraction layer built and code-reviewed. Dormant until activated.' },
             { label: 'Monthly WhatsApp Quota Reset', body: 'Fixed bug where monthly message limits were effectively lifetime caps.' },
             { label: 'Trust Model Fix', body: 'Clients can no longer auto-mark invoices as "Paid" from the portal.' },
