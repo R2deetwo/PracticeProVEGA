@@ -7810,3 +7810,58 @@ Next actions:
 - Manual browser test recommended: open Chrome devtools → Network → throttle to "Offline", perform a rent collection in CollectRentModal, confirm the "Rent receipt issued offline" toast appears and the receipt PDF downloads. Then restore network, wait 30s, confirm the "Synced 3 items from offline queue" success toast appears and the ledger entry shows up in the Atrium Ledger.
 - Consider Tier-2 wiring in a future pass: updateTaskStatus, createMaintenanceTicket (from TenantPortal — tenant-side field use, currently fails with caught error but could be queued).
 - The audit script (scripts/offline_audit.py) can be re-run after future wiring passes to track coverage growth.
+
+---
+Task ID: offline-resilience-tier2
+Agent: main (Super Z)
+Task: Wire Tier-2 mutation flows to the offline queue, complete the audit gap pass, and compile remaining Claude-flagged items for user reminder.
+
+Work Log:
+- Extended useOfflineQueue.ts mutation registry from 6 to 11 mutations:
+  * Added: createTask, updateTask, updateTaskStatus, createMaintenanceTicket, cancelMaintenanceTicket
+  * Each registered with its own useMutation ref in the hook body
+  * Docs comment updated with all 11 registered mutations
+- Wired useTasks.ts (3 handlers):
+  * handleUpdateTaskStatus — Kanban drag / "Mark Done" button. Queues with "Task status saved offline" toast.
+  * handleUpdateTask — task edits (reassignment, priority). Queues with "Task edit saved offline" toast.
+  * handleAddTask — new task creation. Queues with "Task saved offline. Will sync and notify assignees when you reconnect" toast. Note: notifications (bell badge, email, WhatsApp) are slightly delayed but not lost.
+- Wired TenantPortal.tsx (2 handlers):
+  * handleCancelTicket — always queueable (no attachments). Queues with "Ticket cancellation saved offline" toast.
+  * createTicket — queueable when no attachments. The existing file-upload offline guard (from Tier-1) catches the attachments case. When no attachments + offline, queues with "Ticket saved offline" toast.
+- Added offline guard to MessagesView.tsx handleAdvanceTicket (admin-side ticket status update):
+  * Pre-checks navigator.onLine before calling updateMaintenanceTicketStatus / updateClientServiceRequestStatus
+  * Shows "You're offline. Ticket status update requires internet" error toast
+  * NOT queued — admin office-side flow, existing try/catch already shows visible errors, admin can re-click easily when back online
+- Fixed audit script (scripts/offline_audit.py):
+  * Now scans .ts files (was only .tsx — missed useTasks.ts and other hooks)
+  * Updated QUEUE_COVERED_MUTATIONS to include 5 Tier-2 mutations
+  * Updated WIRED_FILES to include useTasks.ts and TenantPortal.tsx
+  * Re-ran: total 198 sites (was 176), QUEUED 12 (was 7), DIRECT 158 (was 153)
+- Extended unit tests (scripts/offline_queue_test.js):
+  * Added Tier-2 mutation stubs for all 5 new mutations
+  * Added 4 new test cases (TEST 8-11):
+    - TEST 8: Task status update queues and replays
+    - TEST 9: Maintenance ticket creation queues and replays
+    - TEST 10: Task creation with notification delay note
+    - TEST 11: Mixed Tier-1 + Tier-2 queue replays in FIFO order
+  * All 11 tests pass (was 7)
+- TypeScript check: 379 errors before and after — ZERO new TS errors introduced
+- Audit gap pass completed: all 158 remaining DIRECT sites are admin/auth/settings/portal-login flows that are office-side or unreachable offline by definition. File upload sites (17 NON_QUEUEABLE) have explicit offline guards. Admin ticket status update has offline guard.
+
+Stage Summary:
+- Files modified (5):
+  1. src/hooks/useOfflineQueue.ts — registry expanded from 6 to 11 mutations
+  2. src/hooks/useTasks.ts — 3 handlers wired (createTask, updateTask, updateTaskStatus)
+  3. src/components/tenant/TenantPortal.tsx — 2 handlers wired (createMaintenanceTicket, cancelMaintenanceTicket)
+  4. src/components/MessagesView.tsx — offline guard added to admin ticket status handler
+  5. scripts/offline_audit.py — updated to scan .ts files and include Tier-2 mutations/files
+- Tests: 11/11 unit tests pass (4 new Tier-2 tests added)
+- Coverage: 12 of 198 mutation call sites now use the offline queue (was 1 at start, 7 after Tier-1). All high-priority field-use flows (rent collection, service charge, trust, ledger entries, task management, tenant maintenance tickets) are wired.
+- Acceptance criteria for Claude's original prescription fully met:
+  [x] Full list of mutation call sites grouped and prioritized
+  [x] Generalized queue supports 11 mutations across 4 modules (myFunctions, sentry, trustAccount, portals)
+  [x] Top 3-5 highest-priority flows wired (7 Tier-1 files)
+  [x] Tier-2 flows wired (task management + tenant maintenance tickets)
+  [x] Test output: 11/11 unit tests pass including mixed Tier-1+Tier-2 scenarios
+  [x] UIContext.tsx network poll uses VITE_CONVEX_URL
+  [x] Audit of remaining 158 unqueued sites — all are admin/auth/settings or have offline guards

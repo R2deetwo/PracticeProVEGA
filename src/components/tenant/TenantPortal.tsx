@@ -14,6 +14,7 @@ import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useFeatures } from '../../hooks/useFeatures';
 import NairaSymbol from '../NairaSymbol';
 import {
@@ -1639,6 +1640,9 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
   const cancelTicket = useMutation(api.portals.cancelMaintenanceTicket);
   // Get upload URL mutation
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+  // Offline queue — for ticket creation when no attachments, and ticket
+  // cancellation (never has attachments).
+  const { queueMutation, isOnline } = useOfflineQueue();
 
   // Cancel ticket state
   const [cancellingTicketId, setCancellingTicketId] = useState<string | null>(null);
@@ -1651,6 +1655,22 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
       return;
     }
     if (!currentUser?.id) return;
+    // OFFLINE PATH — cancellation never has attachments, so it's always queueable.
+    if (!isOnline) {
+      queueMutation({
+        mutationName: 'cancelMaintenanceTicket',
+        args: {
+          ticketId: ticketId as any,
+          cancellationNote: cancelNote.trim(),
+          cancelledBy: currentUser.id,
+        },
+        label: `Cancel maintenance ticket`,
+      });
+      addToast('Ticket cancellation saved offline. Your property manager will be notified when you reconnect.', { type: 'info', duration: 6000 });
+      setCancellingTicketId(null);
+      setCancelNote('');
+      return;
+    }
     setIsCancelling(true);
     try {
       await cancelTicket({
@@ -1764,6 +1784,35 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
       // practitioner UI that filters by `category` still works.
       const typeLabel = selectedType?.label || selectedTypeKey;
       const legacyCategory = mapKeyToLegacyCategory(selectedTypeKey);
+
+      // OFFLINE PATH — if we got here while offline, there are no attachments
+      // (the offline guard at the top returned early if there were). Queue
+      // the ticket creation; it'll sync when the user reconnects.
+      if (!navigator.onLine) {
+        queueMutation({
+          mutationName: 'createMaintenanceTicket',
+          args: {
+            firmId,
+            propertyId,
+            unitId: unitId || undefined,
+            tenantId: resolvedTenantId,
+            tenantName: currentUser?.name || undefined,
+            subject: subject.trim(),
+            description: description.trim(),
+            category: legacyCategory,
+            requestTypeKey: selectedTypeKey,
+            requestTypeLabel: typeLabel,
+            attachments: undefined,
+          },
+          label: `Maintenance ticket — ${subject.trim()}`,
+        });
+        addToast('Ticket saved offline. Your property manager will be notified when you reconnect.', { type: 'info', duration: 6000 });
+        setSubject('');
+        setDescription('');
+        setSelectedTypeKey('other');
+        setPendingFiles([]);
+        return;
+      }
 
       await createTicket({
         firmId,

@@ -1,13 +1,13 @@
 # Offline Resilience Audit
 
-Total `useMutation(api.*)` call sites: **176** across 68 files.
+Total `useMutation(api.*)` call sites: **198** across 75 files.
 
 ## Coverage Summary
 
-- **QUEUED**: 7 sites
-- **PARTIAL**: 0 sites
-- **NON_QUEUEABLE**: 16 sites
-- **DIRECT**: 153 sites
+- **QUEUED**: 12 sites
+- **PARTIAL**: 11 sites
+- **NON_QUEUEABLE**: 17 sites
+- **DIRECT**: 158 sites
 
 ## Mutation Names NOT Yet in the Queue Registry
 
@@ -36,22 +36,22 @@ Total `useMutation(api.*)` call sites: **176** across 68 files.
 - `myFunctions.cancelVmsAddon`
 - `myFunctions.clearAllNotifications`
 - `myFunctions.createAloaConversation`
+- `myFunctions.createFirm`
 - `myFunctions.createSubscriptionRequest`
 - `myFunctions.deactivateTeamMember`
 - `myFunctions.deleteAccount`
 - `myFunctions.deleteAloaConversation`
 - `myFunctions.deleteFirm`
 - `myFunctions.deleteMatterCascade`
+- `myFunctions.deletePropertyCascade`
 - `myFunctions.diagnoseConnectivity`
 - `myFunctions.fixProductMode`
 - `myFunctions.forceDeleteItem`
+- `myFunctions.joinFirm`
 - `myFunctions.leaveFirm`
 - `myFunctions.markNotificationsAsRead`
 - `myFunctions.purgeFirmData`
-- `myFunctions.reactivateTeamMember`
-- `myFunctions.recordTermsAcceptance`
-- `myFunctions.removeUnitFromProperty`
-- ... and 67 more
+- ... and 66 more
 
 ## DIRECT (highest priority for future wiring)
 
@@ -107,12 +107,20 @@ Total `useMutation(api.*)` call sites: **176** across 68 files.
   - `src/contexts/AuthContext.tsx:256`
   - `src/components/auth/ConnectionStatus.tsx:19`
 
+### `myFunctions.updateItem` (2 sites)
+  - `src/contexts/DataProvider.tsx:39`
+  - `src/hooks/useFirm.ts:20`
+
+### `myFunctions.deleteMatterCascade` (2 sites)
+  - `src/contexts/MatterContext.tsx:32`
+  - `src/hooks/useMatters.ts:18`
+
 ### `portals.repairPortalUserFirmId` (2 sites)
-  - `src/components/tenant/TenantPortal.tsx:147`
+  - `src/components/tenant/TenantPortal.tsx:148`
   - `src/components/client/ClientDashboard.tsx:180`
 
 ### `portals.markConversationReadByParticipant` (2 sites)
-  - `src/components/tenant/TenantPortal.tsx:1820`
+  - `src/components/tenant/TenantPortal.tsx:1869`
   - `src/components/client/ClientDashboard.tsx:321`
 
 ### `feedback.submitDataRestoreRequest` (2 sites)
@@ -135,21 +143,13 @@ Total `useMutation(api.*)` call sites: **176** across 68 files.
   - `src/components/messaging/NoticeBoardTab.tsx:38`
   - `src/components/details/PropertyDetailView.tsx:2560`
 
-### `portals.restoreNotice` (2 sites)
-  - `src/components/messaging/NoticeBoardTab.tsx:39`
-  - `src/components/details/PropertyDetailView.tsx:2561`
-
-### `myFunctions.requestPortalPasswordReset` (2 sites)
-  - `src/components/portal/ClientPortalLogin.tsx:69`
-  - `src/components/portal/TenantPortalLogin.tsx:70`
-
 ## NON_QUEUEABLE — Sites Needing Offline Guards
 
 ### `myFunctions.generateUploadUrl` (7 sites)
   - `src/components/MessagesView.tsx:873`
-  - `src/components/tenant/TenantPortal.tsx:1378`
-  - `src/components/tenant/TenantPortal.tsx:1827`
-  - `src/components/tenant/TenantPortal.tsx:2425`
+  - `src/components/tenant/TenantPortal.tsx:1379`
+  - `src/components/tenant/TenantPortal.tsx:1876`
+  - `src/components/tenant/TenantPortal.tsx:2474`
   - `src/components/aloa/AloaChat.tsx:126`
   - `src/components/client/ClientDashboard.tsx:322`
   - `src/components/documents/tiptap/DraftProEditor.tsx:452`
@@ -160,13 +160,14 @@ Total `useMutation(api.*)` call sites: **176** across 68 files.
 ### `portals.sendAdminReply` (1 sites)
   - `src/components/MessagesView.tsx:938`
 
-### `myFunctions.sendChatMessage` (2 sites)
+### `myFunctions.sendChatMessage` (3 sites)
   - `src/components/MessagesView.tsx:949`
   - `src/components/modals/TeamMessageModal.tsx:32`
+  - `src/hooks/useMessaging.ts:26`
 
 ### `portals.sendPortalMessage` (5 sites)
-  - `src/components/tenant/TenantPortal.tsx:149`
-  - `src/components/tenant/TenantPortal.tsx:1819`
+  - `src/components/tenant/TenantPortal.tsx:150`
+  - `src/components/tenant/TenantPortal.tsx:1868`
   - `src/components/details/ServiceChargeBars.tsx:704`
   - `src/components/modals/ReceiptModal.tsx:50`
   - `src/components/client/ClientDashboard.tsx:181`

@@ -5,6 +5,7 @@ import { api } from '../../convex/_generated/api';
 import { TaskStatus, AppState } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useOfflineQueue } from './useOfflineQueue';
 
 /**
  * Hook for managing tasks and checklists.
@@ -15,6 +16,7 @@ export const useTasks = (appState: AppState, actions: any) => {
     const createTaskMutation = useMutation(api.myFunctions.createTask);
     const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
     const updateTaskMutation = useMutation(api.myFunctions.updateTask);
+    const { queueMutation, isOnline } = useOfflineQueue();
 
     const handleUpdateTaskStatus = useCallback(async (id: string, status: any) => {
         // Use the dedicated updateTaskStatus mutation instead of the generic
@@ -30,6 +32,23 @@ export const useTasks = (appState: AppState, actions: any) => {
         //
         // The dedicated mutation tries 3 lookup strategies and patches ONLY
         // the status field.
+        //
+        // OFFLINE PATH — task status changes (Kanban drag, "Mark Done" button)
+        // are common mobile field-use actions. Queue when offline so the
+        // user's intent is preserved; status will sync when they reconnect.
+        if (!isOnline) {
+            queueMutation({
+                mutationName: 'updateTaskStatus',
+                args: {
+                    taskId: id,
+                    status,
+                    userEmail: currentUser?.email,
+                },
+                label: `Task status → ${status}`,
+            });
+            addToast(`Task status saved offline. Will sync when you reconnect.`, { type: 'info', duration: 5000 });
+            return;
+        }
         try {
             await updateTaskStatusMutation({
                 taskId: id,
@@ -41,7 +60,7 @@ export const useTasks = (appState: AppState, actions: any) => {
             addToast(e?.message || 'Failed to update task status.', { type: 'error' });
             throw e;
         }
-    }, [updateTaskStatusMutation, currentUser, addToast]);
+    }, [updateTaskStatusMutation, currentUser, addToast, isOnline, queueMutation]);
 
     const handleUpdateTaskPriority = useCallback((id: string, priority: any) =>
         actions.updateItem('tasks', { id, priority }, 'Task Priority'), [actions]);
@@ -50,6 +69,23 @@ export const useTasks = (appState: AppState, actions: any) => {
     // This prevents duplicate cards caused by ID lookup failures in updateItem.
     // Use this for reassignment, priority changes, and any full-task edit.
     const handleUpdateTask = useCallback(async (task: any) => {
+        // OFFLINE PATH — queue task edits (reassignment, priority, etc.).
+        // Same field-use scenario as status updates.
+        if (!isOnline) {
+            const taskId = task._id || task.id;
+            const { _id, _creationTime, ...patch } = task;
+            queueMutation({
+                mutationName: 'updateTask',
+                args: {
+                    taskId,
+                    patch,
+                    userEmail: currentUser?.email,
+                },
+                label: `Task edit — ${task.title || taskId}`,
+            });
+            addToast(`Task edit saved offline. Will sync when you reconnect.`, { type: 'info', duration: 5000 });
+            return;
+        }
         try {
             const taskId = task._id || task.id;
             // Strip internal fields before sending
@@ -64,7 +100,7 @@ export const useTasks = (appState: AppState, actions: any) => {
             addToast(e?.message || 'Failed to update task.', { type: 'error' });
             throw e;
         }
-    }, [updateTaskMutation, currentUser, addToast]);
+    }, [updateTaskMutation, currentUser, addToast, isOnline, queueMutation]);
 
     const handleBulkUpdateTaskStatus = useCallback(async (ids: string[], status: any) => {
         const promises = ids.map(id => actions.updateItem('tasks', { id, status }, 'Task'));
@@ -124,28 +160,42 @@ export const useTasks = (appState: AppState, actions: any) => {
         // all assignees (in-app + email + WhatsApp for external stakeholders).
         // Previously this called actions.addItem('tasks', t) which bypassed
         // all notification logic — assignees never got bell badges or emails.
-        try {
-            // CRITICAL: Strip undefined values — the Convex client throws
-            // "undefined is not a valid Convex value" if any arg is undefined.
-            // This was the root cause of "Failed to save task" for client tasks:
-            // when dueDate or matterId was null/empty, `null || undefined` = undefined,
-            // and Convex rejected the entire mutation before it reached the server.
-            const args: Record<string, any> = {
-                title: t.title,
-                description: t.description || '',
-                status: t.status || 'todo',
-                assignedUsers: t.assignedUsers || [],
-                assigneeType: t.assigneeType || 'team',
-                isSharedWithPortal: t.isSharedWithPortal || false,
-                priority: t.priority || 'medium',
-            };
-            // Only include optional fields if they have actual values
-            if (t.dueDate) args.dueDate = t.dueDate;
-            if (t.matterId) args.matterId = t.matterId;
-            if (currentUser?.id) args.creatorId = currentUser.id;
-            if (currentUser?.name) args.creatorName = currentUser.name;
-            if (currentUser?.email) args.userEmail = currentUser.email;
 
+        // CRITICAL: Strip undefined values — the Convex client throws
+        // "undefined is not a valid Convex value" if any arg is undefined.
+        // This was the root cause of "Failed to save task" for client tasks:
+        // when dueDate or matterId was null/empty, `null || undefined` = undefined,
+        // and Convex rejected the entire mutation before it reached the server.
+        const args: Record<string, any> = {
+            title: t.title,
+            description: t.description || '',
+            status: t.status || 'todo',
+            assignedUsers: t.assignedUsers || [],
+            assigneeType: t.assigneeType || 'team',
+            isSharedWithPortal: t.isSharedWithPortal || false,
+            priority: t.priority || 'medium',
+        };
+        // Only include optional fields if they have actual values
+        if (t.dueDate) args.dueDate = t.dueDate;
+        if (t.matterId) args.matterId = t.matterId;
+        if (currentUser?.id) args.creatorId = currentUser.id;
+        if (currentUser?.name) args.creatorName = currentUser.name;
+        if (currentUser?.email) args.userEmail = currentUser.email;
+
+        // OFFLINE PATH — queue task creation. Notifications (bell badge, email,
+        // WhatsApp) will fire when the mutation replays online — slightly
+        // delayed, but better than losing the task entirely.
+        if (!isOnline) {
+            queueMutation({
+                mutationName: 'createTask',
+                args,
+                label: `New task — ${t.title || 'Untitled'}`,
+            });
+            addToast(`Task saved offline. Will sync and notify assignees when you reconnect.`, { type: 'info', duration: 6000 });
+            return;
+        }
+
+        try {
             await createTaskMutation(args);
             addToast('Task created.', { type: 'success' });
         } catch (e: any) {
@@ -154,7 +204,7 @@ export const useTasks = (appState: AppState, actions: any) => {
             addToast(errMsg, { type: 'error' });
             throw e;
         }
-    }, [createTaskMutation, currentUser, addToast]);
+    }, [createTaskMutation, currentUser, addToast, isOnline, queueMutation]);
 
     return {
         handleUpdateTaskStatus,

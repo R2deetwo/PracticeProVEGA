@@ -1016,6 +1016,16 @@ const MessagesView: React.FC = () => {
     };
 
     const handleAdvanceTicket = async (ticketInfo: { kind: 'maintenance' | 'client_service'; id: string }, newStatus: 'open' | 'in_progress' | 'resolved' | 'closed') => {
+        // OFFLINE GUARD — admin-side ticket status update. The existing
+        // try/catch below would catch a Convex error, but the mutation
+        // might also hang waiting for reconnection. Give a specific offline
+        // message so the admin knows to retry after reconnecting. (We don't
+        // queue these because admin ticket updates are office-side and the
+        // admin can easily re-click the status button when back online.)
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            addToast("You're offline. Ticket status update requires internet — please reconnect and try again.", { type: 'error', duration: 6000 });
+            return;
+        }
         try {
             const resolution = (newStatus === 'resolved' || newStatus === 'closed')
                 ? `Status updated to ${newStatus === 'resolved' ? 'Addressed' : 'Closed'}.`

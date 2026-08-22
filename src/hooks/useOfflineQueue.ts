@@ -12,6 +12,11 @@
  *   - addLedgerEntry        (api.sentry.addLedgerEntry)            — Atrium ledger
  *   - markChargeAsPaid      (api.sentry.markChargeAsPaid)          — service charge mark-paid
  *   - recordTrustTransaction (api.trustAccount.recordTrustTransaction) — trust deposit/withdrawal
+ *   - createTask            (api.myFunctions.createTask)           — task creation
+ *   - updateTask            (api.myFunctions.updateTask)            — task edits
+ *   - updateTaskStatus      (api.myFunctions.updateTaskStatus)     — task status changes
+ *   - createMaintenanceTicket (api.portals.createMaintenanceTicket) — tenant maintenance ticket
+ *   - cancelMaintenanceTicket (api.portals.cancelMaintenanceTicket) — tenant ticket cancellation
  *
  * USAGE — new API (any registered mutation):
  *   const { queueMutation, isOnline } = useOfflineQueue();
@@ -59,6 +64,12 @@ const MUTATION_NAMES = [
     'addLedgerEntry',
     'markChargeAsPaid',
     'recordTrustTransaction',
+    // Tier-2 additions:
+    'createTask',           // useTasks.ts — task creation in the field
+    'updateTask',           // useTasks.ts — task edits
+    'updateTaskStatus',     // useTasks.ts — status changes (mobile field use)
+    'createMaintenanceTicket',  // portals.ts — tenant submitting a maintenance ticket
+    'cancelMaintenanceTicket',   // portals.ts — tenant cancelling their own ticket
 ] as const;
 type MutationName = (typeof MUTATION_NAMES)[number];
 
@@ -160,6 +171,12 @@ export function useOfflineQueue() {
     const addLedgerEntryMutation = useMutation(api.sentry.addLedgerEntry);
     const markChargeAsPaidMutation = useMutation(api.sentry.markChargeAsPaid);
     const recordTrustTransactionMutation = useMutation(api.trustAccount.recordTrustTransaction);
+    // Tier-2 mutations:
+    const createTaskMutation = useMutation(api.myFunctions.createTask);
+    const updateTaskMutation = useMutation(api.myFunctions.updateTask);
+    const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
+    const createMaintenanceTicketMutation = useMutation(api.portals.createMaintenanceTicket);
+    const cancelMaintenanceTicketMutation = useMutation(api.portals.cancelMaintenanceTicket);
 
     // Build the dispatch map. Wrapped in a ref so the replay closure stays stable.
     const mutationsRef = useRef<Record<MutationName, (args: any) => Promise<any>>>({
@@ -169,6 +186,11 @@ export function useOfflineQueue() {
         addLedgerEntry: addLedgerEntryMutation,
         markChargeAsPaid: markChargeAsPaidMutation,
         recordTrustTransaction: recordTrustTransactionMutation,
+        createTask: createTaskMutation,
+        updateTask: updateTaskMutation,
+        updateTaskStatus: updateTaskStatusMutation,
+        createMaintenanceTicket: createMaintenanceTicketMutation,
+        cancelMaintenanceTicket: cancelMaintenanceTicketMutation,
     });
     // Keep the ref current whenever any mutation ref changes (defensive — Convex
     // mutations are stable, but this is cheap insurance).
@@ -179,6 +201,11 @@ export function useOfflineQueue() {
         addLedgerEntry: addLedgerEntryMutation,
         markChargeAsPaid: markChargeAsPaidMutation,
         recordTrustTransaction: recordTrustTransactionMutation,
+        createTask: createTaskMutation,
+        updateTask: updateTaskMutation,
+        updateTaskStatus: updateTaskStatusMutation,
+        createMaintenanceTicket: createMaintenanceTicketMutation,
+        cancelMaintenanceTicket: cancelMaintenanceTicketMutation,
     };
 
     const isReplaying = useRef(false);

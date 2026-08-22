@@ -30,6 +30,12 @@ QUEUE_COVERED_MUTATIONS = {
     "addLedgerEntry",
     "markChargeAsPaid",
     "recordTrustTransaction",
+    # Tier-2 additions:
+    "createTask",
+    "updateTask",
+    "updateTaskStatus",
+    "createMaintenanceTicket",
+    "cancelMaintenanceTicket",
 }
 # Files that explicitly use useOfflineQueue
 QUEUE_USING_FILES = set()
@@ -37,6 +43,7 @@ MUTATION_PATTERN = re.compile(r"useMutation\(api\.(\w+)\.(\w+)\)")
 
 # Files explicitly wired to the offline queue in this pass
 WIRED_FILES = {
+    # Tier-1:
     "src/components/modals/CollectRentModal.tsx",
     "src/components/atrium/ServiceChargeMonitor.tsx",
     "src/components/details/TrustAccountTab.tsx",
@@ -45,6 +52,9 @@ WIRED_FILES = {
     "src/components/forms/PropertyForm.tsx",
     "src/components/modals/ModalManager.tsx",
     "src/components/forms/MatterForm.tsx",  # pre-existing
+    # Tier-2:
+    "src/hooks/useTasks.ts",
+    "src/components/tenant/TenantPortal.tsx",
 }
 
 # Flows that fundamentally can't be queued (file uploads, real-time msgs)
@@ -60,26 +70,27 @@ NON_QUEUEABLE = {
 def find_mutation_sites():
     """Walk src/, return list of {file, line, module, mutation} dicts."""
     sites = []
-    for path in ROOT.rglob("*.tsx"):
-        rel = str(path.relative_to(Path("/home/z/my-project")))
-        try:
-            text = path.read_text(encoding="utf-8", errors="replace")
-        except Exception:
-            continue
-        # Mark files that import useOfflineQueue
-        if "useOfflineQueue" in text:
-            QUEUE_USING_FILES.add(rel)
-        for m in MUTATION_PATTERN.finditer(text):
-            line_no = text.count("\n", 0, m.start()) + 1
-            sites.append({
-                "file": rel,
-                "line": line_no,
-                "module": m.group(1),
-                "mutation": m.group(2),
-                "queueable": m.group(2) in QUEUE_COVERED_MUTATIONS,
-                "non_queueable": m.group(2) in NON_QUEUEABLE,
-                "in_wired_file": rel in WIRED_FILES,
-            })
+    for ext in ("*.tsx", "*.ts"):
+        for path in ROOT.rglob(ext):
+            rel = str(path.relative_to(Path("/home/z/my-project")))
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            # Mark files that import useOfflineQueue
+            if "useOfflineQueue" in text:
+                QUEUE_USING_FILES.add(rel)
+            for m in MUTATION_PATTERN.finditer(text):
+                line_no = text.count("\n", 0, m.start()) + 1
+                sites.append({
+                    "file": rel,
+                    "line": line_no,
+                    "module": m.group(1),
+                    "mutation": m.group(2),
+                    "queueable": m.group(2) in QUEUE_COVERED_MUTATIONS,
+                    "non_queueable": m.group(2) in NON_QUEUEABLE,
+                    "in_wired_file": rel in WIRED_FILES,
+                })
     return sites
 
 

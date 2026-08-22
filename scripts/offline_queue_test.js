@@ -38,6 +38,12 @@ const calls = {
     addLedgerEntry: [],
     markChargeAsPaid: [],
     recordTrustTransaction: [],
+    // Tier-2:
+    createTask: [],
+    updateTask: [],
+    updateTaskStatus: [],
+    createMaintenanceTicket: [],
+    cancelMaintenanceTicket: [],
 };
 
 // Make all mutations succeed by default
@@ -51,6 +57,12 @@ const registry = {
     addLedgerEntry: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("amount must be positive"); calls.addLedgerEntry.push(args); return { _id: "ledger_id" }; },
     markChargeAsPaid: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("serviceChargeId not found"); calls.markChargeAsPaid.push(args); return null; },
     recordTrustTransaction: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("amount must be positive"); calls.recordTrustTransaction.push(args); return { _id: "tx_id" }; },
+    // Tier-2:
+    createTask: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("title is required"); calls.createTask.push(args); return { _id: "task_id" }; },
+    updateTask: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("task not found"); calls.updateTask.push(args); return null; },
+    updateTaskStatus: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("task not found"); calls.updateTaskStatus.push(args); return null; },
+    createMaintenanceTicket: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("subject is required"); calls.createMaintenanceTicket.push(args); return { _id: "ticket_id" }; },
+    cancelMaintenanceTicket: async (args) => { if (allFail) throw new Error("network: failed to fetch"); if (validationFail) throw new Error("ticket not found"); calls.cancelMaintenanceTicket.push(args); return null; },
 };
 
 // --- Toast capture ---
@@ -263,6 +275,67 @@ async function main() {
     assert(calls.updateItem.length === 1, "property updated");
     assert(calls.addLedgerEntry.length === 2, "2 ledger entries (rent + mgmt fee) recorded");
     assert(toasts.some(t => t.msg.includes("Synced 3 items")), "synced 3 items toast shown");
+
+    console.log("\n=== TEST 8: Tier-2 — Task status update queues and replays ===");
+    reset();
+    queueMutation({
+        mutationName: "updateTaskStatus",
+        args: { taskId: "task_123", status: "done", userEmail: "agent@example.com" },
+        label: "Task status → done",
+    });
+    assert(readQueue().length === 1, "task status update queued");
+    assert(readQueue()[0].mutationName === "updateTaskStatus", "correct mutation name");
+    const r8 = await replayQueue(true);
+    assert(r8.success === 1, "task status replayed");
+    assert(calls.updateTaskStatus.length === 1, "updateTaskStatus called once");
+    assert(calls.updateTaskStatus[0].status === "done", "status arg preserved");
+    assert(calls.updateTaskStatus[0].userEmail === "agent@example.com", "userEmail arg preserved");
+
+    console.log("\n=== TEST 9: Tier-2 — Maintenance ticket creation queues and replays ===");
+    reset();
+    queueMutation({
+        mutationName: "createMaintenanceTicket",
+        args: {
+            firmId: "f1",
+            propertyId: "p1",
+            subject: "Leaking tap in kitchen",
+            description: "The kitchen tap has been leaking for 3 days",
+            category: "plumbing",
+        },
+        label: "Maintenance ticket — Leaking tap in kitchen",
+    });
+    assert(readQueue().length === 1, "maintenance ticket queued");
+    const r9 = await replayQueue(true);
+    assert(r9.success === 1, "ticket replayed");
+    assert(calls.createMaintenanceTicket.length === 1, "createMaintenanceTicket called once");
+    assert(calls.createMaintenanceTicket[0].subject === "Leaking tap in kitchen", "subject preserved");
+
+    console.log("\n=== TEST 10: Tier-2 — Task creation with notification delay note ===");
+    reset();
+    queueMutation({
+        mutationName: "createTask",
+        args: { title: "Inspect property", assignedUsers: ["user_1"], status: "todo" },
+        label: "New task — Inspect property",
+    });
+    const r10 = await replayQueue(true);
+    assert(r10.success === 1, "task creation replayed");
+    assert(calls.createTask.length === 1, "createTask called once");
+    assert(calls.createTask[0].assignedUsers[0] === "user_1", "assignedUsers preserved");
+
+    console.log("\n=== TEST 11: Tier-2 — Mixed Tier-1 + Tier-2 queue replays in FIFO order ===");
+    reset();
+    queueMutation({ mutationName: "addLedgerEntry", args: { amount: 500 }, label: "Rent" });           // Tier-1
+    queueMutation({ mutationName: "updateTaskStatus", args: { taskId: "t1", status: "done" }, label: "Task done" }); // Tier-2
+    queueMutation({ mutationName: "createMaintenanceTicket", args: { subject: "Fix AC" }, label: "Ticket" }); // Tier-2
+    queueMutation({ mutationName: "markChargeAsPaid", args: { serviceChargeId: "sc1" }, label: "Charge paid" }); // Tier-1
+    assert(readQueue().length === 4, "4 mixed items queued");
+    const r11 = await replayQueue(true);
+    assert(r11.success === 4, "all 4 replayed");
+    assert(calls.addLedgerEntry.length === 1, "ledger entry first");
+    assert(calls.updateTaskStatus.length === 1, "task status second");
+    assert(calls.createMaintenanceTicket.length === 1, "ticket third");
+    assert(calls.markChargeAsPaid.length === 1, "charge paid fourth");
+    assert(toasts.some(t => t.msg.includes("Synced 4 items")), "synced 4 items toast shown");
 
     console.log("\n=== ALL TESTS PASSED ===");
     console.log("\n--- Toast log (rent collection scenario) ---");
