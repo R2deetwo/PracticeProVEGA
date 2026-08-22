@@ -530,8 +530,12 @@ const HubHero: React.FC<{
             {/* Subtle dot grid — the only background texture */}
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
-            {/* hero-stagger: orchestrates headline → subheadline → cards → auth link */}
-            <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-24 pb-16 px-4 sm:px-6 text-center">
+            {/* hero-stagger: orchestrates headline → subheadline → cards → auth link.
+                pb-28 on mobile (112px) clears the WhatsApp FAB (bottom-20 = 80px)
+                plus the MobileStickyCTA bar (~64px) that appears after product
+                selection. sm:pb-16 restores the tighter spacing on desktop
+                where there are no fixed bottom elements. */}
+            <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-24 pb-28 sm:pb-16 px-4 sm:px-6 text-center">
 
                 <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.15] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
                     Professional Practice,
@@ -661,8 +665,15 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
             {/* ── Subtle dot grid only — no radial glow blob ── */}
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
-            {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
-            <div className="hero-stagger relative z-10 pt-24 pb-16 px-4 sm:px-6 lg:pt-48 lg:pb-32">
+            {/* ── Hero Content — 2-column on desktop, stacked on mobile ──
+                pb-28 on mobile (112px) clears the WhatsApp FAB (bottom-20 = 80px)
+                and the MobileStickyCTA bar (~64px tall at bottom-0). Without
+                this, the hero body paragraph ("Purpose-built for Nigerian
+                property portfolios... charge collection...") was getting
+                clipped behind the sticky CTA bar on small viewports.
+                sm:pb-16 restores desktop spacing where there are no fixed
+                bottom elements. */}
+            <div className="hero-stagger relative z-10 pt-24 pb-28 sm:pb-16 px-4 sm:px-6 lg:pt-48 lg:pb-32">
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
                     {/* Left: text content */}
                     <div className="text-center lg:text-left">
@@ -685,14 +696,22 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                                 : 'Purpose-built for Nigerian property portfolios — for professional property managers and diaspora property owners alike. Facilities management, service charge collection, a residents\' portal, and AI-powered revenue intelligence in one platform.'}
                         </p>
 
-                        {/* CTAs */}
-                        <div className="flex gap-4 justify-center lg:justify-start items-center mb-8">
+                        {/* CTAs — hidden on mobile because the MobileStickyCTA bar
+                            provides the same action ("Start Free Trial") fixed
+                            at the viewport bottom. Showing both would create
+                            duplicate CTAs competing for attention on small
+                            screens. md+ shows the hero CTA since there's no
+                            sticky bar on desktop. */}
+                        <div className="hidden md:flex gap-4 justify-center lg:justify-start items-center mb-8">
                             <PrimaryButton onClick={onSignup} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
                                 Get Started
                             </PrimaryButton>
                         </div>
 
-                        {/* Image pagination dots — shows which image is active */}
+                        {/* Image pagination dots — shows which image is active.
+                            Small enough to coexist with the sticky CTA bar on
+                            mobile (1.5px tall, sits in the hero body above the
+                            pb-28 clear zone). */}
                         <div className="flex gap-2 justify-center lg:justify-start items-center">
                             {heroImages.map((_, i) => (
                                 <button
@@ -2113,17 +2132,22 @@ const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => vo
 };
 
 // ─── MOBILE STICKY BOTTOM CTA BAR ─────────────────────────────────────────
+// Fixed to the viewport bottom on mobile only (md:hidden). Sits above the
+// WhatsApp FAB in z-order so the primary CTAs are always tappable. Uses
+// backdrop-blur + bg-white/95 for a translucent backdrop so any hero text
+// scrolling behind it stays partially visible rather than fully occluded.
+// (Hero text already gets pb-28 padding on mobile to clear this bar + FAB.)
 const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-[200] bg-white border-t border-slate-200 px-4 py-3 flex gap-2 shadow-lg">
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
         <button
             onClick={onContactSales}
-            className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+            className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 active:bg-slate-100 transition-colors"
         >
             Talk to Sales
         </button>
         <button
             onClick={onSignup}
-            className="flex-[1.5] py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+            className="flex-[1.5] py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 active:bg-primary-800 transition-colors"
         >
             Start Free Trial
         </button>
@@ -2136,13 +2160,17 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
 // conversion flow (email-based, responds within 24 hours).
 // When a WhatsApp Business number is registered, replace the onClick with:
 // href="https://wa.me/234XXXXXXXXXX?text=Hi%20PracticePro..."
-// MOBILE FIX: On mobile, the FAB sits above the sticky CTA bar (bottom-20)
-// to avoid overlapping the "Start Free Trial" button. On desktop (md+),
-// it sits at the standard bottom-6 position since there's no sticky bar.
+//
+// MOBILE POSITIONING:
+//   - On mobile (default), sits at bottom-24 (96px) — ABOVE the MobileStickyCTA
+//     bar (~64px tall) so it never overlaps the primary CTAs.
+//   - On md+ screens, drops to bottom-6 (24px) since there's no sticky bar.
+//   - z-[220] sits ABOVE the MobileStickyCTA (z-210) so the FAB is always
+//     tappable, but BELOW modal overlays (z-300+) so modals cover it.
 const WhatsAppFAB: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[200] w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#25D366] shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#25D366] shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

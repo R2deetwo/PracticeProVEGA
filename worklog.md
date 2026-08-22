@@ -7930,3 +7930,65 @@ Next actions:
 - All 5 Claude-flagged audit items from the prior conversation are now addressed.
 - Manual browser test recommended for #2: log in as Admin, go offline (devtools → Network → Offline), refresh the page, confirm the admin dashboard is no longer accessible (should show Lawyer-level views instead). Reconnect, confirm admin access is restored.
 - Manual browser test recommended for #5: switch between Vega and Atrium products, open the What's New popup, confirm Vega-only entries (court date reminders, retainer automation) only appear for Vega users and Atrium-only entries (VMS add-on) only appear for Atrium users.
+
+---
+Task ID: mobile-hero-overlap-fix
+Agent: main (Super Z)
+Task: Fix mobile hero section layout overlap and text clipping per user's architectural brief. Three issues: (1) hero body paragraph clipped behind sticky CTA bar, (2) WhatsApp FAB overlapping sticky CTA, (3) duplicate "Get Started" button rendering below the fixed bottom container.
+
+Work Log:
+- Root cause analysis confirmed all three issues:
+  * HubHero used `pb-16` (64px) — WhatsApp FAB at `bottom-20` (80px) overlapped the bottom 80px of hero content (compliance note + sign-in link)
+  * HomeSection used `pb-16` (64px) — MobileStickyCTA bar (~64px tall at bottom-0) clipped the hero body paragraph ("Purpose-built for Nigerian property portfolios... charge collection...") and image pagination dots
+  * WhatsAppFAB at `bottom-20` (80px) sat at the same vertical position as the MobileStickyCTA bar's "Start Free Trial" button — both were z-[200], causing visual collision
+  * Hero "Get Started" button (line 700) duplicated the MobileStickyCTA's "Start Free Trial" action on mobile
+
+- Fix 1: Hero container bottom padding (HubHero + HomeSection)
+  * Changed `pb-16` → `pb-28 sm:pb-16` on both hero content wrappers
+  * pb-28 (112px) on mobile clears: WhatsApp FAB (bottom-24 = 96px) + MobileStickyCTA bar (~64px at bottom-0) + breathing room
+  * sm:pb-16 (64px) restores tighter desktop spacing where there are no fixed bottom elements
+  * lg:pb-32 preserved on HomeSection for desktop hero image breathing room
+
+- Fix 2: MobileStickyCTA bar z-index + backdrop
+  * z-[200] → z-[210] — sits above hero content but below modals (z-300+)
+  * bg-white → bg-white/95 backdrop-blur-md — translucent backdrop so any hero text scrolling behind it stays partially visible rather than fully occluded
+  * shadow-lg → shadow-[0_-4px_12px_rgba(0,0,0,0.06)] — subtle upward shadow for depth
+  * Added active: states for touch feedback (active:bg-slate-100, active:bg-primary-800)
+
+- Fix 3: WhatsApp FAB positioning + z-index
+  * bottom-20 (80px) → bottom-24 (96px) on mobile — now sits ABOVE the MobileStickyCTA bar (~64px tall) with a 32px gap, no overlap
+  * z-[200] → z-[220] — sits above MobileStickyCTA (z-210) so FAB is always tappable, but below modal overlays (z-300+)
+  * Added active:scale-95 for touch feedback
+  * Comment updated to document the mobile positioning rationale
+
+- Fix 4: Duplicate "Get Started" button removal
+  * Hero CTA wrapper changed from `flex` → `hidden md:flex` on HomeSection
+  * On mobile, the MobileStickyCTA bar provides the same action ("Start Free Trial") — showing both created visual redundancy and competed for attention
+  * On md+ (desktop), the hero CTA shows since there's no sticky bar
+  * Image pagination dots remain visible on all breakpoints (small enough to coexist)
+
+- Verification: TypeScript check — 379 errors before and after, ZERO new errors introduced. Both pre-existing errors (lines 193 and 857) are unrelated to my changes.
+
+Stage Summary:
+- Files modified (1):
+  * src/components/LandingPage.tsx — 4 fixes applied
+- Changes:
+  1. HubHero hero-stagger: pb-16 → pb-28 sm:pb-16 (line 538)
+  2. HomeSection hero-stagger: pb-16 → pb-28 sm:pb-16 (line 676)
+  3. MobileStickyCTA: z-[200]→z-[210], bg-white→bg-white/95 backdrop-blur-md, shadow update (line 2129)
+  4. WhatsAppFAB: bottom-20→bottom-24, z-[200]→z-[220], active:scale-95 (line 2161)
+  5. HomeSection hero CTA: flex → hidden md:flex (line 705) — removes duplicate Get Started on mobile
+- Acceptance criteria from user's brief:
+  [x] Hero body paragraph ("...service charge collection, a residents' portal...") now fully visible on mobile — pb-28 clears the sticky CTA bar
+  [x] WhatsApp FAB no longer overlaps text or button text — bottom-24 sits above the MobileStickyCTA bar with a 32px gap
+  [x] Duplicate "Get Started" button removed on mobile — hero CTA hidden md:flex, MobileStickyCTA provides the same action
+  [x] Layout reflows dynamically — pb-28 only on mobile, sm:pb-16 restores desktop spacing; no dead vertical gaps on desktop
+  [x] Translucent backdrop on sticky bar — bg-white/95 backdrop-blur-md shows hero text scrolling behind it rather than fully occluding
+
+Next actions:
+- Manual mobile viewport test recommended (375px-430px widths):
+  * Scroll to hero on /vega or /atrium — confirm body paragraph is fully visible above the sticky CTA bar
+  * Confirm WhatsApp FAB sits above the sticky CTA bar with a visible gap, not overlapping
+  * Confirm no duplicate "Get Started" button on mobile
+  * Scroll to footer — confirm footer's pb-[calc(5rem+env(safe-area-inset-bottom))] still clears the sticky bar
+  * Test on iPhone SE (320px width) — the tightest mobile viewport
