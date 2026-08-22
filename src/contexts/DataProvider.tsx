@@ -73,6 +73,10 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // 2. Base Generic Actions (with Optimistic UI support)
     const baseActions = React.useMemo(() => ({
         addItem: async (table: string, data: any, itemName?: string) => {
+            if (!currentUser?.email) {
+                addToast("Cannot save: your session is still loading. Please wait a moment and try again.", { type: 'error' });
+                throw new Error("Session not loaded: cannot perform createItem without authenticated userEmail.");
+            }
             const tempId = data.id || uuidv4();
             const optimisticItem = { ...data, id: tempId };
             setAppState(prev => ({ ...prev, [table]: [...(prev[table as keyof AppState] as any[]), optimisticItem] }));
@@ -106,6 +110,10 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }
         },
         updateItem: async (table: string, item: any, itemName?: string) => {
+            if (!currentUser?.email) {
+                addToast("Cannot save: your session is still loading. Please wait a moment and try again.", { type: 'error' });
+                throw new Error("Session not loaded: cannot perform updateItem without authenticated userEmail.");
+            }
             const tableKey = table as keyof AppState;
             const matchesItem = (i: any) =>
                 i.id === item.id ||
@@ -155,6 +163,10 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }
         },
         deleteItem: async (table: string, id: string, itemName?: string) => {
+            if (!currentUser?.email) {
+                addToast("Cannot delete: your session is still loading.", { type: 'error' });
+                throw new Error("Session not loaded: cannot perform deleteItem without authenticated userEmail.");
+            }
             const tableKey = table as keyof AppState;
             const itemToDelete = (appStateRef.current[tableKey] as any[]).find((i: any) => i.id === id || (i._id && i._id === id));
 

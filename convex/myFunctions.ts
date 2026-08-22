@@ -19,7 +19,7 @@ export const sendHeartbeat = mutation({
     // SECURITY: Verify the caller belongs to the firm they're sending presence for.
     // Skip the firmId match check when auth.firmId is empty (legacy call without userEmail).
     const auth = await requireFirmUser(ctx, args.userEmail);
-    if (auth.firmId && auth.firmId !== args.firmId) {
+    if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. firmId does not match your session.");
     }
 
@@ -43,7 +43,7 @@ export const getActivePeers = query({
     if (args.userEmail) {
       try {
         const auth = await requireFirmUser(ctx, args.userEmail);
-        if (auth.firmId && auth.firmId !== args.firmId) return [];
+        if (!auth.firmId || auth.firmId !== args.firmId) return [];
       } catch { return []; }
     }
     if (!args.firmId) return [];
@@ -2406,7 +2406,7 @@ export const deleteFirm = mutation({
     
     // SECURITY: Require admin auth and verify firm ownership
     const auth = await requireAdmin(ctx, args.userEmail);
-    if (auth.firmId && auth.firmId !== args.firmId) {
+    if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete your own firm.");
     }
 
@@ -2556,7 +2556,10 @@ export const createItem = mutation({
     // that don't pass userEmail. Without this fallback, signup and other
     // pre-auth flows would break. To harden: migrate all callers to pass
     // userEmail, then remove this fallback.
-    const effectiveFirmId = firmId || sanitizedData.firmId || '';
+    if (!firmId) {
+      throw new Error("Unauthenticated: userEmail required. Anonymous createItem calls are no longer permitted.");
+    }
+    const effectiveFirmId = firmId;
     const dataWithTimestamp = {
       ...sanitizedData,
       firmId: effectiveFirmId,
@@ -3071,7 +3074,10 @@ async function resolveRecordForUpdate(
     // check for backward compatibility.
     // NOTE: This is fail-OPEN for backward compatibility. To harden, migrate
     // all callers to pass userEmail so requireFirmUser always returns a valid firmId.
-    if (firmId && existing.firmId && existing.firmId !== firmId) {
+    if (!firmId) {
+      throw new Error("Unauthenticated: userEmail required. Anonymous updates are no longer permitted.");
+    }
+    if (!existing.firmId || existing.firmId !== firmId) {
       throw new Error("Unauthorized. This record belongs to another organization.");
     }
     return { docId: id };
@@ -3083,7 +3089,7 @@ async function resolveRecordForUpdate(
       .withIndex("by_custom_id" as any, (q: any) => q.eq("id", id))
       .first();
     if (item) {
-      if (firmId && item.firmId && item.firmId !== firmId) {
+      if (!firmId || (item.firmId && item.firmId !== firmId)) {
         throw new Error("Unauthorized. This record belongs to another organization.");
       }
       return { docId: item._id };
@@ -3094,7 +3100,7 @@ async function resolveRecordForUpdate(
     const item = sample.find((i: any) => i.id === id) ||
                  sample.find((i: any) => String(i._id) === String(id));
     if (item) {
-      if (firmId && item.firmId && item.firmId !== firmId) {
+      if (!firmId || (item.firmId && item.firmId !== firmId)) {
         throw new Error("Unauthorized. This record belongs to another organization.");
       }
       return { docId: item._id };
@@ -3598,8 +3604,13 @@ export const deleteItem = mutation({
     } catch (_e) {
       // id is a UUID / non-Convex ID — fall through to indexed search
     }
-    if (existing && existing.firmId && existing.firmId !== firmId) {
-      throw new Error("Unauthorized. This record belongs to another organization.");
+    if (existing) {
+      if (!firmId) {
+        throw new Error("Unauthenticated: userEmail required. Anonymous deletes are no longer permitted.");
+      }
+      if (existing.firmId && existing.firmId !== firmId) {
+        throw new Error("Unauthorized. This record belongs to another organization.");
+      }
     }
 
     // 2. Strategy A: Direct Delete by Convex internal _id
@@ -3622,7 +3633,7 @@ export const deleteItem = mutation({
       }
 
       if (item) {
-        if (item.firmId && item.firmId !== firmId) {
+        if (!firmId || (item.firmId && item.firmId !== firmId)) {
           throw new Error("Unauthorized. This record belongs to another organization.");
         }
         await ctx.db.delete(item._id);
@@ -3674,7 +3685,7 @@ export const purgeFirmData = mutation({
   args: { firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
-    if (auth.firmId && auth.firmId !== args.firmId) {
+    if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only purge data for your own firm.");
     }
     const { firmId } = args;
