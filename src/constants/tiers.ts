@@ -315,9 +315,9 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Pro: {
     id: 'Pro',
     label: 'Pro',
-    monthlyPrice: 175000,              // FIX: Corrected from 200,000 to match annual÷12 exactly (Starter & Growth use 10×monthly=annual pattern; Pro was breaking it)
+    monthlyPrice: 210000,              // FIX: Corrected to match ×10 pattern (210,000×10=2,100,000). Starter and Growth both use monthly×10=annual.
     annualPrice: 2100000,
-    monthlyPriceDisplay: fmt(175000),
+    monthlyPriceDisplay: fmt(210000),
     annualPriceDisplay: fmt(2100000),
     features: buildAtriumFeatures({
       maxUsers: null,
