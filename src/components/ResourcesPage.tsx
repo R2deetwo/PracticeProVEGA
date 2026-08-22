@@ -982,7 +982,7 @@ const WHATS_NEW_ENTRIES: WhatsNewEntry[] = [
         items: [
             { label: 'Product-Specific AI Section', body: 'AI Capabilities now shows ALOA (legal drafting, PII Shield, firm-grade security) for Vega and ARIA (revenue intelligence, tenant data protection, portfolio security) for Atrium — no more generic copy.', badge: 'Both' },
             { label: 'Atrium Monthly Billing', body: 'Atrium now supports monthly billing (was annual-only). Starter N49K/mo, Growth N96.5K/mo, Pro N200K/mo. 20% premium over annual.' },
-            { label: 'Komplete Fixed', body: 'Price reduced from N2.5M to N2.2M/yr. Seats increased from 10 to unlimited. All add-ons included (Sentry Pass, storage, dedicated AM).' },
+            { label: 'Komplete Fixed', body: 'Price set at ₦2.5M/yr with unlimited seats. All add-ons included (Sentry Pass, storage, dedicated AM). Positioned at 19% premium over Atrium Pro alone.' },
             { label: 'Core Naming Collision Fixed', body: 'Vega "Core" renamed to "Free". Atrium "Core" renamed to "Starter". No more confusion between free and paid tiers.' },
             { label: 'WhatsApp Limit Increased', body: 'Atrium Starter WhatsApp quota increased from 100 to 250 messages/month.' },
             { label: '30-Day Money-Back Guarantee', body: 'All annual plans now include a 30-day money-back guarantee. Displayed on pricing section.' },

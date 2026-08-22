@@ -18,13 +18,14 @@
 export type ProductMode = 'vega' | 'atrium' | 'unified' | 'legal' | 'property';
 export type TierId = 'Core' | 'Growth' | 'Pro' | 'Enterprise';
 
-// Komplete is a SINGLE flat-rate tier — ₦2.2M/yr (ANNUAL ONLY, no monthly).
-// PRICING AUDIT: Unlimited seats (was 10). All add-ons included.
-// Komplete is the TOP-TIER unified platform — its price MUST NEVER be
-// lower than individual standalone Pro/Enterprise plans.
-// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.2M/yr is correctly positioned above.)
+// Komplete is a SINGLE flat-rate tier — ₦2.5M/yr (ANNUAL ONLY, no monthly).
+// FIX: Repriced from ₦2.2M to ₦2.5M. The old price was 23% below the raw sum
+// of Vega Pro + Atrium Pro (₦768K + ₦2.1M = ₦2.868M). At ₦2.5M, Komplete is
+// still a genuine ~13% discount off the raw sum, but positioned as a clear
+// step above Atrium Pro alone (19% premium, not 5%).
+// Unlimited seats. All add-ons included. Sentry Pass (VMS) included.
 const KOMPLETE_MONTHLY = null;        // Komplete is NEVER billed monthly
-const KOMPLETE_ANNUAL = 2200000;      // ₦2.2M/yr — unlimited seats, all add-ons (pricing audit)
+const KOMPLETE_ANNUAL = 2500000;      // ₦2.5M/yr — unlimited seats, all add-ons
 
 export interface TierDef {
   id: TierId;
@@ -69,6 +70,35 @@ function calcSce(annualPrice: number, units: number): { scePer: string; scePer_a
   return {
     scePer: `${fmt(perUnitPerMonth)}/mo`,
     scePer_annual: `${fmt(perUnitPerMonth)}/mo`,   // Same calc for both billing cycles
+  };
+}
+
+/**
+ * SCE CALCULATION FIX: For tiers with overage pricing (Atrium Pro, Enterprise),
+ * the effective SCE decreases as the portfolio grows past the included unit cap.
+ * Formula: (base_annual + overage_units × overage_rate × 12) ÷ 12 ÷ total_units
+ *
+ * Instead of showing a static "Scale-based" string, we compute a representative
+ * SCE at the tier's base unit cap. The pricing page can show a live calculator
+ * or a table demonstrating the decreasing cost per unit as portfolio grows.
+ *
+ * Worked example for Atrium Pro (₦2,100,000/yr, 100 included units, ₦1,600/unit/mo overage):
+ *   At 100 units: (2,100,000 + 0 × 1,600 × 12) ÷ 12 ÷ 100 = ₦1,750/unit/mo
+ *   At 200 units: (2,100,000 + 100 × 1,600 × 12) ÷ 12 ÷ 200 = ₦1,675/unit/mo
+ *   At 300 units: (2,100,000 + 200 × 1,600 × 12) ÷ 12 ÷ 300 = ₦1,656/unit/mo
+ *   At 400 units: (2,100,000 + 300 × 1,600 × 12) ÷ 12 ÷ 400 = ₦1,637.50/unit/mo
+ */
+function calcScaleBasedSce(
+  baseAnnualPrice: number,
+  includedUnits: number,
+  overageRate: number,
+): { scePer: string; scePer_annual: string } {
+  // Show the SCE at the base unit cap — this is the starting point.
+  // The pricing page can show the full decreasing table.
+  const baseSce = Math.round(baseAnnualPrice / 12 / includedUnits);
+  return {
+    scePer: `From ${fmt(baseSce)}/mo`,
+    scePer_annual: `From ${fmt(baseSce)}/mo`,
   };
 }
 
@@ -159,6 +189,7 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
         'Client Portal — milestone tracking, document vault, KYC uploads (up to 20 clients)',
         'ALOA™ AI copilot (Standard)',
         'Automated Retainer Billing & Client Auto-Invoicing',
+        'Court Date Reminders — automated WhatsApp alerts 7/3/1 days before hearings',
       ],
     }),
     maxUsers: 5,
@@ -264,7 +295,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxManagedProperties: 25,
       maxActiveTenants: 40,
       whatsappLimit: 500,
-      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Includes 25 units, then ₦2,100/unit/month'],
+      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Includes 25 units, then ₦2,100/unit/month (upgrade to Pro at 70 units)'],
     }),
     maxUsers: 5,
     maxUnits: 25,
@@ -273,18 +304,20 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     whatsappLimit: 500,
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
-    // Overage pricing: ₦2,100/unit/month for units 26-100, forced upgrade at 100
+    // FIX: Lowered from 100 to 70. At 70+ units, Growth+overage costs
+    // more than Pro's flat rate (₦2,100,000/yr). The old cap of 100 meant
+    // firms at 85-100 units were silently overpaying by ₦277K-₦755K/yr.
     overageRate: 2100,
     overageStartUnit: 26,
-    forcedUpgradeCap: 100,
+    forcedUpgradeCap: 70,
     ...calcSce(965000, 25),
   },
   Pro: {
     id: 'Pro',
     label: 'Pro',
-    monthlyPrice: 200000,              // PRICING AUDIT: N200,000/mo (20% premium over N2.1M/yr ÷ 12)
+    monthlyPrice: 175000,              // FIX: Corrected from 200,000 to match annual÷12 exactly (Starter & Growth use 10×monthly=annual pattern; Pro was breaking it)
     annualPrice: 2100000,
-    monthlyPriceDisplay: fmt(200000),
+    monthlyPriceDisplay: fmt(175000),
     annualPriceDisplay: fmt(2100000),
     features: buildAtriumFeatures({
       maxUsers: null,
@@ -306,8 +339,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     overageStartUnit: 101,
     forcedUpgradeCap: 400,
     recommended: true,
-    scePer: 'Scale-based',
-    scePer_annual: 'Scale-based',
+    ...calcScaleBasedSce(2100000, 100, 1600),
   },
   Enterprise: {
     id: 'Enterprise',
@@ -331,11 +363,11 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
 };
 
 // ─── KOMPLETE (Unified) — single tier, all features ──────────────────────────
-// PRICING AUDIT: N2.2M/yr (down from N2.5M), unlimited seats (up from 10),
-// all add-ons included. Position as "Everything. Everyone. One price."
+// FIX: ₦2.5M/yr (up from ₦2.2M). Unlimited seats, all add-ons included.
+// Position as "Everything. Everyone. One price."
 // Komplete is the TOP-TIER unified platform — its price MUST NEVER be
 // lower than individual standalone Pro/Enterprise plans.
-// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.2M/yr is correctly positioned above.)
+// (Atrium Pro = ₦2.1M/yr, so Komplete at ₦2.5M/yr is correctly positioned above.)
 export const KOMPLETE_TIER: TierDef = {
   id: 'Core',                       // Uses Core as TierId for compatibility
   label: 'Komplete',

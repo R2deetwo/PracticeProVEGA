@@ -18,7 +18,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
     if (targetPlan === SubscriptionPlan.Komplete) {
       return {
         title: "Komplete",
-        price: "₦2,200,000",
+        price: "₦2,500,000",
         features: [
           "Unlimited Users",
           isProperty ? 'Unlimited Properties & Units' : 'Unlimited Matters & Units',

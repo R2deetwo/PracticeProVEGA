@@ -284,9 +284,9 @@ const BillingCalculator: React.FC<{
         const rate = seatRateForTier(VEGA_TIERS.Growth);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Growth Rate)";
     } else if (currentPlan === SubscriptionPlan.Komplete) {
-        // PRICING AUDIT: Komplete is annual-only at ₦2.2M/yr with UNLIMITED seats.
+        // Komplete is annual-only at ₦2.5M/yr with UNLIMITED seats.
         // No seat add-on billing — all seats are included.
-        const kompleteAnnual = KOMPLETE_TIER.annualPrice ?? 2200000;
+        const kompleteAnnual = KOMPLETE_TIER.annualPrice ?? 2500000;
         const baseRate = Math.round(kompleteAnnual / 12);  // monthly-equiv for display
         baseCost = baseRate;
         // PRICING AUDIT: unlimited seats — no add-on cost for extra seats

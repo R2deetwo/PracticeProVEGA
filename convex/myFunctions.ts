@@ -5778,6 +5778,12 @@ export const expireTrials = internalMutation({
 
     let expiredCount = 0;
     for (const firm of expired) {
+      // FIX: Trial revert — data is NOT deleted. The firm reverts to Core billing
+      // but all data (units, matters, contacts) remains intact. The frontend
+      // should show a soft-lock banner: "You have X units beyond your current
+      // plan's limit. Upgrade to restore full access."
+      // This is a PRODUCT DECISION — the soft-lock UI pattern needs review before
+      // implementing. For now, we just revert the plan and notify the admin.
       await ctx.db.patch(firm._id, {
         subscriptionPlan: 'Core',
         trialStartsAt: null,
@@ -5785,6 +5791,7 @@ export const expireTrials = internalMutation({
         trialPlan: null,
         adminStatus: 'active',
         setupFeePaid: true,
+        trialExpiredAt: now, // NEW: track when the trial expired so the frontend can show the soft-lock banner
         updatedAt: new Date().toISOString(),
       } as any);
 

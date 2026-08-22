@@ -832,11 +832,15 @@ export const sendCourtReminders = internalMutation({
     for (const firm of firms) {
       const firmId = firm._id as string;
 
-      // ── TIER GATE: Court Date Reminders is a Pro-only feature ──
-      // Only firms on Pro or Enterprise plans get court reminders.
-      // Core and Growth firms are skipped entirely.
+      // ── TIER GATE: Court Date Reminders is a Growth+ feature ──
+      // FIX: Moved from Pro-only to Growth+ (Growth, Pro, Enterprise, Komplete).
+      // Court date reminders are a safety net — a missed court date is a
+      // malpractice-level risk. The marginal cost (~₦10/WhatsApp message)
+      // is negligible compared to the value of preventing a missed hearing.
       const plan = (firm as any).subscriptionPlan;
-      if (plan !== 'Pro' && plan !== 'Enterprise') continue;
+      const trialPlan = (firm as any).trialPlan;
+      const effectivePlan = trialPlan || plan; // Use trial plan if on active trial
+      if (effectivePlan !== 'Growth' && effectivePlan !== 'Pro' && effectivePlan !== 'Enterprise' && effectivePlan !== 'Komplete') continue;
 
       // Query all matters for this firm that have a nextAdjournedDate
       const matters = await ctx.db

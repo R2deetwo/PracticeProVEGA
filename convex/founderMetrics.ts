@@ -39,7 +39,7 @@ const ATRIUM_PLAN_ANNUAL_PRICE: Record<string, number> = {
   Pro: 2100000,
   Enterprise: 0,
 };
-const KOMPLETE_ANNUAL_PRICE = 2200000;  // PRICING AUDIT: was 2500000
+const KOMPLETE_ANNUAL_PRICE = 2500000;  // FIX: Repriced from 2.2M to 2.5M
 
 /**
  * Calculate the platform subscription revenue for a single firm.
