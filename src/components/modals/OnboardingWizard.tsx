@@ -544,9 +544,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     </div>
                   </div>
                 ) : (
-                  /* Full tier grid — show all 4 tiers in one row on desktop,
-                     2 columns on tablet, 1 column on mobile. */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in">
+                  /* Full 3-tier grid with smooth cascade transition */
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
                     {tierIds.map(id => (
                       <PlanCard
                         key={id}
