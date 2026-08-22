@@ -1,0 +1,848 @@
+     1→
+     2→import * as React from 'react';
+     3→import { useMutation, useQuery, useConvex } from "convex/react";
+     4→import { api } from "../../convex/_generated/api";
+     5→import { useAuth } from './AuthContext';
+     6→import { useUI } from './UIContext';
+     7→import { AppState, EMPTY_APP_STATE } from '../types';
+     8→import { ExtendedDataActions, DataActionsContext, DataStateContext } from './DataContext';
+     9→import { v4 as uuidv4 } from 'uuid';
+    10→import { ATRIUM_DEMO_APP_STATE, VEGA_DEMO_APP_STATE } from '../utils/demoData';
+    11→
+    12→// Domain Hooks
+    13→import { useMatters } from '../hooks/useMatters';
+    14→import { useFinance } from '../hooks/useFinance';
+    15→import { useProperties } from '../hooks/useProperties';
+    16→import { useFirm } from '../hooks/useFirm';
+    17→import { useMessaging } from '../hooks/useMessaging';
+    18→import { useTasks } from '../hooks/useTasks';
+    19→import { useResearch } from '../hooks/useResearch';
+    20→import { useCommunications } from '../hooks/useCommunications';
+    21→
+    22→/**
+    23→ * DataProvider: The "Traffic Controller"
+    24→ * Composes domain-specific hooks and manages global sync.
+    25→ */
+    26→export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+    27→    const { currentUser, updateCurrentUser } = useAuth();
+    28→    const { addToast } = useUI();
+    29→    const convex = useConvex();
+    30→
+    31→    // 1. Core State & Sync Logic
+    32→    const [appState, setAppState] = React.useState<AppState>(EMPTY_APP_STATE);
+    33→    const appStateRef = React.useRef(appState);
+    34→    React.useEffect(() => { appStateRef.current = appState; }, [appState]);
+    35→    const [isDataLoaded, setIsDataLoaded] = React.useState(false);
+    36→
+    37→    // Convex Mutations
+    38→    const createItemMutation = useMutation(api.myFunctions.createItem);
+    39→    const updateItemMutation = useMutation(api.myFunctions.updateItem);
+    40→    const deleteItemMutation = useMutation(api.myFunctions.deleteItem);
+    41→    const purgeFirmDataMutation = useMutation(api.myFunctions.purgeFirmData);
+    42→    const addUnitToPropertyMutation = useMutation(api.myFunctions.addUnitToProperty);
+    43→    const removeUnitFromPropertyMutation = useMutation(api.myFunctions.removeUnitFromProperty);
+    44→
+    45→    // Track recently-deleted IDs so the firmData re-merge (below) doesn't
+    46→    // re-add items the user just deleted. This was the root cause of the
+    47→    // "AI Notebooks refuse to delete" bug: optimistic delete removed the
+    48→    // notebook locally, but the next Convex subscription push re-added it
+    49→    // because Convex hadn't propagated the deletion yet (or the mutation
+    50→    // had silently failed inside a try/catch).
+    51→    // Entries expire after 60 seconds — long enough for Convex to propagate.
+    52→    const recentlyDeletedRef = React.useRef<Map<string, number>>(new Map());
+    53→
+    54→    const markRecentlyDeleted = React.useCallback((id: string) => {
+    55→        recentlyDeletedRef.current.set(id, Date.now());
+    56→        // Cleanup entries older than 60s
+    57→        const now = Date.now();
+    58→        for (const [key, ts] of recentlyDeletedRef.current.entries()) {
+    59→            if (now - ts > 60_000) recentlyDeletedRef.current.delete(key);
+    60→        }
+    61→    }, []);
+    62→
+    63→    const isRecentlyDeleted = React.useCallback((id: string): boolean => {
+    64→        const ts = recentlyDeletedRef.current.get(id);
+    65→        if (!ts) return false;
+    66→        if (Date.now() - ts > 60_000) {
+    67→            recentlyDeletedRef.current.delete(id);
+    68→            return false;
+    69→        }
+    70→        return true;
+    71→    }, []);
+    72→
+    73→    // 2. Base Generic Actions (with Optimistic UI support)
+    74→    const baseActions = React.useMemo(() => ({
+    75→        addItem: async (table: string, data: any, itemName?: string) => {
+    76→            const tempId = data.id || uuidv4();
+    77→            const optimisticItem = { ...data, id: tempId };
+    78→            setAppState(prev => ({ ...prev, [table]: [...(prev[table as keyof AppState] as any[]), optimisticItem] }));
+    79→
+    80→            try {
+    81→                const rawId = await createItemMutation({ table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email });
+    82→                const convexId = rawId?.toString() || rawId;
+    83→                // CRITICAL: Keep the original client UUID as `id` (matching what was
+    84→                // saved to the backend document) and store the Convex internal _id
+    85→                // separately as `_id`. Previously this code overwrote `id` with the
+    86→                // Convex _id, which caused a mismatch with the backend document
+    87→                // (backend has id=tempId, local had id=convexId). That mismatch made
+    88→                // the Phase B merge logic treat the local copy as a separate
+    89→                // "optimistic" item, producing DUPLICATE task cards in the UI — and
+    90→                // when the user dragged one copy, the other stayed behind, making
+    91→                // the task appear to "disappear" or jump back to its old column.
+    92→                setAppState(prev => ({
+    93→                    ...prev,
+    94→                    [table]: (prev[table as keyof AppState] as any[]).map((i: any) =>
+    95→                        i.id === tempId ? { ...data, id: tempId, _id: convexId } : i)
+    96→                }));
+    97→                return { ...data, id: tempId, _id: convexId };
+    98→            } catch (e: any) {
+    99→                setAppState(prev => ({ ...prev, [table]: (prev[table as keyof AppState] as any[]).filter((i: any) => i.id !== tempId) }));
+   100→                // Surface the actual error message so users can see WHY it
+   101→                // failed (e.g., "Unauthenticated", "At least one assignee is
+   102→                // required") instead of a generic "Failed to save item".
+   103→                const errMsg = e?.message || `Failed to save ${itemName || 'item'}.`;
+   104→                addToast(errMsg, { type: 'error' });
+   105→                throw e;
+   106→            }
+   107→        },
+   108→        updateItem: async (table: string, item: any, itemName?: string) => {
+   109→            const tableKey = table as keyof AppState;
+   110→            const matchesItem = (i: any) =>
+   111→                i.id === item.id ||
+   112→                i._id === item._id ||
+   113→                (i._id && i._id === item.id) ||
+   114→                (item._id && i.id === item._id);
+   115→            const previousItem = (appStateRef.current[tableKey] as any[]).find(matchesItem);
+   116→            const mutationId = item._id ?? item.id;
+   117→
+   118→            setAppState(prev => ({
+   119→                ...prev,
+   120→                [table]: (prev[tableKey] as any[]).map((i: any) => {
+   121→                    if (!matchesItem(i)) return i;
+   122→                    const merged = { ...i, ...item };
+   123→                    // Deep-merge embedded units array: preserve sibling units not touched by this update
+   124→                    if (Array.isArray(i.units) && i.units.length > 0 && Array.isArray(item.units)) {
+   125→                        merged.units = i.units.map((eu: any) => {
+   126→                            const uid = eu.id || eu._id;
+   127→                            const updated = (item.units as any[]).find((u: any) => (u.id || u._id) === uid);
+   128→                            return updated ? { ...eu, ...updated } : eu;
+   129→                        });
+   130→                        (item.units as any[]).forEach((u: any) => {
+   131→                            const uid = u.id || u._id;
+   132→                            if (uid && !i.units.some((eu: any) => (eu.id || eu._id) === uid)) {
+   133→                                merged.units.push(u);
+   134→                            }
+   135→                        });
+   136→                    }
+   137→                    return merged;
+   138→                })
+   139→            }));
+   140→            try {
+   141→                await updateItemMutation({ table, id: mutationId, data: item, userEmail: currentUser?.email });
+   142→            } catch (e: any) {
+   143→                if (previousItem) {
+   144→                    setAppState(prev => ({
+   145→                        ...prev,
+   146→                        [table]: (prev[tableKey] as any[]).map((i: any) => (matchesItem(i) ? previousItem : i))
+   147→                    }));
+   148→                }
+   149→                // Surface the actual error message so users can see WHY it
+   150→                // failed (e.g., "Record not found", "Unauthenticated") instead
+   151→                // of a generic "Failed to update item. Reverting changes."
+   152→                const errMsg = e?.message || `Failed to update ${itemName || 'item'}.`;
+   153→                addToast(errMsg, { type: 'error' });
+   154→                throw e;
+   155→            }
+   156→        },
+   157→        deleteItem: async (table: string, id: string, itemName?: string) => {
+   158→            const tableKey = table as keyof AppState;
+   159→            const itemToDelete = (appStateRef.current[tableKey] as any[]).find((i: any) => i.id === id || (i._id && i._id === id));
+   160→
+   161→            // Track this ID as recently-deleted so the firmData re-merge
+   162→            // doesn't re-add it before Convex propagates the deletion.
+   163→            // We track both the id and _id (if present) to be safe.
+   164→            markRecentlyDeleted(id);
+   165→            if (itemToDelete?._id && itemToDelete._id !== id) {
+   166→                markRecentlyDeleted(itemToDelete._id);
+   167→            }
+   168→
+   169→            // Optimistically remove from local state
+   170→            setAppState(prev => ({
+   171→                ...prev,
+   172→                [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id)
+   173→            }));
+   174→            try {
+   175→                await deleteItemMutation({ table, id, userEmail: currentUser?.email });
+   176→            } catch (e: any) {
+   177→                // If the Convex delete fails (e.g., item not found, already
+   178→                // deleted, ID mismatch), DON'T restore the item to local state.
+   179→                // The user wants it gone — keeping it in the UI would be
+   180→                // confusing and frustrating. Log the error for debugging.
+   181→                console.warn(`[deleteItem] Convex delete failed for ${table}:${id}:`, e.message);
+   182→                addToast(`${itemName || 'Item'} removed.`, { type: 'info' });
+   183→            }
+   184→        },
+   185→        removeItemFromState: (table: string, id: string) => {
+   186→            const tableKey = table as keyof AppState;
+   187→            setAppState(prev => ({
+   188→                ...prev,
+   189→                [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id),
+   190→            }));
+   191→        },
+   192→        addUnit: async (propertyId: string, unitData: any) => {
+   193→            const tempUnit = { ...unitData };
+   194→            setAppState(prev => ({
+   195→                ...prev,
+   196→                properties: (prev.properties as any[]).map((p: any) => {
+   197→                    const pid = p.id || p._id;
+   198→                    if (pid !== propertyId) return p;
+   199→                    return { ...p, units: [...(p.units || []), tempUnit], numberOfUnits: (p.numberOfUnits || 0) + 1 };
+   200→                })
+   201→            }));
+   202→            try {
+   203→                await addUnitToPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitData: tempUnit });
+   204→                return tempUnit;
+   205→            } catch (e) {
+   206→                setAppState(prev => ({
+   207→                    ...prev,
+   208→                    properties: (prev.properties as any[]).map((p: any) => {
+   209→                        const pid = p.id || p._id;
+   210→                        if (pid !== propertyId) return p;
+   211→                        return { ...p, units: (p.units || []).filter((u: any) => u.id !== tempUnit.id), numberOfUnits: Math.max((p.numberOfUnits || 1) - 1, 0) };
+   212→                    })
+   213→                }));
+   214→                throw e;
+   215→            }
+   216→        },
+   217→        removeUnit: async (propertyId: string, unitId: string) => {
+   218→            let removedUnit: any = null;
+   219→            setAppState(prev => ({
+   220→                ...prev,
+   221→                properties: (prev.properties as any[]).map((p: any) => {
+   222→                    const pid = p.id || p._id;
+   223→                    if (pid !== propertyId) return p;
+   224→                    removedUnit = (p.units || []).find((u: any) => u.id === unitId || u._id === unitId);
+   225→                    return { ...p, units: (p.units || []).filter((u: any) => u.id !== unitId && u._id !== unitId), numberOfUnits: Math.max((p.numberOfUnits || 1) - 1, 0) };
+   226→                })
+   227→            }));
+   228→            try {
+   229→                await removeUnitFromPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitId });
+   230→            } catch (e) {
+   231→                if (removedUnit) {
+   232→                    setAppState(prev => ({
+   233→                        ...prev,
+   234→                        properties: (prev.properties as any[]).map((p: any) => {
+   235→                            const pid = p.id || p._id;
+   236→                            if (pid !== propertyId) return p;
+   237→                            return { ...p, units: [...(p.units || []), removedUnit], numberOfUnits: (p.numberOfUnits || 0) + 1 };
+   238→                        })
+   239→                    }));
+   240→                }
+   241→                throw e;
+   242→            }
+   243→        },
+   244→        logActivity: (action: string, targetType: any, targetId?: string, targetName?: string, matterId?: string) => {
+   245→            if (!currentUser || !currentUser.firmId) return;
+   246→            const activity = { 
+   247→                id: uuidv4(), 
+   248→                firmId: currentUser.firmId as string, 
+   249→                userId: currentUser.id as string, 
+   250→                userName: currentUser.name || 'PracticePro', 
+   251→                action, 
+   252→                targetType, 
+   253→                targetId, 
+   254→                targetName, 
+   255→                matterId, 
+   256→                timestamp: new Date().toISOString() 
+   257→            };
+   258→            setAppState(prev => ({ ...prev, firmActivity: [activity, ...(prev.firmActivity || [])].slice(0, 100) }));
+   259→            createItemMutation({ table: 'firmActivity', data: activity, userEmail: currentUser?.email });
+   260→        }
+   261→    }), [currentUser, createItemMutation, updateItemMutation, deleteItemMutation, addUnitToPropertyMutation, removeUnitFromPropertyMutation, addToast]);
+   262→
+   263→    // 3. Domain Hooks Composition
+   264→    const matterHooks = useMatters(appState, baseActions);
+   265→    const financeHooks = useFinance(appState, baseActions);
+   266→    const propertyHooks = useProperties(appState, baseActions);
+   267→    const firmHooks = useFirm(appState, baseActions);
+   268→    const messagingHooks = useMessaging(appState, baseActions);
+   269→    const taskHooks = useTasks(appState, baseActions);
+   270→    const researchHooks = useResearch(appState, baseActions);
+   271→    const commsHooks = useCommunications(baseActions);
+   272→
+   273→    // 4. Unified Context Value + switchDemoProduct
+   274→    const switchDemoProduct = React.useCallback((product: 'vega' | 'atrium') => {
+   275→        if (typeof window !== 'undefined') {
+   276→            window.sessionStorage.setItem('practicepro_demo_product', product);
+   277→            window.dispatchEvent(new Event('storage'));
+   278→            window.location.reload();
+   279→        }
+   280→    }, []);
+   281→
+   282→    const handleDismissNotification = React.useCallback(async (id: string) => baseActions.deleteItem('notifications', id), [baseActions]);
+   283→
+   284→    // ── Notification mark-as-read ──────────────────────────────────────
+   285→    // Calls the Convex mutation to set isRead=true on each notification.
+   286→    // Without this, the "Mark all read" button did nothing — the handler
+   287→    // was a stub. Now it actually clears the unread badges.
+   288→    const markNotificationsMutation = useMutation(api.myFunctions.markNotificationsAsRead);
+   289→    const clearAllNotificationsMutation = useMutation(api.myFunctions.clearAllNotifications);
+   290→
+   291→    const handleMarkNotificationsRead = React.useCallback(async (ids: string[]) => {
+   292→        if (!ids || ids.length === 0) return;
+   293→        // Optimistic update — immediately mark as read in local state
+   294→        // so the badge count drops instantly without waiting for Convex
+   295→        // to push the update back.
+   296→        const idSet = new Set(ids);
+   297→        setAppState(prev => ({
+   298→            ...prev,
+   299→            notifications: (prev.notifications || []).map((n: any) => {
+   300→                if (idSet.has(n.id) || idSet.has(n._id) || (n._id && idSet.has(String(n._id)))) {
+   301→                    return { ...n, isRead: true };
+   302→                }
+   303→                return n;
+   304→            }),
+   305→        }));
+   306→        try {
+   307→            await markNotificationsMutation({ ids, userEmail: currentUser?.email });
+   308→        } catch (err: any) {
+   309→            console.warn('[handleMarkNotificationsRead] Failed:', err?.message);
+   310→            // Revert on failure — set back to unread
+   311→            setAppState(prev => ({
+   312→                ...prev,
+   313→                notifications: (prev.notifications || []).map((n: any) => {
+   314→                    if (idSet.has(n.id) || idSet.has(n._id)) {
+   315→                        return { ...n, isRead: false };
+   316→                    }
+   317→                    return n;
+   318→                }),
+   319→            }));
+   320→        }
+   321→    }, [markNotificationsMutation, currentUser?.email]);
+   322→
+   323→    const handleClearAllNotifications = React.useCallback(async () => {
+   324→        // OPTIMISTIC UI — immediately clear all notifications from local state
+   325→        // so the bell badge drops to 0 and the panel empties instantly.
+   326→        setAppState(prev => ({
+   327→            ...prev,
+   328→            notifications: [],
+   329→        }));
+   330→        try {
+   331→            await clearAllNotificationsMutation({ userEmail: currentUser?.email });
+   332→            // After the mutation completes, notifications are DELETED from the DB.
+   333→            // The Convex subscription will push an empty array (or the remaining
+   334→            // notifications that couldn't be deleted due to userId mismatch).
+   335→            // Either way, the local state is already empty, so no resurrection.
+   336→        } catch (err: any) {
+   337→            console.warn('[handleClearAllNotifications] Failed:', err?.message);
+   338→            // On failure, the Convex subscription will push back the real data
+   339→            // (notifications still exist in DB), which is correct behavior —
+   340→            // the user will see them again, but at least the operation failed
+   341→            // gracefully rather than showing stale empty state.
+   342→        }
+   343→    }, [clearAllNotificationsMutation, currentUser?.email]);
+   344→    
+   345→    const refreshData = React.useCallback(async () => {
+   346→        // CRO AUDIT FIX — was a no-op that showed a toast but didn't actually
+   347→        // refresh anything. Now does a real page reload to force-fetch fresh
+   348→        // data from Convex. Convex subscriptions are the primary source of
+   349→        // truth, but a full reload ensures all caches are busted.
+   350→        addToast("Refreshing workspace...", { type: 'info' });
+   351→        setTimeout(() => window.location.reload(), 500);
+   352→    }, [addToast]);
+   353→
+   354→    const forceSync = React.useCallback(async () => {
+   355→        // CRO AUDIT FIX — was a no-op that showed a success toast but did
+   356→        // nothing. Now delegates to refreshData (which does a real reload).
+   357→        addToast("Syncing with cloud...", { type: 'info' });
+   358→        setTimeout(() => window.location.reload(), 500);
+   359→    }, [addToast]);
+   360→
+   361→    const handleClearState = React.useCallback(() => {
+   362→        setAppState(EMPTY_APP_STATE);
+   363→    }, []);
+   364→
+   365→    const handleRunDocumentAnalysis = React.useCallback(async (documentId: string) => {
+   366→        const doc = appState.documents.find(d => d.id === documentId);
+   367→        if (!doc) return;
+   368→        
+   369→        addToast(`Analyzing ${doc.title}...`, { type: 'info' });
+   370→        try {
+   371→            const { analyzeDocument } = await import('../agents/AdvancedLegalDocumentIntelligenceAgent');
+   372→            const analysis = await analyzeDocument({
+   373→                title: doc.title,
+   374→                content: doc.content || '',
+   375→                file: doc.file
+   376→            });
+   377→            await baseActions.updateItem('documents', { id: documentId, ...analysis, analysisState: 'complete' }, 'Document Analysis');
+   378→            addToast("Analysis complete.", { type: 'success' });
+   379→        } catch (e) {
+   380→            addToast("Analysis failed.", { type: 'error' });
+   381→        }
+   382→    }, [appState.documents, baseActions, addToast]);
+   383→
+   384→    const handleApplyCustomStageChecklist = React.useCallback(async (matterId: string, stage: string, name: string, items: { text: string }[], saveAsTemplate: boolean, shareWithClient: boolean) => {
+   385→        const promises = items.map(item => baseActions.addItem('tasks', {
+   386→            title: item.text, status: 'todo', matterId, stage,
+   387→            createdAt: new Date().toISOString(),
+   388→            isSharedWithClient: shareWithClient
+   389→        }, 'Task'));
+   390→        await Promise.all(promises);
+   391→        if (saveAsTemplate) {
+   392→            await baseActions.addItem('checklistTemplates', { name, items, firmId: currentUser?.firmId }, 'Template');
+   393→        }
+   394→        addToast(`Applied custom checklist to ${stage}`, { type: 'success' });
+   395→    }, [baseActions, currentUser, addToast]);
+   396→
+   397→    const handlePurgeData = React.useCallback(async () => {
+   398→        if (!currentUser?.firmId) return;
+   399→        try {
+   400→            await purgeFirmDataMutation({ firmId: currentUser.firmId, userEmail: currentUser.email });
+   401→            addToast("All practice data has been purged.", { type: 'success' });
+   402→            setAppState(EMPTY_APP_STATE);
+   403→        } catch (e) {
+   404→            addToast("Failed to purge data.", { type: 'error' });
+   405→        }
+   406→    }, [currentUser?.firmId, purgeFirmDataMutation, addToast]);
+   407→
+   408→    const contextActions = React.useMemo(() => ({
+   409→        ...baseActions,
+   410→        ...matterHooks,
+   411→        ...financeHooks,
+   412→        ...propertyHooks,
+   413→        ...firmHooks,
+   414→        ...messagingHooks,
+   415→        ...taskHooks,
+   416→        ...researchHooks,
+   417→        ...commsHooks,
+   418→        handleDismissNotification,
+   419→        handleMarkNotificationsRead,
+   420→        handleClearAllNotifications,
+   421→        handlePurgeData,
+   422→        switchDemoProduct,
+   423→        refreshData,
+   424→        forceSync,
+   425→        handleClearState,
+   426→        handleRunDocumentAnalysis,
+   427→        handleApplyCustomStageChecklist,
+   428→        // Stubs for remaining interface requirements
+   429→        // HONESTY POLICY: Stubs that don't actually do anything must NOT show
+   430→        // success toasts — that's dishonest and confuses users into thinking
+   431→        // data was saved/deleted when it wasn't. These now show 'info' or
+   432→        // 'warning' toasts clearly stating the feature is not yet available.
+   433→        // The ones that CAN be implemented are implemented below.
+   434→        handleDeleteAllChats: async () => {
+   435→            // Actually delete all chat conversations for this firm
+   436→            try {
+   437→                const conversations = (appStateRef.current as any).chatConversations || [];
+   438→                for (const conv of conversations) {
+   439→                    await baseActions.deleteItem('chatConversations', conv.id || conv._id, 'Conversation');
+   440→                }
+   441→                addToast(`Cleared ${conversations.length} conversations.`, { type: 'success' });
+   442→            } catch (e) {
+   443→                addToast('Failed to clear chats. Please try again.', { type: 'error' });
+   444→            }
+   445→        },
+   446→        restoreFromLocalBackup: async () => addToast('Local backup restore is not yet available. Contact support if you need to recover data.', { type: 'warning' }),
+   447→        handleRestoreBackup: async (_key: string) => addToast('Backup restore is not yet available. Contact support if you need to recover data.', { type: 'warning' }),
+   448→        handleExportData: async () => {
+   449→            // Real data export — generates a JSON file and triggers download
+   450→            try {
+   451→                const state = appStateRef.current as any;
+   452→                const exportData: Record<string, any> = {
+   453→                    _exportInfo: {
+   454→                        exportedAt: new Date().toISOString(),
+   455→                        firmId: currentUser?.firmId || 'unknown',
+   456→                        exportedBy: currentUser?.email || 'unknown',
+   457→                        version: '1.0',
+   458→                    },
+   459→                };
+   460→                // Export all array-based tables
+   461→                const tablesToExport = [
+   462→                    'matters', 'contacts', 'tasks', 'documents', 'events',
+   463→                    'invoices', 'timeEntries', 'expenses', 'noteNotebooks',
+   464→                    'notePages', 'researchNotebooks', 'researchSources',
+   465→                    'workflows', 'checklistTemplates', 'properties',
+   466→                ];
+   467→                for (const table of tablesToExport) {
+   468→                    if (state[table]) {
+   469→                        exportData[table] = state[table];
+   470→                    }
+   471→                }
+   472→                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+   473→                const url = URL.createObjectURL(blob);
+   474→                const a = document.createElement('a');
+   475→                a.href = url;
+   476→                a.download = `practicepro-export-${new Date().toISOString().split('T')[0]}.json`;
+   477→                document.body.appendChild(a);
+   478→                a.click();
+   479→                document.body.removeChild(a);
+   480→                URL.revokeObjectURL(url);
+   481→                addToast('Data export downloaded successfully.', { type: 'success' });
+   482→            } catch (e: any) {
+   483→                console.error('[handleExportData] Export failed:', e);
+   484→                addToast(`Export failed: ${e.message || 'Unknown error'}`, { type: 'error' });
+   485→            }
+   486→        },
+   487→        handleResetPracticeData: async () => handlePurgeData(),
+   488→        handleRenamePage: (id: string, title: string) => baseActions.updateItem('notePages', { id, title }, 'Page'),
+   489→        registerBroadcastHandler: (h: any) => {},
+   490→        handleRemoteAction: (p: any) => {},
+   491→        ensureUserInState: async (u: any) => {},
+   492→        handleSyncGoogleContacts: async () => addToast('Google Contacts sync is not yet available. This feature is on our roadmap.', { type: 'info' }),
+   493→        handleToggleBookmarkCase: (_id: string) => addToast('Case bookmarking is not yet available. This feature is on our roadmap.', { type: 'info' }),
+   494→        handleUpdateClientActionItem: async (matterId: string, itemId: string, completed: boolean) => {
+   495→            // Actually update the client action item on the matter
+   496→            try {
+   497→                const matter = (appStateRef.current as any).matters?.find((m: any) => m.id === matterId);
+   498→                if (!matter) {
+   499→                    addToast('Matter not found.', { type: 'error' });
+   500→                    return;
+   501→                }
+   502→                const actionItems = (matter.clientActionItems || []).map((item: any) =>
+   503→                    item.id === itemId ? { ...item, completed } : item
+   504→                );
+   505→                await baseActions.updateItem('matters', { id: matterId, clientActionItems: actionItems }, 'Action Item');
+   506→                addToast(completed ? 'Action item marked complete.' : 'Action item reopened.', { type: 'success' });
+   507→            } catch (e) {
+   508→                addToast('Failed to update action item.', { type: 'error' });
+   509→            }
+   510→        },
+   511→        handleSaveEmailAsDocument: (email: any) => {
+   512→            // Actually save the email as a document
+   513→            try {
+   514→                const docData = {
+   515→                    title: email.subject || `Email from ${email.from || 'Unknown'}`,
+   516→                    content: email.body || email.content || '',
+   517→                    matterId: email.matterId || null,
+   518→                    categoryId: 'cat_email',
+   519→                    dateFiled: new Date().toISOString(),
+   520→                    source: 'generated' as const,
+   521→                    uploadedBy: currentUser?.id || '',
+   522→                    assignedUsers: [],
+   523→                    metadata: { type: 'email', from: email.from, to: email.to, date: email.date },
+   524→                };
+   525→                baseActions.addItem('documents', docData, 'Document');
+   526→                addToast('Email saved as document.', { type: 'success' });
+   527→            } catch (e) {
+   528→                addToast('Failed to save email as document.', { type: 'error' });
+   529→            }
+   530→        },
+   531→        handleInviteExternalCounsel: async (_invite: any) => addToast('External counsel invitations are not yet available. This feature is on our roadmap.', { type: 'info' }),
+   532→        handleUpdatePageContent: async (id: string, title: string, content: string) => baseActions.updateItem('notePages', { id, title, content }, 'Page'),
+   533→        handleDeleteNotebook: async (id: string, name: string) => baseActions.deleteItem('noteNotebooks', id, name),
+   534→        handleRestoreItem: async (item: any) => {
+   535→            // Fix: the archive table stores 'itemType' and 'originalData', not 'type' and 'data'.
+   536→            const table = item.itemType || item.type;
+   537→            const data = item.originalData || item.data;
+   538→            if (!table || !data) {
+   539→                addToast('Cannot restore: archive record is missing data.', { type: 'error' });
+   540→                return;
+   541→            }
+   542→            // DELETE from archive FIRST, then add back to original table.
+   543→            // If we add first, the getFirmData re-merge may re-add the
+   544→            // archived item before the delete propagates, creating duplicates.
+   545→            await baseActions.deleteItem('archive', item.id, 'Archived Item');
+   546→            // Use _id if available (Convex internal ID) for the restored item
+   547→            const restoredData = { ...data };
+   548→            // Don't re-use the archive record's id — let addItem generate a fresh one
+   549→            delete restoredData._id;
+   550→            await baseActions.addItem(table, restoredData, item.itemName || item.name || 'Restored Item');
+   551→            addToast(`${item.itemName || item.name || 'Item'} restored successfully.`, { type: 'success' });
+   552→        },
+   553→        handlePermanentDeleteFromArchive: async (id: string) => baseActions.deleteItem('archive', id, 'Archived Item'),
+   554→        handleDeleteTimeEntry: async (id: string) => baseActions.deleteItem('timeEntries', id, 'Time Entry'),
+   555→        handleDeleteExpense: async (id: string) => baseActions.deleteItem('expenses', id, 'Expense'),
+   556→        handleUpdateWorkflow: async (workflow: any) => baseActions.updateItem('workflows', workflow, 'Workflow'),
+   557→        handleAddWorkflow: async (workflow: any) => baseActions.addItem('workflows', workflow, 'Workflow'),
+   558→        // Generic archive function — works for ANY table (matters, tasks, documents, contacts, etc.)
+   559→        handleArchiveItem: async (type: string, id: string, name: string, data?: any) => {
+   560→            // If data isn't provided, look it up from current appState
+   561→            const item = data || (appStateRef.current as any)[type]?.find((i: any) => i.id === id || i._id === id);
+   562→            if (!item) {
+   563→                addToast(`Cannot archive: item not found.`, { type: 'error' });
+   564→                return;
+   565→            }
+   566→            // Save to archive table
+   567→            await baseActions.addItem('archive', {
+   568→                itemType: type,
+   569→                itemId: id,
+   570→                itemName: name,
+   571→                archivedAt: new Date().toISOString(),
+   572→                archiverId: currentUser?.id || '',
+   573→                archiverName: currentUser?.name || '',
+   574→                originalData: item,
+   575→            }, 'Archived Item');
+   576→            // Delete from original table
+   577→            await baseActions.deleteItem(type as any, id, name);
+   578→            addToast(`${name} archived. You can restore it from the Archive page.`, { type: 'success' });
+   579→        },
+   580→    }), [
+   581→        baseActions, 
+   582→        matterHooks, 
+   583→        financeHooks, 
+   584→        propertyHooks, 
+   585→        firmHooks, 
+   586→        messagingHooks, 
+   587→        taskHooks, 
+   588→        researchHooks, 
+   589→        commsHooks, 
+   590→        handleDismissNotification,
+   591→        handleMarkNotificationsRead,
+   592→        handleClearAllNotifications,
+   593→        handlePurgeData,
+   594→        switchDemoProduct,
+   595→        refreshData,
+   596→        forceSync,
+   597→        handleClearState,
+   598→        handleRunDocumentAnalysis,
+   599→        handleApplyCustomStageChecklist,
+   600→        addToast
+   601→    ]);
+   602→
+   603→    // 5. Global Data Sync — Two-Phase Hydration
+   604→    // Phase A: getFirmMetadata fires immediately, resolves in < 500ms.
+   605→    //          This makes the UI interactive before the full payload arrives.
+   606→    // Phase B: getFirmData runs concurrently, merging the remaining
+   607→    //          tables (noteNotebooks, workflows, documentCategories, etc.)
+   608→    //          once it resolves — no UI freeze, just a silent state update.
+   609→
+   610→    const isDemo = currentUser?.email === 'demo@practicepro.ng';
+   611→    const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
+   612→
+   613→    // Portal users don't need the full firm data loading pipeline.
+   614→    // Their data comes from dedicated portal queries (getClientDocuments, getTenantLedger, etc.).
+   615→    // Set isDataLoaded immediately so the app doesn't hang on the splash screen.
+   616→    React.useEffect(() => {
+   617→        if (isPortalUser && !isDataLoaded) {
+   618→            setIsDataLoaded(true);
+   619→        }
+   620→    }, [isPortalUser, isDataLoaded]);
+   621→
+   622→    // ── Portal-specific: Lightweight firm info ──────────────────────────
+   623→    // Portal users need firmDetails (subscriptionPlan, product) so that
+   624→    // useFeatures() can evaluate feature gates correctly. Without this,
+   625→    // the portal dashboard shows "Portal Unavailable" because useFeatures
+   626→    // defaults to Core plan when firmDetails is empty.
+   627→    // FALLBACK: If firmId is missing, try to resolve it from invite records.
+   628→    const portalFirmResolution = useQuery(
+   629→        api.portals.resolveFirmFromInvite,
+   630→        !isDemo && isPortalUser && !currentUser?.firmId && currentUser?.email
+   631→            ? { email: currentUser!.email }
+   632→            : 'skip'
+   633→    );
+   634→    const effectiveFirmId = currentUser?.firmId || portalFirmResolution?.firmId || '';
+   635→
+   636→    const shouldLoadFirmBasicInfo = !isDemo && isPortalUser && !!effectiveFirmId;
+   637→    const firmBasicInfo = useQuery(
+   638→        api.myFunctions.getFirmBasicInfo,
+   639→        shouldLoadFirmBasicInfo ? { firmId: effectiveFirmId } : 'skip'
+   640→    );
+   641→
+   642→    // Merge firm basic info into appState for portal users
+   643→    React.useEffect(() => {
+   644→        if (isPortalUser && firmBasicInfo && effectiveFirmId) {
+   645→            setAppState(prev => ({
+   646→                ...prev,
+   647→                firmDetails: {
+   648→                    ...prev.firmDetails,
+   649→                    _id: (firmBasicInfo as any)._id,
+   650→                    id: (firmBasicInfo as any).id || (firmBasicInfo as any)._id,
+   651→                    name: (firmBasicInfo as any).name || prev.firmDetails.name,
+   652→                    subscriptionPlan: (firmBasicInfo as any).subscriptionPlan || prev.firmDetails.subscriptionPlan,
+   653→                    product: (firmBasicInfo as any).product || prev.firmDetails.product,
+   654→                    address: (firmBasicInfo as any).address || prev.firmDetails.address,
+   655→                    inviteCode: (firmBasicInfo as any).inviteCode || prev.firmDetails.inviteCode,
+   656→                    aiSettings: (firmBasicInfo as any).aiSettings || prev.firmDetails.aiSettings,
+   657→                },
+   658→            }));
+   659→        }
+   660→    }, [isPortalUser, firmBasicInfo, effectiveFirmId]);
+   661→
+   662→    // Phase A — fast metadata (lists only)
+   663→    // Portal users don't need full firm data — skip these heavy queries
+   664→    const shouldLoadFirmData = !isDemo && !isPortalUser && !!currentUser?.firmId;
+   665→    const firmMetadata = useQuery(
+   666→        api.myFunctions.getFirmMetadata,
+   667→        shouldLoadFirmData && currentUser?.firmId ? { firmId: currentUser.firmId } : 'skip'
+   668→    );
+   669→
+   670→    // Phase B — full data (runs in parallel, merges when ready)
+   671→    // NOTE: userEmail MUST be passed — getFirmData calls requireFirmUser()
+   672→    // which rejects requests without an email (RLS enforcement).
+   673→    const firmData = useQuery(
+   674→        api.myFunctions.getFirmData,
+   675→        shouldLoadFirmData && currentUser?.firmId && currentUser?.email
+   676→            ? { firmId: currentUser.firmId, userEmail: currentUser.email }
+   677→            : 'skip'
+   678→    );
+   679→
+   680→    // Track which phase we're in so UI can show a subtle secondary loader
+   681→    const [isFullyLoaded, setIsFullyLoaded] = React.useState(false);
+   682→
+   683→    // Ref to track the last merged firmData identity — allows us to re-merge
+   684→    // when Convex pushes an update (e.g. after createPortalInvite updates units[])
+   685→    // without causing infinite loops.
+   686→    const lastMergedFirmDataRef = React.useRef<any>(null);
+   687→
+   688→    React.useEffect(() => {
+   689→        if (isDemo) {
+   690→            const isAtrium = currentUser?.product === 'atrium' || window.sessionStorage.getItem('practicepro_demo_product') === 'atrium';
+   691→            setAppState(isAtrium ? ATRIUM_DEMO_APP_STATE : VEGA_DEMO_APP_STATE);
+   692→            setIsDataLoaded(true);
+   693→            setIsFullyLoaded(true);
+   694→            return;
+   695→        }
+   696→
+   697→        // ─── OFFLINE FALLBACK ─────────────────────────────────────────────
+   698→        // If we're offline AND have cached app data, load it immediately so
+   699→        // the user can view their matters, properties, tasks, etc. in
+   700→        // read-only mode instead of seeing a blank/loading screen.
+   701→        if (typeof navigator !== 'undefined' && !navigator.onLine && !isDataLoaded && currentUser) {
+   702→            try {
+   703→                const cached = localStorage.getItem('practicepro_cached_appstate');
+   704→                if (cached) {
+   705→                    const parsed = JSON.parse(cached);
+   706→                    if (parsed && parsed.firmId === currentUser.firmId) {
+   707→                        setAppState(parsed.state);
+   708→                        setIsDataLoaded(true);
+   709→                        setIsFullyLoaded(true);
+   710→                        return;
+   711→                    }
+   712→                }
+   713→            } catch {}
+   714→        }
+   715→
+   716→        // Phase A: metadata arrives — unlock UI immediately
+   717→        if (firmMetadata && !isDataLoaded) {
+   718→            setAppState(prev => {
+   719→                const newState = { ...prev };
+   720→                for (const [key, value] of Object.entries(firmMetadata as any)) {
+   721→                    if (Array.isArray(value) && Array.isArray(prev[key as keyof AppState])) {
+   722→                        (newState as any)[key] = value.map((item: any) => ({
+   723→                            ...item,
+   724→                            id: item.id || item._id
+   725→                        }));
+   726→                    } else if (value !== undefined) {
+   727→                        (newState as any)[key] = value;
+   728→                    }
+   729→                }
+   730→                return newState;
+   731→            });
+   732→            setIsDataLoaded(true); // UI becomes interactive here
+   733→        }
+   734→
+   735→        // Phase B: full data — merge whenever firmData changes (not just first time)
+   736→        // This ensures that reactive Convex updates (e.g. after linking a portal user
+   737→        // to a property unit) are reflected in appState even after initial load.
+   738→        if (firmData && firmData !== lastMergedFirmDataRef.current) {
+   739→            lastMergedFirmDataRef.current = firmData;
+   740→            setAppState(prev => {
+   741→                const newState = { ...prev };
+   742→                for (const [key, backendValue] of Object.entries(firmData as any)) {
+   743→                    if (Array.isArray(backendValue) && Array.isArray(prev[key as keyof AppState])) {
+   744→                        const prevArray = prev[key as keyof AppState] as any[];
+   745→                        // Map backendValue items so that they definitely have the id property mapped correctly
+   746→                        const mappedBackendValue = backendValue.map((item: any) => ({
+   747→                            ...item,
+   748→                            id: item.id || item._id
+   749→                        }));
+   750→                        // CRITICAL: Build backendIds from BOTH `id` AND `_id` of each
+   751→                        // backend item. Previously this set only contained `id` values,
+   752→                        // which meant a local item whose `id` had been overwritten with
+   753→                        // the Convex `_id` (a legacy bug in addItem) would NOT match,
+   754→                        // and would be incorrectly kept as an "optimistic" item —
+   755→                        // producing duplicate cards in the UI. Including `_id` here
+   756→                        // ensures any local item that references a backend document
+   757→                        // (by either field) is correctly recognized and deduplicated.
+   758→                        const backendIds = new Set<string>();
+   759→                        mappedBackendValue.forEach((item: any) => {
+   760→                            if (item.id) backendIds.add(item.id);
+   761→                            if (item._id) backendIds.add(String(item._id));
+   762→                        });
+   763→                        // Keep items from prev that are NOT in the backend (i.e. optimistic creates)
+   764→                        const optimisticItems = prevArray.filter(item => {
+   765→                            if (!item) return false;
+   766→                            // If either id or _id matches a backend id, this is NOT a new optimistic item
+   767→                            const idMatches = item.id && backendIds.has(item.id);
+   768→                            const idAsIdMatches = item.id && backendIds.has(String(item.id));
+   769→                            const _idMatches = item._id && backendIds.has(String(item._id));
+   770→                            const idMatchesBackendId = item.id && mappedBackendValue.some((bi: any) => String(bi._id) === String(item.id));
+   771→                            return !idMatches && !idAsIdMatches && !_idMatches && !idMatchesBackendId;
+   772→                        });
+   773→                        // Filter out items the user has just deleted (optimistic delete).
+   774→                        // Without this, the backend push would re-add the deleted item
+   775→                        // before Convex has propagated the deletion — the root cause of
+   776→                        // the "AI Notebooks refuse to delete" bug.
+   777→                        const filteredBackendValue = mappedBackendValue.filter((item: any) =>
+   778→                            !isRecentlyDeleted(item.id) && (!item._id || !isRecentlyDeleted(item._id))
+   779→                        );
+   780→                        (newState as any)[key] = [...filteredBackendValue, ...optimisticItems];
+   781→                    } else if (backendValue !== undefined) {
+   782→                        // CRITICAL FIX (workspace-id-for-save bug):
+   783→                        // When merging the `firmDetails` object from the backend,
+   784→                        // Convex firm records only carry `_id` — there is NO `id`
+   785→                        // field. Without mirroring `_id` → `id`, every component
+   786→                        // that reads `coreState.firmDetails.id` (BankAccountForm,
+   787→                        // IntegrationsSettings, SubscriptionSettings, dozens of
+   788→                        // forms) silently gets `undefined` and either crashes the
+   789→                        // save ("Could not determine workspace ID for save") or
+   790→                        // writes a firmId of `undefined` into child records.
+   791→                        // We also preserve `bankAccounts` and any other
+   792→                        // locally-edited fields that the backend may not echo back.
+   793→                        if (key === 'firmDetails' && backendValue && typeof backendValue === 'object') {
+   794→                            const backendFirm = backendValue as any;
+   795→                            const prevFirm = (prev.firmDetails as any) || {};
+   796→                            (newState as any)[key] = {
+   797→                                ...backendFirm,
+   798→                                id: backendFirm.id || backendFirm._id || prevFirm.id || prevFirm._id,
+   799→                                // Preserve locally-edited bank accounts if the backend
+   800→                                // record doesn't echo them back (e.g. immediately after
+   801→                                // createFirm, before the next firmData sync).
+   802→                                bankAccounts: Array.isArray(backendFirm.bankAccounts)
+   803→                                    ? backendFirm.bankAccounts
+   804→                                    : (prevFirm.bankAccounts || []),
+   805→                                integrations: backendFirm.integrations || prevFirm.integrations,
+   806→                                aiSettings: backendFirm.aiSettings || prevFirm.aiSettings,
+   807→                            };
+   808→                        } else {
+   809→                            (newState as any)[key] = backendValue;
+   810→                        }
+   811→                    }
+   812→                }
+   813→                return newState;
+   814→            });
+   815→            if (!isFullyLoaded) setIsFullyLoaded(true);
+   816→
+   817→            // ─── Cache app data for offline use ────────────────────────────
+   818→            // After successfully loading from the backend, cache a snapshot
+   819→            // in localStorage. When the app loads offline, we'll use this
+   820→            // to show the user's data in read-only mode.
+   821→            // We only cache essential arrays (not chatMessages which can be huge).
+   822→            try {
+   823→                const toCache = { ...appStateRef.current };
+   824→                // Strip large/unnecessary fields to keep cache size manageable
+   825→                delete (toCache as any).chatMessages;
+   826→                delete (toCache as any).firmActivity;
+   827→                localStorage.setItem('practicepro_cached_appstate', JSON.stringify({
+   828→                    firmId: currentUser?.firmId,
+   829→                    state: toCache,
+   830→                    cachedAt: Date.now(),
+   831→                }));
+   832→            } catch {} // localStorage might be full — non-critical
+   833→        }
+   834→    }, [firmMetadata, firmData, currentUser, isDemo, isDataLoaded, isFullyLoaded]);
+   835→
+   836→    const dataStateValue = React.useMemo(() => ({
+   837→        appState, setAppState, isDataLoaded, isSaving: false, isOutdated: false, availableBackups: [] as string[]
+   838→    }), [appState, isDataLoaded]);
+   839→
+   840→    return (
+   841→        <DataStateContext.Provider value={dataStateValue}>
+   842→            <DataActionsContext.Provider value={contextActions as unknown as ExtendedDataActions}>
+   843→                {children}
+   844→            </DataActionsContext.Provider>
+   845→        </DataStateContext.Provider>
+   846→    );
+   847→};
+   848→
