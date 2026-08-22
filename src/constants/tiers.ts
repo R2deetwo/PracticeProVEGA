@@ -107,10 +107,10 @@ function buildAtriumFeatures(t: Pick<TierDef, 'maxUsers' | 'maxUnits' | 'maxMana
     t.maxActiveTenants == null
       ? 'Unlimited Total Tenant Capacity'
       : `Up to ${t.maxActiveTenants} Total Tenant Capacity`;
-  const wa =
-    t.whatsappLimit == null
-      ? 'Unlimited WhatsApp rent & demand notices'
-      : `${t.whatsappLimit} WhatsApp rent & demand notices included`;
+  // FIX: WhatsApp is now unlimited on ALL tiers. The tier-specific sophistication
+  // copy (template-based, automated triggers, AI-personalized, custom API) is
+  // added via the extras[] array by each tier definition. No longer generate a
+  // generic WhatsApp line here — it would duplicate the extras line.
   const unitsLine =
     t.maxUnits == null
       ? 'Unlimited managed units across portfolio'
@@ -118,7 +118,6 @@ function buildAtriumFeatures(t: Pick<TierDef, 'maxUsers' | 'maxUnits' | 'maxMana
   const base = [
     tenantCap,
     unitsLine,
-    wa,
     'Revenue Monitor — defaulter dashboard & ledger',
   ];
   return [...base, ...(t.extras || [])];
@@ -266,14 +265,14 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxUnits: 10,
       maxManagedProperties: 10,
       maxActiveTenants: 15,
-      whatsappLimit: 250,              // PRICING AUDIT: increased from 100 to 250
-      extras: ['Lease tracking & maintenance log', 'Includes 10 units, then ₦2,700/unit/month'],
+      whatsappLimit: null,              // FIX: Unlimited — no longer count-gated
+      extras: ['Lease tracking & maintenance log', 'Includes 10 units, then ₦2,700/unit/month', 'Unlimited WhatsApp — template-based rent & demand notices*'],
     }),
     maxUsers: 1,
     maxUnits: 10,
     maxManagedProperties: 10,
     maxActiveTenants: 15,
-    whatsappLimit: 250,
+    whatsappLimit: null,              // FIX: Unlimited (backend keeps fair-use sentinel)
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
     // Overage pricing: ₦2,700/unit/month for units 11-25, forced upgrade at 25
@@ -294,14 +293,14 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxUnits: 25,
       maxManagedProperties: 25,
       maxActiveTenants: 40,
-      whatsappLimit: 500,
-      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Includes 25 units, then ₦2,100/unit/month (upgrade to Pro at 70 units)'],
+      whatsappLimit: null,              // FIX: Unlimited — adds automated triggers
+      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Includes 25 units, then ₦2,100/unit/month (upgrade to Pro at 70 units)', 'Unlimited WhatsApp — adds automated triggers (auto-receipts, service charge notices)*'],
     }),
     maxUsers: 5,
     maxUnits: 25,
     maxManagedProperties: 25,
     maxActiveTenants: 40,
-    whatsappLimit: 500,
+    whatsappLimit: null,              // FIX: Unlimited (backend keeps fair-use sentinel)
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
     // FIX: Lowered from 100 to 70. At 70+ units, Growth+overage costs
@@ -325,7 +324,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxManagedProperties: null,
       maxActiveTenants: null,
       whatsappLimit: null,
-      extras: ['Estate administration document generation (notices & demands)', 'Live defaulter dashboard', "Uncapped Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Morning WhatsApp notification throttle system', 'Includes 100 units, then ₦1,600/unit/month'],
+      extras: ['Estate administration document generation (notices & demands)', 'Live defaulter dashboard', "Uncapped Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Smart notification batching — digest delivery instead of scattered pings', 'Includes 100 units, then ₦1,600/unit/month', 'Unlimited WhatsApp — AI-personalized notices, live-triggered by defaulter dashboard events*'],
     }),
     maxUsers: null,
     maxUnits: 100,
@@ -348,7 +347,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: null,
     monthlyPriceDisplay: 'Custom',
     annualPriceDisplay: 'Custom',
-    features: ['Unlimited users, units & properties', 'Custom WhatsApp volume', "Uncapped Residents' Portal (all features)", 'Dedicated onboarding', '400+ units — custom scaling', 'Dedicated support & custom integrations'],
+    features: ['Unlimited users, units & properties', 'Unlimited WhatsApp — custom automation flows via API*', "Uncapped Residents' Portal (all features)", 'Dedicated onboarding', '400+ units — custom scaling', 'Dedicated support & custom integrations'],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,
