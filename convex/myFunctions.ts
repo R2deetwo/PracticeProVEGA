@@ -2226,7 +2226,11 @@ export const updateFirmSettings = mutation({
   args: { firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // RLS: Require admin — only firm admins can update firm settings
-    await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail);
+    // ROOT FIX: Verify the caller owns the firm they're patching.
+    if (auth.firmId !== args.firmId) {
+      throw new Error("Not authorized: cannot update settings for a different firm.");
+    }
     await ctx.db.patch(args.firmId as any, args.settings);
   }
 });

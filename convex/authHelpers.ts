@@ -176,6 +176,11 @@ export async function requireServiceAuth(ctx: any): Promise<{ isService: true }>
  */
 export async function requireAdmin(ctx: any, userEmail?: string) {
   const auth = await requireFirmUser(ctx, userEmail);
+  // SECURITY FIX: Explicit guard — don't rely on null.role TypeError to
+  // block anonymous callers. This makes the protection intentional.
+  if (!auth.firmId || !auth.user) {
+    throw new Error("Unauthenticated: userEmail required. Administrator access requires a verified session.");
+  }
   if (auth.user.role !== "Admin") {
     throw new Error("Permission denied. This action requires Administrator privileges.");
   }

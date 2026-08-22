@@ -5119,6 +5119,7 @@ export const updateFirmPortalSettings = mutation({
     if (!auth.firmId) {
       throw new Error("Unauthenticated: userEmail required. Anonymous portal settings updates are no longer permitted.");
     }
+    // Early friendly error if caller passes a mismatched firmId by mistake.
     if (args.firmId && auth.firmId !== args.firmId) {
       try {
         await ctx.db.insert("securityEvents", {
@@ -5129,17 +5130,19 @@ export const updateFirmPortalSettings = mutation({
       } catch {}
       throw new Error("Not authorized: cannot update settings for a different firm.");
     }
-    const { firmId, ...updates } = args;
+    // ROOT FIX: Use auth.firmId as the write target, NEVER args.firmId.
+    const effectiveFirmId = auth.firmId;
+    const { firmId: _discard, ...updates } = args;
     const existing = await ctx.db
       .query("portal_settings")
-      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+      .withIndex("by_firm", (q) => q.eq("firmId", effectiveFirmId))
       .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, { ...updates, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("portal_settings", {
-        firmId,
+        firmId: effectiveFirmId,
         ...updates,
         tenantMessagingEnabled: updates.tenantMessagingEnabled ?? false,
         clientMessagingEnabled: updates.clientMessagingEnabled ?? false,
@@ -5191,9 +5194,10 @@ export const createNotice = mutation({
       } catch {}
       throw new Error("Not authorized: cannot post notices for a different firm.");
     }
+    // ROOT FIX: Use auth.firmId as the write target, NEVER args.firmId.
     const now = Date.now();
     const noticeId = await ctx.db.insert("portal_notices", {
-      firmId: args.firmId,
+      firmId: auth.firmId,
       authorId: args.authorId,
       authorName: args.authorName,
       title: args.title,
