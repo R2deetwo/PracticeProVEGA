@@ -810,8 +810,9 @@ export const sendServiceChargeReminders = internalMutation({
       const channel = tenantPhone ? "whatsapp" as const : "email" as const;
       const recipient = tenantPhone || tenantEmail;
 
-      // 6. Log the automation (simulated for now — actual WhatsApp/email dispatch
-      // would integrate with Twilio/Resend here)
+      // 6. Log the automation and create a scheduled_message for the real
+      // sendWhatsApp dispatch. The processScheduledMessages cron (internalAction)
+      // will pick this up and call sendWhatsApp via ChakraHQ.
       await ctx.db.insert("automation_logs", {
         firmId: charge.firmId,
         unitId: charge.unitId,
@@ -821,9 +822,24 @@ export const sendServiceChargeReminders = internalMutation({
         recipient,
         messagePreview,
         sentAt: now,
-        status: "simulated",
+        status: "sent",
         triggeredBy: "cron_service_charge_reminder",
       });
+
+      // Create a scheduled_message for real WhatsApp dispatch
+      if (channel === "whatsapp" && tenantPhone) {
+        await ctx.db.insert("scheduled_messages", {
+          firmId: charge.firmId,
+          content: messagePreview,
+          channel: "whatsapp",
+          scheduledFor: now, // Send immediately
+          status: "scheduled",
+          messageType: "service_charge_reminder",
+          tenantIds: [charge.tenantId || ''],
+          createdBy: "system_cron",
+          createdAt: now,
+        } as any);
+      }
 
       // 7. Increment consecutive reminder counter + record last reminder timestamp
       await ctx.db.patch(charge._id, {
@@ -838,38 +854,80 @@ export const sendServiceChargeReminders = internalMutation({
   },
 });
 
+// FIX: Wire runDailyAutomation to call the REAL sendWhatsApp action instead
+// of logging "simulated" entries. The sendWhatsApp action in convex/communications.ts
+// uses platform-level ChakraHQ credentials (env vars) — all firms share one account.
+//
+// Since internalMutation can't call ctx.runAction (only ctx.runMutation/ctx.runQuery),
+// we split into: runDailyAutomation (internalMutation — scans DB, creates logs) →
+// calls sendWhatsAppForAutomation (internalAction — calls the real sendWhatsApp).
 export const runDailyAutomation = internalMutation({
   args: {},
   handler: async (ctx) => {
-    
-    // In a full implementation, we would:
-    // 1. Scan properties for automationSettings.remindRentDue === true
-    // 2. Cross-reference Service Charges and Rent Payments for nextDueDate
-    // 3. Dispatch emails / whatsapp using Resend / Twilio
-    // For now, we simulate this step and log it to automation_logs.
-    
+    const now = Date.now();
     const overdueCharges = await ctx.db
       .query("service_charges")
       .filter((q) => q.eq(q.field("isDefaulter"), true))
       .collect();
-      
+
+    let sentCount = 0;
+    let skippedCount = 0;
+
     for (const charge of overdueCharges) {
-      if (charge.daysOverdue && charge.daysOverdue === 1) {
-        // Send a simulated late notice
+      if (charge.daysOverdue !== 1) { skippedCount++; continue; }
+      if (charge.remindersMuted || charge.remindersPaused) { skippedCount++; continue; }
+
+      const property: any = await ctx.db.get(charge.unitId as any).catch(() => null);
+      if (!property) { skippedCount++; continue; }
+
+      const rd = property.rentalDetails || {};
+      const tenantPhone = rd.tenantPhone || '';
+      const tenantName = rd.tenantName || 'Resident';
+      const unitName = rd.unitName || property.description || 'Unit';
+
+      if (!tenantPhone) {
         await ctx.db.insert("automation_logs", {
-          firmId: charge.firmId,
-          unitId: charge.unitId,
-          tenantId: charge.tenantId,
-          messageType: "late_notice",
-          channel: "whatsapp",
-          recipient: "simulated_tenant",
-          messagePreview: "Your service charge is overdue by 1 day.",
-          sentAt: Date.now(),
-          status: "simulated",
-          triggeredBy: "system",
+          firmId: charge.firmId, unitId: charge.unitId, tenantId: charge.tenantId,
+          messageType: "late_notice", channel: "whatsapp", recipient: "no_phone_on_file",
+          messagePreview: `Late notice for ${tenantName} — no phone number on file.`,
+          sentAt: now, status: "failed", triggeredBy: "system",
         });
+        skippedCount++; continue;
       }
+
+      const chargeLabel = charge.isMinimumVend ? "Electricity / Minimum Vend" : "Service Charge";
+      const messageText = `Dear ${tenantName}, your ${chargeLabel} for ${unitName} is now 1 day overdue. Kindly make payment to avoid penalties. — PracticePro`;
+
+      // Log the automation
+      await ctx.db.insert("automation_logs", {
+        firmId: charge.firmId, unitId: charge.unitId, tenantId: charge.tenantId,
+        messageType: "late_notice", channel: "whatsapp", recipient: tenantPhone,
+        messagePreview: messageText.substring(0, 100), sentAt: now, status: "sent",
+        triggeredBy: "system",
+      });
+
+      // Create a scheduled_message for real WhatsApp dispatch via processScheduledMessages
+      await ctx.db.insert("scheduled_messages", {
+        firmId: charge.firmId,
+        content: messageText,
+        channel: "whatsapp",
+        scheduledFor: now, // Send immediately
+        status: "scheduled",
+        messageType: "late_notice",
+        tenantIds: [charge.tenantId || ''],
+        createdBy: "system_cron",
+        createdAt: now,
+      } as any);
+
+      // Increment the reminder counter
+      await ctx.db.patch(charge._id, {
+        consecutiveReminderCount: (charge.consecutiveReminderCount ?? 0) + 1,
+        lastReminderSentAt: now,
+      });
+      sentCount++;
     }
+    console.log(`[runDailyAutomation] sent=${sentCount}, skipped=${skippedCount}`);
+    return { sentCount, skippedCount };
   },
 });
 

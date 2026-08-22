@@ -1,6 +1,23 @@
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+
+// ─── INTERNAL WRAPPER: sendWhatsAppInternal ──────────────────────────────
+// internalMutation (like sentry.ts cron jobs) can't call ctx.runAction on
+// public actions. This internal action wraps the public sendWhatsApp so
+// internal mutations can call it via ctx.runAction(internal.communications.sendWhatsAppInternal).
+export const sendWhatsAppInternal = internalAction({
+  args: {
+    to: v.string(),
+    messageText: v.string(),
+    firmId: v.string(),
+    templateName: v.optional(v.string()),
+    templateVars: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
+    return await ctx.runAction(api.communications.sendWhatsApp, args);
+  },
+});
 
 // ─── Email: Brevo (formerly Sendinblue) ─────────────────────────────────────
 export const sendEmail = action({

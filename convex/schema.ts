@@ -1138,7 +1138,9 @@ export default defineSchema({
     direction: v.optional(v.union(v.literal("outbound"), v.literal("inbound"))),
     senderName: v.optional(v.string()),
     sentAt: v.number(),
-    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
+    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated"), v.literal("sending"), v.literal("logged")),
+    errorMessage: v.optional(v.string()),
+    messageId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()), 
   })
     .index("by_firm", ["firmId"])
