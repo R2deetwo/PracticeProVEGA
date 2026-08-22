@@ -533,10 +533,10 @@ const HubHero: React.FC<{
             {/* hero-stagger: orchestrates headline → subheadline → cards → auth link */}
             <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-24 pb-16 px-4 sm:px-6 text-center">
 
-                <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.06] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
+                <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.15] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
                     Professional Practice,
                     <br />
-                    <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, var(--color-amber), var(--color-emerald), var(--color-moss))` }}>
+                    <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: `linear-gradient(to right, var(--color-amber), var(--color-emerald), var(--color-moss))` }}>
                         Precisely Managed.
                     </span>
                 </h1>
@@ -667,12 +667,12 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                     {/* Left: text content */}
                     <div className="text-center lg:text-left">
                         {/* Headline — Space Grotesk display */}
-                        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6" style={{ color: 'var(--color-ink)' }}>
+                        <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.15] mb-6" style={{ color: 'var(--color-ink)' }}>
                             {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
                             <br className="hidden md:block" />
                             for{' '}
                             <span className="relative">
-                                <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${accentColorValue}, var(--color-moss))` }}>
+                                <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: `linear-gradient(to right, ${accentColorValue}, var(--color-moss))` }}>
                                     {isVega ? 'Nigerian Law Firms' : 'Property Managers'}
                                 </span>
                             </span>
