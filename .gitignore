@@ -1,4 +1,7 @@
 skills/
 node_modules/
+<<<<<<< Updated upstream
 
 .env.local
+=======
+>>>>>>> Stashed changes
