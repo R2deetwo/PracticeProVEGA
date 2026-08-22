@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { useIsProperty } from '../contexts/ProductContext';
 
 // ─── GLASSMORPHIC ICON SET ──────────────────────────────────────────────────
 // A consistent icon vocabulary tied to app sections.
@@ -161,7 +162,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: 'VMS Add-On Billing, Team Deactivation & Smarter ALOA Drafts',
         description: 'A paid Visitor Management System add-on with 30-day trial, soft-deactivation for team members, per-conversation ALOA draft persistence, and a role-based Terms of Service consent engine.',
         features: [
-            { icon: 'portal', label: 'VMS Add-On with 30-Day Trial', text: 'Atrium firms can now start a 30-day free trial of the Visitor Management System add-on. Residents generate 6-digit visitor codes; gatekeepers verify at the gatehouse terminal. Billing gate blocks code generation if the trial has expired or the add-on is inactive.' },
+            { icon: 'portal', label: 'VMS Add-On with 30-Day Trial', text: 'Atrium firms can now start a 30-day free trial of the Visitor Management System add-on. Residents generate 6-digit visitor codes; gatekeepers verify at the gatehouse terminal. Billing gate blocks code generation if the trial has expired or the add-on is inactive.', productScope: 'atrium' },
             { icon: 'shield', label: 'Team Member Deactivation', text: 'Admins can now soft-deactivate team members instead of hard-deleting them. Deactivated users cannot log in and are filtered out of task assignment, but their historical contributions (matters, tasks, messages) remain attributed to them. A "Deactivated" badge appears in the team directory with one-click reactivation.' },
             { icon: 'brain', label: 'ALOA Per-Conversation Drafts', text: 'Switching between ALOA conversations no longer loses your typed text. Each conversation now has its own draft slot — start a message in one chat, switch to another, and your draft is preserved when you switch back.' },
             { icon: 'pen', label: 'Inline Unit Muting', text: 'Mute or reactivate property units directly from the unit tab strip in Edit Property — no more scrolling to the bottom of the form. A bell-off icon appears next to each unit tab; click it to hide the unit from the workspace without deleting its ledger history.' },
@@ -194,9 +195,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         description: 'Enterprise onboarding, court date reminders, reliable team chat, retainer automation, and more.',
         features: [
             { icon: 'shield', label: 'Multi-Tenant Enterprise Onboarding', text: 'Firms can now invite multiple team members (Admins, Lawyers, Paralegals, Managers) with role-based permissions. Pending invites show in a dedicated queue until an admin grants access. Team messages are scoped per-firm — no cross-tenant data leakage.' },
-            { icon: 'calendar', label: 'Court Date Reminders (Pro)', text: 'Vega Pro firms get automatic WhatsApp reminders 7, 3, and 1 days before every court date. Built with a duplicate-prevention guard so rescheduled matters never spam you. Visible on the matter card and in the calendar module.' },
+            { icon: 'calendar', label: 'Court Date Reminders (Pro)', text: 'Vega Pro firms get automatic WhatsApp reminders 7, 3, and 1 days before every court date. Built with a duplicate-prevention guard so rescheduled matters never spam you. Visible on the matter card and in the calendar module.', productScope: 'vega' },
             { icon: 'chat', label: 'Reliable Team Chat Notifications', text: 'We replaced the old two-step save-message-then-save-notification client flow with a single server-side mutation. If the message lands, the recipient\'s bell badge is guaranteed. This also fixes the bug where replies inside an existing conversation never triggered a notification.' },
-            { icon: 'bolt', label: 'Premium Retainer Automation', text: 'Vega Growth+ firms can configure retainer billing frequency (Weekly, Monthly, Quarterly, Bi-Annually, Annually) per matter. The system auto-stages draft invoices, which surface in the new Billing Monitor — approve and send, pause to edit, skip a cycle, or retry failed sends.' },
+            { icon: 'bolt', label: 'Premium Retainer Automation', text: 'Vega Growth+ firms can configure retainer billing frequency (Weekly, Monthly, Quarterly, Bi-Annually, Annually) per matter. The system auto-stages draft invoices, which surface in the new Billing Monitor — approve and send, pause to edit, skip a cycle, or retry failed sends.', productScope: 'vega' },
             { icon: 'shield', label: 'Paystack-Ready Billing Engine', text: 'A new provider abstraction layer powers the billing system. Manual provider is live by default; Paystack is wired and dormant, ready to flip on. Webhooks are routed through a single trusted endpoint with idempotency keys to prevent double-charges.' },
             { icon: 'portal', label: 'APK Update Notifications', text: 'Android users now see a banner when a new APK is available, with a one-tap install. A version manifest exposes build SHA and health status so the app never prompts you to refresh into a known-broken build.' },
             { icon: 'theme', label: 'Layout-Aware Onboarding Tour', text: 'The in-app tour now adapts to mobile and desktop independently. Mobile users get a bottom-sheet anchored above the nav bar with thumb-friendly tap targets; desktop users get a side-anchored tooltip with an arrow. Viewport changes mid-tour are handled gracefully.' },
@@ -381,6 +382,17 @@ export interface ChangelogFeature {
     icon: keyof typeof FEATURE_ICONS;
     label: string;
     text: string;
+    /**
+     * Optional product filter — if set, this feature bullet only renders for
+     * the specified product. Use 'vega' for Vega-only features (e.g. court
+     * date reminders, retainer automation) and 'atrium' for Atrium-only
+     * features (e.g. VMS add-on). Omit for product-neutral features.
+     *
+     * Historical accuracy: past changelog entries that described Vega-only
+     * features at release time should be tagged 'vega' so Atrium users don't
+     * see misleading product references in their What's New popup.
+     */
+    productScope?: 'vega' | 'atrium';
 }
 export interface ChangelogEntry {
     id: string;
@@ -503,7 +515,17 @@ if (typeof document !== 'undefined' && !document.getElementById('pp-whats-new-st
 }
 
 // ─── MODAL COMPONENT ─────────────────────────────────────────────────────────
-const WhatsNewModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = ({ entry, onClose }) => (
+const WhatsNewModal: React.FC<{ entry: ChangelogEntry; onClose: () => void; isProperty: boolean }> = ({ entry, onClose, isProperty }) => {
+    // Filter features by product scope. A feature with no productScope shows
+    // for both products. A feature tagged 'vega' only shows for Vega users;
+    // 'atrium' only for Atrium users. This prevents Atrium users from seeing
+    // "Vega Pro firms get..." in their What's New popup, and vice versa.
+    const visibleFeatures = entry.features.filter(f => {
+        if (!f.productScope) return true;
+        return f.productScope === (isProperty ? 'atrium' : 'vega');
+    });
+
+    return (
     <div style={S.backdrop} onClick={onClose}>
         <div style={S.card} onClick={(e) => e.stopPropagation()}>
             <div style={S.glow} />
@@ -515,7 +537,7 @@ const WhatsNewModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = 
             <div style={S.desc}>{entry.description}</div>
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', marginRight: '-4px' }} className="custom-scrollbar">
                 <ul style={S.featureList}>
-                    {entry.features.map((f) => {
+                    {visibleFeatures.map((f) => {
                         const Icon = FEATURE_ICONS[f.icon];
                         return (
                             <li key={f.label} style={S.featureItem}>
@@ -544,7 +566,8 @@ const WhatsNewModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = 
             </div>
         </div>
     </div>
-);
+    );
+};
 
 // ─── PUBLIC COMPONENT ─────────────────────────────────────────────────────────
 // Instead of forcing a full-screen modal on login, we show a small dismissible
@@ -553,6 +576,7 @@ const WhatsNewModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = 
 //   - Click the X → dismisses it (marks as seen, won't show again)
 // This prevents the "overwhelming on login" problem while still informing users.
 const WhatsNew: React.FC = () => {
+    const isProperty = useIsProperty();
     const [unseenEntry, setUnseenEntry] = useState<ChangelogEntry | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [showFloater, setShowFloater] = useState(false);
@@ -614,7 +638,7 @@ const WhatsNew: React.FC = () => {
 
             {/* Full modal — only shown when user clicks the floater */}
             {showModal && unseenEntry && (
-                <WhatsNewModal entry={unseenEntry} onClose={handleCloseModal} />
+                <WhatsNewModal entry={unseenEntry} onClose={handleCloseModal} isProperty={isProperty} />
             )}
         </>
     );

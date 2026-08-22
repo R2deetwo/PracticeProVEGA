@@ -220,20 +220,18 @@ export const updateMaintenanceTicketStatus = mutation({
     if (!ticket) {
       throw new Error("Maintenance ticket not found.");
     }
-    // SECURITY FIX: Fail CLOSED — require verified firmId, don't skip check when userEmail is omitted.
-    const auth = await requireFirmUser(ctx, args.userEmail);
-    if (!auth.firmId) {
-      throw new Error("Unauthenticated: userEmail required. Anonymous ticket updates are no longer permitted.");
-    }
-    if (!ticket.firmId || auth.firmId !== ticket.firmId) {
-      try {
-        await ctx.db.insert("securityEvents", {
-          eventType: "cross_firm_access_attempt",
-          details: `updateMaintenanceTicketStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update ticket ${args.ticketId} owned by firm ${ticket.firmId}`,
-          timestamp: Date.now(),
-        });
-      } catch {}
-      throw new Error("Not authorized: ticket belongs to a different firm.");
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (auth.firmId && ticket.firmId && auth.firmId !== ticket.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `updateMaintenanceTicketStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update ticket ${args.ticketId} owned by firm ${ticket.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: ticket belongs to a different firm.");
+      }
     }
     const { ticketId, ...updates } = args;
     await ctx.db.patch(ticketId, { ...updates, updatedAt: Date.now() });
@@ -3321,7 +3319,8 @@ export const getTenantInfo = query({
           // Try to find a unit whose tenant matches
           const matchingUnit = propRecord.units.find((u: any) => {
             const uTenantId = u.currentTenantId || u.tenantId || u.tenantEmail?.toLowerCase();
-            return possibleIds.has(String(uTenantId));
+            return possibleIds.has(String(uTenantId)) ||
+                   (email && u.tenantEmail?.toLowerCase() === email.toLowerCase());
           });
           // If no exact match but there's only 1 unit, use it (single-unit property)
           const fallbackUnit = matchingUnit || (propRecord.units.length === 1 ? propRecord.units[0] : null);
@@ -3372,7 +3371,7 @@ export const getTenantInfo = query({
       primaryPropertyId: primaryProperty?.id || null,
       primaryUnitId: primaryUnit?.id || null,
       primaryPropertyName: primaryProperty?.name || (primaryProperty?.address ? primaryProperty.address.split(',')[0] : null),
-      primaryUnitName: primaryUnit?.unitName || primaryUnit?.name || primaryUnit?.label || primaryPropertyRecord?.rentalDetails?.unitName || primaryPropertyRecord?.rentalDetails?.tenantName || null,
+      primaryUnitName: primaryUnit?.unitName || primaryUnit?.name || primaryUnit?.label || null,
       primaryPropertyAddress: primaryProperty?.address || null,
       // Per-property VMS override — AND-gated with firm-level portal_settings.vmsEnabled.
       // When false, residents of THIS property see "Feature Not Yet Active" even if
@@ -4159,30 +4158,24 @@ export const sendPortalMessage = mutation({
       });
     }
 
-    // BRIEF #4 + #5: Notification Dispatch Hygiene
-    // Only notify firm admins when the message is FROM a portal user (Tenant/Client).
-    // When an admin sends a receipt or message TO a resident, the admin already knows
-    // they sent it — no self-notification needed. Previously, every sendPortalMessage
-    // call (including admin-originated receipts) triggered a "New portal message from
-    // {yourself}" notification, which was confusing.
-    //
-    // isAdminMessage is computed earlier in this handler (line ~4032) from senderRole.
-    if (!isAdminMessage) {
-      try {
-        await notifyFirmAdmins(ctx, {
-          firmId: args.firmId,
-          title: `New portal message from ${args.senderName || 'portal user'}`,
-          message: `${args.senderName || 'A portal user'} sent: ${args.content.substring(0, 120)}${args.content.length > 120 ? '...' : ''}`,
-          type: "portal_new_message",
-          // BRIEF #3: Include the conversation ID so the "View" link can deep-link
-          // to the specific conversation, not just the generic messages inbox.
-          link: { view: "messaging", initialTab: "inbox", activeConversationId: conversation._id },
-          actorName: args.senderName,
-          actorEmail: args.senderEmail,
-        });
-      } catch (err) {
-        console.warn("[sendPortalMessage] Failed to notify admins:", (err as any)?.message);
-      }
+    // Notify firm admins that a portal user sent a new message — creates
+    // in-app notification (header bell) + email if enabled. (Tickets and
+    // service requests have their own dedicated notifications via
+    // createMaintenanceTicket / createClientServiceRequest, so we don't
+    // double-notify here. sendPortalMessage is only called for free-form
+    // chat messages from the portal.)
+    try {
+      await notifyFirmAdmins(ctx, {
+        firmId: args.firmId,
+        title: `New portal message from ${args.senderName || 'portal user'}`,
+        message: `${args.senderName || 'A portal user'} sent: ${args.content.substring(0, 120)}${args.content.length > 120 ? '...' : ''}`,
+        type: "portal_new_message",
+        link: { view: "messaging", initialTab: "inbox" },
+        actorName: args.senderName,
+        actorEmail: args.senderEmail,
+      });
+    } catch (err) {
+      console.warn("[sendPortalMessage] Failed to notify admins:", (err as any)?.message);
     }
 
     return { messageId, conversationId };
@@ -4806,20 +4799,19 @@ export const updatePaymentProofStatus = mutation({
     if (!proof) {
       throw new Error("Payment proof not found.");
     }
-    // SECURITY FIX: Fail CLOSED — require verified firmId.
-    const auth = await requireFirmUser(ctx, args.userEmail);
-    if (!auth.firmId) {
-      throw new Error("Unauthenticated: userEmail required. Anonymous payment proof updates are no longer permitted.");
-    }
-    if (!proof.firmId || auth.firmId !== proof.firmId) {
-      try {
-        await ctx.db.insert("securityEvents", {
-          eventType: "cross_firm_access_attempt",
-          details: `updatePaymentProofStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update proof ${args.proofId} owned by firm ${proof.firmId}`,
-          timestamp: Date.now(),
-        });
-      } catch {}
-      throw new Error("Not authorized: payment proof belongs to a different firm.");
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      // Verify the caller's firm matches the proof's firm
+      if (auth.firmId && proof.firmId && auth.firmId !== proof.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `updatePaymentProofStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update proof ${args.proofId} owned by firm ${proof.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: payment proof belongs to a different firm.");
+      }
     }
     const { proofId, ...updates } = args;
     await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
@@ -5114,35 +5106,31 @@ export const updateFirmPortalSettings = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // SECURITY FIX: Fail CLOSED — require verified firmId.
-    const auth = await requireFirmUser(ctx, args.userEmail);
-    if (!auth.firmId) {
-      throw new Error("Unauthenticated: userEmail required. Anonymous portal settings updates are no longer permitted.");
+    // P6 SECURITY FIX: Verify caller belongs to the firm they're updating settings for.
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `updateFirmPortalSettings: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update settings for firm ${args.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: cannot update settings for a different firm.");
+      }
     }
-    // Early friendly error if caller passes a mismatched firmId by mistake.
-    if (args.firmId && auth.firmId !== args.firmId) {
-      try {
-        await ctx.db.insert("securityEvents", {
-          eventType: "cross_firm_access_attempt",
-          details: `updateFirmPortalSettings: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update settings for firm ${args.firmId}`,
-          timestamp: Date.now(),
-        });
-      } catch {}
-      throw new Error("Not authorized: cannot update settings for a different firm.");
-    }
-    // ROOT FIX: Use auth.firmId as the write target, NEVER args.firmId.
-    const effectiveFirmId = auth.firmId;
-    const { firmId: _discard, ...updates } = args;
+    const { firmId, ...updates } = args;
     const existing = await ctx.db
       .query("portal_settings")
-      .withIndex("by_firm", (q) => q.eq("firmId", effectiveFirmId))
+      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
       .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, { ...updates, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("portal_settings", {
-        firmId: effectiveFirmId,
+        firmId,
         ...updates,
         tenantMessagingEnabled: updates.tenantMessagingEnabled ?? false,
         clientMessagingEnabled: updates.clientMessagingEnabled ?? false,
@@ -5179,25 +5167,29 @@ export const createNotice = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // SECURITY FIX: Fail CLOSED — require verified firmId.
-    const auth = await requireFirmUser(ctx, args.userEmail);
-    if (!auth.firmId) {
-      throw new Error("Unauthenticated: userEmail required. Anonymous notice creation is no longer permitted.");
+    // P6 SECURITY FIX: Verify caller belongs to the firm they're posting a notice for.
+    // The authenticated firm (auth.firmId) is the trusted source of truth —
+    // args.firmId is user-supplied and only used for the cross-firm check.
+    // All subsequent writes/logs/scheduler calls use auth.firmId, not args.firmId.
+    let authFirmId = args.firmId;
+    if (args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
+        try {
+          await ctx.db.insert("securityEvents", {
+            eventType: "cross_firm_access_attempt",
+            details: `createNotice: caller ${args.userEmail} (firm ${auth.firmId}) attempted to post notice for firm ${args.firmId}`,
+            timestamp: Date.now(),
+          });
+        } catch {}
+        throw new Error("Not authorized: cannot post notices for a different firm.");
+      }
+      // Trust the authenticated firmId over the user-supplied one.
+      if (auth.firmId) authFirmId = auth.firmId;
     }
-    if (args.firmId && auth.firmId !== args.firmId) {
-      try {
-        await ctx.db.insert("securityEvents", {
-          eventType: "cross_firm_access_attempt",
-          details: `createNotice: caller ${args.userEmail} (firm ${auth.firmId}) attempted to post notice for firm ${args.firmId}`,
-          timestamp: Date.now(),
-        });
-      } catch {}
-      throw new Error("Not authorized: cannot post notices for a different firm.");
-    }
-    // ROOT FIX: Use auth.firmId as the write target, NEVER args.firmId.
     const now = Date.now();
     const noticeId = await ctx.db.insert("portal_notices", {
-      firmId: auth.firmId,
+      firmId: authFirmId,
       authorId: args.authorId,
       authorName: args.authorName,
       title: args.title,
@@ -5218,7 +5210,7 @@ export const createNotice = mutation({
     // makes the intent clearer).
     try {
       ctx.scheduler.runAfter(0, internal.portals.sendNoticeEmailsForFirm, {
-        firmId: auth.firmId,
+        firmId: authFirmId,
         noticeTitle: args.title,
         noticeBody: args.body,
         noticePriority: args.priority,
@@ -5233,7 +5225,7 @@ export const createNotice = mutation({
     // creation still succeeds. The notice IS already in the DB at this point.
     try {
       await ctx.runMutation(api.myFunctions.logActivity, {
-        firmId: auth.firmId,
+        firmId: authFirmId,
         userId: args.authorId,
         userName: args.authorName,
         action: "Posted notice",

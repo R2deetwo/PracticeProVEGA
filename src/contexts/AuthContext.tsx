@@ -334,27 +334,35 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             // use that so the app doesn't show a blank screen. The cached user
             // is read-only — mutations will fail offline, but at least the user
             // can VIEW their matters, properties, tasks, etc.
+            //
+            // SECURITY: The cached role is NOT trusted for admin access. If a
+            // user was demoted from Admin → Lawyer server-side (or had their
+            // account revoked entirely), the cached copy would still say Admin.
+            // To prevent privilege escalation through a stale cache, we demote
+            // Admin/Founder → Lawyer in the offline fallback. The user can
+            // still VIEW their matters (read-only since mutations fail offline
+            // anyway), but they cannot access admin settings, the founder
+            // dashboard, or perform destructive admin actions while offline.
+            // When they reconnect, the real server-side role takes effect.
             if (sessionToken && typeof navigator !== 'undefined' && !navigator.onLine) {
                 try {
                     const cached = localStorage.getItem('practicepro_cached_user');
                     if (cached) {
                         const parsed = JSON.parse(cached);
-                        if (parsed && parsed.token === sessionToken) {
-                            // SECURITY FIX: Don't trust the cached role — it could be
-                            // tampered with in localStorage. Downgrade to the cached
-                            // user but strip any elevated roles. The real role will be
-                            // restored when the server is reachable again.
-                            const safeUser = { ...parsed.user };
-                            // Only allow Admin role if the cached token was from a
-                            // verified server response (cachedAt timestamp exists
-                            // and is recent — within 7 days)
-                            const cacheAge = parsed.cachedAt ? Date.now() - parsed.cachedAt : Infinity;
-                            const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
-                            if (cacheAge > CACHE_MAX_AGE) {
-                                console.warn('[Auth] Cached user is stale (>7 days), rejecting offline fallback.');
-                                return null;
+                        if (parsed && parsed.token === sessionToken && parsed.user) {
+                            const cachedUser = { ...parsed.user };
+                            // Strip admin privileges from the offline cache.
+                            // Admins become Lawyers (or stay as their existing
+                            // non-admin role if they were e.g. a Paralegal).
+                            // Founders also become Lawyers — founder dashboard
+                            // is never available offline.
+                            if (cachedUser.role === 'Admin' || cachedUser.role === 'Founder') {
+                                cachedUser.role = 'Lawyer';
                             }
-                            return safeUser;
+                            // Mark as offline-cache so the UI can show a
+                            // "read-only offline mode" indicator if desired.
+                            (cachedUser as any).isOfflineCache = true;
+                            return cachedUser;
                         }
                     }
                 } catch {}
