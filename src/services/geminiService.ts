@@ -230,18 +230,12 @@ export const tools: FunctionDeclaration[] = [
             required: ["data"]
         }
     },
-    {
-        name: "search_legal_repo",
-        description: "Searches your indexed documents and institutional knowledge base. Returns matches from uploaded and indexed files. Use this for finding specific documents, contracts, research notes, and portfolio records.",
-        parameters: {
-            type: Type.OBJECT,
-            properties: {
-                query: { type: Type.STRING },
-                jurisdiction: { type: Type.STRING, enum: ["Federal", "Lagos", "Delta", "Abuja", "General"] }
-            },
-            required: ["query"]
-        }
-    },
+    // REMOVED: search_legal_repo — this tool searched the firm's indexed documents
+    // (brain), NOT a real case-law database. A lawyer asking ALOA to "find precedent"
+    // would get their own uploaded files instead of actual case law — a malpractice
+    // exposure risk. The brain search is still available via the `query_firm_data`
+    // tool with appropriate descriptions. To re-add: implement a real handler backed
+    // by an actual case-law data source (e.g. LawPavilion API, NWLR database).
     {
         name: "search_web",
         description: "Searches the live web for current information. Use this when the user asks about recent events, current laws, news, or any information that may be newer than your training data. Also use when the user asks you to 'look up', 'search', 'find online', or 'google' something. Returns a list of result snippets with URLs.",

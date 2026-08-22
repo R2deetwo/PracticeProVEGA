@@ -761,7 +761,7 @@ const VEGA_FEATURE_CATEGORIES = [
         Icon: ScalesIcon,
         items: [
             { title: 'Matter Management', desc: 'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.' },
-            { title: 'Court Date Reminders', desc: 'Automated WhatsApp reminders 7, 3, and 1 day(s) before each hearing. Never miss a court date again — reminders fire automatically based on your matter\'s adjourned date, sent directly to the assigned lawyer(s).', badge: 'Growth+' },
+            { title: 'Court Date Reminders', desc: 'WhatsApp reminders 7, 3, and 1 day(s) before each hearing. Never miss a court date again — reminders are scheduled automatically based on your matter\'s adjourned date and sent to the assigned lawyer(s). Requires WhatsApp integration setup.', badge: 'Growth+' },
             { title: 'Task Board', desc: 'Kanban-style task management with assignments, due dates, priority levels, and matter linking. Track every deliverable from intake to resolution.' },
             { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, upload and access documents, and submit KYC uploads. Available on Growth and Pro plans.', badge: 'Growth+' },
             { title: 'Contacts & Parties', desc: 'Structured contact management with party grouping, witness tracking, and counsel records. Link contacts to matters and documents automatically.' },
@@ -1990,7 +1990,7 @@ const FAQ_ITEMS = {
         },
         {
             q: "Do court date reminders really work via WhatsApp?",
-            a: "Yes. Automated WhatsApp reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers. Client-facing reminders are opt-in per matter. Available on the Pro plan and above.",
+            a: "Yes. WhatsApp reminders are scheduled 7, 3, and 1 day before each hearing to assigned lawyers. Client-facing reminders are opt-in per matter. Available on the Growth plan and above. Requires WhatsApp Business API integration (Settings → Integrations).",
         },
         {
             q: "Can my clients access their case information?",
@@ -2012,7 +2012,7 @@ const FAQ_ITEMS = {
         },
         {
             q: "What happens if a resident doesn't pay?",
-            a: "The Revenue Monitor tracks defaulters by days overdue and sends automated WhatsApp demand notices. You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
+            a: "The Revenue Monitor tracks defaulters by days overdue and generates WhatsApp demand notices you can review and send. You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
         },
         {
             q: "I'm a property owner living abroad. Can I use PracticePro to manage my Nigerian properties?",

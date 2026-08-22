@@ -918,46 +918,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         feedbackMessage = "I've pushed those details into the form for you.";
                         toolOutput = { success: true };
                         isTerminal = false; // Allow AI to continue talking while form is filled
-                    } else if (name === 'search_legal_repo') {
-                        const { query, jurisdiction } = args;
-                        feedbackMessage = `Searching for "${query}" in ${jurisdiction || 'all'} jurisdiction...`;
-                        
-                        try {
-                            // Use the firm's brain (indexed documents) for research
-                            // If brain search is available, query it; otherwise provide a helpful fallback
-                            let repoResults: any[] = [];
-                            
-                            if (liveSessionRef.current?.searchBrain) {
-                                try {
-                                    const brainResult = await liveSessionRef.current.searchBrain(query);
-                                    if (brainResult) {
-                                        repoResults = [{ title: 'Firm Document Match', snippet: brainResult.substring(0, 300), source: 'firm_knowledge_base' }];
-                                    }
-                                } catch (brainErr) {
-                                    // Brain search failed, continue with empty results
-                                }
-                            }
-                            
-                            toolOutput = { results: repoResults, note: repoResults.length === 0 ? 'No indexed documents matched. Results are from your firm\'s uploaded documents only — not a national case law database.' : undefined };
-                            
-                            actionData = {
-                                type: 'legal_search',
-                                query,
-                                results: repoResults,
-                                label: repoResults.length > 0 ? 'View Search Results' : undefined
-                            };
-                            
-                            feedbackMessage = repoResults.length > 0 
-                                ? `I found ${repoResults.length} relevant document(s) in your ${isProperty ? 'portfolio' : "firm's"} knowledge base.`
-                                : isProperty
-                                    ? "I didn't find matching documents in your indexed files. I can still provide general property guidance based on Nigerian tenancy law principles."
-                                    : "I didn't find matching documents in your firm's indexed files. I can still provide general legal guidance based on Nigerian law principles.";
-                        } catch (err: any) {
-                            toolOutput = { error: err.message };
-                            feedbackMessage = isProperty
-                                    ? `Search encountered an issue. I can still help with general property guidance.`
-                                    : `Legal search encountered an issue. I can still help with general legal guidance.`;
-                        }
                     } else if (name === 'search_web') {
                         // ── LIVE WEB SEARCH ──────────────────────────────────
                         // The AI actively searches the web for current information.
@@ -1735,7 +1695,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             const name = tc.name || '';
                             if (name === 'search_web') return 'web search';
                             if (name === 'fetch_web_page') return 'reading page';
-                            if (name === 'search_legal_repo') return 'legal repo';
                             if (name === 'query_firm_data') return 'firm data';
                             if (name === 'analyze_document') return 'analyzing doc';
                             if (name === 'start_drafting') return 'drafting';

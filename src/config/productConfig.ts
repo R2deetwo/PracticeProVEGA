@@ -146,7 +146,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
   {
     key: 'whatsapp_notifications',
     label: 'WhatsApp Notifications',
-    description: 'Automated rent reminders and demand notices via WhatsApp',
+    description: 'WhatsApp rent reminders and demand notices (requires integration setup)',
     defaultEnabled: true,
     productScope: ['atrium', 'komplete'],
   },

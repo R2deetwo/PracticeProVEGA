@@ -76,7 +76,7 @@ const TrialNudgeBanner: React.FC = () => {
     if (daysElapsed === 7) {
       return {
         title: 'Day 7 — Try WhatsApp messaging',
-        body: 'Send your first WhatsApp rent reminder or court date notification. Automated messaging is included in your trial.',
+        body: 'Send your first WhatsApp rent reminder or court date notification. WhatsApp messaging is included in your trial (requires integration setup).',
         cta: 'Send Message',
         ctaAction: () => navigateTo('messages'),
         urgency: 'info' as const,

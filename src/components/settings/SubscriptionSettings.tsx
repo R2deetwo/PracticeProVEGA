@@ -517,7 +517,7 @@ const EnterpriseSection: React.FC<{
                 </div>
                 {/* Included */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                    {['Unlimited users', 'Custom Storage', 'Audit Logs & SSO', 'SLA Guarantee', 'Account manager'].map(f => (
+                    {['Unlimited users', 'Custom Storage', 'Audit Logs', 'SLA Guarantee', 'Account manager'].map(f => (
                         <span key={f} className="text-2xs font-semibold text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{f}</span>
                     ))}
                 </div>
