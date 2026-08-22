@@ -1722,7 +1722,10 @@ export const approveSubscriptionRequestAsFounder = mutation({
           firmId: request.firmId,
           userId: request.userId,
           title: 'Subscription Activated',
-          message: `Your upgrade to ${request.requestedPlan} has been confirmed by ${founder.email}. Enjoy the new features!${discountMsg}`,
+          // FIX: Say "PracticePro Team" instead of the founder's personal email.
+          // The user doesn't know who the founder is — they just need to know
+          // their subscription was confirmed by the PracticePro team.
+          message: `Your upgrade to ${request.requestedPlan} has been confirmed by the PracticePro Team. Enjoy the new features!${discountMsg}`,
           type: 'subscription_activated',
           timestamp: now,
           isRead: false,
