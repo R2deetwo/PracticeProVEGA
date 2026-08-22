@@ -54,6 +54,9 @@ interface RateLimitData {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AGENT_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  // FIX: Use product-neutral "AI Assistant" label instead of hardcoding "ARIA"
+  // (which is the property-only name). The actual assistant name (ALOA for
+  // legal, ARIA for property) is resolved via getAssistantName() elsewhere.
   ARIA: {
     label: 'AI Assistant',
     color: 'text-blue-400',
@@ -377,7 +380,7 @@ const EmptyState: React.FC = () => (
     </div>
     <h3 className="text-lg font-bold text-white mb-2">No AI Usage Recorded Yet</h3>
     <p className="text-sm text-gray-500 max-w-sm">
-      Usage metrics will appear here once your team starts interacting with AI agents like ARIA, ALOA™, or ALDIA.
+      Usage metrics will appear here once your team starts interacting with AI agents like ALOA™, ARIA®, or ALDIA.
     </p>
   </div>
 );

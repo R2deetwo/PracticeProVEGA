@@ -4381,8 +4381,13 @@ export const markAloaActionCompleted = mutation({
  * are wiped in a single transaction to prevent orphaned "ghost" records.
  */
 export const deleteMatterCascade = mutation({
-  args: { matterId: v.string(), firmId: v.string() },
+  args: { matterId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Require admin auth and verify firm ownership.
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (!auth.firmId || auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete matters in your own firm.");
+    }
     const { matterId, firmId } = args;
     const results: Record<string, number> = {};
 
@@ -4451,8 +4456,13 @@ export const deleteMatterCascade = mutation({
 
 
 export const deletePropertyCascade = mutation({
-  args: { propertyId: v.string(), firmId: v.string() },
+  args: { propertyId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Require admin auth and verify firm ownership.
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (!auth.firmId || auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete properties in your own firm.");
+    }
     const { propertyId, firmId } = args;
 
     // 1. Find the property record first
@@ -4507,8 +4517,13 @@ export const deletePropertyCascade = mutation({
  * Removes all PII and associated operational data when a contact is removed.
  */
 export const deleteContactCascade = mutation({
-  args: { contactId: v.string(), firmId: v.string() },
+  args: { contactId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Require admin auth and verify firm ownership.
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (!auth.firmId || auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete contacts in your own firm.");
+    }
     const { contactId, firmId } = args;
     const results: Record<string, number> = { properties: 0, matters: 0, matterOperationalData: 0 };
 

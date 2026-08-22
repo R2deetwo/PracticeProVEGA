@@ -43,7 +43,7 @@ export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ child
         deleteMatter: async (id, name) => {
             // Use cascade delete to remove all child records (tasks, documents, etc.)
             try {
-                await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId || '' });
+                await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId || '', userEmail: currentUser?.email });
             } catch (e) {
                 console.error('[MatterContext] Cascade delete failed, falling back to simple delete:', e);
             }

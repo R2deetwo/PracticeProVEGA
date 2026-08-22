@@ -5218,7 +5218,7 @@ export const createNotice = mutation({
     // makes the intent clearer).
     try {
       ctx.scheduler.runAfter(0, internal.portals.sendNoticeEmailsForFirm, {
-        firmId: args.firmId,
+        firmId: auth.firmId,
         noticeTitle: args.title,
         noticeBody: args.body,
         noticePriority: args.priority,
@@ -5233,7 +5233,7 @@ export const createNotice = mutation({
     // creation still succeeds. The notice IS already in the DB at this point.
     try {
       await ctx.runMutation(api.myFunctions.logActivity, {
-        firmId: args.firmId,
+        firmId: auth.firmId,
         userId: args.authorId,
         userName: args.authorName,
         action: "Posted notice",

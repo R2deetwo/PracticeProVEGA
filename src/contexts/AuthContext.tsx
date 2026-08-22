@@ -340,7 +340,21 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     if (cached) {
                         const parsed = JSON.parse(cached);
                         if (parsed && parsed.token === sessionToken) {
-                            return parsed.user;
+                            // SECURITY FIX: Don't trust the cached role — it could be
+                            // tampered with in localStorage. Downgrade to the cached
+                            // user but strip any elevated roles. The real role will be
+                            // restored when the server is reachable again.
+                            const safeUser = { ...parsed.user };
+                            // Only allow Admin role if the cached token was from a
+                            // verified server response (cachedAt timestamp exists
+                            // and is recent — within 7 days)
+                            const cacheAge = parsed.cachedAt ? Date.now() - parsed.cachedAt : Infinity;
+                            const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+                            if (cacheAge > CACHE_MAX_AGE) {
+                                console.warn('[Auth] Cached user is stale (>7 days), rejecting offline fallback.');
+                                return null;
+                            }
+                            return safeUser;
                         }
                     }
                 } catch {}

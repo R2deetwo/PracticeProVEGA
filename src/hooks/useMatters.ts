@@ -158,7 +158,7 @@ export const useMatters = (appState: any, actions: any) => {
      */
     const handleDeleteMatter = useCallback(async (id: string, name: string) => {
         try {
-            await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId as string });
+            await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId as string, userEmail: currentUser?.email });
             // Remove from local state
             await actions.deleteItem('matters', id, name);
             addToast(`Deleted matter ${name} and all related records.`, { type: 'success' });
