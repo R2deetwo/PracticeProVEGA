@@ -1,0 +1,1485 @@
+     1→
+     2→import React, { useState, useMemo, useEffect } from 'react';
+     3→import { FirmDetails, SubscriptionPlan, User, FirmSpecialty } from '../../types';
+     4→import { CheckIcon, UserCircleIcon, CalculatorIcon } from '../../constants';
+     5→import { ShieldCheckIcon } from '../../constants';
+     6→import { useUI } from '../../contexts/UIContext';
+     7→import { useAuth } from '../../contexts/AuthContext';
+     8→import { useMutation, useQuery, useConvex } from 'convex/react';
+     9→import { api } from '../../../convex/_generated/api';
+    10→import NairaSymbol from '../NairaSymbol';
+    11→import { formatNaira } from '../../utils/formatting';
+    12→import { useCoreState } from '../../contexts/CoreContext';
+    13→import { useDataActions } from '../../contexts/DataContext';
+    14→import { useProduct } from '../../contexts/ProductContext';
+    15→import {
+    16→    getTiersForProduct,
+    17→    DISPLAY_TIER_IDS,
+    18→    VEGA_TIERS,
+    19→    KOMPLETE_TIER,
+    20→    type ProductMode,
+    21→    type TierId,
+    22→    type TierDef,
+    23→} from '../../constants/tiers';
+    24→// CRO AUDIT — add-ons catalog for the Add-Ons section.
+    25→import { getAddonsForProduct, formatAddonPrice, type AddonDef } from '../../constants/addons';
+    26→
+    27→interface SubscriptionSettingsProps {
+    28→    firmDetails: FirmDetails;
+    29→    onUpdateFirmDetails: (details: FirmDetails) => void;
+    30→}
+    31→
+    32→const getPlanLevel = (plan: SubscriptionPlan | undefined): number => {
+    33→    switch (plan) {
+    34→        case SubscriptionPlan.Core: return 1;
+    35→        case SubscriptionPlan.Growth: return 2;
+    36→        case SubscriptionPlan.Pro: return 3;
+    37→        case SubscriptionPlan.Enterprise: return 4;
+    38→        case SubscriptionPlan.Komplete: return 5;
+    39→        default: return 0;
+    40→    }
+    41→};
+    42→
+    43→const resolveProductMode = (product?: string | null): ProductMode => {
+    44→    if (product === 'property' || product === 'atrium') return 'property';
+    45→    if (product === 'unified') return 'unified';
+    46→    return 'legal';
+    47→};
+    48→
+    49→const tierIdToSubscriptionPlan = (id: TierId): SubscriptionPlan => {
+    50→    switch (id) {
+    51→        case 'Core': return SubscriptionPlan.Core;
+    52→        case 'Growth': return SubscriptionPlan.Growth;
+    53→        case 'Pro': return SubscriptionPlan.Pro;
+    54→        case 'Enterprise': return SubscriptionPlan.Enterprise;
+    55→    }
+    56→};
+    57→
+    58→const TIER_SETTINGS_COPY: Record<TierId, { description: string; userLimit: string }> = {
+    59→    Core: { description: 'Solo practitioners or small portfolios starting out.', userLimit: '1 User Account' },
+    60→    Growth: { description: 'AI and automation for growing firms and agencies.', userLimit: 'Up to 3 Users' },
+    61→    Pro: { description: 'Full-scale legal or property operations.', userLimit: 'Up to 10 Users' },
+    62→    Enterprise: { description: 'Custom limits and onboarding.', userLimit: 'Unlimited Users' },
+    63→};
+    64→
+    65→const formatSettingsPrice = (
+    66→    tier: TierDef,
+    67→    isAnnual: boolean,
+    68→    viewAsMonthlyCost: boolean
+    69→): string => {
+    70→    if (tier.monthlyPrice === 0 && (tier.annualPrice ?? 0) === 0) return 'Free';
+    71→    // Only show "Custom" when BOTH prices are null (Enterprise tier)
+    72→    if (tier.monthlyPrice === null && tier.annualPrice === null) return 'Custom';
+    73→    // Atrium tiers have monthlyPrice=null but valid annualPrice — show annual price
+    74→    if (tier.monthlyPrice === null && tier.annualPrice !== null) {
+    75→        if (viewAsMonthlyCost) {
+    76→            const monthlyFromAnnual = Math.round(tier.annualPrice / 12);
+    77→            return `₦${monthlyFromAnnual.toLocaleString('en-NG')}`;
+    78→        }
+    79→        return tier.annualPriceDisplay;
+    80→    }
+    81→    if (!isAnnual) return tier.monthlyPriceDisplay;
+    82→    if (viewAsMonthlyCost) {
+    83→        const monthlyFromAnnual = Math.round((tier.annualPrice ?? 0) / 12);
+    84→        return `₦${monthlyFromAnnual.toLocaleString('en-NG')}`;
+    85→    }
+    86→    return tier.annualPriceDisplay;
+    87→};
+    88→
+    89→const ENTERPRISE_MODALITIES: { specialty: FirmSpecialty; label: string; description: string; abbr: string; price: number }[] = [
+    90→    { specialty: FirmSpecialty.Maritime, label: 'Maritime & Admiralty', description: 'Ship arrest workflows, Writ in Rem drafting, vessel tracking & P&I insurer management built in.', abbr: 'MA', price: 35000 },
+    91→    { specialty: FirmSpecialty.OilGas, label: 'Oil & Gas', description: 'OML/OPL license lifecycle, PIA compliance alerts, NUPRC deadline tracking & farm-in/out management.', abbr: 'O&G', price: 50000 },
+    92→    { specialty: FirmSpecialty.Corporate, label: 'Corporate & Commercial', description: 'CAC compliance, M&A due diligence checklists, annual returns tracking & board resolution storage.', abbr: 'CC', price: 30000 },
+    93→    { specialty: FirmSpecialty.Tax, label: 'Tax Law', description: 'FIRS audit management, 30-day objection deadline alerts, TAT appeal tracking & TCC processing.', abbr: 'TX', price: 30000 },
+    94→    { specialty: FirmSpecialty.RealEstate, label: 'Real Estate & Property', description: "Title perfection stages, Governor's Consent tracking, Deed drafting & recovery of premises workflow.", abbr: 'RE', price: 25000 },
+    95→    { specialty: FirmSpecialty.Litigation, label: 'Civil Litigation', description: 'Court process tracking, hearing reminders, Rules of Court deadline automation & ALOA litigation briefing.', abbr: 'LIT', price: 20000 },
+    96→];
+    97→
+    98→
+    99→const ENTERPRISE_BASE_PRICE = { monthly: 120000, annual: 96000 };
+   100→
+   101→const PlanCard: React.FC<{
+   102→    plan: SubscriptionPlan;
+   103→    currentPlan: SubscriptionPlan;
+   104→    price: string;
+   105→    features: (string | React.ReactNode)[];
+   106→    onSelect: () => void;
+   107→    isPopular?: boolean;
+   108→    isKomplete?: boolean;
+   109→    description: string;
+   110→    userLimit?: string;
+   111→    viewAsMonthlyCost: boolean;
+   112→    isAnnual: boolean;
+   113→}> = ({ plan, currentPlan, price, features, onSelect, isPopular, isKomplete, description, userLimit, viewAsMonthlyCost, isAnnual }) => {
+   114→    const isCurrent = plan === currentPlan;
+   115→    const currentLevel = getPlanLevel(currentPlan);
+   116→    const targetLevel = getPlanLevel(plan);
+   117→    const isDowngrade = targetLevel < currentLevel;
+   118→
+   119→    let buttonText = 'Switch Plan';
+   120→    let buttonClass = '';
+   121→
+   122→    if (isCurrent) {
+   123→        buttonText = 'Current Plan';
+   124→        buttonClass = 'bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 cursor-default';
+   125→    } else if (isDowngrade) {
+   126→        buttonText = 'Downgrade';
+   127→        buttonClass = 'bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-600';
+   128→    } else {
+   129→        buttonText = 'Upgrade';
+   130→        if (isKomplete) {
+   131→            buttonClass = 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 shadow-md';
+   132→        } else if (isPopular) {
+   133→            buttonClass = 'bg-primary-600 text-white hover:bg-primary-700 shadow-md';
+   134→        } else {
+   135→            buttonClass = 'bg-slate-800 text-white hover:bg-slate-700';
+   136→        }
+   137→    }
+   138→
+   139→    return (
+   140→        <div className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-300 ${isCurrent ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-lg ring-1 ring-primary-500' : isKomplete ? 'border-indigo-500/50 bg-indigo-50/10 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-primary-300 hover:shadow-md'}`}>
+   141→            {isPopular && (
+   142→                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-primary-600 text-white text-xs font-bold uppercase tracking-wide rounded-full shadow-sm">
+   143→                    Most Popular
+   144→                </div>
+   145→            )}
+   146→            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{plan}</h3>
+   147→            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4 h-10">{description}</p>
+   148→
+   149→            <div className="flex items-baseline gap-1 mb-2">
+   150→                <span className={`text-3xl font-bold ${isKomplete ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>{price}</span>
+   151→                {price !== 'Free' && price !== 'Custom' && !isKomplete && (
+   152→                    <span className="text-sm text-slate-500 dark:text-zinc-400">
+   153→                        {isAnnual && !viewAsMonthlyCost ? '/yr' : '/mo'}
+   154→                    </span>
+   155→                )}
+   156→                {isKomplete && price !== 'Custom' && (
+   157→                    <span className="text-sm text-slate-500 dark:text-zinc-400">
+   158→                        {isAnnual && !viewAsMonthlyCost ? '/yr' : '/mo'}
+   159→                    </span>
+   160→                )}
+   161→            </div>
+   162→
+   163→            {userLimit && (
+   164→                <div className="mb-6 inline-block bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-2xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+   165→                    {userLimit}
+   166→                </div>
+   167→            )}
+   168→
+   169→            <div className="flex-grow">
+   170→                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Includes:</p>
+   171→                <ul className="space-y-3 mb-8">
+   172→                    {features.map((feat, i) => (
+   173→                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-zinc-300">
+   174→                            <CheckIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isKomplete ? 'text-indigo-500' : isPopular ? 'text-primary-500' : 'text-slate-400'}`} />
+   175→                            <span>{feat}</span>
+   176→                        </li>
+   177→                    ))}
+   178→                </ul>
+   179→            </div>
+   180→
+   181→            <button
+   182→                onClick={onSelect}
+   183→                disabled={isCurrent}
+   184→                className={`w-full py-2.5 px-4 rounded-lg font-bold text-sm transition-colors ${buttonClass}`}
+   185→            >
+   186→                {buttonText}
+   187→            </button>
+   188→        </div>
+   189→    );
+   190→};
+   191→
+   192→// --- BILLING CALCULATOR WIDGET ---
+   193→const BillingCalculator: React.FC<{
+   194→    users: User[],
+   195→    currentPlan: SubscriptionPlan,
+   196→    isAnnual: boolean,
+   197→    viewAsMonthlyCost: boolean,
+   198→    simulationCount: number,
+   199→    setSimulationCount: (n: number) => void,
+   200→    selectedModalities: FirmSpecialty[],
+   201→    showBillingToggle?: boolean,
+   202→    isAnnualState?: boolean,
+   203→    onToggleBilling?: () => void,
+   204→    viewAsMonthlyCostState?: boolean,
+   205→    onToggleViewMode?: () => void,
+   206→    onUpgrade?: (tierId?: any) => void,
+   207→}> = ({ users, currentPlan, isAnnual, viewAsMonthlyCost, simulationCount, setSimulationCount, selectedModalities, showBillingToggle = false, isAnnualState, onToggleBilling, viewAsMonthlyCostState, onToggleViewMode, onUpgrade }) => {
+   208→    const seatRateForTier = (tier: TierDef): number => {
+   209→        if (!isAnnual) return tier.monthlyPrice ?? 0;
+   210→        return Math.round((tier.annualPrice ?? 0) / 12);
+   211→    };
+   212→
+   213→    const multiplier = (isAnnual && !viewAsMonthlyCost) ? 12 : 1;
+   214→    const totalActualUsers = users.length;
+   215→    const additionalSeats = Math.max(0, (totalActualUsers + simulationCount) - 1);
+   216→    // Derive maxUsers from the current tier (null = unlimited)
+   217→    // getTiersForProduct returns a Record<TierId, TierDef>, not an array —
+   218→    // use Object.values() to find the matching tier by id.
+   219→    const product = (users[0] as any)?.product || 'legal';
+   220→    const tiers = getTiersForProduct(product as any);
+   221→    const currentTierDef = Object.values(tiers).find(t => t.id === currentPlan);
+   222→    const maxUsers = currentTierDef?.maxUsers ?? null;
+   223→    const isSimulating = simulationCount > 0;
+   224→
+   225→    let baseCost = 0, addOnCost = 0, addOnLabel = 'Additional Seats', baseSeatLabel = 'Admin Seat (You)';
+   226→
+   227→    if (currentPlan === SubscriptionPlan.Enterprise) {
+   228→        const baseRate = isAnnual ? ENTERPRISE_BASE_PRICE.annual : ENTERPRISE_BASE_PRICE.monthly;
+   229→        const modalityCost = selectedModalities.reduce((sum, s) => {
+   230→            const found = ENTERPRISE_MODALITIES.find(m => m.specialty === s);
+   231→            return sum + (found ? (isAnnual ? Math.round(found.price * 0.8) : found.price) : 0);
+   232→        }, 0);
+   233→        const total = (baseRate + modalityCost) * multiplier;
+   234→        return (
+   235→            <div className="relative rounded-2xl overflow-hidden mb-8 shadow-2xl">
+   236→                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-800" />
+   237→                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #d4a85422 0%, transparent 60%), radial-gradient(circle at 80% 20%, #a8855822 0%, transparent 50%)' }} />
+   238→                <div className="relative p-6 backdrop-blur-sm">
+   239→                    <div className="flex items-center gap-3 mb-4">
+   240→                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center text-sm">
+   241→                            <ShieldCheckIcon className="w-5 h-5 text-black" />
+   242→                        </div>
+   243→                        <div>
+   244→                            <p className="text-2xs font-black text-amber-400/70 uppercase tracking-wide-label">Enterprise</p>
+   245→                            <h3 className="text-lg font-black text-white">Projected Billing</h3>
+   246→                        </div>
+   247→                    </div>
+   248→
+   249→                    <div className="space-y-3 mb-4">
+   250→                        <div className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
+   251→                            <div>
+   252→                                <p className="text-sm font-bold text-white">Enterprise Platform Base</p>
+   253→                                <p className="text-2xs text-zinc-400">Unlimited users · Full AI suite · All core features</p>
+   254→                            </div>
+   255→                            <p className="font-mono font-bold text-amber-400">₦{(baseRate * multiplier).toLocaleString()}</p>
+   256→                        </div>
+   257→                        {selectedModalities.map(s => {
+   258→                            const m = ENTERPRISE_MODALITIES.find(m => m.specialty === s);
+   259→                            if (!m) return null;
+   260→                            const rate = isAnnual ? Math.round(m.price * 0.8) : m.price;
+   261→                            return (
+   262→                                <div key={s} className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
+   263→                                    <div>
+   264→                                        <p className="text-sm font-bold text-white">{ModalityIcons[m.specialty]} {m.label} Modality</p>
+   265→                                        <p className="text-2xs text-zinc-400">Specialist dashboards · Statutory forms · AI Expert Mode</p>
+   266→                                    </div>
+   267→                                    <p className="font-mono font-bold text-amber-400">₦{(rate * multiplier).toLocaleString()}</p>
+   268→                                </div>
+   269→                            );
+   270→                        })}
+   271→                    </div>
+   272→                    <div className="border-t border-white/10 pt-4 flex justify-between items-end">
+   273→                        <p className="text-sm text-zinc-400">Total Billed {isAnnual ? 'Annually' : 'Monthly'}{isAnnual && <span className="text-amber-400 font-bold ml-2">20% annual discount applied</span>}</p>
+   274→                        <p className="text-3xl font-black text-amber-400">₦{total.toLocaleString()}</p>
+   275→                    </div>
+   276→                </div>
+   277→            </div>
+   278→        );
+   279→    }
+   280→
+   281→    if (currentPlan === SubscriptionPlan.Core) {
+   282→        baseCost = 0; addOnCost = 0;
+   283→    } else if (currentPlan === SubscriptionPlan.Growth) {
+   284→        const rate = seatRateForTier(VEGA_TIERS.Growth);
+   285→        baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Growth Rate)";
+   286→    } else if (currentPlan === SubscriptionPlan.Komplete) {
+   287→        // Komplete is annual-only at ₦2.5M/yr with UNLIMITED seats.
+   288→        // No seat add-on billing — all seats are included.
+   289→        const kompleteAnnual = KOMPLETE_TIER.annualPrice ?? 2500000;
+   290→        const baseRate = Math.round(kompleteAnnual / 12);  // monthly-equiv for display
+   291→        baseCost = baseRate;
+   292→        // PRICING AUDIT: unlimited seats — no add-on cost for extra seats
+   293→        addOnCost = 0;
+   294→        addOnLabel = 'All seats included (unlimited)';
+   295→    } else if (currentPlan === SubscriptionPlan.Pro) {
+   296→        const rate = seatRateForTier(VEGA_TIERS.Pro);
+   297→        baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Pro Rate)";
+   298→    }
+   299→
+   300→    const totalCost = (baseCost + addOnCost) * multiplier;
+   301→    const baseDisplay = baseCost * multiplier;
+   302→    const addOnDisplay = addOnCost * multiplier;
+   303→
+   304→    return (
+   305→        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-6 shadow-sm mb-8">
+   306→            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+   307→                <div className="flex items-center gap-3">
+   308→                    <div className={`p-2 rounded-lg ${isSimulating ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
+   309→                        <CalculatorIcon className="w-6 h-6" />
+   310→                    </div>
+   311→                    <div>
+   312→                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+   313→                            {isSimulating ? 'Simulated' : 'Estimated'} {viewAsMonthlyCost ? 'Monthly' : 'Total'} Cost
+   314→                        </h3>
+   315→                        <p className="text-xs text-slate-500 dark:text-zinc-400">
+   316→                            {isSimulating ? `Showing cost for ${totalActualUsers + simulationCount} seats (${totalActualUsers} current + ${simulationCount} simulated).` : `Based on your current team size (${totalActualUsers} seats).`}
+   317→                        </p>
+   318→                    </div>
+   319→                </div>
+   320→                {/* CRO AUDIT FIX: compact monthly/yearly toggle moved INSIDE the
+   321→                    billing calculator (between "Simulate Growth" and the cost display).
+   322→                    Smaller pill toggle with -20% badge. Hidden for annual-only products
+   323→                    (Komplete only) — showBillingToggle prop controls visibility. */}
+   324→                <div className="flex items-center gap-3 flex-wrap">
+   325→                    {showBillingToggle && onToggleBilling && (
+   326→                        <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 text-2xs font-bold">
+   327→                            <button
+   328→                                onClick={() => { if (isAnnualState) onToggleBilling(); }}
+   329→                                className={`px-2.5 py-1 rounded-full transition-all ${!isAnnualState ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}`}
+   330→                            >Monthly</button>
+   331→                            <button
+   332→                                onClick={() => { if (!isAnnualState) onToggleBilling(); }}
+   333→                                className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 ${isAnnualState ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}`}
+   334→                            >Yearly <span className="text-emerald-600 text-3xs">-20%</span></button>
+   335→                        </div>
+   336→                    )}
+   337→                    {!showBillingToggle && (
+   338→                        <span className="px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 rounded-full text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+   339→                            Annual Billing Only
+   340→                        </span>
+   341→                    )}
+   342→                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-700/30 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700">
+   343→                        <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
+   344→                        <div className="flex items-center gap-2">
+   345→                            <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
+   346→                            <span className={`w-8 text-center font-mono font-bold text-sm ${isSimulating ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>+{simulationCount}</span>
+   347→                            <button onClick={() => setSimulationCount(Math.min(50, simulationCount + 1))} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 transition-all font-bold">+</button>
+   348→                        </div>
+   349→                        {isSimulating && <button onClick={() => setSimulationCount(0)} className="text-2xs font-bold text-primary-600 hover:underline ml-1">Reset</button>}
+   350→                    </div>
+   351→                </div>
+   352→            </div>
+   353→            {/* CRO AUDIT FIX: compact view-mode toggle (Show Monthly Avg / Show Total Billed)
+   354→                moved into the calculator header area too. Only shown when billing toggle
+   355→                is visible (i.e. for monthly/annual-capable plans). */}
+   356→            {showBillingToggle && onToggleViewMode && (
+   357→                <div className="flex items-center justify-end gap-2 text-xs text-slate-500 dark:text-zinc-400 mb-4 -mt-3">
+   358→                    <span className={viewAsMonthlyCostState ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Monthly Avg</span>
+   359→                    <div onClick={onToggleViewMode} className={`relative w-8 h-4 bg-slate-300 dark:bg-zinc-600 rounded-full cursor-pointer transition-colors ${!viewAsMonthlyCostState ? 'bg-primary-500' : ''}`}>
+   360→                        <div className={`absolute top-0.5 w-3 h-3 bg-white dark:bg-zinc-900 rounded-full shadow-sm transition-transform duration-200 ${!viewAsMonthlyCostState ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
+   361→                    </div>
+   362→                    <span className={!viewAsMonthlyCostState ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Total Billed</span>
+   363→                </div>
+   364→            )}
+   365→            {/* ─── SLIM BILLING CARD ────────────────────────────────────────
+   366→                Flattened from heavy background blocks to a slim inline list.
+   367→                Shows: Total Seats Allowed vs Active Seats Used.
+   368→                When user exceeds tier limit, shows upgrade + buy-seat buttons. */}
+   369→            <div className="space-y-3">
+   370→                {/* Seat Usage Summary — slim inline format */}
+   371→                <div className="flex items-center justify-between py-2 px-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg">
+   372→                    <div className="flex items-center gap-2">
+   373→                        <UserCircleIcon className="w-4 h-4 text-slate-400" />
+   374→                        <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">
+   375→                            {totalActualUsers} / {maxUsers === null ? '∞' : maxUsers} seats used
+   376→                        </span>
+   377→                    </div>
+   378→                    {maxUsers !== null && (totalActualUsers + simulationCount) >= maxUsers && (
+   379→                        <span className="text-2xs font-bold text-rose-500">At limit</span>
+   380→                    )}
+   381→                </div>
+   382→
+   383→                {/* Seat Breakdown — inline, no heavy blocks */}
+   384→                <div className="flex items-center justify-between text-xs">
+   385→                    <span className="text-slate-500 dark:text-zinc-400">{baseSeatLabel} ({currentPlan})</span>
+   386→                    <span className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(baseDisplay)}</span>
+   387→                </div>
+   388→                {additionalSeats > 0 && (
+   389→                    <div className="flex items-center justify-between text-xs">
+   390→                        <span className="text-slate-500 dark:text-zinc-400">{addOnLabel}</span>
+   391→                        <span className="font-mono font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(addOnDisplay)}</span>
+   392→                    </div>
+   393→                )}
+   394→
+   395→                {/* Seat Threshold Logic — when exceeding tier limit, show upgrade/buy buttons */}
+   396→                {maxUsers !== null && (totalActualUsers + simulationCount) >= maxUsers && currentPlan !== ('Enterprise' as any) && (
+   397→                    <div className="flex gap-2 pt-2">
+   398→                        <button
+   399→                            onClick={() => onUpgrade?.(undefined as any)}
+   400→                            className="flex-1 px-3 py-2 bg-gradient-to-r from-primary-600 to-primary-500 text-white text-xs font-bold rounded-lg hover:from-primary-700 hover:to-primary-600 transition-all shadow-md flex items-center justify-center gap-1.5"
+   401→                        >
+   402→                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 1l2.928 6.327L20 8.18l-5 4.876L16.18 20 10 16.586 3.82 20 5 13.056 0 8.18l7.072-.853L10 1z" /></svg>
+   403→                            Upgrade Plan
+   404→                        </button>
+   405→                        <button
+   406→                            onClick={() => onUpgrade?.(undefined as any)}
+   407→                            className="px-3 py-2 border-2 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex items-center gap-1.5"
+   408→                        >
+   409→                            + Buy Extra Seat (<NairaSymbol />4,000)
+   410→                        </button>
+   411→                    </div>
+   412→                )}
+   413→
+   414→                {/* Total — slim divider + total */}
+   415→                <div className="border-t border-slate-200 dark:border-zinc-700 pt-3 flex justify-between items-end">
+   416→                    <div className="flex flex-col">
+   417→                        <p className="text-sm font-medium text-slate-500">Total {isAnnual ? 'Annually' : 'Monthly'}</p>
+   418→                        {isAnnual && <p className="text-xs text-green-600 font-bold">Includes 20% discount</p>}
+   419→                    </div>
+   420→                    <p className="text-2xl font-bold text-green-600 dark:text-green-400"><NairaSymbol />{formatNaira(totalCost)}</p>
+   421→                </div>
+   422→            </div>
+   423→        </div>
+   424→    );
+   425→};
+   426→
+   427→// --- ENTERPRISE UPGRADE SECTION ---
+   428→// SVG icon components — glassmorphic, no emojis
+   429→const GlassIcon: React.FC<{ children: React.ReactNode; selected: boolean }> = ({ children, selected }) => (
+   430→    <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 border transition-all ${selected ? 'bg-amber-400/15 border-amber-400/40' : 'bg-white/5 border-white/10'}`}
+   431→        style={{ backdropFilter: 'blur(8px)' }}>
+   432→        {children}
+   433→    </div>
+   434→);
+   435→
+   436→const ModalityIcons: Record<string, React.ReactNode> = {
+   437→    [FirmSpecialty.Maritime]: (
+   438→        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-500 drop-shadow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   439→            <circle cx="12" cy="5" r="3" />
+   440→            <line x1="12" y1="22" x2="12" y2="8" />
+   441→            <path d="M5 12H2a10 10 0 0 0 20 0h-3" />
+   442→        </svg>
+   443→    ),
+   444→    [FirmSpecialty.OilGas]: (
+   445→        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-500 drop-shadow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   446→            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+   447→        </svg>
+   448→    ),
+   449→    [FirmSpecialty.Corporate]: (
+   450→        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-500 drop-shadow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   451→            <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
+   452→            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+   453→        </svg>
+   454→    ),
+   455→    [FirmSpecialty.Tax]: (
+   456→        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-500 drop-shadow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   457→            <path d="M4 2v20l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2V2z" />
+   458→            <path d="M16 8h-6" />
+   459→            <path d="M16 12h-6" />
+   460→            <path d="M16 16h-6" />
+   461→        </svg>
+   462→    ),
+   463→    [FirmSpecialty.RealEstate]: (
+   464→        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-500 drop-shadow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   465→            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+   466→            <polyline points="9 22 9 12 15 12 15 22" />
+   467→        </svg>
+   468→    ),
+   469→    [FirmSpecialty.Litigation]: (
+   470→        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-500 drop-shadow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   471→            <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+   472→            <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+   473→            <path d="M7 21h10" />
+   474→            <path d="M12 3v18" />
+   475→            <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+   476→        </svg>
+   477→    ),
+   478→};
+   479→
+   480→const EnterpriseSection: React.FC<{
+   481→    currentPlan: SubscriptionPlan;
+   482→    isAnnual: boolean;
+   483→    firmDetails: FirmDetails;
+   484→    selectedModalities: FirmSpecialty[];
+   485→    onToggleModality: (s: FirmSpecialty) => void;
+   486→    onActivate: () => void;
+   487→}> = ({ currentPlan, isAnnual, selectedModalities, onToggleModality, onActivate }) => {
+   488→    const isEnterprise = currentPlan === SubscriptionPlan.Enterprise;
+   489→    const baseRate = isAnnual ? 120000 : 150000;
+   490→    const modalityTotal = selectedModalities.reduce((sum, s) => {
+   491→        const m = ENTERPRISE_MODALITIES.find(m => m.specialty === s);
+   492→        return sum + (m ? (isAnnual ? Math.round(m.price * 0.8) : m.price) : 0);
+   493→    }, 0);
+   494→    const totalMonthly = baseRate + modalityTotal;
+   495→
+   496→    return (
+   497→        <div className="relative rounded-2xl overflow-hidden mt-6 border border-amber-400/10">
+   498→            <div className="absolute inset-0 bg-gradient-to-br from-[#0d0d0f] via-[#141418] to-[#0a0a0c]" />
+   499→            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(ellipse at 10% 50%, rgba(212,168,84,0.07) 0%, transparent 50%)' }} />
+   500→            <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
+   501→            <div className="relative p-5">
+   502→                {/* Header */}
+   503→                <div className="flex items-center justify-between mb-4">
+   504→                    <div className="flex items-center gap-3">
+   505→                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-md">
+   506→                            <svg viewBox="0 0 24 24" className="w-4 h-4 text-black" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+   507→                        </div>
+   508→                        <div>
+   509→                            <p className="text-3xs font-black text-amber-400/60 uppercase tracking-wide-label">PracticePro</p>
+   510→                            <h3 className="text-lg font-black text-white leading-tight">Enterprise</h3>
+   511→                        </div>
+   512→                    </div>
+   513→                    <div className="text-right">
+   514→                        <p className="text-2xl font-black text-amber-400">&#x20A6;{totalMonthly.toLocaleString()}<span className="text-zinc-500 text-xs font-normal">/mo</span></p>
+   515→                        <p className="text-2xs text-zinc-500">{isAnnual ? 'Annual (20% off)' : 'Monthly'}{selectedModalities.length > 0 ? ` · ${selectedModalities.length} module${selectedModalities.length > 1 ? 's' : ''}` : ' · Base'}</p>
+   516→                    </div>
+   517→                </div>
+   518→                {/* Included */}
+   519→                <div className="flex flex-wrap gap-1.5 mb-4">
+   520→                    {['Unlimited users', 'Custom Storage', 'Audit Logs & SSO', 'SLA Guarantee', 'Account manager'].map(f => (
+   521→                        <span key={f} className="text-2xs font-semibold text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{f}</span>
+   522→                    ))}
+   523→                </div>
+   524→                {/* Modules */}
+   525→                <p className="text-3xs font-black text-amber-400/50 uppercase tracking-wide-label mb-2">Add Practice Modules</p>
+   526→                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+   527→                    {ENTERPRISE_MODALITIES.map(mod => {
+   528→                        const isSelected = selectedModalities.includes(mod.specialty);
+   529→                        const displayPrice = isAnnual ? Math.round(mod.price * 0.8) : mod.price;
+   530→                        return (
+   531→                            <button
+   532→                                key={mod.specialty}
+   533→                                onClick={() => onToggleModality(mod.specialty)}
+   534→                                className={`relative text-left p-3 rounded-lg border transition-all duration-150 ${isSelected ? 'border-amber-400/40 bg-amber-400/5' : 'border-white/5 bg-white/[0.02] hover:border-white/10'}`}
+   535→                            >
+   536→                                {isSelected && (
+   537→                                    <div className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-amber-400 flex items-center justify-center">
+   538→                                        <svg viewBox="0 0 12 12" className="w-2 h-2" fill="none" stroke="black" strokeWidth="2"><polyline points="2,6 5,9 10,3"/></svg>
+   539→                                    </div>
+   540→                                )}
+   541→                                <GlassIcon selected={isSelected}>{ModalityIcons[mod.specialty]}</GlassIcon>
+   542→                                <p className={`font-bold text-xs mb-1 ${isSelected ? 'text-amber-300' : 'text-zinc-200'}`}>{mod.label}</p>
+   543→                                <p className="text-2xs text-zinc-500 leading-relaxed mb-1.5">{mod.description}</p>
+   544→                                <p className={`text-2xs font-black ${isSelected ? 'text-amber-400' : 'text-zinc-500'}`}>+&#x20A6;{displayPrice.toLocaleString()}/mo</p>
+   545→                            </button>
+   546→                        );
+   547→                    })}
+   548→                </div>
+   549→                {/* CTA */}
+   550→                {isEnterprise ? (
+   551→                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-400/5 border border-amber-400/20">
+   552→                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400 flex-shrink-0" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+   553→                        <div>
+   554→                            <p className="font-black text-white text-xs">You are on the Enterprise Plan</p>
+   555→                            <p className="text-zinc-500 text-2xs">Contact your account manager to adjust modules or billing.</p>
+   556→                        </div>
+   557→                    </div>
+   558→                ) : (
+   559→                    <button
+   560→                        onClick={onActivate}
+   561→                        className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs uppercase tracking-label shadow-lg hover:opacity-95 hover:scale-[1.005] active:scale-[0.99] transition-all duration-150"
+   562→                    >
+   563→                        {selectedModalities.length > 0
+   564→                            ? `Activate Enterprise with ${selectedModalities.length} Module${selectedModalities.length > 1 ? 's' : ''}`
+   565→                            : 'Select Modules Above to Activate Enterprise'}
+   566→                    </button>
+   567→                )}
+   568→            </div>
+   569→        </div>
+   570→    );
+   571→};
+   572→
+   573→
+   574→
+   575→const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails, onUpdateFirmDetails }) => {
+   576→    const { addToast, openModal, closeModal } = useUI();
+   577→    const { coreState, isDataLoaded } = useCoreState();
+   578→    const { logActivity } = useDataActions();
+   579→    const [isAnnual, setIsAnnual] = useState(true);
+   580→    const [viewAsMonthlyCost, setViewAsMonthlyCost] = useState(true);
+   581→    const [simulationCount, setSimulationCount] = useState(0);
+   582→    const [selectedModalities, setSelectedModalities] = useState<FirmSpecialty[]>(firmDetails.firmSpecialties || []);
+   583→
+   584→    const handleToggleModality = (s: FirmSpecialty) => {
+   585→        setSelectedModalities(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+   586→    };
+   587→
+   588→    const processUpgrade = (newPlan: SubscriptionPlan, price: number) => {
+   589→        const currentLevel = getPlanLevel(firmDetails.subscriptionPlan);
+   590→        const targetLevel = getPlanLevel(newPlan);
+   591→        const isDowngrade = targetLevel < currentLevel;
+   592→        const title = isDowngrade ? `Downgrade to ${newPlan}` : `Upgrade to ${newPlan}`;
+   593→        if (isDowngrade) {
+   594→            openModal('deleteConfirmation', null, {
+   595→                title,
+   596→                message: `You are switching from ${firmDetails.subscriptionPlan} to ${newPlan}. Some high-tier features may be locked. ${newPlan === SubscriptionPlan.Core ? 'NOTE: Core plan is single-user only. Team access will be paused.' : ''}\n\nYour downgrade request will be reviewed by our team within 24 hours. There is no payment required for downgrading.`,
+   597→                confirmText: 'Request Downgrade',
+   598→                confirmButtonClass: 'bg-slate-600 hover:bg-slate-700',
+   599→                onConfirm: () => {
+   600→                    // CRO AUDIT FIX — downgrades route through the same
+   601→                    // createSubscriptionRequest flow as upgrades, but with
+   602→                    // amount=0 (no payment needed for downgrades). The
+   603→                    // founder admin sees the request in the Subscriptions
+   604→                    // Center and can approve it.
+   605→                    openModal('paymentGateway', null, {
+   606→                        amount: 0,  // No payment for downgrades
+   607→                        title: `Downgrade to ${newPlan}`,
+   608→                        description: `No payment required — your request will be reviewed within 24 hours.`,
+   609→                        forcePracticeProAccount: true,
+   610→                        subscriptionContext: {
+   611→                            requestedPlan: newPlan,
+   612→                            billingInterval: isAnnual ? 'annual' : 'monthly',
+   613→                            firmId: firmDetails.id,
+   614→                        },
+   615→                        onConfirm: () => {
+   616→                            logActivity(`Requested downgrade to ${newPlan} plan`, 'User',
+   617→                                coreState.users.find(u => u.role === 'Admin')?.id,
+   618→                                coreState.users.find(u => u.role === 'Admin')?.name);
+   619→                            addToast(`Downgrade request submitted. Our team will review and update your workspace within 24 hours. Your current plan remains active until then.`, { type: 'success', duration: 6000 });
+   620→                        }
+   621→                    });
+   622→                    closeModal();
+   623→                }
+   624→            });
+   625→        } else {
+   626→            // Upgrading — show the payment modal with bank transfer details.
+   627→            // CRO AUDIT FIX (Track A — A1): NO LONGER flips subscriptionPlan client-side.
+   628→            // Instead, opens PaymentGatewayModal with subscriptionContext, which calls
+   629→            // createSubscriptionRequest to write a pending row. The firm's plan is only
+   630→            // flipped when (a) the founder admin approves OR (b) the Paystack webhook
+   631→            // confirms payment (via activateFirmSubscription).
+   632→            openModal('paymentGateway', null, {
+   633→                amount: price,
+   634→                title: `Upgrade to ${newPlan}`,
+   635→                description: `${isAnnual ? 'Annual' : 'Monthly'} subscription — ${firmDetails.name}`,
+   636→                forcePracticeProAccount: true,   // CRO AUDIT A4 — always PracticePro's account
+   637→                subscriptionContext: {
+   638→                    requestedPlan: newPlan,
+   639→                    billingInterval: isAnnual ? 'annual' : 'monthly',
+   640→                    firmId: firmDetails.id,
+   641→                },
+   642→                onConfirm: () => {
+   643→                    // This fires AFTER the user clicks "Done" on the PaymentGatewayModal's
+   644→                    // confirmed state. The createSubscriptionRequest mutation has already
+   645→                    // been called inside the modal — we just log the activity here.
+   646→                    logActivity(`Requested upgrade to ${newPlan} plan (bank transfer)`, 'User',
+   647→                        coreState.users.find(u => u.role === 'Admin')?.id,
+   648→                        coreState.users.find(u => u.role === 'Admin')?.name);
+   649→                    addToast(`Upgrade request logged. Our team will verify your payment within 24 hours. You'll get an email when ${newPlan} is active.`, { type: 'success', duration: 6000 });
+   650→                }
+   651→            });
+   652→        }
+   653→    };
+   654→
+   655→    const handleActivateEnterprise = () => {
+   656→        if (selectedModalities.length === 0) {
+   657→            addToast('Please select at least one Practice Modality to activate Enterprise.', { type: 'error' });
+   658→            return;
+   659→        }
+   660→        // CRO AUDIT FIX (Track A — A1): Enterprise is a paid tier. Cannot be
+   661→        // self-activated without payment. Route through the same pending flow.
+   662→        openModal('deleteConfirmation', null, {
+   663→            title: 'Activate Enterprise Plan',
+   664→            message: `You are requesting Enterprise access with ${selectedModalities.length} practice modalit${selectedModalities.length > 1 ? 'ies' : 'y'}: ${selectedModalities.join(', ')}.\n\nEnterprise requires a setup fee and annual billing. Click continue to see bank-transfer details. Your workspace will be activated once payment is verified.`,
+   665→            confirmText: 'Continue to Payment',
+   666→            confirmButtonClass: 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:opacity-90',
+   667→            onConfirm: () => {
+   668→                closeModal();
+   669→                // Open the payment modal with Enterprise pricing
+   670→                const enterprisePrice = (getTiersForProduct(resolveProductMode(firmDetails.product)) as any)?.Enterprise?.annualPrice || 5000000;
+   671→                openModal('paymentGateway', null, {
+   672→                    amount: enterprisePrice,
+   673→                    title: 'Activate Enterprise',
+   674→                    description: `Annual subscription — ${firmDetails.name}`,
+   675→                    forcePracticeProAccount: true,
+   676→                    subscriptionContext: {
+   677→                        requestedPlan: SubscriptionPlan.Enterprise,
+   678→                        billingInterval: 'annual',
+   679→                        firmId: firmDetails.id,
+   680→                    },
+   681→                    onConfirm: () => {
+   682→                        logActivity('Requested Enterprise activation (bank transfer)', 'User',
+   683→                            coreState.users.find(u => u.role === 'Admin')?.id);
+   684→                        addToast('Enterprise activation request logged. Our team will contact you within 24 hours.', { type: 'success' });
+   685→                    }
+   686→                });
+   687→            }
+   688→        });
+   689→    };
+   690→
+   691→    const activeFirmUsers = coreState.users.filter(u =>
+   692→        u.role !== 'Client' && u.role !== 'Tenant' && u.role !== 'External Counsel' && u.role !== 'Pending'
+   693→    );
+   694→    const productMode = resolveProductMode(firmDetails.product);
+   695→    const tiers = getTiersForProduct(productMode);
+   696→    const currentPlan = firmDetails.subscriptionPlan || SubscriptionPlan.Core;
+   697→    const normalizedCurrent = currentPlan;
+   698→
+   699→    // ─── Fix Product Mode ──────────────────────────────────────────────
+   700→    // If the firm is on a Komplete/Enterprise plan but the product field
+   701→    // says 'vega' or 'atrium', show a warning + fix button. This handles
+   702→    // the recurring bug where Komplete firms lose property features because
+   703→    // their product field is stale.
+   704→    const { product: activeProduct, isUnified } = useProduct();
+   705→    const { currentUser } = useAuth();
+   706→    const [isFixingProduct, setIsFixingProduct] = useState(false);
+   707→    const fixProductModeMutation = useMutation(api.myFunctions.fixProductMode);
+   708→    const needsProductFix = !isUnified && (
+   709→        currentPlan === SubscriptionPlan.Komplete ||
+   710→        currentPlan === SubscriptionPlan.Enterprise
+   711→    );
+   712→    const handleFixProductMode = async () => {
+   713→        if (!currentUser?.firmId) return;
+   714→        setIsFixingProduct(true);
+   715→        try {
+   716→            const result = await fixProductModeMutation({
+   717→                firmId: currentUser.firmId,
+   718→                product: 'unified',
+   719→            });
+   720→            addToast(`✓ Product mode fixed to Komplete (unified). Updated ${result.updatedUsers} user(s). Please refresh the page.`, { type: 'success' });
+   721→            // Force a page refresh so all components pick up the new product mode
+   722→            setTimeout(() => window.location.reload(), 1500);
+   723→        } catch (err: any) {
+   724→            addToast(`Failed to fix product mode: ${err.message}`, { type: 'error' });
+   725→        } finally {
+   726→            setIsFixingProduct(false);
+   727→        }
+   728→    };
+   729→
+   730→    // PRICING AUDIT: Komplete (unified) is annual-only.
+   731→    // Atrium NOW supports monthly billing (was annual-only before pricing audit).
+   732→    // Vega (legal) supports monthly/annual.
+   733→    const isAnnualOnlyProduct = isUnified;
+   734→
+   735→    // CRO AUDIT FIX: detect if the user is already on the highest available
+   736→    // plan for their product. If so, hide upgrade CTAs and show downgrade +
+   737→    // seat-usage info instead.
+   738→    const isOnHighestPlan = isUnified
+   739→        ? (currentPlan === SubscriptionPlan.Komplete || currentPlan === SubscriptionPlan.Enterprise)
+   740→        : (currentPlan === SubscriptionPlan.Pro || currentPlan === SubscriptionPlan.Enterprise);
+   741→
+   742→    return (
+   743→        <div className="space-y-5">
+   744→            {/* Header — CRO AUDIT FIX: show current plan immediately.
+   745→                "Billing & Plans: Komplete" instead of just "Billing & Plans".
+   746→                Also moved higher on the page (removed mb-6, tighter spacing). */}
+   747→            <div className="flex flex-col gap-3 mb-2">
+   748→                <div>
+   749→                    <div className="flex items-center gap-3 flex-wrap">
+   750→                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+   751→                            Billing &amp; Plans: <span className="text-primary-600 dark:text-primary-400">{currentPlan}</span>
+   752→                        </h3>
+   753→                    </div>
+   754→                    <p className="text-slate-500 dark:text-zinc-400 max-w-2xl text-sm mt-1">
+   755→                        Manage your plan, billing cycle, and seat allocation.
+   756→                        {!isAnnualOnlyProduct && (
+   757→                            <span className="ml-1 text-slate-400">Switch between monthly and yearly billing below.</span>
+   758→                        )}
+   759→                        {isAnnualOnlyProduct && (
+   760→                            <span className="ml-1 text-slate-400">Your plan is billed annually.</span>
+   761→                        )}
+   762→                    </p>
+   763→                </div>
+   764→            </div>
+   765→
+   766→            {/* ─── Fix Product Mode Warning ─────────────────────────── */}
+   767→            {needsProductFix && (
+   768→                <div className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-4 flex flex-col gap-3">
+   769→                    <div className="flex items-start gap-2">
+   770→                        <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   771→                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   772→                        </svg>
+   773→                        <div className="text-sm">
+   774→                            <p className="font-bold text-amber-800 dark:text-amber-200">Product Mode Mismatch Detected</p>
+   775→                            <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
+   776→                                Your plan is <strong>{currentPlan}</strong> but your product mode is <strong>{activeProduct}</strong>.
+   777→                                This means property features (Properties page, Units on dashboard) are hidden.
+   778→                                Click below to fix this permanently.
+   779→                            </p>
+   780→                        </div>
+   781→                    </div>
+   782→                    <button
+   783→                        onClick={handleFixProductMode}
+   784→                        disabled={isFixingProduct}
+   785→                        className="w-full md:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+   786→                    >
+   787→                        {isFixingProduct ? (
+   788→                            <>
+   789→                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+   790→                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+   791→                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+   792→                                </svg>
+   793→                                Fixing...
+   794→                            </>
+   795→                        ) : (
+   796→                            <>
+   797→                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   798→                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+   799→                                </svg>
+   800→                                Fix Product Mode → Komplete
+   801→                            </>
+   802→                        )}
+   803→                    </button>
+   804→                </div>
+   805→            )}
+   806→
+   807→            {/* Billing Widget — CRO AUDIT FIX: monthly/yearly toggle is now INSIDE
+   808→                the BillingCalculator (passed as props), not a giant toggle at the top.
+   809→                For annual-only products (Komplete only), the toggle is hidden entirely. */}
+   810→            <BillingCalculator
+   811→                users={activeFirmUsers}
+   812→                currentPlan={firmDetails.subscriptionPlan || SubscriptionPlan.Core}
+   813→                isAnnual={isAnnual}
+   814→                viewAsMonthlyCost={viewAsMonthlyCost}
+   815→                simulationCount={simulationCount}
+   816→                setSimulationCount={setSimulationCount}
+   817→                selectedModalities={selectedModalities.length > 0 ? selectedModalities : (firmDetails.firmSpecialties || [])}
+   818→                // CRO AUDIT: pass toggle controls into the calculator so they sit
+   819→                // in the "estimated monthly cost" area, not at the top of the page.
+   820→                showBillingToggle={!isAnnualOnlyProduct}
+   821→                isAnnualState={isAnnual}
+   822→                onToggleBilling={() => setIsAnnual(!isAnnual)}
+   823→                viewAsMonthlyCostState={viewAsMonthlyCost}
+   824→                onToggleViewMode={() => setViewAsMonthlyCost(!viewAsMonthlyCost)}
+   825→            />
+   826→
+   827→            {/* Standard Plan Cards — Core / Growth / Pro from tiers.ts.
+   828→                For Komplete (unified) firms, all three tiers are the same
+   829→                (KOMPLETE_TIER), so we show a single card instead of three
+   830→                identical ones. */}
+   831→            {productMode === 'unified' ? (
+   832→                <div className="grid grid-cols-1 gap-6 max-w-md mx-auto">
+   833→                    <PlanCard
+   834→                        plan={SubscriptionPlan.Komplete}
+   835→                        currentPlan={normalizedCurrent}
+   836→                        price={formatSettingsPrice(tiers.Core, true, viewAsMonthlyCost)}
+   837→                        description={TIER_SETTINGS_COPY.Core.description}
+   838→                        userLimit={TIER_SETTINGS_COPY.Core.userLimit}
+   839→                        viewAsMonthlyCost={viewAsMonthlyCost}
+   840→                        isAnnual={true}
+   841→                        features={tiers.Core.features}
+   842→                        isPopular={true}
+   843→                        isKomplete={true}
+   844→                        // CRO AUDIT FIX: Komplete is annual-only — always pass annualPrice
+   845→                        onSelect={() => processUpgrade(SubscriptionPlan.Komplete, tiers.Core.annualPrice ?? 0)}
+   846→                    />
+   847→                    {/* CRO AUDIT FIX: For Komplete users, show downgrade options.
+   848→                        Komplete users can downgrade to Atrium Pro or Vega Pro if they
+   849→                        no longer need the unified product. This prevents churn —
+   850→                        we'd rather keep them on a lower plan than lose them entirely. */}
+   851→                    {isOnHighestPlan && (
+   852→                        <div className="mt-4 p-4 bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-lg">
+   853→                            <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-2">Need to downsize?</h4>
+   854→                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+   855→                                You can downgrade to a single-product plan (Atrium Pro or Vega Pro) if you no longer need the unified Komplete experience. Your data is preserved.
+   856→                            </p>
+   857→                            <div className="flex flex-wrap gap-2">
+   858→                                <button
+   859→                                    onClick={() => processUpgrade('Pro' as any, 2100000)}
+   860→                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+   861→                                >
+   862→                                    Downgrade to Atrium Pro (₦2.1M/yr)
+   863→                                </button>
+   864→                                <button
+   865→                                    onClick={() => processUpgrade('Pro' as any, 768000)}
+   866→                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+   867→                                >
+   868→                                    Downgrade to Vega Pro (₦768K/yr)
+   869→                                </button>
+   870→                            </div>
+   871→                        </div>
+   872→                    )}
+   873→                </div>
+   874→            ) : (
+   875→            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+   876→                {DISPLAY_TIER_IDS.map((tierId) => {
+   877→                    const tier = tiers[tierId];
+   878→                    const plan = tierIdToSubscriptionPlan(tierId);
+   879→                    const copy = TIER_SETTINGS_COPY[tierId];
+   880→                    const price = formatSettingsPrice(tier, isAnnual, viewAsMonthlyCost);
+   881→                    const upgradePrice = isAnnual ? (tier.annualPrice ?? 0) : (tier.monthlyPrice ?? 0);
+   882→                    return (
+   883→                <PlanCard
+   884→                            key={tierId}
+   885→                            plan={plan}
+   886→                            currentPlan={normalizedCurrent}
+   887→                            price={price}
+   888→                            description={copy.description}
+   889→                            userLimit={copy.userLimit}
+   890→                    viewAsMonthlyCost={viewAsMonthlyCost}
+   891→                    isAnnual={isAnnual}
+   892→                            features={tier.features}
+   893→                            isPopular={tier.recommended}
+   894→                            isKomplete={currentPlan === SubscriptionPlan.Komplete}
+   895→                            onSelect={() => processUpgrade(plan, upgradePrice)}
+   896→                        />
+   897→                    );
+   898→                })}
+   899→            </div>
+   900→            )}
+   901→
+   902→            {firmDetails.subscriptionPlan === SubscriptionPlan.Enterprise && (
+   903→                <p className="text-center text-sm text-slate-500 dark:text-zinc-400 py-4 border-t border-slate-200 dark:border-zinc-700">
+   904→                    Your firm is on a custom Enterprise plan. Contact{' '}
+   905→                    <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 font-semibold hover:underline">practiceprosystems@gmail.com</a>
+   906→                    {' '}to change billing or modalities.
+   907→                </p>
+   908→            )}
+   909→
+   910→            {/* ─── ADD-ONS SECTION (CRO AUDIT — Revenue Expansion) ──────────
+   911→                Shows upsellable extras (extra WhatsApp, extra seats, storage,
+   912→                AI priority, custom integrations, data migration). Users can
+   913→                purchase add-ons, which create pending requests for founder
+   914→                approval. Active add-ons are also shown.
+   915→
+   916→                WRAPPED IN ERROR BOUNDARY: the new myFunctions mutations
+   917→                (createAddonRequest, getActiveAddonsForFirm, etc.) require a
+   918→                Convex deploy to exist on the backend. If the deploy hasn't
+   919→                run yet, useQuery will throw — the error boundary catches
+   920→                that so the rest of the Billing & Plans page still renders. */}
+   921→            <AddOnsErrorBoundary>
+   922→                <AddOnsSection firmDetails={firmDetails} />
+   923→            </AddOnsErrorBoundary>
+   924→
+   925→            {/* ─── VMS ADD-ON PANEL ─────────────────────────────────────────
+   926→                Visitor Management System billing card. Shows trial countdown,
+   927→                active status, or upgrade prompt. Only shown for Atrium firms
+   928→                (VMS is property-management specific). */}
+   929→            {resolveProductMode(firmDetails.product) === 'property' && (
+   930→                <AddOnsErrorBoundary>
+   931→                    <VmsAddonPanel firmDetails={firmDetails} />
+   932→                </AddOnsErrorBoundary>
+   933→            )}
+   934→        </div>
+   935→    );
+   936→};
+   937→
+   938→// ─── ADD-ONS ERROR BOUNDARY ─────────────────────────────────────────────────
+   939→// Catches errors from AddOnsSection (e.g. Convex backend not yet deployed
+   940→// with the new add-on mutations). Shows a silent fallback instead of
+   941→// crashing the entire Billing & Plans page.
+   942→class AddOnsErrorBoundary extends React.Component<
+   943→    { children: React.ReactNode },
+   944→    { hasError: boolean }
+   945→> {
+   946→    state = { hasError: false };
+   947→    static getDerivedStateFromError() { return { hasError: true }; }
+   948→    componentDidCatch(error: any) {
+   949→        console.warn('[AddOnsErrorBoundary] Add-Ons section failed to load (backend may not be deployed yet):', error?.message || error);
+   950→    }
+   951→    render() {
+   952→        if (this.state.hasError) {
+   953→            // Silent fallback — render nothing. The rest of the page works.
+   954→            return null;
+   955→        }
+   956→        return this.props.children;
+   957→    }
+   958→}
+   959→
+   960→// ─── ADD-ONS SECTION COMPONENT ─────────────────────────────────────────────
+   961→// CRO AUDIT — DEFENSIVE QUERY PATTERN.
+   962→// The new myFunctions mutations (getActiveAddonsForFirm, getPendingAddonsForFirm,
+   963→// createAddonRequest) require a Convex deploy to exist on the backend.
+   964→// Until the deploy runs, useQuery on a non-existent function throws and
+   965→// crashes the entire Billing & Plans page.
+   966→//
+   967→// FIX: use the convex client directly via useConvex() + useEffect + try/catch.
+   968→// If the queries fail (backend not deployed yet), the section silently shows
+   969→// just the catalog without the active/pending lists. The catalog itself
+   970→// (src/constants/addons.ts) is static and always renders.
+   971→const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+   972→    const { addToast } = useUI();
+   973→    const { currentUser } = useAuth();
+   974→    const convex = useConvex();
+   975→    const [purchasingId, setPurchasingId] = useState<string | null>(null);
+   976→    const [activeAddons, setActiveAddons] = useState<any[] | null>(null);
+   977→    const [pendingAddons, setPendingAddons] = useState<any[] | null>(null);
+   978→    // Accordion state — which category is expanded
+   979→    const [expandedCategory, setExpandedCategory] = useState<string | null>('seats');
+   980→    // Which individual add-on drawer is expanded
+   981→    const [expandedAddon, setExpandedAddon] = useState<string | null>(null);
+   982→    // Seat simulator state
+   983→    const [seatCount, setSeatCount] = useState(5);
+   984→
+   985→    // Fetch active + pending add-ons defensively
+   986→    useEffect(() => {
+   987→        if (!currentUser?.email || !convex) return;
+   988→        let cancelled = false;
+   989→        const email = currentUser.email;
+   990→        (async () => {
+   991→            try {
+   992→                const active = await convex.query(api.myFunctions.getActiveAddonsForFirm, { userEmail: email });
+   993→                if (!cancelled) setActiveAddons(active || []);
+   994→            } catch (e: any) {
+   995→                if (!cancelled) setActiveAddons([]);
+   996→            }
+   997→            try {
+   998→                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: email });
+   999→                if (!cancelled) setPendingAddons(pending || []);
+  1000→            } catch (e: any) {
+  1001→                if (!cancelled) setPendingAddons([]);
+  1002→            }
+  1003→        })();
+  1004→        return () => { cancelled = true; };
+  1005→    }, [currentUser?.email, convex]);
+  1006→
+  1007→    const product = firmDetails.product || 'unified';
+  1008→    const applicableAddons = getAddonsForProduct(product);
+  1009→
+  1010→    // Group add-ons by category for the accordion
+  1011→    const groupedAddons = useMemo(() => {
+  1012→        const groups: Record<string, AddonDef[]> = {};
+  1013→        for (const addon of applicableAddons) {
+  1014→            if (!groups[addon.category]) groups[addon.category] = [];
+  1015→            groups[addon.category].push(addon);
+  1016→        }
+  1017→        return groups;
+  1018→    }, [applicableAddons]);
+  1019→
+  1020→    // Category metadata
+  1021→    const categoryMeta: Record<string, { label: string; subtitle: string; icon: string }> = {
+  1022→        seats: { label: 'Capacity', subtitle: 'Expand your team seats', icon: '👥' },
+  1023→        storage: { label: 'Storage', subtitle: 'Additional file storage', icon: '💾' },
+  1024→        integration: { label: 'Professional Services', subtitle: 'Bespoke setup & white-glove onboarding', icon: '🔌' },
+  1025→    };
+  1026→
+  1027→    const handlePurchase = async (addon: AddonDef) => {
+  1028→        if (!convex) {
+  1029→            addToast('Cannot process payment — backend not ready.', { type: 'error' });
+  1030→            return;
+  1031→        }
+  1032→        setPurchasingId(addon.id);
+  1033→        try {
+  1034→            // DIRECT-TO-PAYMENT: Route directly to the Paystack payment
+  1035→            // gateway instead of creating a 'pending_review' request that
+  1036→            // requires manual founder approval. Standard add-ons should be
+  1037→            // self-serve — users shouldn't wait for manual approval to give
+  1038→            // the platform money.
+  1039→            //
+  1040→            // Paystack Inline SDK — loads the popup for card/bank/USSD payment.
+  1041→            // On success, auto-activates the add-on and shows a success toast.
+  1042→            const PAYSTACK_PUBLIC_KEY = (import.meta as any).env?.VITE_PAYSTACK_PUBLIC_KEY || '';
+  1043→            const totalAmount = addon.category === 'seats' ? addon.amount * seatCount : addon.amount;
+  1044→            const reference = `ADDON-${addon.id}-${Date.now()}`;
+  1045→
+  1046→            if (PAYSTACK_PUBLIC_KEY && !PAYSTACK_PUBLIC_KEY.startsWith('pk_test_xxx')) {
+  1047→                // Paystack is configured — process payment directly
+  1048→                if (!(window as any).PaystackPop) {
+  1049→                    const script = document.createElement('script');
+  1050→                    script.src = 'https://js.paystack.co/v1/inline.js';
+  1051→                    document.body.appendChild(script);
+  1052→                    await new Promise<void>((resolve) => {
+  1053→                        script.onload = () => resolve();
+  1054→                        script.onerror = () => resolve();
+  1055→                    });
+  1056→                }
+  1057→                if (!(window as any).PaystackPop) {
+  1058→                    addToast('Failed to load payment gateway. Please try again.', { type: 'error' });
+  1059→                    return;
+  1060→                }
+  1061→                const handler = (window as any).PaystackPop.setup({
+  1062→                    key: PAYSTACK_PUBLIC_KEY,
+  1063→                    email: currentUser?.email || '',
+  1064→                    amount: Math.round(totalAmount * 100),
+  1065→                    currency: 'NGN',
+  1066→                    ref: reference,
+  1067→                    metadata: {
+  1068→                        custom_fields: [
+  1069→                            { display_name: 'Add-on', variable_name: 'addon', value: addon.name },
+  1070→                            { display_name: 'Quantity', variable_name: 'quantity', value: String(addon.category === 'seats' ? seatCount : 1) },
+  1071→                        ],
+  1072→                    },
+  1073→                    callback: async (response: any) => {
+  1074→                        // Payment successful — auto-activate the add-on
+  1075→                        try {
+  1076→                            await convex.mutation(api.myFunctions.createAddonRequest, {
+  1077→                                addonId: addon.id,
+  1078→                                addonName: addon.name,
+  1079→                                billingInterval: addon.billingInterval,
+  1080→                                amount: totalAmount,
+  1081→                                quantity: addon.category === 'seats' ? seatCount : 1,
+  1082→                                userEmail: currentUser?.email,
+  1083→                            });
+  1084→                            addToast('Payment confirmed. Your new seats/add-ons are being activated and will be ready momentarily.', { type: 'success', duration: 6000 });
+  1085→                            try {
+  1086→                                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+  1087→                                setPendingAddons(pending || []);
+  1088→                            } catch {}
+  1089→                        } catch (e: any) {
+  1090→                            addToast('Payment successful but activation failed. Contact support.', { type: 'warning' });
+  1091→                        }
+  1092→                    },
+  1093→                    onClose: () => {
+  1094→                        addToast('Payment cancelled.', { type: 'info' });
+  1095→                    },
+  1096→                });
+  1097→                handler.openIframe();
+  1098→            } else {
+  1099→                // Paystack not configured — fall back to request flow
+  1100→                await convex.mutation(api.myFunctions.createAddonRequest, {
+  1101→                    addonId: addon.id,
+  1102→                    addonName: addon.name,
+  1103→                    billingInterval: addon.billingInterval,
+  1104→                    amount: totalAmount,
+  1105→                    quantity: addon.category === 'seats' ? seatCount : 1,
+  1106→                    userEmail: currentUser?.email,
+  1107→                });
+  1108→                addToast(`${addon.name} request submitted. The PracticePro team will be notified and activate it within 24 hours.`, { type: 'success', duration: 6000 });
+  1109→                try {
+  1110→                    const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+  1111→                    setPendingAddons(pending || []);
+  1112→                } catch {}
+  1113→            }
+  1114→        } catch (e: any) {
+  1115→            addToast(e?.message || 'Failed to process payment.', { type: 'error' });
+  1116→        } finally {
+  1117→            setPurchasingId(null);
+  1118→        }
+  1119→    };
+  1120→
+  1121→    if (applicableAddons.length === 0) return null;
+  1122→
+  1123→    return (
+  1124→        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-zinc-700">
+  1125→            <div className="flex items-center gap-2 mb-3">
+  1126→                <div className="p-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
+  1127→                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1128→                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  1129→                    </svg>
+  1130→                </div>
+  1131→                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add-Ons &amp; Extras</h3>
+  1132→            </div>
+  1133→            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+  1134→                Expand your workspace with additional capacity. All add-ons are billed separately and can be cancelled anytime.
+  1135→            </p>
+  1136→
+  1137→            {/* Active Add-Ons */}
+  1138→            {activeAddons && activeAddons.length > 0 && (
+  1139→                <div className="mb-4 space-y-2">
+  1140→                    <p className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active</p>
+  1141→                    {activeAddons.map((addon: any) => (
+  1142→                        <div key={addon._id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+  1143→                            <div className="min-w-0 flex-1">
+  1144→                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.addonName}</p>
+  1145→                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1146→                                    {addon.quantity > 1 ? `${addon.quantity} × ` : ''}<NairaSymbol />{formatNaira(addon.discountedAmount || addon.amount || 0)}/{addon.billingInterval === 'monthly' ? 'mo' : 'one-time'}
+  1147→                                </p>
+  1148→                            </div>
+  1149→                            <span className="px-2 py-0.5 bg-emerald-600 text-white text-2xs font-black uppercase rounded-full">Active</span>
+  1150→                        </div>
+  1151→                    ))}
+  1152→                </div>
+  1153→            )}
+  1154→
+  1155→            {/* Pending Add-Ons — with Cancel Request button */}
+  1156→            {pendingAddons && pendingAddons.length > 0 && (
+  1157→                <div className="mb-4 space-y-2">
+  1158→                    <p className="text-2xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Pending</p>
+  1159→                    {pendingAddons.map((addon: any) => (
+  1160→                        <div key={addon._id} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+  1161→                            <div className="min-w-0 flex-1">
+  1162→                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addon.addonName}</p>
+  1163→                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1164→                                    Submitted {new Date(addon.requestedAt).toLocaleDateString()}
+  1165→                                </p>
+  1166→                            </div>
+  1167→                            <div className="flex items-center gap-2 flex-shrink-0">
+  1168→                                <span className="px-2 py-0.5 bg-amber-500 text-white text-2xs font-black uppercase rounded-full animate-pulse">Pending</span>
+  1169→                                {/* Cancel Request — immediately deletes from DB + clears UI */}
+  1170→                                <button
+  1171→                                    onClick={async () => {
+  1172→                                        try {
+  1173→                                            await convex.mutation(api.myFunctions.cancelAddon, { addonRequestId: String(addon._id), userEmail: currentUser?.email });
+  1174→                                            addToast('Request cancelled.', { type: 'success' });
+  1175→                                            const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+  1176→                                            setPendingAddons(pending || []);
+  1177→                                        } catch (e: any) {
+  1178→                                            addToast(e?.message || 'Failed to cancel request.', { type: 'error' });
+  1179→                                        }
+  1180→                                    }}
+  1181→                                    className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
+  1182→                                    title="Cancel Request"
+  1183→                                >
+  1184→                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1185→                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  1186→                                    </svg>
+  1187→                                </button>
+  1188→                            </div>
+  1189→                        </div>
+  1190→                    ))}
+  1191→                </div>
+  1192→            )}
+  1193→
+  1194→            {/* ─── Accordion Catalog ─────────────────────────────────── */}
+  1195→            <div className="space-y-2">
+  1196→                {Object.entries(groupedAddons).map(([category, addons]) => {
+  1197→                    const meta = categoryMeta[category] || { label: category, subtitle: '', icon: '📦' };
+  1198→                    const isExpanded = expandedCategory === category;
+  1199→                    return (
+  1200→                        <div key={category} className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+  1201→                            {/* Accordion Header */}
+  1202→                            <button
+  1203→                                onClick={() => setExpandedCategory(isExpanded ? null : category)}
+  1204→                                className="w-full flex items-center gap-3 p-3 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors"
+  1205→                            >
+  1206→                                <span className="text-lg flex-shrink-0">{meta.icon}</span>
+  1207→                                <div className="flex-1 min-w-0 text-left">
+  1208→                                    <p className="text-sm font-bold text-slate-900 dark:text-white">{meta.label}</p>
+  1209→                                    <p className="text-2xs text-slate-500 dark:text-zinc-400 truncate">{meta.subtitle}</p>
+  1210→                                </div>
+  1211→                                <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1212→                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+  1213→                                </svg>
+  1214→                            </button>
+  1215→
+  1216→                            {/* Accordion Content — list of add-ons */}
+  1217→                            {isExpanded && (
+  1218→                                <div className="border-t border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-700/50">
+  1219→                                    {addons.map((addon) => {
+  1220→                                        const isAddonExpanded = expandedAddon === addon.id;
+  1221→                                        const isPurchasing = purchasingId === addon.id;
+  1222→                                        const isPending = pendingAddons?.some(p => p.addonId === addon.id);
+  1223→                                        const isActive = activeAddons?.some(a => a.addonId === addon.id);
+  1224→                                        return (
+  1225→                                            <div key={addon.id}>
+  1226→                                                {/* Add-on Row Header */}
+  1227→                                                <button
+  1228→                                                    onClick={() => setExpandedAddon(isAddonExpanded ? null : addon.id)}
+  1229→                                                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors"
+  1230→                                                >
+  1231→                                                    <span className="text-base flex-shrink-0">{addon.icon}</span>
+  1232→                                                    <div className="flex-1 min-w-0 text-left">
+  1233→                                                        <div className="flex items-center gap-2">
+  1234→                                                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{addon.name}</p>
+  1235→                                                            {addon.popular && <span className="px-1.5 py-0.5 bg-primary-600 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Popular</span>}
+  1236→                                                            {isActive && <span className="px-1.5 py-0.5 bg-emerald-600 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Active</span>}
+  1237→                                                            {isPending && <span className="px-1.5 py-0.5 bg-amber-500 text-white text-3xs font-black uppercase rounded-full flex-shrink-0">Pending</span>}
+  1238→                                                        </div>
+  1239→                                                    </div>
+  1240→                                                    <div className="text-right flex-shrink-0">
+  1241→                                                        <p className="text-sm font-bold text-primary-600 dark:text-primary-400">{formatAddonPrice(addon)}</p>
+  1242→                                                    </div>
+  1243→                                                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${isAddonExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1244→                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+  1245→                                                    </svg>
+  1246→                                                </button>
+  1247→
+  1248→                                                {/* Expanded Drawer */}
+  1249→                                                {isAddonExpanded && (
+  1250→                                                    <div className="px-3 pb-3 bg-slate-50 dark:bg-zinc-800/50">
+  1251→                                                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed mb-3 pt-2">{addon.description}</p>
+  1252→
+  1253→                                                        {/* Seat Simulator (for seats category) */}
+  1254→                                                        {addon.category === 'seats' && (
+  1255→                                                            <div className="mb-3 p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
+  1256→                                                                <div className="flex items-center justify-between mb-2">
+  1257→                                                                    <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">Quantity</span>
+  1258→                                                                    <div className="flex items-center gap-2">
+  1259→                                                                        <button
+  1260→                                                                            onClick={() => setSeatCount(Math.max(1, seatCount - 1))}
+  1261→                                                                            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-bold flex items-center justify-center hover:bg-slate-200 dark:hover:bg-zinc-600"
+  1262→                                                                        >−</button>
+  1263→                                                                        <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[60px] text-center">{seatCount} {seatCount === 1 ? 'Seat' : 'Seats'}</span>
+  1264→                                                                        <button
+  1265→                                                                            onClick={() => setSeatCount(seatCount + 1)}
+  1266→                                                                            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-bold flex items-center justify-center hover:bg-slate-200 dark:hover:bg-zinc-600"
+  1267→                                                                        >+</button>
+  1268→                                                                    </div>
+  1269→                                                                </div>
+  1270→                                                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1271→                                                                    Estimated Monthly Total: <span className="font-bold text-primary-600 dark:text-primary-400"><NairaSymbol />{formatNaira(addon.amount * seatCount)}</span>
+  1272→                                                                </p>
+  1273→                                                            </div>
+  1274→                                                        )}
+  1275→
+  1276→                                                        {/* Action Button */}
+  1277→                                                        <button
+  1278→                                                            onClick={() => handlePurchase(addon)}
+  1279→                                                            disabled={isPurchasing || isActive || isPending}
+  1280→                                                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center gap-1.5"
+  1281→                                                        >
+  1282→                                                            {isPurchasing ? (
+  1283→                                                                <>
+  1284→                                                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  1285→                                                                    Processing...
+  1286→                                                                </>
+  1287→                                                            ) : isActive ? (
+  1288→                                                                'Already Active'
+  1289→                                                            ) : isPending ? (
+  1290→                                                                'Pending Review'
+  1291→                                                            ) : (
+  1292→                                                                <>
+  1293→                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+  1294→                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+  1295→                                                                    </svg>
+  1296→                                                                    {addon.billingInterval === 'one_time' ? 'Proceed to Checkout' : 'Pay Now'}
+  1297→                                                                </>
+  1298→                                                            )}
+  1299→                                                        </button>
+  1300→                                                    </div>
+  1301→                                                )}
+  1302→                                            </div>
+  1303→                                        );
+  1304→                                    })}
+  1305→                                </div>
+  1306→                            )}
+  1307→                        </div>
+  1308→                    );
+  1309→                })}
+  1310→            </div>
+  1311→        </div>
+  1312→    );
+  1313→};
+  1314→
+  1315→// ─── VMS ADD-ON PANEL ─────────────────────────────────────────────────────
+  1316→// Visitor Management System billing card. Shows:
+  1317→//   - 'Start 30-day free trial' button (if no add-on)
+  1318→//   - Trial countdown (if trial active)
+  1319→//   - 'Active' badge + cancel button (if active)
+  1320→//   - 'Expired' state + 'Subscribe' button (if expired)
+  1321→//
+  1322→// The backend gate in generateVisitorToken blocks code generation unless
+  1323→// status is 'trial' (within trial window) or 'active'.
+  1324→const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+  1325→    const { addToast } = useUI();
+  1326→    const { currentUser } = useAuth();
+  1327→    const vmsStatus = useQuery(api.myFunctions.getVmsAddonStatus,
+  1328→        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email } : 'skip');
+  1329→    const startTrial = useMutation(api.myFunctions.startVmsAddonTrial);
+  1330→    const cancelVms = useMutation(api.myFunctions.cancelVmsAddon);
+  1331→    const [busy, setBusy] = useState(false);
+  1332→
+  1333→    if (!firmDetails?.id) return null;
+  1334→
+  1335→    const status = (vmsStatus as any)?.status || 'none';
+  1336→    const trialEndsAt = (vmsStatus as any)?.trialEndsAt;
+  1337→    const activatedAt = (vmsStatus as any)?.activatedAt;
+  1338→    const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000))) : 0;
+  1339→
+  1340→    const handleStartTrial = async () => {
+  1341→        if (!currentUser?.email) return;
+  1342→        const ok = window.confirm('Start a 30-day free trial of the Visitor Management System? You can generate visitor codes immediately. No payment required.');
+  1343→        if (!ok) return;
+  1344→        setBusy(true);
+  1345→        try {
+  1346→            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email });
+  1347→            addToast('VMS trial started! Residents can now generate visitor codes.', { type: 'success' });
+  1348→        } catch (e: any) {
+  1349→            addToast(e?.message || 'Failed to start trial.', { type: 'error' });
+  1350→        } finally {
+  1351→            setBusy(false);
+  1352→        }
+  1353→    };
+  1354→
+  1355→    const handleCancel = async () => {
+  1356→        if (!currentUser?.email) return;
+  1357→        const ok = window.confirm('Cancel the VMS add-on? Residents will no longer be able to generate visitor codes. Existing tokens remain valid until they expire.');
+  1358→        if (!ok) return;
+  1359→        setBusy(true);
+  1360→        try {
+  1361→            await cancelVms({ firmId: firmDetails.id, userEmail: currentUser.email });
+  1362→            addToast('VMS add-on cancelled.', { type: 'success' });
+  1363→        } catch (e: any) {
+  1364→            addToast(e?.message || 'Failed to cancel add-on.', { type: 'error' });
+  1365→        } finally {
+  1366→            setBusy(false);
+  1367→        }
+  1368→    };
+  1369→
+  1370→    return (
+  1371→        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
+  1372→            <div className="flex items-start justify-between gap-4">
+  1373→                <div>
+  1374→                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+  1375→                        Visitor Management System
+  1376→                        {status === 'active' && (
+  1377→                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>
+  1378→                        )}
+  1379→                        {status === 'trial' && (
+  1380→                            <span className="text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Trial</span>
+  1381→                        )}
+  1382→                        {status === 'expired' && (
+  1383→                            <span className="text-2xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Expired</span>
+  1384→                        )}
+  1385→                    </h3>
+  1386→                    <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">
+  1387→                        Generate 6-digit visitor codes that residents share with guests. Gatekeepers verify codes at the gatehouse terminal. Includes audit trail, auto-expiry, and revocation.
+  1388→                    </p>
+  1389→                </div>
+  1390→                <div className="text-right flex-shrink-0">
+  1391→                    <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
+  1392→                    <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />15,000<span className="text-xs font-normal text-slate-500">/mo</span></p>
+  1393→                </div>
+  1394→            </div>
+  1395→
+  1396→            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+  1397→                {status === 'none' && (
+  1398→                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  1399→                        <p className="text-sm text-slate-600 dark:text-zinc-400">Try VMS free for 30 days. No payment required.</p>
+  1400→                        <button
+  1401→                            onClick={handleStartTrial}
+  1402→                            disabled={busy}
+  1403→                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-sm"
+  1404→                        >
+  1405→                            {busy ? 'Starting...' : 'Start 30-Day Free Trial'}
+  1406→                        </button>
+  1407→                    </div>
+  1408→                )}
+  1409→                {status === 'trial' && (
+  1410→                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  1411→                        <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+  1412→                            Trial active — {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining. Subscribe to keep VMS after the trial ends.
+  1413→                        </p>
+  1414→                        <div className="flex gap-2">
+  1415→                            <button
+  1416→                                onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+  1417→                                className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
+  1418→                            >
+  1419→                                Subscribe
+  1420→                            </button>
+  1421→                            <button
+  1422→                                onClick={handleCancel}
+  1423→                                disabled={busy}
+  1424→                                className="px-3 py-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+  1425→                            >
+  1426→                                Cancel Trial
+  1427→                            </button>
+  1428→                        </div>
+  1429→                    </div>
+  1430→                )}
+  1431→                {status === 'active' && (
+  1432→                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  1433→                        <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+  1434→                            Active{activatedAt ? ` since ${new Date(activatedAt).toLocaleDateString()}` : ''}. Residents can generate visitor codes.
+  1435→                        </p>
+  1436→                        <button
+  1437→                            onClick={handleCancel}
+  1438→                            disabled={busy}
+  1439→                            className="px-3 py-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+  1440→                        >
+  1441→                            Cancel Add-on
+  1442→                        </button>
+  1443→                    </div>
+  1444→                )}
+  1445→                {status === 'expired' && (
+  1446→                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  1447→                        <p className="text-sm text-rose-700 dark:text-rose-400 font-medium">
+  1448→                            Your VMS add-on has expired. Residents cannot generate new visitor codes.
+  1449→                        </p>
+  1450→                        <button
+  1451→                            onClick={() => addToast('To re-subscribe, contact founder@practicepro.ng to arrange payment. The founder will reactivate the add-on for your firm.', { type: 'info', duration: 7000 })}
+  1452→                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm"
+  1453→                        >
+  1454→                            Re-subscribe
+  1455→                        </button>
+  1456→                    </div>
+  1457→                )}
+  1458→            </div>
+  1459→
+  1460→            {/* Gatehouse URL display */}
+  1461→            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+  1462→                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">Gatehouse Terminal URL</p>
+  1463→                <p className="text-xs text-slate-600 dark:text-zinc-400 mb-2">Share this URL with your security guards. They can bookmark it on a tablet at the gatehouse — no PracticePro login required.</p>
+  1464→                <div className="flex items-center gap-2">
+  1465→                    <code className="flex-1 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded text-xs text-slate-700 dark:text-zinc-300 font-mono overflow-x-auto whitespace-nowrap">
+  1466→                        {typeof window !== 'undefined' ? window.location.origin : 'https://app.practicepro.ng'}/gatehouse?firmId={firmDetails.id}
+  1467→                    </code>
+  1468→                    <button
+  1469→                        onClick={() => {
+  1470→                            const url = `${typeof window !== 'undefined' ? window.location.origin : 'https://app.practicepro.ng'}/gatehouse?firmId=${firmDetails.id}`;
+  1471→                            navigator.clipboard.writeText(url);
+  1472→                            addToast('Gatehouse URL copied to clipboard.', { type: 'success' });
+  1473→                        }}
+  1474→                        className="px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+  1475→                    >
+  1476→                        Copy
+  1477→                    </button>
+  1478→                </div>
+  1479→            </div>
+  1480→        </div>
+  1481→    );
+  1482→};
+  1483→
+  1484→export default SubscriptionSettings;
+  1485→
