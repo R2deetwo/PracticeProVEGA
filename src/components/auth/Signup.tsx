@@ -49,19 +49,21 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
  // On mount, check if the user came here from the migration flow or via a direct product selection on Landing Page
  React.useEffect(() => {
+  // FIX: forceProductSelection takes ABSOLUTE priority — if the user clicked
+  // "Start Free Trial" from the root landing page, they MUST see the product
+  // selection step, even if pp_migration_email is in localStorage from a
+  // previous session. The migration flow should only auto-skip when the user
+  // didn't explicitly request product selection.
+  if (modalContext?.forceProductSelection) {
+   setStep('product_selection');
+   return;
+  }
+
   const savedMigrationEmail = localStorage.getItem('pp_migration_email');
   if (savedMigrationEmail) {
    setMigrationOldEmail(savedMigrationEmail);
    setEmail(savedMigrationEmail); // Pre-fill the email field
    setStep('form'); // Skip product selection for migration users
-   return;
-  }
-
-  // FIX: If forceProductSelection is set (from the root landing page "Start
-  // Free Trial" button), ALWAYS show the product selection step — even if
-  // a stale modalContext from a previous session exists.
-  if (modalContext?.forceProductSelection) {
-   setStep('product_selection');
    return;
   }
 
