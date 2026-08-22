@@ -3,6 +3,8 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { useUI } from '../../contexts/UIContext';
 import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../../types';
 import { formatNaira, formatLargeNumber } from '../../utils/formatting';
 import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles } from 'lucide-react';
@@ -56,6 +58,8 @@ function formatTs(ts: number) {
 const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmId, onClose }) => {
   const addEntry = useMutation(api.sentry.addLedgerEntry);
   const { coreState } = useCoreState();
+  const { addToast } = useUI();
+  const { queueMutation, isOnline } = useOfflineQueue();
   const [form, setForm] = useState({ unitId: '', amount: '', type: 'rent' as LedgerEntryType, status: 'cleared' as LedgerEntryStatus, channel: 'Bank Transfer', description: '', paymentRef: '' });
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -67,6 +71,27 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
     if (!form.unitId || !form.amount) return;
     setLoading(true);
     try {
+      // OFFLINE PATH — manual ledger entries are typically done by an
+      // agent or accountant who may be in the field. Queue when offline.
+      if (!isOnline) {
+        queueMutation({
+          mutationName: 'addLedgerEntry',
+          args: {
+            firmId,
+            unitId: form.unitId,
+            amount: parseFloat(form.amount),
+            type: form.type,
+            status: form.status,
+            channel: form.channel,
+            description: form.description,
+            paymentRef: form.paymentRef,
+          },
+          label: `${form.type} ledger entry — ₦${parseFloat(form.amount).toLocaleString()}`,
+        });
+        addToast('Ledger entry saved offline. Will sync when you reconnect.', { type: 'info', duration: 6000 });
+        onClose();
+        return;
+      }
       await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef });
       onClose();
     } finally { setLoading(false); }

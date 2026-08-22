@@ -8,6 +8,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { generateReceiptNumber } from '../../utils/invoiceHelpers';
 import { 
   CalendarIcon, 
@@ -57,6 +58,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   const { updateItem, handleGenerateInvoice, logActivity, addItem } = useDataActions();
   const { addToast, modalContext, navigateTo } = useUI();
   const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+  const { queueMutation, isOnline } = useOfflineQueue();
 
   // Unit-specific overrides from context (if opened from a specific unit)
   const overrideUnitId = modalContext?.unitId;
@@ -123,6 +125,132 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
     try {
       // Generate a shared transaction reference to link receipt, invoice, and ledger
       const transactionRef = `TXN-${Date.now().toString().slice(-8)}`;
+
+      // ─── OFFLINE PATH ────────────────────────────────────────────────────
+      // Rent collection is the single most likely field flow to happen with
+      // poor connectivity — an agent standing in a building with a tenant
+      // collecting cash. If we're offline, queue the critical mutations
+      // (property update + ledger entries) and generate the receipt PDF
+      // locally (already client-side). Defer invoice generation and the
+      // portal message send — the landlord can generate the invoice from
+      // the matter detail page later when online, and the portal message
+      // is a notification (not a financial record) so dropping it is fine.
+      if (!isOnline) {
+        const newPayment = {
+          id: uuidv4(),
+          dueDate: paymentDate,
+          paidDate: paymentDate,
+          amount: amountValue,
+          status: 'paid' as const,
+          paymentMethod,
+          receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          periodStart,
+          periodEnd,
+          transactionRef,
+        };
+        const updatedHistory = [...(property.rentPaymentHistory || []), newPayment];
+
+        // 1. Queue property update (status → Occupied, append to rent history)
+        queueMutation({
+          mutationName: 'updateItem',
+          args: {
+            table: 'properties',
+            id: property.id,
+            data: { rentPaymentHistory: updatedHistory, status: 'Occupied' },
+            itemName: 'Property Payment',
+          },
+          label: `Rent payment — ${unitDisplayLabel}`,
+        });
+
+        // 2. Queue the same update on the nested contact.properties if applicable
+        if (owner.properties?.some(p => p.id === property.id)) {
+          const updatedProperties = owner.properties.map(p =>
+            p.id === property.id ? { ...p, rentPaymentHistory: updatedHistory, status: 'Occupied' as const } : p
+          );
+          queueMutation({
+            mutationName: 'updateItem',
+            args: {
+              table: 'contacts',
+              id: owner.id,
+              data: { properties: updatedProperties },
+              itemName: 'Property Payment',
+            },
+            label: `Owner record — ${owner.name || 'Owner'}`,
+          });
+        }
+
+        // 3. Queue the rent ledger entry — the critical financial record
+        const targetUnitId = overrideUnitId || property.id;
+        const tenantContact = matterState.contacts.find(c =>
+          (c.email && c.email === property.rentalDetails?.tenantEmail) ||
+          (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
+          (c.name && c.name === property.rentalDetails?.tenantName)
+        );
+        if (targetUnitId) {
+          queueMutation({
+            mutationName: 'addLedgerEntry',
+            args: {
+              firmId: property.firmId || coreState.firmDetails?.id || '',
+              propertyId: property.id,
+              unitId: targetUnitId,
+              tenantId: tenantContact?.id || 'tenant-legacy',
+              amount: amountValue,
+              type: 'rent',
+              status: 'cleared',
+              description: `Rent collection for ${unitDisplayLabel}`,
+              period: `${periodStart} to ${periodEnd}`,
+              channel: transactionRef,
+            },
+            label: `Rent ledger — ${unitDisplayLabel}`,
+          });
+
+          // 4. Queue management fee ledger entry (if applicable)
+          if (feeAmount > 0 && feePercentage > 0) {
+            queueMutation({
+              mutationName: 'addLedgerEntry',
+              args: {
+                firmId: property.firmId || coreState.firmDetails?.id || '',
+                propertyId: property.id,
+                unitId: targetUnitId,
+                tenantId: owner.id,
+                amount: feeAmount,
+                type: 'management_fee',
+                status: 'pending',
+                description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
+                period: `${periodStart} to ${periodEnd}`,
+                channel: transactionRef,
+              },
+              label: `Management fee ledger — ${unitDisplayLabel}`,
+            });
+          }
+        }
+
+        // 5. Still generate the receipt PDF locally — it's client-side, works offline.
+        // Pass `true` for silent mode — we show our own offline toast above.
+        try {
+          handleDownloadTenantReceipt(true);
+        } catch (pdfError) {
+          console.error('[CollectRentModal] Offline receipt PDF failed:', pdfError);
+        }
+
+        logActivity(
+          `Collected rent OFFLINE for ${unitDisplayLabel} — will sync when reconnecting. Receipt: ${newPayment.receiptNumber}.`,
+          'Contact',
+          property.id,
+          unitDisplayLabel
+        );
+
+        addToast(
+          `Rent receipt issued offline for ${formatNaira(amountValue)}. ` +
+          `${feeAmount > 0 ? `Management fee of ${formatNaira(feeAmount)} will need to be invoiced when online. ` : ''}` +
+          `Ledger and property record will sync automatically when you reconnect.`,
+          { type: 'info', duration: 8000 }
+        );
+        onClose();
+        return;
+      }
+
+      // ─── ONLINE PATH (existing flow, unchanged) ────────────────────────
 
       // 1. Update Property Rent History — receipt records FULL amount
       // BRIEF #3: Extract receiptNumber to a local variable so it can be

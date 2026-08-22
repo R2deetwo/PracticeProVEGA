@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { PlusIcon, TrashIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -58,6 +59,7 @@ const TrustAccountTab: React.FC = () => {
     // ─── Mutations ──────────────────────────────────────────────────────
     const recordTransaction = useMutation(api.trustAccount.recordTrustTransaction);
     const deleteTransaction = useMutation(api.trustAccount.deleteTrustTransaction);
+    const { queueMutation, isOnline } = useOfflineQueue();
 
     const matters = matterState.matters || [];
 
@@ -105,6 +107,30 @@ const TrustAccountTab: React.FC = () => {
                     matters={matters}
                     onSubmit={async (data) => {
                         try {
+                            // OFFLINE PATH — trust deposits are fiduciary records.
+                            // A dropped trust deposit entry is a compliance
+                            // issue (NDPA 2023 / fiduciary accounting), not
+                            // just a UX inconvenience. Queue when offline.
+                            if (!isOnline) {
+                                queueMutation({
+                                    mutationName: 'recordTrustTransaction',
+                                    args: {
+                                        firmId,
+                                        matterId: data.matterId,
+                                        clientName: data.clientName,
+                                        type: 'deposit',
+                                        amount: data.amount,
+                                        description: data.description,
+                                        reference: data.reference,
+                                        recordedBy: currentUser?.id,
+                                        recordedByName: currentUser?.name,
+                                    },
+                                    label: `Trust deposit — ${formatNaira(data.amount)}${data.clientName ? ` from ${data.clientName}` : ''}`,
+                                });
+                                addToast('Trust deposit saved offline. Will sync when you reconnect.', { type: 'info', duration: 6000 });
+                                setShowDepositForm(false);
+                                return;
+                            }
                             await recordTransaction({
                                 firmId,
                                 matterId: data.matterId,
@@ -133,6 +159,29 @@ const TrustAccountTab: React.FC = () => {
                     matters={matters}
                     onSubmit={async (data) => {
                         try {
+                            // OFFLINE PATH — same fiduciary-compliance concern
+                            // as deposits. A withdrawal that isn't recorded
+                            // looks like missing funds to an auditor later.
+                            if (!isOnline) {
+                                queueMutation({
+                                    mutationName: 'recordTrustTransaction',
+                                    args: {
+                                        firmId,
+                                        matterId: data.matterId,
+                                        clientName: data.clientName,
+                                        type: data.transferToOperating ? 'transfer' : 'withdrawal',
+                                        amount: data.amount,
+                                        description: data.description,
+                                        reference: data.reference,
+                                        recordedBy: currentUser?.id,
+                                        recordedByName: currentUser?.name,
+                                    },
+                                    label: `Trust ${data.transferToOperating ? 'transfer' : 'withdrawal'} — ${formatNaira(data.amount)}${data.clientName ? ` for ${data.clientName}` : ''}`,
+                                });
+                                addToast('Trust withdrawal saved offline. Will sync when you reconnect.', { type: 'info', duration: 6000 });
+                                setShowWithdrawalForm(false);
+                                return;
+                            }
                             await recordTransaction({
                                 firmId,
                                 matterId: data.matterId,

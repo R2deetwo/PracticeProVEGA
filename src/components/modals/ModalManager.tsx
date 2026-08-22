@@ -12,6 +12,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIsProperty, useTerminology } from '../../contexts/ProductContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { ModalType, FileDetails } from '../../types';
 
 // Auth
@@ -141,6 +142,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
   const { coreState } = useCoreState();
   const { updateItem } = useDataActions();
   const { addToast } = useUI();
+  const { queueMutation, isOnline } = useOfflineQueue();
   const isProperty = useIsProperty();
   const firmId = coreState.firmDetails?.id || '';
   const [amount, setAmount] = React.useState(modalContext?.rentAmount ? String(modalContext.rentAmount) : '');
@@ -159,6 +161,57 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
     try {
       const propertyRecord = (coreState.properties || []).find(p => p.id === unitId);
       const today = new Date().toISOString().split('T')[0];
+
+      // OFFLINE PATH — rent payment recorded from the cog menu / quick action.
+      // Same field-use scenario as CollectRentModal: agent standing in a
+      // building collecting cash. Queue both the ledger entry AND the
+      // property update so neither is lost.
+      if (!isOnline) {
+        queueMutation({
+          mutationName: 'addLedgerEntry',
+          args: {
+            firmId,
+            propertyId: propertyRecord?.id || unitId,
+            unitId,
+            amount: amountNum,
+            type: 'rent',
+            status,
+            channel: 'Bank Transfer',
+            description: `Rent payment${tenantName ? ' from ' + tenantName : ''}`,
+            paymentRef: '',
+          },
+          label: `Rent ledger — ${unitName}${tenantName ? ` (${tenantName})` : ''}`,
+        });
+
+        if (propertyRecord) {
+          const newPayment = {
+            id: `pay_${Date.now()}`,
+            dueDate: today,
+            paidDate: today,
+            amount: amountNum,
+            status: 'paid' as const,
+            paymentMethod: 'Bank Transfer',
+            receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          };
+          queueMutation({
+            mutationName: 'updateItem',
+            args: {
+              table: 'properties',
+              id: propertyRecord.id,
+              data: {
+                rentPaymentHistory: [newPayment, ...(propertyRecord.rentPaymentHistory || [])],
+                status: propertyRecord.status === 'Vacant' ? 'Occupied' : propertyRecord.status,
+              },
+              itemName: 'Property Payment',
+            },
+            label: `Property update — ${unitName}`,
+          });
+        }
+
+        addToast(`Rent payment saved offline for ${unitName}. Will sync when you reconnect.`, { type: 'info', duration: 6000 });
+        closeModal();
+        return;
+      }
 
       await addEntry({
         firmId,

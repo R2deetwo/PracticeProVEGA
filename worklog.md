@@ -7748,3 +7748,65 @@ Stage Summary:
 Next actions:
 - Verify on the preview link that (a) the bank account save bug is fixed, (b) the wizard advances through all 5 steps, (c) the sidebar checklist + Dashboard banner appear after wizard completion, (d) the "Reset Setup Checklist" button in Settings → Help re-shows the prompts after dismissal.
 - The `hasSentReminder` check in getGettingStartedChecklist currently scans notifications of type 'service_charge_reminder'/'rent_reminder'/'invoice_sent' as a proxy — if those notification types aren't being written today, this item will never auto-complete. Verify the existing WhatsApp reminder cron writes notifications of those types, or change the check to look at the scheduled_messages table.
+Task ID: offline-resilience
+Agent: main (Super Z)
+Task: Extend offline resilience from 1 of ~188 mutation call sites to the flows that actually matter, generalize the offline queue beyond createItem, and fix the hardcoded Convex URL in the network health check.
+
+Work Log:
+- Grepped all 188 useMutation(api.*) call sites across 75 files. Grouped by feature area (admin, Atrium rent/ledger, trust account, portal, settings, etc.).
+- Confirmed useOfflineQueue.ts only wrapped createItem — the QueuedMutation shape ({table, data, itemName, userEmail}) couldn't express updateItem (needs id), deleteItem, or specialized mutations like addLedgerEntry (named args).
+- Confirmed UIContext.tsx line 430 hardcodes 'https://gregarious-malamute-537.convex.cloud/api/query' for the network health check, inconsistent with every other file in the repo which uses import.meta.env.VITE_CONVEX_URL first.
+- Produced a prioritized mutation list and shared with the user. Tier 1: rent collection (CollectRentModal), service charge mark-paid (ServiceChargeMonitor), trust transactions (TrustAccountTab), and the shared addLedgerEntry path (4 other call sites). User confirmed Tier-1 priority list.
+- Rewrote useOfflineQueue.ts:
+  * New polymorphic API: queueMutation({mutationName, args, label}) accepts any registered mutation.
+  * Legacy API preserved: queueMutation({table, data, itemName, userEmail}) auto-migrates to createItem — MatterForm.tsx works unchanged.
+  * Mutation registry pattern: 6 mutations registered (createItem, updateItem, deleteItem, addLedgerEntry, markChargeAsPaid, recordTrustTransaction). Extending to new flows is one line.
+  * Legacy queue entries (pre-upgrade localStorage) auto-migrated on read.
+  * Improved error classification: network errors keep retrying, validation errors are dropped AND surfaced to the user via addToast so they know their action was lost (previously silent).
+- Wired Tier-1 flows to the queue:
+  * CollectRentModal.tsx: offline path queues property update + rent ledger + management fee ledger + generates receipt PDF client-side. Skips invoice generation (deferred to online) and portal message send (real-time, can't queue). Shows a comprehensive offline toast.
+  * ServiceChargeMonitor.tsx: handleMarkPaid + handlePartialPayment both queue when offline.
+  * TrustAccountTab.tsx: both deposit and withdrawal flows queue when offline (fiduciary compliance).
+  * LedgerManager.tsx: manual ledger entry modal queues when offline.
+  * PropertyTrackingView.tsx: rent payment ledger entry queues when offline.
+  * PropertyForm.tsx: caution deposit ledger entry queues when offline.
+  * ModalManager.tsx: RecordRentPaymentModalWrapper queues both addLedgerEntry + property update when offline.
+- Fixed UIContext.tsx hardcoded URL: now uses import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud', matching the pattern in main.tsx, App.tsx, AloaChat.tsx, useResearch.ts, geminiService.ts.
+- Audit pass: added offline guards to 5 file-upload call sites that fundamentally can't be queued (single-use presigned URLs):
+  * TenantPortal.tsx: 3 sites (maintenance ticket attachment, message attachment, payment proof upload)
+  * ClientDashboard.tsx: 2 sites (message attachment, service request attachment)
+  Each guard shows a clear "You're offline. File upload requires internet" error toast instead of letting the fetch hang or fail silently.
+- Wrote /home/z/my-project/scripts/offline_audit.py — surveys all 176 useMutation call sites and classifies each as QUEUED (7), PARTIAL (0), NON_QUEUEABLE (16), or DIRECT (153). Output saved to /home/z/my-project/download/OFFLINE_AUDIT.md.
+- Wrote /home/z/my-project/scripts/offline_queue_test.js — 7 unit tests covering legacy shape migration, new shape dispatch, network-error retry, validation-error drop+toast, mixed queue FIFO, offline guard no-op, and the full rent collection multi-mutation scenario. All 7 tests pass.
+- TypeScript check: 379 errors before and after my changes — ZERO new TS errors introduced. All errors in modified files (CollectRentModal.tsx:383, PropertyForm.tsx, TrustAccountTab.tsx) are pre-existing bugs at shifted line numbers.
+
+Stage Summary:
+- Files modified (10):
+  1. src/hooks/useOfflineQueue.ts — full rewrite with generalized mutation registry
+  2. src/contexts/UIContext.tsx — hardcoded URL fixed (1 line)
+  3. src/components/modals/CollectRentModal.tsx — offline branch in handleCollect
+  4. src/components/atrium/ServiceChargeMonitor.tsx — offline branches in handleMarkPaid + handlePartialPayment
+  5. src/components/details/TrustAccountTab.tsx — offline branches in deposit + withdrawal flows
+  6. src/components/atrium/LedgerManager.tsx — offline branch in AddEntryModal
+  7. src/components/details/PropertyTrackingView.tsx — offline branch for addLedgerEntry
+  8. src/components/forms/PropertyForm.tsx — offline branch for caution deposit ledger entry
+  9. src/components/modals/ModalManager.tsx — offline branch for RecordRentPaymentModalWrapper
+  10. src/components/tenant/TenantPortal.tsx — 3 offline guards for file uploads (maintenance ticket, message, payment proof)
+  11. src/components/client/ClientDashboard.tsx — 2 offline guards for file uploads (message, service request)
+- New files (3):
+  * /home/z/my-project/scripts/offline_audit.py — audit script
+  * /home/z/my-project/scripts/offline_queue_test.js — 7 unit tests (all pass)
+  * /home/z/my-project/download/OFFLINE_AUDIT.md — full audit report
+- Coverage: 7 of 176 mutation call sites now use the offline queue (was 1). All 6 Tier-1 priority flows are wired. 16 non-queueable sites (file uploads + real-time messaging) have offline guards where user-facing. 153 remaining DIRECT sites are admin/auth/settings/portal-login flows that are not field-critical (admin office use, or can't be reached when offline by definition — e.g. login).
+- Verified acceptance criteria:
+  [x] Full list of mutation call sites grouped and prioritized — shared with user, confirmed
+  [x] Generalized queue supports updateItem, deleteItem, addLedgerEntry, markChargeAsPaid, recordTrustTransaction (6 total, up from 1)
+  [x] Top Tier-1 flows wired — CollectRentModal, ServiceChargeMonitor, TrustAccountTab, LedgerManager, PropertyTrackingView, PropertyForm, ModalManager (7 files, 7 call sites covered)
+  [x] Test output: 7/7 unit tests pass, including a full rent collection scenario simulation
+  [x] UIContext.tsx network poll uses VITE_CONVEX_URL
+  [x] Audit of remaining 169 unqueued sites documented in OFFLINE_AUDIT.md — file upload sites have explicit offline guards, admin/auth/settings flows fail with caught errors or are unreachable offline by design
+
+Next actions:
+- Manual browser test recommended: open Chrome devtools → Network → throttle to "Offline", perform a rent collection in CollectRentModal, confirm the "Rent receipt issued offline" toast appears and the receipt PDF downloads. Then restore network, wait 30s, confirm the "Synced 3 items from offline queue" success toast appears and the ledger entry shows up in the Atrium Ledger.
+- Consider Tier-2 wiring in a future pass: updateTaskStatus, createMaintenanceTicket (from TenantPortal — tenant-side field use, currently fails with caught error but could be queued).
+- The audit script (scripts/offline_audit.py) can be re-run after future wiring passes to track coverage growth.

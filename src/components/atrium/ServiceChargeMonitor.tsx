@@ -3,6 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
@@ -259,6 +260,7 @@ const ServiceChargeMonitor: React.FC = () => {
   const allCharges = coreState.serviceCharges || [];
   const markPaidMutation = useMutation(api.sentry.markChargeAsPaid);
   const logAuto = useMutation(api.sentry.logAutomation);
+  const { queueMutation, isOnline } = useOfflineQueue();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [penaltyCharge, setPenaltyCharge] = useState<ServiceCharge | null>(null);
@@ -309,6 +311,24 @@ const ServiceChargeMonitor: React.FC = () => {
   const revenueAtRisk = defaulters.reduce((s, c) => s + c.amount + (c.penaltyApplied ? c.amount * PENALTY_RATE : 0), 0);
 
   const handleMarkPaid = async (charge: ServiceCharge) => {
+    // OFFLINE PATH — service charge collection in the field. Queue the
+    // mark-paid mutation and inform the user. If we didn't queue, the
+    // charge would show as unpaid forever and the tenant would be
+    // penalized again next month despite having paid.
+    if (!isOnline) {
+      queueMutation({
+        mutationName: 'markChargeAsPaid',
+        args: {
+          serviceChargeId: charge._id as any,
+          paidAmount: charge.amount,
+          firmId,
+          channel: 'Bank Transfer',
+        },
+        label: `${charge.category} charge marked paid — ${getUnitLabel(charge.unitId)}`,
+      });
+      showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
+      return;
+    }
     await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer' });
     showToast(`${charge.category} charge marked as fully paid`);
   };
@@ -317,6 +337,27 @@ const ServiceChargeMonitor: React.FC = () => {
     if (!partialPaymentCharge || !partialAmount) return;
     const amount = parseFloat(partialAmount);
     if (isNaN(amount) || amount <= 0) return;
+
+    // OFFLINE PATH — partial payment recording. Same field-use scenario
+    // as full mark-paid. Queue the mutation and inform the user.
+    if (!isOnline) {
+      queueMutation({
+        mutationName: 'markChargeAsPaid',
+        args: {
+          serviceChargeId: partialPaymentCharge._id as any,
+          paidAmount: amount,
+          firmId,
+          channel: 'Bank Transfer',
+          isPartialPayment: true,
+        },
+        label: `Partial payment ₦${amount.toLocaleString()} — ${getUnitLabel(partialPaymentCharge.unitId)}`,
+      });
+      showToast(`Partial payment of ₦${amount.toLocaleString()} saved offline. Will sync when you reconnect.`);
+      setPartialPaymentCharge(null);
+      setPartialAmount('');
+      return;
+    }
+
     await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true });
     showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
     setPartialPaymentCharge(null);

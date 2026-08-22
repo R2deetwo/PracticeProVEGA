@@ -1729,6 +1729,14 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
       return;
     }
 
+    // OFFLINE GUARD — file uploads fundamentally cannot be queued (the
+    // upload URL is single-use and expires). Fail fast with a clear
+    // message instead of letting the fetch hang or fail silently.
+    if (pendingFiles.length > 0 && !navigator.onLine) {
+      addToast("You're offline. File upload requires internet — please reconnect and try again.", { type: 'error', duration: 6000 });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Upload files to Convex storage if any
@@ -2198,6 +2206,12 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   const handleSendMessage = async () => {
     if (!messageContent.trim() && pendingFiles.length === 0) {
       addToast('Please type a message or attach a file.', { type: 'info' });
+      return;
+    }
+    // OFFLINE GUARD — file uploads cannot be queued (single-use URLs).
+    // Fail fast with a clear message so the user knows to reconnect.
+    if (pendingFiles.length > 0 && !navigator.onLine) {
+      addToast("You're offline. File upload requires internet — please reconnect and try again.", { type: 'error', duration: 6000 });
       return;
     }
     setIsSending(true);
@@ -2800,6 +2814,12 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
   const handleSubmit = async () => {
     if (pendingFiles.length === 0) {
       addToast('Please upload at least one payment proof file.', { type: 'info' });
+      return;
+    }
+    // OFFLINE GUARD — payment proof upload requires internet to upload the
+    // file to Convex storage. Cannot be queued. Fail fast with a clear msg.
+    if (!navigator.onLine) {
+      addToast("You're offline. Payment proof upload requires internet — please reconnect and try again.", { type: 'error', duration: 6000 });
       return;
     }
 

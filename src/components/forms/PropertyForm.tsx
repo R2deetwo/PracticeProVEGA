@@ -13,6 +13,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import {
     buildPropertyRecord,
     propertyExistsInDb,
@@ -113,6 +114,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const { addToast, openModal, navigateTo } = useUI();
     const { currentUser } = useAuth();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+    const { queueMutation, isOnline } = useOfflineQueue();
     const { confirm, ConfirmDialog } = useConfirm();
 
     // Core Fields
@@ -690,15 +692,37 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const isExistingUnit = isEditing && existsInDb;
                 if (!isExistingUnit && !unit.isCautionNA && unit.cautionDeposit && unit.cautionDeposit > 0) {
                     try {
-                        await addLedgerEntry({
-                            firmId,
-                            unitId,
-                            amount: unit.cautionDeposit || 0,
-                            type: 'deposit',
-                            status: 'cleared',
-                            description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
-                            channel: 'Internal Transfer'
-                        });
+                        // OFFLINE PATH — queue the caution deposit ledger entry.
+                        // The property itself will be saved through onSave
+                        // (which goes through addItem/updateItem in the
+                        // DataContext). If that path fails offline, the user
+                        // will see an error from there. The ledger entry at
+                        // least survives via the queue.
+                        if (!isOnline) {
+                            queueMutation({
+                                mutationName: 'addLedgerEntry',
+                                args: {
+                                    firmId,
+                                    unitId,
+                                    amount: unit.cautionDeposit || 0,
+                                    type: 'deposit',
+                                    status: 'cleared',
+                                    description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
+                                    channel: 'Internal Transfer',
+                                },
+                                label: `Caution deposit — ${unit.unitName || 'Unit'} (₦${(unit.cautionDeposit || 0).toLocaleString()})`,
+                            });
+                        } else {
+                            await addLedgerEntry({
+                                firmId,
+                                unitId,
+                                amount: unit.cautionDeposit || 0,
+                                type: 'deposit',
+                                status: 'cleared',
+                                description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
+                                channel: 'Internal Transfer'
+                            });
+                        }
                     } catch (e) {
                         console.warn('Failed to route caution deposit to ledger:', e);
                     }

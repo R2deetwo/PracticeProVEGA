@@ -26,6 +26,7 @@ import { InvoiceStatus, Contact } from '../../types';
 import ErrorBoundary from '../ErrorBoundary';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { LeaseProgressBars } from './LeaseProgressBars';
 
 interface PropertyTrackingViewProps {
@@ -40,6 +41,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
     const { executionActions } = useExecutionState();
     const { addToast, openModal, navigateTo } = useUI();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+    const { queueMutation, isOnline } = useOfflineQueue();
     const isLeased = property.category === 'Tenanted Property';
     const isSale = property.category === 'Property For Sale';
     // Management Only properties don't collect rent via the system — hide all
@@ -253,18 +255,44 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                         (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
                         (c.name && c.name === property.rentalDetails?.tenantName)
                     );
-                    await addLedgerEntry({
-                        firmId,
-                        propertyId: property.id,
-                        unitId: property.id,
-                        tenantId: tenantContact?.id,
-                        amount,
-                        type: 'rent',
-                        status: 'cleared',
-                        channel: (data.method as string) || 'Manual',
-                        description: `Rent payment for ${property.address}`,
-                        period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
-                    });
+                    // OFFLINE PATH — queue the ledger entry, the critical
+                    // financial record. The property's rentPaymentHistory
+                    // update (below) will also be queued via the onUpdate
+                    // handler if we add offline support there in the future;
+                    // for now, at least the ledger record survives.
+                    if (!isOnline) {
+                        queueMutation({
+                            mutationName: 'addLedgerEntry',
+                            args: {
+                                firmId,
+                                propertyId: property.id,
+                                unitId: property.id,
+                                tenantId: tenantContact?.id,
+                                amount,
+                                type: 'rent',
+                                status: 'cleared',
+                                channel: (data.method as string) || 'Manual',
+                                description: `Rent payment for ${property.address}`,
+                                period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
+                            },
+                            label: `Rent ledger — ${property.address}`,
+                        });
+                        // Don't return — let the property update flow through
+                        // (it goes through onUpdate which is a separate path).
+                    } else {
+                        await addLedgerEntry({
+                            firmId,
+                            propertyId: property.id,
+                            unitId: property.id,
+                            tenantId: tenantContact?.id,
+                            amount,
+                            type: 'rent',
+                            status: 'cleared',
+                            channel: (data.method as string) || 'Manual',
+                            description: `Rent payment for ${property.address}`,
+                            period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
+                        });
+                    }
                 } catch (e) {
                     console.warn('Ledger sync failed for rent payment:', e);
                     addToast('Payment saved on property, but revenue ledger sync failed.', { type: 'info' });

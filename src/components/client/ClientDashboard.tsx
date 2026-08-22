@@ -504,6 +504,11 @@ const ClientDashboard: React.FC = () => {
             addToast('Please select a matter first', { type: 'error' });
             return;
         }
+        // OFFLINE GUARD — file uploads cannot be queued (single-use URLs).
+        if (pendingFiles.length > 0 && !navigator.onLine) {
+            addToast("You're offline. File upload requires internet — please reconnect and try again.", { type: 'error', duration: 6000 });
+            return;
+        }
         try {
             // Upload files first
             const storageIds: string[] = [];
@@ -1376,6 +1381,11 @@ const ClientDashboard: React.FC = () => {
         }
         if (!effectiveFirmId) {
             addToast('Unable to submit — firm information is still loading. Please try again.', { type: 'info' });
+            return;
+        }
+        // OFFLINE GUARD — file uploads cannot be queued (single-use URLs).
+        if (requestFiles.length > 0 && !navigator.onLine) {
+            addToast("You're offline. File upload requires internet — please reconnect and try again.", { type: 'error', duration: 6000 });
             return;
         }
 

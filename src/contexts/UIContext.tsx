@@ -467,7 +467,17 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
                 // Use Convex's query endpoint (valid HTTP path) instead of /health
                 // which doesn't exist. This hits a real Convex API endpoint.
-                await fetch('https://gregarious-malamute-537.convex.cloud/api/query', {
+                // Use the configured Convex URL (env var first, hardcoded
+                // production URL only as fallback) — matches the pattern used
+                // everywhere else in the repo (main.tsx, App.tsx, AloaChat.tsx,
+                // useResearch.ts, geminiService.ts). Previously this hard-coded
+                // the production URL, which meant staging deployments would
+                // health-check production rather than the deployment they
+                // actually depend on — false "online" while actually broken.
+                const convexUrl =
+                    (import.meta as any).env?.VITE_CONVEX_URL ||
+                    'https://gregarious-malamute-537.convex.cloud';
+                await fetch(`${convexUrl}/api/query`, {
                     method: 'POST',
                     mode: 'no-cors',
                     signal: controller.signal,
