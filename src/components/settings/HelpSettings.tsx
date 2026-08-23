@@ -408,9 +408,91 @@ export const HelpSettings: React.FC = () => {
                                         Enable VMS in Settings → Portal Access. Configure gatekeeper notifications (WhatsApp alert on visitor arrival), resident notifications, grace periods (0-60 min), and default validity windows. VMS requires Atrium Growth+ plan.
                                     </p>
                                 </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Pricing</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Sentry Pass (VMS) is ₦7,500/month as an add-on, or included free with Enterprise/Komplete plans. 30-day free trial available. Bundle with Estate Community Features for ₦10,000/month total (saves ₦2,500).
+                                    </p>
+                                </div>
                             </div>
                         </AccordionItem>
                         )}
+
+                        {/* ESTATE COMMUNITY FEATURES (Atrium only) */}
+                        {isProperty && (
+                        <AccordionItem title="Estate Community Features" defaultOpen={false}>
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">What are Estate Community Features?</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Three optional modules for residential estates that want community engagement beyond operational notices (rent reminders, SC updates):
+                                    </p>
+                                    <ul className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed mt-2 space-y-1 list-disc pl-5">
+                                        <li><strong>Amenity Booking</strong> — residents book shared amenities (gym, pool, clubhouse) directly from their portal. Admin defines slot duration, operating hours, and approval rules. Conflict detection prevents double-bookings.</li>
+                                        <li><strong>Estate Bulletin</strong> — post community announcements (estate meetings, holiday hours, social events, security alerts). Pinned posts surface to the top. Optional event metadata (date, time, location). Scope visibility to specific properties or estate-wide.</li>
+                                        <li><strong>Service Provider Directory</strong> — curate a list of vetted plumbers, electricians, cleaners, gardeners, and security vendors. Residents browse and contact directly — you stay out of the middle. Admin marks providers as "Verified" based on track record.</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">How to Enable</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Go to Settings → Firm → Estate Community. Toggle on the modules you want — residents will see a new "Community" tab in their portal. Each module is independently toggleable, so commercial-only firms can leave all three disabled.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Pricing</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Included free with Pro and Enterprise plans. Starter and Growth firms can add it for ₦5,000/month (below Sentry's ₦7,500). 30-day free trial available. Bundle with Sentry Pass for ₦10,000/month total (saves ₦2,500).
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Resident Experience</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Residents see a "Community" tab in their portal only when at least one module is enabled. The tab shows a module switcher (Bulletin / Amenities / Providers) so they can navigate between enabled modules. Bookings and bulletin posts are visible immediately — no admin approval needed for bulletin posts (amenity bookings may require approval depending on admin config).
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+                        )}
+
+                        {/* NOTETAKER (Vega dual-output + Atrium single-pass) */}
+                        <AccordionItem title="Voice Dictation & Note-taking" defaultOpen={false}>
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">How Dictation Works</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Tap the microphone icon in the note editor toolbar to start voice dictation. Speak naturally — your words are transcribed in real-time and inserted at the cursor. Supports punctuation commands ("period", "comma", "new line", "question mark", "exclamation mark", "colon", "semicolon", "open quote", "close quote", "hyphen", "new paragraph"). Tap again to stop.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Vega (Legal) Mode — Dual-Output</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        For legal firms (and Komplete firms editing matter-attached notes), dictation preserves a <strong>raw transcript</strong> verbatim AND produces a <strong>cleaned version</strong> via Gemini AI. The raw transcript is never edited automatically — it's the source of truth if the cleaned version is ever disputed. Use the "Raw ⇄ Cleaned" toggle in the toolbar to switch between them.
+                                    </p>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed mt-2">
+                                        The AI cleanup removes filler words (um, uh, false starts), fixes common Web Speech API recognition errors on Nigerian names, and structures into paragraphs — but preserves legal terminology, case names, statute sections, and court names verbatim. It never adds content you didn't say.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Atrium (Property) Mode — Single-Pass</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        For property firms, dictation is lighter-weight — no raw transcript preservation (property notes don't carry the same liability weight as legal case notes). Words go straight into the note as-is, with punctuation-command processing applied. Faster, simpler, no AI cleanup ceremony.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Browser Support</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Voice dictation uses the Web Speech API, which is available in Chrome, Edge, and Android WebView (your primary distribution channel via the Capacitor APK). Safari and Firefox show a disabled microphone icon with a tooltip explaining why — type manually or use a supported browser.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">AI Key Required (Vega Mode)</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        The AI cleanup pass (Vega mode only) requires a Gemini API key configured in Settings → AI. If no key is set, the raw transcript is still saved — you can edit it manually or retry the cleanup later once a key is configured.
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
 
                         <AccordionItem title="Trust Accounting" defaultOpen={false}>
                             <div className="space-y-4">

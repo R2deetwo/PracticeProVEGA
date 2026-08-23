@@ -121,6 +121,32 @@ export const useFeatures = () => {
         canUseExternalCounsel: isEnterpriseOrAbove,
         canUseAdvancedSecurity: isEnterpriseOrAbove,
 
+        // ─── ESTATE COMMUNITY FEATURES (Atrium only) ────────────────────
+        // Three modules: Amenity Booking, Estate Bulletin, Service Provider Directory.
+        // Pricing model (Aug 2026):
+        //   - Pro / Enterprise: INCLUDED FREE (core to the "estate manager" persona)
+        //   - Starter / Growth: ADD-ON at ₦5,000/month (below Sentry's ₦7,500)
+        //   - Trial: 30 days free, once per firm (mirrors VMS trial pattern)
+        // Backend mirrors this in convex/estateCommunity.ts — admin mutations
+        // check requireAdmin, but the feature gate lives here for the UI.
+        // The add-on state is stored at firmDetails.subscriptionAddons.estateCommunity
+        // and follows the same { status, trialEndsAt, activatedAt } shape as VMS.
+        canUseEstateCommunity: isPropertyFirm && (
+            isProOrAbove  // Pro/Enterprise/Komplete: included
+            || (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.status === 'active'
+            || (
+                (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.status === 'trial'
+                && (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.trialEndsAt > now
+            )
+        ),
+
+        // Estate Community trial status (for the admin UI to show countdown / upgrade prompt)
+        estateCommunityStatus: (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.status || 'none',
+        estateCommunityTrialEndsAt: (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.trialEndsAt || null,
+        // True if Estate Community is included in the current plan (Pro+) —
+        // used by the admin panel to show "Included in your plan" vs "Add-on: ₦5,000/mo"
+        estateCommunityIncludedInPlan: isPropertyFirm && isProOrAbove,
+
         // Limits
         maxUsers: isEnterpriseOrAbove || isKompletePlan ? null : (isProOrAbove ? null : (isGrowth ? 5 : 1)),
         supportLevel: isEnterprise
@@ -129,7 +155,7 @@ export const useFeatures = () => {
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
-        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling') => {
+        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling' | 'estateCommunity') => {
             switch (feature) {
                 case 'ai':                return isGrowthOrAbove;
                 case 'automation':        return isEnterpriseOrAbove;
@@ -147,6 +173,12 @@ export const useFeatures = () => {
                 case 'reportGenerator':   return isGrowthOrAbove;
                 case 'externalCounsel':   return isEnterpriseOrAbove;
                 case 'retainerAutoBilling': return isLegalFirm && isGrowthOrAbove;
+                case 'estateCommunity':   return isPropertyFirm && (
+                    isProOrAbove
+                    || (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.status === 'active'
+                    || ((appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.status === 'trial'
+                        && (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.trialEndsAt > now)
+                );
                 default:                  return true;
             }
         }

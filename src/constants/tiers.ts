@@ -381,7 +381,7 @@ export const KOMPLETE_TIER: TierDef = {
     'Unlimited WhatsApp Reminders',
     'ARIA® AI Copilot (Uncapped Priority)',
     'Full Legal + Property Suite',
-    'Sentry Pass (VMS) included — ₦15K/mo value',
+    'Sentry Pass (VMS) included — ₦7.5K/mo value',
     '500 GB shared storage',
     'Dedicated account manager',
     'Priority phone & WhatsApp support',

@@ -32,6 +32,7 @@ import type * as legalRepo from "../legalRepo.js";
 import type * as migrations from "../migrations.js";
 import type * as moneyUtils from "../moneyUtils.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as noteDictation from "../noteDictation.js";
 import type * as payments from "../payments.js";
 import type * as paystack from "../paystack.js";
 import type * as portalSecurity from "../portalSecurity.js";
@@ -83,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   moneyUtils: typeof moneyUtils;
   myFunctions: typeof myFunctions;
+  noteDictation: typeof noteDictation;
   payments: typeof payments;
   paystack: typeof paystack;
   portalSecurity: typeof portalSecurity;

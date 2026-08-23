@@ -6,23 +6,39 @@
  *   2. Estate Bulletin — community announcements
  *   3. Service Provider Directory — admin-curated vendor list
  *
- * Surfaces under Settings → Estate Community. Only renders for Atrium firms
+ * PRICING MODEL (Aug 2026):
+ *   - Pro / Enterprise / Komplete: INCLUDED FREE (core to estate manager persona)
+ *   - Starter / Growth: ADD-ON at ₦5,000/month (below Sentry's ₦7,500)
+ *   - Trial: 30 days free, once per firm
+ *
+ * Surfaces under Settings → Firm → Estate Community. Only renders for Atrium firms
  * (property managers — Vega legal firms don't manage physical estates).
+ *
+ * When the firm is below Pro and doesn't have an active add-on/trial, the
+ * panel shows an upgrade/trial CTA instead of the module toggles.
  */
 
 import React, { useState } from 'react';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeatures } from '../../hooks/useFeatures';
 import { SettingsCard } from './FirmSettings';
+import { SubscriptionPlan } from '../../types';
+import NairaSymbol from '../NairaSymbol';
 
 const EstateCommunitySettings: React.FC = () => {
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { currentUser } = useAuth();
   const updateFirm = useMutation(api.myFunctions.updateFirmSettings);
+
+  const {
+    canUseEstateCommunity,
+    estateCommunityIncludedInPlan,
+  } = useFeatures();
 
   const firm = coreState.firmDetails as any;
   const communityFeatures = firm?.settings?.communityFeatures || {
@@ -89,7 +105,58 @@ const EstateCommunitySettings: React.FC = () => {
         residents consume it.
       </p>
 
-      <div className="space-y-3">
+      {/* ─── PRICING / ACCESS STATUS BANNER ────────────────────────────── */}
+      {estateCommunityIncludedInPlan ? (
+        <div className="mb-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+          <p className="text-xs text-emerald-700 dark:text-emerald-300 font-semibold">
+            ✓ Included in your {firm?.subscriptionPlan === SubscriptionPlan.Enterprise ? 'Enterprise' : firm?.subscriptionPlan === SubscriptionPlan.Komplete ? 'Komplete' : 'Pro'} plan — no additional charge.
+          </p>
+        </div>
+      ) : canUseEstateCommunity ? (
+        <div className="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <p className="text-xs text-amber-700 dark:text-amber-300 font-semibold">
+            ⏰ Estate Community add-on is active (trial or paid). Manage your subscription in Settings → Subscription → Add-ons.
+          </p>
+        </div>
+      ) : (
+        <div className="mb-4 p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Add-on required</p>
+              <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1">
+                Estate Community is included free with <strong>Pro</strong> and above.
+                On your current plan ({firm?.subscriptionPlan || 'Starter'}), it's available as an add-on.
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-white">
+                <NairaSymbol />5,000<span className="text-xs font-normal text-slate-500">/mo</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 mt-3">
+            <a
+              href="#subscription"
+              className="text-center px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors"
+            >
+              Start 30-day free trial
+            </a>
+            <a
+              href="#subscription"
+              className="text-center px-4 py-2 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Upgrade to Pro
+            </a>
+          </div>
+          <p className="text-2xs text-slate-500 dark:text-zinc-500 mt-2 leading-relaxed">
+            Below Sentry pricing (₦7,500/mo). Bundle both add-ons for ₦10,000/mo and save ₦2,500.
+          </p>
+        </div>
+      )}
+
+      {/* ─── MODULE TOGGLES (disabled if no access) ────────────────────── */}
+      <div className={`space-y-3 ${!canUseEstateCommunity ? 'opacity-50 pointer-events-none' : ''}`}>
         {modules.map((m) => (
           <div
             key={m.key}
@@ -115,10 +182,10 @@ const EstateCommunitySettings: React.FC = () => {
 
               <button
                 onClick={() => toggleModule(m.key, !m.enabled)}
-                disabled={saving === m.key}
+                disabled={saving === m.key || !canUseEstateCommunity}
                 className={`flex-shrink-0 relative w-11 h-6 rounded-full transition-colors ${
                   m.enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-zinc-600'
-                } disabled:opacity-50`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
                 aria-label={`Toggle ${m.title}`}
                 aria-pressed={m.enabled}
               >

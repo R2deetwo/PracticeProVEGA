@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { NotePage, Matter } from '../../types';
 import { timeAgo } from '../../utils/colorUtils';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { searchEntities, EntitySearchResult } from '../../utils/linkParser';
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -87,6 +88,35 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const isProgrammaticChange = useRef(false);
     const currentPageId = useRef<string | null>(null);
 
+    // ─── PRODUCT-AWARE DICTATION (Aug 2026 rebuild) ──────────────────────
+    // Vega (legal) mode: dual-output architecture
+    //   - RAW transcript preserved verbatim (liability protection)
+    //   - CLEANED pass via Gemini (filler removal, structure)
+    //   - User can toggle between raw/cleaned in the editor
+    // Atrium (property) mode: single-pass, lighter-weight
+    //   - No raw preservation (property notes don't carry liability weight)
+    //   - Optional light cleanup via Gemini (controlled by user preference)
+    // Komplete firms: mode follows the note's contextType — a note attached
+    // to a matter uses Vega mode, a note attached to a property uses Atrium.
+    const { isProperty, isLegal, isUnified } = useProduct();
+    const { currentUser } = useAuth();
+
+    // Determine dictation mode based on product + note context
+    const dictationMode: 'vega_dual' | 'atrium_single' | null = (() => {
+        if (isUnified) {
+            // Komplete: mode follows the note's context
+            if (page.matterId) return 'vega_dual';
+            if (page.propertyId) return 'atrium_single';
+            // Default for unattached Komplete notes: Vega (safer default)
+            return 'vega_dual';
+        }
+        if (isLegal) return 'vega_dual';
+        if (isProperty) return 'atrium_single';
+        return null;
+    })();
+
+    const isDualMode = dictationMode === 'vega_dual';
+
     // ─── Bidirectional Linking ──────────────────────────────────────────
     const { matterState } = useMatterState();
     const { documentState } = useDocumentState();
@@ -129,6 +159,27 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const insertPosRef = useRef<number | null>(null);
     const restartCountRef = useRef(0);
     const MAX_RESTARTS = 5;
+
+    // ─── VEGA DUAL-OUTPUT STATE (Aug 2026) ───────────────────────────────
+    // rawTranscriptRef: accumulates the verbatim transcript during dictation.
+    //   On stop, this is persisted to notePages.rawTranscript via the
+    //   saveTranscripts mutation. Never edited — the source of truth for
+    //   dispute resolution if the cleaned version is ever challenged.
+    // isCleaning: shows a spinner during the Gemini cleanup pass (Vega mode)
+    // showRawTranscript: UI toggle to switch the editor between raw/cleaned
+    //   views. Default = cleaned (more readable), but the user can flip to
+    //   raw to verify or copy verbatim text.
+    const rawTranscriptRef = useRef<string>('');
+    const [isCleaning, setIsCleaning] = useState(false);
+    const [showRawTranscript, setShowRawTranscript] = useState(false);
+    const [hasExistingTranscript, setHasExistingTranscript] = useState(false);
+    const cleanTranscriptAction = useAction(api.noteDictation.cleanTranscript) as any;
+    const saveTranscripts = useMutation(api.noteDictation.saveTranscripts);
+
+    // Check if the current note already has transcripts (from a prior dictation)
+    useEffect(() => {
+        setHasExistingTranscript(!!(page.rawTranscript || page.cleanedTranscript));
+    }, [page.rawTranscript, page.cleanedTranscript, page.id]);
 
     useEffect(() => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -173,12 +224,94 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         }
     };
 
-    const toggleDictation = () => {
+    const toggleDictation = async () => {
         if (isDictating) {
             userStoppedRef.current = true;
             try { recognitionRef.current?.stop(); } catch (e) { /* already stopped */ }
             setIsDictating(false);
             setInterimText('');
+
+            // ─── VEGA DUAL-OUTPUT: clean the accumulated raw transcript ────
+            // After the user stops dictating, send the raw transcript to Gemini
+            // for cleanup. Both versions are persisted to notePages so the
+            // user can toggle between them. The raw is preserved verbatim
+            // (liability protection); the cleaned is what they'll normally view.
+            //
+            // Atrium mode skips this entirely — property notes are lighter-weight
+            // and don't need the dual-output ceremony.
+            if (isDualMode && rawTranscriptRef.current.trim() && page.id) {
+                const rawToClean = rawTranscriptRef.current.trim();
+                setIsCleaning(true);
+                // Build a context hint for better cleanup decisions
+                const contextHint = page.matterId
+                    ? 'legal matter note'
+                    : page.propertyId
+                        ? 'property note'
+                        : 'legal practice note';
+                // Fire-and-forget — the cleanup runs in the background while
+                // the user keeps editing. Toasts update them on success/failure.
+                (async () => {
+                    try {
+                        const cleaned = await cleanTranscriptAction({
+                            rawTranscript: rawToClean,
+                            contextHint,
+                            firmGeminiApiKey: (coreState.firmDetails as any)?.aiSettings?.geminiApiKey,
+                        });
+                        // Persist both versions to the backend
+                        await saveTranscripts({
+                            noteId: page.id as any,
+                            rawTranscript: rawToClean,
+                            cleanedTranscript: cleaned || undefined,
+                            dictationMode: 'vega_dual',
+                            userEmail: currentUser?.email,
+                        });
+                        addToast(
+                            'AI cleaned your dictation. Raw transcript preserved — toggle to view it.',
+                            { type: 'success', duration: 5000 }
+                        );
+                        setHasExistingTranscript(true);
+                    } catch (e: any) {
+                        console.error('[Dictation] Cleanup failed:', e);
+                        // Still save the raw transcript so it's not lost
+                        try {
+                            await saveTranscripts({
+                                noteId: page.id as any,
+                                rawTranscript: rawToClean,
+                                cleanedTranscript: undefined,
+                                dictationMode: 'vega_dual',
+                                userEmail: currentUser?.email,
+                            });
+                        } catch {}
+                        addToast(
+                            `AI cleanup failed: ${e?.message || 'unknown error'}. Raw transcript saved — you can edit manually or retry from the toolbar.`,
+                            { type: 'warning', duration: 7000 }
+                        );
+                    } finally {
+                        setIsCleaning(false);
+                    }
+                })();
+                // Reset for next session
+                rawTranscriptRef.current = '';
+            } else if (dictationMode === 'atrium_single') {
+                // Atrium: optionally run a light cleanup pass
+                // For now, just persist the raw + dictationMode so the backend
+                // knows this note was dictated. The light cleanup is a future
+                // enhancement — current behavior matches the old single-pass flow.
+                if (page.id) {
+                    try {
+                        await saveTranscripts({
+                            noteId: page.id as any,
+                            rawTranscript: rawTranscriptRef.current.trim(),
+                            cleanedTranscript: undefined,
+                            dictationMode: 'atrium_single',
+                            userEmail: currentUser?.email,
+                        });
+                    } catch (e) {
+                        console.warn('[Dictation] Atrium save failed:', e);
+                    }
+                }
+                rawTranscriptRef.current = '';
+            }
             return;
         }
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -187,6 +320,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         // Reset state for a fresh session
         userStoppedRef.current = false;
         restartCountRef.current = 0;
+        // Reset raw transcript accumulator (Vega mode)
+        rawTranscriptRef.current = '';
         // Save the current cursor position so transcripts land here regardless
         // of where the user taps during dictation.
         try {
@@ -216,6 +351,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             }
 
             if (finalTranscript) {
+                // ─── ACCUMULATE RAW TRANSCRIPT (Vega dual-output) ────────
+                // Store the verbatim transcript BEFORE punctuation-command
+                // processing. This is the source of truth for any later
+                // dispute about what was actually said — never edited.
+                // Atrium mode skips this (no liability weight on property notes).
+                if (isDualMode) {
+                    rawTranscriptRef.current += finalTranscript + ' ';
+                }
+
                 // Process punctuation commands and insert at saved cursor
                 const processed = processTranscript(finalTranscript);
                 insertTranscript(processed + ' ');
@@ -424,7 +568,27 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         currentPageId.current = page ? page.id : null;
     }, [page, editor]);
 
-    const { currentUser } = useAuth();
+    // ─── VEGA DUAL-OUTPUT: swap editor content when toggling raw/cleaned ──
+    // When the user clicks the "Raw ⇄ Cleaned" toggle, swap the editor's
+    // content between the cleaned version (page.content, the default view)
+    // and the verbatim raw transcript (page.rawTranscript, wrapped in <pre>
+    // to preserve whitespace and visually distinguish it).
+    useEffect(() => {
+        if (!editor || !hasExistingTranscript || !isDualMode) return;
+        isProgrammaticChange.current = true;
+        if (showRawTranscript && page.rawTranscript) {
+            // Show raw transcript — preserve as plain text in a <pre> block
+            // so the user can see exactly what was recognized, including
+            // any recognition errors the AI cleanup would have fixed.
+            editor.commands.setContent(`<pre>${page.rawTranscript.replace(/</g, '&lt;')}</pre>`);
+        } else {
+            // Show cleaned/content version
+            editor.commands.setContent(page.content || '');
+        }
+        isProgrammaticChange.current = false;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showRawTranscript, hasExistingTranscript]);
+
     const isDemo = currentUser?.email === 'demo@practicepro.ng';
 
     // PHASE 1: Fetch full content on-demand if missing
@@ -510,26 +674,78 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                         <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('orderedList') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'} text-xs leading-none`}>1. List</button>
                         {/* Dictation (Voice-to-Text) — uses Web Speech API.
                             Only shown on browsers/webviews that support it
-                            (Chrome, Edge, Android WebView). Hidden on Safari. */}
-                        {dictationSupported && (
+                            (Chrome, Edge, Android WebView). Hidden on Safari
+                            with an explicit tooltip explaining why. */}
+                        {dictationSupported ? (
                             <>
                                 <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
                                 <button
                                     onClick={toggleDictation}
+                                    disabled={isCleaning}
                                     className={`p-1.5 rounded transition-all flex items-center gap-1 ${
                                         isDictating
                                             ? 'bg-red-500 text-white animate-pulse'
-                                            : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500'
+                                            : isCleaning
+                                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                                                : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500'
                                     }`}
-                                    title={isDictating ? 'Stop dictation' : 'Start voice dictation'}
+                                    title={
+                                        isDictating ? 'Stop dictation'
+                                        : isCleaning ? 'AI cleaning transcript…'
+                                        : isDualMode
+                                            ? 'Start voice dictation (Vega mode — preserves raw + cleaned transcript)'
+                                            : 'Start voice dictation (Atrium mode — single-pass)'
+                                    }
+                                >
+                                    {isCleaning ? (
+                                        <div className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                            <line x1="12" y1="19" x2="12" y2="23"/>
+                                            <line x1="8" y1="23" x2="16" y2="23"/>
+                                        </svg>
+                                    )}
+                                    {isDictating && <span className="text-3xs font-bold">Listening...</span>}
+                                    {isCleaning && <span className="text-3xs font-bold">Cleaning...</span>}
+                                </button>
+                                {/* VEGA DUAL-OUTPUT: raw/cleaned toggle + AI-disclosure marker.
+                                    Only shown after dictation completes (hasExistingTranscript).
+                                    Atrium mode doesn't get the toggle — single-pass only. */}
+                                {hasExistingTranscript && isDualMode && (
+                                    <button
+                                        onClick={() => setShowRawTranscript(!showRawTranscript)}
+                                        className="px-2 py-1 rounded text-3xs font-bold uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors flex items-center gap-1"
+                                        title="Toggle between AI-cleaned and verbatim raw transcript. Raw is preserved for dispute resolution — never edited automatically."
+                                    >
+                                        {showRawTranscript ? '📄 Raw' : '✨ Cleaned'}
+                                        <span className="opacity-60">⇄</span>
+                                    </button>
+                                )}
+                                {hasExistingTranscript && isDualMode && !showRawTranscript && (
+                                    <span className="text-3xs text-violet-500 dark:text-violet-400 italic">
+                                        AI-cleaned from dictation
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            // Unsupported-browser state — explicit, not a broken button.
+                            // Shows a disabled mic icon with tooltip explaining why.
+                            <>
+                                <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+                                <button
+                                    disabled
+                                    className="p-1.5 rounded text-slate-300 dark:text-zinc-600 cursor-not-allowed flex items-center gap-1"
+                                    title="Voice dictation requires Chrome, Edge, or Android WebView. Not supported in this browser (Safari/Firefox)."
                                 >
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                                         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                                         <line x1="12" y1="19" x2="12" y2="23"/>
                                         <line x1="8" y1="23" x2="16" y2="23"/>
+                                        <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2}/>
                                     </svg>
-                                    {isDictating && <span className="text-3xs font-bold">Listening...</span>}
                                 </button>
                             </>
                         )}

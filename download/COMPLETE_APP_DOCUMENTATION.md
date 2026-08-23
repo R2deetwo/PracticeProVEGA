@@ -91,14 +91,16 @@
 |--------|-------|---------|
 | ₦2,500,000/yr | Unlimited | 500 GB |
 
-Annual-only. Includes everything from Vega Pro + Atrium Pro + Sentry Pass (₦15K/mo value) + dedicated account manager.
+Annual-only. Includes everything from Vega Pro + Atrium Pro + Sentry Pass (₦7.5K/mo value) + Estate Community + dedicated account manager.
 
 ### Add-Ons
 - Extra 5 Seats: ₦20,000/mo
 - Extra 10 Seats: ₦36,000/mo
 - Extra 50 GB Storage: ₦8,000/mo
 - Custom Integration Setup: ₦250,000 one-time
-- Sentry Pass (VMS): ₦15,000/mo (free with Komplete)
+- Sentry Pass (VMS): ₦7,500/mo (free with Komplete; was ₦15,000 — repriced Aug 2026 after audit found 3× overpricing vs. competitor benchmarks ₦5K-8K and 95% margin)
+- Estate Community Features: ₦5,000/mo (free with Pro/Enterprise/Komplete; 30-day trial available)
+- **Bundle:** Sentry Pass + Estate Community together: ₦10,000/mo (saves ₦2,500)
 
 ### Trial System
 - 30-day free trial on all paid tiers (no credit card required)
@@ -164,6 +166,8 @@ Annual-only. Includes everything from Vega Pro + Atrium Pro + Sentry Pass (₦15
 | Add Users | Growth+ |
 | Audit Logs | Enterprise+ |
 | Court Date Reminders | Growth+ |
+| Sentry Pass (VMS) | Add-on ₦7,500/mo (free with Komplete/Enterprise) |
+| Estate Community Features | Atrium firm AND (Pro+ OR Estate Community add-on ₦5,000/mo active/trial) |
 
 ---
 
@@ -188,10 +192,35 @@ Annual-only. Includes everything from Vega Pro + Atrium Pro + Sentry Pass (₦15
 ## 8. Onboarding Flow
 
 1. **Signup:** Product selection (Vega/Atrium/Komplete) → Create account form → Email verification
-2. **OnboardingWizard:** Workspace name → Plan selection (tier cards, billing toggle, DPA, payment/trial)
-3. **Dashboard:** Getting Started checklist appears in sidebar (6 product-specific items)
-4. **Onboarding Tour:** 7-step product tour auto-starts 5s after Dashboard mount
-5. **CompleteSetupBanner:** Dashboard banner showing next incomplete checklist item
+2. **OnboardingWizard:** Workspace name → Plan selection (tier cards, billing toggle, DPA, payment/trial) → Communication channels → Team invite → Review
+3. **Team-invite intent persisted:** Choosing "Yes — invite my team" records `settings.teamInviteIntent = 'invited'` so the checklist item ticks off immediately. Choosing "Just me for now" records `'solo'` → item shows dashed "skipped" state, counts toward 100% completion.
+4. **Dashboard:** Getting Started checklist appears in sidebar (6 product-specific items)
+5. **Onboarding Tour:** 7-step product tour auto-starts 5s after Dashboard mount
+6. **CompleteSetupBanner:** Dashboard banner showing next incomplete checklist item
+
+---
+
+## 8.5. Estate Community Features (Atrium only)
+
+Three admin-controllable community modules for residential estates:
+
+| Module | Purpose | Storage |
+|--------|---------|---------|
+| Amenity Booking | Residents book shared amenities (gym, pool, clubhouse) | `estate_amenities`, `estate_amenity_bookings` |
+| Estate Bulletin | Community announcements (events, meetings) — distinct from operational `portal_notices` | `estate_bulletins` |
+| Service Provider Directory | Admin-curated vendor list (plumbers, electricians, cleaners) — residents browse and contact directly | `estate_service_providers` |
+
+**Pricing:** Included free with Pro/Enterprise/Komplete. Add-on at ₦5,000/month for Starter/Growth (below Sentry's ₦7,500). 30-day trial available.
+
+**Implementation:**
+- Backend: `convex/estateCommunity.ts` (13 mutations + 6 queries, all gated by `requireEstateCommunityAccess`)
+- Admin UI: `src/components/settings/EstateCommunitySettings.tsx` (3 toggle switches, shows "Included in Plan" for Pro+ or upgrade CTA for below-Pro)
+- Subscription: `EstateCommunityAddonPanel` in SubscriptionSettings (trial/active/expired states, mirrors VMS pattern)
+- Resident UI: `src/components/tenant/EstateCommunityResidentView.tsx` (module switcher, renders only admin-enabled modules)
+- Resident portal tab: "Community" tab appears only when admin enables at least one module AND the firm has access (Pro+ or active add-on)
+- Feature gate: `useFeatures().canUseEstateCommunity` — checked in admin panel (disables toggles if no access) and backend (every query/mutation)
+
+**Key design decision:** All three modules are independently toggleable per-firm. Admin enables only what's relevant to their estate. Commercial-only firms can leave all three disabled — the "Community" tab doesn't appear in their resident portal.
 
 ---
 

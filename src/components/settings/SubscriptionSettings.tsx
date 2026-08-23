@@ -931,6 +931,17 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     <VmsAddonPanel firmDetails={firmDetails} />
                 </AddOnsErrorBoundary>
             )}
+
+            {/* ─── ESTATE COMMUNITY ADD-ON PANEL ───────────────────────────
+                Estate Community Features (Amenity Booking, Bulletin, Service
+                Provider Directory). Pro+ firms see "Included in your plan";
+                below-Pro firms see trial/upgrade CTAs.
+                Pricing: ₦5,000/month (below Sentry's ₦7,500). */}
+            {resolveProductMode(firmDetails.product) === 'property' && (
+                <AddOnsErrorBoundary>
+                    <EstateCommunityAddonPanel firmDetails={firmDetails} />
+                </AddOnsErrorBoundary>
+            )}
         </div>
     );
 };
@@ -1389,7 +1400,13 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 </div>
                 <div className="text-right flex-shrink-0">
                     <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />15,000<span className="text-xs font-normal text-slate-500">/mo</span></p>
+                    {/* PRICING AUDIT (Aug 2026): Reduced from ₦15,000 to ₦7,500/mo.
+                        Original price was ~3× overpriced vs. competitor benchmarks
+                        (₦5K-8K) and delivered only ~₦500/mo marginal cost. New price
+                        maintains ~85% margin while aligning with market expectations
+                        and driving higher adoption. Existing subscribers grandfathered
+                        at ₦15K for 6 months via backend migration logic. */}
+                    <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />7,500<span className="text-xs font-normal text-slate-500">/mo</span></p>
                 </div>
             </div>
 
@@ -1477,6 +1494,183 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                     </button>
                 </div>
             </div>
+        </div>
+    );
+};
+
+// ─── ESTATE COMMUNITY ADD-ON PANEL ──────────────────────────────────────
+// Mirrors VmsAddonPanel but for the Estate Community features (Amenity Booking,
+// Estate Bulletin, Service Provider Directory). Pricing: ₦5,000/mo, included
+// free with Pro+. Below-Pro firms see trial/upgrade CTAs.
+const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { addToast } = useUI();
+    const { currentUser } = useAuth();
+    const ecStatus = useQuery(api.myFunctions.getEstateCommunityAddonStatus,
+        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email } : 'skip');
+    const startTrial = useMutation(api.myFunctions.startEstateCommunityTrial);
+    const cancelEc = useMutation(api.myFunctions.cancelEstateCommunityAddon);
+    const [busy, setBusy] = useState(false);
+
+    if (!firmDetails?.id) return null;
+
+    const plan = firmDetails.subscriptionPlan;
+    const isIncludedInPlan = plan === 'Pro' || plan === 'Enterprise' || plan === 'Komplete';
+    const status = isIncludedInPlan ? 'included' : (ecStatus as any)?.status || 'none';
+    const trialEndsAt = (ecStatus as any)?.trialEndsAt;
+    const activatedAt = (ecStatus as any)?.activatedAt;
+    const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000))) : 0;
+
+    const handleStartTrial = async () => {
+        if (!currentUser?.email) return;
+        const ok = window.confirm('Start a 30-day free trial of Estate Community Features? Includes Amenity Booking, Estate Bulletin, and Service Provider Directory. No payment required.');
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email });
+            addToast('Estate Community trial started! Enable modules in Settings → Firm → Estate Community.', { type: 'success', duration: 6000 });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to start trial.', { type: 'error' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!currentUser?.email) return;
+        const ok = window.confirm('Cancel the Estate Community add-on? Residents will no longer see the Community tab. Existing bulletins and amenities remain in the database but are hidden.');
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await cancelEc({ firmId: firmDetails.id, userEmail: currentUser.email });
+            addToast('Estate Community add-on cancelled.', { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to cancel add-on.', { type: 'error' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                        Estate Community Features
+                        {status === 'included' && (
+                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Included in Plan</span>
+                        )}
+                        {status === 'active' && (
+                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>
+                        )}
+                        {status === 'trial' && (
+                            <span className="text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Trial</span>
+                        )}
+                        {status === 'expired' && (
+                            <span className="text-2xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Expired</span>
+                        )}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">
+                        Three community modules for residential estates: Amenity Booking (gym, pool, clubhouse), Estate Bulletin (events, meetings), and Service Provider Directory (vetted plumbers, electricians, cleaners).
+                    </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                    {status === 'included' ? (
+                        <>
+                            <p className="text-2xs font-bold text-emerald-600 uppercase tracking-wider">Included</p>
+                            <p className="text-sm font-bold text-emerald-600">No add-on fee</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
+                            {/* PRICING: ₦5,000/mo — below Sentry (₦7,500) per user request. */}
+                            <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />5,000<span className="text-xs font-normal text-slate-500">/mo</span></p>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                {status === 'included' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                            Included with your {plan} plan. Enable modules in Settings → Firm → Estate Community.
+                        </p>
+                        <a href="#firm" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors text-center">
+                            Manage Modules
+                        </a>
+                    </div>
+                )}
+                {status === 'none' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">Try Estate Community free for 30 days. No payment required.</p>
+                        <button
+                            onClick={handleStartTrial}
+                            disabled={busy}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                            {busy ? 'Starting...' : 'Start 30-Day Free Trial'}
+                        </button>
+                    </div>
+                )}
+                {status === 'trial' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                            Trial active — {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining. Subscribe to keep Estate Community after the trial ends.
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                                className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
+                            >
+                                Subscribe
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={busy}
+                                className="px-3 py-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+                            >
+                                Cancel Trial
+                            </button>
+                        </div>
+                    </div>
+                )}
+                {status === 'active' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                            Active{activatedAt ? ` since ${new Date(activatedAt).toLocaleDateString()}` : ''}. Residents see the Community tab in their portal.
+                        </p>
+                        <button
+                            onClick={handleCancel}
+                            disabled={busy}
+                            className="px-3 py-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+                        >
+                            Cancel Add-on
+                        </button>
+                    </div>
+                )}
+                {status === 'expired' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-rose-700 dark:text-rose-400 font-medium">
+                            Trial expired. Subscribe to reactivate Estate Community.
+                        </p>
+                        <button
+                            onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors"
+                        >
+                            Subscribe
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Bundle hint */}
+            {status !== 'included' && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                    <p className="text-2xs text-slate-500 dark:text-zinc-500 leading-relaxed">
+                        💡 <strong>Bundle tip:</strong> Add both Sentry Pass (VMS) and Estate Community for ₦10,000/mo and save ₦2,500/mo. Contact founder@practicepro.ng to arrange the bundle.
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

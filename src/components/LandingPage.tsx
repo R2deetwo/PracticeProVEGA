@@ -832,10 +832,19 @@ const ATRIUM_FEATURE_CATEGORIES = [
         category: 'Maintenance & Operations',
         Icon: ShieldCheckIcon,
         items: [
-            { title: 'Sentry Pass', desc: 'Generate 6-digit visitor access codes for guests, contractors, and delivery personnel. Gatekeepers verify codes at the security terminal via PIN or QR code scan. Full audit trail with check-in/check-out timestamps. Includes offline fallback for unreliable gatehouse connectivity.', badge: 'Add-on' },
+            { title: 'Sentry Pass', desc: 'Generate 6-digit visitor access codes for guests, contractors, and delivery personnel. Gatekeepers verify codes at the security terminal via PIN or QR code scan. Full audit trail with check-in/check-out timestamps. Includes offline fallback for unreliable gatehouse connectivity.', badge: 'Add-on ₦7.5K/mo' },
             { title: 'Maintenance Tickets', desc: 'Residents log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
             { title: 'Expense Tracking', desc: 'Log maintenance costs, service charges, and utility bills per property. Track income vs. expenses with cash flow visualizations.' },
             { title: 'Estate Administration Documents', desc: 'Streamline property administration, manage tenancy records, and generate standard estate management administrative documents with precision.', badge: 'Pro' },
+        ],
+    },
+    {
+        category: 'Estate Community',
+        Icon: SparklesIcon,
+        items: [
+            { title: 'Amenity Booking', desc: 'Let residents book shared amenities — gym, pool, clubhouse, meeting rooms — directly from their portal. Admin defines slot duration, operating hours, and approval rules. Conflict detection prevents double-bookings. Perfect for estates where amenity scheduling is currently a phone-call bottleneck.', badge: 'Pro+ / Add-on ₦5K/mo' },
+            { title: 'Estate Bulletin', desc: 'Post community announcements — estate meetings, holiday hours, social events, security alerts. Distinct from operational notices (rent reminders, SC updates). Pinned posts surface to the top. Optional event metadata (date, time, location). Scope visibility to specific properties or estate-wide.' },
+            { title: 'Service Provider Directory', desc: 'Curate a list of vetted plumbers, electricians, cleaners, gardeners, and security vendors. Residents browse and contact directly — you stay out of the middle. Admin marks providers as "Verified" based on track record. Internal admin notes (not shown to residents) help you track why a provider was added.' },
         ],
     },
     {

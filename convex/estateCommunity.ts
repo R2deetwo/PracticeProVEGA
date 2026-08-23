@@ -9,12 +9,61 @@
  *
  * All mutations require admin role (requireAdmin). Queries are resident-facing
  * but scoped to the resident's firm.
+ *
+ * ─── PRICING / ACCESS GATE (Aug 2026) ───────────────────────────────────
+ * Estate Community is included free with Pro/Enterprise/Komplete. Below Pro,
+ * it's a ₦5,000/month add-on (with 30-day trial).
+ *
+ * Every query + mutation checks `hasEstateCommunityAccess(firm)`:
+ *   - plan is Pro/Enterprise/Komplete → included
+ *   - firm.subscriptionAddons.estateCommunity.status === 'active' → paid add-on
+ *   - status === 'trial' && trialEndsAt > now → trial period
+ *   - else → throw "Estate Community is not active on your plan"
+ *
+ * This prevents a resident from accessing community data via direct API call
+ * if their firm's add-on expired or was never activated.
  */
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
+
+// ════════════════════════════════════════════════════════════════════════
+// ACCESS GATE — Estate Community is Pro+ included or ₦5,000/mo add-on.
+// Called by every query + mutation. Throws if the firm doesn't have access.
+// Mirrors the frontend gate in useFeatures.ts → canUseEstateCommunity.
+// ════════════════════════════════════════════════════════════════════════
+async function hasEstateCommunityAccess(ctx: any, firmId: string): Promise<boolean> {
+  let firm: any = await ctx.db
+    .query("firms")
+    .filter((q: any) => q.eq(q.field("id"), firmId))
+    .first();
+  if (!firm) {
+    try { firm = await ctx.db.get(firmId as any); } catch { /* not a valid Convex id */ }
+  }
+  if (!firm) return false;
+
+  // Pro+ firms: included free
+  const plan = firm.subscriptionPlan;
+  if (plan === 'Pro' || plan === 'Enterprise' || plan === 'Komplete') return true;
+
+  // Below Pro: check add-on status
+  const ec = firm.subscriptionAddons?.estateCommunity;
+  if (!ec) return false;
+  if (ec.status === 'active') return true;
+  if (ec.status === 'trial' && ec.trialEndsAt && ec.trialEndsAt > Date.now()) return true;
+  return false;
+}
+
+async function requireEstateCommunityAccess(ctx: any, firmId: string) {
+  const ok = await hasEstateCommunityAccess(ctx, firmId);
+  if (!ok) {
+    throw new Error(
+      "Estate Community is not active on your plan. Upgrade to Pro or activate the add-on in Settings → Subscription."
+    );
+  }
+}
 
 // ════════════════════════════════════════════════════════════════════════
 // AMENITIES (admin CRUD)
@@ -36,6 +85,7 @@ export const createAmenity = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
     return await ctx.db.insert("estate_amenities", {
@@ -73,6 +123,7 @@ export const updateAmenity = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity) throw new Error("Amenity not found");
     if (amenity.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -89,6 +140,7 @@ export const deleteAmenity = mutation({
   args: { amenityId: v.id("estate_amenities"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity) throw new Error("Amenity not found");
     if (amenity.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -113,6 +165,7 @@ export const createBooking = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireFirmUser(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, args.firmId);
     const firmId = auth.firmId || args.firmId;
 
     const amenity = await ctx.db.get(args.amenityId);
@@ -184,6 +237,7 @@ export const reviewBooking = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Booking not found");
     if (booking.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -210,6 +264,7 @@ export const cancelBooking = mutation({
     const auth = await requireFirmUser(ctx, args.userEmail);
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Booking not found");
+    await requireEstateCommunityAccess(ctx, booking.firmId);
     // Resident can cancel their own; admin can cancel any in their firm
     if (booking.residentUserId !== auth.userId && booking.firmId !== auth.firmId) {
       // Check admin role for cross-resident cancels
@@ -242,6 +297,7 @@ export const createBulletin = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
     return await ctx.db.insert("estate_bulletins", {
@@ -279,6 +335,7 @@ export const updateBulletin = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const bulletin = await ctx.db.get(args.bulletinId);
     if (!bulletin) throw new Error("Bulletin not found");
     if (bulletin.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -295,6 +352,7 @@ export const archiveBulletin = mutation({
   args: { bulletinId: v.id("estate_bulletins"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const bulletin = await ctx.db.get(args.bulletinId);
     if (!bulletin) throw new Error("Bulletin not found");
     if (bulletin.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -325,6 +383,7 @@ export const createServiceProvider = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
     return await ctx.db.insert("estate_service_providers", {
@@ -366,6 +425,7 @@ export const updateServiceProvider = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const provider = await ctx.db.get(args.providerId);
     if (!provider) throw new Error("Service provider not found");
     if (provider.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -382,6 +442,7 @@ export const deleteServiceProvider = mutation({
   args: { providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const provider = await ctx.db.get(args.providerId);
     if (!provider) throw new Error("Service provider not found");
     if (provider.firmId !== auth.firmId) throw new Error("Not authorized");
@@ -399,6 +460,7 @@ export const getAmenities = query({
   args: { firmId: v.string(), includeInactive: v.optional(v.boolean()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     await requireFirmUser(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, args.firmId);
     let q = ctx.db
       .query("estate_amenities")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId));
@@ -412,6 +474,7 @@ export const getBookingsForResident = query({
   args: { firmId: v.string(), residentUserId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireFirmUser(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, args.firmId);
     // Resident can only see their own bookings unless admin/founder
     const isAdmin = auth.user?.role === "Admin" || auth.user?.role === "Founder";
     const targetResidentId = (args.residentUserId === auth.userId) || isAdmin
@@ -428,7 +491,8 @@ export const getBookingsForResident = query({
 export const getBookingsForFirm = query({
   args: { firmId: v.string(), status: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, auth.firmId || args.firmId);
     let q = ctx.db
       .query("estate_amenity_bookings")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId));
@@ -442,6 +506,7 @@ export const getBulletins = query({
   args: { firmId: v.string(), propertyId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     await requireFirmUser(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, args.firmId);
     const all = await ctx.db
       .query("estate_bulletins")
       .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "active"))
@@ -460,6 +525,7 @@ export const getServiceProviders = query({
   args: { firmId: v.string(), category: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     await requireFirmUser(ctx, args.userEmail);
+    await requireEstateCommunityAccess(ctx, args.firmId);
     let q = ctx.db
       .query("estate_service_providers")
       .withIndex("by_firm_active", (q) => q.eq("firmId", args.firmId).eq("isActive", true));
@@ -478,6 +544,7 @@ export const getServiceProvider = query({
     await requireFirmUser(ctx, args.userEmail);
     const provider = await ctx.db.get(args.providerId);
     if (!provider || !provider.isActive) return null;
+    await requireEstateCommunityAccess(ctx, provider.firmId);
     // Strip internal admin notes from resident view
     const { notes, ...publicFields } = provider as any;
     return publicFields;

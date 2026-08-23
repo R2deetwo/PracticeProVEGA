@@ -514,6 +514,21 @@ export default defineSchema({
     order: nullableNumber,
     type: nullableString,
     systemNoteIcon: nullableString,
+    // DICTATION (Vega dual-output architecture — Aug 2026)
+    // rawTranscript: verbatim transcript exactly as recognized by Web Speech API,
+    //   never edited automatically. Preserved so a lawyer can verify the cleaned
+    //   version against the original if the cleaned version is ever disputed.
+    //   Null for notes never created via dictation. Only populated for Vega
+    //   (legal) firms — Atrium uses single-pass mode without raw preservation.
+    rawTranscript: nullableString,
+    // cleanedTranscript: AI-polished version of rawTranscript (filler words removed,
+    //   structured for readability). Null when not yet cleaned. Toggle in UI shows
+    //   both raw and cleaned so the user can compare. The `content` field holds
+    //   whichever the user is currently viewing/editing.
+    cleanedTranscript: nullableString,
+    // dictationMode: 'vega_dual' | 'atrium_single' | null. Records which mode
+    //   was used when the note was dictated. Used to render the correct toggle UI.
+    dictationMode: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
   })

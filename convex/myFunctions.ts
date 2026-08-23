@@ -6329,8 +6329,213 @@ export const cancelVmsAddon = mutation({
   },
 });
 
+// ─── ESTATE COMMUNITY ADD-ON (mirrors VMS pattern) ──────────────────────
+// Pricing: ₦5,000/month, included free for Pro+.
+// Trial: 30 days free, once per firm.
+// Stored at firm.subscriptionAddons.estateCommunity = { status, trialStartsAt,
+// trialEndsAt, activatedAt, cancelledAt }.
+// Backend gating: Estate Community queries (estateCommunity.ts) check
+// requireFirmUser for reads and requireAdmin for writes. The feature gate
+// (whether modules render at all) lives in useFeatures.ts and checks either
+// isProOrAbove OR the add-on status here.
+
+/**
+ * query: getEstateCommunityAddonStatus
+ * Returns the firm's Estate Community add-on state. Used by the Subscription
+ * Settings page to show trial countdown, active status, or upgrade prompt.
+ * Also used by useFeatures.ts to gate the Community tab in the resident portal.
+ */
+export const getEstateCommunityAddonStatus = query({
+  args: {
+    firmId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireFirmUser(ctx, args.userEmail);
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) return { status: 'none' as const };
+    const ec = (firm.subscriptionAddons as any)?.estateCommunity;
+    if (!ec) return { status: 'none' as const };
+    // Auto-expire trial if past trialEndsAt
+    if (ec.status === 'trial' && ec.trialEndsAt && ec.trialEndsAt < Date.now()) {
+      return { ...ec, status: 'expired' as const };
+    }
+    return ec;
+  },
+});
+
+/**
+ * mutation: startEstateCommunityTrial
+ * Starts a 30-day free trial of the Estate Community add-on. Only firm admins
+ * can start a trial. Each firm can only trial once (prevents trial cycling).
+ * Pro+ firms don't need this — Estate Community is included in their plan.
+ */
+export const startEstateCommunityTrial = mutation({
+  args: {
+    firmId: v.string(),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const adminUser = auth.user;
+    if (!adminUser) throw new Error("User not found");
+
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+      throw new Error("Only firm administrators can start add-on trials");
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    // Pro+ firms already have Estate Community included — no trial needed
+    const plan = firm.subscriptionPlan;
+    if (plan === 'Pro' || plan === 'Enterprise' || plan === 'Komplete') {
+      throw new Error("Estate Community is already included in your plan — no trial needed.");
+    }
+
+    const existing = (firm.subscriptionAddons as any)?.estateCommunity;
+    if (existing && (existing.status === 'trial' || existing.status === 'active')) {
+      throw new Error(`Estate Community add-on is already ${existing.status}.`);
+    }
+    if (existing && existing.trialStartsAt) {
+      throw new Error("This firm has already used its 30-day Estate Community trial. Please subscribe to continue.");
+    }
+
+    const now = Date.now();
+    const TRIAL_DURATION_MS = 30 * 24 * 60 * 60 * 1000;  // 30 days
+    const updatedAddons = {
+      ...(firm.subscriptionAddons as any || {}),
+      estateCommunity: {
+        status: 'trial',
+        trialStartsAt: now,
+        trialEndsAt: now + TRIAL_DURATION_MS,
+      },
+    };
+
+    await ctx.db.patch(firm._id, {
+      subscriptionAddons: updatedAddons,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true, trialEndsAt: now + TRIAL_DURATION_MS };
+  },
+});
+
+/**
+ * mutation: activateEstateCommunityAddon
+ * Founder-only — activates the Estate Community add-on for a firm after
+ * payment is confirmed. Used by the founder admin dashboard to flip
+ * trial/expired firms to 'active' once their subscription payment is processed.
+ */
+export const activateEstateCommunityAddon = mutation({
+  args: {
+    firmId: v.string(),
+    activatedBy: v.string(),
+    expiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    if (!FOUNDER_EMAILS.includes(args.activatedBy)) {
+      throw new Error("Only the platform founder can activate add-ons");
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    const updatedAddons = {
+      ...(firm.subscriptionAddons as any || {}),
+      estateCommunity: {
+        status: 'active',
+        activatedAt: Date.now(),
+        expiresAt: args.expiresAt || null,
+        trialStartsAt: (firm.subscriptionAddons as any)?.estateCommunity?.trialStartsAt,
+        trialEndsAt: (firm.subscriptionAddons as any)?.estateCommunity?.trialEndsAt,
+      },
+    };
+
+    await ctx.db.patch(firm._id, {
+      subscriptionAddons: updatedAddons,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * mutation: cancelEstateCommunityAddon
+ * Firm admin cancels the Estate Community add-on. Status moves to 'expired'
+ * so the gate in useFeatures.ts blocks the Community tab from rendering.
+ */
+export const cancelEstateCommunityAddon = mutation({
+  args: {
+    firmId: v.string(),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const adminUser = auth.user;
+    if (!adminUser) throw new Error("User not found");
+
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
+    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+      throw new Error("Only firm administrators can cancel add-ons");
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    const existing = (firm.subscriptionAddons as any)?.estateCommunity;
+    if (!existing || existing.status === 'none') {
+      throw new Error("Estate Community add-on is not active");
+    }
+
+    const updatedAddons = {
+      ...(firm.subscriptionAddons as any || {}),
+      estateCommunity: {
+        ...existing,
+        status: 'expired',
+        cancelledAt: Date.now(),
+      },
+    };
+
+    await ctx.db.patch(firm._id, {
+      subscriptionAddons: updatedAddons,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
+  },
+});
+
 // ─── ORGANIZATION PAYOUT DETAILS (Founder Financial Hub) ────────────────
-//
 // Single source of truth for PracticePro Systems Limited's corporate bank
 // account. Used by all manual bank transfer checkouts. Managed exclusively
 // by the Founder App. The portal/checkout components query getOrgPayoutDetails
