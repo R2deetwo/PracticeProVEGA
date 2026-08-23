@@ -1,7 +1,10 @@
 package com.practicepro.app;
 
 import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
 import android.webkit.PermissionRequest;
@@ -19,6 +22,9 @@ import com.practicepro.app.plugins.ContentProtectionPlugin;
  * Native security features:
  * 1. FLAG_SECURE — prevents screenshots at the OS level (same as banking apps).
  * 2. WebView debugging disabled in production.
+ * 3. Notification channel creation — Android 8+ requires channels before
+ *    notifications can display. Without this, FCM push notifications
+ *    are silently dropped by the OS.
  *
  * Microphone permission bridging:
  * When the web app calls navigator.mediaDevices.getUserMedia({ audio: true }),
@@ -37,11 +43,46 @@ public class MainActivity extends BridgeActivity {
     private static final int MIC_PERMISSION_REQUEST_CODE = 4242;
     private PermissionRequest pendingWebPermissionRequest = null;
 
+    // ─── NOTIFICATION CHANNEL (Aug 2026) ───────────────────────────────
+    // Android 8+ (API 26+) requires notification channels. Without a channel,
+    // FCM push notifications are silently dropped by the OS — the user sees
+    // nothing (no banner, no sound, no tray icon). The backend sends
+    // notifications tagged with channelId "practicepro-general", but if
+    // that channel doesn't exist on the device, the notification is dropped.
+    // This creates the channel at app startup so notifications can display.
+    private static final String CHANNEL_ID = "practicepro-general";
+    private static final String CHANNEL_NAME = "PracticePro Notifications";
+    private static final String CHANNEL_DESC = "Matter updates, rent reminders, maintenance tickets, and estate announcements";
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH  // Shows as heads-up notification with sound
+            );
+            channel.setDescription(CHANNEL_DESC);
+            channel.enableLights(true);
+            channel.enableVibration(true);
+            channel.setShowBadge(true);
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ContentProtectionPlugin.class);
         super.onCreate(savedInstanceState);
         applyFlagSecure();
+
+        // Create notification channel BEFORE any notification could arrive.
+        // Must run in onCreate so the channel exists before the first FCM
+        // message is processed.
+        createNotificationChannel();
 
         // Disable WebView debugging — security hardening.
         WebView.setWebContentsDebuggingEnabled(false);

@@ -6316,7 +6316,28 @@ export const cancelVmsAddon = mutation({
     if (!firm) throw new Error("Firm not found");
 
     const existingVms = (firm.subscriptionAddons as any)?.vms;
+    // AUG 2026 FIX: If the firm's plan includes VMS (Komplete/Enterprise),
+    // there may be no subscriptionAddons.vms record at all — the add-on
+    // status is 'included' per getVmsAddonStatus. Don't throw "not active"
+    // in that case; just set it to 'expired' (which the gate ignores since
+    // the tier-based bypass in visitorManagement.ts checks the plan first).
     if (!existingVms || existingVms.status === 'none') {
+      // Check if VMS is included in the plan — if so, we can still "cancel"
+      // (which is a no-op for included plans, but shouldn't error)
+      const plan = firm.subscriptionPlan;
+      if (plan === 'Komplete' || plan === 'Enterprise') {
+        // VMS is included — no add-on to cancel. Update the record to
+        // reflect the user's intent (in case they later downgrade).
+        const updatedAddons = {
+          ...(firm.subscriptionAddons as any || {}),
+          vms: { status: 'expired', cancelledAt: Date.now() },
+        };
+        await ctx.db.patch(firm._id, {
+          subscriptionAddons: updatedAddons,
+          updatedAt: new Date().toISOString(),
+        });
+        return { success: true };
+      }
       throw new Error("VMS add-on is not active");
     }
 
@@ -6522,7 +6543,23 @@ export const cancelEstateCommunityAddon = mutation({
     if (!firm) throw new Error("Firm not found");
 
     const existing = (firm.subscriptionAddons as any)?.estateCommunity;
+    // AUG 2026 FIX: If the firm's plan includes Estate Community (Pro+),
+    // there may be no subscriptionAddons.estateCommunity record at all.
+    // Don't throw "not active" — set it to 'expired' (which the gate
+    // ignores since the tier-based bypass checks the plan first).
     if (!existing || existing.status === 'none') {
+      const plan = firm.subscriptionPlan;
+      if (plan === 'Pro' || plan === 'Enterprise' || plan === 'Komplete') {
+        const updatedAddons = {
+          ...(firm.subscriptionAddons as any || {}),
+          estateCommunity: { status: 'expired', cancelledAt: Date.now() },
+        };
+        await ctx.db.patch(firm._id, {
+          subscriptionAddons: updatedAddons,
+          updatedAt: new Date().toISOString(),
+        });
+        return { success: true };
+      }
       throw new Error("Estate Community add-on is not active");
     }
 

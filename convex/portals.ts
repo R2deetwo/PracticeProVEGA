@@ -5142,18 +5142,21 @@ export const updateFirmPortalSettings = mutation({
         throw new Error("Not authorized: cannot update settings for a different firm.");
       }
     }
-    const { firmId, ...updates } = args;
+    const { firmId, userEmail, ...updates } = args;
     const existing = await ctx.db
       .query("portal_settings")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { ...updates, updatedAt: Date.now() });
+      // Strip userEmail before patching — it's not a field in portal_settings
+      const { userEmail: _ignored, ...patchData } = updates as any;
+      await ctx.db.patch(existing._id, { ...patchData, updatedAt: Date.now() });
     } else {
+      const { userEmail: _ignored, ...insertData } = updates as any;
       await ctx.db.insert("portal_settings", {
         firmId,
-        ...updates,
+        ...insertData,
         tenantMessagingEnabled: updates.tenantMessagingEnabled ?? false,
         clientMessagingEnabled: updates.clientMessagingEnabled ?? false,
         paymentProofUploadEnabled: updates.paymentProofUploadEnabled ?? true,

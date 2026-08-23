@@ -1181,7 +1181,7 @@ export const PortalAccessSettings: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
                 </div>
                 <button
-                  onClick={() => updateSettings({ firmId, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+                  onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1196,7 +1196,7 @@ export const PortalAccessSettings: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
                 </div>
                 <button
-                  onClick={() => updateSettings({ firmId, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+                  onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1230,7 +1230,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Residents can generate 6-digit access codes for their visitors</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, vmsEnabled: !portalSettings?.vmsEnabled })}
+                onClick={() => updateSettings({ firmId, vmsEnabled: !portalSettings?.vmsEnabled, userEmail: currentUser?.email })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.vmsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1244,7 +1244,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send WhatsApp alert to gatekeeper when a visitor is verified</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, vmsGatekeeperNotifications: !portalSettings?.vmsGatekeeperNotifications })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, vmsGatekeeperNotifications: !portalSettings?.vmsGatekeeperNotifications })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsGatekeeperNotifications ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.vmsGatekeeperNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1258,7 +1258,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send WhatsApp to resident when their visitor checks in at the gate</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, vmsResidentNotifications: !portalSettings?.vmsResidentNotifications })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, vmsResidentNotifications: !portalSettings?.vmsResidentNotifications })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsResidentNotifications ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.vmsResidentNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1271,7 +1271,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Grace Period (minutes)</label>
                 <select
                   value={portalSettings?.vmsGracePeriodMinutes ?? 30}
-                  onChange={(e) => updateSettings({ firmId, vmsGracePeriodMinutes: parseInt(e.target.value) })}
+                  onChange={(e) => updateSettings({ firmId, userEmail: currentUser?.email, vmsGracePeriodMinutes: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                   <option value={0}>No grace</option>
@@ -1284,7 +1284,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Default Validity</label>
                 <select
                   value={portalSettings?.vmsDefaultExpiryHours ?? 6}
-                  onChange={(e) => updateSettings({ firmId, vmsDefaultExpiryHours: parseInt(e.target.value) })}
+                  onChange={(e) => updateSettings({ firmId, userEmail: currentUser?.email, vmsDefaultExpiryHours: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                   <option value={2}>2 Hours</option>
@@ -1398,7 +1398,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1413,7 +1413,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
