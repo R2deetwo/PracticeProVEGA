@@ -1,9 +1,7 @@
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Task, User, Matter, WorkflowDefinition, AppMode, View, TaskStatus, ModalType } from '../types';
-import TaskBoard from './TaskBoard';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { Task, User, Matter, TaskStatus } from '../types';
 import TaskList from './TaskList';
-import ViewToggle from './ViewToggle';
 import BulkActionBar from './BulkActionBar';
 import UserTaskSummaryPanel from './UserTaskSummaryPanel';
 import { useUI } from '../contexts/UIContext';
@@ -50,14 +48,16 @@ export const TasksView: React.FC = () => {
         coreActions.handleUpdateUser(currentUser.id, data);
     }, [coreActions, currentUser]);
 
-    // Local state for immediate switching
-    const initialViewMode = currentUser?.defaultViewModes?.tasks || 'board';
-    const [localViewMode, setLocalViewMode] = useState<'list' | 'board'>(initialViewMode);
-
-    const handleViewChange = (mode: 'list' | 'board') => {
-        setLocalViewMode(mode);
-        onUpdateUser({ defaultViewModes: { ...currentUser?.defaultViewModes, tasks: mode } });
-    };
+    // View mode state.
+    // Board view was RETIRED in this session due to recurring drag-and-drop
+    // reliability issues across multiple fix attempts. The List view (with
+    // mobile cards, swipe gestures, and collapsible status sections) is now
+    // the only Tasks view. defaultViewModes.tasks is no longer read or written
+    // for the Tasks view — the persisted value is dead data, harmless to leave
+    // in place for existing users (it'll simply be ignored).
+    //
+    // If we ever bring back a second view (e.g. calendar/timeline), we can
+    // reintroduce the toggle and reuse the defaultViewModes.tasks field.
 
     const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
     const containerRef = useRef<HTMLDivElement>(null);
@@ -70,8 +70,6 @@ export const TasksView: React.FC = () => {
         }
         return (currentUser?.role || 'User') === 'Admin' ? '__all__' : '__currentUser__';
     }, [currentHistoryEntry.taskUserFilter, currentUser?.role]);
-
-    const isLocked = localViewMode === currentUser?.defaultViewModes?.tasks;
 
     const handleFilterChange = useCallback((newFilter: string) => {
         updateCurrentHistoryEntry({ taskUserFilter: newFilter });
@@ -138,11 +136,49 @@ export const TasksView: React.FC = () => {
         navigateTo('tasks', id, { ...context, openedFrom: 'tasks' });
     }, [navigateTo]);
 
+    // Edit handler — opens TaskForm in edit mode (same modal as 'newTask',
+    // but with the second arg carrying the task id → becomes editingId).
+    const handleEditTask = useCallback((taskId: string) => {
+        openModal('newTask', taskId);
+    }, [openModal]);
+
+    // Delete handler — opens deleteConfirmation modal, then calls the
+    // dedicated deleteTask mutation (NOT the generic deleteItem path
+    // that was silently failing for tasks without a custom id field).
+    const handleDeleteTask = useCallback((task: Task) => {
+        openModal('deleteConfirmation', null, {
+            title: 'Delete Task?',
+            message: (
+                <p>
+                    Are you sure you want to permanently delete
+                    <span className="font-semibold"> "{task.title}"</span>?
+                    This action cannot be undone.
+                </p>
+            ),
+            onConfirm: () => {
+                executionActions.deleteTask(task.id, task.title)
+                    .then(() => closeModal())
+                    .catch((e: any) => {
+                        // Surface the error — the underlying mutation already
+                        // shows a toast, but we also want to keep the modal open
+                        // so the user can retry.
+                        console.error('[TasksView.handleDeleteTask] failed:', e);
+                    });
+            },
+            confirmText: 'Delete',
+            confirmButtonClass: 'bg-red-600 hover:bg-red-700'
+        });
+    }, [openModal, closeModal, executionActions]);
+
     // Check if there are any completed tasks to clear
     const hasCompletedTasks = useMemo(() => allTasks.some(t => t.status === TaskStatus.Done), [allTasks]);
 
 
-    const [groupBy, setGroupBy] = useState<'none' | 'matter' | 'priority'>('none');
+    // Default groupBy to 'status' — this gives users the collapsible
+    // "To Do / In Progress / Pending Verification / Done" sections that
+    // replace the visual grouping value Kanban's columns provided.
+    // Users can switch to None (flat list), Priority, or Matter.
+    const [groupBy, setGroupBy] = useState<'none' | 'status' | 'matter' | 'priority'>('status');
 
     return (
         <div ref={containerRef} className="flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-zinc-900">
@@ -176,29 +212,35 @@ export const TasksView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {/* Grouping Toggle (List only) */}
-                        {localViewMode === 'list' && (
-                            <div className="flex items-center bg-slate-200/50 dark:bg-zinc-800 p-1 rounded-lg border border-slate-200 dark:border-zinc-700 mr-2">
-                                <button
-                                    onClick={() => setGroupBy('none')}
-                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'none' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    None
-                                </button>
-                                <button
-                                    onClick={() => setGroupBy('priority')}
-                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'priority' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    Priority
-                                </button>
-                                <button
-                                    onClick={() => setGroupBy('matter')}
-                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    {isProperty ? 'Property' : 'Matter'}
-                                </button>
-                            </div>
-                        )}
+                        {/* Grouping Toggle — now includes 'Status' (the new default)
+                            which gives collapsible status sections that replace the
+                            visual grouping value Kanban's columns provided. */}
+                        <div className="flex items-center bg-slate-200/50 dark:bg-zinc-800 p-1 rounded-lg border border-slate-200 dark:border-zinc-700 mr-2">
+                            <button
+                                onClick={() => setGroupBy('none')}
+                                className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'none' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                None
+                            </button>
+                            <button
+                                onClick={() => setGroupBy('status')}
+                                className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'status' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Status
+                            </button>
+                            <button
+                                onClick={() => setGroupBy('priority')}
+                                className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'priority' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Priority
+                            </button>
+                            <button
+                                onClick={() => setGroupBy('matter')}
+                                className={`px-2 py-1 text-3xs font-black uppercase tracking-tight rounded-lg transition-all ${groupBy === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                {isProperty ? 'Property' : 'Matter'}
+                            </button>
+                        </div>
 
                         {hasCompletedTasks && (
                             <button
@@ -209,12 +251,6 @@ export const TasksView: React.FC = () => {
                                 <TrashIcon className="w-5 h-5" />
                             </button>
                         )}
-                        <ViewToggle
-                            viewMode={localViewMode}
-                            onViewModeChange={handleViewChange}
-                            isLocked={isLocked}
-                            onLock={() => onUpdateUser({ defaultViewModes: { ...(currentUser?.defaultViewModes || {}), tasks: localViewMode } })}
-                        />
                         <button
                             onClick={() => openModal('newTask')}
                             className="flex-shrink-0 px-4 py-1.5 bg-primary-600 text-white rounded-lg font-semibold text-sm hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-2"
@@ -239,43 +275,27 @@ export const TasksView: React.FC = () => {
             )}
 
             <div className="px-2 pb-2 sm:px-6 sm:pb-6 sm:pt-0 flex flex-col flex-grow min-h-0 overflow-hidden">
-                {localViewMode === 'board' ? (
-                    <div className="flex-grow overflow-x-auto overflow-y-hidden min-h-0">
-                        <TaskBoard
-                            tasks={filteredTasks}
-                            users={users}
-                            matters={matters}
-                            onUpdateTaskStatus={onUpdateTaskStatus}
-                            onUpdateChecklist={onUpdateChecklist}
-                            onViewDetails={handleViewDetails}
-                            openModal={openModal}
-                            highlighted={!!(highlightTarget?.view === 'tasks' && highlightTarget.filter?.id)}
-                            highlightFilter={highlightTarget?.filter}
-                            highlightColor={highlightTarget?.color}
-                            appMode={appMode}
-                        />
-                    </div>
-                ) : (
-                    <div className="flex flex-col flex-grow min-h-0">
-                        {/* Added flex-col to allow EmptyState to center vertically if needed */}
-                        <TaskList
-                            tasks={filteredTasks}
-                            users={users}
-                            matters={matters}
-                            onViewDetails={handleViewDetails}
-                            onUpdateTaskStatus={onUpdateTaskStatus}
-                            selectedTasks={selectedTasks}
-                            onToggleSelection={handleToggleSelection}
-                            appMode={appMode}
-                            onCreateTask={() => openModal('newTask')}
-                            filterText={localFilterText}
-                            groupBy={groupBy}
-                        />
-                    </div>
-                )}
+                <div className="flex flex-col flex-grow min-h-0">
+                    <TaskList
+                        tasks={filteredTasks}
+                        users={users}
+                        matters={matters}
+                        onViewDetails={handleViewDetails}
+                        onUpdateTaskStatus={onUpdateTaskStatus}
+                        selectedTasks={selectedTasks}
+                        onToggleSelection={handleToggleSelection}
+                        appMode={appMode}
+                        onCreateTask={() => openModal('newTask')}
+                        onEditTask={handleEditTask}
+                        onDeleteTask={handleDeleteTask}
+                        filterText={localFilterText}
+                        groupBy={groupBy}
+                        currentUser={currentUser}
+                    />
+                </div>
             </div>
 
-            {selectedTasks.size > 0 && localViewMode === 'list' && (
+            {selectedTasks.size > 0 && (
                 <BulkActionBar
                     selectedCount={selectedTasks.size}
                     onBulkArchive={handleBulkArchive}
