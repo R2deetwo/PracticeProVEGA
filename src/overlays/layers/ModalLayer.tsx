@@ -42,6 +42,25 @@ export const ModalLayer: React.FC = () => {
   // If no modal is active, render nothing
   if (!modal) return null;
 
+  // ─── MIGRATION GATE ──────────────────────────────────────────────────
+  // Only render modals that have been EXPLICITLY migrated to the new system.
+  // The registry catalogs ALL modal types for documentation, but most still
+  // need dataHandlers/matters/contacts etc. that ModalLayer doesn't pass.
+  // To migrate a modal:
+  //   1. Add it to MIGRATED_MODALS below
+  //   2. Add it to MODAL_LAYER_HANDLED in ModalManager.tsx (so the legacy
+  //      manager skips it)
+  //   3. Verify the component receives all props it needs from ModalLayer's
+  //      generic prop pass-through (closeModal, editingId, modalContext, etc.)
+  // Until then, ModalManager handles it (backward compat).
+  const MIGRATED_MODALS = new Set<string>([
+    // 'login', 'signup', 'leadCapture' — temporarily disabled while
+    // debugging accordion issues. Re-enable one by one after verifying.
+  ]);
+  if (!MIGRATED_MODALS.has(modal)) {
+    return null;
+  }
+
   // Look up the modal in the registry
   const meta = MODAL_REGISTRY[modal];
 
