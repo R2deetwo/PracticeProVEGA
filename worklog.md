@@ -8075,3 +8075,140 @@ Next actions:
 - Manual browser test recommended: open devtools → Network → throttle to "Offline", attempt a file upload in MessagesView / TenantPortal / ClientDashboard, confirm the "you're offline. Reconnect and try again." toast appears
 - Manual test: upload a >10MB file in admin-attach, confirm the "is too large (max 10MB)" toast appears (previously silently skipped)
 - Consider migrating .filter() calls to .withIndex() in a future pass — would unlock the speedup potential of the 28 KEEP-OPTIMIZE indexes
+
+---
+Task ID: prompt1-onboarding-checklist-fix + estate-community-features
+Agent: main (Super Z)
+Task: Three workstreams — (1) Fix onboarding wizard team-invite checklist bug, (2) Build admin-controllable Estate Community Features, (3) Diagnose (not implement) the notetaker rebuild as a separate dedicated effort per user guidance.
+
+PART 1: Onboarding Wizard Team-Invite Checklist Bug — FIXED
+
+Diagnosis:
+- OnboardingWizard.tsx Step 4 ("Team") shows the firmInviteCode and asks
+  "Yes — invite my team" / "Just me for now" via local React state
+  (willInviteTeam). On confirm (handleCompleteWizard), only communication
+  channels were persisted — willInviteTeam was discarded.
+- getGettingStartedChecklist (myFunctions.ts:6630) checked
+  `hasInvitedUser = usersInFirm.length > 1 || portalInvitesSent.length > 0`
+  — neither of which the wizard's team-invite step creates. So the checklist
+  item never ticked off after completing the wizard step.
+- Other checklist items (hasMatter, hasContact, hasProperty, etc.) verified
+  correct — they check the actual fields the real UI writes, with prior
+  fix comments documenting BRIEF #1, PHASE 1.5, DEEP AUDIT FIX.
+
+Fix:
+- OnboardingWizard.tsx handleCompleteWizard now persists
+  `settings.teamInviteIntent = willInviteTeam === true ? 'invited' : 'solo'`
+  + `teamInviteIntentAt` timestamp alongside the existing communication
+  channels.
+- myFunctions.ts hasInvitedUser now recognizes 3 signals:
+  1. usersInFirm.length > 1 (teammate joined)
+  2. portalInvitesSent.length > 0 (resident/client invite sent)
+  3. firm.settings.teamInviteIntent === 'invited' (admin chose "Yes" in wizard)
+- For "Just me for now" (solo), the checklist UI renders the item with a
+  distinct dashed-circle "skipped" visual instead of perpetually incomplete.
+  Auto-dismiss + doneCount both count skipped as done, so solo practitioners
+  can reach 100% checklist completion.
+- GettingStartedChecklist.tsx renders skipped state with dashed circle + "(skipped)" label.
+
+PART 2: Estate Community Features — BUILT
+
+User explicitly asked: "[LET US ADD Estate-level community features NOW;
+DO IT INTELLIGNENTLY AND CAREFULLY AND LET US HAVE THIS AS SOMETHING THAT
+THE ADMIN/APP USER CAN CONTROL]"
+
+Design decisions:
+- Three independent modules, each admin-toggleable per-firm via
+  firmDetails.settings.communityFeatures.<module>:
+    1. Amenity Booking — admin-defined bookable resources (gym, pool, clubhouse)
+    2. Estate Bulletin — community announcements (events, meetings, holidays)
+    3. Service Provider Directory — admin-curated vendor list
+- Distinct from portal_notices (operational: rent/SC) and maintenance_tickets
+  (work orders). These are SOCIAL/COMMUNITY.
+- All admin mutations require requireAdmin. Resident queries use requireFirmUser.
+- Atrium-only — Vega legal firms don't manage physical estates.
+
+Implementation:
+- Schema (convex/schema.ts): 4 new tables — estate_amenities,
+  estate_amenity_bookings, estate_bulletins, estate_service_providers.
+  Each with appropriate indexes (by_firm, by_firm_active, by_amenity,
+  by_resident, by_date, by_firm_status, by_firm_pinned, by_event_date,
+  by_firm_category).
+- Convex API (convex/estateCommunity.ts): 13 mutations + 6 queries covering
+  amenity CRUD, booking create/review/cancel, bulletin CRUD/archive,
+  service provider CRUD. Conflict detection on bookings (respects
+  maxConcurrentBookings). Activity logging on booking creation.
+- Admin UI (src/components/settings/EstateCommunitySettings.tsx): settings
+  card with 3 toggle switches for each module. Shows active/inactive state
+  with icon + description. Persists via updateFirmSettings mutation.
+  Mounted inside FirmSettings for Atrium firms only (isProperty gate).
+- Resident UI (src/components/tenant/EstateCommunityResidentView.tsx):
+  module-switcher showing only admin-enabled modules. Bulletin:
+  read-only feed with category badges, pinned posts, event metadata.
+  Amenities: list + booking form (date + start hour, slot duration from
+  amenity config, respects requiresApproval). Service Providers: browse
+  with category icons, contact links (tel/wa.me/mailto), verification badge.
+- Portal integration (TenantPortal.tsx): new 'community' TabId, shown only
+  when at least one module is enabled (conditional tab nav). Hash-based
+  deep-linking (#community).
+- getTenantInfo (portals.ts) now returns communityFeatures by fetching the
+  firm record (try ctx.db.get for Convex _id, fall back to filter on custom
+  `id` field for legacy firm IDs).
+- Exported SettingsCard from FirmSettings.tsx so EstateCommunitySettings
+  can reuse the same card styling.
+- api.d.ts manually updated to import estateCommunity (codegen requires
+  Convex auth which isn't configured in this environment — runtime works
+  via anyApi, the .d.ts edit just adds TypeScript types).
+
+PART 3: Notetaker Rebuild — DIAGNOSED, NOT IMPLEMENTED
+
+Per user guidance: "I'd treat Prompt 2 as its own dedicated effort rather
+than something to rush alongside everything else."
+
+Diagnosis confirmed:
+- NoteEditor.tsx uses bare Web Speech API (SpeechRecognition). Code comment
+  flags Safari/Firefox as unsupported.
+- No dual RAW/CLEANED transcript architecture — recognized speech goes
+  straight into note content as-is.
+- No AI cleanup pass — no Gemini integration for filler-word removal /
+  structuring.
+- Zero product-awareness — no useProduct / isProperty references anywhere
+  in NoteEditor.tsx or NotesView.tsx. Same experience renders for both
+  Vega (legal) and Atrium (property) despite fundamentally different needs.
+- No schema groundwork — checked schema.ts for rawTranscript/cleanedTranscript
+  fields, none exist.
+
+This is a clean rebuild from scratch — a dedicated effort as the user said.
+Left for a separate session per the user's explicit guidance.
+
+Stage Summary:
+- Files modified (6):
+  1. src/components/modals/OnboardingWizard.tsx — persist teamInviteIntent
+  2. convex/myFunctions.ts — hasInvitedUser recognizes teamInviteIntent + returns skippedTeamInvite
+  3. src/components/GettingStartedChecklist.tsx — render skipped state + count toward progress
+  4. convex/schema.ts — 4 new estate tables + indexes
+  5. convex/estateCommunity.ts — NEW, 13 mutations + 6 queries
+  6. convex/portals.ts — getTenantInfo returns communityFeatures
+  7. src/components/settings/EstateCommunitySettings.tsx — NEW, admin toggles
+  8. src/components/settings/FirmSettings.tsx — export SettingsCard + mount EstateCommunitySettings for Atrium
+  9. src/components/tenant/EstateCommunityResidentView.tsx — NEW, resident-facing view
+  10. src/components/tenant/TenantPortal.tsx — new 'community' tab + render
+  11. convex/_generated/api.d.ts — manual estateCommunity type import (codegen needs Convex auth)
+- TypeScript: 535 errors → 387 errors (REDUCED by 148 — the api.d.ts
+  estateCommunity type declarations helped TypeScript resolve existing
+  anyApi calls). Zero new errors from my changes.
+- Acceptance criteria:
+  [x] Prompt 1: Choosing "Yes — invite my team" now persists teamInviteIntent='invited' — diff applied
+  [x] Prompt 1: hasInvitedUser recognizes teamInviteIntent === 'invited' — diff applied
+  [x] Prompt 1: "Just me for now" → skipped state with dashed circle, counts toward progress
+  [x] Estate Features: 3 admin-controllable modules built end-to-end
+  [x] Estate Features: Admin can toggle each module on/off via Settings → Estate Community
+  [x] Estate Features: Resident portal shows Community tab only when admin enables a module
+  [x] Prompt 2: Diagnosed but not implemented per user guidance
+
+Next actions:
+- Push to GitHub to trigger Vercel deploy
+- Manual browser test for Prompt 1: create a new firm, complete wizard choosing "Yes — invite my team", confirm the checklist item ticks off immediately (without anyone joining via the code)
+- Manual browser test for "Just me for now": confirm the item shows dashed-circle "skipped" state and the checklist can still reach 100%
+- Manual browser test for Estate Features: as admin, enable "Estate Bulletin" in Settings → Estate Community, post a bulletin, switch to resident portal, confirm the Community tab appears and the bulletin is visible
+- Prompt 2 (notetaker rebuild) is a separate dedicated effort — schedule as its own session

@@ -59,6 +59,7 @@ import IntegrationSettings from './IntegrationSettings';
 import { PortalAccessSettings } from './PortalAccessSettings';
 import { NotificationSettings } from './NotificationSettings';
 import SecurityAccessView from '../SecurityAccessView';
+import EstateCommunitySettings from './EstateCommunitySettings';
 
 import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';

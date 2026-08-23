@@ -14,8 +14,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import ProTip from '../ProTip';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useProduct } from '../../contexts/ProductContext';
+import EstateCommunitySettings from './EstateCommunitySettings';
 
-const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, onTitleClick?: () => void }> = ({ title, children, id, className, onTitleClick }) => (
+export const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, onTitleClick?: () => void }> = ({ title, children, id, className, onTitleClick }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3
@@ -403,6 +404,10 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                     </div>
                 </div>
             </SettingsCard>
+
+            {/* Estate Community Features — only for Atrium (property) firms.
+                Vega legal firms don't manage physical estates with shared amenities. */}
+            {isProperty && <EstateCommunitySettings />}
 
             {permissions.canManageUsers && (
                 <SettingsCard title="Team" id="user-management">

@@ -6624,10 +6624,31 @@ export const getGettingStartedChecklist = query({
       allMatters.some((m: any) => !!m.nextAdjournedDate) ||
       allCourtEvents.length > 0;
 
-    // Invited at least one teammate (more than 1 user in firm, OR has any
-    // portal invite records — residents/clients are also "invites" in the
-    // broader sense)
-    const hasInvitedUser = usersInFirm.length > 1 || portalInvitesSent.length > 0;
+    // Invited at least one teammate. Three signals count:
+    //   1. usersInFirm.length > 1            → a teammate actually joined
+    //   2. portalInvitesSent.length > 0       → a resident/client portal invite was sent
+    //   3. firm.settings.teamInviteIntent === 'invited'  → admin chose "Yes — invite
+    //      my team" in the onboarding wizard and got the invite code
+    //
+    // SIGNAL 3 FIX: Previously, completing the wizard's team-invite step
+    // wrote nothing to the backend — the admin's "Yes — invite my team"
+    // choice lived only in React state and was lost on unmount. The
+    // checklist item never ticked off unless someone actually joined via
+    // the code. Now the wizard persists `settings.teamInviteIntent = 'invited'`
+    // at completion, and we recognize that here so the admin's action of
+    // inviting is credited, not just the teammate's action of joining.
+    const teamInviteIntent = (firm as any)?.settings?.teamInviteIntent;
+    const hasInvitedUser =
+      usersInFirm.length > 1 ||
+      portalInvitesSent.length > 0 ||
+      teamInviteIntent === 'invited';
+
+    // 'solo' intent → admin explicitly chose "Just me for now" in the wizard.
+    // The checklist UI uses this to render the item as "Skipped — invite when
+    // you're ready" instead of perpetually incomplete, so a solo practitioner
+    // can reach 100% completion without being blocked by a step they opted out of.
+    const skippedTeamInvite = teamInviteIntent === 'solo';
+
     const hasInvitedResidentToPortal = portalInvitesSent.length > 0;
 
     // Has sent at least one WhatsApp or email reminder — check notifications
@@ -6663,6 +6684,10 @@ export const getGettingStartedChecklist = query({
       hasInvitedResidentToPortal,
       hasSentReminder,
       userCount: usersInFirm.length,
+      // SKIPPED-STATE FIX: Surface the team-invite opt-out so the checklist UI
+      // can render "Skipped — invite when you're ready" instead of perpetually
+      // showing the item as incomplete for solo practitioners.
+      skippedTeamInvite,
       // DEEP AUDIT FIX: Return the first matter/property IDs so the checklist
       // can deep-link directly to the detail view instead of the bare list page.
       firstMatterId: allMatters.length > 0 ? String((allMatters[0] as any)._id || (allMatters[0] as any).id) : null,

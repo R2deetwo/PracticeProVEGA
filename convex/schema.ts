@@ -2019,6 +2019,117 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_timestamp", ["timestamp"]),
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // ESTATE COMMUNITY FEATURES — admin-controllable, resident-facing
+  //
+  // Three modules, each can be toggled on/off per-firm via
+  // firmDetails.settings.communityFeatures.<module> = true/false:
+  //   1. Amenity Booking — bookable shared amenities (gym, pool, clubhouse)
+  //   2. Estate Bulletin — community announcements (events, meetings)
+  //   3. Service Provider Directory — admin-curated vendor list
+  //
+  // Distinct from portal_notices (operational: rent reminders, SC updates)
+  // and maintenance_tickets (work orders). These are SOCIAL/COMMUNITY.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // 1. Amenities — admin-defined bookable resources
+  estate_amenities: defineTable({
+    firmId: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    location: v.optional(v.string()),            // e.g. "Clubhouse, 2nd floor"
+    // Slot config — admin defines operating hours + slot duration
+    slotDurationMinutes: v.number(),             // 30, 60, 90, 120, etc.
+    operatingHours: v.optional(v.any()),        // { mon: {open: "06:00", close: "22:00"}, ... }
+    maxConcurrentBookings: v.optional(v.number()), // 1 = exclusive (gym session), N = shared (pool)
+    // Booking window — how far in advance residents can book (days)
+    bookingWindowDays: v.optional(v.number()),  // default 14
+    requiresApproval: v.optional(v.boolean()),   // admin approval needed
+    isActive: v.boolean(),                       // soft-delete / temporarily disable
+    imageUrl: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_active", ["firmId", "isActive"]),
+
+  // 2. Amenity Bookings — resident booking requests
+  estate_amenity_bookings: defineTable({
+    firmId: v.string(),
+    amenityId: v.id("estate_amenities"),
+    residentUserId: v.string(),                  // users._id of the resident
+    residentName: v.string(),
+    propertyId: v.optional(v.string()),          // resident's property
+    unitId: v.optional(v.string()),
+    // Slot
+    bookingDate: v.string(),                     // "2026-08-25" (YYYY-MM-DD)
+    slotStart: v.number(),                       // epoch ms
+    slotEnd: v.number(),                         // epoch ms
+    // Status: pending → approved/rejected → cancelled
+    status: v.string(),                          // 'pending' | 'approved' | 'rejected' | 'cancelled'
+    residentNotes: v.optional(v.string()),       // "Bringing 2 guests"
+    adminNotes: v.optional(v.string()),           // "Approved — please arrive on time"
+    reviewedBy: v.optional(v.string()),           // admin userId
+    reviewedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_amenity", ["amenityId"])
+    .index("by_resident", ["residentUserId"])
+    .index("by_date", ["bookingDate"])
+    .index("by_firm_status", ["firmId", "status"]),
+
+  // 3. Estate Bulletin — community announcements (NOT operational notices)
+  // Distinct from portal_notices which are firm→tenant operational (rent, SC).
+  // Bulletins are community: estate meetings, holiday hours, social events.
+  estate_bulletins: defineTable({
+    firmId: v.string(),
+    authorId: v.string(),                         // admin userId
+    authorName: v.optional(v.string()),
+    title: v.string(),
+    body: v.string(),
+    category: v.optional(v.string()),            // 'event' | 'meeting' | 'announcement' | 'holiday' | 'alert'
+    // Optional event metadata — if the bulletin is an event with a date/time/location
+    eventDate: v.optional(v.number()),            // epoch ms when event starts
+    eventLocation: v.optional(v.string()),
+    eventEndDate: v.optional(v.number()),         // for multi-day events
+    // Visibility — admin can scope to specific properties or estate-wide
+    propertyIds: v.optional(v.array(v.string())), // empty/undefined = all properties
+    isPinned: v.optional(v.boolean()),            // pinned to top of bulletin
+    status: v.string(),                          // 'active' | 'archived'
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_firm_pinned", ["firmId", "isPinned"])
+    .index("by_event_date", ["eventDate"]),
+
+  // 4. Service Provider Directory — admin-curated vendor list
+  // Residents browse vetted plumbers, electricians, cleaners, etc.
+  estate_service_providers: defineTable({
+    firmId: v.string(),
+    name: v.string(),
+    category: v.string(),                         // 'plumber' | 'electrician' | 'cleaner' | 'gardener' | 'security' | 'other'
+    specialty: v.optional(v.string()),            // "Solar panel installation"
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    whatsapp: v.optional(v.string()),
+    address: v.optional(v.string()),
+    // Service area — can be estate-wide or specific buildings
+    serviceArea: v.optional(v.string()),          // "All buildings" or "Blocks A-C"
+    rating: v.optional(v.number()),               // 1-5, admin-set based on feedback
+    isVerified: v.boolean(),                      // admin vetted this provider
+    notes: v.optional(v.string()),                // internal admin notes (not shown to residents)
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_active", ["firmId", "isActive"])
+    .index("by_firm_category", ["firmId", "category"]),
+
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert
 // data that doesn't conform to the strict schema validators (missing

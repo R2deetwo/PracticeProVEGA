@@ -3218,6 +3218,24 @@ export const getTenantInfo = query({
   handler: async (ctx, args) => {
     const emailLower = (args.email || "").toLowerCase().trim();
 
+    // ESTATE COMMUNITY FEATURES — fetch the firm record so we can read
+    // its settings.communityFeatures in the return. The resident portal
+    // shows the Community tab only when at least one module is enabled.
+    // args.firmId may be a Convex _id OR a legacy custom string id — try
+    // ctx.db.get first (fast path for Convex _id), then fall back to a
+    // filter query on the custom `id` field.
+    let firm: any = null;
+    try {
+      firm = await ctx.db.get(args.firmId as any);
+    } catch {}
+    if (!firm) {
+      firm = await ctx.db
+        .query("firms")
+        .filter((q: any) => q.eq(q.field("id"), args.firmId))
+        .first();
+    }
+    const communityFeatures = firm?.settings?.communityFeatures || null;
+
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -3397,6 +3415,10 @@ export const getTenantInfo = query({
       primaryCustomFees: primaryPropertyRecord?.customFees || [],
       // Canonical tenant name from the property record (source of truth)
       tenantName: resolvedTenantName,
+      // ESTATE COMMUNITY FEATURES — surfaced so the resident portal can show
+      // the Community tab only when at least one module is enabled by the
+      // admin. Admin controls this via Settings → Estate Community.
+      communityFeatures,
     };
   },
 });

@@ -305,18 +305,30 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const firmInviteCode: string | undefined =
     (firmBasicInfo as any)?.inviteCode || undefined;
 
-  // Step 5 handler — persists the communication channel intent to
-  // firmDetails.settings.communicationChannels, then calls onComplete().
+  // Step 5 handler — persists the communication channel intent AND the
+  // team-invite intent to firmDetails.settings, then calls onComplete().
   // Uses the patched handleUpdateFirmDetails which now falls back to
   // currentUser.firmId if firmDetails.id isn't loaded yet (the immediate
   // post-createFirm window).
+  //
+  // TEAM-INVITE INTENT FIX: Previously, choosing "Yes — invite my team" on
+  // Step 4 only displayed the invite code — nothing was written to the
+  // backend. The Getting Started Checklist item "Invite a team member"
+  // (hasInvitedUser) checks usersInFirm.length > 1 || portalInvitesSent.length > 0,
+  // neither of which the wizard creates. So the checklist item never ticked
+  // off even though the admin had explicitly expressed invite intent.
+  //
+  // Now we record the intent as `settings.teamInviteIntent`:
+  //   - 'invited'   → admin chose "Yes — invite my team" and got the code
+  //   - 'solo'      → admin chose "Just me for now" (deliberate opt-out)
+  //   - undefined   → wizard not yet completed (backward compat for old firms)
+  //
+  // The checklist's hasInvitedUser now recognizes 'invited' as fulfilling
+  // the item, and 'solo' firms see the item marked as "skipped" rather
+  // than perpetually incomplete.
   const handleCompleteWizard = async () => {
     setIsSavingFinal(true);
     try {
-      // Persist communication channel intent. Stored under firmDetails.settings
-      // so it doesn't require a schema migration (settings is v.any()).
-      // If handleUpdateFirmDetails is unavailable for any reason, we still
-      // proceed — the user can configure channels later from Settings.
       if (handleUpdateFirmDetails && lookupFirmId) {
         const now = Date.now();
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -335,6 +347,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 ? now + SEVEN_DAYS_MS
                 : null,
             onboardingCompletedAt: new Date(now).toISOString(),
+            // Record the team-invite intent so the checklist can credit
+            // the admin's action of choosing to invite, not just the
+            // eventual join of a teammate.
+            teamInviteIntent: willInviteTeam === true ? 'invited' : 'solo',
+            teamInviteIntentAt: now,
           },
         });
       }

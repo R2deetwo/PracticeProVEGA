@@ -21,6 +21,7 @@ import type * as crons from "../crons.js";
 import type * as debug_env from "../debug_env.js";
 import type * as drafting from "../drafting.js";
 import type * as embeddings from "../embeddings.js";
+import type * as estateCommunity from "../estateCommunity.js";
 import type * as feedback from "../feedback.js";
 import type * as founderMetrics from "../founderMetrics.js";
 import type * as founderNotifications from "../founderNotifications.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   debug_env: typeof debug_env;
   drafting: typeof drafting;
   embeddings: typeof embeddings;
+  estateCommunity: typeof estateCommunity;
   feedback: typeof feedback;
   founderMetrics: typeof founderMetrics;
   founderNotifications: typeof founderNotifications;

@@ -89,11 +89,27 @@ const GettingStartedChecklist: React.FC = () => {
     firmId ? { firmId } : 'skip'
   );
 
-  // Auto-dismiss once ALL items are complete — no point showing an empty list.
+  // Auto-dismiss once ALL items are complete (or deliberately skipped) —
+  // no point showing an empty list.
+  //
+  // SKIPPED-STATE FIX: The team-invite item can be in 3 states:
+  //   - true (complete — invited or a teammate joined)
+  //   - false + skippedTeamInvite === true (admin chose "Just me for now"
+  //     in the wizard → item is skipped, not incomplete)
+  //   - false + skippedTeamInvite === false (genuinely incomplete)
+  // For auto-dismiss, both "complete" and "skipped" count as "done" so a
+  // solo practitioner can reach 100% without being blocked by a step they
+  // deliberately opted out of.
   useEffect(() => {
     if (!checklist || isDismissed) return;
     const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
-    const allDone = items.every(item => (checklist as any)[item.key] === true);
+    const allDone = items.every(item => {
+      const value = (checklist as any)[item.key];
+      if (value === true) return true;
+      // Team-invite item: 'skipped' counts as done
+      if (item.key === 'hasInvitedUser' && (checklist as any).skippedTeamInvite === true) return true;
+      return false;
+    });
     if (allDone) {
       // PHASE 1 FIX: Show celebration before auto-dismissing.
       addToast?.('🎉 You\'re all set! You\'ve completed the Getting Started checklist. Explore the rest of PracticePro at your own pace.', { type: 'success', duration: 8000 });
@@ -130,7 +146,13 @@ const GettingStartedChecklist: React.FC = () => {
   if (!firmId || !checklist || isDismissed) return null;
 
   const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
-  const doneCount = items.filter(item => (checklist as any)[item.key] === true).length;
+  // SKIPPED-STATE: 'skipped' counts toward progress so solo practitioners
+  // can reach 100% without being blocked by a deliberate opt-out.
+  const doneCount = items.filter(item => {
+    if ((checklist as any)[item.key] === true) return true;
+    if (item.key === 'hasInvitedUser' && (checklist as any).skippedTeamInvite === true) return true;
+    return false;
+  }).length;
   const totalCount = items.length;
   const progressPct = Math.round((doneCount / totalCount) * 100);
 
@@ -323,31 +345,45 @@ const GettingStartedChecklist: React.FC = () => {
         <ul className="py-1 max-h-[40vh] overflow-y-auto custom-scrollbar">
           {items.map((item, idx) => {
             const isDone = (checklist as any)[item.key] === true;
+            // SKIPPED-STATE: 'hasInvitedUser' can be skipped if the admin chose
+            // "Just me for now" in the wizard. Render with a distinct visual
+            // (dashed circle instead of empty, "Skipped" label) so solo
+            // practitioners see this is a deliberate opt-out, not an
+            // incomplete task they need to revisit.
+            const isSkipped = item.key === 'hasInvitedUser' && (checklist as any).skippedTeamInvite === true && !isDone;
             return (
               <li key={`${item.key}-${idx}`}>
                 <button
                   onClick={() => handleItemClick(item)}
-                  disabled={isDone}
+                  disabled={isDone || isSkipped}
                   data-tour-id={`checklist-${item.key}`}
                   className={`
                     w-full flex items-start gap-2.5 px-3 py-2 text-left transition-colors group
                     ${isDone
                       ? 'opacity-60 cursor-default'
-                      : 'hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer'}
+                      : isSkipped
+                        ? 'opacity-50 cursor-default'
+                        : 'hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer'}
                   `}
                 >
                   <div className="flex-shrink-0 mt-0.5">
                     {isDone ? (
                       <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                    ) : isSkipped ? (
+                      // Dashed circle = skipped (deliberate opt-out)
+                      <div className="w-4 h-4 rounded-full border-2 border-dashed border-slate-300 dark:border-zinc-600 flex items-center justify-center">
+                        <span className="text-3xs text-slate-400 dark:text-zinc-500 font-bold leading-none">—</span>
+                      </div>
                     ) : (
                       <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-zinc-600 group-hover:border-primary-400 transition-colors" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium leading-snug ${isDone ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-700 dark:text-zinc-300'}`}>
+                    <p className={`text-xs font-medium leading-snug ${isDone ? 'text-slate-400 dark:text-zinc-500 line-through' : isSkipped ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-700 dark:text-zinc-300'}`}>
                       {item.label}
+                      {isSkipped && <span className="ml-1.5 text-3xs text-slate-400 dark:text-zinc-500 font-normal italic">(skipped)</span>}
                     </p>
-                    {item.hint && !isDone && (
+                    {item.hint && !isDone && !isSkipped && (
                       <p className="text-3xs text-slate-400 dark:text-zinc-500 font-normal mt-0.5 leading-snug">
                         {item.hint}
                       </p>

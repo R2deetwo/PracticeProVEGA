@@ -17,6 +17,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useFeatures } from '../../hooks/useFeatures';
 import { surfaceUploadError } from '../../utils/convexUpload';
+import EstateCommunityResidentView from './EstateCommunityResidentView';
 import NairaSymbol from '../NairaSymbol';
 import {
   EyeIcon,
@@ -115,7 +116,7 @@ const formatDate = (ts: number) => {
 };
 
 // ─── Tab Type ─────────────────────────────────────────────────────────────────
-type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents' | 'visitors' | 'security';
+type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents' | 'visitors' | 'security' | 'community';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
@@ -141,7 +142,7 @@ const TenantPortal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '');
-    if (['dashboard', 'notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents', 'visitors'].includes(hash)) return hash as TabId;
+    if (['dashboard', 'notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents', 'visitors', 'community'].includes(hash)) return hash as TabId;
     return 'dashboard';
   });
 
@@ -467,6 +468,15 @@ const TenantPortal: React.FC = () => {
     ] : []),
     { id: 'payments', label: 'Payments', icon: <NairaSymbol className="w-4 h-4 inline" /> },
     { id: 'documents', label: 'Documents', icon: <DocumentIcon className="w-4 h-4" /> },
+    // ESTATE COMMUNITY TAB — shown only when the admin has enabled at least
+    // one community module (amenity booking, bulletin, or service providers).
+    // Controlled via Settings → Estate Community. Hidden entirely when no
+    // modules are enabled, so commercial-only firms don't see a useless tab.
+    ...((tenantInfo as any)?.communityFeatures?.amenityBooking ||
+     (tenantInfo as any)?.communityFeatures?.bulletin ||
+     (tenantInfo as any)?.communityFeatures?.serviceProviderDirectory
+      ? [{ id: 'community' as TabId, label: 'Community', icon: <ChatIcon className="w-4 h-4" /> }]
+      : []),
     { id: 'security', label: 'Help', icon: <HelpCircleIcon className="w-4 h-4" /> },
   ];
 
@@ -619,6 +629,22 @@ const TenantPortal: React.FC = () => {
               )}
             </TabErrorBoundary>}
             {activeTab === 'security' && <TabErrorBoundary tabName="Help"><HelpAndSupportTab tenantInfo={tenantInfo} portalSettings={portalSettings} onNavigate={handleTabChange} /></TabErrorBoundary>}
+
+            {/* ESTATE COMMUNITY TAB — resident-facing view of admin-enabled
+                community modules. Only renders when the admin has toggled at
+                least one module on (the tab itself is hidden otherwise). */}
+            {activeTab === 'community' && (
+              <TabErrorBoundary tabName="Community">
+                <EstateCommunityResidentView
+                  firmId={effectiveFirmId}
+                  propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''}
+                  residentUserId={userId || ''}
+                  residentName={tenantInfo?.tenantName || currentUser?.name || 'Resident'}
+                  communityFeatures={(tenantInfo as any)?.communityFeatures}
+                  userEmail={email || currentUser?.email || ''}
+                />
+              </TabErrorBoundary>
+            )}
           </>
         )}
       </div>
