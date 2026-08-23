@@ -12,6 +12,46 @@
  */
 
 /**
+ * Surface a file upload error to the user via addToast with a specific
+ * message based on the failure mode (offline / too-large / server error).
+ *
+ * Replaces the silent `catch {}` and `catch (e) { console.warn(...) }`
+ * patterns that swallowed upload failures with no user feedback.
+ *
+ * Usage:
+ *   try {
+ *     const postUrl = await generateUploadUrl();
+ *     const res = await fetch(postUrl, { method: 'POST', body: file });
+ *     if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+ *     const { storageId } = await res.json();
+ *     // ...
+ *   } catch (uploadErr: any) {
+ *     surfaceUploadError(addToast, file, uploadErr);
+ *   }
+ *
+ * @param addToast   The addToast function from useUI()
+ * @param file       The file that failed (name + size)
+ * @param err        The caught error
+ * @param maxMb      Max file size in MB (default 10) — used for the too-large message
+ */
+export function surfaceUploadError(
+    addToast: (msg: any, opts?: { type?: 'success' | 'error' | 'info' | 'warning'; duration?: number }) => void,
+    file: { name: string; size: number },
+    err: any,
+    maxMb = 10
+): void {
+    const msg = (err?.message as string) || '';
+    const lowerMsg = msg.toLowerCase();
+    if (!navigator.onLine || msg.includes('Failed to fetch') || lowerMsg.includes('network') || lowerMsg.includes('aborted')) {
+        addToast(`"${file.name}" not uploaded — you're offline. Reconnect and try again.`, { type: 'error', duration: 6000 });
+    } else if (file.size > maxMb * 1024 * 1024 || lowerMsg.includes('too large') || lowerMsg.includes('size')) {
+        addToast(`"${file.name}" is too large (max ${maxMb}MB).`, { type: 'error' });
+    } else {
+        addToast(`"${file.name}" failed to upload${msg ? `: ${msg}` : '. Please try again.'}`, { type: 'error', duration: 6000 });
+    }
+}
+
+/**
  * Upload a Blob to Convex storage.
  *
  * @param blob The file data as a Blob

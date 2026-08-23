@@ -1150,15 +1150,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 }
                 const postUrl = await generateUploadUrl();
                 const res = await fetch(postUrl, { method: 'POST', body: file });
-                if (res.ok) {
-                    const { storageId } = await res.json();
-                    if (storageId) {
-                        setPendingAttachments(prev => [...prev, {
-                            storageId,
-                            name: file.name,
-                            type: file.type || 'application/octet-stream',
-                        }]);
-                    }
+                if (!res.ok) {
+                    throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                }
+                const { storageId } = await res.json();
+                if (storageId) {
+                    setPendingAttachments(prev => [...prev, {
+                        storageId,
+                        name: file.name,
+                        type: file.type || 'application/octet-stream',
+                    }]);
                 }
             }
         } catch (err: any) {

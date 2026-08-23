@@ -8,6 +8,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useProduct } from '../../contexts/ProductContext';
 import { openHtmlInNewWindow, escapeHtml } from '../../utils/safePrintWindow';
+import { surfaceUploadError } from '../../utils/convexUpload';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
     ChatAltIcon, ClockIcon, CheckCircleIcon,
@@ -517,11 +518,12 @@ const ClientDashboard: React.FC = () => {
                 try {
                     const postUrl = await generateUploadUrl();
                     const res = await fetch(postUrl, { method: 'POST', body: file });
-                    if (res.ok) {
-                        const { storageId } = await res.json();
-                        if (storageId) { storageIds.push(storageId); fileNames.push(name); }
-                    }
-                } catch {}
+                    if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                    const { storageId } = await res.json();
+                    if (storageId) { storageIds.push(storageId); fileNames.push(name); }
+                } catch (uploadErr: any) {
+                    surfaceUploadError(addToast, file, uploadErr);
+                }
             }
             // Use the new conversation-based sendPortalMessage
             await sendPortalMessage({
@@ -1401,15 +1403,14 @@ const ClientDashboard: React.FC = () => {
                     try {
                         const postUrl = await generateUploadUrl();
                         const res = await fetch(postUrl, { method: 'POST', body: file });
-                        if (res.ok) {
-                            const { storageId } = await res.json();
-                            if (storageId) {
-                                attachmentStorageIds.push(storageId);
-                                attachmentNames.push(file.name);
-                            }
+                        if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                        const { storageId } = await res.json();
+                        if (storageId) {
+                            attachmentStorageIds.push(storageId);
+                            attachmentNames.push(file.name);
                         }
-                    } catch (uploadErr) {
-                        console.warn('File upload failed:', uploadErr);
+                    } catch (uploadErr: any) {
+                        surfaceUploadError(addToast, file, uploadErr);
                     }
                 }
             }

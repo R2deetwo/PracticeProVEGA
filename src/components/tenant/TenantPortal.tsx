@@ -16,6 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useFeatures } from '../../hooks/useFeatures';
+import { surfaceUploadError } from '../../utils/convexUpload';
 import NairaSymbol from '../NairaSymbol';
 import {
   EyeIcon,
@@ -1769,12 +1770,11 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
               method: 'POST',
               body: file,
             });
-            if (res.ok) {
-              const { storageId } = await res.json();
-              if (storageId) attachmentStorageIds.push(storageId);
-            }
-          } catch (uploadErr) {
-            console.warn('File upload failed:', uploadErr);
+            if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+            const { storageId } = await res.json();
+            if (storageId) attachmentStorageIds.push(storageId);
+          } catch (uploadErr: any) {
+            surfaceUploadError(addToast, file, uploadErr);
           }
         }
       }
@@ -2272,15 +2272,14 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
         try {
           const postUrl = await generateUploadUrl();
           const res = await fetch(postUrl, { method: 'POST', body: file });
-          if (res.ok) {
-            const { storageId } = await res.json();
-            if (storageId) {
-              storageIds.push(storageId);
-              fileNames.push(name);
-            }
+          if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+          const { storageId } = await res.json();
+          if (storageId) {
+            storageIds.push(storageId);
+            fileNames.push(name);
           }
-        } catch (uploadErr) {
-          console.warn('File upload failed:', uploadErr);
+        } catch (uploadErr: any) {
+          surfaceUploadError(addToast, file, uploadErr);
         }
       }
 
@@ -2883,12 +2882,11 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
             method: 'POST',
             body: file,
           });
-          if (res.ok) {
-            const { storageId } = await res.json();
-            if (storageId) storageIds.push(storageId);
-          }
-        } catch (uploadErr) {
-          console.warn('File upload failed:', uploadErr);
+          if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+          const { storageId } = await res.json();
+          if (storageId) storageIds.push(storageId);
+        } catch (uploadErr: any) {
+          surfaceUploadError(addToast, file, uploadErr);
         }
       }
 

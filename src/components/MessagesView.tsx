@@ -12,6 +12,7 @@ import { getUserColor, getInitials, timeAgo } from '../utils/colorUtils';
 import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
+import { surfaceUploadError } from '../utils/convexUpload';
 import { useProduct } from '../contexts/ProductContext';
 import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
 import TeamMessageModal from './modals/TeamMessageModal';
@@ -2210,12 +2211,14 @@ const MessagesView: React.FC = () => {
                                                     try {
                                                         const postUrl = await generateUploadUrl();
                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
-                                                        if (res.ok) {
-                                                            const { storageId } = await res.json();
-                                                            if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
-                                                        }
-                                                    } catch {}
-                                                    if (teamFileInputRef.current) teamFileInputRef.current.value = '';
+                                                        if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                                                        const { storageId } = await res.json();
+                                                        if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
+                                                    } catch (uploadErr: any) {
+                                                        surfaceUploadError(addToast, file, uploadErr);
+                                                    } finally {
+                                                        if (teamFileInputRef.current) teamFileInputRef.current.value = '';
+                                                    }
                                                 }}
                                                 multiple
                                                 className="hidden"
@@ -2261,8 +2264,8 @@ const MessagesView: React.FC = () => {
                                                                     addToast('Voice note sent.', { type: 'success' });
                                                                 }
                                                             }
-                                                        } catch (e) {
-                                                            addToast('Failed to send voice note.', { type: 'error' });
+                                                        } catch (e: any) {
+                                                            surfaceUploadError(addToast, { name: `voice-note-${duration}s.webm`, size: blob.size }, e);
                                                         }
                                                     }}
                                                     onSend={async () => {
@@ -2669,15 +2672,19 @@ const MessagesView: React.FC = () => {
                                                             onChange={async (e) => {
                                                                 const files = Array.from(e.target.files || []);
                                                                 for (const file of files) {
-                                                                    if (file.size > 10 * 1024 * 1024) continue;
+                                                                    if (file.size > 10 * 1024 * 1024) {
+                                                                        surfaceUploadError(addToast, file, new Error('too large'), 10);
+                                                                        continue;
+                                                                    }
                                                                     try {
                                                                         const postUrl = await generateUploadUrl();
                                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
-                                                                        if (res.ok) {
-                                                                            const { storageId } = await res.json();
-                                                                            if (storageId) setAdminAttachments(prev => [...prev, { storageId, name: file.name }]);
-                                                                        }
-                                                                    } catch {}
+                                                                        if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                                                                        const { storageId } = await res.json();
+                                                                        if (storageId) setAdminAttachments(prev => [...prev, { storageId, name: file.name }]);
+                                                                    } catch (uploadErr: any) {
+                                                                        surfaceUploadError(addToast, file, uploadErr);
+                                                                    }
                                                                 }
                                                                 if (adminFileInputRef.current) adminFileInputRef.current.value = '';
                                                             }}
@@ -3228,12 +3235,14 @@ const MessagesView: React.FC = () => {
                                                     try {
                                                         const postUrl = await generateUploadUrl();
                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
-                                                        if (res.ok) {
-                                                            const { storageId } = await res.json();
-                                                            if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
-                                                        }
-                                                    } catch {}
-                                                    if (teamFileInputRef.current) teamFileInputRef.current.value = '';
+                                                        if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                                                        const { storageId } = await res.json();
+                                                        if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
+                                                    } catch (uploadErr: any) {
+                                                        surfaceUploadError(addToast, file, uploadErr);
+                                                    } finally {
+                                                        if (teamFileInputRef.current) teamFileInputRef.current.value = '';
+                                                    }
                                                 }}
                                                 multiple
                                                 className="hidden"
@@ -3268,8 +3277,8 @@ const MessagesView: React.FC = () => {
                                                                     setTeamAttachments(prev => [...prev, { storageId, name: `voice-note-${duration}s.webm` }]);
                                                                 }
                                                             }
-                                                        } catch (e) {
-                                                            addToast('Failed to upload voice note.', { type: 'error' });
+                                                        } catch (e: any) {
+                                                            surfaceUploadError(addToast, { name: `voice-note-${duration}s.webm`, size: blob.size }, e);
                                                         }
                                                     }}
                                                     onSend={sendTeamReply}
