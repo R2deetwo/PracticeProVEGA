@@ -1384,6 +1384,9 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 <div>
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                         Visitor Management System
+                        {status === 'included' && (
+                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Included in Plan</span>
+                        )}
                         {status === 'active' && (
                             <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>
                         )}
@@ -1399,18 +1402,34 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                     </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                    <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
-                    {/* PRICING AUDIT (Aug 2026): Reduced from ₦15,000 to ₦7,500/mo.
-                        Original price was ~3× overpriced vs. competitor benchmarks
-                        (₦5K-8K) and delivered only ~₦500/mo marginal cost. New price
-                        maintains ~85% margin while aligning with market expectations
-                        and driving higher adoption. Existing subscribers grandfathered
-                        at ₦15K for 6 months via backend migration logic. */}
-                    <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />7,500<span className="text-xs font-normal text-slate-500">/mo</span></p>
+                    {status === 'included' ? (
+                        <>
+                            <p className="text-2xs font-bold text-emerald-600 uppercase tracking-wider">Included</p>
+                            <p className="text-sm font-bold text-emerald-600">No add-on fee</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
+                            {/* PRICING AUDIT (Aug 2026): Reduced from ₦15,000 to ₦7,500/mo.
+                                Original price was ~3× overpriced vs. competitor benchmarks
+                                (₦5K-8K) and delivered only ~₦500/mo marginal cost. New price
+                                maintains ~85% margin while aligning with market expectations
+                                and driving higher adoption. Existing subscribers grandfathered
+                                at ₦15K for 6 months via backend migration logic. */}
+                            <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />7,500<span className="text-xs font-normal text-slate-500">/mo</span></p>
+                        </>
+                    )}
                 </div>
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                {status === 'included' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                            Included with your {firmDetails.subscriptionPlan} plan. Residents can generate visitor codes immediately — no add-on activation needed.
+                        </p>
+                    </div>
+                )}
                 {status === 'none' && (
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <p className="text-sm text-slate-600 dark:text-zinc-400">Try VMS free for 30 days. No payment required.</p>

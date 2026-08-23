@@ -8389,3 +8389,108 @@ Next actions:
   is single-pass
 - Existing Sentry subscribers need backend migration: grandfather at ₦15K
   for 6 months, then auto-migrate to ₦7.5K. Migration script TBD.
+
+---
+Task ID: court-date-checklist + event-delete + vms-entitlement-gap
+Agent: main (Super Z)
+Task: Fix three issues: (1) Court date not ticking off Getting Started checklist, (2) Can't delete events in Tasks & Events tab, (3) Komplete/VMS entitlement gap — pricing page promises "included" but backend has no tier-based bypass.
+
+PART 1: COURT DATE CHECKLIST BUG — FIXED
+
+Root cause: The checklist query filtered events with an exact string match:
+`type === "Court Hearing" || type === "Mention"`. This was too strict —
+any variation in the type field (case differences, custom event type names,
+or the .catch(() => []) silently swallowing errors) would cause the query
+to return 0 results, leaving the checklist item perpetually unchecked.
+
+Fix: Broadened the detection in getGettingStartedChecklist (myFunctions.ts):
+- Changed from Convex .filter() (exact match) to JS-side .then() filtering
+  (case-insensitive includes)
+- Now matches any event type containing: 'court', 'hearing', 'mention',
+  'trial', 'adjourn' (case-insensitive)
+- Also checks the `court` field on the event (only court-type events have
+  this field set) as a fallback signal
+- Replaced silent .catch(() => []) with .catch(err => console.error(...))
+  so errors are now visible in the Convex logs instead of being swallowed
+
+PART 2: EVENT DELETION IN TASKS & EVENTS TAB — FIXED
+
+Root cause: TasksAndEventsTab.tsx had a Delete button for tasks but NOT for
+events. Additionally, the task Delete button referenced `deleteTask` and
+`closeModal` which were NOT in the component's props or destructured from
+useUI() — they would have thrown a runtime ReferenceError when clicked.
+
+Fix:
+- Added `onDeleteItem` prop to TasksAndEventsTab (typed as
+  (table, id, name) => Promise<void> | void)
+- Destructured `closeModal` from useUI() (was missing)
+- Fixed the task Delete button to use `onDeleteItem('tasks', ...)` instead
+  of the undefined `deleteTask`
+- Added a new Delete button for events (identical styling to task delete,
+  uses `onDeleteItem('events', event.id, event.title)`)
+- Passed `deleteItem` from MatterDetailView (destructured from
+  useDataActions()) as the `onDeleteItem` prop
+
+PART 3: KOMPLETE/VMS ENTITLEMENT GAP — FIXED
+
+Root cause (identified by Claude): The pricing page promises "Sentry Pass
+(VMS) included" for Komplete, but the VMS access gate in
+visitorManagement.ts only checked `subscriptionAddons.vms.status` — there
+was no tier-based bypass. A Komplete customer paying ₦2.5M/year would hit
+the same paywall as a Starter customer unless someone manually flipped
+the add-on status to 'active'.
+
+This is the same category of bug found earlier with WhatsApp automation,
+SSO, and search_legal_repo — a real feature promise with no backend
+enforcement behind it.
+
+Fix (mirrors Estate Community's requireEstateCommunityAccess pattern):
+- visitorManagement.ts: Added tier-based bypass in generateVisitorToken.
+  Komplete and Enterprise firms now get VMS access without needing
+  subscriptionAddons.vms to be active at all. Below-Komplete firms still
+  see the existing trial/paid flow unchanged.
+- myFunctions.ts getVmsAddonStatus: Returns `{ status: 'included' }` for
+  Komplete/Enterprise firms, so the frontend can show "Included in your
+  plan" instead of pricing/trial CTAs.
+- SubscriptionSettings.tsx VmsAddonPanel: Renders the "Included in Plan"
+  state for qualifying tiers — shows green badge + "No add-on fee" +
+  "Included with your [plan] plan. Residents can generate visitor codes
+  immediately — no add-on activation needed."
+
+Qualifying tiers: Komplete + Enterprise (matching the Enterprise tier
+feature list: "Sentry Pass (VMS) included — ₦7.5K/mo value"). Pro does
+NOT get VMS included — Pro is the "estate manager" tier but VMS is
+positioned as a premium add-on for Pro, while Komplete/Enterprise are
+the "everything included" tiers.
+
+Stage Summary:
+- Files modified (5):
+  1. convex/myFunctions.ts — broadened court date detection + VMS 'included' status
+  2. convex/visitorManagement.ts — tier-based bypass for Komplete/Enterprise
+  3. src/components/details/TasksAndEventsTab.tsx — added event Delete button + fixed task delete
+  4. src/components/details/MatterDetailView.tsx — pass deleteItem as onDeleteItem
+  5. src/components/settings/SubscriptionSettings.tsx — VmsAddonPanel 'included' state
+- TypeScript: 387 errors → 385 errors (REDUCED by 2 — fixed the deleteTask
+  undefined reference and the deleteItem type mismatch). Zero new errors.
+- Acceptance criteria:
+  [x] Court date checklist: broadened detection — now matches any event with
+      type containing court/hearing/mention/trial/adjourn (case-insensitive)
+      OR events with a `court` field set
+  [x] Event deletion: Delete button added to events in Tasks & Events tab,
+      matching the task delete pattern (confirmation modal + deleteItem call)
+  [x] Task deletion: fixed the undefined `deleteTask` reference (was throwing
+      runtime error when clicked)
+  [x] VMS gate: Komplete/Enterprise bypass — no add-on needed
+  [x] VmsAddonPanel: shows "Included in your plan" for Komplete/Enterprise
+  [x] Starter/Growth firms: unchanged — still see trial/paid flow
+
+Next actions:
+- Push to GitHub to trigger Vercel deploy
+- Manual test: add a "Court Hearing" event to a matter, confirm the
+  checklist ticks off within seconds (Convex reactivity)
+- Manual test: open Tasks & Events tab, confirm the trash icon appears
+  on event cards next to the edit icon, click it → confirm the delete
+  confirmation modal → confirm the event is deleted
+- Manual test: on a Komplete firm, open Settings → Subscription, confirm
+  the VmsAddonPanel shows "Included in your plan" with green badge
+  instead of ₦7,500/mo pricing + trial CTA

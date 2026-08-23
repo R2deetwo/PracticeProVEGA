@@ -138,22 +138,36 @@ export const generateVisitorToken = mutation({
       try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
     }
     if (firm) {
-      const vmsAddon = (firm.subscriptionAddons as any)?.vms;
-      if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
-        // Allow if founder firm (practicepro.ng) for testing
-        const isFounderFirm = (firm.email || '').toLowerCase().endsWith('@practicepro.ng')
-          || firm.id === 'practicepro'
-          || (firm.name || '').toLowerCase().includes('practicepro');
-        if (!isFounderFirm) {
-          throw new Error("VMS_ADDON_REQUIRED: Your firm does not have an active Visitor Management System add-on. Please ask your firm admin to subscribe in Settings → Subscription → Add-ons.");
+      // ─── TIER-BASED BYPASS (Aug 2026) ────────────────────────────────
+      // Komplete and Enterprise firms get VMS included free (per pricing page
+      // promise: "Sentry Pass (VMS) included"). This mirrors the Estate
+      // Community pattern in estateCommunity.ts → requireEstateCommunityAccess.
+      // Previously, the pricing page promised "included" but the backend
+      // gate had no tier check — Komplete customers paying ₦2.5M/year would
+      // hit the same paywall as Starter customers unless someone manually
+      // flipped subscriptionAddons.vms.status to 'active'.
+      const plan = firm.subscriptionPlan;
+      const isVmsIncludedInPlan = plan === 'Komplete' || plan === 'Enterprise';
+
+      if (!isVmsIncludedInPlan) {
+        // Below Komplete/Enterprise: check the add-on status
+        const vmsAddon = (firm.subscriptionAddons as any)?.vms;
+        if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
+          // Allow if founder firm (practicepro.ng) for testing
+          const isFounderFirm = (firm.email || '').toLowerCase().endsWith('@practicepro.ng')
+            || firm.id === 'practicepro'
+            || (firm.name || '').toLowerCase().includes('practicepro');
+          if (!isFounderFirm) {
+            throw new Error("VMS_ADDON_REQUIRED: Your firm does not have an active Visitor Management System add-on. Please ask your firm admin to subscribe in Settings → Subscription → Add-ons.");
+          }
+        } else if (vmsAddon.status === 'trial' && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
+          // Trial has expired — auto-mark as expired
+          vmsAddon.status = 'expired';
+          await ctx.db.patch(firm._id, {
+            subscriptionAddons: { ...(firm.subscriptionAddons as any || {}), vms: vmsAddon },
+          });
+          throw new Error("VMS_TRIAL_EXPIRED: Your 30-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
         }
-      } else if (vmsAddon.status === 'trial' && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
-        // Trial has expired — auto-mark as expired
-        vmsAddon.status = 'expired';
-        await ctx.db.patch(firm._id, {
-          subscriptionAddons: { ...(firm.subscriptionAddons as any || {}), vms: vmsAddon },
-        });
-        throw new Error("VMS_TRIAL_EXPIRED: Your 30-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
       }
     }
 

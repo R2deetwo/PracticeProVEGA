@@ -81,6 +81,7 @@ const MatterDetailViewContent: React.FC = () => {
     const { executionState, executionActions } = useExecutionState();
     const { financeState, financeActions } = useFinanceState();
     const dataHandlers = useDataActions();
+    const { deleteItem } = dataHandlers;
     const { currentUser } = useAuth();
     const { canViewBilling } = usePermissions();
     const setMatterPrivacyMutation = useMutation(api.myFunctions.setMatterPrivacy);
@@ -558,6 +559,7 @@ const MatterDetailViewContent: React.FC = () => {
                             lastViewedAt={getTabBaseline('schedule_tasks')}
                             currentUser={currentUser || {} as User}
                             navigateTo={navigateTo}
+                            onDeleteItem={deleteItem as any}
                         />
                     ) : activeTab === 'billing' ? (
                         !canViewBilling ? null : <BillingSummaryWidget matter={matterData} timeEntries={timeEntries} expenses={expenses} invoices={invoices} openModal={openModal} onDeleteTimeEntry={onDeleteTimeEntry} onDeleteExpense={onDeleteExpense} navigateTo={navigateTo} />

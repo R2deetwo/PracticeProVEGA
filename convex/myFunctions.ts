@@ -6161,6 +6161,15 @@ export const getVmsAddonStatus = query({
       try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
     }
     if (!firm) return { status: 'none' as const };
+
+    // TIER-BASED BYPASS (Aug 2026): Komplete and Enterprise get VMS included.
+    // Return 'included' so the frontend VmsAddonPanel can show
+    // "Included in your plan" instead of pricing/trial CTAs.
+    const plan = firm.subscriptionPlan;
+    if (plan === 'Komplete' || plan === 'Enterprise') {
+      return { status: 'included' as const };
+    }
+
     const vms = (firm.subscriptionAddons as any)?.vms;
     if (!vms) return { status: 'none' as const };
     // Auto-expire trial if past trialEndsAt
@@ -6788,17 +6797,32 @@ export const getGettingStartedChecklist = query({
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
         .take(50)
         .catch(() => []),
-      // DEEP AUDIT FIX: Court dates are Event records with type 'Court Hearing' or 'Mention'
+      // DEEP AUDIT FIX: Court dates are stored as Event records with type
+      // 'Court Hearing' or 'Mention'. Also broadened (Aug 2026) to catch
+      // case variations and custom event types that contain 'court' or
+      // 'hearing' or 'mention' in the name. Also checks the `court` field
+      // (only set on court-type events) as a fallback signal.
+      // The .catch(() => []) was silently swallowing errors — now we log.
       ctx.db.query("events")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
-        .filter((q: any) =>
-          q.or(
-            q.eq(q.field("type"), "Court Hearing"),
-            q.eq(q.field("type"), "Mention")
-          )
-        )
         .take(500)
-        .catch(() => []),
+        .then((allEvents: any[]) => {
+          return allEvents.filter((e: any) => {
+            const eventType = (e.type || '').toLowerCase();
+            // Match any event type containing court-related keywords
+            return eventType.includes('court') ||
+                   eventType.includes('hearing') ||
+                   eventType.includes('mention') ||
+                   eventType.includes('trial') ||
+                   eventType.includes('adjourn') ||
+                   // Fallback: event has a `court` field set (only court events have this)
+                   !!e.court;
+          });
+        })
+        .catch((err: any) => {
+          console.error('[getGettingStartedChecklist] Court events query failed:', err);
+          return [];
+        }),
     ]);
 
     // Has at least one property with a tenant assigned — check ALL properties,

@@ -39,6 +39,10 @@ interface TasksAndEventsTabProps {
     lastViewedAt: number;
     currentUser: User;
     navigateTo: (view: any, id?: string | null, context?: any) => void;
+    // Delete handler — passed from MatterDetailView via useDataActions().deleteItem
+    // Type is loose (string) to avoid importing AppState type — the runtime
+    // check in deleteItem validates the table name.
+    onDeleteItem?: (table: string, id: string, name: string) => Promise<void> | void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,9 +50,9 @@ interface TasksAndEventsTabProps {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
-    tasks, events, matterId, matter, documents, openModal, onUpdateTaskStatus, lastViewedAt, currentUser, navigateTo
+    tasks, events, matterId, matter, documents, openModal, onUpdateTaskStatus, lastViewedAt, currentUser, navigateTo, onDeleteItem
 }) => {
-    const { setHighlightTarget } = useUI();
+    const { setHighlightTarget, closeModal } = useUI();
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
     const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -209,7 +213,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                                 </button>
                                             </Tooltip>
                                             <Tooltip text="Delete">
-                                                <button onClick={(e) => { e.stopPropagation(); openModal('deleteConfirmation', task.id, { title: `Delete "${task.title}"?`, message: 'This task will be permanently removed.', onConfirm: () => { deleteTask(task.id, task.title); closeModal(); } }); }} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-colors">
+                                                <button onClick={(e) => { e.stopPropagation(); openModal('deleteConfirmation', task.id, { title: `Delete "${task.title}"?`, message: 'This task will be permanently removed.', onConfirm: () => { if (onDeleteItem) onDeleteItem('tasks', task.id, task.title); closeModal(); } }); }} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-colors">
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                                 </button>
                                             </Tooltip>
@@ -284,6 +288,14 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                                     className="p-1 rounded hover:bg-white dark:hover:bg-zinc-600 text-slate-400 hover:text-primary-600 transition-colors"
                                                 >
                                                     <EditIcon className="w-3.5 h-3.5" />
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Delete">
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); openModal('deleteConfirmation', event.id, { title: `Delete "${event.title}"?`, message: 'This event will be permanently removed from the calendar.', onConfirm: () => { if (onDeleteItem) onDeleteItem('events', event.id, event.title); closeModal(); } }); }}
+                                                    className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-colors"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                                 </button>
                                             </Tooltip>
                                         </div>
