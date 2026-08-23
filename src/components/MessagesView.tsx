@@ -1684,7 +1684,7 @@ const MessagesView: React.FC = () => {
                                     )}
                                 </div>
                             )}
-<div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+<div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col">
                                 {isInboxLoading ? (
                                     <div className="p-3">
                                         <ListItemSkeleton count={6} />
@@ -1825,6 +1825,7 @@ const MessagesView: React.FC = () => {
                                             )}
 
                                             {/* ── Section: Inbound WhatsApp & Email (Atrium/Komplete only) ── */}
+                                            <div style={{ order: sectionOrder.indexOf('inbound') }}>
                                             {hasPropertyFeatures && (atriumInbound as any[]).length > 0 && (
                                                 <>
                                                     <SectionHeader
@@ -1869,6 +1870,8 @@ const MessagesView: React.FC = () => {
                                                 </>
                                             )}
 
+                                            </div>
+                                            <div style={{ order: sectionOrder.indexOf('team') }}>
                                             {/* ── Section: Team Direct Messages ────────────────────────── */}
                                             {typeFilters.team && teamConversationsForInbox.length > 0 && (
                                                 <>
@@ -1976,6 +1979,8 @@ const MessagesView: React.FC = () => {
                                                 </>
                                             )}
 
+                                            </div>
+                                            <div style={{ order: sectionOrder.indexOf('portal_clients') }}>
                                             {/* ── Section: Clients (Portal Conversations — Client role) ── */}
                                             {(isLegal || isUnified) && (
                                                 <>
@@ -2061,6 +2066,8 @@ const MessagesView: React.FC = () => {
                                                 </>
                                             )}
 
+                                            </div>
+                                            <div style={{ order: sectionOrder.indexOf('portal_residents') }}>
                                             {/* ── Section: Residents (Portal Conversations — Tenant role) ── */}
                                             {(hasPropertyFeatures || isUnified) && (
                                                 <>
@@ -2146,6 +2153,8 @@ const MessagesView: React.FC = () => {
                                                 </>
                                             )}
 
+                                            </div>
+                                            <div style={{ order: sectionOrder.indexOf('client') }}>
                                             {/* ── Section: Client Messages (Legacy, Vega only) ── */}
                                             {!isProperty && clientMessages.filter((m: any) => !m.isRead).length > 0 && (
                                                 <>
@@ -2178,6 +2187,7 @@ const MessagesView: React.FC = () => {
                                                 ))}
                                                 </>
                                             )}
+                                            </div>
                                         </>
                                     );
                                 })()}
