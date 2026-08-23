@@ -119,8 +119,8 @@ import TenantPortal from './tenant/TenantPortal';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { PortalTermsOfUse } from './PortalTermsOfUse';
-import RevenueEngine from './atrium/RevenueEngine';
 
+import { RevenueMonitor } from './atrium/RevenueMonitor';
 
 import DataProcessingAgreement from './DataProcessingAgreement';
 import CookiePolicy from './CookiePolicy';
@@ -381,7 +381,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'atriumEngine': return (
                 <ViewWrapper>
                     <FeatureGuard requiredProduct="property">
-                        <RevenueEngine />
+                        <RevenueMonitor />
                     </FeatureGuard>
                 </ViewWrapper>
             );
