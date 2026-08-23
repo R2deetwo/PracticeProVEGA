@@ -19,6 +19,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { surfaceUploadError } from '../../utils/convexUpload';
 import EstateCommunityResidentView from './EstateCommunityResidentView';
 import NairaSymbol from '../NairaSymbol';
+import { formatNaira as formatNairaShared } from '../../utils/formatting';
 import {
   EyeIcon,
   OfficeBuildingIcon,
@@ -103,12 +104,10 @@ const SendIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const formatNaira = (amount: number) => (
-  <span className="inline-flex items-center">
-    <NairaSymbol />{amount.toLocaleString()}
-  </span>
-);
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+// Uses the canonical formatNaira from utils/formatting.ts with withSymbol:true
+// for portal contexts where the NairaSymbol component isn't available.
+const formatNaira = (amount: number) => formatNairaShared(amount, { withSymbol: true });
 
 const formatDate = (ts: number) => {
   const d = new Date(ts);
@@ -720,7 +719,8 @@ const DashboardTab: React.FC<{
   isFunding?: boolean; setIsFunding?: (v: boolean) => void;
 }> = ({ tenantInfo, onNavigate, walletData, fundWallet, toggleAutoDeduct, initiateWalletFunding, userId, effectiveFirmId, email, walletFundAmount, setWalletFundAmount, isFunding, setIsFunding }) => {
   const { currentUser } = useAuth();
-  const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  // Uses the canonical formatNaira from utils/formatting.ts.
+  const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
 
   // Derive outstanding balance from tenantInfo (if available)
   const outstandingBalance = tenantInfo?.outstandingBalance || 0;

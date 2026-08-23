@@ -9,6 +9,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { useProduct } from '../../contexts/ProductContext';
 import { openHtmlInNewWindow, escapeHtml } from '../../utils/safePrintWindow';
 import { surfaceUploadError } from '../../utils/convexUpload';
+import { formatNaira as formatNairaShared } from '../../utils/formatting';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
     ChatAltIcon, ClockIcon, CheckCircleIcon,
@@ -557,7 +558,7 @@ const ClientDashboard: React.FC = () => {
     //   - Quick Services: actionable tiles (not just requests — includes
     //     pay invoice, documents, messages, new request)
     //   - Recent Activity: simple feed below
-    const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
     const totalOutstanding = (clientInvoices || []).filter((inv: any) =>
         inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent'
     ).reduce((sum: number, inv: any) => sum + (inv.totalAmount || inv.amount || 0), 0);
@@ -1350,7 +1351,7 @@ const ClientDashboard: React.FC = () => {
             setIsMarkingPaid(false);
         }
     };
-    const formatNairaStatic = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    const formatNairaStatic = (n: number) => formatNairaShared(n, { withSymbol: true });
 
     // ── Cancel request handler ─────────────────────────────────────────
     const handleCancelRequest = async (requestId: string) => {
@@ -1731,7 +1732,7 @@ const ClientDashboard: React.FC = () => {
         const totalPaid = invoices
             .filter(inv => inv.status === 'Paid')
             .reduce((sum, inv) => sum + (inv.totalAmount || inv.amount || 0), 0);
-        const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+        const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
 
         const getStatusBadge = (status: string) => {
             const config: Record<string, { bg: string; text: string }> = {

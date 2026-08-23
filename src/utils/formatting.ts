@@ -12,18 +12,26 @@ export const normalizeAddress = (address: string): string => {
  * Formats a number as a Naira currency string, without the symbol.
  * Use this with the <NairaSymbol /> component for display.
  * @param amount The number to format (also accepts string representations).
- * @returns A string representing the formatted amount, e.g., "1,000,000.00".
+ * @param opts.withSymbol If true, prefixes with ₦ (for contexts where a
+ *   separate <NairaSymbol /> component isn't used, e.g., Resident Portal,
+ *   Client Portal). Default: false.
+ * @returns A string representing the formatted amount, e.g., "1,000,000.00"
+ *   or "₦1,000,000.00" if withSymbol is true.
  */
-export const formatNaira = (amount: number | string): string => {
+export const formatNaira = (
+  amount: number | string,
+  opts?: { withSymbol?: boolean }
+): string => {
   // Handle string inputs by converting to number
   const num = typeof amount === 'string' ? parseFloat(amount.replace(/[^0-9.-]/g, '')) : amount;
   if (typeof num !== 'number' || isNaN(num)) {
-    return '0.00';
+    return opts?.withSymbol ? '₦0.00' : '0.00';
   }
-  return num.toLocaleString('en-NG', {
+  const formatted = num.toLocaleString('en-NG', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+  return opts?.withSymbol ? `₦${formatted}` : formatted;
 };
 
 /**
