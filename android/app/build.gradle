@@ -16,6 +16,61 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // ─── RELEASE SIGNING CONFIG (Aug 2026) ──────────────────────────
+        // Previously, release builds used the debug keystore — meaning every
+        // "release" APK was signed with Android's universal default debug
+        // credentials, which:
+        //   1. Breaks updates if the debug.keystore is ever regenerated
+        //      (Android sees a different app trying to overwrite — "problem
+        //      while parsing the package")
+        //   2. Blocks Google Play submission (Play requires a real upload key)
+        //   3. The debug.keystore was committed to the (public) repo — so
+        //      the signing credentials were exposed
+        //
+        // Now: reads from environment variables. The keystore file
+        // (release.keystore) lives in android/app/ but is gitignored.
+        // The passwords are stored in:
+        //   - Local environment (export before building)
+        //   - GitHub Actions secrets (for CI builds)
+        //   - Password manager (documented separately for the founder)
+        //
+        // Both apps share the same keystore file but use different key aliases:
+        //   - practicepro-app    → com.practicepro.app (user APK)
+        //   - practicepro-admin  → com.practicepro.admin (founder APK)
+        //
+        // The swap script (sync-admin-config.cjs) changes capacitor.config.ts
+        // but NOT build.gradle — so we use the applicationId from the config
+        // to determine which alias to use. The sync script sets a Gradle
+        // property via capacitor.build.gradle that we can read.
+        //
+        // Fallback: if env vars aren't set, release builds fall back to debug
+        // signing (with a warning). This prevents CI from failing silently.
+        release {
+            def releaseStoreFile = System.getenv('RELEASE_STORE_FILE')
+            def releaseStorePassword = System.getenv('RELEASE_STORE_PASSWORD')
+            // Key alias can come from env vars OR from gradle.properties
+            // (set by the admin config swap script for the founder APK build).
+            def releaseKeyAlias = System.getenv('RELEASE_KEY_ALIAS')
+                ?: (project.hasProperty('releaseKeyAlias') ? project.property('releaseKeyAlias') : 'practicepro-app')
+            def releaseKeyPassword = System.getenv('RELEASE_KEY_PASSWORD')
+
+            if (releaseStoreFile != null && new File(releaseStoreFile).exists()) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            } else {
+                // Fallback to debug for local dev builds that haven't set up env vars.
+                // CI/production builds MUST set the env vars — the fallback exists
+                // so `./gradlew assembleRelease` doesn't fail for developers who
+                // just want to test a release build locally.
+                logger.warn('RELEASE_STORE_FILE not set or file not found — falling back to debug signing. Set env vars for production builds.')
+                storeFile file('debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
+        }
     }
 
     defaultConfig {
@@ -53,9 +108,13 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            minifyEnabled false
+            // AUG 2026: Enabled minification for smaller, obfuscated APKs.
+            // ProGuard rules below keep WebView/JS interfaces + Capacitor classes.
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            // Use the release signing config (env-var based). Falls back to
+            // debug signing if env vars aren't set — see signingConfigs.release.
+            signingConfig signingConfigs.release
         }
     }
 

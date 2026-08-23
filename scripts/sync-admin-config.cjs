@@ -252,15 +252,32 @@ try {
 // show up on the home screen as 'PracticePro' (same app name).
 const { appId: adminAppId, appName: adminAppName } = readAdminConfig();
 
-// 2c-i: patch applicationId in app/build.gradle
+// 2c-i: patch applicationId + key alias in app/build.gradle
 if (adminAppId && fs.existsSync(APP_GRADLE)) {
     try {
         fs.copyFileSync(APP_GRADLE, APP_GRADLE_BACKUP);
         const gradle = fs.readFileSync(APP_GRADLE, 'utf8');
-        const patched = gradle.replace(
+        let patched = gradle.replace(
             /(applicationId\s+")[^"]+(")/,
             `$1${adminAppId}$2`
         );
+        // Also patch the release key alias so the admin APK is signed with
+        // the admin key, not the user app key. We write a temporary
+        // gradle.properties entry that the build.gradle can read via
+        // project.hasProperty() + project.property().
+        // NOTE: process.env in Node does NOT propagate to child Gradle processes.
+        // We must pass it via -D flag to Gradle or via gradle.properties.
+        const gradlePropsPath = path.join(ROOT, 'android', 'gradle.properties');
+        const gradlePropsBackup = gradlePropsPath + '.admin-backup';
+        if (fs.existsSync(gradlePropsPath)) {
+            fs.copyFileSync(gradlePropsPath, gradlePropsBackup);
+        }
+        const adminAlias = adminAppId === 'com.practicepro.admin' ? 'practicepro-admin' : 'practicepro-app';
+        // Append the key alias to gradle.properties so build.gradle can read it
+        const existingProps = fs.existsSync(gradlePropsPath) ? fs.readFileSync(gradlePropsPath, 'utf8') : '';
+        const updatedProps = existingProps.replace(/releaseKeyAlias=.*/g, '') + `\nreleaseKeyAlias=${adminAlias}\n`;
+        fs.writeFileSync(gradlePropsPath, updatedProps.trim() + '\n');
+        log(`Set releaseKeyAlias=${adminAlias} in gradle.properties for APK build`);
         if (patched !== gradle) {
             fs.writeFileSync(APP_GRADLE, patched);
             log(`Patched applicationId in app/build.gradle → ${adminAppId}`);

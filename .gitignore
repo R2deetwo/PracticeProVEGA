@@ -7,3 +7,14 @@ node_modules/
 download/
 upload/
 tool-results/
+
+# ─── Android signing keys ──────────────────────────────────────────────────
+# These must NEVER be committed. The debug.keystore was previously committed
+# to a public repo — treat those credentials as compromised. The new
+# release.keystore is generated locally and stored securely outside the repo.
+# Passwords are passed via env vars (RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD,
+# RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD) — never hardcoded in source.
+android/app/debug.keystore
+android/app/release.keystore
+*.keystore
+*.jks

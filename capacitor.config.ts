@@ -29,7 +29,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   backgroundColor: '#16A34A',
   android: {
-    allowMixedContent: true,
+    // allowMixedContent disabled (Aug 2026) — no code uses HTTP URLs.
+    // All API calls go through HTTPS (Convex, Paystack, Firebase, Gemini).
+    // The XML namespace URLs in docxExport.ts are not actual HTTP requests.
+    // Leaving this on would be an unnecessary security loosening.
+    allowMixedContent: false,
     captureInput: false,
     webContentsDebuggingEnabled: false,
   },
