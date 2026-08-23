@@ -64,6 +64,57 @@ const config: Config = {
                                 '4': 'hsl(var(--chart-4))',
                                 '5': 'hsl(var(--chart-5))'
                         },
+                        // ─── THEME-AWARE NEUTRAL COLORS (Aug 2026 fix) ────────
+                        // Maps Tailwind's slate/zinc/gray/white/black to the CSS
+                        // variables defined in index.css. Without this mapping,
+                        // bg-white, bg-slate-50, dark:bg-zinc-800, text-slate-900
+                        // etc. generate hardcoded hex values from Tailwind's default
+                        // palette — they NEVER respond to theme overrides.
+                        // Now every theme class (.dark, .theme-midnight, .theme-oled
+                        // etc.) can override --color-white, --color-slate-800, etc.
+                        // and all Tailwind utilities that reference those colors
+                        // will update automatically.
+                        slate: {
+                                50:  'rgb(var(--color-slate-50) / <alpha-value>)',
+                                100: 'rgb(var(--color-slate-100) / <alpha-value>)',
+                                200: 'rgb(var(--color-slate-200) / <alpha-value>)',
+                                300: 'rgb(var(--color-slate-300) / <alpha-value>)',
+                                400: 'rgb(var(--color-slate-400) / <alpha-value>)',
+                                500: 'rgb(var(--color-slate-500) / <alpha-value>)',
+                                600: 'rgb(var(--color-slate-600) / <alpha-value>)',
+                                700: 'rgb(var(--color-slate-700) / <alpha-value>)',
+                                800: 'rgb(var(--color-slate-800) / <alpha-value>)',
+                                900: 'rgb(var(--color-slate-900) / <alpha-value>)',
+                                950: 'rgb(var(--color-slate-950) / <alpha-value>)',
+                        },
+                        zinc: {
+                                50:  'rgb(var(--color-zinc-50) / <alpha-value>)',
+                                100: 'rgb(var(--color-zinc-100) / <alpha-value>)',
+                                200: 'rgb(var(--color-zinc-200) / <alpha-value>)',
+                                300: 'rgb(var(--color-zinc-300) / <alpha-value>)',
+                                400: 'rgb(var(--color-zinc-400) / <alpha-value>)',
+                                500: 'rgb(var(--color-zinc-500) / <alpha-value>)',
+                                600: 'rgb(var(--color-zinc-600) / <alpha-value>)',
+                                700: 'rgb(var(--color-zinc-700) / <alpha-value>)',
+                                800: 'rgb(var(--color-zinc-800) / <alpha-value>)',
+                                900: 'rgb(var(--color-zinc-900) / <alpha-value>)',
+                                950: 'rgb(var(--color-zinc-950) / <alpha-value>)',
+                        },
+                        gray: {
+                                50:  'rgb(var(--color-gray-50) / <alpha-value>)',
+                                100: 'rgb(var(--color-gray-100) / <alpha-value>)',
+                                200: 'rgb(var(--color-gray-200) / <alpha-value>)',
+                                300: 'rgb(var(--color-gray-300) / <alpha-value>)',
+                                400: 'rgb(var(--color-gray-400) / <alpha-value>)',
+                                500: 'rgb(var(--color-gray-500) / <alpha-value>)',
+                                600: 'rgb(var(--color-gray-600) / <alpha-value>)',
+                                700: 'rgb(var(--color-gray-700) / <alpha-value>)',
+                                800: 'rgb(var(--color-gray-800) / <alpha-value>)',
+                                900: 'rgb(var(--color-gray-900) / <alpha-value>)',
+                                950: 'rgb(var(--color-gray-950) / <alpha-value>)',
+                        },
+                        white: 'rgb(var(--color-white) / <alpha-value>)',
+                        black: 'rgb(var(--color-black) / <alpha-value>)',
                         // ─── Premium Portal Design Tokens ──────────────────────
                         // Used by the portal pages (ClientDashboard, TenantPortal)
                         // to create the soft, elevated, borderless aesthetic.

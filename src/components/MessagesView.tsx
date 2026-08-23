@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatConversation, ChatMessage, User, ModalType, View } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -523,18 +523,25 @@ const SectionHeader: React.FC<{
     isCollapsed: boolean;
     onToggle: () => void;
     accentColor?: string;
-}> = ({ icon, label, count, unreadCount, isCollapsed, onToggle, accentColor = 'text-slate-500' }) => (
-    <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border-b border-slate-100 dark:border-zinc-800 group"
-    >
-        <svg className={`w-3 h-3 text-slate-400 transition-transform flex-shrink-0 ${isCollapsed ? '' : 'rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-        <span className={`flex-shrink-0 ${accentColor}`}>{icon}</span>
-        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex-1 text-left">
-            {label}
-        </span>
+    /** Reordering: called when user clicks the up/down arrows. Undefined = no reordering (fixed section). */
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
+}> = ({ icon, label, count, unreadCount, isCollapsed, onToggle, accentColor = 'text-slate-500', onMoveUp, onMoveDown, canMoveUp, canMoveDown }) => (
+    <div className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border-b border-slate-100 dark:border-zinc-800 group">
+        <button
+            onClick={onToggle}
+            className="flex items-center gap-2 flex-1 min-w-0 text-left"
+        >
+            <svg className={`w-3 h-3 text-slate-400 transition-transform flex-shrink-0 ${isCollapsed ? '' : 'rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span className={`flex-shrink-0 ${accentColor}`}>{icon}</span>
+            <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex-1 text-left">
+                {label}
+            </span>
+        </button>
         {unreadCount !== undefined && unreadCount > 0 && (
             <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-2xs font-bold flex-shrink-0">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -545,7 +552,29 @@ const SectionHeader: React.FC<{
                 {count}
             </span>
         )}
-    </button>
+        {/* Reorder arrows — only shown for movable sections. PracticePro Team
+            doesn't get these (it's always first). */}
+        {onMoveUp && (
+            <button
+                onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+                disabled={!canMoveUp}
+                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-all flex-shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
+                title="Move up"
+            >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+            </button>
+        )}
+        {onMoveDown && (
+            <button
+                onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+                disabled={!canMoveDown}
+                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-all flex-shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
+                title="Move down"
+            >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+        )}
+    </div>
 );
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -785,6 +814,36 @@ const MessagesView: React.FC = () => {
             return next;
         });
     };
+
+    // ─── ACCORDION REORDERING (Aug 2026) ──────────────────────────────
+    // Users can reorder accordion sections (except PracticePro Team which
+    // is always first). Order is persisted to localStorage per-user.
+    // Movable sections: team, inbound, portal_clients, portal_residents, client
+    // Fixed section: system (PracticePro Team — always at top)
+    const MOVABLE_SECTIONS_KEY = 'practicepro_inbox_section_order';
+    const DEFAULT_SECTION_ORDER = ['team', 'inbound', 'portal_clients', 'portal_residents', 'client'];
+    const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem(MOVABLE_SECTIONS_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch {}
+        return DEFAULT_SECTION_ORDER;
+    });
+    const moveSection = useCallback((sectionId: string, direction: 'up' | 'down') => {
+        setSectionOrder(prev => {
+            const idx = prev.indexOf(sectionId);
+            if (idx === -1) return prev;
+            const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= prev.length) return prev;
+            const next = [...prev];
+            [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+            try { localStorage.setItem(MOVABLE_SECTIONS_KEY, JSON.stringify(next)); } catch {}
+            return next;
+        });
+    }, []);
 
     // Role filter: All / Client / Resident.
     // Role filter REMOVED (Aug 2026) — Clients and Residents now have
@@ -1776,6 +1835,10 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('inbound')}
                                                         onToggle={() => toggleSection('inbound')}
                                                         accentColor="text-amber-500"
+                                                        onMoveUp={() => moveSection('inbound', 'up')}
+                                                        onMoveDown={() => moveSection('inbound', 'down')}
+                                                        canMoveUp={sectionOrder.indexOf('inbound') > 0}
+                                                        canMoveDown={sectionOrder.indexOf('inbound') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('inbound') && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
@@ -1817,6 +1880,10 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('team')}
                                                         onToggle={() => toggleSection('team')}
                                                         accentColor="text-indigo-500"
+                                                        onMoveUp={() => moveSection('team', 'up')}
+                                                        onMoveDown={() => moveSection('team', 'down')}
+                                                        canMoveUp={sectionOrder.indexOf('team') > 0}
+                                                        canMoveDown={sectionOrder.indexOf('team') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('team') && teamConversationsForInbox.map((tc: any) => {
                                                 const convId = String(tc.conversationId);
@@ -1920,6 +1987,10 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('portal_clients')}
                                                         onToggle={() => toggleSection('portal_clients')}
                                                         accentColor="text-violet-500"
+                                                        onMoveUp={() => moveSection('portal_clients', 'up')}
+                                                        onMoveDown={() => moveSection('portal_clients', 'down')}
+                                                        canMoveUp={sectionOrder.indexOf('portal_clients') > 0}
+                                                        canMoveDown={sectionOrder.indexOf('portal_clients') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('portal_clients') && (
                                                         clientPortalConversations.length > 0 ? clientPortalConversations.map((conv: any) => {
@@ -2001,6 +2072,10 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('portal_residents')}
                                                         onToggle={() => toggleSection('portal_residents')}
                                                         accentColor="text-sky-500"
+                                                        onMoveUp={() => moveSection('portal_residents', 'up')}
+                                                        onMoveDown={() => moveSection('portal_residents', 'down')}
+                                                        canMoveUp={sectionOrder.indexOf('portal_residents') > 0}
+                                                        canMoveDown={sectionOrder.indexOf('portal_residents') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('portal_residents') && (
                                                         residentPortalConversations.length > 0 ? residentPortalConversations.map((conv: any) => {
@@ -2081,6 +2156,10 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('client')}
                                                         onToggle={() => toggleSection('client')}
                                                         accentColor="text-violet-500"
+                                                        onMoveUp={() => moveSection('client', 'up')}
+                                                        onMoveDown={() => moveSection('client', 'down')}
+                                                        canMoveUp={sectionOrder.indexOf('client') > 0}
+                                                        canMoveDown={sectionOrder.indexOf('client') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('client') && clientMessages
                                                 .filter((m: any) => !m.isRead)

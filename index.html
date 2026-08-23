@@ -205,32 +205,10 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: #f8fafc;
-      /* Slate-50 default */
-      color: #0f172a;
-      /* Slate-900 default */
-    }
-
-    /* Fallback Dark Mode Styles (Applied immediately if 'dark' class exists) */
-    html.dark body {
-      background-color: #18181b !important;
-      /* Zinc-900 */
-      color: #ffffff !important;
-    }
-
-    html.theme-midnight body {
-      background-color: #020617 !important; /* slate-950 */
-      color: #f1f5f9 !important;
-    }
-
-    html.theme-oled body {
-      background-color: #000000 !important;
-      color: #e5e5e5 !important;
-    }
-
-    html.theme-sepia body {
-      background-color: #faf8f5 !important;
-      color: #282421 !important;
+      /* Let index.css handle background and text color via CSS variables.
+         Do NOT hardcode background-color or color here — it overrides the
+         theme system. index.css sets: background-color: rgb(var(--bg-main));
+         color: rgb(var(--text-main)); which responds to all theme classes. */
     }
 
     .dark {
@@ -384,7 +362,7 @@
   })();
 </script>
 
-<body class="dark:bg-zinc-900">
+<body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
