@@ -124,33 +124,60 @@ const config: Config = {
                                 card: '#FFFFFF',          // Pure white for card elevation
                         },
                 },
+                // ─── BORDER RADIUS (3 tokens, enforced) ─────────────────────────
+                // sm  = 6px   → Buttons, inputs, badges, pills
+                // md  = 12px  → Cards, modals, banners
+                // lg  = 20px  → Hero sections, landing cards, bottom sheets
+                // premium/icon kept for backward compat (mapped to lg/md)
                 borderRadius: {
-                        lg: 'var(--radius)',
-                        md: 'calc(var(--radius) - 2px)',
-                        sm: 'calc(var(--radius) - 4px)',
-                        // Premium portal rounding
-                        premium: '24px',       // Large, soft corners for hero cards & sheets
-                        icon: '16px',          // Slightly sharper for small icon containers
+                        sm: '6px',
+                        md: '12px',
+                        lg: '20px',
+                        xl: '20px',         // alias — old rounded-xl now = rounded-lg
+                        '2xl': '20px',      // alias — old rounded-2xl now = rounded-lg
+                        '3xl': '24px',      // hero cards only
+                        full: '9999px',
+                        premium: '20px',    // alias to lg (backward compat)
+                        icon: '12px',       // alias to md (backward compat)
                 },
+                // ─── SHADOW (4 elevation levels, enforced) ───────────────────────
+                // elevation-1 = buttons at rest
+                // elevation-2 = cards, list items
+                // elevation-3 = modals, dropdowns, popovers
+                // elevation-4 = floating elements (tooltips, bottom sheets)
+                // soft/softer/premium kept as aliases for backward compat
                 boxShadow: {
-                        // Subtle depth — replaces visible borders on portal cards
-                        soft: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-                        softer: '0 2px 12px -2px rgba(0, 0, 0, 0.03)',
-                        premium: '0 8px 32px -4px rgba(0, 0, 0, 0.08)',
+                        'elevation-1': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                        'elevation-2': '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
+                        'elevation-3': '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04)',
+                        'elevation-4': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05)',
+                        // Aliases for backward compat
+                        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                        DEFAULT: '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
+                        md: '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04)',
+                        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05)',
+                        soft: '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
+                        softer: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                        premium: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05)',
                 },
-                // ─── Micro typography ─────────────────────────────────────────
-                // These utility classes (text-2xs, text-3xs, tracking-wide-label)
-                // are used in 30+ places across LandingPage.tsx, ContactSalesDrawer.tsx,
-                // designTokens.ts, FounderBottomNav, AdminLogin, NotificationCenter,
-                // and more. Without these definitions, Tailwind silently drops the
-                // classes and text falls back to the inherited (larger) size —
-                // breaking the tight micro-labels on badges, pills, and modal stats.
+                // ─── TYPOGRAPHY SCALE (enforced) ────────────────────────────────
+                // 8 sizes total: 2 micro + 6 standard.
+                // BAN arbitrary values (text-[11px], text-[13px]) — use these.
                 fontSize: {
-                        '2xs': ['0.625rem', { lineHeight: '0.875rem' }],   // 10px / 14px
-                        '3xs': ['0.5rem',   { lineHeight: '0.75rem' }],     // 8px / 12px
+                        '3xs': ['0.5rem',   { lineHeight: '0.75rem',   letterSpacing: '0.02em' }],     // 8px  / 12px
+                        '2xs': ['0.625rem', { lineHeight: '0.875rem',   letterSpacing: '0.02em' }],     // 10px / 14px
+                        'xs':  ['0.75rem',  { lineHeight: '1rem',       letterSpacing: '0.01em' }],     // 12px / 16px
+                        'sm':  ['0.875rem', { lineHeight: '1.25rem',    letterSpacing: '0' }],         // 14px / 20px
+                        'base':['1rem',     { lineHeight: '1.5rem',     letterSpacing: '0' }],         // 16px / 24px
+                        'lg':  ['1.125rem', { lineHeight: '1.75rem',    letterSpacing: '-0.01em' }],   // 18px / 28px
+                        'xl':  ['1.25rem',  { lineHeight: '1.75rem',    letterSpacing: '-0.02em' }],   // 20px / 28px
+                        '2xl': ['1.5rem',   { lineHeight: '2rem',       letterSpacing: '-0.02em' }],   // 24px / 32px
+                        '3xl': ['1.875rem', { lineHeight: '2.25rem',    letterSpacing: '-0.03em' }],   // 30px / 36px
                 },
                 letterSpacing: {
                         'wide-label': '0.05em',
+                        wider: '0.05em',
+                        widest: '0.1em',
                 },
         }
   },
