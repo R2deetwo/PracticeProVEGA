@@ -9,6 +9,9 @@ on:
       - 'vite.admin.config.ts'
       - 'capacitor.admin.config.ts'
       - '.github/workflows/build-admin-apk.yml'
+      - 'android/app/build.gradle'
+      - 'android/app/proguard-rules.pro'
+      - 'android/app/src/main/java/**'
   workflow_dispatch:
 
 # Cancel superseded runs — prevents race conditions when multiple admin

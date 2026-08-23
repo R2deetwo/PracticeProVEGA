@@ -2816,9 +2816,15 @@ export const createTask = mutation({
     }
 
     // 3. Insert the task record
+    // FIX (Aug 2026): Assign the computed taskId to the task document's
+    // custom `id` field so that generic updateItem/deleteItem lookups
+    // (which use the by_custom_id index) can find it. Previously this
+    // UUID was computed but never stored — making all generic-path
+    // task operations fail silently.
     const taskId = crypto.randomUUID();
     const taskDoc: any = {
       firmId,
+      id: taskId, // ← NOW actually assigned (was dead code before)
       title: args.title,
       description: args.description || "",
       status: args.status || "todo",
@@ -3464,6 +3470,79 @@ export const updateTask = mutation({
     });
 
     return { success: true, taskId: task._id };
+  },
+});
+
+/**
+ * mutation: deleteTask
+ * Dedicated delete for tasks — uses the same 3-strategy lookup as
+ * updateTask/updateTaskStatus (Convex _id → custom id → scan).
+ * This replaces the generic deleteItem path which failed silently
+ * when tasks had no custom `id` field (the exact same root cause
+ * as the drag-drop bug, just never applied to delete).
+ */
+export const deleteTask = mutation({
+  args: {
+    taskId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+
+    // Same 3-strategy lookup as updateTask
+    let task: any = null;
+
+    // Strategy 1: Try as Convex _id
+    try {
+      task = await ctx.db.get(args.taskId as any);
+    } catch {}
+
+    // Strategy 2: Look up by custom `id` field
+    if (!task) {
+      task = await ctx.db
+        .query("tasks")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .filter((q: any) => q.eq(q.field("id"), args.taskId))
+        .first();
+    }
+
+    // Strategy 3: Scan all firm tasks and match by id or _id
+    if (!task) {
+      const allTasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .take(1000);
+      task = allTasks.find((t: any) =>
+        t.id === args.taskId ||
+        String(t._id) === String(args.taskId)
+      );
+    }
+
+    if (!task) {
+      throw new Error(`Task not found (id: ${args.taskId}).`);
+    }
+
+    if (!firmId || (task.firmId && task.firmId !== firmId)) {
+      throw new Error("Unauthorized. This task belongs to another organization.");
+    }
+
+    // Delete any notifications linked to this task
+    try {
+      const notifs = await ctx.db
+        .query("notifications")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .filter((q: any) => q.eq(q.field("link")?.id, args.taskId))
+        .take(100)
+        .collect();
+      for (const n of notifs) {
+        await ctx.db.delete(n._id);
+      }
+    } catch {}
+
+    // Delete the task itself
+    await ctx.db.delete(task._id);
+
+    return { success: true };
   },
 });
 

@@ -675,8 +675,12 @@ const ModalManager: React.FC = () => {
             openModal('newTask', task.id);
           }}
           onDelete={() => {
-            dataHandlers.deleteItem('tasks', task.id, task.title);
-            closeModal();
+            // FIX (Aug 2026): Use dedicated deleteTask mutation instead of
+            // generic deleteItem which fails silently for tasks without a
+            // custom `id` field — same root cause as the drag-drop bug.
+            (dataHandlers as any).deleteTask?.({ taskId: task.id, userEmail: currentUser?.email })
+              .then(() => { closeModal(); })
+              .catch((e: any) => { addToast(e?.message || 'Failed to delete task.', { type: 'error' }); });
           }}
           onUpdateTask={(t) => executionActions.updateTask(t)}
           onViewInTasks={(id, color) => {

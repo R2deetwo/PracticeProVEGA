@@ -9,6 +9,22 @@ import { useOfflineQueue } from './useOfflineQueue';
 
 /**
  * Hook for managing tasks and checklists.
+ *
+ * TASK MUTATION STRATEGY (Aug 2026):
+ * ALL task operations now use dedicated mutations (createTask, updateTask,
+ * updateTaskStatus, deleteTask) instead of the generic updateItem/deleteItem
+ * path. The generic path fails silently when tasks don't have a custom `id`
+ * field — which was the root cause of the drag-drop bug, priority changes not
+ * sticking, bulk actions doing nothing, and deletes not actually deleting.
+ *
+ * The dedicated mutations use a 3-strategy lookup:
+ *   1. Try as Convex _id (fast path for server-created tasks)
+ *   2. Look up by custom `id` field (for tasks with the UUID assigned)
+ *   3. Scan all firm tasks matching by id or _id (fallback)
+ *
+ * The createTask mutation now assigns the UUID to the `id` field at insert
+ * time (was dead code before), so all NEW tasks have a reliable custom id.
+ * Existing tasks (created before this fix) are handled by strategy 1 or 3.
  */
 export const useTasks = (appState: AppState, actions: any) => {
     const { addToast } = useUI();
@@ -16,23 +32,10 @@ export const useTasks = (appState: AppState, actions: any) => {
     const createTaskMutation = useMutation(api.myFunctions.createTask);
     const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
     const updateTaskMutation = useMutation(api.myFunctions.updateTask);
+    const deleteTaskMutation = useMutation(api.myFunctions.deleteTask);
     const { queueMutation, isOnline } = useOfflineQueue();
 
     const handleUpdateTaskStatus = useCallback(async (id: string, status: any) => {
-        // Use the dedicated updateTaskStatus mutation instead of the generic
-        // updateItem. This is the PERMANENT FIX for the persistent drag-drop
-        // bug where tasks couldn't be moved between Kanban columns.
-        //
-        // The generic updateItem was failing because:
-        // 1. It passed { id, status } as data — the `id` field got patched
-        //    onto the document (should only be used for lookup)
-        // 2. resolveRecordForUpdate couldn't find tasks without a custom `id`
-        //    field (tasks created via createTask don't have one)
-        // 3. The error was swallowed by a generic toast
-        //
-        // The dedicated mutation tries 3 lookup strategies and patches ONLY
-        // the status field.
-        //
         // OFFLINE PATH — task status changes (Kanban drag, "Mark Done" button)
         // are common mobile field-use actions. Queue when offline so the
         // user's intent is preserved; status will sync when they reconnect.
@@ -62,8 +65,21 @@ export const useTasks = (appState: AppState, actions: any) => {
         }
     }, [updateTaskStatusMutation, currentUser, addToast, isOnline, queueMutation]);
 
-    const handleUpdateTaskPriority = useCallback((id: string, priority: any) =>
-        actions.updateItem('tasks', { id, priority }, 'Task Priority'), [actions]);
+    // FIX (Aug 2026): Use dedicated updateTask mutation instead of generic
+    // updateItem. The generic path fails silently when the task has no
+    // custom `id` field — same root cause as the drag-drop bug.
+    const handleUpdateTaskPriority = useCallback(async (id: string, priority: any) => {
+        try {
+            await updateTaskMutation({
+                taskId: id,
+                patch: { priority },
+                userEmail: currentUser?.email,
+            });
+        } catch (e: any) {
+            console.error('[handleUpdateTaskPriority] Failed:', e);
+            addToast(e?.message || 'Failed to update task priority.', { type: 'error' });
+        }
+    }, [updateTaskMutation, currentUser, addToast]);
 
     // Dedicated task update — uses updateTask mutation (not generic updateItem)
     // This prevents duplicate cards caused by ID lookup failures in updateItem.
@@ -102,17 +118,40 @@ export const useTasks = (appState: AppState, actions: any) => {
         }
     }, [updateTaskMutation, currentUser, addToast, isOnline, queueMutation]);
 
+    // FIX (Aug 2026): Use dedicated updateTaskStatus mutation instead of
+    // generic updateItem. Same root cause as the drag-drop bug.
     const handleBulkUpdateTaskStatus = useCallback(async (ids: string[], status: any) => {
-        const promises = ids.map(id => actions.updateItem('tasks', { id, status }, 'Task'));
-        await Promise.all(promises);
-        addToast(`Updated ${ids.length} tasks`, { type: 'success' });
-    }, [actions, addToast]);
+        // Reuse the existing reliable updateTaskStatus mutation in a loop
+        // instead of the generic updateItem which fails silently.
+        const promises = ids.map(id => updateTaskStatusMutation({
+            taskId: id,
+            status,
+            userEmail: currentUser?.email,
+        }));
+        try {
+            await Promise.all(promises);
+            addToast(`Updated ${ids.length} tasks`, { type: 'success' });
+        } catch (e: any) {
+            console.error('[handleBulkUpdateTaskStatus] Some tasks failed:', e);
+            addToast(`Some tasks may not have updated: ${e?.message || 'Unknown error'}`, { type: 'warning' });
+        }
+    }, [updateTaskStatusMutation, currentUser, addToast]);
 
+    // FIX (Aug 2026): Use dedicated deleteTask mutation instead of
+    // generic deleteItem. Same root cause as the drag-drop bug.
     const handleBulkDeleteTasks = useCallback(async (ids: string[]) => {
-        const promises = ids.map(id => actions.deleteItem('tasks', id, 'Task'));
-        await Promise.all(promises);
-        addToast(`Deleted ${ids.length} tasks`, { type: 'success' });
-    }, [actions, addToast]);
+        const promises = ids.map(id => deleteTaskMutation({
+            taskId: id,
+            userEmail: currentUser?.email,
+        }));
+        try {
+            await Promise.all(promises);
+            addToast(`Deleted ${ids.length} tasks`, { type: 'success' });
+        } catch (e: any) {
+            console.error('[handleBulkDeleteTasks] Some tasks failed to delete:', e);
+            addToast(`Some tasks may not have deleted: ${e?.message || 'Unknown error'}`, { type: 'warning' });
+        }
+    }, [deleteTaskMutation, currentUser, addToast]);
 
     const handleBulkArchiveTasks = useCallback(async (ids: string[]) => {
         // Archive each task with the CORRECT field names so it can be restored.
@@ -155,17 +194,8 @@ export const useTasks = (appState: AppState, actions: any) => {
     }, [appState.tasks, handleBulkDeleteTasks]);
 
     const handleAddTask = useCallback(async (t: any) => {
-        // Use the dedicated createTask mutation (not generic createItem) so
-        // that assignee validation runs AND notifications are dispatched to
-        // all assignees (in-app + email + WhatsApp for external stakeholders).
-        // Previously this called actions.addItem('tasks', t) which bypassed
-        // all notification logic — assignees never got bell badges or emails.
-
         // CRITICAL: Strip undefined values — the Convex client throws
         // "undefined is not a valid Convex value" if any arg is undefined.
-        // This was the root cause of "Failed to save task" for client tasks:
-        // when dueDate or matterId was null/empty, `null || undefined` = undefined,
-        // and Convex rejected the entire mutation before it reached the server.
         const args: Record<string, any> = {
             title: t.title,
             description: t.description || '',
@@ -175,16 +205,13 @@ export const useTasks = (appState: AppState, actions: any) => {
             isSharedWithPortal: t.isSharedWithPortal || false,
             priority: t.priority || 'medium',
         };
-        // Only include optional fields if they have actual values
         if (t.dueDate) args.dueDate = t.dueDate;
         if (t.matterId) args.matterId = t.matterId;
         if (currentUser?.id) args.creatorId = currentUser.id;
         if (currentUser?.name) args.creatorName = currentUser.name;
         if (currentUser?.email) args.userEmail = currentUser.email;
 
-        // OFFLINE PATH — queue task creation. Notifications (bell badge, email,
-        // WhatsApp) will fire when the mutation replays online — slightly
-        // delayed, but better than losing the task entirely.
+        // OFFLINE PATH — queue task creation.
         if (!isOnline) {
             queueMutation({
                 mutationName: 'createTask',
@@ -196,7 +223,7 @@ export const useTasks = (appState: AppState, actions: any) => {
         }
 
         try {
-            await createTaskMutation(args);
+            await createTaskMutation(args as any);
             addToast('Task created.', { type: 'success' });
         } catch (e: any) {
             console.error('[handleAddTask] createTask failed:', e);
@@ -217,6 +244,8 @@ export const useTasks = (appState: AppState, actions: any) => {
         handleApplyStageChecklist,
         handleBulkArchiveTasks,
         handleArchiveAllDoneTasks,
+        // Expose the raw deleteTask mutation for callers that need to
+        // delete a single task (e.g. TaskDetailModal's onDelete handler).
+        deleteTask: deleteTaskMutation,
     };
 };
-
