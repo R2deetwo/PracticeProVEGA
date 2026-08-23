@@ -18,3 +18,5 @@ android/app/debug.keystore
 android/app/release.keystore
 *.keystore
 *.jks
+dist-admin/
+dist/

@@ -54,8 +54,22 @@ android {
                 ?: (project.hasProperty('releaseKeyAlias') ? project.property('releaseKeyAlias') : 'practicepro-app')
             def releaseKeyPassword = System.getenv('RELEASE_KEY_PASSWORD')
 
-            if (releaseStoreFile != null && new File(releaseStoreFile).exists()) {
-                storeFile file(releaseStoreFile)
+            // Resolve the keystore path: RELEASE_STORE_FILE can be absolute
+            // or relative. If relative, resolve from the project root (not
+            // from android/app/ — file() resolves from the module dir).
+            def resolvedStoreFile = null
+            if (releaseStoreFile != null) {
+                def f = new File(releaseStoreFile)
+                if (!f.isAbsolute()) {
+                    f = new File(rootProject.projectDir, releaseStoreFile)
+                }
+                if (f.exists()) {
+                    resolvedStoreFile = f
+                }
+            }
+
+            if (resolvedStoreFile != null) {
+                storeFile resolvedStoreFile
                 storePassword releaseStorePassword
                 keyAlias releaseKeyAlias
                 keyPassword releaseKeyPassword

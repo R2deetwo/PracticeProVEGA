@@ -59,6 +59,54 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Generate debug.keystore if missing
+        run: |
+          if [ ! -f android/app/debug.keystore ]; then
+            echo "debug.keystore not found — generating with standard Android debug credentials..."
+            keytool -genkeypair \
+              -keystore android/app/debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 \
+              -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -storetype PKCS12
+            echo "✓ debug.keystore generated"
+          else
+            echo "✓ debug.keystore already exists"
+          fi
+
+      - name: Generate release.keystore if missing
+        run: |
+          if [ ! -f android/app/release.keystore ]; then
+            if [ -n "${{ secrets.RELEASE_STORE_PASSWORD }}" ]; then
+              echo "release.keystore not found — generating..."
+              keytool -genkeypair \
+                -keystore android/app/release.keystore \
+                -alias practicepro-app \
+                -keyalg RSA -keysize 4096 \
+                -validity 10950 \
+                -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" \
+                -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
+                -dname "CN=PracticePro Systems Limited, OU=Engineering, O=PracticePro Systems Limited, L=Lagos, ST=Lagos, C=NG" \
+                -storetype PKCS12
+              keytool -genkeypair \
+                -keystore android/app/release.keystore \
+                -alias practicepro-admin \
+                -keyalg RSA -keysize 4096 \
+                -validity 10950 \
+                -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" \
+                -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
+                -dname "CN=PracticePro Systems Limited, OU=Founder App, O=PracticePro Systems Limited, L=Lagos, ST=Lagos, C=NG" \
+                -storetype PKCS12
+              echo "✓ release.keystore generated with both aliases"
+            else
+              echo "⚠ RELEASE_STORE_PASSWORD secret not set — release builds will fall back to debug signing"
+            fi
+          else
+            echo "✓ release.keystore already exists"
+          fi
+
       - name: Build admin frontend
         run: npm run build:admin
         env:
@@ -101,6 +149,11 @@ jobs:
       - name: Build Release APK
         if: github.ref == 'refs/heads/main'
         working-directory: android
+        env:
+          RELEASE_STORE_FILE: android/app/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: practicepro-admin
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Upload Release APK
