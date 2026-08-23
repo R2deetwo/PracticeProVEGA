@@ -113,7 +113,7 @@ jobs:
       - name: Build admin frontend
         run: npm run build:admin
         env:
-          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud' }}
 
       - name: Sync to Android
         run: node scripts/sync-admin-config.cjs

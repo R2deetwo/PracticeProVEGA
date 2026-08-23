@@ -72,11 +72,12 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env': {
         API_KEY: env.GEMINI_API_KEY || env.API_KEY || '',
-        VITE_CONVEX_URL: env.VITE_CONVEX_URL || '',
+        VITE_CONVEX_URL: env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud',
         NODE_ENV: JSON.stringify(mode),
       },
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.API_KEY || ''),
-      'process.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL || ''),
+      'process.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'),
+      'import.meta.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'),
       'import.meta.env.VITE_BUILD_SHA': JSON.stringify(gitSha()),
       'import.meta.env.VITE_BUILD_TIMESTAMP': JSON.stringify(buildTimestamp()),
     }
