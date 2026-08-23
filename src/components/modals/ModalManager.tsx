@@ -315,6 +315,34 @@ const ModalManager: React.FC = () => {
 
   if (!modal) return null;
 
+  // ─── OVERLAY SYSTEM MIGRATION (Aug 2026) ────────────────────────────
+  // The new ModalLayer (src/overlays/layers/ModalLayer.tsx) renders modals
+  // that are in the modalRegistry. ModalManager is the legacy fallback.
+  // To avoid double-rendering, ModalManager skips any modal that the
+  // ModalLayer handles. Modals marked `needsSpecialWrapping` stay here
+  // (they have hooks/wiring too tangled to lift into the registry yet).
+  //
+  // To migrate a modal:
+  //   1. Add its entry to modalRegistry.tsx
+  //   2. Remove its case from the switch below
+  //   3. ModalLayer picks it up automatically
+  //
+  // The following modals are handled by ModalLayer:
+  const MODAL_LAYER_HANDLED = new Set([
+    'login', 'signup', 'leadCapture',
+    // 'newMatter' is partially migrated — ModalLayer handles the Enterprise
+    // branch, ModalManager handles the non-Enterprise branch (needs dataHandlers).
+    // Keeping it here until dataHandlers is lifted into ModalLayer's context.
+    // 'newMatter',
+    // 'editMatter',
+    // All other modals stay here for now — their switch cases pass dataHandlers
+    // and other context that the registry doesn't yet provide.
+  ]);
+  if (MODAL_LAYER_HANDLED.has(modal)) {
+    // ModalLayer handles this — skip
+    return null;
+  }
+
   let content = null;
 
   switch (modal) {

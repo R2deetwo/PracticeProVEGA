@@ -1,6 +1,7 @@
 
 import * as React from 'react';
 import { ModalType, SelectedId, Theme, View, HistoryEntry, Toast, TaskStatus, FontSize, AloaFormInteractionState, EditorState, ViewState, ContextMenuState, MatterStatus } from '../types';
+import type { Banner } from '../overlays/layers/BannerLayer';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from "convex/react";
 
@@ -81,6 +82,17 @@ export interface UIContextType {
     // Lock Screen Management
     isSessionLocked: boolean;
     setIsSessionLocked: (locked: boolean) => void;
+
+    // ─── UNIFIED BANNER SYSTEM (Aug 2026) ──────────────────────────────
+    // Replaces ad-hoc banner components (VersionRefreshBanner, ApkUpdateBanner,
+    // CriticalLeaseBanner, TermsAcceptance, ToastRefreshNotification) with
+    // a single queue managed by BannerLayer. Banners stack vertically at the
+    // top of the viewport, always above modals (z-banner=500), below toasts.
+    //
+    // Usage: addBanner({ type: 'offline', message: "You're offline.", action: { label: 'Retry', onClick: () => ... } })
+    banners: Banner[];
+    addBanner: (banner: Omit<Banner, 'id'>) => void;
+    dismissBanner: (id: string) => void;
 }
 
 export const UIContext = React.createContext<UIContextType | undefined>(undefined);
@@ -284,6 +296,20 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const [isSessionLocked, setIsSessionLocked] = React.useState<boolean>(() => {
         return localStorage.getItem('practicepro_session_locked') === 'true';
     });
+
+    // ─── UNIFIED BANNER SYSTEM (Aug 2026) ──────────────────────────────
+    // Single queue for all banner types (version-refresh, apk-update, offline,
+    // critical-lease, terms-acceptance, trial-ending, announcement).
+    // Banners are pushed from anywhere via addBanner() and dismissed via
+    // dismissBanner(). The BannerLayer renders them stacked at the top.
+    const [banners, setBanners] = React.useState<Banner[]>([]);
+    const addBanner = React.useCallback((banner: Omit<Banner, 'id'>) => {
+        const id = `banner_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        setBanners(prev => [...prev, { ...banner, id }]);
+    }, []);
+    const dismissBanner = React.useCallback((id: string) => {
+        setBanners(prev => prev.filter(b => b.id !== id));
+    }, []);
 
     // ── User switch guard: reset history when user changes ───────────────
     const prevUserIdRef = React.useRef<string | null | undefined>(currentUser?.id);
@@ -844,7 +870,8 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         viewState, setViewState,
         activePeers: activePeersQuery || [],
         isOnline,
-        isSessionLocked, setIsSessionLocked
+        isSessionLocked, setIsSessionLocked,
+        banners, addBanner, dismissBanner
     }), [
         theme, fontSize, isSidebarOpen, toggleSidebar, closeSidebar,
         isSidebarRetracted, toggleSidebarRetraction,
@@ -855,7 +882,8 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         taskStatusFilter, highlightTarget, isMobileSearchOpen, dockedModalType,
         formInteractionState, activeFormSnapshot, editorState, openEditor, closeEditor,
         isCommandPaletteOpen, toggleCommandPalette, contextMenu, closeContextMenu,
-        viewState, activePeersQuery, isOnline, isSessionLocked
+        viewState, activePeersQuery, isOnline, isSessionLocked,
+        banners, addBanner, dismissBanner
     ]);
 
     return (

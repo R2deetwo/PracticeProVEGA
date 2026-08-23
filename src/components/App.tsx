@@ -83,6 +83,7 @@ import ArchiveView from './ArchiveView';
 import SecurityAccessView from './SecurityAccessView';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import ModalManager from './modals/ModalManager';
+import { ModalLayer } from '../overlays/layers/ModalLayer';
 import { DockedModal } from './modals/DockedModal';
 import { MatterDetailView } from './details/MatterDetailView';
 import { ContactDetailView } from './details/ContactDetailView';
@@ -1501,6 +1502,15 @@ export const App: React.FC = () => {
                         to ConvexErrorBoundary and crashed the whole app. */}
                     <ErrorBoundary fallback={null}>
                         <ModalManager />
+                    </ErrorBoundary>
+                    {/* NEW OVERLAY SYSTEM (Aug 2026) — renders modals from the
+                        modalRegistry in parallel with the legacy ModalManager.
+                        ModalLayer handles modals marked in MODAL_LAYER_HANDLED;
+                        ModalManager handles the rest (backward compat).
+                        Once all modals are migrated, ModalManager can be removed
+                        and only ModalLayer remains. */}
+                    <ErrorBoundary fallback={null}>
+                        <ModalLayer />
                     </ErrorBoundary>
                     <ErrorBoundary fallback={null}>
                         <ToastContainer />
