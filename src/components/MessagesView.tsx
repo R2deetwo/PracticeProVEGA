@@ -787,9 +787,10 @@ const MessagesView: React.FC = () => {
     };
 
     // Role filter: All / Client / Resident.
-    // Product-aware: Vega only shows All+Clients, Atrium only shows All+Residents,
-    // Komplete shows all three. The role type stays a union for compatibility.
-    const [roleFilter, setRoleFilter] = useState<'all' | 'Client' | 'Tenant'>('all');
+    // Role filter REMOVED (Aug 2026) — Clients and Residents now have
+    // separate accordions, making the role filter pills redundant.
+    // Keeping the state for backward compat but it's always 'all'.
+    const [roleFilter] = useState<'all' | 'Client' | 'Tenant'>('all');
 
     // Search query for filtering by name/subject
     const [conversationSearch, setConversationSearch] = useState('');
@@ -802,8 +803,6 @@ const MessagesView: React.FC = () => {
             if (convType === 'maintenance' && !typeFilters.ticket) return false;
             if (convType === 'admin_reply' && !typeFilters.replied) return false;
             if (convType === 'portal' && !typeFilters.portal) return false;
-            // Role filter
-            if (roleFilter !== 'all' && conv.participantRole !== roleFilter) return false;
             // Search filter
             if (conversationSearch.trim()) {
                 const q = conversationSearch.toLowerCase();
@@ -813,7 +812,20 @@ const MessagesView: React.FC = () => {
             }
             return true;
         });
-    }, [portalConversations, typeFilters, roleFilter, conversationSearch]);
+    }, [portalConversations, typeFilters, conversationSearch]);
+
+    // Split portal conversations by role for separate accordions.
+    // For unified (Komplete) firms: show both "Clients" and "Residents" sections.
+    // For Vega-only: show only "Clients".
+    // For Atrium-only: show only "Residents".
+    const clientPortalConversations = useMemo(() =>
+        filteredPortalConversations.filter((conv: any) => conv.participantRole === 'Client'),
+        [filteredPortalConversations]
+    );
+    const residentPortalConversations = useMemo(() =>
+        filteredPortalConversations.filter((conv: any) => conv.participantRole === 'Tenant'),
+        [filteredPortalConversations]
+    );
 
     // ── Team conversations for the unified inbox ──────────────────────────
     // Builds a sorted list of the current user's team direct-message
@@ -1589,34 +1601,12 @@ const MessagesView: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                            {/* ── Role filter + search bar ───────────────────────────
-                                Additional filters for narrowing conversations by
-                                participant role (Client/Resident) and free-text search. */}
+                            {/* ── Search bar ───────────────────────────────────────────
+                                Role-filter pills REMOVED (Aug 2026) — Clients and Residents
+                                now have separate accordions below, making the role filter redundant.
+                                Only the search input remains for free-text filtering. */}
                             {(portalConversations as any[]).length > 0 && selectedConvIds.size === 0 && (
                                 <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center gap-2">
-                                    {/* Role filter pills — product-aware:
-                                        Pure legal (Vega): hide Residents pill.
-                                        Pure property (Atrium): hide Clients pill.
-                                        Komplete: show all three. */}
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                        {([
-                                            { role: 'all' as const, label: 'All', show: true },
-                                            { role: 'Client' as const, label: 'Clients', show: isLegal },
-                                            { role: 'Tenant' as const, label: 'Residents', show: hasPropertyFeatures },
-                                        ]).filter(r => r.show).map(r => (
-                                            <button
-                                                key={r.role}
-                                                onClick={() => setRoleFilter(r.role)}
-                                                className={`px-2 py-0.5 rounded-full text-2xs font-bold transition-colors ${
-                                                    roleFilter === r.role
-                                                        ? 'bg-primary-600 text-white'
-                                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                                                }`}
-                                            >
-                                                {r.label}
-                                            </button>
-                                        ))}
-                                    </div>
                                     {/* Search input */}
                                     <input
                                         type="text"
@@ -1919,33 +1909,32 @@ const MessagesView: React.FC = () => {
                                                 </>
                                             )}
 
-                                            {/* ── Section: Portal Conversations (Clients & Residents) ── */}
-                                            {filteredPortalConversations.length > 0 && (
+                                            {/* ── Section: Clients (Portal Conversations — Client role) ── */}
+                                            {(isLegal || isUnified) && (
                                                 <>
                                                     <SectionHeader
-                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>}
-                                                        label={isUnified ? "Clients & Residents" : isProperty ? "Residents" : "Clients"}
-                                                        count={filteredPortalConversations.length}
-                                                        unreadCount={filteredPortalConversations.reduce((sum: number, conv: any) => sum + (conv.unreadByAdmin || 0), 0)}
-                                                        isCollapsed={collapsedSections.has('portal')}
-                                                        onToggle={() => toggleSection('portal')}
-                                                        accentColor="text-emerald-500"
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>}
+                                                        label="Clients"
+                                                        count={clientPortalConversations.length}
+                                                        unreadCount={clientPortalConversations.reduce((sum: number, conv: any) => sum + (conv.unreadByAdmin || 0), 0)}
+                                                        isCollapsed={collapsedSections.has('portal_clients')}
+                                                        onToggle={() => toggleSection('portal_clients')}
+                                                        accentColor="text-violet-500"
                                                     />
-                                                    {!collapsedSections.has('portal') && filteredPortalConversations.map((conv: any) => {
+                                                    {!collapsedSections.has('portal_clients') && (
+                                                        clientPortalConversations.length > 0 ? clientPortalConversations.map((conv: any) => {
                                                 const convId = String(conv._id);
                                                 const isSelected = selectedConvIds.has(convId);
                                                 const convType = detectConversationType(conv);
                                                 const typeStyle = CONVERSATION_TYPE_STYLES[convType];
-                                                const roleLabel = getRoleLabel(conv);
                                                 const isThisSelected = selectedInboxId === convId && selectedInboxType === 'conversation';
-                                                // Active-row tint + left accent bar follow the conversation type
                                                 const activeTint = convType === 'service_request'
                                                     ? 'bg-rose-50 dark:bg-rose-900/20 border-l-rose-500'
                                                     : convType === 'maintenance'
                                                     ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
                                                     : convType === 'admin_reply'
                                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
-                                                    : 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500';
+                                                    : 'bg-violet-50 dark:bg-violet-900/20 border-l-violet-500';
                                                 return (
                                                     <div
                                                         key={conv._id}
@@ -1958,23 +1947,13 @@ const MessagesView: React.FC = () => {
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <div className="flex items-center gap-2 min-w-0">
-                                                                {/* Multi-select checkbox (only relevant in bulk-delete mode) */}
                                                                 <button
                                                                     onClick={(e) => toggleConvSelection(convId, e)}
-                                                                    className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                                                        isSelected
-                                                                            ? 'bg-rose-600 border-rose-600'
-                                                                            : 'border-slate-300 dark:border-zinc-600 hover:border-rose-500'
-                                                                    }`}
+                                                                    className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-rose-600 border-rose-600' : 'border-slate-300 dark:border-zinc-600 hover:border-rose-500'}`}
                                                                     title={isSelected ? 'Deselect' : 'Select for bulk delete'}
                                                                 >
-                                                                    {isSelected && (
-                                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                        </svg>
-                                                                    )}
+                                                                    {isSelected && (<svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>)}
                                                                 </button>
-                                                                {/* Unread dot — color matches the conversation type */}
                                                                 {(conv.unreadByAdmin || 0) > 0
                                                                     ? <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />
                                                                     : (conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />)}
@@ -1982,37 +1961,113 @@ const MessagesView: React.FC = () => {
                                                                     {conv.participantName || 'Unknown'}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-2xs text-slate-400 flex-shrink-0">
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
                                                                 {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 text-2xs mb-1 flex-wrap">
-                                                            {/* Primary type badge — color-coded by conversation kind */}
                                                             <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
                                                                 {typeStyle.label}
                                                             </span>
-                                                            {/* Role chip — only show for unified firms AND only when
-                                                                the role is explicitly 'Client' or 'Resident'. Skip when
-                                                                roleLabel is empty (avoids duplicate 'Portal User' badge). */}
-                                                            {isUnified && roleLabel && (
-                                                                <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${
-                                                                    roleLabel === 'Client'
-                                                                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
-                                                                        : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
-                                                                }`}>
-                                                                    {roleLabel}
-                                                                </span>
-                                                            )}
                                                             {(conv.unreadByAdmin || 0) > 1 && (
                                                                 <span className={`px-1.5 py-0.5 rounded-full text-white font-bold ${typeStyle.dot}`}>
                                                                     {conv.unreadByAdmin}
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 pl-9">{conv.lastMessagePreview}</p>
                                                     </div>
                                                 );
-                                                    })}
+                                                        }) : (
+                                                            <div className="flex flex-col items-center justify-center py-6 text-center">
+                                                                <div className="w-10 h-10 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-2">
+                                                                    <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                                                                </div>
+                                                                <p className="text-xs font-medium text-slate-500 dark:text-zinc-400">No Clients yet</p>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </>
+                                            )}
+
+                                            {/* ── Section: Residents (Portal Conversations — Tenant role) ── */}
+                                            {(hasPropertyFeatures || isUnified) && (
+                                                <>
+                                                    <SectionHeader
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.5a.75.75 0 00.75.75h4.5a.75.75 0 00.75-.75V15a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25a.75.75 0 00.75.75h4.5a.75.75 0 00.75-.75V9.75M8.25 21h8.25" /></svg>}
+                                                        label="Residents"
+                                                        count={residentPortalConversations.length}
+                                                        unreadCount={residentPortalConversations.reduce((sum: number, conv: any) => sum + (conv.unreadByAdmin || 0), 0)}
+                                                        isCollapsed={collapsedSections.has('portal_residents')}
+                                                        onToggle={() => toggleSection('portal_residents')}
+                                                        accentColor="text-sky-500"
+                                                    />
+                                                    {!collapsedSections.has('portal_residents') && (
+                                                        residentPortalConversations.length > 0 ? residentPortalConversations.map((conv: any) => {
+                                                const convId = String(conv._id);
+                                                const isSelected = selectedConvIds.has(convId);
+                                                const convType = detectConversationType(conv);
+                                                const typeStyle = CONVERSATION_TYPE_STYLES[convType];
+                                                const isThisSelected = selectedInboxId === convId && selectedInboxType === 'conversation';
+                                                const activeTint = convType === 'service_request'
+                                                    ? 'bg-rose-50 dark:bg-rose-900/20 border-l-rose-500'
+                                                    : convType === 'maintenance'
+                                                    ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
+                                                    : convType === 'admin_reply'
+                                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
+                                                    : 'bg-sky-50 dark:bg-sky-900/20 border-l-sky-500';
+                                                return (
+                                                    <div
+                                                        key={conv._id}
+                                                        onClick={() => {
+                                                            setSelectedInboxId(convId);
+                                                            setSelectedInboxType('conversation');
+                                                            if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
+                                                        }}
+                                                        className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <button
+                                                                    onClick={(e) => toggleConvSelection(convId, e)}
+                                                                    className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-rose-600 border-rose-600' : 'border-slate-300 dark:border-zinc-600 hover:border-rose-500'}`}
+                                                                    title={isSelected ? 'Deselect' : 'Select for bulk delete'}
+                                                                >
+                                                                    {isSelected && (<svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>)}
+                                                                </button>
+                                                                {(conv.unreadByAdmin || 0) > 0
+                                                                    ? <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />
+                                                                    : (conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />)}
+                                                                <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                    {conv.participantName || 'Unknown'}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
+                                                                {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-2xs mb-1 flex-wrap">
+                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
+                                                                {typeStyle.label}
+                                                            </span>
+                                                            {(conv.unreadByAdmin || 0) > 1 && (
+                                                                <span className={`px-1.5 py-0.5 rounded-full text-white font-bold ${typeStyle.dot}`}>
+                                                                    {conv.unreadByAdmin}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 pl-9">{conv.lastMessagePreview}</p>
+                                                    </div>
+                                                );
+                                                        }) : (
+                                                            <div className="flex flex-col items-center justify-center py-6 text-center">
+                                                                <div className="w-10 h-10 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-2">
+                                                                    <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.5a.75.75 0 00.75.75h4.5a.75.75 0 00.75-.75V15a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25a.75.75 0 00.75.75h4.5a.75.75 0 00.75-.75V9.75M8.25 21h8.25" /></svg>
+                                                                </div>
+                                                                <p className="text-xs font-medium text-slate-500 dark:text-zinc-400">No Residents yet</p>
+                                                            </div>
+                                                        )
+                                                    )}
                                                 </>
                                             )}
 
