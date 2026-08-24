@@ -8494,3 +8494,137 @@ Next actions:
 - Manual test: on a Komplete firm, open Settings → Subscription, confirm
   the VmsAddonPanel shows "Included in your plan" with green badge
   instead of ₦7,500/mo pricing + trial CTA
+
+---
+Task ID: 12 (Dark-mode text legibility — systematic fix)
+Agent: Main (Super Z)
+Task: User reported dark-mode text legibility issues across the app, with
+a screenshot of the Edit Matter modal showing near-invisible selected
+values ("Civil", "Commercial") and washed-out placeholder text
+("-- Select Client --") in dark mode.
+
+Work Log:
+- VLM analysis of the screenshot confirmed: input backgrounds were dark
+  (matching the modal), but the displayed <option> values were dark gray
+  on dark background (nearly invisible). Placeholders were medium-dark
+  gray (poor contrast). Helper text like "Workflow: 5 stages" was too
+  dim. Labels above inputs were bright/white (high contrast) — so the
+  issue was specifically with input value text, placeholder text, and
+  muted helper text.
+
+- Root cause investigation found THREE independent issues compounding:
+  1. src/utils/formStyles.ts: inputModern/inputClassic/inputLarge were
+     LIGHT-ONLY (comment said "modals are always light" — but Modal.tsx
+     line 192 now uses bg-white dark:bg-zinc-900, so modals DO render
+     dark). Affected 265 input usages app-wide.
+  2. src/index.css dark-mode input safety net used :not([class*="bg-"])
+     to skip inputs WITH bg-* classes — but those were exactly the
+     inputs that needed the fix. The safety net was effectively a no-op
+     for the inputs that needed it most.
+  3. Placeholder color was zinc-500 (rgb 113 113 122) — ~3.2:1 contrast
+     against zinc-900, fails WCAG AA for normal text.
+  4. Native <option> elements use OS default colors — on Windows + dark
+     OS theme, dropdown lists were dark-on-dark, unreadable.
+
+- Fix 1 (formStyles.ts): Added explicit dark: variants to all three
+  input styles:
+  - dark:bg-zinc-800/60 (input background, was: bg-white only)
+  - dark:text-zinc-100 (input value text, was: text-slate-900 only)
+  - dark:placeholder:text-zinc-400 (placeholder text)
+  - dark:ring-zinc-700 / dark:border-zinc-700 (border)
+  - dark:focus:ring-primary-400 / dark:focus:border-primary-400
+  Single change fixes all 265 input usages app-wide. Updated the
+  comment to explain why the previous "light-only" approach was wrong
+  and document the specificity safety (Tailwind dark: variants at
+  0,2,0 beat the global CSS rule at 0,1,1).
+
+- Fix 2 (index.css): Rewrote the dark-mode input safety net:
+  - Removed the :not([class*="bg-"]) exclusion so ALL inputs in dark
+    mode get the dark background/text/border floor
+  - Bumped placeholder color from zinc-500 to zinc-400 (~5.4:1 contrast
+    vs zinc-900, passes WCAG AA)
+  - Added .dark option styling so native dropdown lists render with
+    zinc-800 background + zinc-100 text on ALL platforms (was using
+    OS defaults — dark-on-dark on Windows dark theme)
+  - Added .dark form text brightness lift: bumps text-slate-400,
+    text-gray-400, text-gray-500 to brighter equivalents INSIDE form
+    contexts only (when no explicit dark:text-* variant is already
+    applied, via :not([class*="dark:text-"]) guard). Affects the
+    remaining ~60 instances of text-slate-400 without dark: variants
+    across other form files (TaskForm, ContactForm, DocumentForm,
+    PropertyForm, LeadForm, InvoiceForm).
+
+- Fix 3 (MatterForm.tsx): Patched specific muted-text patterns the
+  user screenshot called out:
+  - "Workflow: 5 stages" toggle link: text-slate-400 → text-slate-500
+    dark:text-zinc-400
+  - "No workflow defined" helper text: same fix
+  - Helper texts ("Applied to time entries", "Consolidated fee
+    structure", "Calculated as X% of the selected basis", "Firm Reps:")
+    all got dark:text-zinc-400 variants
+  - Icons inside inputs (Phone, Search, MapPin, Calendar) got
+    dark:text-zinc-400 variants
+
+FILES TOUCHED:
+- src/utils/formStyles.ts (modified — added dark: variants to all 3
+  input styles, updated comment explaining the dark-mode rationale)
+- src/index.css (modified — rewrote dark-mode input safety net, added
+  .dark option styling, added .dark form text brightness lift)
+- src/components/forms/MatterForm.tsx (modified — patched 9 specific
+  text-slate-400 instances with dark:text-zinc-400 variants)
+
+Stage Summary:
+- TypeScript: 318 errors total (was 318 baseline — ZERO new errors
+  introduced). The 4 MatterForm.tsx errors at lines 921/932/1236 are
+  pre-existing (verified by git stash + tsc on main HEAD before this
+  commit). All changes are CSS-only or className-only — no logic
+  changes, no new components, no removed features.
+- Committed as 207a11a, pushed to GitHub main → Vercel auto-deploy triggered.
+- Acceptance criteria:
+  [x] Selected <option> values ("Civil", "Commercial") will render in
+      zinc-100 (bright) against zinc-800/60 input background in dark
+      mode — was nearly invisible before
+  [x] All form placeholders across the app now have ~5.4:1 contrast
+      in dark mode (was ~3.2:1, fails WCAG AA)
+  [x] Native dropdown lists on Windows + dark OS theme now readable
+      (was dark-on-dark using OS default colors)
+  [x] Helper text inside forms is now brighter (slate-300/gray-300/
+      gray-400 instead of slate-400/gray-400/gray-500)
+  [x] MatterForm.tsx specific patterns called out in the screenshot
+      are fixed (Workflow link, helper texts, icons inside inputs)
+
+NEXT ACTIONS for the user:
+1. Wait ~2 min for Vercel deploy to complete
+2. Open the Edit Matter modal in dark mode — confirm "Civil" and
+   "Commercial" are now clearly readable
+3. Open other forms (TaskForm, ContactForm, DocumentForm, PropertyForm,
+   InvoiceForm, LeadForm, EventForm) in dark mode — confirm all input
+   values and placeholders are readable
+4. If running on Windows with a dark OS theme: open any <select>
+   dropdown and confirm the option list is readable (was dark-on-dark)
+5. If any specific element is still too dim, send a screenshot — I'll
+   iterate on the specific instance.
+
+COVERAGE:
+- High-traffic form inputs (inputModern/inputClassic/inputLarge): 100%
+  coverage via the formStyles.ts fix
+- Raw inputs without any class: covered by the index.css safety net
+- Native <option> dropdown lists: covered globally
+- Muted helper text inside forms: covered by the .dark form brightness
+  lift (with :not([class*="dark:text-"]) guard so it doesn't override
+  explicit dark: variants)
+- Outside form contexts (cards, dashboards, lists): NOT covered by
+  the form-context rule. If you find dim text outside forms, send a
+  screenshot — I can broaden the rule or add targeted fixes.
+
+KNOWN LIMITATIONS:
+- The .dark form brightness lift rule uses :not([class*="dark:text-"])
+  to skip elements with explicit dark: variants. If an element has a
+  dark:text-* class on a PARENT element (inherited), this guard won't
+  detect it. Should be rare but possible.
+- The shadcn/ui Input/Select/Textarea components (src/components/ui/)
+  reference CSS variables (--foreground, --muted-foreground, --input)
+  that are not defined anywhere in the app. These components are only
+  used in 1 place (sidebar.tsx — not user-visible) so this isn't an
+  active issue, but if shadcn/ui adoption grows, those variables will
+  need to be defined in :root and .dark blocks.
