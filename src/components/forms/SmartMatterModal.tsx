@@ -90,7 +90,8 @@ const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, sub
     return (
         <div
             className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
-            style={{ willChange: 'height', contain: 'layout style' }}
+            // NOTE: Removed `style={{ willChange: 'height', contain: 'layout style' }}`
+            // — CSS containment was unnecessary and can interfere with pointer events.
         >
             <button
                 ref={headerRef}

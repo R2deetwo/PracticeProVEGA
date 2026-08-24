@@ -29,6 +29,16 @@ const commonInputClass = inputModern;
 // By defining it at module level with React.memo, the component identity
 // is stable across re-renders, preserving DOM focus.
 // (Mirrors the pattern used in PropertyForm.tsx and SmartMatterModal.tsx.)
+//
+// BUG FIX (Aug 2026): The previous version split the header into a <div>
+// wrapper containing a <button flex-1> + accessory + chevron OUTSIDE the
+// button. This caused the accordion toggle to be unreliable — the chevron
+// and the right edge of the header were not clickable. Rewrote to match
+// the WORKING pattern from PropertyForm: the ENTIRE header is a single
+// <button> with w-full, and the chevron is INSIDE the button. The only
+// exception is when disableHeaderToggle is true (litigation section),
+// where the header is a plain <div> and the accessory (toggle switch)
+// handles open/close.
 interface AccordionSectionProps {
     id: string;
     title: string;
@@ -46,36 +56,17 @@ interface AccordionSectionProps {
 }
 const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, subtitle, icon, iconBg, children, isOpen, onToggle, badge, accessory, disableHeaderToggle }) => {
     const headerRef = useRef<HTMLButtonElement>(null);
-    return (
-        <div
-            className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
-            style={{ willChange: 'height', contain: 'layout style' }}
-        >
+
+    // When disableHeaderToggle is true (litigation section), the header is
+    // a plain <div> — the accessory (toggle switch) handles open/close.
+    // Otherwise, the ENTIRE header is a <button> with w-full, so clicking
+    // anywhere on the header (including the chevron) toggles the section.
+    if (disableHeaderToggle) {
+        return (
             <div
-                className="w-full flex items-center gap-3 p-2.5 sm:p-3 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors"
+                className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
             >
-                <button
-                    ref={headerRef}
-                    type="button"
-                    tabIndex={0}
-                    onClick={() => {
-                        if (disableHeaderToggle) return;
-                        onToggle(id);
-                        if (!isOpen) {
-                            setTimeout(() => {
-                                headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            }, 50);
-                        }
-                    }}
-                    onKeyDown={(e) => {
-                        if (disableHeaderToggle) return;
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            onToggle(id);
-                        }
-                    }}
-                    className={`flex items-center gap-3 flex-1 min-w-0 text-left focus:outline-none ${disableHeaderToggle ? 'cursor-default' : 'focus:ring-2 focus:ring-primary-500/30'}`}
-                >
+                <div className="w-full flex items-center gap-3 p-2.5 sm:p-3">
                     <div className={`p-1 ${iconBg} text-white rounded-md shadow-sm flex-shrink-0`}>
                         {icon}
                     </div>
@@ -84,14 +75,57 @@ const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, sub
                         <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
                     </div>
                     {badge}
-                </button>
-                {accessory}
-                {!disableHeaderToggle && (
-                    <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    {accessory}
+                </div>
+                {isOpen && (
+                    <div className="p-2.5 sm:p-3 pt-0 space-y-2">
+                        {children}
+                    </div>
                 )}
             </div>
+        );
+    }
+
+    // Standard case: entire header is a single <button> with w-full.
+    // The chevron is INSIDE the button so clicking anywhere on the header
+    // (including the chevron area) toggles the section. This matches the
+    // working pattern from PropertyForm.tsx and SmartMatterModal.tsx.
+    return (
+        <div
+            className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
+        >
+            <button
+                ref={headerRef}
+                type="button"
+                tabIndex={0}
+                onClick={() => {
+                    onToggle(id);
+                    if (!isOpen) {
+                        setTimeout(() => {
+                            headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 50);
+                    }
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onToggle(id);
+                    }
+                }}
+                className="w-full flex items-center gap-3 p-2.5 sm:p-3 hover:bg-slate-100/50 dark:hover:bg-zinc-700/30 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/30 text-left"
+            >
+                <div className={`p-1 ${iconBg} text-white rounded-md shadow-sm flex-shrink-0`}>
+                    {icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-2xs font-bold text-slate-600/70 dark:text-zinc-400 uppercase tracking-widest leading-none mb-0.5">{subtitle}</p>
+                    <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
+                </div>
+                {badge}
+                <svg className={`w-4 h-4 text-slate-400 dark:text-zinc-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
             {isOpen && (
                 <div className="p-2.5 sm:p-3 pt-0 space-y-2">
                     {children}
