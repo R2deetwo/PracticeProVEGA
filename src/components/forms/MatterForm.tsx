@@ -905,7 +905,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <button
                                 type="button"
                                 onClick={() => setShowWorkflowStages(v => !v)}
-                                className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                className="flex items-center gap-1.5 text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                             >
                                 <svg className={`w-3 h-3 transition-transform ${showWorkflowStages ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -925,7 +925,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-2xs text-slate-400 italic mb-2">No workflow defined for this type. A default will be created on save.</p>
+                                        <p className="text-2xs text-slate-500 dark:text-zinc-400 italic mb-2">No workflow defined for this type. A default will be created on save.</p>
                                     )}
                                     <button
                                         type="button"
@@ -1023,7 +1023,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     <div className="relative">
-                                        <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                        <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" />
                                         <input autoComplete="off" data-lpignore="true"  type="tel" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} className={`${commonInputClass} pl-11`} placeholder="Phone Number" />
                                     </div>
                                     <select value={newClientType} onChange={e => setNewClientType(e.target.value as ContactType)} className={commonInputClass}>
@@ -1034,7 +1034,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             </div>
                         ) : (
                             <div className="relative group">
-                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
+                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-400 group-focus-within:text-primary-500 transition-colors" />
                                 <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${commonInputClass} pl-11 ring-primary-500/0 focus:ring-primary-500/20`} required>
                                     <option value="" disabled>-- Select Client --</option>
                                     {contacts.filter(c => c.category === 'Client').map(c => (
@@ -1058,7 +1058,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                         <option key={p.id} value={p.id}>{p.address.split('\n')[0]}</option>
                                     ))}
                                 </select>
-                                <p className="text-2xs text-slate-400 px-1 italic">
+                                <p className="text-2xs text-slate-400 dark:text-zinc-400 px-1 italic">
                                     Linking a property synchronizes dispute details and status tracking.
                                 </p>
                             </div>
@@ -1127,7 +1127,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             className={`${commonInputClass} pl-10 text-right`}
                                         />
                                     </div>
-                                    <p className="text-2xs font-medium text-slate-400 mt-2 px-1">Applied to time entries.</p>
+                                    <p className="text-2xs font-medium text-slate-400 dark:text-zinc-400 mt-2 px-1">Applied to time entries.</p>
                                 </div>
                             )}
                             {(billingModel === BillingModel.FixedFee || billingModel === BillingModel.Retainer || billingModel === BillingModel.Contingency) && (
@@ -1142,7 +1142,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             className={`${commonInputClass} pl-10 text-right`}
                                         />
                                     </div>
-                                    <p className="text-2xs font-medium text-slate-400 mt-2 px-1">Consolidated fee structure for the engagement.</p>
+                                    <p className="text-2xs font-medium text-slate-400 dark:text-zinc-400 mt-2 px-1">Consolidated fee structure for the engagement.</p>
                                 </div>
                             )}
                             
@@ -1175,7 +1175,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             <option value="Custom">Custom Base</option>
                                         </select>
                                     </div>
-                                    <p className="col-span-2 text-2xs font-medium text-slate-400 px-1">Calculated as {billingPercentage}% of the selected basis.</p>
+                                    <p className="col-span-2 text-2xs font-medium text-slate-400 dark:text-zinc-400 px-1">Calculated as {billingPercentage}% of the selected basis.</p>
                                 </div>
                             )}
 
@@ -1312,7 +1312,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Litigation Parties</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-2xs font-bold text-slate-400">Firm Reps:</span>
+                                            <span className="text-2xs font-bold text-slate-400 dark:text-zinc-400">Firm Reps:</span>
                                             <div className="flex gap-1">
                                                 {['Claimant', 'Defendant'].map(r => (
                                                     <button
@@ -1339,7 +1339,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <div className="space-y-1.5">
                                 <label className={labelClass}>Court Room</label>
                                 <div className="relative">
-                                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" />
                                     <input autoComplete="off" data-lpignore="true"  type="text" value={courtRoom} onChange={e => setCourtRoom(e.target.value)} className={`${commonInputClass} pl-11`} placeholder="e.g. Court 4, Floor 1" />
                                 </div>
                             </div>
@@ -1350,7 +1350,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <div className="space-y-1.5 md:col-span-2">
                                 <label className={labelClass}>Next Adjourned / Hearing Date</label>
                                 <div className="relative">
-                                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" />
                                     <input
                                         autoComplete="off"
                                         data-lpignore="true"

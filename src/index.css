@@ -1200,21 +1200,41 @@ html.font-size-lg .line-clamp-2 {
 }
 
 /* ─── Dark Mode Input / Dialog Color Inheritance ──────────────────────────
- * Ensures all form inputs and dialogs inherit dark mode colors properly.
- * Without this, inputs with no explicit className default to white
- * background in dark mode (browser default), creating "white boxes"
- * inside dark modals. */
-.dark input:not([class*="bg-"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-.dark textarea:not([class*="bg-"]),
-.dark select:not([class*="bg-"]),
-.dark dialog:not([class*="bg-"]) {
-  background-color: rgb(24 24 27 / 0.5); /* zinc-900/50 */
+ * Ensures all form inputs render with proper dark-mode colors.
+ *
+ * HISTORY: The original rule used `:not([class*="bg-"])` to skip inputs that
+ * already had a `bg-*` class. That was correct when modals were forced light
+ * (light-only bg-white inputs were intentional). However, Modal.tsx now uses
+ * `bg-white dark:bg-zinc-900` — modals respect dark mode. Many inputs still
+ * carry light-only `bg-white` / `bg-gray-50` classes (legacy from when
+ * modals were light-only), so they render with a white background against
+ * a dark modal, OR they get overridden by the OS default and render dark
+ * with low-contrast inherited text.
+ *
+ * NEW STRATEGY: Catch ALL inputs in dark mode with a low-specificity rule
+ * (0,1,1). Explicit `dark:bg-*` / `dark:text-*` Tailwind variants on
+ * individual inputs have specificity (0,2,0) and still win — so the
+ * updated inputModern/inputClassic/inputLarge in formStyles.ts (which
+ * now include dark: variants) take precedence over this safety net.
+ *
+ * This rule is the FLOOR — it guarantees minimum dark-mode legibility for
+ * any input that wasn't explicitly given dark: variants.
+ */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.dark textarea,
+.dark select,
+.dark dialog {
+  background-color: rgb(24 24 27 / 0.6); /* zinc-900/60 */
   color: rgb(244 244 245); /* zinc-100 */
   border-color: rgb(63 63 70); /* zinc-700 */
 }
-.dark input:not([class*="bg-"])::placeholder,
-.dark textarea:not([class*="bg-"])::placeholder {
-  color: rgb(113 113 122); /* zinc-500 */
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark select[data-placeholder] {
+  /* Bumped from zinc-500 to zinc-400 for better WCAG AA contrast
+   * against the dark input background. zinc-500 (113 113 122) had
+   * ~3.2:1 contrast; zinc-400 (161 161 170) has ~5.4:1. */
+  color: rgb(161 161 170); /* zinc-400 */
 }
 /* Autofill fix — browsers force yellow/white backgrounds on autofilled inputs */
 .dark input:-webkit-autofill,
@@ -1226,6 +1246,54 @@ html.font-size-lg .line-clamp-2 {
   -webkit-box-shadow: 0 0 0px 1000px rgb(24 24 27) inset;
   caret-color: rgb(244 244 245);
   transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ─── Native <option> dropdown items ─────────────────────────────────────
+ * Browsers render <option> elements inside native <select> dropdowns using
+ * OS default colors. On some platforms (notably Windows + dark OS theme),
+ * this produces dark text on a dark background — unreadable.
+ *
+ * Force the option background + text color to match the dark modal palette
+ * so dropdown lists are legible regardless of OS theme. This affects the
+ * OPEN dropdown list, not the closed select's displayed value (which uses
+ * the select's `color` property).
+ */
+.dark option,
+.dark option:checked {
+  background-color: rgb(39 39 42); /* zinc-800 — matches dark card surface */
+  color: rgb(244 244 245); /* zinc-100 */
+}
+
+/* ─── Dark-mode muted text brightness lift ─────────────────────────────────
+ * Many places across the app use `text-slate-400` for helper text, hints,
+ * icons inside inputs, and small captions. In light mode slate-400
+ * (rgb 148 163 184) is acceptable. In dark mode against zinc-900 backgrounds
+ * it has ~5.8:1 contrast — technically WCAG-AA compliant but visually
+ * "dim" to most users, especially on phone screens.
+ *
+ * This rule bumps `text-slate-400` to `zinc-300` (rgb 212 212 216) ONLY
+ * inside form contexts (where the user is actively reading/editing) and
+ * ONLY when no explicit `dark:text-*` variant is already applied.
+ *
+ * Specificity: `.dark form .text-slate-400` (0,2,1) beats Tailwind's
+ * `.text-slate-400` (0,1,0). Explicit `dark:text-zinc-400` (0,2,0) on
+ * the same element WINS over this rule because it's a sibling utility
+ * (last-applied wins for the `color` property). Actually, since both
+ * are at the same element, the more-specific selector wins — and
+ * `.dark .text-slate-400` (with the form-context descendant combinator)
+ * has (0,2,1) which beats `.dark .text-zinc-400`'s (0,2,0). Hmm.
+ *
+ * To avoid that conflict, this rule ONLY targets elements WITHOUT any
+ * explicit `dark:text-*` class. Achieved via `:not([class*="dark:text-"])`.
+ */
+.dark form .text-slate-400:not([class*="dark:text-"]) {
+  color: rgb(203 213 225); /* slate-300 — brighter than slate-400, neutral hue */
+}
+.dark form .text-gray-400:not([class*="dark:text-"]) {
+  color: rgb(209 213 219); /* gray-300 */
+}
+.dark form .text-gray-500:not([class*="dark:text-"]) {
+  color: rgb(156 163 175); /* gray-400 — slight lift */
 }
 
 
