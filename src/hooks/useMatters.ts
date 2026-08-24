@@ -13,9 +13,10 @@ import { useAuth } from '../contexts/AuthContext';
 export const useMatters = (appState: any, actions: any) => {
     const { currentUser } = useAuth();
     const { addToast } = useUI();
-    
+
     // Convex Mutations
     const deleteMatterCascadeMutation = useMutation(api.myFunctions.deleteMatterCascade);
+    const reassignMattersFromContactMutation = useMutation(api.myFunctions.reassignMattersFromContact);
 
     /**
      * Add a new matter.
@@ -77,13 +78,36 @@ export const useMatters = (appState: any, actions: any) => {
 
     /**
      * Merge two contacts.
+     *
+     * FIX (Aug 2026): Previously this just deleted the source contact without
+     * reassigning its matters first — leaving all source-contact matters as
+     * "Unknown Client" orphans. Now we call reassignMattersFromContact to move
+     * all matters (and properties) from source to target BEFORE deleting the
+     * source contact. The deleteItem FK guard would block the delete anyway
+     * (since the source has child references), but doing the reassign first
+     * makes the operation actually succeed.
      */
     const handleMergeContacts = useCallback(async (sourceId: string, targetId: string) => {
-        // In a real app, this would merge matters, documents, etc.
-        // For now, we'll just delete the source and toast.
-        await actions.deleteItem('contacts', sourceId, 'Merged Contact');
-        addToast("Contacts merged successfully.", { type: 'success' });
-    }, [actions, addToast]);
+        try {
+            // 1. Reassign all matters + properties from source → target.
+            const result = await reassignMattersFromContactMutation({
+                sourceContactId: sourceId,
+                targetContactId: targetId,
+                userEmail: currentUser?.email,
+            });
+            // 2. Now that the source has zero references, hard-delete it.
+            await actions.deleteItem('contacts', sourceId, 'Merged Contact');
+            addToast(
+                `Merged contact — moved ${result.mattersReassigned} matter${result.mattersReassigned === 1 ? '' : 's'} ` +
+                `and ${result.propertiesReassigned} propert${result.propertiesReassigned === 1 ? 'y' : 'ies'} to the target contact.`,
+                { type: 'success' }
+            );
+        } catch (e: any) {
+            console.error('[handleMergeContacts] failed:', e);
+            addToast(e?.message || 'Failed to merge contacts.', { type: 'error' });
+            throw e;
+        }
+    }, [actions, reassignMattersFromContactMutation, currentUser, addToast]);
 
     /**
      * Link a matter to multiple contacts.

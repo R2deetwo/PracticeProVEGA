@@ -221,6 +221,17 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
+    // SOFT DELETE (Aug 2026): When true, the contact is hidden from active
+    // lists but NOT removed from the database. Matters/properties that
+    // reference this contact still resolve correctly — they show the client
+    // name with an "Archived" badge. Set via softDeleteContact mutation;
+    // restored via restoreContact mutation. Prevents "Unknown Client"
+    // orphan scenarios that were occurring when contacts were hard-deleted
+    // while matters still pointed at their id.
+    isArchived: v.optional(v.boolean()),
+    archivedAt: nullableString,
+    archivedById: nullableString,
+    archivedByName: nullableString,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
     .searchIndex("search_name", { searchField: "name" }),
 

@@ -166,7 +166,19 @@ const MatterCardItem: React.FC<{
                         <div className="flex-1 min-w-0 pr-2">
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary-600 transition-colors leading-tight">{matter.title}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">{client?.name || 'Unknown Client'}</span>
+                                <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">
+                                    {client?.name || 'Deleted Client'}
+                                </span>
+                                {client?.isArchived && (
+                                    <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" title="This client has been archived — restore from Contacts to reactivate.">
+                                        Archived
+                                    </span>
+                                )}
+                                {!client && matter.clientId && (
+                                    <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400" title="The client record was deleted. Use the 'Link Client' action on the matter detail page to reassign.">
+                                        Orphaned
+                                    </span>
+                                )}
                                 <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{matter.stage}</span>
                                 {matter.nextAdjournedDate && (
                                     <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center gap-1">

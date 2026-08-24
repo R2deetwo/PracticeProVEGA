@@ -323,7 +323,7 @@ export interface Property {
     maintenanceHistory?: MaintenanceRecord[];
     rentPaymentHistory?: RentPayment[];
 }
-export interface Contact { id: string; firmId: string; name: string; email: string; phone: string; address?: string; contactType: ContactType; category: string; jobTitle?: string; companyName?: string; website?: string; notes?: string; properties?: Property[]; userId?: string; identificationNumber?: string; taxId?: string; nextOfKin?: string; dateOfBirth?: string; matterIds?: string[]; }
+export interface Contact { id: string; firmId: string; name: string; email: string; phone: string; address?: string; contactType: ContactType; category: string; jobTitle?: string; companyName?: string; website?: string; notes?: string; properties?: Property[]; userId?: string; identificationNumber?: string; taxId?: string; nextOfKin?: string; dateOfBirth?: string; matterIds?: string[]; isArchived?: boolean; archivedAt?: string | null; }
 export interface WorkflowDefinition { id: string; firmId: string; type: MatterType; default: { stages: string[]; suggestions: Record<string, any>; }; subCategories?: Record<string, any>; }
 export interface ChecklistItem { id: string; text: string; completed: boolean; }
 export interface Checklist { id: string; templateName?: string; items: ChecklistItem[]; }

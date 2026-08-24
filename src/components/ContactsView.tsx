@@ -71,7 +71,12 @@ const ContactListContent: React.FC<{
 
     const filteredContacts = useMemo(() => {
         const safeContacts = contacts || [];
-        let list = activeCategory === 'All' ? safeContacts : safeContacts.filter(c => c.category === activeCategory);
+        // FILTER OUT ARCHIVED CONTACTS (Aug 2026): Soft-deleted contacts
+        // (isArchived: true) stay in the database so their matters/properties
+        // keep resolving, but they should NOT appear in the active contacts
+        // list. The user can restore archived contacts from the archive view.
+        let list = safeContacts.filter(c => !c.isArchived);
+        list = activeCategory === 'All' ? list : list.filter(c => c.category === activeCategory);
 
         if (searchTerm) {
             const lowerSearch = searchTerm.toLowerCase();

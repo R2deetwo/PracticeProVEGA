@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { Contact, Matter, ModalType, AppMode, User, MatterType, Property, ContactType } from '../../types';
 import { useHighlight } from '../../hooks/useHighlight';
 import { useAuth } from '../../contexts/AuthContext';
@@ -271,6 +273,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   useHighlight(containerRef, 'contactDetail');
   const { navigateTo, addToast } = useUI();
   const { openWithContext } = useAloa();
+  const { currentUser } = useAuth();
   const { matterState } = useMatterState();
   const { coreState } = useCoreState();
   const { documentState } = useDocumentState();
@@ -279,11 +282,21 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   const contact = matterState.contacts.find(c => c.id === contactId);
   const matters = matterState.matters.filter(m => m.clientId === contactId);
   const users = coreState.users;
-  
+
   // Merge standalone properties with legacy nested properties
   const standaloneProperties = (coreState.properties || []).filter(p => p.contactId === contactId);
   const legacyProperties = contact?.properties || [];
   const allProperties = [...standaloneProperties, ...legacyProperties];
+
+  // SOFT DELETE (Aug 2026): Use softDeleteContact mutation instead of
+  // deleteItem('contacts', ...). The soft-delete sets isArchived=true so the
+  // contact is hidden from active lists but NOT removed from the database —
+  // matters/properties that reference this contact continue to resolve,
+  // preventing the "Unknown Client" orphan scenario.
+  // If the contact has zero matters/properties, we fall back to hard delete
+  // (deleteItem will succeed because the FK guard finds no references).
+  const softDeleteContactMutation = useMutation(api.myFunctions.softDeleteContact);
+  const restoreContactMutation = useMutation(api.myFunctions.restoreContact);
   
   const onViewMatterDetails = (id: string) => navigateTo('matterDetail', id);
   
@@ -542,15 +555,66 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                 <LinkIcon className="w-3.5 h-3.5" /> Merge
             </button>
             <button
-                onClick={() => {
-                    openModal('deleteConfirmation', contact.id, {
-                        title: 'Delete Contact?',
-                        message: `Are you sure you want to delete "${contact.name}"? This will also remove their associated records from your view.`,
-                        onConfirm: () => {
-                            dataHandlers.deleteItem('contacts', contact.id, contact.name);
-                            onGoBack();
-                        }
-                    });
+                onClick={async () => {
+                    // SOFT-DELETE FLOW (Aug 2026): If the contact has any matters
+                    // or properties referencing it, use softDeleteContact to
+                    // archive it (preserves references so no "Unknown Client"
+                    // orphans). If zero references, fall back to hard delete.
+                    const refCount = matters.length + allProperties.length;
+                    if (refCount > 0) {
+                        openModal('deleteConfirmation', contact.id, {
+                            title: 'Archive Contact?',
+                            message: (
+                                <div className="space-y-2">
+                                    <p>
+                                        <span className="font-semibold">"{contact.name}"</span> is linked to
+                                        {' '}<span className="font-bold text-rose-600 dark:text-rose-400">{refCount} record{refCount === 1 ? '' : 's'}</span>
+                                        {' '}({matters.length} matter{matters.length === 1 ? '' : 's'}, {allProperties.length} propert{allProperties.length === 1 ? 'y' : 'ies'}).
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                        The contact will be archived — hidden from your active contact list, but their matters/properties keep working.
+                                        You can restore the contact at any time from the archive.
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                        Hard-delete is blocked to prevent the "Unknown Client" issue you've seen before.
+                                    </p>
+                                </div>
+                            ),
+                            confirmText: 'Archive Contact',
+                            confirmButtonClass: 'bg-amber-600 hover:bg-amber-700',
+                            onConfirm: async () => {
+                                try {
+                                    await softDeleteContactMutation({
+                                        contactId: contact.id,
+                                        userEmail: currentUser?.email,
+                                    });
+                                    addToast(`${contact.name} archived. Matters are unaffected.`, { type: 'success' });
+                                    onGoBack();
+                                } catch (e: any) {
+                                    addToast(e?.message || 'Failed to archive contact.', { type: 'error' });
+                                }
+                            }
+                        });
+                    } else {
+                        // No references — safe to hard-delete.
+                        openModal('deleteConfirmation', contact.id, {
+                            title: 'Delete Contact?',
+                            message: `Are you sure you want to permanently delete "${contact.name}"? This contact has no associated matters or properties, so it's safe to remove.`,
+                            confirmText: 'Delete',
+                            confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+                            onConfirm: async () => {
+                                try {
+                                    await dataHandlers.deleteItem('contacts', contact.id, contact.name);
+                                    onGoBack();
+                                } catch (e: any) {
+                                    // The FK guard in deleteItem may still block if
+                                    // references exist that we didn't detect locally
+                                    // (race condition). Show the error.
+                                    addToast(e?.message || 'Failed to delete contact.', { type: 'error' });
+                                }
+                            }
+                        });
+                    }
                 }}
                 className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors shadow-sm flex items-center gap-1.5"
             >

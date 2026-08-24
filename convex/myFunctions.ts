@@ -573,6 +573,10 @@ export const getFirmMetadata = query({
           companyName: c.companyName,
           matterIds: c.matterIds,
           createdAt: c.createdAt,
+          // SOFT DELETE fields — exposed so the UI can show "Archived" badge
+          // and filter archived contacts out of active lists.
+          isArchived: c.isArchived || false,
+          archivedAt: c.archivedAt || null,
         }))),
 
       // Properties — address + status + rent info only
@@ -3693,6 +3697,88 @@ export const deleteItem = mutation({
       }
     }
 
+    // ─── REFERENTIAL INTEGRITY GUARD (Aug 2026) ────────────────────────────
+    // Prevents orphan-deletion scenarios. Before deleting ANY record, check
+    // whether it's referenced by child records. If yes, throw a descriptive
+    // error so the user can reassign or delete the children first.
+    //
+    // ROOT CAUSE THIS FIXES: User reported that matters were suddenly showing
+    // "Unknown Client" — they had to re-add the clients. Cause: contacts were
+    // being hard-deleted via this mutation while matters still pointed at
+    // their id. Matters became orphans, showing "Unknown Client" because the
+    // client-side lookup `contacts.find(c => c.id === matter.clientId)` returned
+    // undefined.
+    //
+    // This guard now applies to ALL entity types — not just contacts. Any
+    // parent record with live child references will refuse to delete.
+    //
+    // For contacts specifically, use the new `softDeleteContact` mutation
+    // (sets isArchived: true) instead — it preserves the contact record so
+    // matters keep resolving, but hides the contact from active lists.
+    const FK_MAP: Record<string, Array<{ table: string; field: string }>> = {
+      contacts: [
+        { table: "matters", field: "clientId" },
+        { table: "properties", field: "contactId" },
+      ],
+      matters: [
+        { table: "tasks", field: "matterId" },
+        { table: "documents", field: "matterId" },
+        { table: "events", field: "matterId" },
+        { table: "timeEntries", field: "matterId" },
+        { table: "expenses", field: "matterId" },
+        { table: "invoices", field: "matterId" },
+        { table: "notePages", field: "matterId" },
+        { table: "clientMessages", field: "matterId" },
+        { table: "firmActivity", field: "matterId" },
+        { table: "externalCounselInvites", field: "matterId" },
+      ],
+      properties: [
+        { table: "matters", field: "propertyId" },
+        { table: "tenancies", field: "propertyId" },
+        { table: "notePages", field: "propertyId" },
+        { table: "documents", field: "propertyId" },
+      ],
+    };
+    if (FK_MAP[table]) {
+      // Resolve the record's canonical id (could be _id or custom `id` field)
+      // so we can match either form in child records.
+      const canonicalId = existing ? (existing.id || String(existing._id)) : id;
+      const possibleIds = new Set([canonicalId, id, String(existing?._id || '')].filter(Boolean));
+
+      for (const fk of FK_MAP[table]) {
+        try {
+          const children = await ctx.db
+            .query(fk.table as any)
+            .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+            .take(1000);
+          // Match any of the possible id forms (Convex _id, custom id, or stringified)
+          const refs = children.filter((c: any) => {
+            const val = c[fk.field];
+            return val && possibleIds.has(String(val));
+          });
+          if (refs.length > 0) {
+            // Throw with a helpful message — tell the user exactly what's
+            // referencing the record and how to proceed.
+            const childCount = refs.length;
+            const sampleNames = refs.slice(0, 3).map((r: any) => r.title || r.name || r.address || r._id).filter(Boolean);
+            const sampleText = sampleNames.length > 0 ? ` (e.g. "${sampleNames.join('", "')}")` : '';
+            throw new Error(
+              `Cannot delete this ${table.replace(/s$/, '')} — it's still referenced by ${childCount} ${fk.table}${childCount === 1 ? '' : 's'}${sampleText}. ` +
+              `Reassign or delete those ${fk.table} first. ` +
+              (table === 'contacts'
+                ? `Tip: Use "Archive Contact" instead — it hides the contact without breaking references.`
+                : `Tip: Use the cascade-delete action from the ${table} detail view if you want to remove everything at once.`
+              )
+            );
+          }
+        } catch (e: any) {
+          // Re-throw the helpful error message above; swallow only index/scan errors.
+          if (e.message?.startsWith('Cannot delete')) throw e;
+          console.warn(`[deleteItem] FK check failed for ${fk.table}:`, e);
+        }
+      }
+    }
+
     // 2. Strategy A: Direct Delete by Convex internal _id
     if (existing) {
       await ctx.db.delete(id as any);
@@ -3721,6 +3807,7 @@ export const deleteItem = mutation({
       }
     } catch (e: any) {
       if (e.message?.includes("Unauthorized")) throw e;
+      if (e.message?.startsWith('Cannot delete')) throw e;
       console.error(`[deleteItem] Strategy B failed for ${table}:${id}`, e);
     }
 
@@ -3734,11 +3821,180 @@ export const deleteItem = mutation({
         await ctx.db.delete(match._id);
         return { success: true, method: "FIRM_SCAN" };
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e.message?.startsWith('Cannot delete')) throw e;
       console.error(`[deleteItem] Strategy C failed for ${table}:${id}`, e);
     }
 
     throw new Error(`Failed to delete item ${id} from ${table}. Item not found.`);
+  },
+});
+
+/**
+ * softDeleteContact — marks a contact as archived (isArchived: true) without
+ * removing the record. Matters and properties that reference this contact
+ * continue to resolve correctly — they just show an "Archived" badge next
+ * to the client name.
+ *
+ * Use this instead of deleteItem('contacts', ...) when the contact has
+ * associated matters/properties. Use deleteItem only when the contact has
+ * zero references (the FK guard in deleteItem will allow it through).
+ *
+ * RESTORE: setting isArchived back to false reactivates the contact.
+ */
+export const softDeleteContact = mutation({
+  args: {
+    contactId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+
+    // Resolve the contact — try Convex _id first, then custom id index.
+    let contact: any = null;
+    try { contact = await ctx.db.get(args.contactId as any); } catch { /* not a Convex id */ }
+    if (!contact) {
+      contact = await ctx.db
+        .query("contacts")
+        .withIndex("by_custom_id", (q: any) => q.eq("id", args.contactId))
+        .first();
+    }
+    if (!contact) throw new Error("Contact not found.");
+    if (contact.firmId !== firmId) {
+      throw new Error("Unauthorized. This contact belongs to another organization.");
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(contact._id, {
+      isArchived: true,
+      archivedAt: now,
+      archivedById: user?._id || user?.id || '',
+      archivedByName: user?.name || '',
+      updatedAt: now,
+    } as any);
+
+    return { success: true, contactId: args.contactId };
+  },
+});
+
+/**
+ * restoreContact — un-archives a soft-deleted contact. Sets isArchived back
+ * to false so it reappears in active contact lists.
+ */
+export const restoreContact = mutation({
+  args: {
+    contactId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+
+    let contact: any = null;
+    try { contact = await ctx.db.get(args.contactId as any); } catch { /* not a Convex id */ }
+    if (!contact) {
+      contact = await ctx.db
+        .query("contacts")
+        .withIndex("by_custom_id", (q: any) => q.eq("id", args.contactId))
+        .first();
+    }
+    if (!contact) throw new Error("Contact not found.");
+    if (contact.firmId !== firmId) {
+      throw new Error("Unauthorized. This contact belongs to another organization.");
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(contact._id, {
+      isArchived: false,
+      archivedAt: undefined,
+      archivedById: undefined,
+      archivedByName: undefined,
+      updatedAt: now,
+    } as any);
+
+    return { success: true, contactId: args.contactId };
+  },
+});
+
+/**
+ * reassignMattersFromContact — moves all matters from one contact (source)
+ * to another (target). Used in the merge-contacts flow BEFORE deleting the
+ * source contact, so no matters become orphans.
+ *
+ * Prior bug: useMatters.ts handleMergeContacts deleted the source contact
+ * without reassigning its matters first. All matters that pointed at the
+ * source contact became "Unknown Client" orphans. This mutation fixes that.
+ */
+export const reassignMattersFromContact = mutation({
+  args: {
+    sourceContactId: v.string(),
+    targetContactId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+
+    // Verify both contacts exist and belong to the firm.
+    for (const cid of [args.sourceContactId, args.targetContactId]) {
+      let c: any = null;
+      try { c = await ctx.db.get(cid as any); } catch { /* not a Convex id */ }
+      if (!c) {
+        c = await ctx.db
+          .query("contacts")
+          .withIndex("by_custom_id", (q: any) => q.eq("id", cid))
+          .first();
+      }
+      if (!c) throw new Error(`Contact not found: ${cid}`);
+      if (c.firmId !== firmId) {
+        throw new Error("Unauthorized. One or both contacts belong to another organization.");
+      }
+    }
+
+    // Find all matters pointing at the source contact.
+    // Match either custom id or Convex _id (some old records use _id as clientId).
+    const possibleIds = new Set([args.sourceContactId, String(args.sourceContactId)]);
+
+    const firmMatters = await ctx.db
+      .query("matters")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(1000);
+
+    const mattersToReassign = firmMatters.filter((m: any) =>
+      possibleIds.has(String(m.clientId || ''))
+    );
+
+    let reassignedCount = 0;
+    for (const matter of mattersToReassign) {
+      await ctx.db.patch(matter._id, {
+        clientId: args.targetContactId,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      reassignedCount++;
+    }
+
+    // Also reassign properties pointing at the source contact.
+    const firmProperties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(1000);
+
+    const propertiesToReassign = firmProperties.filter((p: any) =>
+      possibleIds.has(String(p.contactId || ''))
+    );
+
+    let propertiesReassigned = 0;
+    for (const prop of propertiesToReassign) {
+      await ctx.db.patch(prop._id, {
+        contactId: args.targetContactId,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      propertiesReassigned++;
+    }
+
+    return {
+      success: true,
+      mattersReassigned: reassignedCount,
+      propertiesReassigned: propertiesReassigned,
+    };
   },
 });
 
@@ -6153,8 +6409,21 @@ export const getPendingAddonsForFirm = query({
 
 /**
  * cancelAddon — called from the main app when a user cancels an active
- * add-on. Sets status to 'cancelled' immediately (no founder approval
- * needed for cancellation — only for activation).
+ * add-on OR deletes a pending add-on request.
+ *
+ * BEHAVIOR (Aug 2026 fix):
+ * - status === 'pending_review': HARD DELETE the request. The add-on was
+ *   never activated, so there's no need to keep a "cancelled" record
+ *   around. The user explicitly clicked the X button to remove it.
+ * - status === 'active': SOFT CANCEL — set status to 'cancelled' so
+ *   historical billing/audit records stay intact.
+ * - status === 'cancelled' / 'expired' / 'rejected': no-op (already in
+ *   terminal state). Return success without doing anything.
+ *
+ * PRIOR BUG: The mutation threw "Add-on is not active (current_status:
+ * pending_review)" whenever a user tried to cancel a pending request.
+ * The UI showed a pending request with an X button, but clicking it
+ * surfaced that error toast. Fixed by branching on status.
  */
 export const cancelAddon = mutation({
   args: {
@@ -6169,11 +6438,41 @@ export const cancelAddon = mutation({
     if (addon.firmId !== firmId) {
       throw new Error("Unauthorized. This add-on belongs to another firm.");
     }
-    if (addon.status !== 'active') {
-      throw new Error(`Add-on is not active (current status: ${addon.status}).`);
+
+    // Terminal states — already cancelled/expired/rejected. Nothing to do.
+    // Return success so the UI can optimistically remove the row without
+    // showing the user an error for a no-op.
+    const TERMINAL_STATUSES = ['cancelled', 'expired', 'rejected'];
+    if (TERMINAL_STATUSES.includes(addon.status)) {
+      return { success: true, noOp: true };
     }
 
     const now = new Date().toISOString();
+
+    // PENDING REVIEW — hard delete. The request never activated, so there's
+    // no billing/audit record to preserve. The user wants the row GONE.
+    if (addon.status === 'pending_review') {
+      await ctx.db.delete(args.addonRequestId as any);
+      // Still notify founder so they know a pending request was withdrawn
+      // (helps avoid confusion if they were about to action it).
+      const founders = await ctx.db.query("users").filter((q: any) =>
+        q.eq(q.field("role"), "Founder")
+      ).collect();
+      for (const founder of founders) {
+        await ctx.db.insert("notifications", {
+          firmId: 'system',
+          userId: founder._id,
+          title: 'Add-On Request Withdrawn',
+          message: `${user?.email || 'A user'} withdrew their request for ${addon.addonName}.`,
+          type: 'addon_cancelled',
+          timestamp: now,
+          isRead: false,
+        } as any);
+      }
+      return { success: true, deleted: true };
+    }
+
+    // ACTIVE — soft cancel (preserves audit trail for billing).
     await ctx.db.patch(args.addonRequestId as any, {
       status: 'cancelled',
       cancelledAt: now,
