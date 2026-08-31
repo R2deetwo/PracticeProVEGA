@@ -8789,3 +8789,30 @@ Stage Summary:
   pre-existing via git stash — was at line 3544 before this change)
 - Committed as fix(billing) batch 3 of 5 in the Phase 1 redo
 - Branch now 3 commits ahead of origin/main (user pushes manually)
+
+---
+Task ID: recovery-3
+Agent: main (Super Z)
+Task: Phase 1 redo, Batch 4 — .take(100) bug (deleteTask notification cleanup)
+
+Work Log:
+- Audited all 16 .take(100) sites in convex/ — most are reasonable bounded
+  reads (tasks/events per matter, aloaConversations chat list, admin queues)
+- CRITICAL find in deleteTask (myFunctions.ts ~3544): the chain
+  `.take(100).collect()` called .collect() on a Promise (take() is
+  terminal in Convex) — TypeError at runtime, silently swallowed by the
+  surrounding try/catch → notifications linked to deleted tasks were
+  NEVER cleaned up (permanent orphan accumulation)
+- Same block had a second bug: filter expression `q.field("link")?.id`
+  is not a valid Convex path — proper nested path is q.field("link.id")
+- Third bug in same block: notifications store link.id as
+  task.id || task._id.toString() but the filter compared args.taskId only
+  — now matches BOTH forms via q.or
+- Presence query (myFunctions.ts:57): comment says "Fetch ALL presence
+  records" but .take(100) silently dropped members in firms >100 users
+  (Komplete = unlimited seats) → .collect(), bounded by firm membership
+
+Stage Summary:
+- TS: 322 errors (was 323) — the broken chain was itself a TS2339;
+  fixing it reduced the count
+- Committed as fix(data-integrity) batch 4 of 5 in the Phase 1 redo

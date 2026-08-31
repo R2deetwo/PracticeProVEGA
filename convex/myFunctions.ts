@@ -54,7 +54,10 @@ export const getActivePeers = query({
     // We return both active and inactive users with their lastSeen timestamp
     // so the frontend can show an inactivity indicator (greyed out) and
     // last-seen time on hover.
-    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(100);
+    // AUDIT FIX: .take(100) contradicted the "ALL" intent above and silently
+    // dropped users in firms with >100 members (Komplete = unlimited seats).
+    // .collect() is bounded by firm membership, not a hardcoded cap.
+    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).collect();
 
     // Fetch users to check their visibility preferences
     const users: any[] = [];
@@ -3542,12 +3545,21 @@ export const deleteTask = mutation({
     }
 
     // Delete any notifications linked to this task
+    // AUDIT FIX: previous chain `.take(100).collect()` called .collect()
+    // on a Promise (take() is terminal) — TypeError at runtime, silently
+    // swallowed by the catch block, so notifications were NEVER cleaned
+    // up on task deletion. Also the filter `q.field("link")?.id` was not
+    // a valid Convex path expression. Fixed: proper .collect() query +
+    // nested field path + match BOTH id forms (custom id and _id string),
+    // mirroring how notifications are written: task.id || task._id.toString()
     try {
       const notifs = await ctx.db
         .query("notifications")
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-        .filter((q: any) => q.eq(q.field("link")?.id, args.taskId))
-        .take(100)
+        .filter((q: any) => q.or(
+          q.eq(q.field("link.id"), (task as any).id ?? null),
+          q.eq(q.field("link.id"), String(task._id))
+        ))
         .collect();
       for (const n of notifs) {
         await ctx.db.delete(n._id);
