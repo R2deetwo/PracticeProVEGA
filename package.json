@@ -11,7 +11,7 @@
     "dev:staging": "vite --host --mode staging",
     "dev:prod": "vite --host --mode production",
     "prebuild": "node scripts/generate-version-manifest.cjs",
-    "build": "vite build && node scripts/mark-healthy.cjs",
+    "build": "vite build && node scripts/bust-css-cache.cjs && node scripts/mark-healthy.cjs",
     "audit:app": "npx tsx scripts/agent-audit.ts",
     "audit:all": "npx tsx scripts/audit-master-suite.ts",
     "dev-report": "npx tsx scripts/generate-dev-report.ts",

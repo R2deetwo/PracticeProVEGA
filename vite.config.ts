@@ -115,6 +115,12 @@ function generateVersionManifest() {
   };
 }
 
+// CACHE-BUST NOTE (2026-08-31): CSS asset URLs are rotated per deploy by
+// scripts/bust-css-cache.cjs (run by `npm run build` AFTER vite build), NOT
+// by a vite plugin — Vite's internal html/asset post-processing re-derives
+// emitted filenames, so in-bundle renames do not survive. See the script for
+// the full rationale (edge-cache poisoning of stable CSS URLs).
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
