@@ -99,7 +99,36 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
                                 <p className="font-semibold">Your Most Recent Payment</p>
                                 <p className="text-xs text-slate-500 dark:text-zinc-400">{new Date(lastReceipt.paidDate!).toLocaleDateString('en-GB')}</p>
                             </div>
-                            <button onClick={() => navigateTo('receiptDetail', lastReceipt.id)} className="px-3 py-1 bg-slate-200 dark:bg-zinc-600 text-slate-700 dark:text-zinc-200 rounded-md font-semibold text-xs hover:bg-slate-300 dark:hover:bg-zinc-500">
+                            <button
+                                onClick={() => {
+                                    // FIX: navigated to 'receiptDetail' — a view the client
+                                    // routing swallows back to the dashboard (dead button).
+                                    // Print the receipt directly from the invoice data instead.
+                                    const inv: any = lastReceipt;
+                                    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch] as string));
+                                    const total = typeof inv.total_amount === 'number' ? inv.total_amount : (inv.subTotal || (inv.lineItems || []).reduce((sm: number, li: any) => sm + (li?.total || 0), 0)) + (inv.taxAmount || 0);
+                                    const win = window.open('', '_blank');
+                                    if (!win) return;
+                                    win.document.write(`
+                                    <html><head><title>Receipt ${esc(inv.invoiceNumber || inv.id || '')}</title>
+                                    <style>body{font-family:Georgia,serif;max-width:420px;margin:40px auto;padding:24px;border:1px solid #ccc}
+                                    h2{margin:0 0 2px}small{color:#666}hr{border:none;border-top:1px dashed #ccc}
+                                    .row{display:flex;justify-content:space-between;margin:8px 0;font-size:14px}
+                                    .total{font-weight:bold;font-size:18px;color:#059669;margin-top:12px}
+                                    .paid{color:#059669;font-weight:bold;letter-spacing:2px;text-align:center;margin:10px 0}</style></head><body>
+                                    <h2>${esc(inv.matter?.title || 'Professional Services')}</h2>
+                                    <small>Receipt — ${esc(inv.invoiceNumber || '')}</small><hr/>
+                                    <div class="row"><span>Paid</span><span>${new Date(inv.paidDate || Date.now()).toLocaleDateString('en-GB')}</span></div>
+                                    ${(inv.lineItems || []).map((li: any) => `<div class="row"><span>${esc(li.description || li.name || 'Service')}</span><span>&#8358;${(li?.total || 0).toLocaleString('en-NG')}</span></div>`).join('')}
+                                    ${inv.taxAmount ? `<div class="row"><span>VAT</span><span>&#8358;${Number(inv.taxAmount).toLocaleString('en-NG')}</span></div>` : ''}
+                                    <hr/><div class="row total"><span>Total Paid</span><span>&#8358;${Number(total).toLocaleString('en-NG')}</span></div>
+                                    <div class="paid">— PAID —</div>
+                                    </body></html>`);
+                                    win.document.close();
+                                    win.print();
+                                }}
+                                className="px-3 py-1 bg-slate-200 dark:bg-zinc-600 text-slate-700 dark:text-zinc-200 rounded-md font-semibold text-xs hover:bg-slate-300 dark:hover:bg-zinc-500"
+                            >
                                 View Receipt
                             </button>
                         </div>

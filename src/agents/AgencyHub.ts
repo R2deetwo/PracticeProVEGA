@@ -3,6 +3,7 @@ import { ALOA_PRECISION_PROTOCOL, getAloaProtocol } from '../constants/aloaPromp
 import { getIdentityGuardrail } from '../constants/identityGuardrails';
 import { renderFormProtocol, renderAloaIdentity } from '../constants/loadPrompts';
 import { getAtriumSystemInstruction } from './PropertyManagementAgent';
+import { buildJurisdictionContextBlock } from '../utils/jurisdictionConfig';
 
 export const getSystemInstruction = (
     appState: AppState,
@@ -233,11 +234,37 @@ Proactively mention these if they relate to the user's current query or context.
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // JURISDICTION + PRACTICE PROFILE — multi-state awareness for CHAT.
+    // Previously only DraftPro (streamDraft) received the jurisdictional
+    // context; the chat ALOA/ARIA had no idea which state the firm practices
+    // in, so statutory guidance defaulted to generic (or Lagos) answers.
+    // Now both the legal and property chat modes receive the firm's state(s)
+    // of practice, practice areas, and portfolio focus — kept consistent
+    // with the drafting prompt.
+    // ─────────────────────────────────────────────────────────────────────
+    const firmDetailsAny = (appState as any)?.firmDetails || {};
+    const firmProduct = firmDetailsAny.product;
+    const firmIsProperty = firmProduct === 'property' || firmProduct === 'atrium';
+    const practiceProfile = firmDetailsAny.practiceProfile;
+    const jurisdictionChatBlock = buildJurisdictionContextBlock(
+        firmDetailsAny.defaultStateOfPractice,
+        {
+            secondaryStates: firmDetailsAny.statesOfPractice,
+            practiceAreas: practiceProfile?.practiceAreas || firmDetailsAny.firmSpecialties,
+            focusAreas: practiceProfile?.focusAreas,
+            isPropertyContext: firmIsProperty || isAtriumMode,
+        }
+    );
+
     // Inject the base universal context AFTER identity lock
     const universalContext = `
     ${identityLockStr}
 
     ${deepContextBlock}
+
+    ${jurisdictionChatBlock}
+
     ${getAloaProtocol(false, null, appState.firmDetails?.product)}
     ${demoGuide}
     ${conversationMemoryBlock}

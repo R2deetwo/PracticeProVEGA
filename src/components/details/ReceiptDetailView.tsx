@@ -46,14 +46,25 @@ const ReceiptDetailViewContent: React.FC = () => {
   const handleZoomOut = () => setZoom(z => Math.max(z - 0.05, 0.5));
 
   if (!invoice) return (
-    <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+    <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 gap-3">
       <p className="text-lg font-medium">Receipt not found</p>
+      <button onClick={() => navigateTo('billing')} className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 rounded-lg hover:bg-slate-200 transition-colors">
+        ← Back to Billing
+      </button>
     </div>
   );
 
   const onGoBack = () => navigateTo('invoiceDetail', invoice.id);
-  // Guard against missing lineItems (legacy invoices, rent receipts)
-  const totalAmount = (invoice.lineItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
+  // Guard against missing lineItems (legacy invoices, rent receipts).
+  // FIX: the receipt total previously summed ONLY lineItems — excluding
+  // VAT (taxAmount) — so any taxed invoice printed a receipt that
+  // understated the amount paid while still claiming "paid in full".
+  // Precedence: total_amount (if stored) > subTotal + VAT > lineItems sum + VAT.
+  const lineItemsTotal = (invoice.lineItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
+  const totalAmount = typeof (invoice as any).total_amount === 'number'
+    ? (invoice as any).total_amount
+    : (typeof (invoice as any).subTotal === 'number' ? (invoice as any).subTotal : lineItemsTotal)
+      + (typeof (invoice as any).taxAmount === 'number' ? (invoice as any).taxAmount : 0);
 
   const headerTextColor = firmDetails.headerTextColor || '#111827';
 

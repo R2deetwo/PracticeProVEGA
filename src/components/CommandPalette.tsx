@@ -27,6 +27,13 @@ const CommandPalette: React.FC = () => {
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
     const { coreState } = useCoreState();
+    // PRODUCT FILTERING: previously every static command showed for every
+    // product — Atrium-only firms saw "Go to Research Studio" and landed on
+    // a "Feature Not Available" wall. Now commands are filtered by the
+    // firm's product mode.
+    const firmProduct = (coreState.firmDetails as any)?.product as string | undefined;
+    const isLegalFirm = !firmProduct || firmProduct === 'legal' || firmProduct === 'vega' || firmProduct === 'unified';
+    const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -37,16 +44,22 @@ const CommandPalette: React.FC = () => {
     const paletteRef = useRef<HTMLDivElement>(null);
     useFocusTrap(paletteRef, isCommandPaletteOpen);
 
-    // 1. Static Commands
+    // 1. Static Commands (product-filtered)
     const staticCommands: SearchResult[] = useMemo(() => [
         // Navigation
         { id: 'nav-dashboard', title: 'Go to Dashboard', type: 'Navigation', icon: <DashboardIcon />, action: () => navigateTo('dashboard') },
-        { id: 'nav-matters', title: 'Go to Matters', type: 'Navigation', icon: <MattersIcon />, action: () => navigateTo('matters') },
-        { id: 'nav-properties', title: 'Go to Properties', type: 'Navigation', icon: <OfficeBuildingIcon />, action: () => navigateTo('properties') },
+        ...(isLegalFirm ? ([{ id: 'nav-matters', title: 'Go to Matters', type: 'Navigation', icon: <MattersIcon />, action: () => navigateTo('matters') }] as SearchResult[]) : []),
+        ...(isPropertyFirm || firmProduct === 'unified' ? ([{ id: 'nav-properties', title: 'Go to Properties', type: 'Navigation', icon: <OfficeBuildingIcon />, action: () => navigateTo('properties') }] as SearchResult[]) : []),
         { id: 'nav-contacts', title: 'Go to Contacts', type: 'Navigation', icon: <ContactsIcon />, action: () => navigateTo('contacts') },
         { id: 'nav-tasks', title: 'Go to Tasks', type: 'Navigation', icon: <TasksIcon />, action: () => navigateTo('tasks') },
         { id: 'nav-calendar', title: 'Go to Calendar', type: 'Navigation', icon: <CalendarIcon />, action: () => navigateTo('calendar') },
-        { id: 'nav-research', title: 'Go to Research Studio', type: 'Navigation', icon: <ResearchIcon />, action: () => navigateTo('research') },
+        ...(isLegalFirm ? ([{ id: 'nav-research', title: 'Go to Research Studio', type: 'Navigation', icon: <ResearchIcon />, action: () => navigateTo('research') }] as SearchResult[]) : []),
+        // REACHABILITY FIXES: Timeline and Billing Monitor are fully built
+        // views that previously had NO navigation entry anywhere — only
+        // reachable by typing the URL. Exposed here (and Timeline is linked
+        // from Reporting) so they're discoverable.
+        ...(isLegalFirm ? ([{ id: 'nav-timeline', title: 'Go to Timeline (Case Roadmap)', type: 'Navigation', icon: <CalendarIcon />, action: () => navigateTo('timeline') }] as SearchResult[]) : []),
+        ...(isLegalFirm ? ([{ id: 'nav-billing-monitor', title: 'Open Retainer Billing Monitor', type: 'Navigation', icon: <DashboardIcon />, action: () => navigateTo('billingMonitor') }] as SearchResult[]) : []),
         { id: 'nav-archive', title: 'Go to Archive', type: 'Navigation', icon: <ArchiveIcon />, action: () => navigateTo('archive') },
         { id: 'nav-settings', title: 'Go to Settings', type: 'Navigation', icon: <CogIcon />, action: () => navigateTo('settings') },
 
@@ -60,7 +73,7 @@ const CommandPalette: React.FC = () => {
         // System
         { id: 'sys-theme', title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, type: 'System', icon: theme === 'dark' ? <SunIcon /> : <MoonIcon />, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
         { id: 'sys-sidebar', title: 'Toggle Sidebar', type: 'System', icon: <div className="w-5 h-5 border border-current rounded flex items-center justify-center text-2xs">|||</div>, action: () => toggleSidebar() },
-    ], [navigateTo, openModal, theme, setTheme, toggleSidebar]);
+    ], [navigateTo, openModal, theme, setTheme, toggleSidebar, isLegalFirm, isPropertyFirm, firmProduct]);
 
     // 2. Dynamic Data Search Index
     const searchIndex = useMemo(() => {

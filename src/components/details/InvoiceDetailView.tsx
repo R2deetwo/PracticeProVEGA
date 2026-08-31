@@ -16,7 +16,7 @@ import ErrorBoundary from '../ErrorBoundary';
 
 const InvoiceDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
-    const { coreState } = useCoreState();
+    const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
     const { handleUpdateInvoiceStatus, handleRevertPayment, handleSendInvoiceReminder, deleteItem: onDeleteInvoice } = useDataActions();
     const { closeModal, navigateTo, openModal, addToast, selectedId: invoiceId, currentHistoryEntry, goBack } = useUI();
@@ -42,17 +42,33 @@ const InvoiceDetailViewContent: React.FC = () => {
     const handleZoomIn = () => setZoom(z => Math.min(z + 0.05, 1.5));
     const handleZoomOut = () => setZoom(z => Math.max(z - 0.05, 0.3));
 
-    if (!invoice) return (
-        <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-            {/* CRO AUDIT FIX — loading skeleton instead of bare "not found" */}
-            <div className="w-full max-w-2xl space-y-4 animate-pulse">
-                <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded-lg w-1/3" />
-                <div className="h-32 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
-                <div className="h-48 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+    if (!invoice) {
+        // CRO AUDIT FIX: distinguish "still loading" from "not found".
+        // Previously this branch showed a loading skeleton FOREVER for a
+        // stale/deleted invoice id (deep link, or invoice deleted in another
+        // tab) — a dead end with no back affordance.
+        if (!isDataLoaded) {
+            return (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                    <div className="w-full max-w-2xl space-y-4 animate-pulse">
+                        <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded-lg w-1/3" />
+                        <div className="h-32 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                        <div className="h-48 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                    </div>
+                    <p className="text-sm text-slate-400 mt-4">Loading invoice…</p>
+                </div>
+            );
+        }
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 gap-3">
+                <p className="text-lg font-medium">Invoice not found</p>
+                <p className="text-sm">It may have been deleted, or the link you used is out of date.</p>
+                <button onClick={() => navigateTo('billing')} className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 rounded-lg hover:bg-slate-200 transition-colors">
+                    ← Back to Billing
+                </button>
             </div>
-            <p className="text-sm text-slate-400 mt-4">Loading invoice…</p>
-        </div>
-    );
+        );
+    }
 
 
     // Calculate totals if not present in old data — guard against missing lineItems

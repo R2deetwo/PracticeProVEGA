@@ -12,6 +12,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { AriaChatContext } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
+import { useFinanceState } from '../../contexts/FinanceContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
@@ -39,6 +40,8 @@ const DetailItem: React.FC<{ label: string, value: React.ReactNode }> = ({ label
 const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ contactId, matters }) => {
     const { coreState } = useCoreState();
     const { documentState } = useDocumentState();
+    // FIX: invoices live in FinanceContext, not CoreState.
+    const { financeState } = useFinanceState();
     // DEFENSIVE: useExecutionState() can return undefined if called outside
     // the provider, or executionState itself could be missing properties.
     // Optional-chain every access so this component never crashes.
@@ -92,7 +95,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
         // Invoices for matters belonging to this contact
         // DEFENSIVE: inv.matter could be undefined, a string, or an object
         // depending on the data source. Guard against all cases.
-        (coreState?.invoices || []).forEach((inv: any) => {
+        (financeState?.invoices || []).forEach((inv: any) => {
             const matterId = typeof inv.matter === 'object' && inv.matter ? inv.matter.id : typeof inv.matter === 'string' ? inv.matter : inv.matterId;
             if (matterId && contactMatterIds.has(matterId)) {
                 items.push({
@@ -108,7 +111,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
 
         // Sort by timestamp descending (most recent first)
         return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
-    }, [matters, executionState?.tasks, documentState?.documents, coreState?.invoices]);
+    }, [matters, executionState?.tasks, documentState?.documents, financeState?.invoices]);
 
     if (events.length === 0) {
         return (
@@ -159,7 +162,12 @@ const ContactMessagesTab: React.FC<{
     navigateTo: (view: any, id?: string | null, context?: any) => void;
 }> = ({ contact, matters, navigateTo }) => {
     const { coreState } = useCoreState();
-    const clientMessages = (coreState as any).clientMessages || [];
+    // FIX: clientMessages lives in MatterContext (matterState.clientMessages),
+    // NOT CoreState. Reading `(coreState as any).clientMessages` always
+    // returned [] — so this tab permanently showed "No messages yet"
+    // even when the client had a full conversation history.
+    const { matterState } = useMatterState();
+    const clientMessages = (matterState as any).clientMessages || [];
 
     // Filter client messages for matters belonging to this contact
     const contactMatterIds = new Set(matters.map(m => m.id));
@@ -277,6 +285,9 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   const { matterState } = useMatterState();
   const { coreState } = useCoreState();
   const { documentState } = useDocumentState();
+  // FIX: invoices live in FinanceContext — coreState.invoices is undefined,
+  // so invoice activity never appeared in the contact activity timeline.
+  const { financeState } = useFinanceState();
   const dataHandlers = useDataActions();
   
   const contact = matterState.contacts.find(c => c.id === contactId);

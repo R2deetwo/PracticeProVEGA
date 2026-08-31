@@ -1,11 +1,13 @@
 
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useConvex } from 'convex/react';
 import { InvoiceStatus, InvoiceStatus as Status, AppState } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
 import { generateInvoiceNumber } from '../utils/invoiceHelpers';
+import { api } from '../../convex/_generated/api';
 
 /**
  * Hook for managing financial operations: Invoices, Ledgers, and Service Charges.
@@ -14,6 +16,7 @@ export const useFinance = (appState: AppState, actions: any) => {
     const { currentUser } = useAuth();
     const { addToast } = useUI();
     const { isAtrium } = useProduct();
+    const convex = useConvex();
 
     /**
      * Generate a new invoice from matter data.
@@ -72,10 +75,24 @@ export const useFinance = (appState: AppState, actions: any) => {
 
     /**
      * Update invoice status manually.
+     * FIX: when an invoice transitions to Paid, also stamp `paidDate`.
+     * Previously only `status` was written, so the "Collected (This Month)"
+     * KPI (which filters on i.paidDate) stayed ₦0 forever and receipts
+     * rendered "Payment Date: N/A" even for invoices the firm had marked paid.
      */
     const handleUpdateInvoiceStatus = useCallback(async (id: string, status: InvoiceStatus) => {
-        await actions.updateItem('invoices', { id, status }, 'Invoice Status');
-    }, [actions]);
+        const patch: any = { id, status };
+        if (status === InvoiceStatus.Paid) {
+            // Only stamp when not already paid (avoid overwriting a real paidDate
+            // when toggling e.g. Partially Paid → Paid after a partial payment date).
+            const existing = appState.invoices?.find((i: any) => i.id === id);
+            if (!existing?.paidDate) patch.paidDate = new Date().toISOString();
+        }
+        if (status === InvoiceStatus.Reversed || status === InvoiceStatus.Overdue) {
+            patch.paidDate = undefined;
+        }
+        await actions.updateItem('invoices', patch, 'Invoice Status');
+    }, [actions, appState.invoices]);
 
     /**
      * Revert a paid invoice (create credit note / mark as Reversed).
@@ -87,12 +104,44 @@ export const useFinance = (appState: AppState, actions: any) => {
 
     /**
      * Send a payment reminder for an invoice.
+     * FIX: previously a stub that only toasted "not sent — email integration
+     * not configured", even though communications.sendEmail is live (Brevo).
+     * Now it resolves the client's email and sends a real reminder; if no
+     * email is on file it says so honestly instead of pretending to fail.
      */
-    const handleSendInvoiceReminder = useCallback((id: string) => {
+    const handleSendInvoiceReminder = useCallback(async (id: string) => {
         const invoice = appState.invoices?.find((i: any) => i.id === id);
         const clientName = invoice?.client?.name || 'the client';
-        addToast(`Reminder for ${clientName} (Invoice ${invoice?.invoiceNumber || id}) not sent — email integration not configured. Please contact the client directly.`, { type: 'info' });
-    }, [appState.invoices, addToast]);
+        const clientContact = appState.contacts?.find((c: any) => c.id === invoice?.client?.id);
+        const clientEmail = (clientContact as any)?.email;
+        const invoiceNumber = invoice?.invoiceNumber || id;
+        const amount = invoice?.total_amount ?? (invoice?.subTotal || 0) + (invoice?.taxAmount || 0);
+        const dueDate = invoice?.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }) : 'the due date';
+
+        if (!clientEmail) {
+            addToast(`No email on file for ${clientName} — add one on their contact card, or use WhatsApp from the messaging view.`, { type: 'warning' });
+            return;
+        }
+
+        addToast(`Sending payment reminder to ${clientEmail}...`, { type: 'info' });
+        try {
+            if (!convex) throw new Error('Backend client unavailable.');
+            const result = await convex.action(api.communications.sendEmail, {
+                to: clientEmail,
+                subject: `Payment Reminder — Invoice ${invoiceNumber}`,
+                htmlContent: `<p>Dear ${clientName},</p><p>This is a friendly reminder that invoice <strong>${invoiceNumber}</strong> for <strong>₦${Number(amount || 0).toLocaleString('en-NG')}</strong> was due on ${dueDate}.</p><p>Please arrange payment at your earliest convenience. If you have already made payment, kindly disregard this notice.</p><p>Thank you for your business.</p>`,
+                firmId: currentUser?.firmId || '',
+                recordLog: true,
+            });
+            if (result?.success) {
+                addToast(`Payment reminder sent to ${clientName} (${clientEmail}).`, { type: 'success' });
+            } else {
+                addToast(`Reminder failed: ${result?.error || 'email provider error'} — you can also message the client via WhatsApp.`, { type: 'warning' });
+            }
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to send reminder.', { type: 'error' });
+        }
+    }, [appState.invoices, appState.contacts, currentUser, convex, addToast]);
 
     /**
      * Permanently delete an invoice.

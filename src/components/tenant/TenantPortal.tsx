@@ -216,14 +216,37 @@ const TenantPortal: React.FC = () => {
   const [walletFundAmount, setWalletFundAmount] = useState('');
   const [isFunding, setIsFunding] = useState(false);
 
-  // Check for Paystack redirect after wallet funding (?wallet_funded=REF)
+  // Check for Paystack redirect after wallet funding (?wallet_funded=REF).
+  // FIX: previously the reference was read and DISCARDED — no verification,
+  // no credit. Now we call wallets.verifyWalletFunding (server-side Paystack
+  // verify) so the balance actually updates and the resident gets feedback.
+  const verifyWalletFundingAction = useAction(api.wallets.verifyWalletFunding);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fundedRef = params.get('wallet_funded');
     if (fundedRef && userId && effectiveFirmId) {
       window.history.replaceState({}, '', window.location.pathname);
+      (async () => {
+        try {
+          const propertyId = (tenantInfo as any)?.units?.[0]?.propertyId || (tenantInfo as any)?.propertyId || '';
+          const result = await verifyWalletFundingAction({
+            reference: fundedRef,
+            tenantId: userId,
+            firmId: effectiveFirmId,
+            propertyId,
+          });
+          if (result?.success) {
+            addToast(`Wallet funded successfully${result.newBalance !== undefined ? ` — new balance: ₦${Number(result.newBalance).toLocaleString('en-NG')}` : ''}.`, { type: 'success' });
+          } else {
+            addToast(result?.error || 'We could not confirm your wallet payment yet — if you were debited, it will reflect shortly.', { type: 'warning' });
+          }
+        } catch (e: any) {
+          addToast(e?.message || 'Wallet payment verification failed. Please contact your property manager.', { type: 'error' });
+        }
+      })();
     }
-  }, [userId, effectiveFirmId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, effectiveFirmId, tenantInfo]);
 
   // Fetch firm portal settings for messaging toggle
   const portalSettings = useQuery(
@@ -760,6 +783,7 @@ const DashboardTab: React.FC<{
   isFunding?: boolean; setIsFunding?: (v: boolean) => void;
 }> = ({ tenantInfo, onNavigate, walletData, fundWallet, toggleAutoDeduct, initiateWalletFunding, userId, effectiveFirmId, email, walletFundAmount, setWalletFundAmount, isFunding, setIsFunding }) => {
   const { currentUser } = useAuth();
+  const { addToast } = useUI();
   // Uses the canonical formatNaira from utils/formatting.ts.
   const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
 
@@ -919,14 +943,43 @@ const DashboardTab: React.FC<{
               />
             </div>
             <button
-              onClick={() => {
-                // Navigate to the Payments tab where the resident can:
-                // 1. See the firm's bank account details
-                // 2. Do a bank transfer
-                // 3. Upload proof of payment
-                // 4. OR pay via Paystack if configured
-                // The wallet is credited AFTER the property manager verifies the proof.
-                onNavigate('payments');
+              onClick={async () => {
+                // FIX: the Fund button used to just navigate to the Payments
+                // tab — the wallet could never actually be funded online
+                // (initiateWalletFunding was threaded in but never called,
+                // and the funding redirect reference was discarded). Now we
+                // attempt a real Paystack funding session and redirect to
+                // the authorization URL; if card payments aren't configured
+                // for this firm we fall back to bank transfer + proof with
+                // an honest explanation.
+                const amount = parseFloat((walletFundAmount || '').replace(/[^0-9.]/g, ''));
+                if (!amount || amount <= 0) return;
+                if (setIsFunding) setIsFunding(true);
+                try {
+                  const propertyId = tenantInfo?.units?.[0]?.propertyId || tenantInfo?.propertyId || '';
+                  const init = await initiateWalletFunding?.({
+                    tenantId: userId || '',
+                    firmId: effectiveFirmId || '',
+                    propertyId,
+                    amount,
+                    email: email || '',
+                  });
+                  if (init?.authorizationUrl) {
+                    addToast('Redirecting to the secure payment page…', { type: 'info' });
+                    window.location.href = init.authorizationUrl;
+                    return;
+                  }
+                  throw new Error('No payment URL returned.');
+                } catch (e: any) {
+                  addToast(
+                    (e?.message || 'Online funding unavailable.') +
+                    ' You can still fund by bank transfer from the Payments tab — your property manager will credit the wallet on confirmation.',
+                    { type: 'warning' }
+                  );
+                  onNavigate('payments');
+                } finally {
+                  if (setIsFunding) setIsFunding(false);
+                }
               }}
               disabled={isFunding || !walletFundAmount}
               className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
@@ -2100,7 +2153,10 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
                 <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
               </div>
               {/* Locked banner for closed/cancelled/resolved tickets */}
-              {(t.status === 'CANCELLED' || t.status === 'CLOSED' || t.status === 'RESOLVED') && (
+              {(// Backend statuses are lowercase ('cancelled'/'closed'/'resolved') —
+               // the old UPPERCASE literals made this "replies disabled" banner
+               // dead code that never rendered.
+               ['cancelled', 'closed', 'resolved', 'CANCELLED', 'CLOSED', 'RESOLVED'].includes(t.status)) && (
                 <div className="px-4 pb-3">
                   <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 flex items-center gap-2">
                     <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2872,8 +2928,14 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
         ],
       },
       callback: (response: any) => {
-        addToast(`Payment successful! Reference: ${response.reference}. Your receipt will be issued shortly.`, { type: 'success', duration: 6000 });
-        // Submit the payment proof automatically with the Paystack reference
+        // HONESTY FIX: the old callback declared "Payment successful!" on the
+        // client's word alone, filed the proof as 'pending_verification' (a
+        // status nothing in the backend ever transitions — the tenant stayed on
+        // "Verifying" forever), and swallowed proof-submission errors with
+        // .catch(() => {}). Now: submit as 'pending_review' (the real admin
+        // review queue status), surface submission errors, and word the toast
+        // as submitted-for-confirmation rather than "successful".
+        addToast(`Payment submitted — reference ${response.reference}. Your property manager will confirm it shortly.`, { type: 'success', duration: 6000 });
         submitProof({
           firmId,
           tenantId: resolvedTenantId,
@@ -2887,8 +2949,14 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
           storageIds: [],
           paymentMethod: 'paystack',
           paystackReference: response.reference,
-          status: 'pending_verification',
-        }).catch(() => {});
+          status: 'pending_review',
+        }).then(() => {
+          addToast('Payment record sent to your property manager for confirmation.', { type: 'info', duration: 5000 });
+        }).catch((e: any) => {
+          // CRITICAL: this happens AFTER money may have moved. Make sure the
+          // tenant knows to keep the reference and tell the PM.
+          addToast(`Could not notify your property manager automatically (${e?.message || 'network error'}). Please keep reference ${response.reference} and send it to them in Messages.`, { type: 'warning', duration: 10000 });
+        });
         setAmount('');
         setPeriod('');
         setDescription('');

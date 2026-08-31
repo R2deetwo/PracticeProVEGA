@@ -3,7 +3,7 @@ import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterSt
 import { SignerContext } from '../contexts/ProductContext';
 import { AI_CONFIG, stripPII, getGeminiApiKey } from '../utils/aiUtils';
 import { getSystemInstruction } from '../agents/AgencyHub';
-import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES, getAloaProtocol } from '../constants/aloaPrompts';
+import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES, DRAFT_QUALITY_BAR, getAloaProtocol } from '../constants/aloaPrompts';
 import { validateAIResponse } from '../constants/identityGuardrails';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
@@ -746,26 +746,42 @@ export const streamDraft = async (
     const firmProduct = context.appState.firmDetails?.product;
     const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
     const firmState = context.appState.firmDetails?.defaultStateOfPractice;
-    const jurisdictionBlock = buildJurisdictionContextBlock(firmState);
+    const firmStates = (context.appState.firmDetails as any)?.statesOfPractice as string[] | undefined;
+    const practiceProfile = (context.appState.firmDetails as any)?.practiceProfile as any | undefined;
+    // Multi-state awareness: the firm may operate in several Nigerian states.
+    // The AI is told the default state AND the additional states, and instructed
+    // to switch captions/rules when the facts point elsewhere. Practice focus
+    // (Vega practice areas / Atrium portfolio + focus areas) tailors the draft.
+    const jurisdictionBlock = buildJurisdictionContextBlock(firmState, {
+        secondaryStates: firmStates,
+        practiceAreas: practiceProfile?.practiceAreas || (context.appState.firmDetails as any)?.firmSpecialties,
+        focusAreas: practiceProfile?.focusAreas,
+        isPropertyContext: isPropertyFirm,
+    });
 
     const aloaProtocol = getAloaProtocol(isUnified, context.signerContext, firmProduct);
 
     let roleContextBlock: string;
     const sc = context.signerContext;
+    // Portfolio context (Atrium): composition + scale + focus from the
+    // Getting-Started practice profile — helps ARIA pitch notices and
+    // agreements at the right register (solo landlord vs 100-unit estate).
+    const portfolioLine = !isPropertyFirm ? '' : ` The firm manages ${practiceProfile?.unitsUnderManagement ? `${practiceProfile.unitsUnderManagement}+ units` : 'a property portfolio'}${practiceProfile?.portfolioTypes?.length ? ` (${practiceProfile.portfolioTypes.join(', ')} composition)` : ''}.`;
+    const practiceAreaLine = isPropertyFirm || sc ? '' : (practiceProfile?.practiceAreas?.length ? ` The firm's practice areas: ${practiceProfile.practiceAreas.join(', ')}.` : '');
     if (sc) {
         // KOMPLETE / unified — derive from user profile
-        roleContextBlock = `CONTEXT: The user is ${sc.signerName || 'the account holder'}, a ${sc.signerTitle || 'professional'}.
+        roleContextBlock = `CONTEXT: The user is ${sc.signerName || 'the account holder'}, a ${sc.signerTitle || 'professional'}.${practiceAreaLine || portfolioLine}
 Unless explicitly instructed otherwise, ALL drafts must be signed and authored as "${sc.signerName || '[SIGNER NAME]'}" with the title "${sc.signerTitle || '[SIGNER TITLE]'}".
 Do NOT assume the user is a "Lawyer" or "Property Manager" — use their actual profile title: "${sc.signerTitle}".
 If you need more context about the user's practice area, include [BRACKETED PLACEHOLDERS] rather than guessing.`;
     } else if (isPropertyFirm) {
         // ATRIUM — property management professional
-        roleContextBlock = `CONTEXT: The user is a property management professional. They manage real estate portfolios, handle tenant relations, oversee service charge administration, and ensure regulatory compliance.
+        roleContextBlock = `CONTEXT: The user is a property management professional.${portfolioLine} They manage real estate portfolios, handle tenant relations, oversee service charge administration, and ensure regulatory compliance.
 The user is ALWAYS the Property Manager. Sign documents accordingly.
 Unless explicitly instructed otherwise, ALL drafts must be tailored to relevant Nigerian property and tenancy law.`;
     } else {
         // VEGA — legal practitioner
-        roleContextBlock = `CONTEXT: The user is a legal practitioner.
+        roleContextBlock = `CONTEXT: The user is a legal practitioner.${practiceAreaLine}
 The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     }
 
@@ -773,6 +789,8 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     ${aloaProtocol}
 
     ${DRAFTPRO_HTML_FORMATTING_RULES}
+
+    ${DRAFT_QUALITY_BAR}
 
     ${roleContextBlock}
 
@@ -832,7 +850,10 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
                 body: JSON.stringify({
                     contents,
                     systemInstruction: { parts: [{ text: systemInstruction }] },
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+                    // Token budget: longer completions for Pro-class models
+                    // (agreements/conveyances easily exceed 8k output tokens).
+                    // Flash-class models cap lower on their own.
+                    generationConfig: { temperature: 0.7, maxOutputTokens: modelToTest.includes('pro') ? 32768 : 8192 },
                     safetySettings: [
                         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
                         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },

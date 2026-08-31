@@ -62,9 +62,18 @@ export const useCommunications = (actions: any) => {
     const handleRequestFinancialDocument = useCallback(async (matterId: string, type: string) => {
         addToast(`Requesting ${type} for matter...`, { type: 'info' });
         try {
-            // Resolve the actual client userId from the matter's assigned client
-            const matter = await convex.query(api.matters.getMatterById, { id: matterId });
-            const clientId = matter?.clientId || matter?.clientIds?.[0];
+            // Resolve the actual client userId from the matter's assigned client.
+            // FIX: previously called api.matters.getMatterById — a function that
+            // does NOT exist (no convex/matters.ts module) — so this query threw
+            // on every invocation and silently fell into the "could not reach
+            // client" fallback. The client notification was NEVER delivered.
+            // Use the real on-demand getMatterDetails query instead.
+            const matter = await convex.query(api.myFunctions.getMatterDetails, {
+                matterId,
+                firmId: currentUser?.firmId || '',
+                requestUserId: currentUser?.id,
+            });
+            const clientId = (matter as any)?.clientId || (matter as any)?.clientIds?.[0] || (matter as any)?.matter?.clientId;
             if (!clientId) {
                 addToast("Could not identify the client for this matter. Request not sent.", { type: 'error' });
                 return;

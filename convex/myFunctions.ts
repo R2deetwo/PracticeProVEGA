@@ -715,6 +715,16 @@ export const getFirmMetadata = query({
  * Called only when the user navigates to a specific matter's detail view.
  * Includes full notes, documents, tasks, timeline, and party data.
  */
+// ─── HEALTH PING ─────────────────────────────────────────────────────────────
+// Zero-arg, zero-auth liveness probe used by the frontend connectivity monitor
+// (UIContext pollNetwork). Previously the monitor called a nonexistent
+// `getServerTime`, which — combined with a no-cors fetch — resolved even when
+// the backend returned 404, so the app always reported "online".
+export const ping = query({
+  args: {},
+  handler: async () => ({ ok: true as const, serverTime: new Date().toISOString() }),
+});
+
 export const getMatterDetails = query({
   args: { matterId: v.string(), firmId: v.string(), requestUserId: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -2017,7 +2027,11 @@ export const createFirm = mutation({
       const updatedJoinedIds = joinedIds.includes(firmId) ? joinedIds : [...joinedIds, firmId];
       await ctx.db.patch(user._id, { 
         firmId: firmId, 
-        onboardingCompleted: true, 
+        // ONBOARDING FIX: leave false so the post-wizard OnboardingTour
+        // actually auto-starts for new firm creators. completeTour() sets it
+        // to true when the user finishes or skips the tour. Previously
+        // true-at-creation killed the tour before it ever ran.
+        onboardingCompleted: false, 
         role: 'Admin',
         joinedFirmIds: updatedJoinedIds
       });
@@ -2192,7 +2206,8 @@ export const joinFirm = mutation({
     await ctx.db.patch(user._id, { 
       firmId: firm._id, 
       role: assignedRole, 
-      onboardingCompleted: true,
+      // Same onboarding fix as createFirm: joiners get the app tour.
+      onboardingCompleted: false,
       joinedFirmIds: updatedJoinedIds
     });
 
@@ -4079,6 +4094,34 @@ export const softDeleteContact = mutation({
  * restoreContact — un-archives a soft-deleted contact. Sets isArchived back
  * to false so it reappears in active contact lists.
  */
+// ─── ARCHIVED CONTACTS (soft-delete support) ─────────────────────────────────
+// The ContactDetailView "Archive Contact" flow soft-deletes (isArchived=true)
+// and promises "restore anytime from the archive" — but nothing ever listed
+// those contacts. This query powers the ArchiveView's Contacts section.
+export const getArchivedContacts = query({
+  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireFirmUser(ctx, args.userEmail);
+    if (!args.firmId) return [];
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+      .collect();
+    return (contacts as any[])
+      .filter(c => c.isArchived === true)
+      .map(c => ({
+        id: String(c._id),
+        _id: c._id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        category: c.category,
+        company: c.company,
+        updatedAt: c.updatedAt,
+      }));
+  },
+});
+
 export const restoreContact = mutation({
   args: {
     contactId: v.string(),

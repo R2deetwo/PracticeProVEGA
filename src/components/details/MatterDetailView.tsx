@@ -87,11 +87,15 @@ const MatterDetailViewContent: React.FC = () => {
     const setMatterPrivacyMutation = useMutation(api.myFunctions.setMatterPrivacy);
     const [privacyLoading, setPrivacyLoading] = useState(false);
     
-    // On-demand fetch for deep-linking/refresh scenarios
+    // On-demand fetch for deep-linking/refresh scenarios.
+    // SECURITY FIX: pass requestUserId — the backend's private-matter RBAC
+    // (myFunctions getMatterDetails) only applies when it knows the caller.
+    // Omitting it (as before) let any firm member deep-link into a private
+    // matter's full details.
     const onDemandMatter = useQuery(
         api.myFunctions.getMatterDetails, 
         (!matterState.matters.find(m => m.id === selectedId) && selectedId && currentUser?.firmId) 
-            ? { matterId: selectedId, firmId: currentUser.firmId } 
+            ? { matterId: selectedId, firmId: currentUser.firmId, requestUserId: currentUser?.id } 
             : 'skip'
     );
 
@@ -169,6 +173,11 @@ const MatterDetailViewContent: React.FC = () => {
         // redirect to 'notes' (Endorsements) since the Brief tab was removed
         // per user request — it was non-functional.
         if (t === 'processes' || t === 'overview' || t === 'brief') return 'notes';
+        // MessagesView deep-links with initialTab:'messages' — this view has
+        // no messages tab, so the link previously fell through to Endorsements
+        // silently. Mapped explicitly to documents (the closest shared-content
+        // tab) until a dedicated matter-messages tab exists.
+        if (t === 'messages' || t === 'communications') return 'documents';
         const validTabs: MatterTab[] = ['notes', 'schedule_tasks', 'billing', 'documents'];
         return validTabs.includes(t as MatterTab) ? (t as MatterTab) : 'notes'; // default to Endorsements (first tab)
     };

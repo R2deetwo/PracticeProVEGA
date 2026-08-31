@@ -212,6 +212,26 @@ export interface FirmDetails { id: string; name: string; address: string; logoUr
     automationSettings?: any;
     trustAccountingEnabled?: boolean;        // Toggle: enable trust accounting
     defaultStateOfPractice?: string;          // Default jurisdiction for all drafts (e.g., "Lagos", "Delta", "FCT")
+    statesOfPractice?: string[];              // All states the firm operates in (multi-state practices)
+    practiceProfile?: PracticeProfile;        // Practice-type configuration captured during onboarding
+}
+
+/**
+ * Practice Profile — captured in the Getting-Started wizard (Step 3).
+ * Describes WHAT KIND of practice the firm runs so the AI (ALOA/ARIA),
+ * workflows, and checklists can tailor themselves from day one.
+ */
+export interface PracticeProfile {
+    /** Vega: selected practice areas (FirmSpecialty values + custom) */
+    practiceAreas?: string[];
+    /** Atrium: portfolio composition */
+    portfolioTypes?: ('residential' | 'commercial' | 'mixed' | 'land' | 'shortlet')[];
+    /** Atrium: what the PM firm actually does */
+    focusAreas?: string[];
+    /** Atrium: approximate number of units under management */
+    unitsUnderManagement?: number;
+    /** ISO timestamp of when the profile was captured */
+    completedAt?: string;
 }
 export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
 export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; }

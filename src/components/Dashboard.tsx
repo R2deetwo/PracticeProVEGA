@@ -200,7 +200,16 @@ const Dashboard: React.FC = () => {
                          : isLegal && !hasPropertyFeatures ? 'Vega'
                          : isUnified ? 'Komplete'
                          : (firmDetails?.product === 'property' ? 'Atrium' : 'Vega');
-    const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+    // FIX: dismissal was component state only — the banner re-appeared on
+    // every dashboard remount (tab switches) for empty firms. Persisted per
+    // firm for the session now.
+    const [welcomeDismissed, setWelcomeDismissed] = useState(() => {
+        try { return sessionStorage.getItem(`practicepro_welcome_dismissed_${coreState?.firmDetails?.id || 'x'}`) === '1'; } catch { return false; }
+    });
+    const dismissWelcome = () => {
+        setWelcomeDismissed(true);
+        try { sessionStorage.setItem(`practicepro_welcome_dismissed_${coreState?.firmDetails?.id || 'x'}`, '1'); } catch { /* noop */ }
+    };
 
     useEffect(() => {
         // Only auto-open the create modal if:
@@ -248,7 +257,7 @@ const Dashboard: React.FC = () => {
                       if (hasPropertyFeatures && !isLegal) openModal('newProperty');
                       else openModal('newMatter');
                     }}
-                    onDismiss={() => setWelcomeDismissed(true)}
+                    onDismiss={dismissWelcome}
                   />
                 )}
 
@@ -266,12 +275,19 @@ const Dashboard: React.FC = () => {
                     checklist. Renders only when checklist has incomplete items and
                     the user hasn't dismissed it. Higher-contrast than the sidebar
                     checklist widget so it catches attention on first dashboard load. */}
-                <CompleteSetupBanner />
+                {/* Same ErrorBoundary isolation as BroadcastBanner above —
+                    a crash in either onboarding banner must not blank the
+                    whole dashboard with a "View Error" wall. */}
+                <ErrorBoundary fallback={null}>
+                    <CompleteSetupBanner />
+                </ErrorBoundary>
 
                 {/* CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
                     Shows contextual value-driven messages on Days 0, 1, 3, 5, 7, 10, 13.
                     Dismissible per-day via localStorage. */}
-                <TrialNudgeBanner />
+                <ErrorBoundary fallback={null}>
+                    <TrialNudgeBanner />
+                </ErrorBoundary>
 
                 <div className="grid grid-cols-1 gap-4 sm:gap-8">
                     {isLoading ? (

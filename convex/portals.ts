@@ -3990,6 +3990,10 @@ export const getClientMattersByUserId = query({
         stageLastUpdated: m.stageLastUpdated,
         assignedUsers: m.assignedUsers,
         clientId: m.clientId,
+        // PORTAL MATTER DETAIL FIX: ClientMatterDetailView renders the client
+        // action-items checklist — previously this field was missing from the
+        // mapping, so the tab always showed empty for portal users.
+        clientActionItems: (m as any).clientActionItems,
       }));
   },
 });

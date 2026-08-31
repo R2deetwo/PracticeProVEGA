@@ -273,7 +273,7 @@ const DocumentDetailViewContent: React.FC = () => {
     // than during the previous render") when the document went from
     // undefined → defined. This crashed the /documents page on refresh
     // with a stale/deleted ID. Now all hooks run first, then the guard.
-    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'mentions'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation'>('details');
     const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
 
     // Reset tab to 'details' and close full-screen preview whenever the
@@ -419,9 +419,9 @@ const DocumentDetailViewContent: React.FC = () => {
                     <button onClick={() => setActiveTab('analysis')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'analysis' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
                         {isProperty ? 'Document' : 'ALDIA'} Analysis {document.analysisState === 'pending' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
                     </button>
-                    <button onClick={() => setActiveTab('mentions')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'mentions' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
-                        Mentions
-                    </button>
+                    {/* Mentions tab REMOVED: it rendered a permanently empty
+                        placeholder ("No mentions tab content.") — a dead tab.
+                        BacklinksPanel was already removed per user request. */}
                 </div>
 
                 {/* Preview tab — fills ALL available space */}
@@ -465,21 +465,31 @@ const DocumentDetailViewContent: React.FC = () => {
                                             return order.indexOf(document.litigationStatus || 'draft') > idx;
                                         })();
 
+                                        // Static Tailwind class maps — Tailwind JIT never
+                                        // emits `bg-${color}-50`-style interpolated classes,
+                                        // so the "current stage" styling silently didn't apply.
+                                        const STAGE_STYLES: Record<string, { card: string; label: string; button: string }> = {
+                                            slate: { card: 'bg-slate-50 dark:bg-zinc-900/50 border-slate-500 shadow-md', label: 'text-slate-600 dark:text-slate-400', button: 'bg-slate-600 text-white' },
+                                            orange: { card: 'bg-orange-50 dark:bg-orange-900/20 border-orange-500 shadow-md', label: 'text-orange-600 dark:text-orange-400', button: 'bg-orange-600 text-white' },
+                                            blue: { card: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 shadow-md', label: 'text-blue-600 dark:text-blue-400', button: 'bg-blue-600 text-white' },
+                                            green: { card: 'bg-green-50 dark:bg-green-900/20 border-green-500 shadow-md', label: 'text-green-600 dark:text-green-400', button: 'bg-green-600 text-white' },
+                                        };
+                                        const stageStyle = STAGE_STYLES[step.color] || STAGE_STYLES.slate;
                                         return (
                                             <div key={step.id} className="relative">
-                                                <div className={`p-4 rounded-lg border-2 transition-all ${isCurrent ? `bg-${step.color}-50 dark:bg-${step.color}-900/20 border-${step.color}-500 shadow-md` :
+                                                <div className={`p-4 rounded-lg border-2 transition-all ${isCurrent ? stageStyle.card :
                                                     isPast ? `bg-slate-50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-700 opacity-60` :
                                                         `bg-white dark:bg-zinc-800 border-dashed border-slate-200 dark:border-zinc-700`
                                                     }`}>
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <span className={`text-2xs font-black uppercase tracking-widest ${isCurrent ? `text-${step.color}-600 dark:text-${step.color}-400` : 'text-slate-400'}`}>Step {idx + 1}</span>
+                                                        <span className={`text-2xs font-black uppercase tracking-widest ${isCurrent ? stageStyle.label : 'text-slate-400'}`}>Step {idx + 1}</span>
                                                         {isPast && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
                                                     </div>
                                                     <h5 className={`font-bold text-sm mb-1 ${isCurrent ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{step.label}</h5>
                                                     <p className="text-2xs leading-tight text-slate-500">{step.desc}</p>
                                                     <button
                                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: step.id as any })}
-                                                        className={`mt-3 w-full py-1.5 text-2xs font-bold rounded-lg transition-all ${isCurrent ? `bg-${step.color}-600 text-white` : `bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600`}`}
+                                                        className={`mt-3 w-full py-1.5 text-2xs font-bold rounded-lg transition-all ${isCurrent ? stageStyle.button : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600'}`}
                                                     >
                                                         {isCurrent ? 'Current Stage' : isPast ? 'Revert to Stage' : 'Mark as Done'}
                                                     </button>
@@ -689,15 +699,7 @@ const DocumentDetailViewContent: React.FC = () => {
                     </div>
                 )}
 
-                {/* Mentions tab — BacklinksPanel removed per user request.
-                    The backlinks feature was not useful and added visual clutter. */}
-                {activeTab === 'mentions' && (
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                        <div className="max-w-5xl mx-auto text-center py-12">
-                            <p className="text-sm text-slate-400">No mentions tab content.</p>
-                        </div>
-                    </div>
-                )}
+                {/* Mentions tab removed — see tab bar note above. */}
             </div>
 
             {/* ─── Full-screen immersive preview overlay ─── */}

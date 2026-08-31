@@ -59,7 +59,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     // which MISSED 'unified' (Komplete) — so Komplete firms wrongly saw "Property"
     // labels instead of "Matter" labels. useProduct().isLegal correctly returns
     // true for both Vega AND Komplete (unified).
-    const { isLegal, isProperty: isPropertyFirm, isUnified, hasPropertyFeatures, hasLegalFeatures, terminology } = useProduct();
+    const { isLegal, isProperty: isPropertyFirm, isUnified, hasPropertyFeatures, hasLegalFeatures, terminology, signerContext } = useProduct();
     const [title, setTitle] = useState('');
     const [file, setFile] = useState<FileDetails | null>(null);
     const [matterId, setMatterId] = useState<string | undefined>(undefined);
@@ -194,12 +194,40 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         const matter = matters.find(m => m.id === matterId);
 
         try {
+            // Draft prompt: include the matter's real context (type, client,
+            // court) so the AI produces a matter-specific draft instead of a
+            // generic one. Previously the prompt only carried title + matter
+            // name, and the appState passed to streamDraft was fabricated
+            // ({ matters, tasks: documents }) with NO firmDetails — so the
+            // drafting engine lost the firm's jurisdiction, product mode,
+            // and practice profile, falling back to Lagos + legal-mode for
+            // every document generated from this form.
+            const matterContextParts: string[] = [];
+            if (matter?.type) matterContextParts.push(`Matter type: ${matter.type}`);
+            if ((matter as any)?.court) matterContextParts.push(`Court: ${(matter as any).court}`);
+            const clientContact = contacts.find(c => c.id === (matter as any)?.clientId);
+            if (clientContact?.name) matterContextParts.push(`Client: ${clientContact.name}`);
             const history = [
-                { role: 'user', content: `Draft a professional Nigerian legal document titled "${title}" for the matter "${matter?.title}". Use formal court language if applicable. Include appropriate placeholders.` }
+                {
+                    role: 'user',
+                    content: `Draft a professional Nigerian ${isPropertyFirm ? 'property' : 'legal'} document titled "${title}" for the matter "${matter?.title}".${matterContextParts.length > 0 ? ` Context: ${matterContextParts.join('; ')}.` : ''} Use formal ${isPropertyFirm ? 'property management' : 'court'} language where applicable. Apply the firm's state of practice and procedural rules. Include appropriate bracketed placeholders for any unknown facts.`
+                }
             ];
 
             let fullText = '';
-            await aiService.streamDraft(history, { appState: { matters, tasks: documents } as any, currentUser }, (chunk) => {
+            await aiService.streamDraft(history, {
+                // REAL firm context (firmDetails prop carries product,
+                // defaultStateOfPractice, statesOfPractice, practiceProfile)
+                // + the user's signer profile for Komplete mode.
+                appState: {
+                    matters,
+                    documents,
+                    properties: coreState.properties,
+                    firmDetails,
+                } as any,
+                currentUser,
+                signerContext,
+            }, (chunk) => {
                 fullText += chunk;
                 setContent(fullText);
             });

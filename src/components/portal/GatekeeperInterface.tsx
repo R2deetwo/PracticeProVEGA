@@ -93,8 +93,22 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         setVerification(null);
 
         if (!isOnline) {
-            // Offline fallback: check local cache
+            // Offline fallback: check local cache.
+            // SECURITY FIX: the cache previously approved a code FOREVER once
+            // it had been verified online once — expired and revoked codes
+            // kept passing at the gate while offline. Now a cached entry is
+            // only honored while its own expiresAt is in the future.
             const cached = offlineCache.find(c => c.tokenCode === codeInput && c.propertyId === selectedPropertyId);
+            const cacheEntryStillValid = cached && typeof cached.expiresAt === 'number' && cached.expiresAt > Date.now();
+            if (cached && !cacheEntryStillValid) {
+                setVerification({
+                    valid: false,
+                    reason: 'expired',
+                    message: 'This cached code has expired. Verify again once the device is back online.',
+                });
+                setIsVerifying(false);
+                return;
+            }
             if (cached) {
                 setVerification({
                     valid: true,

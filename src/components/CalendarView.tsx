@@ -286,7 +286,8 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
 
     const dayEvents = events.filter(e => {
         if (!e.date) return false;
-        const eventDate = new Date(e.date);
+        // TIMEZONE FIX: same local-parse rule as getEventsForDay.
+        const eventDate = parseDateString(e.date);
         return eventDate.toLocaleDateString('en-CA') === dateStr;
     });
 
@@ -566,7 +567,10 @@ export const CalendarView: React.FC = () => {
         const targetDateStr = date.toLocaleDateString('en-CA');
         return expandedEvents.filter(e => {
             if (!e.date) return false;
-            const eventDate = new Date(e.date);
+            // TIMEZONE FIX: parseDateString parses 'YYYY-MM-DD' as a LOCAL
+            // date (new Date() treated it as UTC midnight — events showed a
+            // day early west of Greenwich). Matches DiaryEventTile's parser.
+            const eventDate = parseDateString(e.date);
             return eventDate.toLocaleDateString('en-CA') === targetDateStr;
         });
     };

@@ -61,8 +61,16 @@ const ReportGenerator: React.FC = () => {
 
                     const data: TimesheetData = {
                         user: { id: user.id, name: user.name, role: user.role },
+                        // FIX: attribute time entries by who LOGGED them
+                        // (t.user_id), not by matter assignment. The old
+                        // filter included every entry on matters the user is
+                        // merely assigned to — so a timesheet for lawyer A
+                        // included B's hours on shared matters (billable PDFs
+                        // were wrong). Fall back to assignment ONLY for
+                        // legacy entries with no recorded user.
                         entries: timeEntriesInRange
                             .filter(t => {
+                                if (t.user_id) return t.user_id === selectedUserId;
                                 const matter = matterState.matters.find(m => m.id === t.matterId);
                                 return matter?.assignedUsers.includes(selectedUserId) ?? false;
                             })
@@ -80,7 +88,11 @@ const ReportGenerator: React.FC = () => {
                 case 'utilization': {
                     const data: UtilizationData = {
                         users: activeUsers.map(user => {
+                            // FIX: same user_id attribution fix as timesheets —
+                            // utilization rates previously counted OTHER
+                            // people's hours on shared matters.
                             const userEntries = timeEntriesInRange.filter(t => {
+                                if (t.user_id) return t.user_id === user.id;
                                 const matter = matterState.matters.find(m => m.id === t.matterId);
                                 return matter?.assignedUsers.includes(user.id) ?? false;
                             });
@@ -290,7 +302,7 @@ const ReportingView: React.FC = () => {
                 {activeMainTab === 'dashboard' && (
                     <div>
                         <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
-                            <nav className="-mb-px flex space-x-6 overflow-x-auto">
+                            <nav className="-mb-px flex space-x-6 overflow-x-auto items-center">
                                 {(['financial', 'bi'] as DashboardTab[]).map(tab => {
                                     const label = { bi: 'Business Intelligence', financial: 'Financial' }[tab];
                                     const isLocked = tab === 'bi' && !canUseAdvancedReporting;
@@ -306,6 +318,18 @@ const ReportingView: React.FC = () => {
                                         </button>
                                     );
                                 })}
+                                {/* REACHABILITY FIX: the Timeline view (case/lease
+                                    roadmap bars) was fully built but had NO
+                                    navigation entry anywhere — only reachable by
+                                    typing /timeline. Linked here as a sibling
+                                    analytics surface. */}
+                                <button
+                                    onClick={() => navigateTo('timeline')}
+                                    className="flex-shrink-0 whitespace-nowrap ml-auto py-3 px-3 text-sm font-semibold text-slate-500 hover:text-primary-600 flex items-center gap-1.5"
+                                    title="Visual roadmap of every active matter's stages and key dates"
+                                >
+                                    <span aria-hidden="true">📊</span> Case Timeline
+                                </button>
                             </nav>
                         </div>
                         {renderDashboardContent()}

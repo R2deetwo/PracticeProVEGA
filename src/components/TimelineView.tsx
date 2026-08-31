@@ -63,10 +63,13 @@ const TimelineView: React.FC = () => {
     const groupedMatters = useMemo(() => {
         const activeMatters = matters.filter(m => m.status === 'Active');
         
+        // FIX: optional chaining on referenceNumber — a single legacy record
+        // without it crashed the whole Timeline view (MatterList guards the
+        // same field; this view didn't).
         const filtered = activeMatters.filter(m => 
             searchTerm === '' || 
             m.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            m.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase())
+            (m.referenceNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
         
         const groups: Record<string, Matter[]> = {};

@@ -1,9 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { ArchivedItem } from '../types';
 import { ArchiveIcon } from '../constants';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
 import Fuse from 'fuse.js';
 
@@ -11,7 +14,28 @@ const ArchiveView: React.FC = () => {
   const { coreState } = useCoreState();
   const { handleRestoreItem, handlePermanentDeleteFromArchive } = useDataActions();
   const { openModal, closeModal, addToast } = useUI();
+  const { currentUser } = useAuth();
   const archive = coreState.archive;
+  const firmId = (coreState.firmDetails as any)?.id || currentUser?.firmId || '';
+
+  // ── SOFT-ARCHIVED CONTACTS ───────────────────────────────────────────────
+  // FIX: ContactDetailView's "Archive Contact" modal promises "restore any
+  // time from the archive", but soft-archived contacts never appeared here
+  // and restoreContact was never called anywhere. This section lists them
+  // and wires the restore.
+  const archivedContacts = useQuery(
+    api.myFunctions.getArchivedContacts,
+    firmId ? { firmId, userEmail: currentUser?.email } : 'skip'
+  );
+  const restoreContactMutation = useMutation(api.myFunctions.restoreContact);
+  const handleRestoreContact = async (contactId: string, contactName: string) => {
+    try {
+      await restoreContactMutation({ contactId, userEmail: currentUser?.email });
+      addToast(`${contactName} restored to your active contacts.`, { type: 'success' });
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to restore contact.', { type: 'error' });
+    }
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -104,7 +128,37 @@ const ArchiveView: React.FC = () => {
         </header>
 
         <div className="px-4 sm:px-6 lg:px-8">
-      
+
+      {/* Soft-archived contacts — restorable */}
+      {(archivedContacts || []).length > 0 && (
+        <div className="mb-8">
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-3">
+                Archived Contacts <span className="text-slate-300">({archivedContacts!.length})</span>
+            </h3>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-700/50">
+                {(archivedContacts || []).map((c: any) => (
+                    <div key={String(c._id || c.id)} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                            <p className="font-bold text-slate-900 dark:text-white truncate">{c.name || 'Unnamed contact'}</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+                                {[c.category, c.company, c.email, c.phone].filter(Boolean).join(' · ') || 'No details'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => handleRestoreContact(String(c._id || c.id), c.name || 'Contact')}
+                            className="px-3 py-1.5 bg-primary-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-primary-700 transition-colors flex-shrink-0"
+                        >
+                            Restore
+                        </button>
+                    </div>
+                ))}
+            </div>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2">
+                Archived contacts keep working with their existing matters and properties — restoring re-shows them in Contacts.
+            </p>
+        </div>
+      )}
+
       {archive.length > 0 ? (
         <>
         <div className="mb-4 flex flex-col sm:flex-row gap-4">

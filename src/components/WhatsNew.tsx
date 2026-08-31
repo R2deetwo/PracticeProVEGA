@@ -583,6 +583,23 @@ const WhatsNew: React.FC = () => {
 
     useEffect(() => {
         const t = setTimeout(() => {
+            // BRAND-NEW ACCOUNT SUPPRESSION: a user who just finished the
+            // onboarding wizard has no context for a changelog — showing
+            // "What's New in v1.20" 1.5s after their first login piles a 3rd
+            // overlay onto the welcome banner + setup banner + auto-open
+            // modal. For accounts younger than 48h we silently mark the
+            // current version as seen; the floater will only ever appear
+            // for a version released AFTER they joined.
+            try {
+                const firmCreatedAt = (window as any).__PRACTICEPRO_FIRM_CREATED_AT__ as string | undefined;
+                const onboardingCompletedAt = (window as any).__PRACTICEPRO_ONBOARDING_COMPLETED_AT__ as string | undefined;
+                const reference = onboardingCompletedAt || firmCreatedAt;
+                if (reference && (Date.now() - new Date(reference).getTime()) < 48 * 60 * 60 * 1000) {
+                    const latest = CHANGELOG[0];
+                    if (latest) markSeen(latest.id);
+                    return;
+                }
+            } catch { /* fall through to normal behavior */ }
             const entry = getUnseenUpdate();
             if (entry) {
                 setUnseenEntry(entry);

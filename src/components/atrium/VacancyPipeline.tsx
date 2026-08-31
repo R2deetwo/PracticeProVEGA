@@ -188,7 +188,16 @@ const VacancyPipeline: React.FC = () => {
   const { coreState } = useCoreState();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
-  const leads = coreState.leadsPipeline || [];
+  // FIX: previously read `coreState.leadsPipeline` — a key that getFirmData
+  // NEVER returns. The Kanban board was permanently empty in production and
+  // Add Applicant / advance-stage / score edits were invisible (no
+  // subscription, no refetch). Switched to the real live query
+  // (sentry.getPipelineByFirm) so the board renders and updates reactively.
+  const liveLeads = useQuery(
+    api.sentry.getPipelineByFirm,
+    firmId ? { firmId, userEmail: currentUser?.email } : 'skip'
+  );
+  const leads = (liveLeads ?? (coreState as any).leadsPipeline ?? []) as any[];
   const advanceStage = useMutation(api.sentry.advanceLeadStage);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -221,13 +230,13 @@ const VacancyPipeline: React.FC = () => {
 
   const byStage = useMemo(() => {
     const map: Record<LeadPipelineStage, LeadPipelineEntry[]> = { Inquiry: [], Vetted: [], Lease_Generated: [], Closed: [] };
-    leads.forEach(l => { if (map[l.stage]) map[l.stage].push(l); });
+    leads.forEach((l: any) => { if (map[l.stage as LeadPipelineStage]) map[l.stage as LeadPipelineStage].push(l); });
     return map;
   }, [leads]);
 
   const conversionRate = useMemo(() => {
     if (leads.length === 0) return 0;
-    return Math.round((leads.filter(l => l.stage === 'Closed').length / leads.length) * 100);
+    return Math.round((leads.filter((l: any) => l.stage === 'Closed').length / leads.length) * 100);
   }, [leads]);
 
   const handleAdvance = async (lead: LeadPipelineEntry) => {
@@ -248,9 +257,29 @@ const VacancyPipeline: React.FC = () => {
           <h2 className="text-xl font-bold text-white tracking-tight">Vacancy Pipeline</h2>
           <p className="text-xs text-slate-500 mt-0.5">Inquiry → Closed conversion tracking</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
-          <PlusIcon /> Add Applicant
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          {/* Public lead capture: shareable application link. The /apply/:id
+              route was previously orphaned (the form component existed but was
+              never mounted) — this makes the funnel usable end-to-end. */}
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/apply`;
+              const msg = `Share per-unit application links from a property's detail page (Units tab → Share Application Link), or send prospective tenants to ${url}/<propertyId>.`;
+              if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(url).catch(() => {});
+              }
+              alert(msg);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold rounded-lg transition-colors sm:w-auto w-full"
+            title="Copy the public application base link"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            Share Application Link
+          </button>
+          <button onClick={() => setShowAdd(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
+            <PlusIcon /> Add Applicant
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

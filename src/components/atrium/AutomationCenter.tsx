@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useMutation, useConvex } from 'convex/react';
+import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -63,7 +63,15 @@ const AutomationCenter: React.FC = () => {
   const convex = useConvex();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
-  const logs = coreState.automationLogs || [];
+  // FIX: previously read `coreState.automationLogs` — a key getFirmData never
+  // returns — so the message-log feed and all 3 KPIs (Total Sent / via
+  // WhatsApp / Today) were permanently empty, even seconds after a successful
+  // bulk send. Switched to the real live query (sentry.getAutomationLogs).
+  const liveLogs = useQuery(
+    api.sentry.getAutomationLogs,
+    firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip'
+  );
+  const logs = (liveLogs ?? (coreState as any).automationLogs ?? []) as any[];
   const logAuto = useMutation(api.sentry.logAutomation);
   const { addToast } = useUI();
 
@@ -267,7 +275,7 @@ const AutomationCenter: React.FC = () => {
         >
           <option value="all">All Messages</option>
           {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{MSG_TYPE_ICONS[k as AutomationMessageType]} {v}</option>
+            <option key={k} value={k}>{v}</option>
           ))}
         </select>
       </div>
@@ -282,14 +290,14 @@ const AutomationCenter: React.FC = () => {
             <p className="text-sm">No messages sent yet</p>
           </div>
         ) : (
-          filtered.map(log => (
+          filtered.map((log: any) => (
             <div key={log._id} className="flex items-start gap-3 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3 transition-colors">
-              <span className="text-lg flex-shrink-0 mt-0.5">{MSG_TYPE_ICONS[log.messageType]}</span>
+              <span className="text-lg flex-shrink-0 mt-0.5">{(MSG_TYPE_ICONS as any)[log.messageType]}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-white">{MSG_TYPE_LABELS[log.messageType]}</span>
-                  <span className={`text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel]}`}>{log.channel}</span>
-                  <span className={`text-3xs font-bold uppercase ${STATUS_COLORS[log.status]}`}>{log.status}</span>
+                  <span className="text-xs font-bold text-white">{(MSG_TYPE_LABELS as any)[log.messageType]}</span>
+                  <span className={`text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full ${(CHANNEL_COLORS as any)[log.channel]}`}>{log.channel}</span>
+                  <span className={`text-3xs font-bold uppercase ${(STATUS_COLORS as any)[log.status]}`}>{log.status}</span>
                 </div>
                 <p className="text-2xs text-slate-500 truncate">{log.messagePreview}</p>
                 <p className="text-2xs text-slate-700 mt-0.5">To: {log.recipient}</p>

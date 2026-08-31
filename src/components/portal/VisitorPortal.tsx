@@ -178,18 +178,18 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             {lastGenerated.tokenCode}
                         </div>
                     </div>
-                    {/* QR Code — generated from the access code so gatekeepers
-                        can scan it at the Sentry Pass terminal. Uses a
-                        lightweight inline SVG QR renderer (no external dep). */}
+                    {/* Access code display. PRIVACY FIX: this previously
+                        rendered the QR via a THIRD-PARTY API
+                        (api.qrserver.com) — leaking live access codes to an
+                        external service and breaking offline. The 6-digit code
+                        IS the credential (gatehouse verifies by code entry),
+                        so we render it large locally instead. */}
                     <div className="flex justify-center mb-3">
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 dark:border-zinc-700">
-                            <img
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(lastGenerated.tokenCode)}`}
-                                alt="Sentry Pass QR Code"
-                                className="w-32 h-32"
-                                loading="lazy"
-                            />
-                            <p className="text-2xs text-slate-400 text-center mt-1.5 font-bold uppercase tracking-wider">Scan at Gate</p>
+                        <div className="px-6 py-4 bg-white rounded-lg border border-slate-200 dark:border-zinc-700">
+                            <p className="text-3xl font-black tracking-[0.3em] text-slate-900 text-center font-mono select-all">
+                                {lastGenerated.tokenCode}
+                            </p>
+                            <p className="text-2xs text-slate-400 text-center mt-1.5 font-bold uppercase tracking-wider">Show / enter this code at the gate</p>
                         </div>
                     </div>
                     <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 mb-3 max-h-32 overflow-y-auto">

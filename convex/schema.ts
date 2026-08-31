@@ -37,6 +37,14 @@ export default defineSchema({
     settings: v.optional(v.any()),
     localFolderPath: nullableString,
     firmSpecialties: v.optional(v.array(v.string())),
+    // ─── PRACTICE PROFILE (Getting-Started wizard Step 3) ───────────────
+    // Jurisdictional + practice-type configuration. Without these schema
+    // fields, updateItem('firms', { defaultStateOfPractice }) fails Convex
+    // schema validation — meaning the Firm Details form's "Default State of
+    // Practice" dropdown could never persist. All optional = backward compat.
+    defaultStateOfPractice: v.optional(v.string()),
+    statesOfPractice: v.optional(v.array(v.string())),
+    practiceProfile: v.optional(v.any()),
     legalFormLibrary: v.optional(v.array(v.any())),
     product: nullableString,
     automationSettings: v.optional(v.any()),

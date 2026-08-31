@@ -817,6 +817,13 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                                 integrations: backendFirm.integrations || prevFirm.integrations,
                                 aiSettings: backendFirm.aiSettings || prevFirm.aiSettings,
                             };
+                            // Expose account age for WhatsNew's brand-new-account
+                            // suppression (users < 48h old shouldn't get a changelog
+                            // overlay stacked on their onboarding surfaces).
+                            try {
+                                (window as any).__PRACTICEPRO_FIRM_CREATED_AT__ = backendFirm.createdAt;
+                                (window as any).__PRACTICEPRO_ONBOARDING_COMPLETED_AT__ = backendFirm.settings?.onboardingCompletedAt;
+                            } catch { /* noop */ }
                         } else {
                             (newState as any)[key] = backendValue;
                         }

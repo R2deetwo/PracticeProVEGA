@@ -311,6 +311,10 @@ const LedgerManager: React.FC = () => {
     const win = window.open('', '_blank');
     if (!win) return;
     const firm = coreState.firmDetails;
+    // FIX: description/paymentRef were interpolated RAW into document.write —
+    // any '<' in user text broke the receipt markup (self-XSS in the print
+    // window). Escape all user-originated values.
+    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch] as string));
     win.document.write(`
       <html><head><title>Receipt ${entry.txHash}</title>
       <style>body{font-family:monospace;max-width:400px;margin:40px auto;padding:20px;border:1px solid #ccc}
@@ -320,15 +324,15 @@ const LedgerManager: React.FC = () => {
       .total{font-weight:bold;font-size:18px;color:#10b981;margin-top:20px}
       .footer{font-size:10px;color:#999;margin-top:20px;text-align:center}
       </style></head><body>
-      <div class="logo">${firm?.name || 'Atrium OS'}</div>
-      <div class="hash">TX: ${entry.txHash}</div>
+      <div class="logo">${esc(firm?.name || 'Atrium OS')}</div>
+      <div class="hash">TX: ${esc(entry.txHash)}</div>
       <table>
         <tr><td>Date</td><td>${formatTs(entry.timestamp)}</td></tr>
         <tr><td>Type</td><td>${TYPE_LABELS[entry.type]}</td></tr>
         <tr><td>Status</td><td>${entry.status.toUpperCase()}</td></tr>
         <tr><td>Channel</td><td>${entry.channel || 'N/A'}</td></tr>
-        ${entry.paymentRef ? `<tr><td>Ref</td><td>${entry.paymentRef}</td></tr>` : ''}
-        ${entry.description ? `<tr><td>Note</td><td>${entry.description}</td></tr>` : ''}
+        ${entry.paymentRef ? `<tr><td>Ref</td><td>${esc(entry.paymentRef)}</td></tr>` : ''}
+        ${entry.description ? `<tr><td>Note</td><td>${esc(entry.description)}</td></tr>` : ''}
       </table>
       <div class="total">₦${entry.amount.toLocaleString('en-NG')}</div>
       <div class="footer">This is an auto-generated receipt from Atrium OS.<br/>Hash: ${entry.txHash} — Immutable Record</div>

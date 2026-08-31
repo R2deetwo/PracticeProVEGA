@@ -452,6 +452,106 @@ export const JURISDICTION_REGISTRY: Record<string, JurisdictionConfig> = {
 const DEFAULT_JURISDICTION = 'Lagos';
 
 /**
+ * Ordered list of Nigerian states + FCT for dropdowns/selects.
+ * Order: FCT + the highest-population legal/property markets first, then
+ * alphabetical — so users of the Getting-Started wizard find their state
+ * quickly without scanning all 37 entries.
+ */
+export const NIGERIAN_STATES: { key: string; name: string }[] = [
+  { key: 'FCT', name: 'Federal Capital Territory (Abuja)' },
+  { key: 'Lagos', name: 'Lagos State' },
+  { key: 'Rivers', name: 'Rivers State' },
+  { key: 'Kano', name: 'Kano State' },
+  { key: 'Oyo', name: 'Oyo State' },
+  { key: 'Delta', name: 'Delta State' },
+  { key: 'Edo', name: 'Edo State' },
+  { key: 'Enugu', name: 'Enugu State' },
+  { key: 'Kaduna', name: 'Kaduna State' },
+  { key: 'Ogun', name: 'Ogun State' },
+  ...Object.keys(JURISDICTION_REGISTRY)
+    .filter(k => !['FCT', 'Lagos', 'Rivers', 'Kano', 'Oyo', 'Delta', 'Edo', 'Enugu', 'Kaduna', 'Ogun'].includes(k))
+    .sort()
+    .map(k => ({ key: k, name: JURISDICTION_REGISTRY[k].name })),
+];
+
+/** Portfolio composition options for Atrium practice configuration */
+export const PORTFOLIO_TYPE_OPTIONS: { value: 'residential' | 'commercial' | 'mixed' | 'land' | 'shortlet'; label: string; hint: string }[] = [
+  { value: 'residential', label: 'Residential', hint: 'Flats, houses, duplexes — long-term tenants' },
+  { value: 'commercial', label: 'Commercial', hint: 'Shops, offices, warehouses — business tenants' },
+  { value: 'mixed', label: 'Mixed-Use', hint: 'Combined residential + commercial buildings' },
+  { value: 'shortlet', label: 'Short-Lets / Serviced', hint: 'Serviced apartments, nightly rentals' },
+  { value: 'land', label: 'Land / Plots', hint: 'Vacant plots, land banking, leaseholds' },
+];
+
+/** Focus-area options for Atrium practice configuration */
+export const ATRIUM_FOCUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'rent-collection', label: 'Rent collection & recovery' },
+  { value: 'service-charge', label: 'Service charge administration' },
+  { value: 'facility-maintenance', label: 'Facility & maintenance management' },
+  { value: 'estate-community', label: 'Estate / community management' },
+  { value: 'sales-leasing', label: 'Sales & leasing (agency)' },
+  { value: 'shortlet-operations', label: 'Short-let operations' },
+];
+
+/**
+ * Build a jurisdiction context block for the AI system prompt.
+ * Tells the AI which court hierarchy and procedural rules to use.
+ *
+ * @param stateKey Primary state of practice
+ * @param opts.secondaryStates Other states the firm operates in — the AI is
+ *        told to switch rules when the matter/property facts point there.
+ * @param opts.practiceAreas Vega practice areas (tailors tone + terminology)
+ * @param opts.focusAreas Atrium focus areas (tailors notice/agreement emphasis)
+ * @param opts.isPropertyContext True when drafting for ARIA/property mode
+ */
+export function buildJurisdictionContextBlock(
+  stateKey?: string | null,
+  opts?: {
+    secondaryStates?: string[];
+    practiceAreas?: string[];
+    focusAreas?: string[];
+    isPropertyContext?: boolean;
+  }
+): string {
+  const j = getJurisdiction(stateKey);
+  const secondary = (opts?.secondaryStates || [])
+    .filter(s => s && s !== stateKey && JURISDICTION_REGISTRY[s])
+    .map(s => JURISDICTION_REGISTRY[s]);
+  const secondaryBlock = secondary.length > 0
+    ? `\n- Additional States of Operation: ${secondary.map(s => s.name).join(', ')} (High Court Rules: ${secondary.map(s => s.highCourtRules).join('; ')})
+- MULTI-STATE RULE: If the facts of the matter or the property's location clearly point to one of the additional states above, apply THAT state's captions and procedural rules instead of the default state. When in doubt, use the default state (${j.name}) and flag the ambiguity with a [STATE TO CONFIRM] placeholder.`
+    : '';
+
+  const practiceBlock = opts?.practiceAreas && opts.practiceAreas.length > 0
+    ? `\n- Firm's Practice Areas: ${opts.practiceAreas.join(', ')} — tailor terminology, document emphasis, and risk framing to these areas.`
+    : '';
+  const focusBlock = opts?.focusAreas && opts.focusAreas.length > 0
+    ? `\n- Property Firm's Focus: ${opts.focusAreas.join(', ')} — tailor notice/agreement emphasis accordingly (e.g. rent-collection focus → firmer demand language and statutory recovery timelines; service-charge focus → itemised charge schedules and reconciliation clauses).`
+    : '';
+
+  const propertyRule = opts?.isPropertyContext
+    ? `6. PROPERTY LOCATION OVERRIDES FIRM STATE: For tenancy notices, rent demands, and recovery of premises documents, the applicable law is the law of the state WHERE THE PROPERTY IS LOCATED — not the firm's default state. If the property's state is known (from context), apply that state's tenancy/recovery law and cite it by name. If unknown, insert [STATE WHERE PROPERTY IS LOCATED] and add a note asking the user to confirm before filing.`
+    : `6. For agreements and conveyances, apply the law of the state where the land/property is situate (Land Use Act delegations vary by state governor's consent process).`;
+
+  return `JURISDICTIONAL CONTEXT:
+- Default State of Practice: ${j.name}
+- Capital/Judicial Division: ${j.defaultDivision}
+- High Court Caption: "${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION"
+- Magistrate Court Caption: "${j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision)}"
+- Federal High Court Caption: "${j.federalHighCourtCaption}"
+- High Court Procedural Rules: ${j.highCourtRules}
+- Magistrate Procedural Rules: ${j.magistrateRules}${secondaryBlock}${practiceBlock}${focusBlock}
+
+JURISDICTIONAL INTELLIGENCE RULES:
+1. Unless the user explicitly specifies a different court (e.g., "Federal High Court", "Magistrate Court"), default to the High Court of ${j.name}.
+2. If the matter involves federal jurisdiction (e.g., revenue, immigration, copyright, maritime), use the Federal High Court caption instead.
+3. If the matter is a landlord-tenant recovery of premises with low monetary value, use the Magistrate Court caption.
+4. Always cite the correct procedural rules (${j.highCourtRules}) in the heading or first paragraph of court processes.
+5. When generating a court caption, place it at the TOP of the document, centered and bold, before any party information.
+${propertyRule}`;
+}
+
+/**
  * Get the JurisdictionConfig for a firm's defaultStateOfPractice.
  * Falls back to Lagos if unset or invalid.
  */
@@ -460,29 +560,6 @@ export function getJurisdiction(stateKey?: string | null): JurisdictionConfig {
     return JURISDICTION_REGISTRY[stateKey];
   }
   return JURISDICTION_REGISTRY[DEFAULT_JURISDICTION];
-}
-
-/**
- * Build a jurisdiction context block for the AI system prompt.
- * Tells the AI which court hierarchy and procedural rules to use.
- */
-export function buildJurisdictionContextBlock(stateKey?: string | null): string {
-  const j = getJurisdiction(stateKey);
-  return `JURISDICTIONAL CONTEXT:
-- Default State of Practice: ${j.name}
-- Capital/Judicial Division: ${j.defaultDivision}
-- High Court Caption: "${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION"
-- Magistrate Court Caption: "${j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision)}"
-- Federal High Court Caption: "${j.federalHighCourtCaption}"
-- High Court Procedural Rules: ${j.highCourtRules}
-- Magistrate Procedural Rules: ${j.magistrateRules}
-
-JURISDICTIONAL INTELLIGENCE RULES:
-1. Unless the user explicitly specifies a different court (e.g., "Federal High Court", "Magistrate Court"), default to the High Court of ${j.name}.
-2. If the matter involves federal jurisdiction (e.g., revenue, immigration, copyright, maritime), use the Federal High Court caption instead.
-3. If the matter is a landlord-tenant recovery of premises with low monetary value, use the Magistrate Court caption.
-4. Always cite the correct procedural rules (${j.highCourtRules}) in the heading or first paragraph of court processes.
-5. When generating a court caption, place it at the TOP of the document, centered and bold, before any party information.`;
 }
 
 /**

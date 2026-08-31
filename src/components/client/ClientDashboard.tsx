@@ -321,6 +321,20 @@ const ClientDashboard: React.FC = () => {
         activeConversationId ? { conversationId: activeConversationId } : 'skip'
     );
     const markRead = useMutation(api.portals.markConversationReadByParticipant);
+    // SPLIT-BRAIN FIX: auto-select the most recent conversation so the client
+    // immediately sees their thread (incl. messages they sent + firm replies).
+    useEffect(() => {
+        if (!activeConversationId && portalConversations && portalConversations.length > 0) {
+            const sorted = [...portalConversations].sort((a: any, b: any) => (b.lastMessageAt || b.updatedAt || 0) - (a.lastMessageAt || a.updatedAt || 0));
+            setActiveConversationId(String((sorted[0] as any)?._id || (sorted[0] as any)?.id));
+        }
+    }, [portalConversations, activeConversationId]);
+    // Mark the open conversation as read (best-effort; matches the admin side).
+    useEffect(() => {
+        if (activeConversationId) {
+            markRead({ conversationId: activeConversationId }).catch(() => { /* non-blocking */ });
+        }
+    }, [activeConversationId, conversationMessages, markRead]);
     const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
     // Use the Convex-queried matters (not matterState which is empty for portal users)
@@ -1142,10 +1156,54 @@ const ClientDashboard: React.FC = () => {
     // ── Render: Messages Tab ─────────────────────────────────────────────
     const renderMessages = () => {
         const isLoading = clientMessagesLoading;
-        const messages = clientMessages || [];
+        // SPLIT-BRAIN FIX: the send path writes to the conversation system
+        // (portal_messages), but this tab only rendered the LEGACY
+        // clientMessages table — clients never saw their own sent messages
+        // or the firm's replies. Now we render the active conversation's
+        // real thread first, and keep legacy messages below as history.
+        const activeConversation = ((portalConversations || []) as any[]).find((c: any) => String(c._id || c.id) === String(activeConversationId));
+        const threadMsgs = (conversationMessages || []).map((m: any) => ({
+            _id: m._id,
+            authorId: m.senderId,
+            authorName: m.senderName,
+            content: m.content,
+            matterTitle: activeConversation?.matterTitle,
+            isRead: m.isRead ?? true,
+            timestamp: m.createdAt,
+            attachments: m.attachments,
+        }));
+        const messages = threadMsgs.length > 0 ? threadMsgs : (clientMessages || []);
 
         return (
             <div className="space-y-4">
+                {/* Conversation thread selector (new system) */}
+                {(portalConversations || []).length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {(portalConversations || []).slice().sort((a: any, b: any) => (b.lastMessageAt || b.updatedAt || 0) - (a.lastMessageAt || a.updatedAt || 0)).map((c: any) => {
+                            const cid = String(c._id || c.id);
+                            const isActive = cid === activeConversationId;
+                            return (
+                                <button
+                                    key={cid}
+                                    onClick={() => setActiveConversationId(cid)}
+                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                                        isActive
+                                            ? 'bg-emerald-600 text-white border-emerald-600'
+                                            : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:border-emerald-400'
+                                    }`}
+                                >
+                                    {c.matterTitle || c.subject || 'Conversation'}
+                                    {c.unreadCount > 0 && !isActive && (
+                                        <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-2xs font-black">
+                                            {c.unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {/* Compose Area */}
                 <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
                     {!isComposing ? (
@@ -1307,6 +1365,11 @@ const ClientDashboard: React.FC = () => {
     // When the user taps "Pay Now", the panel slides open showing bank
     // details + an "I've Paid" button that notifies the admin.
     const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+    // In-page receipt viewer (FIX: "View Receipt" previously called
+    // navigateTo('invoiceDetail', inv.id) — but inv.id is undefined on raw
+    // Convex docs AND the client routing only allows matterDetail/intake,
+    // so the button did nothing. Now it opens a printable receipt modal.)
+    const [receiptInvoice, setReceiptInvoice] = useState<any | null>(null);
     const [isMarkingPaid, setIsMarkingPaid] = useState(false);
     // Cancel request state
     const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
@@ -1900,7 +1963,7 @@ const ClientDashboard: React.FC = () => {
                                         {inv.status === 'Paid' && (
                                             <div className="px-4 pb-3">
                                                 <button
-                                                    onClick={() => navigateTo('invoiceDetail', inv.id)}
+                                                    onClick={() => setReceiptInvoice(inv)}
                                                     className="w-full px-3 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors inline-flex items-center justify-center gap-2"
                                                 >
                                                     <Receipt className="w-3.5 h-3.5" />
@@ -1928,6 +1991,81 @@ const ClientDashboard: React.FC = () => {
             case 'requests': return renderRequests();
             case 'financials': return renderFinancials();
         }
+    };
+
+    // ── Receipt modal (printable, client-side — no firm data required) ──
+    const receiptTotal = (inv: any) =>
+        typeof inv?.total_amount === 'number' ? inv.total_amount
+        : (typeof inv?.subTotal === 'number' ? inv.subTotal : (inv?.lineItems || []).reduce((sum: number, li: any) => sum + (li?.total || 0), 0))
+          + (typeof inv?.taxAmount === 'number' ? inv.taxAmount : 0);
+
+    const renderReceiptModal = () => {
+        if (!receiptInvoice) return null;
+        const inv = receiptInvoice;
+        const matterTitle = inv.matter?.title || inv.matterTitle || 'Professional Services';
+        return (
+            <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setReceiptInvoice(null)}>
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="p-6 space-y-5">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white">Payment Receipt</h3>
+                                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                    {inv.invoiceNumber ? `Invoice ${inv.invoiceNumber} · ` : ''}{matterTitle}
+                                </p>
+                            </div>
+                            <button onClick={() => setReceiptInvoice(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 p-1" aria-label="Close">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl p-5 space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-500 dark:text-zinc-400">Status</span>
+                                <span className="font-bold text-emerald-600">PAID</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-500 dark:text-zinc-400">Payment Date</span>
+                                <span className="font-semibold text-slate-900 dark:text-white">
+                                    {inv.paidDate ? new Date(inv.paidDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+                                </span>
+                            </div>
+                            {(inv.lineItems || []).map((li: any, i: number) => (
+                                <div key={i} className="flex justify-between text-sm">
+                                    <span className="text-slate-500 dark:text-zinc-400 truncate pr-3">{li.description || li.name || 'Service'}</span>
+                                    <span className="text-slate-900 dark:text-white font-medium">₦{(li?.total || 0).toLocaleString('en-NG')}</span>
+                                </div>
+                            ))}
+                            {typeof inv.taxAmount === 'number' && inv.taxAmount > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500 dark:text-zinc-400">VAT</span>
+                                    <span className="text-slate-900 dark:text-white font-medium">₦{inv.taxAmount.toLocaleString('en-NG')}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-base pt-3 border-t border-slate-200 dark:border-zinc-700">
+                                <span className="font-bold text-slate-900 dark:text-white">Total Paid</span>
+                                <span className="font-black text-emerald-600">₦{receiptTotal(inv).toLocaleString('en-NG')}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => window.print()}
+                                className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors"
+                            >
+                                Print / Save as PDF
+                            </button>
+                            <button
+                                onClick={() => setReceiptInvoice(null)}
+                                className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -2023,6 +2161,8 @@ const ClientDashboard: React.FC = () => {
 
             {/* Tab Content */}
             {renderTabContent()}
+            {/* Client receipt viewer (printable) */}
+            {renderReceiptModal()}
             {/* Version refresh toast is now globally mounted in App.tsx —
                 no need to render it here (would cause duplicate prompts). */}
         </div>

@@ -102,6 +102,8 @@ export const AtriumInbox: React.FC = () => {
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
     const [isSending, setIsSending] = useState(false);
+    // AI-suggested replies the user dismissed ("Ignore" button — previously dead)
+    const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
     const [showCompose, setShowCompose] = useState(false);
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
 
@@ -140,9 +142,13 @@ export const AtriumInbox: React.FC = () => {
             danger: true,
         });
         if (!ok) return;
-        await deleteMessage({ messageId: id as any, userEmail: currentUser?.email });
-        if (selectedThreadId === id) setSelectedThreadId(null);
-        addToast("Message deleted", { type: "info" });
+        try {
+            await deleteMessage({ messageId: id as any, userEmail: currentUser?.email });
+            if (selectedThreadId === id) setSelectedThreadId(null);
+            addToast("Message deleted", { type: "info" });
+        } catch (e: any) {
+            addToast(e?.message || "Failed to delete message — please try again.", { type: "error" });
+        }
     };
 
     const handleSendReply = async () => {
@@ -423,7 +429,7 @@ export const AtriumInbox: React.FC = () => {
                                         </div>
 
                                         {/* AI Suggested Reply - Refined Design */}
-                                        {selectedMessage.aiAnalysis?.suggestedReply && (
+                                        {selectedMessage.aiAnalysis?.suggestedReply && !dismissedSuggestions.has(String(selectedMessage._id)) && (
                                             <div className="mx-4 md:mx-12 mb-8 bg-emerald-950/20 rounded-2xl border border-emerald-500/20 p-5 shadow-lg shadow-emerald-950/20 animate-fade-in">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
@@ -441,7 +447,10 @@ export const AtriumInbox: React.FC = () => {
                                                     >
                                                         <PaperAirplaneIcon className="w-3.5 h-3.5" /> Use Reply
                                                     </button>
-                                                    <button className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-400 text-xs font-bold rounded-lg transition-colors">
+                                                    <button
+                                                        onClick={() => setDismissedSuggestions(prev => new Set(prev).add(String(selectedMessage._id)))}
+                                                        className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-400 text-xs font-bold rounded-lg transition-colors"
+                                                    >
                                                         Ignore
                                                     </button>
                                                 </div>

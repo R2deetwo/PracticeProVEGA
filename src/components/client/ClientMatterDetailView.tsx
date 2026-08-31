@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Matter, ClientMessage, NotePage, ChecklistItem, User, Lead, Invoice } from '../../types';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { Matter, ClientMessage, NotePage, ChecklistItem, User, Lead, Invoice, Document } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -66,6 +68,37 @@ const ClientMatterDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
     const { selectedId: matterId, navigateTo, openModal, addToast } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
+    // ── PORTAL DATA FIX ────────────────────────────────────────────────────
+    // Portal (Client-role) users NEVER load firm data — DataProvider skips
+    // getFirmData for them, so matterState.matters / financeState.invoices /
+    // documentState.documents are always empty and this view permanently
+    // showed "Matter Not Found" (audit CRITICAL). Pull the client's own
+    // matters / invoices / documents through the dedicated portal queries
+    // (the same ones ClientDashboard already uses), with a fallback to the
+    // firm data for non-portal contexts (impersonation/demo).
+    const { currentUser: portalUser } = useAuth();
+    const firmResolution = useQuery(
+        api.portals.resolveFirmFromInvite,
+        !portalUser?.firmId && portalUser?.email ? { email: portalUser.email } : 'skip'
+    );
+    const effectiveFirmId = portalUser?.firmId || firmResolution?.firmId || '';
+    const clientContactResult = useQuery(
+        api.portals.getClientContactByUserId,
+        (portalUser?.id && effectiveFirmId) ? { firmId: effectiveFirmId, userId: portalUser.id } : 'skip'
+    );
+    const clientContactId = clientContactResult ? (String((clientContactResult as any)._id || (clientContactResult as any).id)) : null;
+    const portalMatters = useQuery(
+        api.portals.getClientMattersByUserId,
+        (portalUser?.id && effectiveFirmId) ? { firmId: effectiveFirmId, userId: portalUser.id } : 'skip'
+    );
+    const portalInvoices = useQuery(
+        api.portals.getClientInvoices,
+        (effectiveFirmId && clientContactId) ? { firmId: effectiveFirmId, contactId: clientContactId } : 'skip'
+    );
+    const portalDocuments = useQuery(
+        api.portals.getClientDocuments,
+        (effectiveFirmId && clientContactId) ? { firmId: effectiveFirmId, contactId: clientContactId } : 'skip'
+    );
     const { handleClientUploadDocument, handleClientMarkDocumentAsReviewed, handleUpdateClientActionItem, handleSendClientMessage } = useDataActions();
     const { currentUser } = useAuth();
     const { isProperty } = useProduct();
@@ -86,14 +119,23 @@ const ClientMatterDetailViewContent: React.FC = () => {
         clientMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [matterState.clientMessages]);
 
-    const matter = matterState.matters.find(m => m.id === matterId);
-    const invoices = financeState.invoices;
+    // Prefer portal query data (Client-role users); fall back to firm data
+    // (admin impersonation / non-portal contexts).
+    const isPortalUser = currentUser?.role === 'Client';
+    const portalMatter = (portalMatters || []).find((m: any) => String(m.id) === String(matterId));
+    const firmMatter = matterState.matters.find(m => m.id === matterId);
+    const matter = (isPortalUser ? portalMatter : (firmMatter || portalMatter)) as any;
+    const invoices = (isPortalUser ? (portalInvoices || []) : (financeState.invoices || (portalInvoices || []))) as any as Invoice[];
     const onGoBack = () => navigateTo('dashboard');
 
     if (!currentUser) return null;
 
     if (!matter) {
-        if (!isDataLoaded) {
+        const portalDataLoading =
+            (portalMatters === undefined && !!(portalUser?.id && effectiveFirmId)) ||
+            (portalInvoices === undefined && !!(effectiveFirmId && clientContactId)) ||
+            (!isPortalUser && !isDataLoaded);
+        if (portalDataLoading) {
             return (
                 <div className="animate-pulse space-y-6">
                     <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
@@ -119,20 +161,27 @@ const ClientMatterDetailViewContent: React.FC = () => {
         );
     }
 
-    const documents = documentState.documents.filter(d => d.matter?.id === matter.id);
-    const clientMessages = matterState.clientMessages.filter(m => m.matterId === matter.id);
-    const systemNotes = documentState.notePages.filter(p => p.matterId === matter.id && p.type === 'system');
-    const matterInvoices = invoices.filter((inv: any) => inv.matter?.id === matter.id);
+    // Documents: portal query returns matterId-keyed docs; firm data returns
+    // matter.id-keyed docs. Support both shapes. Cast to Document[] for the
+    // typed tab components (portal query omits optional fields like
+    // signatureData — runtime access uses optional chaining anyway).
+    const documents = ((isPortalUser ? (portalDocuments || []) : documentState.documents) as any[]).filter((d: any) => {
+        const docMatterId = d.matter?.id || d.matterId;
+        return String(docMatterId) === String(matter.id);
+    }) as any as Document[];
+    const clientMessages = (matterState.clientMessages || []).filter((m: any) => String(m.matterId) === String(matter.id));
+    const systemNotes = (documentState.notePages || []).filter(p => String(p.matterId) === String(matter.id) && p.type === 'system');
+    const matterInvoices = invoices.filter((inv: any) => String(inv.matter?.id || inv.matterId || '') === String(matter.id));
 
 
-    const isNew = (date: string) => {
+    const isNew = (date: any) => {
         const itemDate = new Date(date);
         const lastViewed = currentUser.lastViewedPortalAt ? new Date(currentUser.lastViewedPortalAt) : new Date(0);
         return itemDate > lastViewed;
     };
 
     const hasNewDocuments = documents.some(d => d.isSharedWithClient && isNew(d.dateFiled));
-    const hasNewActionItems = matter.clientActionItems?.some(i => !i.completed) || documents.some(d => (d.clientReviewStatus === 'review_requested' || d.isSignatureRequested) && !d.signatureData);
+    const hasNewActionItems = matter.clientActionItems?.some((i: any) => !i.completed) || documents.some(d => (d.clientReviewStatus === 'review_requested' || d.isSignatureRequested) && !d.signatureData);
     const hasNewMessages = clientMessages.some(m => m.authorId !== currentUser.id && isNew(m.timestamp));
     const hasNewBillingItems = matterInvoices.some((inv: any) => isNew(inv.issueDate));
 
@@ -157,7 +206,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
                     isNew={isNew}
                 />;
             case 'action_items': {
-                    const pendingActionItems = matter.clientActionItems?.filter(i => !i.completed) ?? [];
+                    const pendingActionItems = matter.clientActionItems?.filter((i: any) => !i.completed) ?? [];
                     const reviewDocs = documents.filter(d => (d.clientReviewStatus === 'review_requested' || d.isSignatureRequested) && !d.signatureData);
                     const hasItems = pendingActionItems.length > 0 || reviewDocs.length > 0;
                     return (
@@ -170,7 +219,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
                                 </div>
                             ) : (
                                 <ul className="space-y-3">
-                                    {pendingActionItems.map(item => (
+                                    {pendingActionItems.map((item: any) => (
                                         <li key={item.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-zinc-700/50">
                                             <input
                                                 type="checkbox"

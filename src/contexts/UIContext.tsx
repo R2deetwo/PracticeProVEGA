@@ -503,16 +503,18 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 const convexUrl =
                     (import.meta as any).env?.VITE_CONVEX_URL ||
                     'https://gregarious-malamute-537.convex.cloud';
-                await fetch(`${convexUrl}/api/query`, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    signal: controller.signal,
-                    cache: 'no-store',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: 'myFunctions:getServerTime', args: {} }),
-                });
+                // FIX: the old check POSTed to `myFunctions:getServerTime` —
+                // a function that does not exist — with mode:'no-cors', so the
+                // opaque response resolved even for HTTP 404s and the app
+                // reported "online" while the backend errored. Call a REAL
+                // query (myFunctions.ping, added alongside this fix) through
+                // ConvexHttpClient, which surfaces backend errors as rejections.
+                const { ConvexHttpClient } = await import('convex/browser');
+                const { api } = await import('../../convex/_generated/api');
+                const healthClient = new ConvexHttpClient(convexUrl);
+                await healthClient.query(api.myFunctions.ping, {});
                 clearTimeout(timeoutId);
-                // If we got here, the request succeeded (or opaque response)
+                // Query resolved — backend reachable AND healthy.
                 if (!lastReportedState) {
                     lastReportedState = true;
                     setIsOnline(true);
@@ -566,6 +568,11 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         if (location.pathname === '/terms-of-service') mappedView = 'termsOfService' as any;
         if (location.pathname === '/data-processing-agreement') mappedView = 'dataProcessingAgreement' as any;
         if (location.pathname === '/usage-policy') mappedView = 'usagePolicy' as any;
+        // FIX: /portal-terms-of-use was linked from the Resources page CTA and
+        // the portal SetupPassword screen, but had no mapping here — authed
+        // users saw NotFoundView and unauthenticated users got the LandingPage
+        // instead of the actual terms document.
+        if (location.pathname === '/portal-terms-of-use') mappedView = 'portalTermsOfUse' as any;
         if (location.pathname === '/resources') mappedView = 'resources' as any;
         if (currentView === 'matters' && currentId) mappedView = 'matterDetail';
         if (currentView === 'contacts' && currentId) mappedView = 'contactDetail';

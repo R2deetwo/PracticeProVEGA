@@ -11,6 +11,8 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUI } from '../../contexts/UIContext';
 import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
+import { NIGERIAN_STATES, PORTFOLIO_TYPE_OPTIONS, ATRIUM_FOCUS_OPTIONS } from '../../utils/jurisdictionConfig';
+import { FirmSpecialty } from '../../types';
 // CRO AUDIT Track A — A3: use the real PaymentGatewayModal instead of the stub.
 import PaymentGatewayModal from './PaymentGatewayModal';
 
@@ -150,9 +152,32 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // This is stored on the user record by the backend
   const userProduct = (currentUser as any)?.product as ProductMode | undefined;
 
+  // ── WIZARD-IN-PROGRESS FLAG ────────────────────────────────────────────
+  // PROBLEM: App.tsx mounts this wizard only while `!currentUser.firmId`.
+  // The moment createFirm + refreshUser() land the firmId, the App re-renders
+  // and the wizard UNMOUNTS mid-flow — users were dumped into the app with
+  // steps 3-6 (practice profile, channels, team, review) never shown.
+  // FIX: once the firm exists, mark the wizard as "in progress" so App keeps
+  // it mounted until the user explicitly finishes (onComplete clears it).
+  // Stale-flag safety: timestamped — a flag older than 1 hour is ignored
+  // (e.g. crash mid-wizard, user returns later, wizard resumes at step 3).
+  const WIZARD_FLAG_KEY = 'practicepro_wizard_in_progress';
+  const WIZARD_FLAG_TTL_MS = 60 * 60 * 1000;
+  const readWizardFlag = (): boolean => {
+    try {
+      const ts = sessionStorage.getItem(WIZARD_FLAG_KEY + '_ts');
+      if (!ts) return false;
+      return Date.now() - parseInt(ts, 10) < WIZARD_FLAG_TTL_MS;
+    } catch { return false; }
+  };
+
   // Step 1: Workspace name | Step 2: Plan selection (product already known from signup)
-  // Step 3: Communication channels | Step 4: Team setup | Step 5: Review & confirm
-  const [step, setStep] = useState(1);
+  // Step 3: Practice profile (state(s) + practice/portfolio config) | Step 4: Communication
+  // channels | Step 5: Team setup | Step 6: Review & confirm
+  const [step, setStep] = useState(() => {
+    // Resuming a wizard that already created the firm → skip workspace/plan.
+    return (currentUser?.firmId && readWizardFlag()) ? 3 : 1;
+  });
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [firmName, setFirmName] = useState('');
   const [product, setProduct] = useState<ProductMode>(userProduct || 'legal');
@@ -177,9 +202,25 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // Communication channel intent — recorded to firmDetails.settings on Step 5.
   const [useWhatsapp, setUseWhatsapp] = useState<boolean | null>(null);
   const [useEmail, setUseEmail] = useState<boolean | null>(null);
-  // "Will anyone else be working in this workspace?" (Step 4)
+  // "Will anyone else be working in this workspace?" (Step 5)
   const [willInviteTeam, setWillInviteTeam] = useState<boolean | null>(null);
   const [isSavingFinal, setIsSavingFinal] = useState(false);
+
+  // ── PRACTICE PROFILE (Step 3) ─────────────────────────────────────────
+  // "What kind of practice are you running?" — captures the practice-type
+  // configuration that tailors the AI (ALOA/ARIA jurisdiction + focus),
+  // the Getting-Started checklist, and workflow defaults from day one.
+  const [primaryState, setPrimaryState] = useState<string>('Lagos');
+  const [additionalStates, setAdditionalStates] = useState<string[]>([]);
+  const [practiceAreas, setPracticeAreas] = useState<string[]>([]);
+  const [portfolioTypes, setPortfolioTypes] = useState<string[]>([]);
+  const [focusAreas, setFocusAreas] = useState<string[]>([]);
+  const [unitsUnderManagement, setUnitsUnderManagement] = useState<string>('');
+
+  const toggleInArray = (arr: string[], setArr: (v: string[]) => void, value: string, max = 12) => {
+    if (arr.includes(value)) setArr(arr.filter(v => v !== value));
+    else if (arr.length < max) setArr([...arr, value]);
+  };
 
   // If user already chose product during signup, set it immediately
   useEffect(() => {
@@ -222,6 +263,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         trial,
       );
       if (fid) {
+        // WIZARD-IN-PROGRESS: flag BEFORE refreshUser so the App's unmount
+        // condition (`!firmId`) no longer kills the wizard mid-flow.
+        try {
+          sessionStorage.setItem(WIZARD_FLAG_KEY, 'true');
+          sessionStorage.setItem(WIZARD_FLAG_KEY + '_ts', String(Date.now()));
+        } catch { /* sessionStorage unavailable — wizard may unmount early, tolerable */ }
         // CRITICAL FIX: refreshUser() can hang if Convex is slow to sync
         // the new firmId onto the user record. Add a 10-second timeout —
         // if it takes too long, force-reload the page (the firm WAS
@@ -334,6 +381,19 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
         await handleUpdateFirmDetails({
           id: lookupFirmId,
+          // ── Practice Profile (Step 3) — jurisdictional + practice-type config ──
+          // These feed the AI drafting/chat prompts (correct state captions,
+          // procedural rules, and practice focus) and the firm settings UI.
+          defaultStateOfPractice: primaryState,
+          statesOfPractice: [primaryState, ...additionalStates.filter(s => s !== primaryState)],
+          ...( practiceAreas.length > 0 ? { firmSpecialties: practiceAreas } : {} ),
+          practiceProfile: {
+            practiceAreas: practiceAreas.length > 0 ? practiceAreas : undefined,
+            portfolioTypes: (isAtrium || isKomplete(product)) && portfolioTypes.length > 0 ? portfolioTypes : undefined,
+            focusAreas: (isAtrium || isKomplete(product)) && focusAreas.length > 0 ? focusAreas : undefined,
+            unitsUnderManagement: (isAtrium || isKomplete(product)) && unitsUnderManagement ? parseInt(unitsUnderManagement, 10) || undefined : undefined,
+            completedAt: new Date().toISOString(),
+          },
           settings: {
             communicationChannels: {
               whatsapp: useWhatsapp === true,
@@ -384,21 +444,21 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           freshly-created firm's local state and confuse the user. */}
       {step <= 2 && (
         <div className="absolute top-6 right-6">
-          <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-lg transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
+          <button onClick={() => { try { sessionStorage.removeItem(WIZARD_FLAG_KEY); sessionStorage.removeItem(WIZARD_FLAG_KEY + '_ts'); } catch {} logout(); }} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100  px-3 py-2 rounded-lg transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
         </div>
       )}
 
       <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
         {error && <div className="p-3 bg-red-50  text-red-600  rounded-lg text-sm text-center border border-red-100  font-bold">{error}</div>}
 
-        {/* ── Progress Indicator — 5 steps total ── */}
+        {/* ── Progress Indicator — 6 steps total ── */}
         <div className="flex items-center justify-center gap-2 mb-2">
-          {[1, 2, 3, 4, 5].map(n => (
+          {[1, 2, 3, 4, 5, 6].map(n => (
             <div key={n} className={`h-2 rounded-full transition-all duration-500 ${step >= n ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200 '}`} />
           ))}
         </div>
         <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
-          {`Step ${step} of 5 — ${step <= 2 ? 'Workspace' : step === 3 ? 'Communication' : step === 4 ? 'Team' : 'Review'}`}
+          {`Step ${step} of 6 — ${step <= 2 ? 'Workspace' : step === 3 ? 'Practice Profile' : step === 4 ? 'Communication' : step === 5 ? 'Team' : 'Review'}`}
         </p>
 
         {/* ── STEP 1: Workspace Name ─────────────────────────────── */}
@@ -759,13 +819,189 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           </div>
         )}
 
-        {/* ── STEP 3: Communication Channels ─────────────────────────── */}
+        {/* ── STEP 3: Practice Profile ─────────────────────────────── */}
+        {/* The "type of practice" configuration step. Atrium users describe
+            their portfolio composition + what their firm actually does;
+            Vega users pick practice areas; everyone picks their state(s) of
+            operation. Persisted to firmDetails and consumed by the AI
+            (jurisdiction captions, procedural rules, drafting focus),
+            workflow defaults, and the Getting-Started checklist. */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                {isAtrium ? 'What kind of properties do you manage?' : 'What kind of practice do you run?'}
+              </h2>
+              <p className="text-slate-500 mt-2 text-sm font-medium max-w-lg mx-auto">
+                This configures {productName === 'Atrium' ? 'ARIA, your AI property assistant' : productName === 'Vega' ? 'ALOA, your AI legal assistant' : 'your AI assistants'} — the right state's laws, court captions, and drafting style from your very first document. It also tailors your workspace defaults.
+              </p>
+            </div>
+
+            {/* ── State(s) of operation — ALL products ── */}
+            <div className="max-w-lg mx-auto space-y-4">
+              <div>
+                <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                  Primary State of Operation
+                </label>
+                <select
+                  value={primaryState}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setPrimaryState(v);
+                    // If the new primary was in additional states, drop it there
+                    setAdditionalStates(prev => prev.filter(s => s !== v));
+                  }}
+                  className="w-full p-3.5 border border-slate-100 rounded-2xl bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 font-medium"
+                >
+                  {NIGERIAN_STATES.map(s => (
+                    <option key={s.key} value={s.key}>{s.name}</option>
+                  ))}
+                </select>
+                <p className="text-2xs text-slate-400 font-medium mt-1.5 ml-1">
+                  {isAtrium
+                    ? 'Where most of your portfolio sits — notices will cite this state\u2019s tenancy law by default.'
+                    : 'Your default judicial division — court processes use this state\u2019s captions and rules.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                  Also operate in… <span className="normal-case font-medium">(optional — pick all that apply)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {NIGERIAN_STATES.filter(s => s.key !== primaryState).slice(0, 12).map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => toggleInArray(additionalStates, setAdditionalStates, s.key, 6)}
+                      className={`px-3 py-1.5 text-2xs font-bold rounded-full border-2 transition-all ${additionalStates.includes(s.key) ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                    >
+                      {s.name.replace(' State', '').replace('Federal Capital Territory (Abuja)', 'FCT')}
+                    </button>
+                  ))}
+                  {additionalStates.length >= 6 && (
+                    <span className="text-2xs text-slate-400 font-medium self-center">Max 6 additional states</span>
+                  )}
+                </div>
+                {additionalStates.length > 0 && (
+                  <p className="text-2xs text-emerald-600 font-bold mt-2 ml-1">
+                    ✓ Multi-state mode: drafts will switch to the correct state\u2019s rules when a matter or property is located there.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* ── Vega: practice areas ── */}
+            {!isAtrium && (
+              <div className="max-w-lg mx-auto">
+                <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                  Practice Areas <span className="normal-case font-medium">(select all that apply)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    FirmSpecialty.Litigation,
+                    FirmSpecialty.Corporate,
+                    FirmSpecialty.RealEstate,
+                    'Family Law & Probate',
+                    'Criminal Defence',
+                    'Employment & Labour',
+                    'Banking & Finance',
+                    'Intellectual Property',
+                    FirmSpecialty.Tax,
+                    FirmSpecialty.OilGas,
+                    FirmSpecialty.Maritime,
+                    'Tech, Data & Compliance',
+                    FirmSpecialty.General,
+                  ].map(area => (
+                    <button
+                      key={area}
+                      onClick={() => toggleInArray(practiceAreas, setPracticeAreas, area)}
+                      className={`px-3.5 py-2 text-xs font-bold rounded-full border-2 transition-all ${practiceAreas.includes(area) ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                    >
+                      {area}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Atrium: portfolio composition ── */}
+            {(isAtrium || isKomplete(product)) && (
+              <div className="max-w-lg mx-auto">
+                <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                  Portfolio Composition <span className="normal-case font-medium">(select all that apply)</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {PORTFOLIO_TYPE_OPTIONS.map(pt => (
+                    <button
+                      key={pt.value}
+                      onClick={() => toggleInArray(portfolioTypes, setPortfolioTypes, pt.value)}
+                      className={`p-3 text-left rounded-xl border-2 transition-all ${portfolioTypes.includes(pt.value) ? 'border-primary-400 bg-primary-50/60' : 'border-slate-100 hover:border-slate-200'}`}
+                    >
+                      <p className={`text-xs font-bold ${portfolioTypes.includes(pt.value) ? 'text-primary-700' : 'text-slate-700'}`}>{pt.label}</p>
+                      <p className="text-2xs text-slate-400 font-medium mt-0.5">{pt.hint}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Atrium: focus areas + scale ── */}
+            {(isAtrium || isKomplete(product)) && (
+              <div className="max-w-lg mx-auto space-y-4">
+                <div>
+                  <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                    What does your firm focus on? <span className="normal-case font-medium">(select all that apply)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {ATRIUM_FOCUS_OPTIONS.map(f => (
+                      <button
+                        key={f.value}
+                        onClick={() => toggleInArray(focusAreas, setFocusAreas, f.value)}
+                        className={`px-3.5 py-2 text-xs font-bold rounded-full border-2 transition-all ${focusAreas.includes(f.value) ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                    Units under management <span className="normal-case font-medium">(optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 40"
+                    value={unitsUnderManagement}
+                    onChange={e => setUnitsUnderManagement(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-40 p-3 border border-slate-100 rounded-2xl bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 placeholder:text-slate-300"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="max-w-lg mx-auto pt-2 space-y-3">
+              <button
+                onClick={() => setStep(4)}
+                disabled={!primaryState}
+                className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+              >
+                Next: Communication Channels
+              </button>
+              <p className="text-center text-2xs text-slate-400">
+                You can refine this anytime from Settings → Firm Details.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 4: Communication Channels ─────────────────────────── */}
         {/* Per user spec: ask whether the user will use email or WhatsApp,
             clarify the relevance of both, and do NOT ask for their phone
             number, WhatsApp Business API token, or Brevo/Sendgrid API key.
             We record intent only — credentials are configured later in
             Settings → Integrations. */}
-        {step === 3 && (
+        {step === 4 && (
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
@@ -843,11 +1079,17 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
             <div className="max-w-md mx-auto pt-2 space-y-3">
               <button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(5)}
                 disabled={useWhatsapp === null || useEmail === null}
                 className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
               >
                 Next: Team Setup
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all"
+              >
+                ← Back
               </button>
               <p className="text-center text-2xs text-slate-400">
                 You can change these anytime from Settings → Integrations.
@@ -856,8 +1098,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           </div>
         )}
 
-        {/* ── STEP 4: Team Setup ─────────────────────────────────────── */}
-        {step === 4 && (
+        {/* ── STEP 5: Team Setup ─────────────────────────────────────── */}
+        {step === 5 && (
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
@@ -932,14 +1174,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
             <div className="max-w-md mx-auto pt-2 space-y-3">
               <button
-                onClick={() => setStep(5)}
+                onClick={() => setStep(6)}
                 disabled={willInviteTeam === null}
                 className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
               >
                 Next: Review & Confirm
               </button>
               <button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(4)}
                 className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all"
               >
                 ← Back
@@ -948,8 +1190,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
           </div>
         )}
 
-        {/* ── STEP 5: Review & Confirm ───────────────────────────────── */}
-        {step === 5 && (
+        {/* ── STEP 6: Review & Confirm ───────────────────────────────── */}
+        {step === 6 && (
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
@@ -979,6 +1221,35 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     ({billingCycle === 'annual' && !isKomplete(product) ? 'Annual' : isKomplete(product) ? 'Annual (only)' : 'Monthly'})
                   </span>
                 </p>
+              </div>
+
+              {/* Practice Profile row */}
+              <div className="px-5 py-4 border-b border-slate-50">
+                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Practice Profile</p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">
+                  {NIGERIAN_STATES.find(s => s.key === primaryState)?.name || primaryState}
+                  {additionalStates.length > 0 && (
+                    <span className="text-2xs text-slate-500 font-medium"> + {additionalStates.length} more state{additionalStates.length > 1 ? 's' : ''}</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {practiceAreas.slice(0, 4).map(a => (
+                    <span key={a} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-2xs font-bold rounded-full border border-indigo-100">{a}</span>
+                  ))}
+                  {portfolioTypes.map(pt => {
+                    const opt = PORTFOLIO_TYPE_OPTIONS.find(o => o.value === pt);
+                    return <span key={pt} className="px-2 py-0.5 bg-teal-50 text-teal-700 text-2xs font-bold rounded-full border border-teal-100">{opt?.label || pt}</span>;
+                  })}
+                  {focusAreas.slice(0, 3).map(f => (
+                    <span key={f} className="px-2 py-0.5 bg-amber-50 text-amber-700 text-2xs font-bold rounded-full border border-amber-100">{ATRIUM_FOCUS_OPTIONS.find(o => o.value === f)?.label || f}</span>
+                  ))}
+                  {unitsUnderManagement && (
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-2xs font-bold rounded-full border border-slate-200">{unitsUnderManagement}+ units</span>
+                  )}
+                  {practiceAreas.length === 0 && portfolioTypes.length === 0 && focusAreas.length === 0 && (
+                    <span className="text-2xs text-slate-400 font-medium">General practice — configure later if needed</span>
+                  )}
+                </div>
               </div>
 
               {/* Communication channels row */}
@@ -1032,7 +1303,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 )}
               </button>
               <button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(5)}
                 disabled={isSavingFinal}
                 className="w-full py-3 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50"
               >

@@ -126,8 +126,12 @@ const ServiceChargeDashboard: React.FC = () => {
             showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
             return;
         }
-        await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, idempotencyKey });
-        showToast(`${charge.category} charge marked as fully paid`);
+        try {
+            await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, idempotencyKey });
+            showToast(`${charge.category} charge marked as fully paid`);
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to mark charge as paid — please try again.');
+        }
     };
 
     const handlePartialPayment = async () => {
@@ -145,10 +149,14 @@ const ServiceChargeDashboard: React.FC = () => {
             setPartialAmount('');
             return;
         }
-        await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, idempotencyKey: uuidv4() });
-        showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
-        setPartialPaymentCharge(null);
-        setPartialAmount('');
+        try {
+            await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, idempotencyKey: uuidv4() });
+            showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
+            setPartialPaymentCharge(null);
+            setPartialAmount('');
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to record partial payment — please try again.');
+        }
     };
 
     return (

@@ -58,6 +58,12 @@ import AccountRecoverySettings from './AccountRecoverySettings';
 import IntegrationSettings from './IntegrationSettings';
 import { PortalAccessSettings } from './PortalAccessSettings';
 import { NotificationSettings } from './NotificationSettings';
+// REACHABILITY FIX: these three panels were fully built but imported
+// nowhere — Intake form management, category management, and display/realtime
+// settings were unreachable dead features. Wired into the settings nav below.
+import { IntakeSettings } from './IntakeSettings';
+import CategoriesSettings from './CategoriesSettings';
+import DisplaySettings from './DisplaySettings';
 import SecurityAccessView from '../SecurityAccessView';
 import EstateCommunitySettings from './EstateCommunitySettings';
 
@@ -65,7 +71,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';
 import { useProduct } from '../../contexts/ProductContext';
 
-type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal' | 'securityAccess';
+type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal' | 'securityAccess' | 'intake' | 'categories' | 'display';
 
 const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' }> = {
     'my-profile': { main: 'profile' },
@@ -89,6 +95,9 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'theme-preference': { main: 'profile' }, // Long-press theme toggle target
     'notification-settings': { main: 'profile' },
     'automation-settings': { main: 'templates', sub: 'automations' },
+    'intake-form-management': { main: 'intake' },
+    'category-management': { main: 'categories' },
+    'display-and-realtime': { main: 'display' },
     'help-and-support': { main: 'help' },
     'data-management': { main: 'data' },
     'account-recovery': { main: 'recovery' },
@@ -296,7 +305,51 @@ const SidebarContents: React.FC<{
                             onCloseDrawer={onCloseDrawer}
                         />
                     )}
+                    {/* REACHABILITY FIX: Intake Forms + Category Management were
+                        complete-but-unreachable panels. Now surfaced next to the
+                        other configuration items. */}
+                    {permissions.canManageTemplates && (
+                        <NavItem
+                            label="Intake Forms"
+                            description={isProperty ? 'Public application forms' : 'Client intake forms & rules'}
+                            icon={<FormIcon />}
+                            isActive={activeTab === 'intake'}
+                            onClick={() => handleNav('intake')}
+                            onCloseDrawer={onCloseDrawer}
+                        />
+                    )}
+                    {permissions.canManageTemplates && (
+                        <NavItem
+                            label="Categories & Types"
+                            description="Events, contacts, folders"
+                            icon={<TagIcon />}
+                            isActive={activeTab === 'categories'}
+                            onClick={() => handleNav('categories')}
+                            onCloseDrawer={onCloseDrawer}
+                        />
+                    )}
+                    <NavItem
+                        label="Display & Realtime"
+                        description="Theme, density, live flashes"
+                        icon={<DesktopComputerIcon />}
+                        isActive={activeTab === 'display'}
+                        onClick={() => handleNav('display')}
+                        onCloseDrawer={onCloseDrawer}
+                    />
 
+                    {/* REACHABILITY FIX: ComplianceView (NBA fee/CPD/KYC
+                        tracking) had NO navigation entry — only /compliance.
+                        Surfaced here for legal firms. */}
+                    {isLegal && (
+                        <NavItem
+                            label="Compliance"
+                            description="Practicing fees, CPD & standards"
+                            icon={<ShieldCheckIcon className="text-amber-500" />}
+                            isActive={false}
+                            onClick={() => navigateTo('compliance')}
+                            onCloseDrawer={onCloseDrawer}
+                        />
+                    )}
                     {isLegal && isEnterprise && (
                         <NavItem
                             label="Legal Intelligence"
@@ -383,7 +436,7 @@ const SidebarContents: React.FC<{
 // ─── Main Component ───────────────────────────────────────────────────────
 export const SettingsView: React.FC = () => {
     const { coreState } = useCoreState();
-    const { theme, setTheme, settingsTargetId, navigateTo, currentHistoryEntry, openModal } = useUI();
+    const { theme, setTheme, settingsTargetId, navigateTo, currentHistoryEntry, openModal, addToast } = useUI();
     const { executionState } = useExecutionState();
     const { currentUser } = useAuth();
     const { handleUpdateUser, deleteItem, handleUpdateWorkflow, handleUpdateFirmDetails } = useDataActions();
@@ -432,6 +485,18 @@ export const SettingsView: React.FC = () => {
         appMode: currentUser?.id ? 'app' : 'setup',
         onNavigate: navigateTo,
         currentHistoryEntry,
+        // CRASH FIX: SettingsView renders with no props from App.tsx, so
+        // `props.onEnableDevMode` was undefined — FirmSettings' 5×-title-click
+        // easter egg (and SecuritySettings line ~267) called undefined() and
+        // threw a TypeError. Provide a no-op guard (the floating Dev Toolkit
+        // only exists in `import.meta.env.DEV` builds anyway).
+        onEnableDevMode: () => {
+            if (import.meta.env.DEV) {
+                window.dispatchEvent(new CustomEvent('practicepro:open-dev-toolkit'));
+            } else {
+                addToast?.('This tool is only available in development builds.', { type: 'info' });
+            }
+        },
     };
 
     // ── Deep-link target handling (e.g. "open Portal Access" from elsewhere) ──
@@ -541,7 +606,21 @@ export const SettingsView: React.FC = () => {
             case 'communications': return <IntegrationSettings />;
             case 'notifications': return <NotificationSettings />;
             case 'portal': return <PortalAccessSettings />;
-            case 'securityAccess': return <SecurityAccessView onBack={() => setActiveSubTab('')} />;
+            case 'securityAccess': return <SecurityAccessView onBack={() => setActiveTab('profile')} />;
+            case 'intake': return <IntakeSettings />;
+            case 'categories': return (
+                <CategoriesSettings
+                    eventTypes={coreState.eventTypes}
+                    contactCategories={coreState.contactCategories}
+                    documentCategories={coreState.documentCategories}
+                    folderPermissions={coreState.folderPermissions}
+                    openModal={openModal}
+                    onDeleteContactCategory={props.onDeleteContactCategory}
+                    onDeleteDocumentCategory={props.onDeleteDocumentCategory}
+                    activeTab={null}
+                />
+            );
+            case 'display': return <DisplaySettings theme={theme} setTheme={setTheme} />;
             default: return null;
         }
     };
@@ -563,6 +642,9 @@ export const SettingsView: React.FC = () => {
         notifications: 'Notifications',
         portal: isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal',
         securityAccess: 'Security & Access',
+        intake: 'Intake Forms',
+        categories: 'Categories & Types',
+        display: 'Display & Realtime',
     };
 
     return (

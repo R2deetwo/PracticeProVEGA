@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useMatterState } from '../../contexts/MatterContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
@@ -374,19 +375,67 @@ const ServiceChargeMonitor: React.FC = () => {
     setPartialAmount('');
   };
 
+  // ─── REAL WHATSAPP SENDS ─────────────────────────────────────────────
+  // FIX: both handlers below were simulated no-ops — they only wrote an
+  // automation_logs row with status 'simulated' and logged `recipient` as the
+  // tenant's INTERNAL ID (unusable for audit or per-tenant print filtering),
+  // while toasting "sent via WhatsApp (simulated)". Now they resolve the
+  // tenant's actual phone number from contacts and call
+  // communications.sendWhatsApp for real; the log entry records the phone and
+  // the true delivery status.
+  const sendWhatsAppAction = useAction(api.communications.sendWhatsApp);
+  const matterStateCtx = useMatterState();
+  const resolveTenantPhone = (tenantId?: string): string | null => {
+    if (!tenantId) return null;
+    const contact = ((matterStateCtx as any)?.matterState?.contacts || []).find((c: any) => c.id === tenantId);
+    const phone = (contact as any)?.phone;
+    return phone && phone.trim() ? phone.trim() : null;
+  };
+
   const handleRestrict = async (charge: ServiceCharge) => {
-    await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `Access restriction notice sent for ${getUnitLabel(charge.unitId)} — ${charge.category} overdue ${charge.daysOverdue} days.`, status: 'simulated', triggeredBy: currentUser?.id });
-    showToast('Access restriction notice sent via WhatsApp (simulated)');
+    const phone = resolveTenantPhone(charge.tenantId);
+    const preview = `Access restriction notice for ${getUnitLabel(charge.unitId)} — ${charge.category} overdue ${charge.daysOverdue} days.`;
+    if (!phone) {
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${preview} (NOT SENT — no phone number on tenant record)`, status: 'failed', triggeredBy: currentUser?.id });
+      showToast('Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
+      return;
+    }
+    try {
+      const result = await sendWhatsAppAction({
+        to: phone,
+        messageText: preview,
+        firmId,
+      });
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: phone, messagePreview: preview, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
+      showToast(result?.simulated ? 'Logged (WhatsApp not configured for this firm yet)' : result?.success ? 'Access restriction notice sent via WhatsApp' : `Send failed: ${result?.error || 'provider error'}`);
+    } catch (e: any) {
+      showToast(e?.message || 'WhatsApp send failed.');
+    }
   };
 
   const handleWhatsApp = async (charge: ServiceCharge) => {
     const isPartial = charge.serviceChargeStatus === 'PARTIALLY_PAID';
     const outstanding = charge.outstandingBalance ?? 0;
-    const msgPreview = isPartial
+    const messageText = isPartial
       ? `Reminder: Your ${charge.category} charge has an outstanding balance of ₦${outstanding.toLocaleString()} (₦${(charge.amountPaidThisCycle ?? 0).toLocaleString()} paid of ₦${charge.amount.toLocaleString()}). Kindly complete payment.`
       : `Reminder: Your ${charge.category} charge of ₦${charge.amount.toLocaleString()} is ${charge.isDefaulter ? `${charge.daysOverdue} days overdue` : 'due soon'}.`;
-    await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: msgPreview, status: 'simulated', triggeredBy: currentUser?.id });
-    showToast('WhatsApp reminder sent (simulated)');
+    const phone = resolveTenantPhone(charge.tenantId);
+    if (!phone) {
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${messageText} (NOT SENT — no phone number on tenant record)`, status: 'failed', triggeredBy: currentUser?.id });
+      showToast('Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
+      return;
+    }
+    try {
+      const result = await sendWhatsAppAction({
+        to: phone,
+        messageText,
+        firmId,
+      });
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: phone, messagePreview: messageText, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
+      showToast(result?.simulated ? 'Logged (WhatsApp not configured for this firm yet)' : result?.success ? 'WhatsApp reminder sent' : `Send failed: ${result?.error || 'provider error'}`);
+    } catch (e: any) {
+      showToast(e?.message || 'WhatsApp send failed.');
+    }
   };
 
   return (

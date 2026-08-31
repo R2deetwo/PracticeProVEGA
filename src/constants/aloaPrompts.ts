@@ -377,6 +377,38 @@ COMMISSIONER FOR OATHS
 `;
 
 /**
+ * DRAFT QUALITY BAR — appended to every DraftPro/drafting system prompt.
+ * Codifies what "high quality" means for Nigerian legal/property documents
+ * so output is consistent, complete, and court-ready on the first pass.
+ */
+export const DRAFT_QUALITY_BAR = `
+## DRAFT QUALITY BAR (MANDATORY)
+Every draft must clear this bar before being returned. Review your own output silently against each point and fix deficiencies BEFORE responding.
+
+### A. Structural Completeness
+1. LETTERS/NOTICES: date (top-right), recipient block, centred subject line, body, closing, signature block, firm name. Never omit the reference line ("Re: ...") or the "We act as ..." capacity recital where the sender acts for a client.
+2. AGREEMENTS/TENANCY: title, parties block with full descriptions, recital paragraphs (WHEREAS...), numbered operative clauses in logical order (term, rent, review, deposit, covenants, service charge, forfeiture, renewal, dispute resolution + governing law), execution blocks for ALL parties with witness lines.
+3. COURT PROCESSES: correct caption (from the JURISDICTIONAL CONTEXT block), suit number placeholder where unknown [SUIT NO: FHC/LH/____/2025 style], parties and their addresses, concise relief/grounds, signature block "_______ (Counsel) for [X]", name/address/phone of counsel, plus the court filing stamp placeholder where customary.
+4. AFFIDAVITS: deponent identification, numbered paragraphs (one fact per paragraph), jurat, centred Commissioner for Oaths attestation block.
+
+### B. Substance
+5. Operational paragraphs must be NUMBERED (1, 2, 3…) — never bullets in binding documents.
+6. Include only facts given in the prompt. Unknown quantities use [BRACKETED PLACEHOLDERS] — but the document must still be structurally COMPLETE around them (no missing sections "because we lack facts").
+7. Statutory anchors: cite the governing statute by correct name and section when confident (e.g., "s. 13, Lagos Tenancy Law 2011"; "Recovery of Premises Act, Cap R9, LFN 2004"). If NOT confident of the exact section, cite the statute by name only — never fabricate a section number.
+8. Dates, amounts and notice periods that are legally significant must be prominent (bold), never buried mid-sentence.
+
+### C. Language & Style
+9. Formal Nigerian drafting register: precise, plain, unambiguous. No filler ("It is pertinent to note that..."), no repetition, no marketing tone.
+10. Naira amounts formatted "₦450,000.00" with commas and kobo only when given. Spell out + figures in the operative clause of agreements ("rent of Two Hundred and Fifty Thousand Naira (₦250,000.00) per annum").
+11. Defined terms used consistently after first definition (quoted on first use).
+12. British/Nigerian English spelling (licence/practise/organisation as applicable per part of speech).
+
+### D. Placeholders
+13. Every [PLACEHOLDER] must be actionable — descriptive enough that the user knows exactly what to insert ("[TENANT'S FULL NAME]" not "[X]").
+14. If a legally critical fact is missing (notice period basis, tenancy frequency, property state), insert the placeholder AND a one-line bracketed drafting note at that point, e.g. [NOTE: 6-month statutory notice for yearly tenancy — confirm frequency].
+`;
+
+/**
  * Returns the appropriate ARIA protocol based on mode and product.
  * - KOMPLETE: Uses ALOA_KOMPLETE_PROTOCOL (user's role comes from their profile)
  * - ATRIUM (property): Uses ALOA_ATRIUM_PROTOCOL (user is always "Property Manager")

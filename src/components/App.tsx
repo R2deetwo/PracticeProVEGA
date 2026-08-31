@@ -69,6 +69,7 @@ import { SplitMasterDetail } from './layout/SplitMasterDetail';
 import ErrorBoundary from './ErrorBoundary';
 import { FeatureGuard } from './FeatureGuard';
 import OnboardingWizard from './modals/OnboardingWizard';
+import { AtriumPublicApplicationForm } from './atrium/AtriumPublicApplicationForm';
 import {
     DashboardSkeleton,
     TasksSkeleton,
@@ -409,10 +410,13 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
             case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
 
-            case 'editor': return <React.Suspense fallback={<GenericSkeleton />}><WordProcessor /></React.Suspense>;
+            // FIX: editor was the ONLY view rendered without ViewWrapper's
+            // ErrorBoundary — a render error in the TipTap stack escalated to
+            // the root GlobalErrorBoundary and blanked the entire app.
+            case 'editor': return <ErrorBoundary><React.Suspense fallback={<GenericSkeleton />}><WordProcessor /></React.Suspense></ErrorBoundary>;
             case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView /></React.Suspense></FeatureGuard></ViewWrapper>;
             case 'indexer': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense></ViewWrapper>;
-            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>; // Deprecated — will be moved to Settings
+            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>; // Reachable via Settings → Compliance (nav item) + /compliance
             case 'invoiceDetail': return <ViewWrapper><InvoiceDetailView /></ViewWrapper>;
             case 'receiptDetail': return <ViewWrapper><ReceiptDetailView /></ViewWrapper>;
 
@@ -422,7 +426,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
             case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
             case 'usagePolicy': return <UsagePolicy onBack={goBack} />;
-            case 'resources': return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => navigateTo('dashboard')} onContactSales={() => navigateTo('dashboard')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={(p) => { /* product switch on resources page */ }} />;
+            // FIX: onStartTrial/onContactSales navigated to the dashboard (a
+            // no-op CTA) and setActiveProduct was a truthy no-op (dead toggle).
+            case 'resources': return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('upgradePlan')} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} />;
             case 'securityAccess': return <SecurityAccessView onBack={goBack} />;
             default: return <NotFoundView />;
         }
@@ -601,7 +607,7 @@ export const App: React.FC = () => {
     // effectiveness and conversion signals.
     const trackPageView = React.useCallback((pathname: string) => {
         try {
-            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
+            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse', '/apply'];
             if (!publicPaths.includes(pathname)) return;
             // Fire-and-forget — don't block on analytics
             fetch(`${import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'}/api/mutation`, {
@@ -647,6 +653,13 @@ export const App: React.FC = () => {
     }, []);
 
     const [flowState, setFlowState] = useState<FlowState>(hasSavedSession ? 'splash' : 'app');
+    // RESOURCES PAGE PRODUCT TOGGLE: previously App passed a truthy NO-OP
+    // setActiveProduct — the toggle rendered but did nothing. Now it's real
+    // state, initialised from the URL product (/atrium → atrium) so public
+    // visitors land on the right content.
+    const [resourcesProduct, setResourcesProduct] = useState<'vega' | 'atrium'>(() => {
+        try { return window.location.pathname.startsWith('/atrium') ? 'atrium' : 'vega'; } catch { return 'vega'; }
+    });
     const { confirm: confirmAction, ConfirmDialog: confirmDialogNode } = useConfirm();
     const { product } = useProduct();
     const [forceEntry, setForceEntry] = useState(false);
@@ -791,7 +804,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse'];
+        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse', '/apply'];
 
         // TASK 15: Redirect authenticated users away from landing-page routes
         // (/vega, /atrium, /komplet) to the dashboard. These routes are for
@@ -1063,6 +1076,17 @@ export const App: React.FC = () => {
             // Don't auto-start the tour for portal users (Client/Tenant)
             const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
             if (isPortal) return;
+            // Don't auto-start the tour while the OnboardingWizard is showing
+            // (user has no firm yet, or the wizard-in-progress flag is set) —
+            // previously the 5s tour timer fired BEHIND the open wizard.
+            let wizardShowing = !currentUser.firmId;
+            if (!wizardShowing) {
+                try {
+                    const ts = sessionStorage.getItem('practicepro_wizard_in_progress_ts');
+                    wizardShowing = !!ts && (Date.now() - parseInt(ts, 10)) < 60 * 60 * 1000;
+                } catch { /* noop */ }
+            }
+            if (wizardShowing) return;
             // Don't auto-start the tour on mobile portrait — it's designed for
             // desktop/landscape. Mobile users can still start it manually from
             // Settings → Help if they want.
@@ -1183,6 +1207,24 @@ export const App: React.FC = () => {
         // guards / gate operators. The GatekeeperInterface allows verification
         // of visitor access codes without requiring a full PracticePro login.
         // This is the missing wiring that makes the VMS feature usable end-to-end.
+        // PUBLIC APPLICATION ROUTE — /apply/:propertyId
+        // FIX: AtriumPublicApplicationForm was exported but never mounted
+        // anywhere — public vacancy applications could never be submitted, and
+        // combined with the (also fixed) empty VacancyPipeline the entire
+        // lead-capture funnel was dead end-to-end. PMs can now share
+        // https://<site>/apply/<propertyId> with prospective tenants.
+        const applyMatch = location.pathname.match(/^\/apply\/([A-Za-z0-9_-]+)$/);
+        if (applyMatch) {
+          return (
+            <div className="min-h-[100dvh] bg-slate-50 dark:bg-zinc-950">
+              <AtriumPublicApplicationForm
+                propertyId={applyMatch[1]}
+                propertyName="Property Application"
+              />
+            </div>
+          );
+        }
+
         if (location.pathname === '/gatehouse') {
           // Read firmId from URL query string so the gatekeeper can load
           // the correct property list. e.g. /gatehouse?firmId=abc123
@@ -1262,7 +1304,12 @@ export const App: React.FC = () => {
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={goBack} />;
             if (view === 'cookiePolicy') return <CookiePolicy onBack={goBack} />;
             if (view === 'usagePolicy') return <UsagePolicy onBack={goBack} />;
-            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => navigateTo('dashboard')} onContactSales={() => navigateTo('dashboard')} activeProduct={(product === 'property' ? 'atrium' : 'vega') as 'vega' | 'atrium'} setActiveProduct={() => {}} />;
+            // PUBLIC ROUTE FIX: for unauthenticated visitors, "Start Free Trial"
+            // previously navigated to the dashboard — which rendered the
+            // LandingPage again, making the page's primary conversion CTAs
+            // no-ops. Now they open the signup / lead-capture modals, and the
+            // product toggle actually switches content.
+            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup')} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} />;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
@@ -1380,8 +1427,23 @@ export const App: React.FC = () => {
         // they don't create firms; they're invited to existing ones. If a portal
         // user has no firmId, their portal dashboard will handle the resolution
         // and show a repair UI instead of the unrelated OnboardingWizard.
-        if (currentUser && !currentUser.firmId && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant) {
-            return <OnboardingWizard onComplete={() => setFlowState('app')} />;
+        //
+        // WIZARD-IN-PROGRESS GUARD: the wizard sets a timestamped
+        // sessionStorage flag once the firm is created. Without it, this
+        // condition (`!firmId`) unmounts the wizard the instant refreshUser
+        // lands the new firmId — dumping users into the app before they
+        // complete the practice-profile / channels / team / review steps.
+        const wizardInProgress = (() => {
+            try {
+                const ts = sessionStorage.getItem('practicepro_wizard_in_progress_ts');
+                return !!ts && (Date.now() - parseInt(ts, 10)) < 60 * 60 * 1000;
+            } catch { return false; }
+        })();
+        if (currentUser && !isPortalUserRole && (!currentUser.firmId || wizardInProgress) && flowState !== 'splash') {
+            return <OnboardingWizard onComplete={() => {
+                try { sessionStorage.removeItem('practicepro_wizard_in_progress'); sessionStorage.removeItem('practicepro_wizard_in_progress_ts'); } catch { /* noop */ }
+                setFlowState('app');
+            }} />;
         }
 
         // Only block on SplashScreen if the user has a saved session being restored.
