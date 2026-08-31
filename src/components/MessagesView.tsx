@@ -3265,8 +3265,10 @@ const MessagesView: React.FC = () => {
                                             authorId: currentUser?._id || currentUser?.id || '',
                                             authorName: currentUser?.name || '',
                                             userEmail: currentUser?.email,
-                                            attachments: (pendingAttachments || []).map(a => a.storageId),
-                                            attachmentNames: (pendingAttachments || []).map(a => a.name),
+                                            // FIX (TS2304): removed `attachments`/`attachmentNames`
+                                            // lines referencing a non-existent `pendingAttachments`
+                                            // state — sendChatMessage's Convex args don't accept
+                                            // them; team chat reply is text-only.
                                             idempotencyKey: uuidv4(),
                                         });
                                     } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }

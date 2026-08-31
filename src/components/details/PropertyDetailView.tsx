@@ -778,7 +778,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 onConfirm: () => {
                     // Supersede the old notice — transition to 'superseded',
                     // reset countdown, log the event immutably
-                    const supersededTracker = logEvictionTracker(tracker, {
+                    const supersededTracker = logEvictionEvent(tracker, {
                         type: 'superseded',
                         timestamp: Date.now(),
                         notes: `Previous notice (served ${servedDate}) superseded by fresh draft.`,
@@ -801,7 +801,7 @@ const PropertyDetailViewContent: React.FC = () => {
         // Normal flow — no active notice, just open the editor
         handleDraftAction('Notice to Quit', 'Quit', unit);
         // Mark as drafted + log event
-        const newTracker = logEvictionTracker(tracker, {
+        const newTracker = logEvictionEvent(tracker, {
             type: 'drafted',
             timestamp: Date.now(),
         });
@@ -825,7 +825,7 @@ const PropertyDetailViewContent: React.FC = () => {
         countdownEnd.setMonth(countdownEnd.getMonth() + noticeMonths);
 
         // Log the served event immutably
-        const updatedTracker = logEvictionTracker(tracker, {
+        const updatedTracker = logEvictionEvent(tracker, {
             type: 'served',
             timestamp: servedDate,
             notes: `Service method: ${serviceMethod}. Statutory period: ${noticeMonths} months. Countdown expires ${countdownEnd.toLocaleDateString('en-GB')}.`,

@@ -478,7 +478,7 @@ const TemplateGallery: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
-    matter, tasks, openModal
+    matter, tasks, openModal, onUpdateStatus
 }) => {
     const [activeSection, setActiveSection] = useState<'actions' | 'checklist' | 'templates'>('actions');
     const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());

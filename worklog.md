@@ -8816,3 +8816,39 @@ Stage Summary:
 - TS: 322 errors (was 323) — the broken chain was itself a TS2339;
   fixing it reduced the count
 - Committed as fix(data-integrity) batch 4 of 5 in the Phase 1 redo
+
+---
+Task ID: recovery-4
+Agent: main (Super Z)
+Task: Phase 1 redo, Batch 5 — TS cleanup + orphaned shadcn purge + deprecated deps
+
+Work Log:
+- Dependency-mapped src/components/ui (52 files): only ConfirmDialog (12
+  importers) and FinancialStatusBadge (1 importer) are used, both
+  self-contained → git rm 50 orphaned shadcn files + src/hooks/use-toast.ts
+  (circular orphan chain: toast ↔ toaster ↔ use-toast, zero live importers)
+- Deleted dead src/lib/db.ts (PrismaClient — project uses Convex, zero
+  importers) and src/lib/utils.ts (shadcn cn() — zero importers after purge)
+- Fixed all 21 TS2304 cannot-find-name errors (each was a latent runtime
+  ReferenceError):
+  * portals.ts getTenantInfo: bare `email` ×2 → emailLower (in scope)
+  * MessagesView sendTeamReply: removed phantom pendingAttachments lines —
+    sendChatMessage mutation accepts no attachments args
+  * ComposeModal: addToast ×5 + showToast ×1 → onToast prop (the actual API)
+  * ProcessActionCenter: added onUpdateStatus to props destructuring
+    (was in interface but dropped in destructure → checklist no-op)
+  * PropertyDetailView: logEvictionTracker → logEvictionEvent ×3 (wrong name
+    for the existing immutable-event-log helper)
+  * AloaXView: added missing X icon import
+  * TenantPortal: MOVED the Mobile Bottom Navigation JSX block out of
+    HelpAndSupportTab (where its 5 referenced names didn't exist) into the
+    main TenantPortal component where activeTab/handleTabChange/tabs/
+    unreadMessageCount/openMaintenanceCount all live
+- Deprecated deps (registry-verified): removed react-beautiful-dnd (zero
+  imports — @hello-pangea/dnd fork already in use in 4 files); upgraded
+  uuid 9.0.1 → 14.0.2 (21 files use `import { v4 }` — compatible)
+
+Stage Summary:
+- TS: 323 → 161 (old session's Phase 1 endpoint was 167; redo is 6 better)
+- vite build: PASS (23s); all TS2304 + TS2307 errors eliminated
+- Committed as fix(ts-cleanup) batch 5 of 5 — PHASE 1 REDO COMPLETE

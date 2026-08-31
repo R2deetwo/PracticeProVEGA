@@ -5,7 +5,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { getGeminiApiKey, setCustomApiKey } from '../../utils/aiUtils';
-import { Key } from 'lucide-react';
+import { Key, X } from 'lucide-react';
 import { useProduct } from '../../contexts/ProductContext';
 
 import { DocumentClassifier } from '../../services/indexer/DocumentClassifier';

@@ -650,6 +650,47 @@ const TenantPortal: React.FC = () => {
       {/* Version refresh toast is globally mounted in App.tsx via
           ToastRefreshNotification. No need to render here — it covers
           all routes including portals. */}
+      {/* ─── Mobile Bottom Navigation (portrait only) ──────────────────────
+          A fixed bottom nav bar for mobile that provides quick access to the
+          most-used tabs. Only visible on small screens (sm:hidden).
+          Layout: Home | Ledger | Messages | More */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-around py-2 pb-safe">
+        {[
+          { id: 'dashboard' as TabId, label: 'Home', icon: <HomeIcon className="w-5 h-5" /> },
+          { id: 'ledger' as TabId, label: 'Ledger', icon: <ReceiptIcon className="w-5 h-5" /> },
+          ...(portalSettings?.tenantMessagingEnabled ? [{ id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-5 h-5" />, badge: unreadMessageCount }] : [{ id: 'maintenance' as TabId, label: 'Issues', icon: <WrenchIcon className="w-5 h-5" />, badge: openMaintenanceCount }]),
+          { id: 'payments' as TabId, label: 'Pay', icon: <NairaSymbol className="w-5 h-4 inline" /> },
+        ].map(item => (
+          <button
+            key={item.id}
+            onClick={() => handleTabChange(item.id)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors relative ${
+              activeTab === item.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'
+            }`}
+          >
+            {item.icon}
+            <span className="text-2xs font-bold">{item.label}</span>
+            {(item as any).badge && (item as any).badge > 0 && (
+              <span className="absolute top-0 right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-3xs font-bold rounded-full flex items-center justify-center">
+                {(item as any).badge > 99 ? '99+' : (item as any).badge}
+              </span>
+            )}
+          </button>
+        ))}
+        {/* More button — opens a sheet with all tabs */}
+        <button
+          onClick={() => {
+            const allTabs = tabs.filter(t => !['dashboard', 'ledger', 'messages', 'maintenance', 'payments'].includes(t.id));
+            if (allTabs.length > 0) handleTabChange(allTabs[0].id);
+          }}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-slate-400 dark:text-zinc-500"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span className="text-2xs font-bold">More</span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -4239,47 +4280,6 @@ const HelpAndSupportTab: React.FC<{
         )}
       </div>
 
-      {/* ─── Mobile Bottom Navigation (portrait only) ──────────────────────
-          A fixed bottom nav bar for mobile that provides quick access to the
-          most-used tabs. Only visible on small screens (sm:hidden).
-          Layout: Home | Ledger | Messages | More */}
-      <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-around py-2 pb-safe">
-        {[
-          { id: 'dashboard' as TabId, label: 'Home', icon: <HomeIcon className="w-5 h-5" /> },
-          { id: 'ledger' as TabId, label: 'Ledger', icon: <ReceiptIcon className="w-5 h-5" /> },
-          ...(portalSettings?.tenantMessagingEnabled ? [{ id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-5 h-5" />, badge: unreadMessageCount }] : [{ id: 'maintenance' as TabId, label: 'Issues', icon: <WrenchIcon className="w-5 h-5" />, badge: openMaintenanceCount }]),
-          { id: 'payments' as TabId, label: 'Pay', icon: <NairaSymbol className="w-5 h-4 inline" /> },
-        ].map(item => (
-          <button
-            key={item.id}
-            onClick={() => handleTabChange(item.id)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors relative ${
-              activeTab === item.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'
-            }`}
-          >
-            {item.icon}
-            <span className="text-2xs font-bold">{item.label}</span>
-            {(item as any).badge && (item as any).badge > 0 && (
-              <span className="absolute top-0 right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-3xs font-bold rounded-full flex items-center justify-center">
-                {(item as any).badge > 99 ? '99+' : (item as any).badge}
-              </span>
-            )}
-          </button>
-        ))}
-        {/* More button — opens a sheet with all tabs */}
-        <button
-          onClick={() => {
-            const allTabs = tabs.filter(t => !['dashboard', 'ledger', 'messages', 'maintenance', 'payments'].includes(t.id));
-            if (allTabs.length > 0) handleTabChange(allTabs[0].id);
-          }}
-          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-slate-400 dark:text-zinc-500"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <span className="text-2xs font-bold">More</span>
-        </button>
-      </div>
     </div>
   );
 };

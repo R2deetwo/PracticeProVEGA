@@ -439,7 +439,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       // (set by AuthContext from server) instead of reading localStorage directly.
       const apiKey = getGeminiApiKey() || '';
       if (!apiKey) {
-        addToast('AI key not configured. Set your Gemini API key in Settings.', { type: 'error' });
+        // FIX (TS2304): addToast/showToast never existed in this scope —
+        // ComposeModal's toast API is the onToast prop (single string arg).
+        onToast('AI key not configured. Set your Gemini API key in Settings.');
         setIsAiDrafting(false);
         return;
       }
@@ -474,15 +476,15 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           setIsEdited(true);
           setShowAiDraft(false);
           setAiDraftPrompt('');
-          addToast('AI draft generated. Review and edit before sending.', { type: 'success' });
+          onToast('AI draft generated. Review and edit before sending.');
         } else {
-          addToast('AI returned empty response. Try rephrasing.', { type: 'error' });
+          onToast('AI returned empty response. Try rephrasing.');
         }
       } else {
-        addToast('AI request failed. Check your API key.', { type: 'error' });
+        onToast('AI request failed. Check your API key.');
       }
     } catch (e: any) {
-      addToast(`AI draft error: ${e?.message || 'Failed'}`, { type: 'error' });
+      onToast(`AI draft error: ${e?.message || 'Failed'}`);
     } finally {
       setIsAiDrafting(false);
     }
@@ -622,7 +624,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           if (!recipient) {
             // FIX: Show a toast for empty recipient instead of silently skipping.
             // Previously, the send silently failed with no user feedback.
-            showToast(`No ${channel === 'email' ? 'email' : 'phone number'} for ${r.tenantName || r.name || 'recipient'}. Skipped.`, 'error');
+            onToast(`No ${channel === 'email' ? 'email' : 'phone number'} for ${r.tenantName || r.name || 'recipient'}. Skipped.`);
             failCount++;
             continue;
           }
