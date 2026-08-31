@@ -43,6 +43,22 @@ function buildTimestamp() {
   return Date.now()
 }
 
+function appVersion() {
+  // Version string surfaced in the Founder APK Settings > About tab.
+  // Reads the consumer manifest (public/version.json) so the founder app
+  // reports the same platform version users are running.
+  try {
+    const versionFile = path.join(__dirname, 'public', 'version.json');
+    if (fs.existsSync(versionFile)) {
+      const manifest = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+      if (typeof manifest.apkVersion === 'string' && manifest.apkVersion) {
+        return `${manifest.apkVersion} (${gitSha().slice(0, 7)})`
+      }
+    }
+  } catch {}
+  return `dev-${gitSha().slice(0, 7)}`
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '')
 
@@ -80,6 +96,11 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'),
       'import.meta.env.VITE_BUILD_SHA': JSON.stringify(gitSha()),
       'import.meta.env.VITE_BUILD_TIMESTAMP': JSON.stringify(buildTimestamp()),
+      // Build-time constants consumed by src/admin/views/Settings.tsx (About tab).
+      // Without these defines the identifiers survive as bare globals and the
+      // whole admin bundle throws ReferenceError on module evaluation.
+      '__APP_VERSION__': JSON.stringify(appVersion()),
+      '__APP_MODE__': JSON.stringify(mode),
     }
   }
 })

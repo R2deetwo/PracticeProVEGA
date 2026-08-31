@@ -9430,3 +9430,74 @@ Stage Summary:
 - Documentation now complete and factual: 10 files written/fixed,
   pricing matches tiers.ts, routes/branches/filenames match reality
 - No app code changes needed — docs-only commit 9680d609
+---
+Task ID: guides-audit-1
+Agent: main (Super Z)
+Task: Write user-facing onboarding guides (PDF) for clients/residents + audit the founder/admin app the same way
+
+Work Log:
+- Explored portal surfaces and founder app in depth (login flows, tabs,
+  payment paths, admin views, Convex wiring, deployment topology) with
+  exact UI strings verified against source
+- Loaded PDF skill (creative-flow route) + all referenced typesetting
+  files; guides built as 720x1020 flowing HTML -> html2pdf-next.js
+  (Playwright + Paged.js) vector PDFs, Template-07-style dark cover with
+  per-product hue family (Atrium teal / Vega indigo / Founder emerald)
+- AUDIT FINDING (CRITICAL, FIXED): Founder APK crashed on launch with
+  ReferenceError: __APP_VERSION__ is not defined — src/admin/views/
+  Settings.tsx consumes __APP_VERSION__/__APP_MODE__ but
+  vite.admin.config.ts never defined them, so the bare globals survived
+  minification into dist-admin/assets/admin-*.js and killed module
+  evaluation (white screen). Fixed by adding build-time defines
+  (version from public/version.json + sha, mode from build mode);
+  verified: rebuilt bundle contains literal "1.0.1 (0c3de69)", no bare
+  globals; tsc baseline 153 unchanged; served dist-admin locally and
+  browser-verified the full login screen renders with zero console
+  errors and a real verifyLogin round-trip ("Account not found")
+- 26 live Convex probes on gregarious-malamute-537 covering every
+  founder-app and portal backing function: zero server errors; real
+  data returned for salesInquiries/listSalesInquiries (1 unread),
+  feedback/getFeedbackList, debug_env/checkEnv; verifyInviteToken
+  correctly rejects dummy tokens
+- Production config verified via checkEnv: Brevo mailer key present
+  (PracticePro_Vega_Mailer), Chakra WhatsApp configured — invite emails
+  and portal notifications are live, not simulated
+- Admin app deployment topology confirmed: APK-only via build-admin-apk
+  workflow (not served on Vercel/CF by design); consumer app renders
+  FounderDashboard only in the Founder APK
+- Audit notes (documented, no code change): FirmManagement.tsx and
+  UserManagement.tsx are orphaned views (superseded by OrganizationsHub,
+  tree-shaken at build); AtriumPublicApplicationForm.tsx is dead code
+  (no route references it — no landing-page claim is violated);
+  founder signup is open-by-design (APK distribution is the control);
+  session token is the user's email (weak binding — flagged for future)
+- DELIVERABLES (in /home/z/my-project/download/onboarding-guides/):
+  * Atrium-Residents-Portal-Getting-Started-Guide.pdf (13 pages,
+    HTML+PDF) — invites, password setup, sign-in, dashboard, rent
+    payments (Paystack + bank transfer), statuses, wallet, ledger,
+    receipts, maintenance, messages, Sentry Pass visitor codes,
+    community, security, troubleshooting
+  * Vega-Client-Portal-Getting-Started-Guide.pdf (10 pages) — firm
+    invites, setup, dashboard, matters + stages, documents (review +
+    e-sign), requests, secure messaging, invoices (transfer + notify
+    flow described accurately), receipts, security, troubleshooting
+  * PracticePro-Founder-App-Guide.pdf (9 pages) — APK install, founder
+    account, dashboard KPIs, organizations hub + 5-min impersonation,
+    subscription approvals + 72h auto-revert, payout details as single
+    source of truth, broadcast console, feedback/sales/signals,
+    analytics/exports/audit/security, settings
+- Guide QA: poster_validate (0 errors), pdf_qa (PASS — only intentional
+  left-aligned-cover margin warnings), per-page fill 73-100%, naira
+  sign renders correctly, no U+FFFD/tofu, page numbers stamped (bare
+  Arabic, cover/ending unnumbered), metadata set, VLM visual check on
+  6 pages = all PASS
+
+Stage Summary:
+- Founder/admin app audited the same way as the consumer deep dive:
+  one critical crash found and fixed (white-screen on APK launch), all
+  backend functions healthy, deployment + auth flows verified live
+- Three user-facing onboarding guides published as vector PDFs with
+  HTML sources, all grounded in code-verified behavior (exact labels,
+  routes, statuses, limits)
+- vite.admin.config.ts fix deployed via push -> build-admin-apk
+  workflow produces a fixed Founder APK
