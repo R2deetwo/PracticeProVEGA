@@ -9190,3 +9190,111 @@ Stage Summary:
 - Remaining audit scope for Phase 5: Pillars 1-5 (UI consistency,
   navigation integrity, core UX, AI engine UX, copywriting — incl. the
   ARIA→ALOA branding fixes and STYLE_GUIDE.md)
+---
+Task ID: phase5-0
+Agent: main (Super Z)
+Task: Production hotfix — Cloudflare site permanently unstyled (edge-cache-poisoned CSS URL)
+
+Work Log:
+- User reported workers.dev site broken/unstyled after the 08:09+08:15
+  deploys; Vercel recovered on refresh, Cloudflare never did
+- Diagnosed from user's screenshot (VLM: full DOM, zero styling) +
+  direct probing: HTML 200 OK, but /assets/index-DdjUCuWC.css returned
+  200 text/html 16325B (the SPA fallback!) from some edge PoPs while
+  other PoPs served the real 322828B text/css — same URL, both states
+- Ground truth from CI logs: both deployments DID contain the CSS
+  (Vercel build log 'index-DdjUCuWC.css 322.83 kB'; CF wrangler log
+  '31 already uploaded' — content-addressed store). Also found the
+  CSS URL is referenced by index.html AND the lazy-load maps inside
+  module-settings/module-documents JS chunks
+- ROOT CAUSE: vite content-hashes CSS, so its URL is stable across
+  deploys when CSS source is unchanged; during a deploy's propagation
+  window a request can hit a PoP that serves the SPA fallback (HTML)
+  for that URL; CF's workers.dev edge does not purge/revalidate those
+  entries on redeploy (cf-cache-status: HIT despite must-revalidate;
+  query-string cache-busters ignored) → permanently poisoned URL
+- Aggravator found: wrangler 4.86 logged 'Unexpected fields found in
+  assets field: cache_control' — the entire cache_control block in
+  wrangler.jsonc was NEVER honored (field unsupported in any wrangler
+  version per CF docs); removed the dead config
+- FIX (94081f89): scripts/bust-css-cache.cjs runs inside `npm run
+  build` after vite build — appends deploy id (git sha from
+  version.json/prebuild/GITHUB_SHA) to every CSS filename and
+  rewrites all references across dist/ (3 references patched: html +
+  2 JS lazy-load maps). Every deploy now ships a brand-new CSS URL.
+  Tried a vite generateBundle plugin first — vite's html/asset
+  post-processing re-derives filenames from chunk metadata, so
+  in-bundle renames do not survive; post-build fs script is
+  deterministic (documented in vite.config.ts comment)
+- Entry JS already self-rotates per build (baked VITE_BUILD_TIMESTAMP
+  changes its hash) — only CSS needed this
+
+Stage Summary:
+- Verified in prod: both platforms now reference
+  assets/index-DdjUCuWC-94081f89.css and serve 200 text/css 322828B;
+  version.json sha=94081f89 healthy; all 3 workflows green
+- User action needed: normal refresh (hard refresh safest) of the
+  workers.dev site
+- tsc 153 (baseline held); wrangler config cleaned + documented
+
+---
+Task ID: phase5-1
+Agent: main (Super Z)
+Task: Phase 5 — audit Pillars 1-5 (branding, UI consistency, navigation, UX, copywriting)
+
+Work Log:
+- 5.1 ARIA→ALOA sweep (Vega/legal surfaces), 10 fix sites:
+  ResearchAgent persona+2 response suffixes (legal agent was calling
+  itself by the property assistant's name), IngestionAgent,
+  DraftingAgent, AgencyHub (isAtriumMode-branched BRAIN name +
+  ALOA-X library block), ResourcesPage aloa-best-practices article +
+  VEGA/NDPA mentions, WhatsNew v1.10/v1.9/v1.6 legal notes,
+  MatterIntakeWizard 'ALOA Insight', MessagesView system-inbox
+  getAssistantName(isProperty), Sidebar 'ARIA-X'→'ALOA-X',
+  matterProcessConfig draftingExpectations
+- Swept all 46 files containing 'ARIA' to triage: confirmed remaining
+  mentions are legitimate (Atrium landing/tour/onboarding, ATRIUM-mode
+  prompts, dual ALOA/ARIA mentions, legal docs already isVega-branched,
+  internal comments, AIUsageDashboard neutral key map)
+- 1.1 radius scale completion: line-targeted script normalized the last
+  53 rounded-xl (buttons/inputs→md, cards/panels→lg, modal boxes→2xl)
+  across 24 files + shared inputModern form style → src/ count 0;
+  added eslint no-restricted-syntax (error) flagging any
+  string/template-literal rounded-xl with migration guidance
+- Verified already-fixed in prior sessions: 2.1 /portal-terms-of-use
+  kebab route, 2.2 aloaHelp neutral title, 3.1 create_task dueDate
+  guidance, 4.2 cancelAll processing reset; 4.1 auto/manual mode
+  deferred by design (audit: 'If Needed')
+- 5.2 STYLE_GUIDE.md confirmed present (115 lines, covers all 6
+  required sections)
+- REMAINING_AUDIT_ITEMS.md: all pillars marked closed — 6-pillar audit
+  fully remediated
+- Commit 1b7143d8 pushed; verification: tsc 153 (baseline), vite build
+  PASS, cache-bust rotated the new CSS content hash
+
+Stage Summary:
+- PHASE 5 COMPLETE — audit Pillars 1-6 all closed across Phases 1-5
+- TS: 153 throughout (baseline never increased)
+- Phase 5 push: 1b7143d8 (36 files, +188/-158)
+---
+Task ID: phase5-2
+Agent: main (Super Z)
+Task: Phase 5 — push + deploy verification
+
+Work Log:
+- 1b7143d8 pushed; all 4 workflows green (Vercel, Cloudflare,
+  Android APK, Admin APK); 'Deploy Convex backend' step: success
+  (no backend changes in Phase 5 — no-op deploy confirmed)
+- Prod verified on both platforms: sha 1b7143d8, status healthy,
+  CSS assets/index-CSNc8Xtn-1b7143d8.css serving 200 text/css
+  322797B (31B smaller than pre-Phase-5 — rounded-xl utilities
+  dropped out of the Tailwind output, consistent with the radius
+  normalization)
+
+Stage Summary:
+- PHASE 5 COMPLETE AND DEPLOYED. All 6 audit pillars remediated
+  across Phases 1-5. TS trajectory: 323 → 161 → 153 (never increased)
+- AUDIT FULLY CLOSED. Only deferred item: 4.1 auto/manual mode
+  (marked 'If Needed' in the audit, not user-requested)
+- Reminder for the user: revoke the GitHub PAT (pasted in chat)
+  now that Phase 5 is done
