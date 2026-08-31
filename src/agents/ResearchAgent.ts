@@ -5,7 +5,7 @@ import { ResearchSource, ResearchMessage, ResearchCitation } from '../types';
 export type AnalysisType = 'Chronology' | 'Brief' | 'Digest' | 'Gap' | 'Adversarial';
 
 // --- CONSTANTS ---
-const SENIOR_ASSOCIATE_PERSONA = `You are ARIA (Asset & Revenue Intelligence Assistant), a Senior Associate at a top-tier law firm. 
+const SENIOR_ASSOCIATE_PERSONA = `You are ALOA (Advanced Legal Office Assistant), a Senior Associate at a top-tier law firm. 
 Your goal is to provide precise, rigorous, and strategically sound legal analysis based *only* on the provided sources.
 
 STRICT GROUNDING RULES:
@@ -101,7 +101,7 @@ INSTRUCTIONS:
 Response in markdown. For every fact extracted, append the source ID in brackets like [[source_id]].
 I will post-process these into interactive citation bubbles.
 
-ARIA:`;
+ALOA:`;
 
     try {
         // Build multipart request for Gemini when PDFs are present
@@ -124,7 +124,7 @@ INSTRUCTIONS:
 Response in markdown. For every fact extracted, append the source ID in brackets like [[source_id]].
 I will post-process these into interactive citation bubbles.
 
-ARIA:`;
+ALOA:`;
 
         let fullResponse: string;
 

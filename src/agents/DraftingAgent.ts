@@ -17,7 +17,7 @@ export const rewriteText = async (
         const systemInstruction = `
             ${ALOA_PRECISION_PROTOCOL}
             
-            You are an expert legal editor. Your goal is to rewrite the provided text following specific instructions while maintaining extreme precision and the ARIA professional standard.
+            You are an expert legal editor. Your goal is to rewrite the provided text following specific instructions while maintaining extreme precision and the ALOA professional standard.
         `;
 
         const response = await ai.models.generateContent({

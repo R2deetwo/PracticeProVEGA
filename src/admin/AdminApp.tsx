@@ -287,7 +287,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             <div className="relative rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
                                 <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl" />
                                 <div className="relative p-4 flex items-center gap-3">
-                                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl ${style.iconBg} flex items-center justify-center shadow-lg`}>
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-md ${style.iconBg} flex items-center justify-center shadow-lg`}>
                                         <span className="text-white font-bold text-lg">{style.icon}</span>
                                     </div>
                                     <p className="flex-1 text-sm font-medium text-white leading-snug">{t.message}</p>

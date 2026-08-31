@@ -80,7 +80,7 @@ export const BannerShell: React.FC<BannerShellProps> = ({
   const config = BANNER_CONFIG[type] || BANNER_CONFIG.announcement;
 
   return (
-    <div className={`${config.bg} ${config.text} rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-2xl mx-auto w-full`}>
+    <div className={`${config.bg} ${config.text} rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 max-w-2xl mx-auto w-full`}>
       <span className="text-lg font-bold flex-shrink-0">{config.icon}</span>
       <p className="text-sm font-medium flex-1 min-w-0">{message}</p>
       {secondaryAction && (

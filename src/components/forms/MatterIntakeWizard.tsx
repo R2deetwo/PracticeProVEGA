@@ -442,7 +442,7 @@ const AloaHintBubble: React.FC<{ hint: AloaHint; onDismiss: () => void }> = ({ h
     <div className={`flex gap-2.5 p-3 rounded-lg border text-2xs leading-relaxed font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${HINT_COLORS[hint.type]}`}>
         <span className="text-base flex-shrink-0 mt-px">{hint.icon}</span>
         <div className="flex-1 min-w-0">
-            <span className="text-3xs font-black uppercase tracking-widest opacity-60 block mb-0.5">ARIA Insight</span>
+            <span className="text-3xs font-black uppercase tracking-widest opacity-60 block mb-0.5">ALOA Insight</span>
             <span>{hint.text}</span>
         </div>
         <button type="button" onClick={onDismiss} className="opacity-40 hover:opacity-100 transition-opacity flex-shrink-0 text-lg leading-none">

@@ -332,7 +332,7 @@ export const NotificationSettings: React.FC = () => {
       {/* Allows the user to verify their device is properly registered for
           FCM push notifications. Sends a test payload to their registered
           device tokens. Only visible on native platforms (APK). */}
-      <div className="mt-6 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50">
+      <div className="mt-6 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50">
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1">
             <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">Test Push Notification</p>

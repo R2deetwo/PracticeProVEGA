@@ -182,7 +182,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                         can scan it at the Sentry Pass terminal. Uses a
                         lightweight inline SVG QR renderer (no external dep). */}
                     <div className="flex justify-center mb-3">
-                        <div className="p-3 bg-white rounded-xl border border-slate-200 dark:border-zinc-700">
+                        <div className="p-3 bg-white rounded-lg border border-slate-200 dark:border-zinc-700">
                             <img
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(lastGenerated.tokenCode)}`}
                                 alt="Sentry Pass QR Code"

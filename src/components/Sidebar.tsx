@@ -408,7 +408,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     )}
                     {isHighTier && showAloaX && (
                         <NavItemLink
-                            item={{ view: 'indexer', text: 'ARIA-X', icon: <IndexerIcon /> }}
+                            item={{ view: 'indexer', text: 'ALOA-X', icon: <IndexerIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}

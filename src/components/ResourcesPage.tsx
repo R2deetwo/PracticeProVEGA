@@ -337,7 +337,7 @@ ISO/IEC 42001 is the first international standard specifically designed for AI m
 - **Ensure explainability** — maintain the ability to explain AI-generated outputs to clients and courts
 - **Monitor performance** — continuously audit AI systems for accuracy, bias, and drift
 
-For law firms, "explainability" is particularly critical. If ARIA® generates a legal research brief, the supervising lawyer must be able to articulate the reasoning independently — AI output is a starting point, not a conclusion.
+For law firms, "explainability" is particularly critical. If ALOA® generates a legal research brief, the supervising lawyer must be able to articulate the reasoning independently — AI output is a starting point, not a conclusion.
 
 ## 2. Data Minimization in Legal AI
 
@@ -372,9 +372,9 @@ AI tools must not substitute for:
 ## 5. PracticePro's Approach
 
 PracticePro VEGA implements AI responsibly through:
-- **Explicit consent capture** at onboarding — users must acknowledge AI processing before ARIA® is activated
+- **Explicit consent capture** at onboarding — users must acknowledge AI processing before ALOA® is activated
 - **Audit logging** of all AI-generated outputs, preserving accountability trails
-- **No secondary data use** — client data submitted to ARIA® is processed in context and not used to train models
+- **No secondary data use** — client data submitted to ALOA® is processed in context and not used to train models
 - **Human-in-the-loop design** — all AI suggestions require explicit lawyer confirmation before any action is taken
 
 ## Conclusion
@@ -595,7 +595,7 @@ Your firm profile appears on invoices, reports, and client portal communications
 - Go to **Settings** > **Firm Settings**
 - Upload your firm's letterhead logo
 - Enter your registered firm name and physical address
-- Set your primary jurisdiction (this influences ARIA's contextual awareness)
+- Set your primary jurisdiction (this influences ALOA's contextual awareness)
 
 ### 2. Invite Your Team
 Invite your partners, associates, and support staff.
@@ -616,30 +616,30 @@ A "Matter" is the central hub for any case or transaction.
     },
     {
         id: 'aloa-best-practices',
-        title: 'ARIA® AI Copilot — Best Practices',
-        description: 'How to prompt ARIA effectively, interpret its outputs, and maintain professional responsibility when using AI assistance.',
+        title: 'ALOA® AI Copilot — Best Practices',
+        description: 'How to prompt ALOA effectively, interpret its outputs, and maintain professional responsibility when using AI assistance.',
         tag: 'AI',
         readTime: '6 min read',
         content: `
-## Working with ARIA®
+## Working with ALOA®
 
-ARIA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Getting the best results from ARIA requires effective prompting.
+ALOA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Getting the best results from ALOA requires effective prompting.
 
 ### Principles of Good Prompting
 The way you ask a question determines the quality of the answer. Use the "Context + Task + Format" framework:
 
-- **Context:** Provide the background. *"We act for a landlord with a property in Lagos who wishes to evict a commercial tenant for non-payment of rent for 6 months."* (Replace "Lagos" with the state where your property is located — ARIA applies the tenancy law of that state.)
+- **Context:** Provide the background. *"We act for a landlord with a property in Lagos who wishes to evict a commercial tenant for non-payment of rent for 6 months."* (Replace "Lagos" with the state where your property is located — ALOA applies the tenancy law of that state.)
 - **Task:** State exactly what you need. *"Draft a 7-day statutory notice of owner's intention to recover premises."*
 - **Format:** Specify how you want it delivered. *"Format this as a formal legal letter with placeholders for names."*
 
-### What ARIA Does Best
+### What ALOA Does Best
 - **Document Summarization:** Upload a 50-page judgment or contract and ask for key findings, obligations, or risks.
 - **First Drafts:** Generate routine correspondence, NDAs, and standard motions.
 - **Clause Analysis:** Compare multiple variations of an indemnity clause to find the most favorable one.
 
 ### Professional Responsibility
-ARIA is an assistant, not a lawyer.
-- **Always Verify:** AI can hallucinate citations. If ARIA cites a case (e.g., *Savannah Bank v. Ajilo*), verify it yourself.
+ALOA is an assistant, not a lawyer.
+- **Always Verify:** AI can hallucinate citations. If ALOA cites a case (e.g., *Savannah Bank v. Ajilo*), verify it yourself.
 - **Protect Client Confidentiality:** While PracticePro keeps your data isolated, you should still avoid entering unnecessary sensitive client information into conversational prompts if it isn't required for the task.
         `
     },
@@ -1028,7 +1028,7 @@ const WHATS_NEW_ENTRIES: WhatsNewEntry[] = [
         products: ['vega', 'atrium'],
         category: 'feature',
         items: [
-            { label: 'AI Morning Briefing', body: 'Daily AI-generated briefing per firm: stalled matters, upcoming deadlines, revenue at risk, recent anomalies. Delivered as ARIA chat message at 6:15 AM UTC.' },
+            { label: 'AI Morning Briefing', body: 'Daily AI-generated briefing per firm: stalled matters, upcoming deadlines, revenue at risk, recent anomalies. Delivered as an AI assistant chat message at 6:15 AM UTC.' },
             { label: 'Deadline Scanner', body: 'Scans tasks, events, and service charges for overdue/upcoming deadlines every 6 hours. Creates proactive_insights records.' },
             { label: 'Anomaly Detector', body: 'Daily detection of stalled matters (30d), unassigned matters, high defaulter ratios, unread messages.' },
             { label: 'Cross-Session Memory', body: 'AI conversations are summarized nightly and injected into new sessions for continuity.' },
@@ -1551,13 +1551,13 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <button
                             onClick={() => (onStartTrial || onBack)()}
-                            className="px-6 py-3 rounded-xl bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors shadow-lg"
+                            className="px-6 py-3 rounded-md bg-white text-slate-900 text-sm font-bold hover:bg-slate-100 transition-colors shadow-lg"
                         >
                             Start Free Trial
                         </button>
                         <button
                             onClick={() => (onContactSales || onBack)()}
-                            className="px-6 py-3 rounded-xl border border-slate-600 text-white text-sm font-bold hover:bg-white/10 transition-colors"
+                            className="px-6 py-3 rounded-md border border-slate-600 text-white text-sm font-bold hover:bg-white/10 transition-colors"
                         >
                             Talk to Sales
                         </button>

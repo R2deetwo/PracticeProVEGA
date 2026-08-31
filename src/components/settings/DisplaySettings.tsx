@@ -123,7 +123,7 @@ const ThemePicker: React.FC<{ theme: Theme; setTheme: (t: Theme) => void }> = ({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full h-11 px-4 py-2.5 rounded-xl border transition-all duration-200 flex items-center justify-between cursor-pointer bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 text-slate-800 dark:text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                className="w-full h-11 px-4 py-2.5 rounded-md border transition-all duration-200 flex items-center justify-between cursor-pointer bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 text-slate-800 dark:text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
             >
                 <span className="flex items-center gap-2.5 min-w-0">
                     <span
@@ -143,7 +143,7 @@ const ThemePicker: React.FC<{ theme: Theme; setTheme: (t: Theme) => void }> = ({
             {/* Floating dropdown */}
             {isOpen && (
                 <div
-                    className="absolute top-full left-0 right-0 mt-2 p-2 rounded-xl shadow-2xl border backdrop-blur-md z-50 min-w-[280px] bg-white dark:bg-slate-900/95 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 animate-in fade-in-0 zoom-in-95 duration-150 max-h-[400px] overflow-y-auto custom-scrollbar"
+                    className="absolute top-full left-0 right-0 mt-2 p-2 rounded-lg shadow-2xl border backdrop-blur-md z-50 min-w-[280px] bg-white dark:bg-slate-900/95 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 animate-in fade-in-0 zoom-in-95 duration-150 max-h-[400px] overflow-y-auto custom-scrollbar"
                 >
                     {THEME_GROUPS.map((group, gi) => (
                         <div key={group.title}>

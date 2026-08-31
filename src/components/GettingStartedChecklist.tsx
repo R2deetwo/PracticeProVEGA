@@ -294,7 +294,7 @@ const GettingStartedChecklist: React.FC = () => {
   const handleExpand = () => setIsCollapsed(false);
 
   return (
-    <div className="mx-3 mb-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
+    <div className="mx-3 mb-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-primary-50 to-emerald-50 dark:from-zinc-800 dark:to-zinc-800 border-b border-slate-100 dark:border-zinc-800">
         <div className="flex items-center gap-2 flex-1 min-w-0">

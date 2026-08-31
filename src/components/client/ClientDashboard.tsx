@@ -613,7 +613,7 @@ const ClientDashboard: React.FC = () => {
                 {/* Merged Outstanding Balance — tap to view financials */}
                 <button
                     onClick={() => handleTabChange('financials')}
-                    className="w-full text-left bg-white/15 hover:bg-white/20 rounded-xl p-3 active:scale-[0.98] transition-all border border-white/10"
+                    className="w-full text-left bg-white/15 hover:bg-white/20 rounded-lg p-3 active:scale-[0.98] transition-all border border-white/10"
                 >
                     <div className="flex items-center justify-between">
                         <div>

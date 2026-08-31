@@ -300,7 +300,7 @@ export const MATTER_PROCESS_CONFIGS: MatterProcessConfig[] = [
     keyIntakeFields: [
       { fieldId: 'action_description', label: 'Describe the Legal Action',  type: 'textarea', required: true, placeholder: 'Briefly describe the nature of this matter...' },
     ],
-    draftingExpectations: 'ARIA will use the matter description to suggest appropriate documents.',
+    draftingExpectations: 'ALOA will use the matter description to suggest appropriate documents.',
   },
 ];
 

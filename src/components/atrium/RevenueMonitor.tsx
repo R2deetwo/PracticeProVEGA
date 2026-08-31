@@ -155,19 +155,19 @@ const ServiceChargeDashboard: React.FC = () => {
         <div className="p-4 space-y-4">
             {/* Stat cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 shadow-sm">
+                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm">
                     <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Total Charges</p>
                     <p className="text-lg font-black text-slate-900 dark:text-white">{allCharges.length}</p>
                 </div>
-                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 shadow-sm">
+                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm">
                     <p className="text-2xs font-bold text-rose-500 uppercase tracking-wider mb-1">Defaulters</p>
                     <p className="text-lg font-black text-rose-600 dark:text-rose-400">{defaulters.length}</p>
                 </div>
-                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 shadow-sm">
+                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm">
                     <p className="text-2xs font-bold text-amber-500 uppercase tracking-wider mb-1">Critical</p>
                     <p className="text-lg font-black text-amber-600 dark:text-amber-400">{critical.length}</p>
                 </div>
-                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 shadow-sm">
+                <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm">
                     <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Revenue at Risk</p>
                     <p className="text-lg font-black text-rose-600 dark:text-rose-400">₦{formatNaira(revenueAtRisk)}</p>
                 </div>
@@ -206,7 +206,7 @@ const ServiceChargeDashboard: React.FC = () => {
                     </div>
                 ) : (
                     charges.map((charge: any) => (
-                        <div key={charge._id} className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 shadow-sm">
+                        <div key={charge._id} className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm">
                             <div className="flex items-start justify-between gap-3 mb-2">
                                 <div>
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">{charge.category || 'Service Charge'}</p>
@@ -244,7 +244,7 @@ const ServiceChargeDashboard: React.FC = () => {
             {/* Partial payment modal */}
             {partialPaymentCharge && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPartialPaymentCharge(null)}>
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
                         <h3 className="text-base font-bold text-slate-900 dark:text-white mb-3">Partial Payment</h3>
                         <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">Amount due: ₦{formatNaira(partialPaymentCharge.amount)}</p>
                         <input

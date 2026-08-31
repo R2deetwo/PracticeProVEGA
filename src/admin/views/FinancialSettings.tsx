@@ -150,7 +150,7 @@ export const FinancialSettings: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+          className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
         >
           {isSaving ? (
             <>

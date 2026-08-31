@@ -119,7 +119,7 @@ export const SalesPipeline: React.FC = () => {
                         {safeInquiries.map((inquiry: any) => (
                             <div
                                 key={inquiry._id}
-                                className={`border rounded-xl overflow-hidden transition-all ${
+                                className={`border rounded-lg overflow-hidden transition-all ${
                                     inquiry.status === 'unread'
                                         ? 'border-amber-300 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-900/10'
                                         : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'

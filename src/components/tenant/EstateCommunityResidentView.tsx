@@ -179,7 +179,7 @@ const EstateCommunityResidentView: React.FC<Props> = ({
               .map((b: any) => (
                 <div
                   key={b._id}
-                  className={`p-4 rounded-xl border ${
+                  className={`p-4 rounded-lg border ${
                     b.isPinned
                       ? 'border-amber-200 bg-amber-50/30 dark:bg-amber-900/10 dark:border-amber-800'
                       : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900'
@@ -231,7 +231,7 @@ const EstateCommunityResidentView: React.FC<Props> = ({
                 <button
                   key={a._id}
                   onClick={() => { setBookingAmenityId(a._id); setBookingDate(''); }}
-                  className={`p-4 text-left rounded-xl border-2 transition-all ${
+                  className={`p-4 text-left rounded-lg border-2 transition-all ${
                     bookingAmenityId === a._id
                       ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-900/10'
                       : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-900'
@@ -255,7 +255,7 @@ const EstateCommunityResidentView: React.FC<Props> = ({
 
           {/* Booking form — shown when an amenity is selected */}
           {bookingAmenityId && (
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 space-y-3">
+            <div className="p-4 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 space-y-3">
               <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">Book a slot</h4>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
@@ -306,7 +306,7 @@ const EstateCommunityResidentView: React.FC<Props> = ({
             providers.map((p: any) => {
               const cat = PROVIDER_CATEGORIES.find(c => c.value === p.category) || PROVIDER_CATEGORIES[5];
               return (
-                <div key={p._id} className="p-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                <div key={p._id} className="p-4 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-xl">
                       {cat.icon}

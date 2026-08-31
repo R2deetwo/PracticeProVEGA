@@ -96,7 +96,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
               <div className="flex flex-col gap-3 w-full max-w-xs">
                 <button
                   onClick={this.handleReload}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold transition-colors flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -106,7 +106,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
 
                 <button
                   onClick={this.handleHardReset}
-                  className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-sm font-bold border border-white/10 transition-colors"
+                  className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-md text-sm font-bold border border-white/10 transition-colors"
                 >
                   Return to Home
                 </button>
@@ -125,7 +125,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
                 </button>
 
                 {this.state.showDetails && (
-                  <div className="mt-3 p-4 bg-black/50 border border-white/5 rounded-xl text-left overflow-hidden">
+                  <div className="mt-3 p-4 bg-black/50 border border-white/5 rounded-lg text-left overflow-hidden">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Error Log</p>
                     <pre className="font-mono text-xs text-slate-600 break-all whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
                       {rawMsg}

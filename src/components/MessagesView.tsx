@@ -9,6 +9,7 @@ import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { PaperClipIcon, SendIcon, TrashIcon, DocumentIcon, ChevronRightIcon, ClockIcon, CheckIcon, DownloadIcon, PlusIcon, BellIcon, SparklesIcon } from '../constants';
 import { getUserColor, getInitials, timeAgo } from '../utils/colorUtils';
+import { getAssistantName } from '../utils/assistantIdentity';
 import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
@@ -1206,11 +1207,11 @@ const MessagesView: React.FC = () => {
 
         const hasSystemMessages = myFeedback.length > 0;
 
-        if (hasSystemMessages && (!searchQuery || 'system inbox aria practicepro team'.includes(searchQuery.toLowerCase()))) {
+        if (hasSystemMessages && (!searchQuery || 'system inbox ai assistant aloa aria practicepro team'.includes(searchQuery.toLowerCase()))) {
             const systemConv = {
                 id: 'system-inbox',
                 type: 'system',
-                name: 'ARIA Assistant',
+                name: `${getAssistantName(isProperty)} Assistant`,
                 memberIds: [currentUser.id],
                 _isSystem: true,
                 unreadCount: systemUnreadCount,
@@ -1220,7 +1221,7 @@ const MessagesView: React.FC = () => {
         }
 
         return chats;
-    }, [conversations, lastMessageTimeByConv, searchQuery, currentUser, users, myFeedback, coreState.notifications]);
+    }, [conversations, lastMessageTimeByConv, searchQuery, currentUser, users, myFeedback, coreState.notifications, isProperty]);
 
     useEffect(() => {
         if (activeConversationId) {

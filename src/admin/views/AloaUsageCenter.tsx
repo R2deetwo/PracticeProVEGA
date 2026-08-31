@@ -181,7 +181,7 @@ const AloaUsageCenter: React.FC = () => {
                 {perFirm?.length > 0 ? (
                   <div className="space-y-2">
                     {perFirm.map((firm: any, i: number) => (
-                      <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl">
+                      <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-lg">
                         <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {i + 1}
                         </span>

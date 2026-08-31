@@ -792,13 +792,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => setUseWhatsapp(true)}
-                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useWhatsapp === true ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-md transition-all ${useWhatsapp === true ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                 >
                   Yes — I'll use WhatsApp
                 </button>
                 <button
                   onClick={() => setUseWhatsapp(false)}
-                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useWhatsapp === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-md transition-all ${useWhatsapp === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                 >
                   Not yet
                 </button>
@@ -821,13 +821,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => setUseEmail(true)}
-                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useEmail === true ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-md transition-all ${useEmail === true ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                 >
                   Yes — I'll use Email
                 </button>
                 <button
                   onClick={() => setUseEmail(false)}
-                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${useEmail === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-md transition-all ${useEmail === false ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                 >
                   Not yet
                 </button>
@@ -911,13 +911,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 px-4 py-3 bg-white rounded-xl border border-slate-200 font-mono font-bold text-lg text-center text-slate-900 tracking-widest">
+                  <div className="flex-1 px-4 py-3 bg-white rounded-md border border-slate-200 font-mono font-bold text-lg text-center text-slate-900 tracking-widest">
                     {firmInviteCode || (firmBasicInfo === undefined ? 'Loading…' : '—')}
                   </div>
                   <button
                     onClick={copyInviteCode}
                     disabled={!firmInviteCode}
-                    className="px-4 py-3 bg-primary-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50"
+                    className="px-4 py-3 bg-primary-600 text-white text-xs font-black uppercase tracking-widest rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
                   >
                     Copy
                   </button>

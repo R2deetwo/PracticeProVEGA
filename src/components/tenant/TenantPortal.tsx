@@ -979,7 +979,7 @@ const DashboardTab: React.FC<{
           {nextRentDue && (
             <button
               onClick={() => onNavigate('payments')}
-              className="text-left bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 active:scale-[0.98] transition-transform"
+              className="text-left bg-white dark:bg-zinc-800 rounded-lg p-3 border border-slate-200 dark:border-zinc-700 active:scale-[0.98] transition-transform"
             >
               <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Next Rent Due</p>
               <p className="text-lg font-black text-slate-900 dark:text-white">{formatNaira(rentAmount)}</p>
@@ -993,7 +993,7 @@ const DashboardTab: React.FC<{
           {leaseStart && leaseEnd && (
             <button
               onClick={() => onNavigate('documents')}
-              className="text-left bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 active:scale-[0.98] transition-transform"
+              className="text-left bg-white dark:bg-zinc-800 rounded-lg p-3 border border-slate-200 dark:border-zinc-700 active:scale-[0.98] transition-transform"
             >
               <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Lease Period</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white">
@@ -3933,7 +3933,7 @@ const VisitorDisabledState: React.FC<{ onRequestEnable?: () => void; isRequestin
       Generate 6-digit access codes for your visitors, contractors, and delivery
       personnel. Codes are verified at the Sentry Pass for seamless entry.
     </p>
-    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 max-w-sm mb-4">
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg p-4 max-w-sm mb-4">
       <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">
         Feature Not Yet Active
       </p>
@@ -3946,7 +3946,7 @@ const VisitorDisabledState: React.FC<{ onRequestEnable?: () => void; isRequestin
       <button
         onClick={onRequestEnable}
         disabled={isRequesting}
-        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        className="px-4 py-2.5 bg-emerald-600 text-white rounded-md text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
       >
         {isRequesting ? (
           <>
@@ -4113,7 +4113,7 @@ const HelpAndSupportTab: React.FC<{
               </div>
             ))}
             {/* Privacy Note */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-3 mt-2">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg p-3 mt-2">
               <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 mb-1">Your Privacy</h4>
               <p className="text-xs text-blue-800 dark:text-blue-400 leading-relaxed">
                 Your personal data — financial ledger, payment history, messages — is
@@ -4264,13 +4264,13 @@ const HelpAndSupportTab: React.FC<{
             {portalSettings?.tenantMessagingEnabled ? (
               <button
                 onClick={() => onNavigate('messages')}
-                className="w-full flex items-center justify-center gap-2 p-3 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 p-3 bg-primary-600 text-white rounded-md text-sm font-bold hover:bg-primary-700 transition-colors"
               >
                 <ChatIcon className="w-4 h-4" />
                 Message Property Manager
               </button>
             ) : (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3">
                 <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
                   Messaging is not enabled for your property. Please contact your property manager directly using the details above.
                 </p>

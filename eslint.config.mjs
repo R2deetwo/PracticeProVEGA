@@ -42,6 +42,22 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-undef": "off",
     "no-unreachable": "off",
     "no-useless-escape": "off",
+
+    // Border-radius scale enforcement (STYLE_GUIDE.md §2, audit Pillar 1.1).
+    // `rounded-xl` is deprecated — the 3-tier scale is rounded-md (buttons,
+    // inputs, chips), rounded-lg (cards, list items, dropdowns), rounded-2xl
+    // (modals, hero blocks). Matches both plain string literals and template
+    // literals used for className composition.
+    "no-restricted-syntax": ["error",
+      {
+        selector: "Literal[value=/\\brounded-xl\\b/]",
+        message: "rounded-xl is deprecated (STYLE_GUIDE.md §2). Use rounded-md (buttons/inputs/chips), rounded-lg (cards/list items/dropdowns), or rounded-2xl (modals/hero blocks).",
+      },
+      {
+        selector: "TemplateElement[value.raw=/\\brounded-xl\\b/]",
+        message: "rounded-xl is deprecated (STYLE_GUIDE.md §2). Use rounded-md (buttons/inputs/chips), rounded-lg (cards/list items/dropdowns), or rounded-2xl (modals/hero blocks).",
+      },
+    ],
   },
 }, {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]

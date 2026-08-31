@@ -36,7 +36,7 @@ export const getSystemInstruction = (
     if (isFirmSearchEnabled && semanticContext) {
         firmRAGPrompt = `
         **INSTITUTIONAL KNOWLEDGE RETRIEVAL (AUTO-RAG):**
-        ARIA BRAIN — The following snippets were retrieved from your ${isAtriumMode ? "portfolio" : "firm's"} private memory based on the current query:
+        ${isAtriumMode ? "ARIA" : "ALOA"} BRAIN — The following snippets were retrieved from your ${isAtriumMode ? "portfolio" : "firm's"} private memory based on the current query:
         
         ${semanticContext}
 
@@ -47,7 +47,7 @@ export const getSystemInstruction = (
     let libraryPrompt = "";
     if (aloaXLibrary && aloaXLibrary.length > 0) {
         libraryPrompt = `
-        **ARIAX LEGAL KNOWLEDGE BASE (OFFLINE LIBRARY):**
+        **ALOA-X LEGAL KNOWLEDGE BASE (OFFLINE LIBRARY):**
         The user has the following indexed legal documents (Acts, Rules, Judgments) in their personal library:
         ${aloaXLibrary.map(d => `- [${d.documentType}] ${d.fileName} (${d.totalPages} pages)`).join('\n')}
         You can provide insights from these documents.

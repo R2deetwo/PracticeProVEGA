@@ -91,7 +91,7 @@ const ToastRefreshNotification: React.FC = () => {
           {/* Icon + Title */}
           <div className="flex items-start gap-3 mb-4">
             {/* Large rounded-square icon container — matches standard toast style */}
-            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30">
+            <div className="flex-shrink-0 w-10 h-10 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30">
               <RefreshIcon className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">

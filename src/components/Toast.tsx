@@ -146,7 +146,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
         <div className="relative p-4 pr-10">
           <div className="flex items-start gap-3">
             {/* Large rounded-square icon container */}
-            <div className={`flex-shrink-0 w-10 h-10 rounded-xl ${style.iconBg} flex items-center justify-center shadow-lg`}>
+            <div className={`flex-shrink-0 w-10 h-10 rounded-md ${style.iconBg} flex items-center justify-center shadow-lg`}>
               {style.icon}
             </div>
             {/* Message */}

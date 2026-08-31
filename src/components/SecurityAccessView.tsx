@@ -161,7 +161,7 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
         {/* Overview Hero */}
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-black dark:to-zinc-950 text-white rounded-2xl p-6 shadow-xl">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
               <Shield className="w-6 h-6" />
             </div>
             <div>

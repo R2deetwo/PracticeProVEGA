@@ -160,7 +160,7 @@ const EstateCommunitySettings: React.FC = () => {
         {modules.map((m) => (
           <div
             key={m.key}
-            className={`p-4 rounded-xl border-2 transition-all ${
+            className={`p-4 rounded-lg border-2 transition-all ${
               m.enabled
                 ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-900/10'
                 : 'border-slate-200 dark:border-zinc-700'

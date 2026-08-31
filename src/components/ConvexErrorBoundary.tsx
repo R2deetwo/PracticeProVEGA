@@ -186,7 +186,7 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
           <button
             onClick={onRetry}
             disabled={isRetrying}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isRetrying ? (
               <>
@@ -208,7 +208,7 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
 
           <button
             onClick={handleHardReload}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-sm font-bold border border-white/10 transition-colors"
+            className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-md text-sm font-bold border border-white/10 transition-colors"
           >
             Reload App
           </button>
@@ -234,7 +234,7 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
           </button>
 
           {showDetails && (
-            <div className="mt-3 p-4 bg-black/50 border border-white/5 rounded-xl text-left overflow-hidden">
+            <div className="mt-3 p-4 bg-black/50 border border-white/5 rounded-lg text-left overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Error Log</span>
                 <button onClick={handleCopy} className="text-xs text-slate-500 hover:text-emerald-400 transition-colors">

@@ -3,7 +3,7 @@
  * Use these instead of inline commonInputClass definitions.
  *
  * Three style variants:
- * - inputModern: Primary style for main forms (ring-based, rounded-xl)
+ * - inputModern: Primary style for main forms (ring-based, rounded-md)
  * - inputClassic: Secondary style for simple/modal forms (border-based, rounded-md)
  * - inputLarge: Larger variant for modals and auth screens
  *
@@ -24,7 +24,7 @@
  * so explicit dark: variants here take precedence over the safety net.
  */
 
-export const inputModern = "w-full bg-white dark:bg-zinc-800/60 border-none ring-1 ring-slate-200 dark:ring-zinc-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-400 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 outline-none transition-all shadow-sm";
+export const inputModern = "w-full bg-white dark:bg-zinc-800/60 border-none ring-1 ring-slate-200 dark:ring-zinc-700 rounded-md px-4 py-2.5 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-400 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 outline-none transition-all shadow-sm";
 
 export const inputClassic = "text-gray-900 dark:text-zinc-100 w-full bg-gray-50 dark:bg-zinc-800/60 border border-gray-300 dark:border-zinc-700 rounded-md shadow-sm p-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-primary-500 dark:focus:border-primary-400 placeholder:text-slate-400 dark:placeholder:text-zinc-400";
 
