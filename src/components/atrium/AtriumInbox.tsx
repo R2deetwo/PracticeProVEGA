@@ -66,7 +66,7 @@ export const AtriumInbox: React.FC = () => {
     const firmId = coreState.firmDetails?.id || currentUser?.firmId;
 
     // Use query for inbound messages
-    const messages = useQuery(api.sentry.getInboundMessages, firmId ? { firmId } : 'skip') || [];
+    const messages = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email } : 'skip') || [];
     const deleteMessage = useMutation(api.sentry.deleteInboundMessage);
     const markAsRead = useMutation(api.sentry.markMessageAsRead);
     const logAutomation = useMutation(api.sentry.logAutomation);
@@ -86,18 +86,18 @@ export const AtriumInbox: React.FC = () => {
     // Audit trail query with filters
     const auditQueryArgs = useMemo(() => {
         if (!firmId) return 'skip';
-        const args: any = { firmId };
+        const args: any = { firmId, userEmail: currentUser?.email };
         if (auditFilters.channel) args.channel = auditFilters.channel;
         if (auditFilters.messageType) args.messageType = auditFilters.messageType;
         if (auditFilters.startDate) args.startDate = new Date(auditFilters.startDate).getTime();
         if (auditFilters.endDate) args.endDate = new Date(auditFilters.endDate + 'T23:59:59').getTime();
         return args;
-    }, [firmId, auditFilters]);
+    }, [firmId, auditFilters, currentUser?.email]);
 
     const auditTrail = useQuery(api.sentry.getAuditTrail, auditQueryArgs) || [];
 
     // Automation logs for quick counts
-    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100 } : 'skip') || [];
+    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip') || [];
     
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
@@ -123,7 +123,7 @@ export const AtriumInbox: React.FC = () => {
 
     const handleSelectThread = (id: string) => {
         setSelectedThreadId(id);
-        markAsRead({ messageId: id as any });
+        markAsRead({ messageId: id as any, userEmail: currentUser?.email });
     };
 
     const handleUseReply = (suggested: string) => {
@@ -140,7 +140,7 @@ export const AtriumInbox: React.FC = () => {
             danger: true,
         });
         if (!ok) return;
-        await deleteMessage({ messageId: id as any });
+        await deleteMessage({ messageId: id as any, userEmail: currentUser?.email });
         if (selectedThreadId === id) setSelectedThreadId(null);
         addToast("Message deleted", { type: "info" });
     };
@@ -165,6 +165,7 @@ export const AtriumInbox: React.FC = () => {
                 try {
                     await logAutomation({
                         firmId: firmId!,
+                        userEmail: currentUser?.email,
                         unitId: selectedMessage.unitId || undefined,
                         tenantId: selectedMessage.tenantId || undefined,
                         messageType: 'custom' as any,

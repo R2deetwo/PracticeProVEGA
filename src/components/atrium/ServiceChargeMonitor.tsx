@@ -59,6 +59,7 @@ function formatDate(ts: number) {
 // ── Add Charge Modal ──────────────────────────────────────────────────────
 const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmId, onClose }) => {
   const upsert = useMutation(api.sentry.upsertServiceCharge);
+  const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const [form, setForm] = useState({ unitId: '', category: 'Diesel' as ServiceChargeCategory, amount: '', cycle: 'Annually' as 'Monthly' | 'Quarterly' | 'Annually', notes: '', nextDueDays: '0' });
   const [loading, setLoading] = useState(false);
@@ -72,7 +73,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ fir
     setLoading(true);
     const nextDueDate = Date.now() + parseInt(form.nextDueDays) * 86400000;
     try {
-      await upsert({ firmId, unitId: form.unitId, category: form.category, amount: parseFloat(form.amount), cycle: form.cycle, nextDueDate, notes: form.notes });
+      await upsert({ firmId, unitId: form.unitId, category: form.category, amount: parseFloat(form.amount), cycle: form.cycle, nextDueDate, notes: form.notes, userEmail: currentUser?.email });
       onClose();
     } finally { setLoading(false); }
   };
@@ -132,6 +133,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ fir
 
 // ── Penalty Confirm Modal ─────────────────────────────────────────────────
 const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: () => void; onToast: (msg: string) => void }> = ({ charge, firmId, onClose, onToast }) => {
+  const { currentUser } = useAuth();
   const applyPenalty = useMutation(api.sentry.applyLatePenalty);
   const logAuto = useMutation(api.sentry.logAutomation);
   const penalty = charge.amount * PENALTY_RATE;
@@ -140,8 +142,8 @@ const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: (
   const handleApply = async () => {
     setLoading(true);
     try {
-      await applyPenalty({ firmId, serviceChargeId: charge._id as any, penaltyAmount: penalty });
-      await logAuto({ firmId, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'penalty_notice', channel: 'whatsapp', recipient: charge.tenantId || 'unknown', messagePreview: `Late payment penalty of ₦${penalty.toLocaleString()} applied for ${charge.category} charge.`, status: 'simulated', triggeredBy: 'agent' });
+      await applyPenalty({ firmId, serviceChargeId: charge._id as any, penaltyAmount: penalty, userEmail: currentUser?.email });
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'penalty_notice', channel: 'whatsapp', recipient: charge.tenantId || 'unknown', messagePreview: `Late payment penalty of ₦${penalty.toLocaleString()} applied for ${charge.category} charge.`, status: 'simulated', triggeredBy: 'agent' });
       onToast(`₦${penalty.toLocaleString()} penalty applied & logged`);
       onClose();
     } finally { setLoading(false); }
@@ -323,13 +325,14 @@ const ServiceChargeMonitor: React.FC = () => {
           paidAmount: charge.amount,
           firmId,
           channel: 'Bank Transfer',
+          userEmail: currentUser?.email,
         },
         label: `${charge.category} charge marked paid — ${getUnitLabel(charge.unitId)}`,
       });
       showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
       return;
     }
-    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer' });
+    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email });
     showToast(`${charge.category} charge marked as fully paid`);
   };
 
@@ -349,6 +352,7 @@ const ServiceChargeMonitor: React.FC = () => {
           firmId,
           channel: 'Bank Transfer',
           isPartialPayment: true,
+          userEmail: currentUser?.email,
         },
         label: `Partial payment ₦${amount.toLocaleString()} — ${getUnitLabel(partialPaymentCharge.unitId)}`,
       });
@@ -358,14 +362,14 @@ const ServiceChargeMonitor: React.FC = () => {
       return;
     }
 
-    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true });
+    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email });
     showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
     setPartialPaymentCharge(null);
     setPartialAmount('');
   };
 
   const handleRestrict = async (charge: ServiceCharge) => {
-    await logAuto({ firmId, unitId: charge.unitId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `Access restriction notice sent for ${getUnitLabel(charge.unitId)} — ${charge.category} overdue ${charge.daysOverdue} days.`, status: 'simulated', triggeredBy: currentUser?.id });
+    await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `Access restriction notice sent for ${getUnitLabel(charge.unitId)} — ${charge.category} overdue ${charge.daysOverdue} days.`, status: 'simulated', triggeredBy: currentUser?.id });
     showToast('Access restriction notice sent via WhatsApp (simulated)');
   };
 
@@ -375,7 +379,7 @@ const ServiceChargeMonitor: React.FC = () => {
     const msgPreview = isPartial
       ? `Reminder: Your ${charge.category} charge has an outstanding balance of ₦${outstanding.toLocaleString()} (₦${(charge.amountPaidThisCycle ?? 0).toLocaleString()} paid of ₦${charge.amount.toLocaleString()}). Kindly complete payment.`
       : `Reminder: Your ${charge.category} charge of ₦${charge.amount.toLocaleString()} is ${charge.isDefaulter ? `${charge.daysOverdue} days overdue` : 'due soon'}.`;
-    await logAuto({ firmId, unitId: charge.unitId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: msgPreview, status: 'simulated', triggeredBy: currentUser?.id });
+    await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: msgPreview, status: 'simulated', triggeredBy: currentUser?.id });
     showToast('WhatsApp reminder sent (simulated)');
   };
 

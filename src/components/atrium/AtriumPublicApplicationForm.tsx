@@ -21,7 +21,10 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
 
-    const addLead = useMutation(api.sentry.addLeadToPipeline);
+    // SECURITY: submitPublicLead derives the firmId SERVER-SIDE from the
+    // property record (the client never supplies it) and rate-limits spam.
+    // The old path (addLeadToPipeline) now requires an authenticated firm user.
+    const addLead = useMutation(api.sentry.submitPublicLead);
 
     // Fetch the property to get its firmId (required for the lead pipeline)
     const property = useQuery(api.myFunctions.getPropertyById, { propertyId });
@@ -37,19 +40,19 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
 
         setIsSubmitting(true);
         try {
-            const firmId = (property as any)?.firmId || '';
-            if (!firmId) {
+            // firmId is derived server-side by submitPublicLead — no client
+            // trust needed. We still show a friendly error if the property
+            // hasn't loaded yet (offline / bad id).
+            if (!(property as any)?.firmId) {
                 setError('Unable to determine the property manager. Please try again later.');
                 setIsSubmitting(false);
                 return;
             }
 
             await addLead({
-                firmId,
-                unitId: propertyId,
+                propertyId,
                 applicantName: applicantName.trim(),
                 contactInfo: contactInfo.trim(),
-                stage: 'Inquiry',
                 proposedRent: proposedRent ? parseFloat(proposedRent) : undefined,
                 notes: notes.trim() || undefined,
             });

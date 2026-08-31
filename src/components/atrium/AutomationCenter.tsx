@@ -141,7 +141,7 @@ const AutomationCenter: React.FC = () => {
         });
         const status = result.success ? 'sent' : 'failed';
         if (result.success) sent++; else failed++;
-        await logAuto({ firmId, unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, triggeredBy: currentUser?.id });
+        await logAuto({ firmId, userEmail: currentUser?.email, unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, triggeredBy: currentUser?.id });
       } catch (e: any) {
         failed++;
         console.error(`[BulkReminder] Failed for ${phone}:`, e.message);

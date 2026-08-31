@@ -712,6 +712,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     status: 'cleared',
                                     description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
                                     channel: 'Internal Transfer',
+                                    userEmail: currentUser?.email,
                                 },
                                 label: `Caution deposit — ${unit.unitName || 'Unit'} (₦${(unit.cautionDeposit || 0).toLocaleString()})`,
                             });
@@ -723,7 +724,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 type: 'deposit',
                                 status: 'cleared',
                                 description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
-                                channel: 'Internal Transfer'
+                                channel: 'Internal Transfer',
+                                userEmail: currentUser?.email,
                             });
                         }
                     } catch (e) {

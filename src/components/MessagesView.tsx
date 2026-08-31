@@ -700,7 +700,7 @@ const MessagesView: React.FC = () => {
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
     // Atrium: inbound WhatsApp/Email messages from residents
-    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId ? { firmId } : 'skip');
+    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email } : 'skip');
     const atriumInbound = atriumInboundResult || [];
     // Atrium: portal conversations (conversation-based, replaces flat portal messages)
     const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId ? { firmId } : 'skip');
@@ -711,7 +711,7 @@ const MessagesView: React.FC = () => {
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];
     // Audit trail for outbound messages
-    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100 } : 'skip') || [];
+    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip') || [];
 
     // ── Loading state detection ──
     const isInboxLoading = atriumInboundResult === undefined || portalConversationsResult === undefined || portalMessagesResult === undefined;
@@ -1352,7 +1352,7 @@ const MessagesView: React.FC = () => {
             return;
         }
         for (const msg of unreadInbound) {
-            markInboundRead({ messageId: msg._id }).catch(() => {});
+            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email }).catch(() => {});
         }
         addToast(`Marked ${unreadInbound.length} message${unreadInbound.length > 1 ? 's' : ''} as read.`, { type: 'success', duration: 2000 });
     };
@@ -1381,7 +1381,7 @@ const MessagesView: React.FC = () => {
         // Mark all unread atrium_inbound_messages as read
         const unreadInbound = (atriumInbound as any[] || []).filter((m: any) => !m.isRead);
         for (const msg of unreadInbound) {
-            markInboundRead({ messageId: msg._id }).catch(() => {});
+            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email }).catch(() => {});
         }
 
         // TASK 19: Also mark all unread portal_messages as read.
@@ -1456,6 +1456,7 @@ const MessagesView: React.FC = () => {
                 try {
                     await logAutomation({
                         firmId,
+                        userEmail: currentUser?.email,
                         unitId: selectedInboundMsg.unitId || undefined,
                         tenantId: selectedInboundMsg.tenantId || undefined,
                         messageType: 'custom' as any,
@@ -1844,7 +1845,7 @@ const MessagesView: React.FC = () => {
                                                     {!collapsedSections.has('inbound') && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
                                                     key={msg._id}
-                                                    onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id }); }}
+                                                    onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id, userEmail: currentUser?.email }); }}
                                                     className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
@@ -2496,9 +2497,9 @@ const MessagesView: React.FC = () => {
                                                     });
                                                     if (!ok) return;
                                                     if (selectedInboundMsg._inboxType === 'portal') {
-                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any }).catch(() => {});
+                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email }).catch(() => {});
                                                     } else {
-                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any });
+                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email });
                                                     }
                                                     setSelectedInboxId(null);
                                                 }}

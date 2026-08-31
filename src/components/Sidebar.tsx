@@ -133,8 +133,9 @@ const RevenueEngineShieldIcon: React.FC<{ className?: string }> = ({ className }
 );
 
 const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebarRetracted: boolean; firmId: string }> = ({ setView, currentView, isSidebarRetracted, firmId }) => {
+    const { currentUser: engineUser } = useAuth();
     const isActive = currentView === 'atriumEngine';
-    const defaulters = useQuery(api.sentry.getDefaulters, firmId ? { firmId } : 'skip');
+    const defaulters = useQuery(api.sentry.getDefaulters, firmId ? { firmId, userEmail: engineUser?.email } : 'skip');
     const criticalCount = (defaulters || []).filter((d: any) => (d.daysOverdue ?? 0) > 14).length;
 
     return (
@@ -185,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
     // Fetch inbound resident messages for unified badge count
     const sidebarFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId } : 'skip') || [];
+    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId, userEmail: currentUser?.email } : 'skip') || [];
     const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
 
     // Fetch portal messages for unified badge count

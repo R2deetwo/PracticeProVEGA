@@ -511,7 +511,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   useEffect(() => {
     if (showUpcoming && firmId) {
       setUpcomingLoading(true);
-      convex.query(api.sentry.getAutomationLogs, { firmId, limit: 10 })
+      convex.query(api.sentry.getAutomationLogs, { firmId, limit: 10, userEmail: currentUser?.email })
         .then((logs: any[]) => {
           setUpcomingLogs(logs.filter((l: any) => l.status === 'simulated' || l.status === 'sent'));
           setUpcomingLoading(false);
@@ -739,6 +739,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           const status = sendResult.simulated ? 'simulated' : sendResult.success ? 'sent' : 'failed';
           await logAuto({ 
             firmId, 
+            userEmail: currentUser?.email,
             unitId: r.id || undefined, 
             messageType: msgType as any, 
             channel, 

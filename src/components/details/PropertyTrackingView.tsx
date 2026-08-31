@@ -27,6 +27,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { useAuth } from '../../contexts/AuthContext';
 import { LeaseProgressBars } from './LeaseProgressBars';
 
 interface PropertyTrackingViewProps {
@@ -42,6 +43,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
     const { addToast, openModal, navigateTo } = useUI();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
     const { queueMutation, isOnline } = useOfflineQueue();
+    const { currentUser } = useAuth();
     const isLeased = property.category === 'Tenanted Property';
     const isSale = property.category === 'Property For Sale';
     // Management Only properties don't collect rent via the system — hide all
@@ -274,6 +276,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 channel: (data.method as string) || 'Manual',
                                 description: `Rent payment for ${property.address}`,
                                 period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
+                                userEmail: currentUser?.email,
                             },
                             label: `Rent ledger — ${property.address}`,
                         });
@@ -291,6 +294,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                             channel: (data.method as string) || 'Manual',
                             description: `Rent payment for ${property.address}`,
                             period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
+                            userEmail: currentUser?.email,
                         });
                     }
                 } catch (e) {

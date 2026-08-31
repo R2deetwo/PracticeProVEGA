@@ -197,6 +197,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
             try {
                 await logAutomation({
                     firmId,
+                    userEmail: currentUser?.email,
                     unitId: recipient.unitId,
                     messageType: 'custom',
                     channel: activeChannel,

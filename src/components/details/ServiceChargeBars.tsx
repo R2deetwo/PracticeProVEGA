@@ -786,6 +786,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             // 2. Write immutable activity log
             await logAutomation({
                 firmId,
+                userEmail: currentUser?.email,
                 unitId: unit.id,
                 messageType: 'receipt_issued',
                 channel: 'portal',

@@ -515,8 +515,55 @@ export const getResidentTokens = query({
     firmId: v.string(),
     residentId: v.string(),
     status: v.optional(v.string()), // filter by status, or all
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // SECURITY (RLS): previously ZERO verification — any caller could read
+    // any resident's visitor tokens by guessing residentId. Now the caller
+    // must be the resident themselves: the user resolved from userEmail
+    // (or Convex Auth session) must match residentId exactly.
+    // Note: portal roles (Tenant/Client) are EXPECTED here — this is the
+    // resident-facing portal endpoint — so we verify identity directly
+    // instead of using requireFirmUser (which blocks portal roles).
+    let sessionEmail: string | undefined;
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (identity) sessionEmail = (identity.email || identity.subject)?.toLowerCase();
+    } catch {}
+    const email = sessionEmail || args.userEmail?.toLowerCase();
+    if (!email) {
+      throw new Error("Unauthenticated: a verified session is required to view visitor tokens.");
+    }
+    let user: any = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email))
+      .first();
+    if (!user) {
+      user = await ctx.db
+        .query("users")
+        .filter((q: any) => q.eq(q.field("email"), email))
+        .first();
+    }
+    if (!user) {
+      throw new Error("Unauthenticated: user account not found.");
+    }
+    // The caller may only view their OWN tokens
+    if (String(user._id) !== args.residentId) {
+      throw new Error("Not authorized: you can only view your own visitor tokens.");
+    }
+    // Cross-check the resident belongs to the claimed firm
+    if (user.firmId && user.firmId !== args.firmId) {
+      throw new Error("Not authorized: firm mismatch.");
+    }
+    // Suspension check
+    const suspension = await ctx.db
+      .query("suspendedUsers")
+      .withIndex("by_user", (q: any) => q.eq("userId", user._id))
+      .first();
+    if (suspension) {
+      throw new Error(`Account suspended: ${suspension.reason || "Contact support."}`);
+    }
+
     let q = ctx.db
       .query("visitor_tokens")
       .withIndex("by_firm_resident", (q: any) => q.eq("firmId", args.firmId).eq("residentId", args.residentId));
@@ -532,6 +579,12 @@ export const getResidentTokens = query({
 });
 
 // ─── Query: Get Gatehouse Logs (for a property) ──────────────────────────
+// PUBLIC endpoint (used by /gatehouse tablets without login — by design).
+// SECURITY: returns a MINIMAL projection. The full token document contains
+// PII (visitor phone, resident ids, delivery details) that the gatehouse UI
+// never displays — leaking it to an unauthenticated caller who knows a
+// propertyId was an information-disclosure hole. Only the fields the
+// gatehouse board actually renders are returned.
 
 export const getGatehouseLogs = query({
   args: {
@@ -552,8 +605,18 @@ export const getGatehouseLogs = query({
       )
       .collect();
 
+    // Minimal projection — gatehouse board needs only these fields
+    const projected = tokens.map((t: any) => ({
+      _id: t._id,
+      visitorName: t.visitorName,
+      tokenCode: t.tokenCode,
+      checkedInAt: t.checkedInAt,
+      checkedOutAt: t.checkedOutAt,
+      status: t.status,
+    }));
+
     // Sort by checkedInAt desc (most recent first), tokens without check-in at the end
-    return tokens.sort((a: any, b: any) => {
+    return projected.sort((a: any, b: any) => {
       const aTime = a.checkedInAt || 0;
       const bTime = b.checkedInAt || 0;
       return bTime - aTime;

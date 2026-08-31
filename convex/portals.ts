@@ -3574,6 +3574,55 @@ export const getTenantLedger = query({
   },
 });
 
+// ─── Tenant Service Charges (tenant-scoped replacement for sentry.getServiceChargesByFirm) ──
+// SECURITY: The tenant portal previously called the FIRM-WIDE
+// sentry.getServiceChargesByFirm and filtered client-side — leaking every
+// other tenant's charges to anyone with a portal login. This endpoint
+// filters SERVER-SIDE, returning only charges tied to the calling tenant
+// (same possibleTenantIds resolution as getTenantLedger above).
+
+export const getTenantServiceCharges = query({
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // Collect all possible tenant IDs (direct ID + email + resolved user _id
+    // + ids discovered on matching properties/units)
+    const possibleTenantIds = new Set<string>([args.tenantId]);
+    if (args.email) possibleTenantIds.add(args.email.toLowerCase());
+    if (args.email) {
+      const user: any = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.email!.toLowerCase()))
+        .first();
+      if (user) possibleTenantIds.add(String(user._id));
+    }
+    for (const prop of properties) {
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      if (propTenantId && (propTenantId === args.tenantId || (args.email && propTenantId === args.email.toLowerCase()))) {
+        possibleTenantIds.add(propTenantId);
+      }
+      for (const unit of (prop as any).units || []) {
+        const unitTenantId = unit.currentTenantId || unit.tenantId;
+        if (unitTenantId && (unitTenantId === args.tenantId || (args.email && unitTenantId === args.email.toLowerCase()))) {
+          possibleTenantIds.add(unitTenantId);
+        }
+      }
+    }
+
+    const allCharges = await ctx.db
+      .query("service_charges")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // SERVER-SIDE tenant filter — other tenants' charges never leave the server
+    return allCharges.filter((sc: any) => sc.tenantId && possibleTenantIds.has(sc.tenantId));
+  },
+});
+
 // ─── Inbound Messages for Tenant Portal ─────────────────────────────────
 
 export const getInboundMessagesByTenant = query({

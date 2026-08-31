@@ -1181,10 +1181,13 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
     firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email } : 'skip'
   );
 
-  // Fetch service charges from Convex to compute current SC/MV
+  // Fetch service charges from Convex to compute current SC/MV.
+  // SECURITY: tenant-scoped endpoint (portals.getTenantServiceCharges) —
+  // the old firm-wide sentry.getServiceChargesByFirm leaked every other
+  // tenant's charges into the tenant portal before client-side filtering.
   const serviceCharges = useQuery(
-    api.sentry.getServiceChargesByFirm,
-    firmId ? { firmId } : 'skip'
+    api.portals.getTenantServiceCharges,
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email } : 'skip'
   );
 
   const isLoading = ledgerEntries === undefined || serviceCharges === undefined;

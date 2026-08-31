@@ -74,6 +74,7 @@ function ScoreBar({ score }: { score?: number }) {
 // ── Add Lead Modal ────────────────────────────────────────────────────────
 const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmId, onClose }) => {
   const addLead = useMutation(api.sentry.addLeadToPipeline);
+  const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const [form, setForm] = useState({ unitId: '', applicantName: '', contactInfo: '', proposedRent: '', vettingScore: '', notes: '' });
   const [loading, setLoading] = useState(false);
@@ -85,7 +86,7 @@ const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmI
     if (!form.unitId || !form.applicantName || !form.contactInfo) return;
     setLoading(true);
     try {
-      await addLead({ firmId, unitId: form.unitId, applicantName: form.applicantName, contactInfo: form.contactInfo, proposedRent: form.proposedRent ? parseFloat(form.proposedRent) : undefined, vettingScore: form.vettingScore ? parseFloat(form.vettingScore) : undefined, notes: form.notes });
+      await addLead({ firmId, unitId: form.unitId, applicantName: form.applicantName, contactInfo: form.contactInfo, proposedRent: form.proposedRent ? parseFloat(form.proposedRent) : undefined, vettingScore: form.vettingScore ? parseFloat(form.vettingScore) : undefined, notes: form.notes, userEmail: currentUser?.email });
       onClose();
     } finally { setLoading(false); }
   };
@@ -232,11 +233,11 @@ const VacancyPipeline: React.FC = () => {
   const handleAdvance = async (lead: LeadPipelineEntry) => {
     const next = NEXT_STAGE[lead.stage];
     if (!next) return;
-    await advanceStage({ leadId: lead._id as any, stage: next });
+    await advanceStage({ leadId: lead._id as any, stage: next, userEmail: currentUser?.email });
   };
 
   const handleScore = async (lead: LeadPipelineEntry, score: number) => {
-    await advanceStage({ leadId: lead._id as any, stage: lead.stage, vettingScore: score });
+    await advanceStage({ leadId: lead._id as any, stage: lead.stage, vettingScore: score, userEmail: currentUser?.email });
   };
 
   return (

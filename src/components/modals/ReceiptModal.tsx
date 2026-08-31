@@ -147,6 +147,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             // Write immutable event log to Activity & Tracking timeline
             await logAutomation({
                 firmId,
+                userEmail: currentUser?.email,
                 unitId,
                 messageType: 'receipt_issued',
                 channel: 'portal',

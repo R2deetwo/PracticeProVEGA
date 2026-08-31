@@ -115,13 +115,13 @@ const ServiceChargeDashboard: React.FC = () => {
         if (!isOnline) {
             queueMutation({
                 mutationName: 'markChargeAsPaid',
-                args: { serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer' },
+                args: { serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email },
                 label: `${charge.category} charge marked paid`,
             });
             showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
             return;
         }
-        await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer' });
+        await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email });
         showToast(`${charge.category} charge marked as fully paid`);
     };
 
@@ -132,7 +132,7 @@ const ServiceChargeDashboard: React.FC = () => {
         if (!isOnline) {
             queueMutation({
                 mutationName: 'markChargeAsPaid',
-                args: { serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true },
+                args: { serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email },
                 label: `Partial payment ₦${amount.toLocaleString()}`,
             });
             showToast(`Partial payment of ₦${amount.toLocaleString()} saved offline.`);
@@ -140,7 +140,7 @@ const ServiceChargeDashboard: React.FC = () => {
             setPartialAmount('');
             return;
         }
-        await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true });
+        await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email });
         showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
         setPartialPaymentCharge(null);
         setPartialAmount('');
@@ -273,7 +273,7 @@ export const RevenueMonitor: React.FC = () => {
     const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
     const [activeTab, setActiveTab] = useState<TabId>('defaulters');
 
-    const defaulters = useQuery(api.sentry.getDefaulters, firmId ? { firmId } : 'skip');
+    const defaulters = useQuery(api.sentry.getDefaulters, firmId ? { firmId, userEmail: currentUser?.email } : 'skip');
     const criticalCount = (defaulters || []).filter((d: any) => (d.daysOverdue ?? 0) > 14).length;
 
     const tabs: TabDef[] = [

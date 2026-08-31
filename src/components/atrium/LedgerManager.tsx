@@ -56,6 +56,7 @@ function formatTs(ts: number) {
 
 // ── Add Entry Modal ───────────────────────────────────────────────────────
 const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmId, onClose }) => {
+  const { currentUser } = useAuth();
   const addEntry = useMutation(api.sentry.addLedgerEntry);
   const { coreState } = useCoreState();
   const { addToast } = useUI();
@@ -85,6 +86,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
             channel: form.channel,
             description: form.description,
             paymentRef: form.paymentRef,
+            userEmail: currentUser?.email,
           },
           label: `${form.type} ledger entry — ₦${parseFloat(form.amount).toLocaleString()}`,
         });
@@ -92,7 +94,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
         onClose();
         return;
       }
-      await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef });
+      await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef, userEmail: currentUser?.email });
       onClose();
     } finally { setLoading(false); }
   };

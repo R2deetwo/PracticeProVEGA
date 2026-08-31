@@ -72,11 +72,11 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     // ─── Queries ────────────────────────────────────────────────────────
     const activeTokens = useQuery(
         api.visitorManagement.getResidentTokens,
-        firmId && residentId ? { firmId, residentId, status: 'active' } : 'skip'
+        firmId && residentId ? { firmId, residentId, status: 'active', userEmail: currentUser?.email } : 'skip'
     );
     const pastTokens = useQuery(
         api.visitorManagement.getResidentTokens,
-        firmId && residentId ? { firmId, residentId } : 'skip'
+        firmId && residentId ? { firmId, residentId, userEmail: currentUser?.email } : 'skip'
     );
 
     // ─── Handlers ───────────────────────────────────────────────────────

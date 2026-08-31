@@ -143,6 +143,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
   const { updateItem } = useDataActions();
   const { addToast } = useUI();
   const { queueMutation, isOnline } = useOfflineQueue();
+  const { currentUser } = useAuth();
   const isProperty = useIsProperty();
   const firmId = coreState.firmDetails?.id || '';
   const [amount, setAmount] = React.useState(modalContext?.rentAmount ? String(modalContext.rentAmount) : '');
@@ -179,6 +180,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
             channel: 'Bank Transfer',
             description: `Rent payment${tenantName ? ' from ' + tenantName : ''}`,
             paymentRef: '',
+            userEmail: currentUser?.email,
           },
           label: `Rent ledger — ${unitName}${tenantName ? ` (${tenantName})` : ''}`,
         });
@@ -191,7 +193,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
             amount: amountNum,
             status: 'paid' as const,
             paymentMethod: 'Bank Transfer',
-            receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+            receiptNumber: `REC-${Date.now().toString().slice(-6)}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`,
           };
           queueMutation({
             mutationName: 'updateItem',
@@ -223,6 +225,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
         channel: 'Bank Transfer',
         description: `Rent payment${tenantName ? ' from ' + tenantName : ''}`,
         paymentRef: '',
+        userEmail: currentUser?.email,
       });
 
       if (propertyRecord) {
@@ -233,7 +236,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
           amount: amountNum,
           status: 'paid' as const,
           paymentMethod: 'Bank Transfer',
-          receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          receiptNumber: `REC-${Date.now().toString().slice(-6)}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`,
         };
         await updateItem('properties', {
           ...propertyRecord,

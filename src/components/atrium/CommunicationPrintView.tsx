@@ -52,7 +52,7 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
 
   const communications = useQuery(
     api.sentry.getCommunicationsForPrint,
-    firmId ? { firmId, unitId, tenantContact } : 'skip'
+    firmId ? { firmId, unitId, tenantContact, userEmail: currentUser?.email } : 'skip'
   );
 
   // Merge and sort all communications chronologically (oldest first for print)
