@@ -53,67 +53,69 @@ export const createMaintenanceTicket = mutation({
     //    conversation thread so the practitioner sees it in their unified
     //    inbox. Without this, tickets would disappear into the database and
     //    the practitioner would never know a request was submitted.
+    //
+    //    ATOMICITY FIX (Phase 3): this block was previously wrapped in a
+    //    try/catch that swallowed failures and committed the partial state —
+    //    ticket created but invisible (no inbox message, no conversation
+    //    link). Convex mutations are all-or-nothing: removing the catch makes
+    //    ticket + conversation + message + link commit atomically. On failure
+    //    the resident sees the error and can resubmit, instead of the request
+    //    silently vanishing into the database.
     let conversationId: string | undefined;
     if (args.tenantId) {
-      try {
-        const conversation = await getOrCreateConversation(ctx, {
-          firmId: args.firmId,
-          participantId: args.tenantId,
-          participantName: args.tenantName,
-          participantRole: "Tenant",
-          propertyId: args.propertyId,
-          unitId: args.unitId,
-        });
-        conversationId = String(conversation._id);
+      const conversation = await getOrCreateConversation(ctx, {
+        firmId: args.firmId,
+        participantId: args.tenantId,
+        participantName: args.tenantName,
+        participantRole: "Tenant",
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+      });
+      conversationId = String(conversation._id);
 
-        const typeLabel = requestTypeLabel || args.category;
-        const messageContent = [
-          `🔧 New maintenance request — ${typeLabel}`,
-          ``,
-          `Subject: ${args.subject}`,
-          ``,
-          `Description:`,
-          args.description,
-        ].join('\n');
+      const typeLabel = requestTypeLabel || args.category;
+      const messageContent = [
+        `🔧 New maintenance request — ${typeLabel}`,
+        ``,
+        `Subject: ${args.subject}`,
+        ``,
+        `Description:`,
+        args.description,
+      ].join('\n');
 
-        await ctx.db.insert("portal_messages", {
-          firmId: args.firmId,
-          conversationId,
-          senderId: args.tenantId,
-          senderName: args.tenantName,
-          senderRole: "Tenant",
-          subject: `Maintenance Request: ${args.subject}`,
-          content: messageContent,
-          attachments: attachments ?? [],
-          attachmentNames: [],
-          propertyId: args.propertyId,
-          unitId: args.unitId,
-          status: "unread",
-          isRead: false,
-          linkedTicketId: String(ticketId),
-          requestTypeKey: requestTypeKey ?? undefined,
-          requestTypeLabel: requestTypeLabel ?? typeLabel,
-          createdAt: now,
-          updatedAt: now,
-        });
+      await ctx.db.insert("portal_messages", {
+        firmId: args.firmId,
+        conversationId,
+        senderId: args.tenantId,
+        senderName: args.tenantName,
+        senderRole: "Tenant",
+        subject: `Maintenance Request: ${args.subject}`,
+        content: messageContent,
+        attachments: attachments ?? [],
+        attachmentNames: [],
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        status: "unread",
+        isRead: false,
+        linkedTicketId: String(ticketId),
+        requestTypeKey: requestTypeKey ?? undefined,
+        requestTypeLabel: requestTypeLabel ?? typeLabel,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-        // Update conversation metadata — bump unread + last message preview
-        const existingUnread = (conversation as any).unreadByAdmin || 0;
-        await ctx.db.patch(conversation._id, {
-          lastMessageAt: now,
-          lastMessagePreview: `🔧 Maintenance: ${args.subject}`.substring(0, 80),
-          lastMessageBy: "participant",
-          unreadByAdmin: existingUnread + 1,
-          updatedAt: now,
-        });
+      // Update conversation metadata — bump unread + last message preview
+      const existingUnread = (conversation as any).unreadByAdmin || 0;
+      await ctx.db.patch(conversation._id, {
+        lastMessageAt: now,
+        lastMessagePreview: `🔧 Maintenance: ${args.subject}`.substring(0, 80),
+        lastMessageBy: "participant",
+        unreadByAdmin: existingUnread + 1,
+        updatedAt: now,
+      });
 
-        // Link the conversation back to the ticket for bi-directional lookup
-        await ctx.db.patch(ticketId, { conversationId });
-      } catch (err) {
-        // We don't want to fail the ticket creation if conversation wiring
-        // fails — the ticket itself is the source of truth. Log and move on.
-        console.error("[createMaintenanceTicket] conversation wiring failed:", err);
-      }
+      // Link the conversation back to the ticket for bi-directional lookup
+      await ctx.db.patch(ticketId, { conversationId });
     }
 
     // 3. Notify all firm admins that a new maintenance ticket was submitted.

@@ -2240,6 +2240,157 @@ export const removeUserFromFirm = mutation({
   }
 });
 
+// ─── TRANSACTIONAL FIRM-USER REMOVAL (Phase 3, data integrity) ───────────────
+/**
+ * performFirmUserRemoval — shared core for removing a user from a firm as a
+ * single all-or-nothing transaction.
+ *
+ * WHY THIS EXISTS: the UI (FirmSettings remove-user dialog) promises
+ * "They will lose all access and be unassigned from all items", but the old
+ * path hard-deleted the user row via the generic deleteItem — leaving
+ * orphans behind: tasks still listing them in assignedUsers, live presence
+ * rows keeping them "online" forever, and notification rows accumulating.
+ * The user row itself was also destroyed even when the person belonged to
+ * multiple firms, breaking their other-firm memberships.
+ *
+ * Semantics (all in ONE Convex transaction — any failure rolls back all):
+ *   1. Auth + guards: caller is Admin/Founder of THIS firm; not self-removal;
+ *      target actually belongs to the firm; not the firm's last admin.
+ *   2. Unassign the user from all firm tasks (assignedUsers / legacy
+ *      assignedTo fields).
+ *   3. Delete their presence rows for this firm.
+ *   4. Delete their notification rows for this firm.
+ *   5. Patch the user row: firm removed from joinedFirmIds, active firm
+ *      switches to another membership (or null). The row is preserved —
+ *      the person's login identity and other-firm memberships stay intact.
+ */
+async function performFirmUserRemoval(
+  ctx: any,
+  args: { userId: string; firmId: string; userEmail?: string }
+) {
+  const auth = await requireFirmUser(ctx, args.userEmail);
+  const caller: any = auth.user;
+  if (!caller || !auth.firmId) {
+    throw new Error("Unauthenticated: a verified session is required to remove users.");
+  }
+  if (caller.role !== "Admin" && caller.role !== "Founder") {
+    throw new Error("Permission denied. Only Admins or Founders can remove users.");
+  }
+  if (auth.firmId !== args.firmId) {
+    throw new Error("Not authorized: cannot remove users from a different firm.");
+  }
+  if (String(caller._id) === String(args.userId)) {
+    throw new Error("You cannot remove yourself. Transfer admin rights to another user first.");
+  }
+
+  const user: any = await ctx.db.get(args.userId as any);
+  if (!user) {
+    return { success: true, removed: false, reason: "not_found" };
+  }
+  const isMember = user.firmId === args.firmId || (user.joinedFirmIds || []).includes(args.firmId);
+  if (!isMember) {
+    throw new Error("This user is not a member of your firm.");
+  }
+
+  // GUARD: cannot remove the last Admin/Founder of the firm
+  if (user.role === "Admin" || user.role === "Founder") {
+    const firmUsers = await ctx.db
+      .query("users")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+      .collect();
+    const otherAdmins = firmUsers.filter(
+      (u: any) => (u.role === "Admin" || u.role === "Founder") && String(u._id) !== String(args.userId)
+    );
+    if (otherAdmins.length === 0) {
+      throw new Error("Cannot remove the last admin of the firm. Promote another user to Admin first.");
+    }
+  }
+
+  // Canonical id forms this user may be referenced by (Convex _id or legacy custom id)
+  const canonicalIds = new Set(
+    [String(user._id), user.id].filter(Boolean).map(String)
+  );
+
+  // 1. Unassign from tasks (the "unassigned from all items" promise)
+  let unassignedTasks = 0;
+  const tasks = await ctx.db
+    .query("tasks")
+    .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+    .collect();
+  for (const t of tasks as any[]) {
+    const assigned = (t.assignedUsers || []).filter((id: string) => !canonicalIds.has(String(id)));
+    const legacyAssignee = (t.assignedTo ?? t.assigneeId ?? null);
+    const legacyStillValid = legacyAssignee ? !canonicalIds.has(String(legacyAssignee)) : true;
+    const needsPatch = assigned.length !== (t.assignedUsers || []).length || !legacyStillValid;
+    if (needsPatch) {
+      await ctx.db.patch(t._id, {
+        assignedUsers: assigned,
+        ...(legacyAssignee && !legacyStillValid ? { assignedTo: null } : {}),
+      } as any);
+      unassignedTasks++;
+    }
+  }
+
+  // 2. Delete presence rows for this firm (query by each canonical id form)
+  let removedPresence = 0;
+  for (const cid of canonicalIds) {
+    const presenceRows = await ctx.db
+      .query("presence")
+      .withIndex("by_user", (q: any) => q.eq("userId", cid))
+      .collect();
+    for (const p of presenceRows as any[]) {
+      if (!p.firmId || p.firmId === args.firmId) {
+        await ctx.db.delete(p._id);
+        removedPresence++;
+      }
+    }
+  }
+
+  // 3. Delete notification rows for this firm
+  let removedNotifications = 0;
+  const notifs = await ctx.db
+    .query("notifications")
+    .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+    .collect();
+  for (const n of notifs as any[]) {
+    if (n.userId && canonicalIds.has(String(n.userId))) {
+      await ctx.db.delete(n._id);
+      removedNotifications++;
+    }
+  }
+
+  // 4. Update the user row (preserved — may hold other-firm memberships)
+  const joinedIds = (user.joinedFirmIds || []).filter((id: string) => id !== args.firmId);
+  let newFirmId = user.firmId;
+  if (user.firmId === args.firmId) {
+    newFirmId = joinedIds.length > 0 ? joinedIds[0] : null;
+  }
+  await ctx.db.patch(args.userId as any, {
+    firmId: newFirmId,
+    joinedFirmIds: joinedIds,
+    onboardingCompleted: newFirmId ? true : false,
+  });
+
+  return { success: true, removed: true, unassignedTasks, removedPresence, removedNotifications };
+}
+
+/**
+ * removeFirmUserAndCleanup — public, transactional user removal.
+ * Replaces the old removeUserFromFirm (which had no cleanup, no guards, and
+ * zero callers). Also invoked by deleteItem when table === 'users', so every
+ * existing UI path (FirmSettings, SettingsView) gets the safe semantics.
+ */
+export const removeFirmUserAndCleanup = mutation({
+  args: {
+    userId: v.id("users"),
+    firmId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await performFirmUserRemoval(ctx, args);
+  },
+});
+
 export const updateFirmSettings = mutation({
   args: { firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -3700,6 +3851,20 @@ export const deleteItem = mutation({
   handler: async (ctx, args) => {
     const { firmId } = await requireFirmUser(ctx, args.userEmail);
     const { table, id } = args;
+
+    // ─── USERS ARE SPECIAL (Phase 3, data integrity) ───────────────────────
+    // Never a raw hard-delete: route to the transactional removal core that
+    // unassigns tasks, cleans presence + notifications, preserves the user
+    // row (multi-firm memberships + login identity), and guards against
+    // self-removal / last-admin removal. The FirmSettings dialog promises
+    // "unassigned from all items" — this is where that promise is kept.
+    if (table === "users") {
+      return await performFirmUserRemoval(ctx, {
+        userId: id,
+        firmId,
+        userEmail: args.userEmail,
+      });
+    }
 
     // 1. Security Check: guard against cross-firm deletion.
     //    Wrapped in try-catch because ctx.db.get() throws when passed a UUID

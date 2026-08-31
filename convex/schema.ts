@@ -1062,12 +1062,17 @@ export default defineSchema({
     txHash: v.string(), 
     description: v.optional(v.string()),
     period: v.optional(v.string()), 
+    // IDEMPOTENCY (Phase 3): client-generated key (uuid) so a retried
+    // markChargeAsPaid doesn't double-count revenue. Deduped via
+    // by_idempotency index before any write.
+    idempotencyKey: v.optional(v.string()),
   })
     .index("by_firm", ["firmId"])
     .index("by_unit", ["unitId"])
     .index("by_status", ["status"])
     .index("by_timestamp", ["timestamp"])
-    .index("by_firm_unit", ["firmId", "unitId"]),
+    .index("by_firm_unit", ["firmId", "unitId"])
+    .index("by_idempotency", ["idempotencyKey"]),
 
   service_charges: defineTable({
     firmId: v.string(),

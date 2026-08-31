@@ -273,10 +273,37 @@ export const markChargeAsPaid = mutation({
     channel: v.optional(v.string()),
     isPartialPayment: v.optional(v.boolean()),
     userEmail: v.optional(v.string()),
+    // IDEMPOTENCY (Phase 3): client-generated uuid per payment action. A
+    // retried/double-submitted call with the same key returns the original
+    // outcome instead of inserting a duplicate ledger entry (double-counted
+    // revenue). Retained for backward compat: legacy calls without a key
+    // behave exactly as before.
+    idempotencyKey: v.optional(v.string()),
   },
-  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel, isPartialPayment, userEmail }) => {
+  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel, isPartialPayment, userEmail, idempotencyKey }) => {
     // SECURITY: verify caller + firm ownership; all writes use session firmId
     const auth = await requireSentryAuth(ctx, userEmail, firmId);
+
+    // ── IDEMPOTENCY CHECK (Phase 3) ─────────────────────────────────────
+    // Dedup on the client-supplied key BEFORE any write, so a network retry
+    // or double-tap cannot double-credit the service charge or insert a
+    // second ledger row. Returns the recorded state without side effects.
+    if (idempotencyKey) {
+      const existing = await ctx.db
+        .query("ledger_entries")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", idempotencyKey))
+        .first();
+      if (existing) {
+        const charge: any = await ctx.db.get(serviceChargeId);
+        return {
+          success: true,
+          duplicate: true,
+          ledgerEntryId: existing._id,
+          serviceChargeStatus: charge?.serviceChargeStatus,
+        };
+      }
+    }
+
     const sc = await ctx.db.get(serviceChargeId);
     if (!sc) throw new Error("Service charge not found");
     if (sc.firmId !== auth.firmId) {
@@ -339,6 +366,7 @@ export const markChargeAsPaid = mutation({
       timestamp,
       txHash,
       channel,
+      idempotencyKey: idempotencyKey ?? undefined,
       description: newStatus === "PAID_FULLY"
         ? `${sc.category} service charge — full payment`
         : `${sc.category} service charge — partial payment (₦${newTotalPaid.toLocaleString()} of ₦${totalAmount.toLocaleString()})`,

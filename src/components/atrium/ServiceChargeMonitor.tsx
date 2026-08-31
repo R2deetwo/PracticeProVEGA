@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -313,6 +314,9 @@ const ServiceChargeMonitor: React.FC = () => {
   const revenueAtRisk = defaulters.reduce((s, c) => s + c.amount + (c.penaltyApplied ? c.amount * PENALTY_RATE : 0), 0);
 
   const handleMarkPaid = async (charge: ServiceCharge) => {
+    // IDEMPOTENCY (Phase 3): uuid per payment action — server-side dedup
+    // prevents double-crediting on retry or offline replay.
+    const idempotencyKey = uuidv4();
     // OFFLINE PATH — service charge collection in the field. Queue the
     // mark-paid mutation and inform the user. If we didn't queue, the
     // charge would show as unpaid forever and the tenant would be
@@ -326,13 +330,14 @@ const ServiceChargeMonitor: React.FC = () => {
           firmId,
           channel: 'Bank Transfer',
           userEmail: currentUser?.email,
+          idempotencyKey,
         },
         label: `${charge.category} charge marked paid — ${getUnitLabel(charge.unitId)}`,
       });
       showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
       return;
     }
-    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email });
+    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, idempotencyKey });
     showToast(`${charge.category} charge marked as fully paid`);
   };
 
@@ -353,6 +358,7 @@ const ServiceChargeMonitor: React.FC = () => {
           channel: 'Bank Transfer',
           isPartialPayment: true,
           userEmail: currentUser?.email,
+          idempotencyKey: uuidv4(),
         },
         label: `Partial payment ₦${amount.toLocaleString()} — ${getUnitLabel(partialPaymentCharge.unitId)}`,
       });
@@ -362,7 +368,7 @@ const ServiceChargeMonitor: React.FC = () => {
       return;
     }
 
-    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email });
+    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, idempotencyKey: uuidv4() });
     showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
     setPartialPaymentCharge(null);
     setPartialAmount('');

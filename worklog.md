@@ -8908,3 +8908,42 @@ Stage Summary:
 - Phase 2 redo status: #9 fixed (b1cbbf7b), #11 verified present, Komplete
   discovery verified present, arrears placeholder fixed in this commit
 - TS: 161 (unchanged), vite build PASS
+
+---
+Task ID: recovery-7
+Agent: main (Super Z)
+Task: Phase 3 Task 1 — transactional multi-table writes (3 sites) + markChargeAsPaid idempotency
+
+Work Log:
+- createMaintenanceTicket (portals.ts): removed the try/catch that swallowed
+  conversation-wiring failures and committed partial state (ticket created
+  but invisible to the practitioner — no inbox message, no conversation
+  link). Convex mutations are all-or-nothing: ticket + conversation +
+  portal_message + link now commit atomically. Admin notification stays
+  best-effort (its own internal catches)
+- markChargeAsPaid (sentry.ts): added optional idempotencyKey arg + dedup
+  check on ledger_entries.by_idempotency BEFORE any write — a retried or
+  double-submitted call returns the recorded state instead of double-
+  crediting the charge and double-counting ledger revenue. Legacy calls
+  without a key behave exactly as before
+- schema.ts: ledger_entries.idempotencyKey + by_idempotency index (also a
+  down-payment on the Phase 3 'missing indexes' item)
+- Client wiring: RevenueMonitor + ServiceChargeMonitor mark-paid and
+  partial-payment paths (online + offline-queue, 7 call sites) now generate
+  uuidv4() keys — offline replays reuse the queued key so dedup survives
+  reconnect replays
+- User removal: FirmSettings' remove-user flow called deleteItem('users'),
+  which HARD-DELETED the row with zero cleanup (no users entry in FK_MAP)
+  despite the dialog promising "unassigned from all items". Built
+  performFirmUserRemoval core + public removeFirmUserAndCleanup mutation:
+  guards (caller Admin/Founder of THIS firm, no self-removal, no last-admin
+  removal), unassigns tasks (assignedUsers + legacy assignedTo), deletes
+  firm-scoped presence + notifications, preserves the user row (multi-firm
+  memberships + login identity). deleteItem now routes table='users' to it,
+  so every existing UI path gets the safe semantics automatically
+- Legacy removeUserFromFirm kept for API compat (was zero-caller dead code)
+
+Stage Summary:
+- TS: 161 (unchanged), vite build PASS
+- Phase 3 items closed here: multi-table transactions (#1) + markChargeAsPaid
+  idempotency (#4); ledger index added (#3 partially)
