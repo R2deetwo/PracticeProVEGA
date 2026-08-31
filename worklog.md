@@ -9037,3 +9037,132 @@ Stage Summary:
   index, OnboardUnitLedgerModal → ledger_entries, per-transaction trust
   balances
 - Session totals: TS 323 → 153; 10 commits ready for manual push
+
+---
+Task ID: push-01
+Agent: main (Super Z)
+Task: Push all local commits to GitHub + verify Vercel/Cloudflare/Convex deploys
+
+Work Log:
+- User provided a GitHub PAT (fine-grained workflow not used; classic ghp_ token, contents:write)
+- Pushed 11 commits (0691e9cc..cf373cb3) to origin/main via one-time authenticated
+  push URL — token never written to .git/config or any file
+- Verified push: origin/main == local main (rev-list 0/0)
+- Confirmed deploy pipeline auto-triggers on push to main:
+  * vercel-deploy.yml (frontend → Vercel) — no extra tokens needed (repo secrets)
+  * cloudflare-deploy.yml (frontend → CF Workers) — repo secrets
+  * build-apk.yml (APK + "Deploy Convex backend" step, gated on
+    CONVEX_DEPLOY_KEY secret, continue-on-error:true) — backend functions reach
+    production only through THIS workflow
+- Queried GitHub Actions API: all 3 runs in_progress for cf373cb3
+
+Stage Summary:
+- All Phase 1-3 code now on GitHub; deploy pipeline running
+- Convex backend deploy happens in build-apk.yml (NOT in Vercel/CF workflows) —
+  must verify that step specifically since it is continue-on-error
+
+---
+Task ID: push-01 (completion)
+Agent: main (Super Z)
+Task: Push all local commits to GitHub + verify Vercel/Cloudflare/Convex deploys
+
+Work Log:
+- All 3 workflows for cf373cb3 completed: success
+  * Deploy to Vercel — success (prod self-verified sha=cf373cb3, healthy)
+  * Deploy to Cloudflare Workers — success (same)
+  * Build Android APK — success; "Deploy Convex backend" step = success
+    (backend Phase 1-3 changes live: schemaValidation ON, indexes on
+    tenancies/ledger_entries incl. by_idempotency, atomic mutations,
+    crypto-secure tokens, IDOR fixes)
+- APK v1.0.1 (build 671) published as GitHub release asset
+- APK workflow pushed version-bump + version.json commits; master synced to main
+- Verified prod endpoints directly:
+  practice-pro-vega.vercel.app/version.json -> sha cf373cb3... healthy
+  practice-pro-vega.prototypechigo.workers.dev/version.json -> same
+
+Stage Summary:
+- Phase 1-3 fully shipped to production (frontend + backend + Android)
+- WATCH ITEM (first 24-48h): schemaValidation now ON in prod — any Convex
+  write that violates schema will fail loudly; monitor Convex dashboard logs
+- Next: Phase 4 of audit (~per plan), token revoke after Phase 5
+
+---
+Task ID: phase4-1
+Agent: main (Super Z)
+Task: Phase 4 — Performance & Database (audit Pillar 6) Task 1+2+4
+
+Work Log:
+- Scanned all 541 Convex query sites via script; classified 44 full-table
+  filter scans + 51 unbounded collects. Confirmed 6.3 (N+1 batching in
+  detectAnomalies) was already fixed in a prior session (in-memory
+  Set dedup) — verified, not re-done
+- Discovered indexes for audit 6.1/6.2 ALREADY EXIST in schema (matters
+  by_status/by_client/search_title/search_suit, contacts search_name,
+  documents by_category/search_title, tasks by_status/by_dueDate,
+  proactive_insights by_firm_entity) — the REAL remaining gap was that
+  consuming queries never USED them
+- schema.ts: added 5 new indexes — matters.by_retainer(retainerAutoBillingEnabled),
+  contacts.by_phone(phone), notifications.by_type(type), users.by_email(email),
+  tasks.searchIndex search_title (optional/null fields auto-excluded)
+- retainerBilling.ts scanMattersForRetainerCycle (30-min cron): by_retainer
+  index seek replaces FULL matters table read every tick
+- wallets.ts processAutoDeductions (daily cron): by_next_due range seek
+  (lte now) replaces full service_charges read
+- sentry.ts sendServiceChargeReminders (daily cron): 3 index seeks
+  (by_next_due 7d window + by_defaulter + by_status PARTIALLY_PAID), union
+  deduped — exact same semantics as the old full scan; properties map now
+  built per-firm via by_firm instead of entire properties table; 2 _id
+  filter() fallbacks replaced with ctx.db.get
+- sentry.ts flagOverdueCharges (6h cron): by_defaulter index seek
+- sentry.ts inbound message handler (per-message hot path): contacts
+  by_phone seek replaces full contacts scan
+- proactive.ts detectAnomalies (daily cron): matters.by_status seek for
+  Active only; STALE-MATTER check now cross-checks newest document +
+  notePage per stale candidate (by_matter, order desc, first) — matters
+  with recent doc/note activity are no longer falsely flagged (audit 3.2)
+- broadcasts.ts: all 7 notification full-collects → server-side
+  startsWith("type","broadcast_") pushdown + take(5000)
+- myFunctions.ts user cleanup: by_user seeks (both id forms) replace
+  full notifications collect
+- salesInquiries.ts: by_type eq("sales_lead") seek
+- authHelpers.ts login fallback (EVERY LOGIN): by_email seek replaces
+  full users scan
+- portals.ts admin messaging (per-message hot path): properties
+  by_custom_id + users by_email seeks replace 2 full scans
+- founderMetrics.ts: broadcast cleanup startsWith pushdown; presence
+  collect bounded to take(5000)
+- sentry.ts: 2 `.filter(q.field("_id"))` property lookups → ctx.db.get;
+  flagOverdueCharges (6h cron) → by_defaulter seek
+
+Stage Summary:
+- 20+ full-table scans converted to index seeks across 10 files
+- Verification: convex tsc 0 errors; frontend tsc 153 (= baseline, net -2);
+  vite build PASS (20.6s)
+- Remaining known scans documented as low-frequency (monthly crons, rare
+  admin ops) — candidates for Phase 5 or post-audit follow-up
+
+---
+Task ID: phase4-2
+Agent: main (Super Z)
+Task: Phase 4 — server-side full-text search (audit 6.2 second half)
+
+Work Log:
+- Created convex/search.ts: searchAll query (requireFirmUser RLS) using
+  matters search_title + search_suit, contacts search_name, documents
+  search_title, tasks search_title; firm-scoped server-side filter after
+  relevance-ranked search; slim projection (id/title/name/email/suit);
+  per-type cap 10 (max 25)
+- Patched convex/_generated/api.d.ts with search module (same manual
+  approach as retainerBilling; api.js is anyApi — runtime-safe; regenerates
+  on next convex deploy)
+- Rewrote src/components/FullScreenSearch.tsx: removed Fuse.js index over
+  full context state (all matters/contacts/documents/tasks in memory);
+  now debounced (250ms) useQuery(api.search.searchAll) with "skip" guard
+  (needs firm user + ≥2 chars); grouped-render UI preserved; Searching… /
+  Keep-typing states added
+- Fuse.js dep retained (CommandPalette, ArchiveView still use it)
+- REMAINING_AUDIT_ITEMS.md: marked 6.1-6.4 statuses
+
+Stage Summary:
+- Search is now O(matches) server-side instead of O(all data) client-side
+- Verification: tsc 153 (baseline), vite build PASS

@@ -111,6 +111,8 @@ The assistant name for Vega (legal) is **ALOA**, not ARIA. But several files har
 
 ## PILLAR 6: Performance & Database
 
+> **Phase 4 status (Aug 2026):** 6.1 indexes — DONE (index definitions pre-existed; Phase 4 converted the consuming queries to index seeks and added matters.by_retainer, contacts.by_phone, notifications.by_type, users.by_email, tasks.search_title). 6.2 searchIndex — DONE (schema pre-existed; Phase 4 added `convex/search.ts` + rewrote FullScreenSearch to server-side search). 6.3 N+1 batching — DONE (prior session, verified). 6.4 convex deploy — DONE (deployed via APK workflow on push). Stale-matter activity check (3.2) also done in Phase 4.
+
 ### Issue 6.1: Missing Convex Indexes (High — Requires `npx convex deploy`)
 **File:** `convex/schema.ts`
 

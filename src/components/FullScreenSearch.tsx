@@ -1,62 +1,82 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useUI } from '../contexts/UIContext';
-import { useMatterState } from '../contexts/MatterContext';
-import { useExecutionState } from '../contexts/ExecutionContext';
-import { useDocumentState } from '../contexts/DocumentContext';
-import { Matter, Contact, Document, Task } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { MattersIcon, ContactsIcon, DocumentsIcon, TasksIcon, SearchIcon } from '../constants';
-import Fuse from 'fuse.js';
 
-type SearchableItem = (Matter | Contact | Document | Task) & { dataType: 'Matter' | 'Contact' | 'Document' | 'Task', clientName?: string };
+// ─── Phase 4 (Performance & Database) ───────────────────────────────────────
+// This component previously built a client-side Fuse.js index over ALL
+// matters/contacts/documents/tasks held in React context state — the index
+// was rebuilt on every data change and searched in browser memory on every
+// keystroke. It now calls the server-side `search.searchAll` Convex query
+// (searchIndex-backed, firm-scoped, relevance-ranked) with a 250ms debounce
+// and renders a slim projection. The full dataset never needs to be in
+// memory just to power search.
 
-const typeConfig: Record<SearchableItem['dataType'], { icon: React.FC<any>; color: string; headerColor: string }> = {
+type ResultDataType = 'Matter' | 'Contact' | 'Document' | 'Task';
+
+interface SlimResult {
+    id: string;
+    dataType: ResultDataType;
+    title?: string;
+    name?: string;
+    suitNumber?: string;
+    email?: string;
+}
+
+interface ServerSearchResult {
+    matters: { id: string; title: string; suitNumber?: string }[];
+    contacts: { id: string; name: string; email?: string }[];
+    documents: { id: string; title: string }[];
+    tasks: { id: string; title: string }[];
+}
+
+const typeConfig: Record<ResultDataType, { icon: React.FC<any>; color: string; headerColor: string }> = {
     Matter: { icon: MattersIcon, color: 'bg-primary-500 text-white', headerColor: 'text-primary-600 dark:text-primary-400' },
     Contact: { icon: ContactsIcon, color: 'bg-blue-500 text-white', headerColor: 'text-blue-600 dark:text-blue-400' },
     Document: { icon: DocumentsIcon, color: 'bg-teal-500 text-white', headerColor: 'text-teal-600 dark:text-teal-400' },
     Task: { icon: TasksIcon, color: 'bg-amber-500 text-white', headerColor: 'text-amber-600 dark:text-amber-400' },
 };
 
+function useDebounce<T>(value: T, delay: number): T {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+    return debounced;
+}
+
 const FullScreenSearch: React.FC = () => {
     const { isMobileSearchOpen, setMobileSearchOpen, navigateTo, openModal } = useUI();
-    const { matterState } = useMatterState();
-    const { executionState } = useExecutionState();
-    const { documentState } = useDocumentState();
+    const { currentUser } = useAuth();
     const [query, setQuery] = useState('');
+    const debouncedQuery = useDebounce(query, 250);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const searchData = useMemo(() => {
-        const matters: SearchableItem[] = matterState.matters.map(m => ({ ...m, dataType: 'Matter', clientName: matterState.contacts.find(c => c.id === m.clientId)?.name || '' }));
-        const contacts: SearchableItem[] = matterState.contacts.map(c => ({ ...c, dataType: 'Contact' }));
-        const documents: SearchableItem[] = documentState.documents.map(d => ({ ...d, dataType: 'Document' }));
-        const tasks: SearchableItem[] = executionState.tasks.map(t => ({ ...t, dataType: 'Task' }));
-        return [...matters, ...contacts, ...documents, ...tasks];
-    }, [matterState.matters, matterState.contacts, documentState.documents, executionState.tasks]);
-
-    const fuse = useMemo(() => {
-        return new Fuse(searchData, {
-            keys: [{ name: 'title', weight: 2 }, { name: 'name', weight: 2 }, 'suitNumber', 'clientName', 'email', 'companyName', 'description'],
-            includeScore: true,
-            minMatchCharLength: 1,
-        });
-    }, [searchData]);
+    // Server-side search (skipped until there is an authenticated firm user
+    // and a meaningful term — the searchIndex needs at least 2 characters).
+    const trimmed = debouncedQuery.trim();
+    const canSearch = Boolean(currentUser?.firmId && currentUser?.email) && trimmed.length >= 2;
+    const serverResults = useQuery(
+        api.search.searchAll,
+        canSearch ? { userEmail: currentUser!.email!, query: trimmed } : "skip"
+    ) as ServerSearchResult | undefined;
 
     const searchResults = useMemo(() => {
-        if (!query || query.trim().length < 1) return null;
-        
-        const results = fuse.search(query).map((result: any) => result.item);
-        
-        const grouped: { [key in SearchableItem['dataType']]?: SearchableItem[] } = {};
-        results.forEach((item: SearchableItem) => {
-            if (!grouped[item.dataType]) {
-                grouped[item.dataType] = [];
-            }
-            grouped[item.dataType]!.push(item);
-        });
-
-        const totalCount = results.length;
-
+        if (!serverResults) return null;
+        const grouped: Record<ResultDataType, SlimResult[]> = {
+            Matter: serverResults.matters.map(m => ({ id: m.id, dataType: 'Matter' as const, title: m.title, suitNumber: m.suitNumber })),
+            Contact: serverResults.contacts.map(c => ({ id: c.id, dataType: 'Contact' as const, name: c.name, email: c.email })),
+            Document: serverResults.documents.map(d => ({ id: d.id, dataType: 'Document' as const, title: d.title })),
+            Task: serverResults.tasks.map(t => ({ id: t.id, dataType: 'Task' as const, title: t.title })),
+        };
+        const totalCount =
+            grouped.Matter.length + grouped.Contact.length +
+            grouped.Document.length + grouped.Task.length;
         return { grouped, totalCount };
-    }, [query, fuse]);
+    }, [serverResults]);
 
     useEffect(() => {
         if (isMobileSearchOpen) {
@@ -68,7 +88,7 @@ const FullScreenSearch: React.FC = () => {
 
     if (!isMobileSearchOpen) return null;
 
-    const handleSelect = (item: SearchableItem) => {
+    const handleSelect = (item: SlimResult) => {
         setMobileSearchOpen(false);
         switch (item.dataType) {
             case 'Matter': return navigateTo('matterDetail', item.id);
@@ -78,12 +98,14 @@ const FullScreenSearch: React.FC = () => {
         }
     };
 
+    const isSearching = canSearch && !serverResults;
+
     return (
         <div className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col sm:hidden animate-fade-in-up">
             <header className="flex-shrink-0 flex items-center p-2 border-b border-slate-200 dark:border-zinc-700">
                 <div className="relative flex-grow">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                    <input autoComplete="off" data-lpignore="true" 
+                    <input autoComplete="off" data-lpignore="true"
                         ref={inputRef}
                         type="search"
                         placeholder="Search matters, contacts, etc."
@@ -98,24 +120,24 @@ const FullScreenSearch: React.FC = () => {
             </header>
             <main className="flex-grow overflow-y-auto">
                 {query.trim().length > 0 ? (
-                    searchResults && searchResults.totalCount > 0 ? (
+                    isSearching ? (
+                        <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Searching…</p>
+                    ) : trimmed.length < 2 ? (
+                        <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Keep typing to search…</p>
+                    ) : searchResults && searchResults.totalCount > 0 ? (
                         <div>
                              <div className="px-4 py-2 text-sm text-slate-500 dark:text-zinc-400 border-b border-slate-200 dark:border-zinc-700">
                                 Found {searchResults.totalCount} result{searchResults.totalCount === 1 ? '' : 's'}
                             </div>
                             <ul>
-                                {(Object.keys(searchResults.grouped) as (keyof typeof searchResults.grouped)[])
-                                    .sort((a,b) => {
-                                        const typeOrder: Record<SearchableItem['dataType'], number> = { 'Matter': 1, 'Contact': 2, 'Document': 3, 'Task': 4 };
-                                        return typeOrder[a] - typeOrder[b];
-                                    })
+                                {(Object.keys(typeConfig) as ResultDataType[])
                                     .map(dataType => {
                                     const items = searchResults.grouped[dataType];
                                     if (!items || items.length === 0) return null;
 
                                     const config = typeConfig[dataType];
                                     const Icon = config.icon;
-                                    
+
                                     return (
                                         <React.Fragment key={dataType}>
                                             <h3 className={`px-4 py-2 text-xs font-bold uppercase bg-slate-50 dark:bg-zinc-800 sticky top-0 ${config.headerColor}`}>

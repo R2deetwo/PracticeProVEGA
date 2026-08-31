@@ -42,6 +42,7 @@ import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushNotificationsNode from "../pushNotificationsNode.js";
 import type * as retainerBilling from "../retainerBilling.js";
 import type * as salesInquiries from "../salesInquiries.js";
+import type * as search from "../search.js";
 import type * as securityHelpers from "../securityHelpers.js";
 import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
@@ -94,6 +95,7 @@ declare const fullApi: ApiFromModules<{
   pushNotificationsNode: typeof pushNotificationsNode;
   retainerBilling: typeof retainerBilling;
   salesInquiries: typeof salesInquiries;
+  search: typeof search;
   securityHelpers: typeof securityHelpers;
   seedLegalRepo: typeof seedLegalRepo;
   seedSentry: typeof seedSentry;
