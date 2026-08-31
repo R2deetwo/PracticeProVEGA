@@ -9346,3 +9346,52 @@ Stage Summary:
 - Deployment topology documented: production = gregarious-malamute-537
   (workflows' CONVEX_DEPLOY_KEY correctly targets it); keen-jaguar-204
   is an orphaned dev deployment referenced only by a stale CSP entry
+---
+Task ID: unify-banners-1
+Agent: main (Super Z)
+Task: Unify banner systems — critical lease/rent alerts incorporated into the BroadcastBanner carousel (user request: "one banner system, different styles, not different banners in different locations")
+
+Work Log:
+- Analyzed the competing banner surfaces: CriticalLeaseBanner pinned
+  top-of-app between Header and content (all views, rose style) vs
+  BroadcastBanner glassmorphic carousel (Dashboard, below Overview
+  header — "the banner system i have" per the user)
+- Discovered BroadcastBanner already has a systemBanners injection
+  mechanism (trial countdown, overdue rent) with urgency-sorted merge —
+  the natural consolidation point
+- Extended BroadcastBanner.tsx (+144 lines):
+  - New 'critical' THEME: deep crimson frosted glass
+    rgba(186,26,43,0.88) + bg-red-500 accent bar (distinct from 'urgent'
+    coral)
+  - URGENCY_RANK critical: -1 → critical alerts sort to carousel
+    position 1
+  - CRITICAL_TYPES / isCriticalType / criticalTitleFor helpers migrated
+    from CriticalLeaseBanner (lease_expiry, defaulter, statutory_notice,
+    etc.)
+  - Critical notifications from coreState.notifications injected in the
+    systemBanners memo (cap 3), deep-linking via
+    properties/<id>?tab=units&targetUnit&highlight (same route the
+    carousel's deepLink parser + navigateTo already handle)
+  - Legacy dismissal keys dismissed_critical_banner_<id> reused verbatim
+    (prior dismissals honored) + reactive dismissedCriticalIds state
+  - handleDismiss: critical items also write the legacy key and update
+    local state; markAsRead still fires server-side
+  - Fixed pre-existing bug: useCallback deps referenced nonexistent
+    'arkAsRead' (typo) → [markAsRead, currentUser]
+- Removed CriticalLeaseBanner.tsx (149 lines) and its App.tsx mount —
+  the Dashboard carousel is now the single notification-banner surface
+- Verified: tsc 153 (baseline), vite build PASS, commit ea243bf2 pushed,
+  all 3 workflows green, both Vercel + CF serving
+  index-DF-U4APp-ea243bf2.css, Convex backend healthy, browser check
+  no page errors
+
+Stage Summary:
+- ONE banner system: broadcasts + trial + overdue rent + critical
+  lease/rent alerts all render in the Dashboard BroadcastBanner
+  carousel, each with its own visual style (critical = crimson glass)
+- Banner landscape after: Dashboard carousel (all notification banners),
+  CompleteSetupBanner + TrialNudgeBanner remain dashboard widgets in the
+  same visual flow
+- NOTE: critical alerts now render on the Dashboard view only (the
+  banner system's location) — previously CriticalLeaseBanner showed on
+  all views
