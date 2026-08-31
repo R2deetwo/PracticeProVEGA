@@ -86,6 +86,96 @@ export const addLedgerEntry = mutation({
   },
 });
 
+// ─── HISTORICAL PERIOD SETTLEMENT (Phase 3 — OnboardUnitLedgerModal → ledger) ─
+/**
+ * settleUnitPeriods — writes ledger_entries rows for billing periods marked
+ * paid/late/advance_paid in the OnboardUnitLedgerModal ("Settle Historical
+ * Ledger" during unit onboarding).
+ *
+ * WHY: the modal previously only persisted status pills into the unit's
+ * rentalDetails.scPeriods/mvPeriods blob. The firm-wide revenue ledger
+ * (RevenueMonitor → getLedgerByFirm) reads ledger_entries — so quick-settled
+ * historical revenue was INVISIBLE in every ledger/revenue view.
+ *
+ * IDEMPOTENT: each period gets a stable key
+ *   settle-{firmId}-{unitId}-{chargeType}-{periodIndex}
+ * so re-submitting the property form (or re-running settlement) never
+ * duplicates entries. Outstanding periods are intentionally NOT written —
+ * the unit's scPeriods tracks those; the ledger records money that moved.
+ *
+ * Timestamp uses paidDate > dueDate > now so revenue attributes to the
+ * correct historical month in reporting.
+ */
+export const settleUnitPeriods = mutation({
+  args: {
+    firmId: v.string(),
+    unitId: v.string(),
+    tenantId: v.optional(v.string()),
+    chargeType: v.union(v.literal("SC"), v.literal("MV")),
+    periods: v.array(v.object({
+      index: v.number(),
+      dueDate: v.optional(v.string()),
+      status: v.string(),           // 'paid' | 'late' | 'advance_paid' | 'outstanding'
+      amount: v.optional(v.number()),
+      paidDate: v.optional(v.string()),
+    })),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
+
+    let created = 0;
+    let skipped = 0;
+    for (const p of args.periods) {
+      const settled = p.status === "paid" || p.status === "late" || p.status === "advance_paid";
+      const amount = Number(p.amount || 0);
+      if (!settled || amount <= 0) {
+        skipped++;
+        continue;
+      }
+
+      const idempotencyKey = `settle-${auth.firmId}-${args.unitId}-${args.chargeType}-${p.index}`;
+      const existing = await ctx.db
+        .query("ledger_entries")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", idempotencyKey))
+        .first();
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      // Historical timestamp: paidDate > dueDate > now (revenue attribution)
+      let timestamp = Date.now();
+      try {
+        const t = p.paidDate ? new Date(p.paidDate).getTime() : p.dueDate ? new Date(p.dueDate).getTime() : NaN;
+        if (!isNaN(t)) timestamp = t;
+      } catch {}
+
+      const txHash = makeTxHash(auth.firmId, args.unitId, amount, timestamp, "service_charge");
+      await ctx.db.insert("ledger_entries", {
+        firmId: auth.firmId,
+        unitId: args.unitId,
+        tenantId: args.tenantId,
+        amount,
+        type: "service_charge",
+        status: "cleared",
+        timestamp,
+        txHash,
+        channel: "Historical Settlement",
+        idempotencyKey,
+        period: p.dueDate,
+        description:
+          `Historical ${args.chargeType === "SC" ? "Service Charge" : "Minimum Vend"} period #${p.index}` +
+          `${p.dueDate ? ` (${p.dueDate})` : ""} — settled during onboarding` +
+          `${p.status === "late" ? " (paid late)" : p.status === "advance_paid" ? " (advance payment)" : ""}`,
+      });
+      created++;
+    }
+
+    return { success: true, created, skipped };
+  },
+});
+
 export const getLedgerByFirm = query({
   args: { firmId: v.string(), limit: v.optional(v.number()), userEmail: v.optional(v.string()) },
   handler: async (ctx, { firmId, limit, userEmail }) => {

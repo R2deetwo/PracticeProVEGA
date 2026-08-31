@@ -117,6 +117,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const { addToast, openModal, navigateTo } = useUI();
     const { currentUser } = useAuth();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+    const settleUnitPeriods = useMutation(api.sentry.settleUnitPeriods);
     const { queueMutation, isOnline } = useOfflineQueue();
     const { confirm, ConfirmDialog } = useConfirm();
 
@@ -732,6 +733,51 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         console.warn('Failed to route caution deposit to ledger:', e);
                     }
                 }
+
+                // PHASE 3 — Route settled historical billing periods to the
+                // revenue ledger. OnboardUnitLedgerModal ("Settle Historical
+                // Ledger") previously only wrote status pills into the unit's
+                // rentalDetails.scPeriods/mvPeriods blob — the firm ledger
+                // (ledger_entries) never saw the quick-settled revenue.
+                // settleUnitPeriods is idempotent (stable key per period), so
+                // re-submitting the form never duplicates entries.
+                const settledFor = (periods: ServiceChargePeriod[] | undefined, chargeType: 'SC' | 'MV') => {
+                    const list = (periods || []).filter(p =>
+                        (p.status === 'paid' || p.status === 'late' || p.status === 'advance_paid') &&
+                        Number(p.amount || 0) > 0
+                    );
+                    if (list.length === 0) return;
+                    const payload = {
+                        firmId,
+                        unitId,
+                        // Cast: tenantContactId is set on the unit by the
+                        // Contacts auto-sync step (not declared on
+                        // UnitRentalInput's legacy type).
+                        tenantId: (unit as any).tenantContactId || undefined,
+                        chargeType,
+                        periods: list.map(p => ({
+                            index: p.index,
+                            dueDate: p.dueDate,
+                            status: p.status,
+                            amount: Number(p.amount || 0),
+                            paidDate: p.paidDate,
+                        })),
+                        userEmail: currentUser?.email,
+                    };
+                    if (!isOnline) {
+                        queueMutation({
+                            mutationName: 'settleUnitPeriods',
+                            args: payload,
+                            label: `Settled ${list.length} ${chargeType} period${list.length > 1 ? 's' : ''} — ${unit.unitName || 'Unit'}`,
+                        });
+                    } else {
+                        settleUnitPeriods(payload).catch(e =>
+                            console.warn('Failed to settle historical periods to ledger:', e)
+                        );
+                    }
+                };
+                settledFor(unit.scPeriods, 'SC');
+                settledFor(unit.mvPeriods, 'MV');
             }));
 
             // 2. Handle unit deletions (if numberOfUnits was decreased)

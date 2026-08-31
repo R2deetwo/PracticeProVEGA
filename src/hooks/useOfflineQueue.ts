@@ -70,6 +70,7 @@ const MUTATION_NAMES = [
     'updateTaskStatus',     // useTasks.ts — status changes (mobile field use)
     'createMaintenanceTicket',  // portals.ts — tenant submitting a maintenance ticket
     'cancelMaintenanceTicket',   // portals.ts — tenant cancelling their own ticket
+    'settleUnitPeriods',         // sentry.ts — OnboardUnitLedgerModal historical period settlement
 ] as const;
 type MutationName = (typeof MUTATION_NAMES)[number];
 
@@ -177,6 +178,7 @@ export function useOfflineQueue() {
     const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
     const createMaintenanceTicketMutation = useMutation(api.portals.createMaintenanceTicket);
     const cancelMaintenanceTicketMutation = useMutation(api.portals.cancelMaintenanceTicket);
+    const settleUnitPeriodsMutation = useMutation(api.sentry.settleUnitPeriods);
 
     // Build the dispatch map. Wrapped in a ref so the replay closure stays stable.
     const mutationsRef = useRef<Record<MutationName, (args: any) => Promise<any>>>({
@@ -191,6 +193,7 @@ export function useOfflineQueue() {
         updateTaskStatus: updateTaskStatusMutation,
         createMaintenanceTicket: createMaintenanceTicketMutation,
         cancelMaintenanceTicket: cancelMaintenanceTicketMutation,
+        settleUnitPeriods: settleUnitPeriodsMutation,
     });
     // Keep the ref current whenever any mutation ref changes (defensive — Convex
     // mutations are stable, but this is cheap insurance).
@@ -206,6 +209,7 @@ export function useOfflineQueue() {
         updateTaskStatus: updateTaskStatusMutation,
         createMaintenanceTicket: createMaintenanceTicketMutation,
         cancelMaintenanceTicket: cancelMaintenanceTicketMutation,
+        settleUnitPeriods: settleUnitPeriodsMutation,
     };
 
     const isReplaying = useRef(false);

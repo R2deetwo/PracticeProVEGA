@@ -8985,3 +8985,31 @@ Stage Summary:
 - TS: 161 (unchanged), vite build PASS
 - Schema conformance: 4 real violations fixed; audit scripts persisted for
   the flip follow-up
+
+---
+Task ID: recovery-9
+Agent: main (Super Z)
+Task: Phase 3 — OnboardUnitLedgerModal settled periods → ledger_entries
+
+Work Log:
+- Diagnosis: the modal's onApply only wrote status pills into the unit's
+  rentalDetails.scPeriods/mvPeriods blob (form-local → properties row).
+  The firm revenue ledger (ledger_entries, read by RevenueMonitor/
+  LedgerManager via getLedgerByFirm) never saw quick-settled historical
+  revenue — invisible revenue for every unit onboarded via the modal
+- New mutation sentry.settleUnitPeriods: writes one cleared ledger_entries
+  row per paid/late/advance_paid period (SC + MV), with:
+  * stable idempotency key settle-{firmId}-{unitId}-{chargeType}-{index}
+    → form re-submission never duplicates
+  * historical timestamp (paidDate > dueDate > now) for correct monthly
+    revenue attribution
+  * outstanding periods intentionally NOT written (ledger records money
+    that moved; scPeriods tracks outstanding)
+- PropertyForm submit: per-unit loop now routes settled SC + MV periods
+  through settleUnitPeriods (online path + offline queue)
+- useOfflineQueue: registered settleUnitPeriods (MUTATION_NAMES, hook,
+  both dispatch maps) — offline settlement replays on reconnect
+
+Stage Summary:
+- TS: 161 (unchanged — the one new error was the undeclared
+  tenantContactId, fixed with documented cast), vite build PASS
