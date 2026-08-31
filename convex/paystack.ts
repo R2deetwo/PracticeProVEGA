@@ -27,6 +27,7 @@ import { internalAction, httpAction, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
+import { randomHex } from "./secureRandom";
 
 // ─── CHECK IF PAYSTACK IS ACTIVE ───────────────────────────────────────────
 // Frontend uses this to decide whether to show "Pay with Card" (Paystack)
@@ -92,7 +93,8 @@ export const initiateClientPayment = action({
     }
 
     // Generate a unique reference
-    const reference = `PP-${args.invoiceId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // SECURITY: crypto-secure reference (was Math.random — predictable PRNG)
+    const reference = `PP-${args.invoiceId}-${Date.now()}-${randomHex(8)}`;
 
     const amountInKobo = Math.round(args.amount * 100);
 

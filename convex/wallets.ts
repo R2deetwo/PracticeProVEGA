@@ -9,6 +9,7 @@
 import { internalMutation, mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { randomHex } from "./secureRandom";
 
 const DEFAULT_LOW_BALANCE_THRESHOLD = 1000;
 
@@ -17,7 +18,8 @@ function formatNGN(amount: number): string {
 }
 
 function generateTransactionReference(): string {
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  // SECURITY: crypto-secure (was Math.random — predictable PRNG)
+  const rand = randomHex(6).toUpperCase();
   const ts = Date.now().toString(36).toUpperCase().slice(-6);
   return `TXN-${ts}${rand}`;
 }
@@ -152,7 +154,8 @@ export const initiateWalletFunding = action({
     const siteUrl = process.env.SITE_URL;
     if (!siteUrl) throw new Error("SITE_URL is not configured.");
 
-    const reference = `WALLET-${args.tenantId.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // SECURITY: crypto-secure reference (was Math.random — predictable PRNG)
+    const reference = `WALLET-${args.tenantId.slice(0, 8)}-${Date.now()}-${randomHex(8)}`;
     const amountInKobo = Math.round(args.amount * 100);
 
     const response = await fetch("https://api.paystack.co/transaction/initialize", {

@@ -4,14 +4,14 @@ import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 
 // ─── Portal Access Token Generator ──────────────────────────────────────────
-// Generates a UUID v4-style token for portal URLs.
+// Generates a UUID v4 token for portal URLs.
 // Format: 8-4-4-4-12 hex chars (e.g. "2e71135d-003e-42dd-83ff-9f7988e7c6ac")
 // These tokens are used in URLs like /portal/tenant/{token} for identification
 // and bookmarkability — NOT for authentication.
+// SECURITY: crypto.randomUUID (was Math.random — predictable PRNG; predictable
+// portal tokens enabled URL enumeration).
 function generatePortalAccessToken(): string {
-  const hex = () => Math.floor(Math.random() * 16).toString(16);
-  const segment = (len: number) => Array.from({ length: len }, () => hex()).join('');
-  return `${segment(8)}-${segment(4)}-4${segment(3)}-${segment(4)}-${segment(12)}`;
+  return crypto.randomUUID();
 }
 
 // ─── Maintenance Tickets ────────────────────────────────────────────────

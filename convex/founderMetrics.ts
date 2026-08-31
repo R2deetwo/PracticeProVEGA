@@ -3,6 +3,7 @@ import { query, mutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { getMaxUsersForFirm, getTierLimitsForFirm, getDisplayPlan } from "./tierLimits";
+import { randomHex } from "./secureRandom";
 
 // ─── Platform Subscription Pricing ───────────────────────────────────
 // PRIVACY: The founder dashboard ONLY tracks platform subscription
@@ -896,7 +897,8 @@ export const broadcastNotification = action({
     // all per-user notification rows created by this single broadcast.
     // This lets the admin "archive" (delete) all rows for a broadcast
     // in one operation, and lets the client track dismissal per-broadcast.
-    const broadcastId = `broadcast_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // SECURITY: crypto-secure id (was Math.random — predictable PRNG)
+    const broadcastId = `broadcast_${Date.now()}_${randomHex(8)}`;
     const persistenceMode = args.persistenceMode || 'permanent';
 
     // SECOND-LAYER DEDUP: The query already deduplicates by email, but

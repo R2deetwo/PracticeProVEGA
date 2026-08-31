@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
+import { numericCode, codeFromCharset } from "./secureRandom";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
@@ -1260,7 +1261,8 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
   debugCode?: string;
 }> {
     const token: string = args.email.toLowerCase().trim();
-    const code: string = Math.floor(100000 + Math.random() * 900000).toString();
+    // SECURITY: crypto-secure code (was Math.random — predictable PRNG)
+    const code: string = numericCode(6);
 
     // ── Rate Limiting ──────────────────────────────────────────────────
     // Max 5 signups per email per minute, 20 per IP per minute.
@@ -1526,7 +1528,8 @@ export const verifyLogin = action({
     if (isPasswordCorrect) {
       if (user.isMfaEnabled) {
         if (!args.mfaCode) {
-          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          // SECURITY: crypto-secure MFA code (was Math.random — predictable PRNG)
+          const code = numericCode(6);
           await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
             userId: user._id,
             fields: { mfaCode: code },
@@ -1868,7 +1871,8 @@ export const requestPasswordReset = mutation({
     // Always return success to prevent email enumeration attacks
     if (!user) return { success: true };
 
-    const code = "RCV-" + Math.floor(100000 + Math.random() * 900000).toString();
+    // SECURITY: crypto-secure recovery code (was Math.random — predictable PRNG)
+    const code = "RCV-" + numericCode(6);
     await ctx.db.patch(user._id, { recoveryCode: code });
 
     try {
@@ -1913,7 +1917,8 @@ export const requestPortalPasswordReset = mutation({
       return { success: true };
     }
 
-    const code = "RCV-" + Math.floor(100000 + Math.random() * 900000).toString();
+    // SECURITY: crypto-secure recovery code (was Math.random — predictable PRNG)
+    const code = "RCV-" + numericCode(6);
     await ctx.db.patch(user._id, { recoveryCode: code });
 
     try {
@@ -1953,7 +1958,8 @@ export const createFirm = mutation({
     trial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const inviteCode = "INV-" + Math.floor(1000 + Math.random() * 9000);
+    // SECURITY: crypto-secure invite code (was Math.random — predictable PRNG)
+    const inviteCode = "INV-" + numericCode(4);
     const now = Date.now();
     const TRIAL_DAYS = 30;  // Changed from 14 to 30 — gives users time to experience automations, WhatsApp, email cycles
     const trialEndsAt = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
@@ -2122,11 +2128,9 @@ export const regenerateInviteCode = mutation({
     }
 
     // Generate a more robust unique code: 6 characters alphanumeric
+    // SECURITY: crypto-secure draw (was Math.random — predictable PRNG)
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid ambiguous chars
-    let newCode = "INV-";
-    for (let i = 0; i < 6; i++) {
-      newCode += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    const newCode = "INV-" + codeFromCharset(chars, 6);
 
     await ctx.db.patch(firm._id, { inviteCode: newCode });
     return newCode;
