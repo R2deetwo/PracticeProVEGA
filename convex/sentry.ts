@@ -422,8 +422,11 @@ export const markChargeAsPaid = mutation({
                 status: "scheduled",
                 messageType: "payment_receipt",
                 tenantIds: [sc.tenantId || ''],
-                createdBy: "system_automation",
+                // SCHEMA FIX: `createdBy` isn't a schema field — the schema's
+                // equivalent is `triggeredBy`; `updatedAt` is required.
+                triggeredBy: "system_automation",
                 createdAt: Date.now(),
+                updatedAt: Date.now(),
               } as any);
             }
           }
@@ -1041,8 +1044,10 @@ export const sendServiceChargeReminders = internalMutation({
           status: "scheduled",
           messageType: "service_charge_reminder",
           tenantIds: [charge.tenantId || ''],
-          createdBy: "system_cron",
+          // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
+          triggeredBy: "system_cron",
           createdAt: now,
+          updatedAt: now,
         } as any);
       }
 
@@ -1120,8 +1125,10 @@ export const runDailyAutomation = internalMutation({
         status: "scheduled",
         messageType: "late_notice",
         tenantIds: [charge.tenantId || ''],
-        createdBy: "system_cron",
+        // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
+        triggeredBy: "system_cron",
         createdAt: now,
+        updatedAt: now,
       } as any);
 
       // Increment the reminder counter

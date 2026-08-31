@@ -8947,3 +8947,41 @@ Stage Summary:
 - TS: 161 (unchanged), vite build PASS
 - Phase 3 items closed here: multi-table transactions (#1) + markChargeAsPaid
   idempotency (#4); ledger index added (#3 partially)
+
+---
+Task ID: recovery-8
+Agent: main (Super Z)
+Task: Phase 3 Tasks 2+3 — schema-conformance audit (schemaValidation prep) + missing indexes
+
+Work Log:
+- Built 3 static audit scripts (scripts/audit_inserts_v3.py, audit_patches.py)
+  with comment-stripping, brace-depth object parsing, and shorthand-key
+  detection — false-positive rate driven to near zero
+- INSERT audit: 3 real violations (all scheduled_messages in sentry.ts):
+  writes used nonexistent `createdBy` (schema field is `triggeredBy`) and
+  missed required `updatedAt` — FIXED at sentry.ts:417/1036/1115
+- Missing-required reports for user_feedback (adminId) and
+  atrium_inbound_messages (intent/sentiment) were FALSE POSITIVES (nested
+  v.object fields)
+- PATCH audit (15 flagged): manually verified all — 14 were table-inference
+  false positives (row-id patches of users/subscriptionAddons/conversations);
+  1 REAL violation: notifications.readAt written by
+  pushNotifications.markNotificationRead but absent from schema — FIXED
+  (added readAt: nullableNumber)
+- Indexes: ledger_entries gained by_idempotency (earlier commit);
+  tenancies verified to already have by_firm/by_property/by_tenant covering
+  all its access patterns — no change needed
+
+DECISION — schemaValidation stays false for now (documented rationale):
+- Convex schemaValidation:false disables BOTH document validation AND
+  function-args validation. Flipping it on activates arg validation for
+  ~400 public functions at once — a surface this audit cannot statically
+  verify (16 spread inserts + 127 id-based patches remain manual-review)
+- Remaining path to flip (bounded follow-up): (1) resolve the 16 spread
+  insert sites, (2) dataflow-check the 127 id-based patches, (3) flip in a
+  staging deploy with signup + payments + portal smoke tests
+
+Stage Summary:
+- TS: 161 (unchanged), vite build PASS
+- Schema conformance: 4 real violations fixed; audit scripts persisted for
+  the flip follow-up

@@ -343,6 +343,10 @@ export default defineSchema({
     actionLink: nullableString,
     timestamp: nullableString,
     isRead: nullableBoolean,
+    // SCHEMA FIX: pushNotifications.markNotificationRead patches `readAt`
+    // onto notification rows — the field existed in app_notifications but
+    // was missing here (would throw under schemaValidation=true).
+    readAt: nullableNumber,
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
