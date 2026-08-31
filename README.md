@@ -8,7 +8,7 @@ PracticePro is a dual-product SaaS platform serving two professional verticals f
 - **Atrium OS** — Property & Estate Management for property managers and gated estates
 - **Komplete** — Unified firms running both legal and property operations
 
-Built for the Nigerian jurisdiction, PracticePro combines practice management, financial operations, document intelligence, AI automation, and visitor management into one cohesive platform.
+Built for the Nigerian jurisdiction, PracticePro combines practice management, financial operations, document intelligence, AI automation, estate community tooling, and visitor management into one cohesive platform.
 
 ---
 
@@ -21,7 +21,7 @@ Built for the Nigerian jurisdiction, PracticePro combines practice management, f
 - **Mobile:** Capacitor 8 (Android APK)
 - **Deployment:** Vercel (primary) + Cloudflare Workers (secondary)
 - **Push Notifications:** Firebase Cloud Messaging (FCM)
-- **Payments:** Paystack integration (bank transfer live, card/USSD activating)
+- **Payments:** Paystack + Flutterwave integrations (bank transfer live, card/USSD activating)
 
 ### Product Architecture
 ```
@@ -35,14 +35,18 @@ PracticePro (Parent Company)
 │   └── ALOA AI Assistant (Legal)
 ├── Atrium OS (Property)
 │   ├── Property & Unit Management
-│   ├── Visitor Management System (VMS) with gatehouse verification
+│   ├── Visitor Management System (VMS) with gatehouse verification — “Sentry Pass”
 │   ├── Service Charge & Minimum Vend Tracking
 │   ├── Rent Collection & Receipt Automation
+│   ├── Estate Community (Amenity Booking, Estate Bulletin, Service Provider Directory)
+│   ├── Revenue Monitor (defaulter dashboard) & Vacancy Pipeline
 │   ├── ARIA AI Assistant (Property)
-│   └── Resident Portal (ledger, payments, maintenance, visitors)
+│   └── Resident Portal (ledger, payments, maintenance, visitors, amenities)
 └── Komplete (Unified)
     └── All features from both Vega + Atrium
 ```
+
+Additional platform capabilities spanning both products: **Trust Accounting** (per-matter/client trust sub-ledgers), **Global Search** (⌘/Ctrl+K, server-side searchIndex), **Broadcasts & platform notices** (unified banner carousel on the dashboard), **Automations** (if-this-then-that firm rules), and **Global Full-Screen Search**.
 
 ### Multi-Product Routing
 The app uses a `useProduct()` hook that determines which product context is active:
@@ -77,10 +81,12 @@ cp .env.example .env.local
 | `VITE_CONVEX_URL` | Yes | Convex deployment URL |
 | `VITE_GEMINI_API_KEY` | Optional | Google Gemini API key for AI features |
 | `VITE_POSTHOG_KEY` | Optional | PostHog analytics key (visitor tracking, funnels) |
+| `VITE_SENTRY_DSN` | Optional | Sentry crash-reporting DSN (production error monitoring) |
 | `CONVEX_DEPLOY_KEY` | Optional | For CI/CD Convex deploys |
 | `FCM_SERVER_KEY` | Optional | Firebase Cloud Messaging server key |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Optional | Firebase service account JSON for FCM |
 | `VERCEL_TOKEN` | Optional | For direct Vercel API deploys via scripts/vercel-deploy.cjs |
+| `RELEASE_STORE_FILE` / `RELEASE_KEY_*` | Optional | Android release signing (see `.env.example`) |
 
 ### Running the Dev Server
 ```bash
@@ -101,29 +107,22 @@ npm run build
 # Output: dist/ (production bundle)
 ```
 
-### Deploy to Vercel
-Vercel auto-deploys on push to `master` via GitHub integration.
-- **URL:** https://practice-pro-vega.vercel.app
-- **Build command:** `npm run build`
-- **Output directory:** `dist`
-- **Production branch:** `master`
+### Deploy Pipelines (GitHub Actions)
+All three deploy pipelines auto-trigger on push to `main` (repo-stored secrets — no local tokens needed):
 
-If the GitHub webhook breaks, you can deploy directly:
-```bash
-npx vercel login
-npx vercel --prod
-```
+| Workflow | Deploys | Output |
+|----------|---------|--------|
+| `vercel-deploy.yml` | Frontend | https://practice-pro-vega.vercel.app |
+| `cloudflare-deploy.yml` | Frontend (wrangler) | https://practice-pro-vega.prototypechigo.workers.dev |
+| `build-apk.yml` | Android APK **+ Convex backend** (`npx convex deploy`, gated on `CONVEX_DEPLOY_KEY`) | APK release + backend functions |
 
-### Deploy to Cloudflare Workers
-```bash
-CLOUDFLARE_API_TOKEN=your_token npx wrangler deploy
-```
-- **URL:** https://practice-pro-vega.prototypechigo.workers.dev
-- **Config:** `wrangler.jsonc` (SPA mode with cache headers)
+> **Note:** The Convex backend deploys as a step inside `build-apk.yml`. A push that changes only backend functions still triggers it, but if a backend-only change needs faster propagation, re-run the workflow from the Actions tab.
 
-### Deploy Convex Backend
+Manual fallbacks:
 ```bash
-npx convex deploy
+npx convex deploy                 # backend only
+npx vercel --prod                 # Vercel frontend
+CLOUDFLARE_API_TOKEN=… npx wrangler deploy   # Cloudflare frontend
 ```
 
 ### Build Android APK
@@ -197,7 +196,7 @@ cd android && ./gradlew assembleRelease
 ├── .github/workflows/         # CI/CD (APK builds)
 ├── wrangler.jsonc             # Cloudflare Workers config
 ├── vercel.json                # Vercel deploy config
-└── tailwind.config.js         # Tailwind theme
+└── tailwind.config.ts         # Tailwind theme (CSS-var-driven dual palette)
 ```
 
 ---
@@ -217,13 +216,15 @@ cd android && ./gradlew assembleRelease
 |------|-------|-------|---------|-------------|
 | Starter | N49,000/mo or N490,000/yr | 10 | 15 | 250 |
 | Growth | N96,500/mo or N965,000/yr | 25 | 40 | 500 |
-| Pro | N200,000/mo or N2,100,000/yr | 100 | Unlimited | Unlimited |
+| Pro | N210,000/mo or N2,100,000/yr | 100 | Unlimited | Unlimited |
 | Enterprise | Custom | Unlimited | Unlimited | Unlimited |
 
 ### Komplete (Unified) — Annual Only
 | Tier | Price | Seats | Features |
 |------|-------|-------|----------|
-| Komplete | N2,200,000/yr | Unlimited | All Vega + Atrium + Sentry Pass + 500GB + Dedicated AM |
+| Komplete | N2,500,000/yr (annual only) | Unlimited | All Vega + Atrium + Sentry Pass + 500GB + Dedicated AM |
+
+> **Pricing source of truth:** `src/constants/tiers.ts` (mirrored server-side in `convex/tierLimits.ts`). Keep this table in sync when prices change.
 
 All plans include a **30-day free trial**. Annual plans include a **30-day money-back guarantee**.
 
@@ -283,9 +284,9 @@ All 5 primary AI prompts are sourced from versioned markdown files in `/ai/promp
 ## Routing
 
 The app uses React Router v6 (`BrowserRouter`) with URL-based navigation:
-- Public routes: `/`, `/vega`, `/atrium`, `/komplet`, `/resources`, `/privacy-policy`, `/terms-of-service`, `/data-processing-agreement`, `/cookie-policy`, `/usage-policy`
-- Portal routes: `/portal/tenant/:token`, `/portal/client/:token`, `/gatehouse`
-- Authenticated routes: `/matters`, `/properties`, `/billing`, `/settings`, `/messaging`, etc.
+- Public routes: `/`, `/vega`, `/atrium`, `/komplet`, `/resources`, `/privacy-policy`, `/terms-of-service`, `/portal-terms-of-use`, `/data-processing-agreement`, `/cookie-policy`, `/usage-policy`
+- Portal routes: `/portal/tenant/login`, `/portal/client/login`, `/setup-password` (portal invite password setup), `/gatehouse?firmId=<id>` (public Sentry Pass verification terminal)
+- Authenticated routes: `/matters`, `/properties`, `/billing`, `/settings`, `/messaging`, etc. (driven by the internal `View` registry + `navigateTo`)
 
 All public routes are in the `publicPaths` array and accessible without authentication.
 
@@ -315,6 +316,30 @@ Reports saved to `./audit-results/`:
 - `product-vega-report.json` / `product-atrium-report.json` — Product page checks
 - `master-report.json` — Full 10-domain audit
 - `screenshots/` — Visual captures
+
+---
+
+## Documentation Index
+
+| Document | Purpose |
+|----------|---------|
+| `README.md` | This file — architecture, setup, deploy, pricing |
+| `PRACTICE_PRO_APP_MARKDOWN.md` | Product one-pager (business view) |
+| `ALOAGUIDE.md` | The ALOA/ARIA AI assistants — capabilities, identity, safety |
+| `ALOA_LOGO.md` / `PRACTICE_PRO_LOGO.md` | Brand marks and usage rules |
+| `ESTATE_COMMUNITY.md` | Amenity booking, estate bulletin, provider directory |
+| `INVOICE_GENERATION.md` | Billing, retainers, payments, receipts end-to-end |
+| `VMS_GATEHOUSE_SOPS.md` | Sentry Pass gatehouse standard operating procedures |
+| `CONFIDENTIALITY_GUIDE.md` | NDPA-aligned data handling for operators |
+| `COLOR_SCHEME.md` / `STYLE_GUIDE.md` | Brand palette and UI style rules |
+| `DEV_TOOLKIT.md` | Developer commands, scripts, conventions |
+| `AI_FEATURES.md` / `AUTOMATION_GUIDE.md` | AI feature map; automation rules |
+| `PRACTICE_PRO_AND_DRAFTPRO_GUIDE.md` | PracticePro + DraftPro feature guide |
+| `PROCEDURAL_INTELLIGENCE_SPECIFICATION.md` | Court procedural intelligence spec |
+| `PRICING_STRATEGY.md` / `SALES_PLAYBOOK.md` / `DIGITIZATION_BUSINESS_MODEL.md` | Business & GTM |
+| `GIT_AI_GUIDE.md` / `Admin_Dashboard_*.md` | Developer/admin workflows |
+
+In-app help (searchable, kept current with features): **Help view** (`src/components/HelpView.tsx`).
 
 ---
 
