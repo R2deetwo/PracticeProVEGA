@@ -9298,3 +9298,51 @@ Stage Summary:
   (marked 'If Needed' in the audit, not user-requested)
 - Reminder for the user: revoke the GitHub PAT (pasted in chat)
   now that Phase 5 is done
+---
+Task ID: hotfix-1
+Agent: main (Super Z)
+Task: PRODUCTION OUTAGE — app broken after login ("Something went wrong" error card replacing the dashboard)
+
+Work Log:
+- User reported broken app after login (screenshot: error card with
+  "[CONVEX Q(broadcasts:getActiveBroadcasts)] Server Error — Uncaught
+  TypeError: r.startsWith is not a function")
+- Reproduced 1:1 via POST /api/query against the app's REAL Convex
+  deployment (gregarious-malamute-537.convex.cloud — extracted from the
+  deployed JS bundle; keen-jaguar-204 in the CSP is an orphaned dev
+  deployment)
+- ROOT CAUSE: Phase-4 perf commit 942163b4 introduced server-side filter
+  pushdowns using q.startsWith(q.field("type"), "broadcast_") in 8
+  functions. Convex 1.40.0's FilterBuilder has NO startsWith method.
+  The (q: any) cast hid the nonexistent API from TypeScript (count stayed
+  153), so it only exploded at runtime — on EVERY call — after the
+  Phase-4 backend deploy. BroadcastBanner useQuery threw → app-level
+  ErrorBoundary replaced the whole dashboard content area
+- Fixed 8 sites: convex/broadcasts.ts (7) + convex/founderMetrics.ts (1)
+  — pushdowns removed, take(5000) + JS filtering with
+  typeof n.type === 'string' hardening against legacy non-string rows
+- Hardened cleanupExpiredBroadcasts cron: q.neq(isRead) pushdown → JS
+  filter (neq on null/missing fields is unsafe)
+- CLIENT BLAST RADIUS: BroadcastBanner now wrapped in local
+  ErrorBoundary(fallback=null) in Dashboard.tsx — a failing banner query
+  can never brick the dashboard again; ErrorBoundary now honors explicit
+  fallback=null (old `fallback || …` treated null as not-provided)
+- Verified: tsc 153 (baseline), vite build PASS
+- Commit 6d26d92a pushed; all 3 workflows green; workflow log confirms
+  "Deployed Convex functions to gregarious-malamute-537" at 10:49 UTC
+- POST-DEPLOY VERIFICATION: getActiveBroadcasts / getBroadcastHistory /
+  getActiveBroadcastsForAdmin all return success on
+  gregarious-malamute-537 (previously all errored); both Vercel and CF
+  serve index-CSNc8Xtn-6d26d92a.css (200); browser check confirms the
+  CF site renders fully styled, no page errors
+
+Stage Summary:
+- OUTAGE RESOLVED: app fully functional again on Vercel, Cloudflare, APK
+- Root cause class: server-side filter pushdowns written against an API
+  that doesn't exist in the installed Convex version, masked by `any`
+- LESSON for future phases: any new Convex filter-builder method MUST be
+  verified against node_modules/convex/dist/index.d.ts (1.40.0) first;
+  avoid (q: any) in filter callbacks
+- Deployment topology documented: production = gregarious-malamute-537
+  (workflows' CONVEX_DEPLOY_KEY correctly targets it); keen-jaguar-204
+  is an orphaned dev deployment referenced only by a stale CSP entry
