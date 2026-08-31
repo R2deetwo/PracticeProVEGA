@@ -19,6 +19,7 @@ import { Skeleton } from './toolkit/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 import BroadcastBanner from './BroadcastBanner';
 import CompleteSetupBanner from './CompleteSetupBanner';
+import ErrorBoundary from './ErrorBoundary';
 // CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
 import TrialNudgeBanner from './TrialNudgeBanner';
 
@@ -253,8 +254,13 @@ const Dashboard: React.FC = () => {
 
                 {/* Broadcast Banner — glassmorphic, in-content placement.
                     Sits below Overview header, above the operational grid.
-                    Never overlaps the left sidebar or top navigation. */}
-                <BroadcastBanner />
+                    Never overlaps the left sidebar or top navigation.
+                    HOTFIX 2026-08-31: contained in a local ErrorBoundary with
+                    fallback={null} — a failing broadcasts query (backend
+                    error) must NEVER take down the whole Dashboard again. */}
+                <ErrorBoundary fallback={null}>
+                    <BroadcastBanner />
+                </ErrorBoundary>
 
                 {/* Complete Setup Banner — drives users to finish their onboarding
                     checklist. Renders only when checklist has incomplete items and

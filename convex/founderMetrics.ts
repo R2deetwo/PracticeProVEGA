@@ -992,14 +992,15 @@ export const cleanupDuplicateBroadcastNotifications = mutation({
     await requireFounder(ctx, args.tokenIdentifier);
 
     // Fetch all broadcast notifications
-    // Phase 4 (perf): server-side type pushdown + bound instead of a full
-    // notifications table collect.
+    // HOTFIX 2026-08-31 (production outage): removed the q.startsWith
+    // server-side pushdown — Convex 1.40.0's FilterBuilder has no
+    // startsWith method (threw "r.startsWith is not a function" on every
+    // call). Filter in JS instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
     const broadcastNotes = allNotes.filter((n: any) =>
-      (n.type || '').startsWith('broadcast_')
+      (typeof n.type === 'string' ? n.type : '').startsWith('broadcast_')
     );
 
     // Group by (userId, title, message) — keep the first, delete the rest

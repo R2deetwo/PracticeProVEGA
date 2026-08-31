@@ -53,11 +53,15 @@ export const getActiveBroadcasts = query({
   handler: async (ctx, args) => {
     if (!args.userId && !args.email) return [];
 
-    // Phase 4 (perf): server-side type pushdown + bound instead of reading
-    // every notification row into function memory.
+    // HOTFIX 2026-08-31 (production outage): Convex 1.40.0's FilterBuilder
+    // has NO startsWith method — the Phase-4 server-side pushdown below threw
+    // "TypeError: r.startsWith is not a function" on EVERY call, crashing
+    // the logged-in dashboard. Removed the pushdown (the `q: any` cast had
+    // hidden the nonexistent API from TypeScript); rows are filtered in JS
+    // below. Revisit only with a filter-method audit against the installed
+    // convex version.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
 
     const targetUserId = String(args.userId || '');
@@ -94,7 +98,7 @@ export const getActiveBroadcasts = query({
 
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
       // Must be a broadcast type
-      const type = n.type || '';
+      const type = typeof n.type === 'string' ? n.type : '';
       if (!type.startsWith('broadcast_')) return false;
 
       // Must be unread (active)
@@ -203,16 +207,17 @@ export const getBroadcastHistory = query({
   handler: async (ctx, args) => {
     if (!args.userId && !args.email) return [];
 
-    // Phase 4 (perf): server-side type pushdown + bound
+    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
+    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
+    // call). Filter in JS below instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
 
     const targetUserId = String(args.userId || '');
 
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
-      const type = n.type || '';
+      const type = typeof n.type === 'string' ? n.type : '';
       if (!type.startsWith('broadcast_')) return false;
 
       const nUserId = String(n.userId || '');
@@ -296,13 +301,14 @@ export const getActiveBroadcastsForAdmin = query({
     if (!founder) return [];
 
     // Fetch ALL broadcast notifications (read + unread)
-    // Phase 4 (perf): server-side type pushdown + bound
+    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
+    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
+    // call). Filter in JS below instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
-      const type = n.type || '';
+      const type = typeof n.type === 'string' ? n.type : '';
       return type.startsWith('broadcast_');
     });
 
@@ -383,13 +389,14 @@ export const archiveBroadcast = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    // Phase 4 (perf): server-side type pushdown + bound
+    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
+    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
+    // call). Filter in JS below instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
-      const type = n.type || '';
+      const type = typeof n.type === 'string' ? n.type : '';
       if (!type.startsWith('broadcast_')) return false;
       // Match by link.context.broadcastId OR by the notification's own _id
       // (for legacy broadcasts where broadcastId falls back to _id)
@@ -437,13 +444,14 @@ export const bulkArchiveBroadcasts = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    // Phase 4 (perf): server-side type pushdown + bound
+    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
+    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
+    // call). Filter in JS below instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
-      const type = n.type || '';
+      const type = typeof n.type === 'string' ? n.type : '';
       if (!type.startsWith('broadcast_')) return false;
       // Match by link.context.broadcastId OR by the notification's own _id
       const bid = (n.link as any)?.context?.broadcastId;
@@ -482,13 +490,14 @@ export const cleanupDuplicateBroadcasts = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    // Phase 4 (perf): server-side type pushdown + bound
+    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
+    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
+    // call). Filter in JS below instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
-      return (n.type || '').startsWith('broadcast_');
+      return (typeof n.type === 'string' ? n.type : '').startsWith('broadcast_');
     });
 
     // Group by (userId + title + message) — keep the newest, delete rest
@@ -536,13 +545,14 @@ export const purgeAllBroadcasts = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    // Phase 4 (perf): server-side type pushdown + bound
+    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
+    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
+    // call). Filter in JS below instead.
     const allNotes = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
       .take(5000);
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
-      return (n.type || '').startsWith('broadcast_');
+      return (typeof n.type === 'string' ? n.type : '').startsWith('broadcast_');
     });
 
     for (const n of toDelete) {
@@ -569,15 +579,17 @@ export const cleanupExpiredBroadcasts = internalMutation({
     // Scan notifications with expiresAt set (using the by_expires index)
     // We can't do a range query on optional fields with Convex, so we
     // scan all broadcast notifications and filter.
+    // HOTFIX 2026-08-31: removed the q.neq pushdown — neq comparisons on
+    // null/missing field values can throw at runtime; filter in JS instead.
     const allBroadcasts = await ctx.db
       .query("notifications")
-      .filter((q: any) => q.neq(q.field("isRead"), true))
       .take(500);
+    const unread = allBroadcasts.filter((n: any) => n.isRead !== true);
 
     let expired = 0;
-    for (const n of allBroadcasts) {
+    for (const n of unread) {
       const expiresAt = (n as any).expiresAt;
-      const type = n.type || '';
+      const type = typeof n.type === 'string' ? n.type : '';
       if (!type.startsWith('broadcast_')) continue;
       if (expiresAt && typeof expiresAt === 'number' && expiresAt < now) {
         await ctx.db.patch(n._id, { isRead: true } as any);

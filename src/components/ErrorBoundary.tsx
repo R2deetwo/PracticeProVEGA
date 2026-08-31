@@ -30,7 +30,11 @@ class ErrorBoundary extends React.Component<Props, State> {
     const { hasError, error } = this.state;
 
     if (hasError) {
-      return fallback || (
+      // HOTFIX 2026-08-31: honor an explicitly-provided fallback (including
+      // null) — the old `fallback || …` treated null/false as "not provided"
+      // and rendered the full error card instead of the intended nothing.
+      if (fallback !== undefined) return fallback;
+      return (
         <div className="flex flex-col items-center justify-center h-full min-h-[400px] p-8 text-center bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
