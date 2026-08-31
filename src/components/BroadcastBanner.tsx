@@ -79,6 +79,20 @@ const THEME: Record<string, {
         // Frosted Coral/Red Glass
         glassBg: 'rgba(225, 98, 89, 0.75)',
     },
+    // UNIFIED BANNER SYSTEM — 'critical' theme for high-priority operational
+    // alerts (lease expiry, rent default, statutory notices). Consolidates
+    // the former standalone CriticalLeaseBanner (which rendered in a
+    // different location at the top of the app) into this single banner
+    // carousel. Distinct from 'urgent': deeper crimson glass + stronger
+    // saturation so operational emergencies are instantly recognizable.
+    critical: {
+        accentBar: 'bg-red-500',
+        pillBg: 'bg-white/25',
+        pillText: 'text-white',
+        label: 'Critical',
+        // Frosted Deep Crimson Glass — saturated emergency red
+        glassBg: 'rgba(186, 26, 43, 0.88)',
+    },
     announcement: {
         accentBar: 'bg-emerald-400',
         pillBg: 'bg-white/25',
@@ -97,6 +111,59 @@ const THEME: Record<string, {
 };
 
 const DEFAULT_THEME = THEME.info;
+
+// ─── UNIFIED BANNER SYSTEM — critical operational alerts ─────────────────
+// Migrated from the standalone CriticalLeaseBanner component (2026-08-31).
+// Critical lease/rent notifications from coreState.notifications are now
+// injected into this carousel as 'broadcast_critical' banners — ONE banner
+// system, ONE location (Dashboard, below the Overview header), with a
+// distinct crimson glass style per banner type.
+const CRITICAL_TYPES = [
+    'lease_expiry',
+    'lease_expired',
+    'lease_expiring',
+    'defaulter',
+    'rent_overdue',
+    'statutory_notice',
+    'notice_window',
+];
+
+const isCriticalType = (type: string | undefined): boolean => {
+    if (!type) return false;
+    const lower = type.toLowerCase();
+    return CRITICAL_TYPES.some(ct => lower.includes(ct));
+};
+
+// Human-facing carousel titles per critical type (fallback: 'CRITICAL ALERT')
+const CRITICAL_TITLE: Record<string, string> = {
+    lease_expiry: 'LEASE EXPIRY ALERT',
+    lease_expired: 'LEASE EXPIRED',
+    lease_expiring: 'LEASE EXPIRING SOON',
+    defaulter: 'RENT DEFAULT ALERT',
+    rent_overdue: 'RENT OVERDUE',
+    statutory_notice: 'STATUTORY NOTICE',
+    notice_window: 'NOTICE WINDOW',
+};
+
+const criticalTitleFor = (type: string | undefined): string => {
+    if (!type) return 'CRITICAL ALERT';
+    const lower = type.toLowerCase();
+    for (const key of Object.keys(CRITICAL_TITLE)) {
+        if (lower.includes(key)) return CRITICAL_TITLE[key];
+    }
+    return 'CRITICAL ALERT';
+};
+
+// Legacy dismissal keys from the standalone CriticalLeaseBanner — reused
+// verbatim so dismissal state users already set is preserved across the
+// consolidation (a previously dismissed alert stays dismissed).
+const getCriticalDismissKey = (id: string) => `dismissed_critical_banner_${id}`;
+const isCriticalDismissed = (id: string): boolean => {
+    try { return localStorage.getItem(getCriticalDismissKey(id)) === 'true'; } catch { return false; }
+};
+const dismissCritical = (id: string): void => {
+    try { localStorage.setItem(getCriticalDismissKey(id), 'true'); } catch {}
+};
 
 function parseTheme(type: string): string {
     if (!type || !type.startsWith('broadcast_')) return 'info';
@@ -255,6 +322,10 @@ export const BroadcastBanner: React.FC = () => {
     const [dismissingId, setDismissingId] = useState<string | null>(null);
     const [dismissTick, setDismissTick] = useState(0);
     const [activeIndex, setActiveIndex] = useState(0);
+    // UNIFIED BANNER SYSTEM — critical alerts dismissed this session. Keeps
+    // the injection reactive after a dismissal without waiting for a
+    // coreState refetch (mirrors the legacy CriticalLeaseBanner behavior).
+    const [dismissedCriticalIds, setDismissedCriticalIds] = useState<Set<string>>(new Set());
 
     // One-time cleanup of OLD dismissal state (message-family keys).
     useEffect(() => {
@@ -321,14 +392,67 @@ export const BroadcastBanner: React.FC = () => {
     }, [broadcasts, userProduct, dismissTick]);
 
     // ─── CRO AUDIT: AUTOMATED SYSTEM BANNERS ────────────────────────────
-    // Generate synthetic system banners based on lifecycle state:
+    // Generate system banners based on live state — injected into the
+    // visible queue alongside real broadcasts (ONE banner system, ONE
+    // location, per-type styles):
+    //   0. Critical operational alerts (lease expiry, rent default…) —
+    //      crimson 'critical' glass, migrated from CriticalLeaseBanner
     //   1. Trial countdown (7 days, 3 days, expired)
     //   2. Overdue rent alerts (Atrium users with >0 overdue payments)
-    // These are injected into the visible queue alongside real broadcasts.
     const systemBanners = useMemo((): any[] => {
         const banners: any[] = [];
         const now = Date.now();
         const DAY = 24 * 60 * 60 * 1000;
+
+        // ── UNIFIED BANNER SYSTEM: critical operational alerts ──────────
+        // Lease expiry / expired / statutory notice / rent default
+        // notifications (same source + matching rules as the legacy
+        // CriticalLeaseBanner, which rendered in a separate top-of-app
+        // location). Now injected here as 'broadcast_critical' banners so
+        // ALL notifications live in ONE carousel with ONE placement, each
+        // type keeping its own visual style (crimson glass for critical).
+        // Priority: critical sorts FIRST (URGENCY_RANK -1).
+        const notifications = (coreState as any)?.notifications || [];
+        if (Array.isArray(notifications)) {
+            const criticalAlerts = notifications
+                .filter((n: any) => {
+                    if (!isCriticalType(n?.type)) return false;
+                    if (n?.isRead) return false;
+                    const id = String(n._id || n.id || '');
+                    if (!id) return false;
+                    if (isCriticalDismissed(id) || dismissedCriticalIds.has(id)) return false;
+                    return true;
+                })
+                .slice(0, 3); // Cap: max 3 critical alerts in the carousel
+
+            for (const n of criticalAlerts) {
+                const id = String(n._id || n.id || '');
+                const link = n.link || {};
+                const propertyId = link.id || n.propertyId || null;
+                const context = link.context || {};
+                const targetUnit = context.targetUnit || n.unitId || propertyId;
+                const highlight = context.highlight || n.unitId || propertyId;
+                // Deep-link route matching the carousel's deepLink parser:
+                // properties/<id>?tab=units&targetUnit=…&highlight=…
+                const deepLink = propertyId
+                    ? `properties/${propertyId}?tab=units&targetUnit=${targetUnit || ''}&highlight=${highlight || ''}`
+                    : null;
+
+                banners.push({
+                    _id: id,
+                    broadcastId: `critical_${id}`,
+                    title: criticalTitleFor(n.type),
+                    message: n.message || n.title || 'Critical lease alert',
+                    type: 'broadcast_critical',
+                    persistenceMode: 'permanent',
+                    deepLink,
+                    targetProduct: 'all',
+                    isSystem: true,
+                    isCriticalAlert: true,
+                    timestamp: n.timestamp || null,
+                });
+            }
+        }
 
         // ── Trial countdown banners ──
         // ENHANCED: 5-day granular countdown with days + hours.
@@ -508,13 +632,14 @@ export const BroadcastBanner: React.FC = () => {
         }
 
         return banners;
-    }, [coreState?.firmDetails, (coreState as any)?.ledgerEntries, userProduct]);
+    }, [coreState?.firmDetails, (coreState as any)?.ledgerEntries, (coreState as any)?.notifications, userProduct, dismissedCriticalIds]);
 
     // Merge system banners with real broadcasts, then sort by urgency.
     // CRO AUDIT: urgency-based sorting so the highest urgency notice
     // always occupies Position 1 in the carousel.
     // Priority: Urgent (Red) > Warning (Amber) > Info (Blue) > Success (Green)
     const URGENCY_RANK: Record<string, number> = {
+        critical: -1,
         urgent: 0, announcement: 0,
         warning: 1,
         info: 2,
@@ -557,6 +682,19 @@ export const BroadcastBanner: React.FC = () => {
         // the banner before the dismissal was picked up.
         setDismissingId(notifId);
         setDismissTick(t => t + 1); // ← immediate, not delayed
+
+        // UNIFIED BANNER SYSTEM — critical alerts keep their legacy
+        // dismissal storage (dismissed_critical_banner_<id>) so state set
+        // before the consolidation is honored, and update the reactive
+        // local set so the injection memo drops the banner immediately.
+        if (broadcast.isCriticalAlert) {
+            dismissCritical(notifId);
+            setDismissedCriticalIds(prev => {
+                const next = new Set(prev);
+                next.add(notifId);
+                return next;
+            });
+        }
 
         // ISOLATED dismissal — only this broadcastId
         if (persistenceMode === 'session') {
