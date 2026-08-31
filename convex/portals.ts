@@ -4110,9 +4110,11 @@ export const sendPortalMessage = mutation({
     if (isAdminMessage && args.unitId) {
       // Look up the property/unit to find the tenant's userId
       try {
+        // Phase 4 (perf): index seek via properties.by_custom_id (previously
+        // a full properties table scan per admin portal message)
         const unit: any = await ctx.db
           .query("properties")
-          .filter((q: any) => q.eq(q.field("id"), args.unitId))
+          .withIndex("by_custom_id", (q: any) => q.eq("id", args.unitId))
           .first();
         if (unit) {
           // Check if there's a portal user linked to this unit
@@ -4120,9 +4122,10 @@ export const sendPortalMessage = mutation({
           const tenantEmail = rd.tenantEmail;
           if (tenantEmail) {
             // Find the portal user by email
+            // Phase 4 (perf): index seek via users.by_email
             const portalUser: any = await ctx.db
               .query("users")
-              .filter((q: any) => q.eq(q.field("email"), tenantEmail.toLowerCase().trim()))
+              .withIndex("by_email", (q: any) => q.eq("email", tenantEmail.toLowerCase().trim()))
               .first();
             if (portalUser) {
               effectiveParticipantId = String(portalUser._id);

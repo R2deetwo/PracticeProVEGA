@@ -276,7 +276,8 @@ export const getFounderMetrics = query({
     // 6. Active User Tracking (Last 24h)
     // Filter out Founder users — they're platform staff, not customers.
     const activeThreshold = Date.now() - (24 * 60 * 60 * 1000);
-    const presenceData = await ctx.db.query("presence").collect();
+    // Phase 4 (perf): bounded read (was an unbounded presence collect)
+    const presenceData = await ctx.db.query("presence").take(5000);
     const activeUserIds = new Set(presenceData.filter((p: any) => p.updatedAt > activeThreshold).map(p => p.userId));
     
     // Fallback: If no presence, show recent signups as active
@@ -991,7 +992,12 @@ export const cleanupDuplicateBroadcastNotifications = mutation({
     await requireFounder(ctx, args.tokenIdentifier);
 
     // Fetch all broadcast notifications
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound instead of a full
+    // notifications table collect.
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
     const broadcastNotes = allNotes.filter((n: any) =>
       (n.type || '').startsWith('broadcast_')
     );

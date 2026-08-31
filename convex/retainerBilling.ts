@@ -459,13 +459,16 @@ export const scanMattersForRetainerCycle = internalMutation({
     let stagedCount = 0;
     let skippedCount = 0;
 
-    // Collect all matters — Convex doesn't support server-side filtering on
-    // multiple fields, so we filter in JS. This is fine because the absolute
-    // number of active retainer matters per firm is small.
-    const allMatters = await ctx.db.query("matters").collect();
-    const dueMatters = allMatters.filter((m: any) => {
+    // Phase 4 (perf): index seek via matters.by_retainer — only matters with
+    // retainerAutoBillingEnabled === true (docs without the field, i.e. the
+    // vast majority, are excluded from the index entirely). The 30-minute
+    // cron previously read the ENTIRE matters table on every tick.
+    const candidateMatters = await ctx.db
+      .query("matters")
+      .withIndex("by_retainer", (q) => q.eq("retainerAutoBillingEnabled", true))
+      .collect();
+    const dueMatters = candidateMatters.filter((m: any) => {
       if (m.billingModel !== "Retainer") return false;
-      if (m.retainerAutoBillingEnabled !== true) return false;
       if (m.status && m.status !== "Active") return false;
       if (!m.nextBillingDate) return false;
       return new Date(m.nextBillingDate).getTime() <= now;

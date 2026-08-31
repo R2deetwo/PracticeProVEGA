@@ -53,7 +53,12 @@ export const getActiveBroadcasts = query({
   handler: async (ctx, args) => {
     if (!args.userId && !args.email) return [];
 
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound instead of reading
+    // every notification row into function memory.
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
 
     const targetUserId = String(args.userId || '');
     const targetEmail = (args.email || '').toLowerCase().trim();
@@ -198,7 +203,11 @@ export const getBroadcastHistory = query({
   handler: async (ctx, args) => {
     if (!args.userId && !args.email) return [];
 
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
 
     const targetUserId = String(args.userId || '');
 
@@ -287,7 +296,11 @@ export const getActiveBroadcastsForAdmin = query({
     if (!founder) return [];
 
     // Fetch ALL broadcast notifications (read + unread)
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
       const type = n.type || '';
       return type.startsWith('broadcast_');
@@ -370,7 +383,11 @@ export const archiveBroadcast = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
       const type = n.type || '';
       if (!type.startsWith('broadcast_')) return false;
@@ -420,7 +437,11 @@ export const bulkArchiveBroadcasts = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
       const type = n.type || '';
       if (!type.startsWith('broadcast_')) return false;
@@ -461,7 +482,11 @@ export const cleanupDuplicateBroadcasts = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
       return (n.type || '').startsWith('broadcast_');
     });
@@ -511,7 +536,11 @@ export const purgeAllBroadcasts = mutation({
     );
     if (!founder) throw new Error("Unauthorized: founder access required");
 
-    const allNotes = await ctx.db.query("notifications").collect();
+    // Phase 4 (perf): server-side type pushdown + bound
+    const allNotes = await ctx.db
+      .query("notifications")
+      .filter((q: any) => q.startsWith(q.field("type"), "broadcast_"))
+      .take(5000);
     const toDelete = allNotes.filter((n: Doc<"notifications">) => {
       return (n.type || '').startsWith('broadcast_');
     });

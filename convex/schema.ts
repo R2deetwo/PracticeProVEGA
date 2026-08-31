@@ -130,7 +130,11 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]).index("by_deactivated", ["deactivatedAt"]),
+  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]).index("by_deactivated", ["deactivatedAt"])
+    // Phase 4 (perf): login (authHelpers) + portal messaging (portals.ts)
+    // previously full-scanned users on every call. Optional-string index:
+    // docs without email are excluded from the index.
+    .index("by_email", ["email"]),
 
   // 3. Operational Data
   matters: defineTable({
@@ -193,6 +197,10 @@ export default defineSchema({
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
     .index("by_status", ["firmId", "status"])
     .index("by_client", ["firmId", "clientId"])
+    // Phase 4 (perf): retainer billing cron scans every 30 min — seek only
+    // matters with auto-billing explicitly enabled instead of a full table
+    // read. Optional-boolean index: docs without the field are excluded.
+    .index("by_retainer", ["retainerAutoBillingEnabled"])
     .searchIndex("search_title", { searchField: "title" })
     .searchIndex("search_suit", { searchField: "suitNumber" }),
 
@@ -233,7 +241,10 @@ export default defineSchema({
     archivedById: nullableString,
     archivedByName: nullableString,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
-    .searchIndex("search_name", { searchField: "name" }),
+    .searchIndex("search_name", { searchField: "name" })
+    // Phase 4 (perf): inbound WhatsApp/SMS tenant matching (sentry.ts)
+    // previously full-scanned contacts on EVERY message. Exact-match seek.
+    .index("by_phone", ["phone"]),
 
   tasks: defineTable({
     firmId: nullableString,
@@ -263,7 +274,9 @@ export default defineSchema({
     .index("by_dueDate", ["firmId", "dueDate"])
     .index("by_assignee_type", ["firmId", "assigneeType"])
     .index("by_custom_id", ["id"])
-    .index("by_idempotency", ["idempotencyKey"]),
+    .index("by_idempotency", ["idempotencyKey"])
+    // Phase 4 (search): server-side task search for FullScreenSearch
+    .searchIndex("search_title", { searchField: "title" }),
 
   documents: defineTable({
     firmId: nullableString,
@@ -352,7 +365,9 @@ export default defineSchema({
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
     expiresAt: v.optional(v.number()), // Auto-expiry timestamp (null = never expires)
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]).index("by_user", ["userId"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]).index("by_user", ["userId"])
+    // Phase 4 (perf): broadcast + sales-lead queries previously full-scanned
+    .index("by_type", ["type"]),
 
   invoices: defineTable({
     firmId: nullableString,

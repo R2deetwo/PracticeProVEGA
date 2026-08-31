@@ -117,9 +117,11 @@ export const updateInquiryStatus = mutation({
         // If marking as contacted/qualified/converted/closed, also mark
         // the associated notification as read so the badge decrements.
         if (args.status !== "unread") {
+            // Phase 4 (perf): index seek via notifications.by_type instead of
+            // a full table scan filtered in JS.
             const notifs = await ctx.db
                 .query("notifications")
-                .filter((q: any) => q.eq(q.field("type"), "sales_lead"))
+                .withIndex("by_type", (q: any) => q.eq("type", "sales_lead"))
                 .collect();
             for (const n of notifs) {
                 if (n.link?.context?.inquiryId === String(args.inquiryId) && !n.isRead) {

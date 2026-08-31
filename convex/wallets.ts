@@ -207,9 +207,14 @@ export const processAutoDeductions = internalMutation({
     const now = Date.now();
     let chargesScanned = 0, deductionsMade = 0, insufficientFunds = 0, autoDeductDisabled = 0;
 
-    const allCharges = await ctx.db.query("service_charges").collect();
-    const dueCharges = allCharges.filter((sc: any) =>
-      sc.nextDueDate <= now && sc.serviceChargeStatus !== "PAID_FULLY" && !sc.remindersMuted && !sc.remindersPaused
+    // Phase 4 (perf): range seek via service_charges.by_next_due — only
+    // charges with nextDueDate <= now are read, instead of the whole table.
+    const dueWindowCharges = await ctx.db
+      .query("service_charges")
+      .withIndex("by_next_due", (q) => q.lte("nextDueDate", now))
+      .collect();
+    const dueCharges = dueWindowCharges.filter((sc: any) =>
+      sc.serviceChargeStatus !== "PAID_FULLY" && !sc.remindersMuted && !sc.remindersPaused
     );
     chargesScanned = dueCharges.length;
 

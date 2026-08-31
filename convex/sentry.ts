@@ -472,10 +472,9 @@ export const markChargeAsPaid = mutation({
           .query("properties")
           .withIndex("by_custom_id", q => q.eq("id", sc.unitId))
           .first();
-        const altDoc = !unitDoc ? await ctx.db
-          .query("properties")
-          .filter(q => q.eq(q.field("_id"), sc.unitId))
-          .first() : null;
+        const altDoc = !unitDoc
+          ? await ctx.db.get(sc.unitId as any).catch(() => null)
+          : null;
         const effectiveDoc = unitDoc || altDoc;
 
         if (effectiveDoc) {
@@ -926,9 +925,11 @@ export const processInboundMessage = internalMutation({
   },
   handler: async (ctx, args) => {
     // Attempt to match the senderContact with a tenant
+    // Phase 4 (perf): index seek via contacts.by_phone (previously a full
+    // contacts table scan on EVERY inbound WhatsApp/SMS message)
     const contacts = await ctx.db
       .query("contacts")
-      .filter((q) => q.eq(q.field("phone"), args.senderContact))
+      .withIndex("by_phone", (q: any) => q.eq("phone", args.senderContact))
       .collect();
 
     let firmId = "unknown";
@@ -969,8 +970,32 @@ export const sendServiceChargeReminders = internalMutation({
     let remindersPausedCount = 0;
 
     // 1. Find all service_charges that are overdue or upcoming (nextDue within 7 days)
-    const allCharges = await ctx.db.query("service_charges").collect();
-    const actionableCharges = allCharges.filter(sc => {
+    // Phase 4 (perf): three index seeks replace a full table scan.
+    // Union of {due within 7d} ∪ {defaulters} ∪ {partially paid} exactly
+    // matches the old full-scan filter (all three OR branches covered).
+    const SEVEN_DAYS_MS = 7 * 86400000;
+    const [dueWindow, defaulterCharges, partialCharges] = await Promise.all([
+      ctx.db
+        .query("service_charges")
+        .withIndex("by_next_due", (q) => q.lte("nextDueDate", now + SEVEN_DAYS_MS))
+        .collect(),
+      ctx.db
+        .query("service_charges")
+        .withIndex("by_defaulter", (q) => q.eq("isDefaulter", true))
+        .collect(),
+      ctx.db
+        .query("service_charges")
+        .withIndex("by_status", (q) => q.eq("serviceChargeStatus", "PARTIALLY_PAID"))
+        .collect(),
+    ]);
+    const chargeSeen = new Set<string>();
+    const chargeCandidates = [...dueWindow, ...defaulterCharges, ...partialCharges].filter((sc: any) => {
+      const key = String(sc._id);
+      if (chargeSeen.has(key)) return false;
+      chargeSeen.add(key);
+      return true;
+    });
+    const actionableCharges = chargeCandidates.filter(sc => {
       // Skip fully paid charges
       if (sc.serviceChargeStatus === "PAID_FULLY") return false;
       const daysUntilDue = Math.floor((sc.nextDueDate - now) / 86400000);
@@ -978,16 +1003,28 @@ export const sendServiceChargeReminders = internalMutation({
       return sc.isDefaulter || sc.serviceChargeStatus === "PARTIALLY_PAID" || daysUntilDue <= 7;
     });
 
-    // Pre-load all properties for property-level toggle checks
-    const allProperties = await ctx.db.query("properties").collect();
+    // Pre-load properties for property-level toggle checks.
+    // Phase 4 (perf): fetch per-firm via by_firm instead of reading the
+    // ENTIRE properties table — only firms that actually have actionable
+    // charges are touched.
+    const chargeFirmIds = new Set<string>();
+    for (const sc of actionableCharges as any[]) {
+      if (sc.firmId) chargeFirmIds.add(String(sc.firmId));
+    }
     const propertyMap = new Map<string, any>();
-    for (const p of allProperties) {
-      if (p.id) propertyMap.set(p.id, p);
-      if ((p as any)._id) propertyMap.set((p as any)._id, p);
-      // Also index by unit IDs embedded in the property
-      const units: any[] = (p as any).units || [];
-      for (const u of units) {
-        if (u.id) propertyMap.set(u.id, p);
+    for (const fid of chargeFirmIds) {
+      const firmProperties = await ctx.db
+        .query("properties")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+        .collect();
+      for (const p of firmProperties as any[]) {
+        if (p.id) propertyMap.set(p.id, p);
+        if (p._id) propertyMap.set(String(p._id), p);
+        // Also index by unit IDs embedded in the property
+        const units: any[] = (p as any).units || [];
+        for (const u of units) {
+          if (u.id) propertyMap.set(u.id, p);
+        }
       }
     }
 
@@ -1035,10 +1072,7 @@ export const sendServiceChargeReminders = internalMutation({
 
       if (!unitDoc) {
         // Also try by Convex _id match
-        const altDoc = await ctx.db
-          .query("properties")
-          .filter(q => q.eq(q.field("_id"), charge.unitId))
-          .first();
+        const altDoc = await ctx.db.get(charge.unitId as any).catch(() => null);
         if (!altDoc) {
           remindersSkipped++;
           continue;
@@ -1167,7 +1201,7 @@ export const runDailyAutomation = internalMutation({
     const now = Date.now();
     const overdueCharges = await ctx.db
       .query("service_charges")
-      .filter((q) => q.eq(q.field("isDefaulter"), true))
+      .withIndex("by_defaulter", (q) => q.eq("isDefaulter", true))
       .collect();
 
     let sentCount = 0;
@@ -1387,8 +1421,7 @@ export const setPropertyRemindersEnabled = mutation({
       .withIndex("by_custom_id", q => q.eq("id", propertyId))
       .first();
     if (!doc) {
-      const all = await ctx.db.query("properties").collect();
-      doc = all.find(p => p._id === propertyId as any) || null;
+      doc = (await ctx.db.get(propertyId as any).catch(() => null) || null) as any;
     }
     if (!doc) throw new Error("Property not found");
     if ((doc as any).firmId !== auth.firmId) {

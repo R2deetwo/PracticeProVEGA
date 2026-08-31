@@ -89,9 +89,11 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
 
   // 5. Fallback lookup by the `email` field directly
   if (!user) {
+    // Phase 4 (perf): index seek via users.by_email (previously a full users
+    // table scan on EVERY login fallback)
     user = await ctx.db
       .query("users")
-      .filter((q: any) => q.eq(q.field("email"), email!))
+      .withIndex("by_email", (q: any) => q.eq("email", email!))
       .first();
   }
 

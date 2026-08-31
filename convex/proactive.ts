@@ -348,12 +348,12 @@ export const detectAnomalies = internalMutation({
       const existingEntities = new Set(allFirmInsights.map((i) => `${i.entityType}:${i.entityId}`));
 
       // ── STALLED MATTERS ────────────────────────────────────────────
-      const matters = await ctx.db
+      // Phase 4 (perf): index seek for Active matters only (matters.by_status)
+      // — closed/archived matters are no longer read into the cron's memory.
+      const activeMatters = await ctx.db
         .query("matters")
-        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .withIndex("by_status", (q) => q.eq("firmId", firmId).eq("status", "Active"))
         .collect();
-
-      const activeMatters = matters.filter((m) => m.status === "Active");
 
       for (const matter of activeMatters) {
         const lastUpdate = matter.updatedAt
@@ -363,27 +363,72 @@ export const detectAnomalies = internalMutation({
           : matter._creationTime;
 
         if (now - lastUpdate > STALE_THRESHOLD) {
-          const daysStalled = Math.floor((now - lastUpdate) / 86400000);
-          const stallBucket = daysStalled < 60 ? '30-60' : daysStalled < 90 ? '60-90' : '90+';
-          const dedupKey = `anomaly|stalled|${matter._id}|${stallBucket}`;
+          // ── ACTIVITY CROSS-CHECK (Phase 4 / audit 3.2) ───────────────
+          // A matter whose ROW is old may still be actively worked on —
+          // recent document uploads or note edits mean it is NOT stalled.
+          // Probe the newest document + note for this matter (by_matter
+          // index, newest-first) before creating a false "Stalled" insight.
+          // The matterId forms (Convex _id vs legacy id copy) are the same
+          // string in practice; probe both defensively.
+          const matterIdForms = new Set<string>([String(matter._id)]);
+          if (matter.id && String(matter.id) !== String(matter._id)) {
+            matterIdForms.add(String(matter.id));
+          }
 
-          // In-memory check — NO DB query needed
-          if (!existingDedupKeys.has(dedupKey) && !existingEntities.has(`matter:${matter._id}`)) {
-            await ctx.db.insert("proactive_insights", {
-              firmId,
-              category: "anomaly",
-              severity: "warning",
-              title: `Stalled Matter: ${matter.title}`,
-              body: `"${matter.title}" has had no activity in ${daysStalled} days. Consider a status review or task assignment.`,
-              entityType: "matter",
-              entityId: matter._id as string,
-              dedupKey,
-              dismissed: false,
-              createdAt: now,
-            });
-            existingDedupKeys.add(dedupKey);
-            existingEntities.add(`matter:${matter._id}`);
-            created++;
+          const toTs = (v: unknown): number => {
+            if (typeof v === "string") {
+              const t = new Date(v).getTime();
+              return Number.isNaN(t) ? 0 : t;
+            }
+            return typeof v === "number" ? v : 0;
+          };
+
+          let latestActivity = lastUpdate;
+          for (const mid of matterIdForms) {
+            const [newestDoc, newestNote] = await Promise.all([
+              ctx.db
+                .query("documents")
+                .withIndex("by_matter", (q) => q.eq("matterId", mid))
+                .order("desc")
+                .first(),
+              ctx.db
+                .query("notePages")
+                .withIndex("by_matter", (q) => q.eq("matterId", mid))
+                .order("desc")
+                .first(),
+            ]);
+            latestActivity = Math.max(
+              latestActivity,
+              toTs(newestDoc?.updatedAt ?? newestDoc?.createdAt),
+              newestDoc?._creationTime ?? 0,
+              toTs(newestNote?.updatedAt ?? newestNote?.createdAt),
+              newestNote?._creationTime ?? 0,
+            );
+          }
+
+          if (now - latestActivity > STALE_THRESHOLD) {
+            const daysStalled = Math.floor((now - latestActivity) / 86400000);
+            const stallBucket = daysStalled < 60 ? '30-60' : daysStalled < 90 ? '60-90' : '90+';
+            const dedupKey = `anomaly|stalled|${matter._id}|${stallBucket}`;
+
+            // In-memory check — NO DB query needed
+            if (!existingDedupKeys.has(dedupKey) && !existingEntities.has(`matter:${matter._id}`)) {
+              await ctx.db.insert("proactive_insights", {
+                firmId,
+                category: "anomaly",
+                severity: "warning",
+                title: `Stalled Matter: ${matter.title}`,
+                body: `"${matter.title}" has had no activity in ${daysStalled} days (no matter updates, document uploads, or note edits). Consider a status review or task assignment.`,
+                entityType: "matter",
+                entityId: matter._id as string,
+                dedupKey,
+                dismissed: false,
+                createdAt: now,
+              });
+              existingDedupKeys.add(dedupKey);
+              existingEntities.add(`matter:${matter._id}`);
+              created++;
+            }
           }
         }
 

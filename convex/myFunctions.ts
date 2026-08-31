@@ -3461,11 +3461,21 @@ export const clearAllNotifications = mutation({
 
     // 3. Also scan for any notifications matching this user that might have
     //    a different firmId (edge case: user belongs to multiple firms)
-    const allNotes = await ctx.db.query("notifications").collect();
-    const userNotes = allNotes.filter((n: any) => {
-      const nUserId = String(n.userId || '');
-      return nUserId === userIdStr || (userLegacyId && nUserId === userLegacyId);
-    });
+    // Phase 4 (perf): by_user index seeks for both id forms instead of a
+    // full notifications table scan.
+    const [notesByConvexId, notesByLegacyId] = await Promise.all([
+      ctx.db
+        .query("notifications")
+        .withIndex("by_user", (q: any) => q.eq("userId", userIdStr))
+        .collect(),
+      userLegacyId
+        ? ctx.db
+            .query("notifications")
+            .withIndex("by_user", (q: any) => q.eq("userId", userLegacyId))
+            .collect()
+        : Promise.resolve([] as any[]),
+    ]);
+    const userNotes = [...notesByConvexId, ...notesByLegacyId];
 
     // Combine all three sources and deduplicate by _id
     const allToDelete = [...firmNotes, ...systemNotes, ...userNotes];
