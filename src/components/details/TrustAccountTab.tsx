@@ -21,6 +21,7 @@ import { useMatterState } from '../../contexts/MatterContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { PlusIcon, TrashIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
+import { useMemo } from 'react';
 import { useConfirm } from '../ui/ConfirmDialog';
 import NairaSymbol from '../NairaSymbol';
 
@@ -55,6 +56,33 @@ const TrustAccountTab: React.FC = () => {
     // ─── Queries ────────────────────────────────────────────────────────
     const trustBalance = useQuery(api.trustAccount.getTrustBalance, firmId ? { firmId } : 'skip');
     const transactions = useQuery(api.trustAccount.getTrustTransactions, firmId ? { firmId } : 'skip');
+
+    // ─── PER-TRANSACTION CLIENT TRUST BALANCE (Phase 3) ────────────────────
+    // Each transaction row already showed the FIRM-wide running balance —
+    // but trust accounting (RPC anti-commingling) is reconciled per client/
+    // matter sub-ledger. A lawyer looking at "Client Bal: ₦X" under each row
+    // can immediately verify that client's money was never overdrawn.
+    // Computed client-side: accumulate chronologically per scope
+    // (matterId preferred, else clientName), attach to each tx.
+    const transactionsWithClientBalances = useMemo(() => {
+        if (!transactions) return transactions;
+        const list = transactions as any[];
+        // Scope key: matterId is the precise sub-ledger; fall back to clientName
+        const scopeKey = (tx: any) =>
+            (tx.matterId ? `m:${tx.matterId}` : tx.clientName ? `c:${tx.clientName.toLowerCase()}` : null);
+        const running = new Map<string, number>();
+        // Chronological pass (query returns desc — iterate reversed)
+        for (let i = list.length - 1; i >= 0; i--) {
+            const tx = list[i];
+            const key = scopeKey(tx);
+            if (!key) continue;
+            const prev = running.get(key) ?? 0;
+            const next = tx.type === 'deposit' ? prev + Number(tx.amount || 0) : prev - Number(tx.amount || 0);
+            running.set(key, next);
+            tx.clientBalanceAfter = next;
+        }
+        return list;
+    }, [transactions]);
 
     // ─── Mutations ──────────────────────────────────────────────────────
     const recordTransaction = useMutation(api.trustAccount.recordTrustTransaction);
@@ -208,9 +236,9 @@ const TrustAccountTab: React.FC = () => {
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-700">
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm">Transaction History</h3>
                 </div>
-                {transactions && transactions.length > 0 ? (
+                {transactionsWithClientBalances && transactionsWithClientBalances.length > 0 ? (
                     <div className="divide-y divide-slate-100 dark:divide-zinc-700">
-                        {transactions.map((tx: any) => (
+                        {transactionsWithClientBalances.map((tx: any) => (
                             <div key={tx._id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors group">
                                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                     tx.type === 'deposit' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
@@ -234,6 +262,14 @@ const TrustAccountTab: React.FC = () => {
                                         {tx.type === 'deposit' ? '+' : '−'}<NairaSymbol className="text-xs" />{formatNaira(tx.amount)}
                                     </div>
                                     <div className="text-2xs text-slate-400">Bal: <NairaSymbol className="text-3xs" />{formatNaira(tx.balanceAfter)}</div>
+                                    {/* Phase 3 — per-client sub-ledger balance after this tx.
+                                        Scope key: matterId else clientName (mirrors the backend's
+                                        anti-commingling guards in recordTrustTransaction). */}
+                                    {tx.clientBalanceAfter !== undefined && (
+                                        <div className="text-2xs font-semibold text-slate-500 dark:text-zinc-400">
+                                            {tx.matterId ? 'Matter' : 'Client'} Bal: <NairaSymbol className="text-3xs" />{formatNaira(tx.clientBalanceAfter)}
+                                        </div>
+                                    )}
                                 </div>
                                 <button
                                     onClick={async () => {

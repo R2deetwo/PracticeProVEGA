@@ -9013,3 +9013,27 @@ Work Log:
 Stage Summary:
 - TS: 161 (unchanged — the one new error was the undeclared
   tenantContactId, fixed with documented cast), vite build PASS
+
+---
+Task ID: recovery-10
+Agent: main (Super Z)
+Task: Phase 3 — per-transaction trust balance UI + NairaSymbol prop fix
+
+Work Log:
+- TrustAccountTab transaction rows showed only the FIRM-wide running
+  balance — trust accounting (RPC anti-commingling) reconciles per
+  client/matter sub-ledger. Added a useMemo that accumulates per-scope
+  (matterId, else clientName — mirroring the backend's guards in
+  recordTrustTransaction) running balances chronologically; each row now
+  also shows 'Matter Bal' / 'Client Bal' after that transaction
+- NairaSymbol accepted no props, but ~10 call sites pass className — every
+  usage was a TS2322 and the class was silently dropped. Added the optional
+  className prop → TS 162 → 153 (9 pre-existing errors eliminated)
+
+Stage Summary:
+- TS: 153 (was 161 — net 8 improvement this batch), vite build PASS
+- PHASE 3 REDO COMPLETE: atomic multi-table writes, markChargeAsPaid
+  idempotency, schema conformance + audit tooling, ledger idempotency
+  index, OnboardUnitLedgerModal → ledger_entries, per-transaction trust
+  balances
+- Session totals: TS 323 → 153; 10 commits ready for manual push
