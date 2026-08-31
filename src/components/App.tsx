@@ -608,7 +608,9 @@ export const App: React.FC = () => {
     const trackPageView = React.useCallback((pathname: string) => {
         try {
             const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse', '/apply'];
-            if (!publicPaths.includes(pathname)) return;
+            // /apply/<propertyId> is a public route — the exact-match list only
+            // contains the bare '/apply' prefix, so match the prefix here too.
+            if (!publicPaths.includes(pathname) && !pathname.startsWith('/apply/') && !pathname.startsWith('/gatehouse')) return;
             // Fire-and-forget — don't block on analytics
             fetch(`${import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud'}/api/mutation`, {
                 method: 'POST',
@@ -819,7 +821,10 @@ export const App: React.FC = () => {
 
         // Check both sessionStorage and localStorage for portal type (Bug 11 fix)
         const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
-        if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
+        const isPublicPath = publicPaths.includes(location.pathname)
+            || location.pathname.startsWith('/apply/')
+            || location.pathname.startsWith('/gatehouse');
+        if (!isLoadingSession && !currentUser && !isPublicPath) {
             // If user has a remembered portal but no currentUser, they might be in a
             // loading state — don't redirect them away from their portal
             if (hasRememberedPortal) return;
