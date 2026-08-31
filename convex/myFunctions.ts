@@ -5802,6 +5802,9 @@ export const getPropertyById = query({
 export const createSubscriptionRequest = mutation({
   args: {
     requestedPlan: v.string(),
+    // REVENUE-LEAK FIX: target product for Komplete→single-product downgrades.
+    // 'property' (Atrium) | 'legal' (Vega) | undefined (same-product requests).
+    requestedProduct: v.optional(v.string()),
     billingInterval: v.string(),                 // 'monthly' | 'annual'
     amount: v.number(),                          // NGN expected
     transactionReference: v.string(),            // PP-{firmId}-{timestamp}
@@ -5848,6 +5851,7 @@ export const createSubscriptionRequest = mutation({
       userEmail: user?.email || args.userEmail,
       currentPlan: firm.subscriptionPlan || 'Core',
       requestedPlan: args.requestedPlan,
+      requestedProduct: args.requestedProduct || null,
       billingInterval: args.billingInterval,
       amount: args.amount,
       transactionReference: args.transactionReference,
@@ -5946,9 +5950,40 @@ export const approveSubscriptionRequest = mutation({
 
     const now = new Date().toISOString();
 
-    // Flip the firm's subscriptionPlan
+    // REVENUE-LEAK FIX (#9): a downgrade from Komplete (product='unified')
+    // to a single-product plan MUST also flip firm.product. Previously this
+    // mutation only patched subscriptionPlan — a Komplete firm downgraded to
+    // 'Pro' kept product='unified', and getTierLimitsForFirm treats ANY
+    // unified-product firm as all-unlimited. The firm then kept every
+    // Komplete feature while paying Atrium Pro (₦2.1M) or Vega Pro (₦768K)
+    // instead of Komplete (₦2.5M) — ~₦400K+/yr leaked per downgraded firm.
+    const firm: any = await ctx.db.get(request.firmId as any);
+    const firmProduct = String(firm?.product || '').toLowerCase();
+    const isUnifiedFirm = firmProduct === 'unified' || firmProduct === 'komplete';
+    const targetProduct = request.requestedProduct
+      ? String(request.requestedProduct).toLowerCase()
+      : null;
+
+    // Validate target product when present
+    if (targetProduct && targetProduct !== 'property' && targetProduct !== 'legal' && targetProduct !== 'atrium' && targetProduct !== 'vega') {
+      throw new Error(`Invalid requestedProduct '${request.requestedProduct}'. Must be 'property' (Atrium) or 'legal' (Vega).`);
+    }
+    const normalizedTarget = targetProduct === 'atrium' ? 'property' : targetProduct === 'vega' ? 'legal' : targetProduct;
+
+    // GUARD: unified firm + non-Komplete target plan + no product specified
+    // → ambiguous legacy request. Refuse rather than silently leak revenue.
+    if (isUnifiedFirm && request.requestedPlan !== 'Komplete' && !normalizedTarget) {
+      throw new Error(
+        `Ambiguous downgrade: firm is on the Komplete (unified) product but the request targets plan ` +
+        `'${request.requestedPlan}' without specifying the target product. Reject this request and ask the ` +
+        `firm to re-submit from Settings → Billing (the new flow records the target product automatically).`
+      );
+    }
+
+    // Flip the firm's subscriptionPlan (+ product when changing products)
     await ctx.db.patch(request.firmId, {
       subscriptionPlan: request.requestedPlan,
+      ...(normalizedTarget && normalizedTarget !== firmProduct ? { product: normalizedTarget } : {}),
       setupFeePaid: true,
       adminStatus: 'active',
       // Clear trial fields if present
@@ -6050,12 +6085,15 @@ export const activateFirmSubscription = internalMutation({
     plan: v.string(),
     billingInterval: v.optional(v.string()),
     reference: v.optional(v.string()),
+    // REVENUE-LEAK FIX (#9): product flip support (Komplete→single-product)
+    product: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString();
 
     await ctx.db.patch(args.firmId as any, {
       subscriptionPlan: args.plan,
+      ...(args.product ? { product: args.product } : {}),
       setupFeePaid: true,
       adminStatus: 'active',
       trialStartsAt: null,

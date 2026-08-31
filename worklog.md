@@ -8852,3 +8852,34 @@ Stage Summary:
 - TS: 323 → 161 (old session's Phase 1 endpoint was 167; redo is 6 better)
 - vite build: PASS (23s); all TS2304 + TS2307 errors eliminated
 - Committed as fix(ts-cleanup) batch 5 of 5 — PHASE 1 REDO COMPLETE
+
+---
+Task ID: recovery-5
+Agent: main (Super Z)
+Task: Phase 2 redo, #9 — Komplete downgrade revenue leak (~₦400K/yr/firm)
+
+Work Log:
+- Traced the leak: SubscriptionSettings Komplete downgrade buttons called
+  processUpgrade('Pro', price) → createSubscriptionRequest →
+  approveSubscriptionRequest. The approval mutation flipped ONLY
+  firm.subscriptionPlan, never firm.product. A Komplete firm (product=
+  'unified') downgraded to 'Pro' kept unified product → getTierLimitsForFirm
+  grants ALL-UNLIMITED limits to any unified-product firm → firm keeps every
+  Komplete feature while paying Atrium Pro ₦2.1M (vs Komplete ₦2.5M) or Vega
+  Pro ₦768K. ~₦400K–₦1.73M/yr leaked per downgraded firm
+- schema.ts: added requestedProduct (nullableString) to subscriptionRequests
+- createSubscriptionRequest: accepts + persists requestedProduct
+- approveSubscriptionRequest: validates target product, flips firm.product
+  when it differs from current, and GUARDS ambiguous legacy requests
+  (unified firm + non-Komplete plan + no product) with a clear error
+  instead of silently leaking
+- activateFirmSubscription: optional product arg for the webhook path
+- PaymentGatewayModal: subscriptionContext.requestedProduct pass-through
+- SubscriptionSettings: new processKompleteDowngrade() — the two Komplete
+  downgrade buttons now record 'property' (Atrium) / 'legal' (Vega) and the
+  confirm dialog explains the product switch
+
+Stage Summary:
+- TS: 161 (unchanged), vite build PASS
+- The leak is closed at BOTH the request-creation and approval layers,
+  with a guard for legacy ambiguous pending rows

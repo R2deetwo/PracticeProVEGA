@@ -28,6 +28,10 @@ interface PaymentGatewayModalProps {
     requestedPlan: string;
     billingInterval: 'monthly' | 'annual';
     firmId: string;
+    // REVENUE-LEAK FIX (#9): target product for Komplete→single-product
+    // downgrades — 'property' (Atrium) or 'legal' (Vega). Recorded on the
+    // request row so approval flips firm.product, not just the plan.
+    requestedProduct?: 'property' | 'legal';
   };
 }
 
@@ -97,6 +101,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
         const ref = generateReference();
         const result = await createSubscriptionRequest({
           requestedPlan: subscriptionContext.requestedPlan,
+          requestedProduct: subscriptionContext.requestedProduct,
           billingInterval: subscriptionContext.billingInterval,
           amount,
           transactionReference: ref,

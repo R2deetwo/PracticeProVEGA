@@ -661,6 +661,42 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
         }
     };
 
+    // REVENUE-LEAK FIX (#9): Komplete → single-product downgrade. Wraps the
+    // standard downgrade flow but records the TARGET PRODUCT on the request
+    // row ('property' = Atrium, 'legal' = Vega). Previously these buttons
+    // called processUpgrade('Pro', price) — approval flipped only the plan
+    // and the firm kept product='unified' (all-unlimited limits) while
+    // paying the single-product price (~₦400K+/yr leaked per firm).
+    const processKompleteDowngrade = (newPlan: SubscriptionPlan, targetProduct: 'property' | 'legal', price: number) => {
+        openModal('deleteConfirmation', null, {
+            title: `Downgrade to ${targetProduct === 'property' ? 'Atrium' : 'Vega'} ${newPlan}`,
+            message: `You are switching from Komplete (legal + property unified) to ${targetProduct === 'property' ? 'Atrium Pro (property management only)' : 'Vega Pro (legal practice only)'}. Features from the other product will be locked, but your data is preserved and you can upgrade back to Komplete at any time.\n\nYour downgrade request will be reviewed by our team within 24 hours. There is no payment required for downgrading.`,
+            confirmText: 'Request Downgrade',
+            confirmButtonClass: 'bg-slate-600 hover:bg-slate-700',
+            onConfirm: () => {
+                openModal('paymentGateway', null, {
+                    amount: 0,  // No payment for downgrades
+                    title: `Downgrade to ${targetProduct === 'property' ? 'Atrium' : 'Vega'} ${newPlan}`,
+                    description: `No payment required — your request will be reviewed within 24 hours.`,
+                    forcePracticeProAccount: true,
+                    subscriptionContext: {
+                        requestedPlan: newPlan,
+                        requestedProduct: targetProduct,
+                        billingInterval: 'annual',
+                        firmId: firmDetails.id,
+                    },
+                    onConfirm: () => {
+                        logActivity(`Requested downgrade from Komplete to ${targetProduct === 'property' ? 'Atrium' : 'Vega'} ${newPlan} plan`, 'User',
+                            coreState.users.find(u => u.role === 'Admin')?.id,
+                            coreState.users.find(u => u.role === 'Admin')?.name);
+                        addToast(`Downgrade request submitted. Our team will review and update your workspace within 24 hours. Your Komplete plan remains active until then.`, { type: 'success', duration: 6000 });
+                    }
+                });
+                closeModal();
+            }
+        });
+    };
+
     const handleActivateEnterprise = () => {
         if (selectedModalities.length === 0) {
             addToast('Please select at least one Practice Modality to activate Enterprise.', { type: 'error' });
@@ -865,13 +901,13 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 <button
-                                    onClick={() => processUpgrade('Pro' as any, 2100000)}
+                                    onClick={() => processKompleteDowngrade('Pro' as any, 'property', 2100000)}
                                     className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
                                 >
                                     Downgrade to Atrium Pro (₦2.1M/yr)
                                 </button>
                                 <button
-                                    onClick={() => processUpgrade('Pro' as any, 768000)}
+                                    onClick={() => processKompleteDowngrade('Pro' as any, 'legal', 768000)}
                                     className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
                                 >
                                     Downgrade to Vega Pro (₦768K/yr)

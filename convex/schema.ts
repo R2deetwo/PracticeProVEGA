@@ -1853,6 +1853,11 @@ export default defineSchema({
     discountedAmount: nullableNumber,       // amount * (1 - discountPercent/100), stored at approval
     discountReason: nullableString,         // e.g. "Early adopter loyalty discount"
     id: nullableString,                     // Legacy field — frontend copy of _id
+    // REVENUE-LEAK FIX: target product for downgrades from Komplete
+    // (unified) to a single-product plan. 'property' (Atrium) or 'legal'
+    // (Vega). Without this, approval flipped only subscriptionPlan and the
+    // firm kept product='unified' = unlimited limits at a single-product price.
+    requestedProduct: nullableString,       // 'property' | 'legal' | null (same-product requests)
     // P11: Idempotency key for dedup on double-submit (payment-critical)
     idempotencyKey: v.optional(v.string()),
     createdAt: nullableString,
