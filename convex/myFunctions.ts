@@ -10,7 +10,7 @@ import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
-import { ATRIUM_LIMITS } from "./tierLimits";
+import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
 
 // --- PRESENCE ---
 
@@ -1981,7 +1981,14 @@ export const createFirm = mutation({
       product: args.product || "unified",
       maxUnits: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.units || 5) : 999999,
       maxActiveTenants: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.tenants || 5) : 999999,
-      whatsappLimit: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.whatsapp || 999999) : 0,
+      // SECURITY FIX (WhatsApp hard-block): non-property firms (Vega legal /
+      // Komplete) previously got whatsappLimit: 0 here — and
+      // incrementWhatsAppQuota treats limit 0 as "already exhausted"
+      // (0 >= 0), so EVERY WhatsApp send for those products failed with
+      // "Monthly WhatsApp limit reached (0)". Canonical tier limits
+      // (getTierLimitsForFirm) grant unlimited WhatsApp to legal/unified/
+      // komplete, and WhatsApp is a built-in feature (add-ons purge).
+      whatsappLimit: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.whatsapp || 999999) : 999999,
       whatsappMessagesSent: 0,
       setupFeePaid: (args.subscriptionPlan === "Enterprise" || args.isDataMigration) ? false : true, // If they need a setup fee, it's NOT paid yet
       // ─── Trial fields ──────────────────────────────────────────────────
@@ -4978,11 +4985,23 @@ export const incrementWhatsAppQuota = mutation({
     const firm = await ctx.db.get(args.firmId as any) as any;
     if (!firm) throw new Error("Firm not found");
 
-    const limit: number = firm.whatsappLimit ?? 0;
     const sent:  number = firm.whatsappMessagesSent ?? 0;
 
-    // 999999 is our internal "unlimited" sentinel for Pro/Enterprise
-    if (limit !== 999999 && sent >= limit) {
+    // SECURITY FIX (WhatsApp hard-block): the CANONICAL limit comes from
+    // getTierLimitsForFirm (Komplete/Vega = unlimited). The stored
+    // firm.whatsappLimit is only honored as a founder-set custom cap when
+    // it is a POSITIVE number — legacy firms created with the signup bug
+    // wrote 0 for non-property firms, which used to read as "quota
+    // exhausted" and hard-block every WhatsApp send. A stored 0 or
+    // undefined is now treated as "no custom cap".
+    const tierLimits = getTierLimitsForFirm(firm.subscriptionPlan, firm.product);
+    let limit: number | null = tierLimits.whatsappLimit; // null = unlimited
+    const stored = firm.whatsappLimit;
+    if (typeof stored === "number" && stored > 0 && stored !== 999999 && (limit === null || stored < limit)) {
+      limit = stored;
+    }
+
+    if (limit !== null && limit !== 999999 && sent >= limit) {
       return { success: false, error: "MONTHLY_LIMIT_REACHED", limit, sent };
     }
 

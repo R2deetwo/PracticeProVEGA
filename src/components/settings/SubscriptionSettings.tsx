@@ -62,6 +62,15 @@ const TIER_SETTINGS_COPY: Record<TierId, { description: string; userLimit: strin
     Enterprise: { description: 'Custom limits and onboarding.', userLimit: 'Unlimited Users' },
 };
 
+// AUDIT FIX (PlanCard copy): the Komplete card previously reused
+// TIER_SETTINGS_COPY.Core — displaying "Solo practitioners... 1 User
+// Account" on the most expensive bundle (unlimited seats). Komplete gets
+// its own copy aligned with KOMPLETE_TIER (maxUsers: null = unlimited).
+const KOMPLETE_SETTINGS_COPY = {
+    description: 'The complete legal + property platform in one bundle. Everything unlimited, with priority support.',
+    userLimit: 'Unlimited Users',
+};
+
 const formatSettingsPrice = (
     tier: TierDef,
     isAnnual: boolean,
@@ -834,8 +843,8 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                         plan={SubscriptionPlan.Komplete}
                         currentPlan={normalizedCurrent}
                         price={formatSettingsPrice(tiers.Core, true, viewAsMonthlyCost)}
-                        description={TIER_SETTINGS_COPY.Core.description}
-                        userLimit={TIER_SETTINGS_COPY.Core.userLimit}
+                        description={KOMPLETE_SETTINGS_COPY.description}
+                        userLimit={KOMPLETE_SETTINGS_COPY.userLimit}
                         viewAsMonthlyCost={viewAsMonthlyCost}
                         isAnnual={true}
                         features={tiers.Core.features}

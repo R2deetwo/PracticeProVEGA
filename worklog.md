@@ -8743,3 +8743,49 @@ underlying split-button structure in MatterForm's AccordionSection was
 ALSO broken — the chevron and right edge of the header were dead
 zones. The prior fix addressed ONE cause but missed the OTHER. This
 commit fixes the structural issue that the prior fix missed.
+
+---
+Task ID: recovery-1
+Agent: main (Super Z)
+Task: Sandbox reset recovery — re-clone + state verification + redo Phase 1/2
+
+Work Log:
+- Previous session's sandbox was reset; all local commits lost (Phase 1: 5 batches, Phase 2: 3 batches with hashes 6a07af11, 9b6d05e2, dff95ca3 — none pushed to remote)
+- Cloned https://github.com/R2deetwo/PracticeProVEGA.git into /home/z/my-project/practicepro
+- Verified remote HEAD = 0f8619d3 (Aug 24, pre-audit state): TS errors 323 (matches pre-Phase-1 baseline), Math.random present (15x), sentry.ts has 30 zero-auth functions, schemaValidation still false
+- Confirmed ALL Phase 1/2 work must be redone from the conversation summary
+- Re-audited current state: src/components/ui/ has 52 files, only ConfirmDialog (12 importers) and FinancialStatusBadge (1 importer) are used; toast/toaster/use-toast form a circular orphan chain; Card.tsx has duplicate-export bugs
+- TS2307 breakdown: 107 in src/components/ui (orphaned shadcn), 42x '@/lib/utils' (missing @/ alias), rest in src/lib
+
+Stage Summary:
+- Environment restored: repo cloned, npm install done, git identity set
+- Recovery plan: redo Phase 1 in 5 batches (Math.random→crypto, sentry/VMS zero-auth, Komplete gating+WhatsApp, .take(100) bug, TS cleanup+deps), then Phase 2 (4 items), then Phase 3 as originally planned
+- Baseline established: TS 323 errors, must not increase
+
+---
+Task ID: recovery-2
+Agent: main (Super Z)
+Task: Phase 1 redo, Batch 3 — Komplete WhatsApp hard-block + PlanCard copy
+
+Work Log:
+- Verified in-progress fix in convex/myFunctions.ts (createFirm whatsappLimit
+  + incrementWhatsAppQuota canonical-limit logic) against getTierLimitsForFirm
+  signature in convex/tierLimits.ts (returns whatsappLimit: null = unlimited
+  for Vega legal / unified / Komplete)
+- Traced all whatsappLimit consumers: src/constants/tiers.ts (display-only),
+  convex/founderMetrics.ts:1156 (tierLimits passthrough — correct),
+  src/services/communicationIntegration.ts (dead code, zero importers)
+- Verified send path: convex/communications.ts sendWhatsApp →
+  incrementWhatsAppQuota is the ONLY enforcement point
+- AUDIT FIX (PlanCard copy): Komplete card in SubscriptionSettings.tsx reused
+  TIER_SETTINGS_COPY.Core — showed "Solo practitioners or small portfolios
+  starting out." + "1 User Account" on the ₦2.5M/yr unlimited-seats bundle.
+  Added KOMPLETE_SETTINGS_COPY with accurate copy.
+- Verified add-ons catalog already clean (WhatsApp add-ons purged, Komplete
+  excluded from seats add-ons — unlimited)
+
+Stage Summary:
+- TS: 323 errors = baseline, ZERO new (myFunctions.ts(3551) confirmed
+  pre-existing via git stash — was at line 3544 before this change)
+- Committed as fix(billing) batch 3 of 5 in the Phase 1 redo
+- Branch now 3 commits ahead of origin/main (user pushes manually)
