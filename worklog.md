@@ -8883,3 +8883,28 @@ Stage Summary:
 - TS: 161 (unchanged), vite build PASS
 - The leak is closed at BOTH the request-creation and approval layers,
   with a guard for legacy ambiguous pending rows
+
+---
+Task ID: recovery-6
+Agent: main (Super Z)
+Task: Phase 2 redo — arrears notification placeholder + verification of remaining items
+
+Work Log:
+- VERIFIED #11 (tenancies orphan rows): already fixed in remote 0f8619d3 —
+  deleteItem now has FK guards incl. { table: "tenancies", field: "propertyId" }
+  + softDeleteContact; properties with live tenancies refuse deletion
+- VERIFIED Komplete landing discovery: already present — "Are you a Real
+  Estate Lawyer?" banner → Explore Komplete → onSignup('unified'), and the
+  signup modal honors productOverride='unified'
+- FIXED arrears notification placeholder bug: buildMessage() in
+  ComposeModal.tsx gated the {{SERVICE_CHARGE}}/{{LEGAL_FEE}}/{{AGENCY_FEE}}/
+  {{CAUTION_DEPOSIT}}/{{DUE_DATE}} replacements behind `if (extraData)` —
+  but AutomationCenter's bulk rent reminder calls buildMessage with NO
+  extraData, so tenants received OFFICIAL DEMAND NOTICEs containing a
+  literal {{DUE_DATE}}. Replacements are now unconditional (sc/lf/af/cd
+  default to 0; DUE_DATE falls back to 'the due date')
+
+Stage Summary:
+- Phase 2 redo status: #9 fixed (b1cbbf7b), #11 verified present, Komplete
+  discovery verified present, arrears placeholder fixed in this commit
+- TS: 161 (unchanged), vite build PASS

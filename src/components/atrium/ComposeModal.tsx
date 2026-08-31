@@ -161,14 +161,18 @@ export function buildMessage(
       result = result.replace(/\{\{PROPERTY_ADDRESS\}\}/g, addr);
   }
   
-  if (extraData) {
-    result = result.replace(/\{\{SERVICE_CHARGE\}\}/g, `₦${sc.toLocaleString('en-NG')}`);
-    result = result.replace(/\{\{LEGAL_FEE\}\}/g, `₦${lf.toLocaleString('en-NG')}`);
-    result = result.replace(/\{\{AGENCY_FEE\}\}/g, `₦${af.toLocaleString('en-NG')}`);
-    result = result.replace(/\{\{CAUTION_DEPOSIT\}\}/g, `₦${cd.toLocaleString('en-NG')}`);
-    result = result.replace(/\{\{DUE_DATE\}\}/g, extraData.dueDate || 'the due date');
-  }
-  
+  // PLACEHOLDER BUG FIX: these replacements were previously gated behind
+  // `if (extraData)` — but callers like AutomationCenter's bulk rent reminder
+  // invoke buildMessage WITHOUT extraData, so tenants received messages with
+  // a literal {{DUE_DATE}} (and fee placeholders) in the text. All placeholders
+  // are now replaced unconditionally; sc/lf/af/cd already default to 0 and
+  // DUE_DATE falls back to a natural-language phrase.
+  result = result.replace(/\{\{SERVICE_CHARGE\}\}/g, `₦${sc.toLocaleString('en-NG')}`);
+  result = result.replace(/\{\{LEGAL_FEE\}\}/g, `₦${lf.toLocaleString('en-NG')}`);
+  result = result.replace(/\{\{AGENCY_FEE\}\}/g, `₦${af.toLocaleString('en-NG')}`);
+  result = result.replace(/\{\{CAUTION_DEPOSIT\}\}/g, `₦${cd.toLocaleString('en-NG')}`);
+  result = result.replace(/\{\{DUE_DATE\}\}/g, extraData?.dueDate || 'the due date');
+
   return result;
 }
 
