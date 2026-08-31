@@ -9395,3 +9395,38 @@ Stage Summary:
 - NOTE: critical alerts now render on the Dashboard view only (the
   banner system's location) — previously CriticalLeaseBanner showed on
   all views
+---
+Task ID: deep-dive-1
+Agent: main (Super Z)
+Task: Deep functional audit — every product works as claimed + documentation completion
+
+Work Log:
+- Claim audit: all 29 landing-page feature claims (12 Vega + 17 Atrium)
+  mapped to real implementations — components + Convex modules verified
+  for each (incl. Sentry Pass gatehouse, Estate Community, portals)
+- Live backend probing: 40+ public Convex functions called with dummy
+  args on gregarious-malamute-537 — ZERO real server errors (auth/plan
+  guards fire correctly; search auth guard behaves as designed)
+- Browser testing: landing page (cookie consent, both product cards),
+  Vega feature page (all 12 claim cards render), /portal/tenant/login,
+  /portal/client/login, /gatehouse?firmId — all functional, no console
+  errors
+- Documentation audit findings and fixes (commit 9680d609):
+  * README: 7 factual errors fixed (deploy branch master->main, missing
+    Estate Community/Trust/Search/Broadcasts, wrong config filename,
+    wrong portal routes, 2 wrong prices, missing env vars)
+  * .env.example was Android-signing-only — completed with all frontend
+    vars (was setup-breaking for new developers)
+  * 8 empty docs filled with codebase-verified content (ALOAGUIDE,
+    ALOA_LOGO, COLOR_SCHEME, CONFIDENTIALITY_GUIDE, DEV_TOOLKIT,
+    INVOICE_GENERATION, PRACTICE_PRO_APP_MARKDOWN, PRACTICE_PRO_LOGO)
+  * ESTATE_COMMUNITY.md created (feature category had zero docs)
+  * README Documentation Index section added
+- Deployed: Vercel + Cloudflare green, APK building, backend healthy
+
+Stage Summary:
+- App functionally sound: every claim backed by working code, backend
+  error-free across 40+ probes, public surfaces render clean
+- Documentation now complete and factual: 10 files written/fixed,
+  pricing matches tiers.ts, routes/branches/filenames match reality
+- No app code changes needed — docs-only commit 9680d609
