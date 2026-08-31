@@ -9166,3 +9166,27 @@ Work Log:
 Stage Summary:
 - Search is now O(matches) server-side instead of O(all data) client-side
 - Verification: tsc 153 (baseline), vite build PASS
+
+---
+Task ID: phase4-3
+Agent: main (Super Z)
+Task: Phase 4 — push + deploy verification
+
+Work Log:
+- Pushed 942163b4 (perf index seeks) + acfad46f (server-side search) to
+  origin/main via one-time PAT URL (token never persisted)
+- All 3 workflows for acfad46f: success — Vercel, Cloudflare, APK
+- "Deploy Convex backend" step: SUCCESS — new indexes
+  (matters.by_retainer, contacts.by_phone, notifications.by_type,
+  users.by_email, tasks.search_title searchIndex) are live in prod
+  (auto-backfilled); searchAll query deployed
+- Verified prod: vercel + cloudflare both serving acfad46f, healthy
+
+Stage Summary:
+- PHASE 4 COMPLETE: 20+ full-table scans converted to index seeks,
+  5 new indexes, server-side searchIndex-backed FullScreenSearch,
+  stale-matter false-positive fix
+- TS: 153 (baseline held; net -2 for the session)
+- Remaining audit scope for Phase 5: Pillars 1-5 (UI consistency,
+  navigation integrity, core UX, AI engine UX, copywriting — incl. the
+  ARIA→ALOA branding fixes and STYLE_GUIDE.md)
