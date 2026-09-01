@@ -158,15 +158,18 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     // Product-aware primary nav.
     // Unified: Dashboard + Matters + Properties + Tasks
     // Property (Atrium): Dashboard + Properties + Financials + Tasks
-    // Legal (Vega): Dashboard + Matters + Tasks + Research
+    // Legal (Vega): Dashboard + Matters + Tasks + Documents
     //
     // NOTE: 'atriumEngine' removed from primary nav — Revenue Monitor is now
     // a tab inside Financials (billing view), unified across all products.
+    // SIMPLIFY FIX: swapped Research → Documents in the mobile primary bar.
+    // Research is plan-gated (Growth+) yet held a primary slot for every Vega
+    // user, while Documents — a core daily surface — was buried in "More".
     const primaryViews: View[] = isUnified
         ? ['dashboard', 'matters', 'properties', 'tasks']
         : isProperty
         ? ['dashboard', 'properties', 'billing', 'tasks']
-        : ['dashboard', 'matters', 'tasks', 'research'];
+        : ['dashboard', 'matters', 'tasks', 'documents'];
     
     const primaryItems = useMemo(() => {
         return primaryViews

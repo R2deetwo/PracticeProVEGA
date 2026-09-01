@@ -40,14 +40,18 @@ import ProTip from '../ProTip';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useDataActions } from '../../contexts/DataContext';
 
 import ProfileSettings from './ProfileSettings';
 import FirmSettings from './FirmSettings';
 import TemplatesSettings, { TemplateSubTab, CategorySubTab } from './TemplatesSettings';
-import HelpView from '../HelpView';
+// SIMPLIFY FIX: HelpView no longer embedded in Settings (it renders full-size
+// at the standalone 'help' view); the onboarding-recovery panel below replaces it.
+// import HelpView from '../HelpView';
+import { useOnboarding } from '../../contexts/OnboardingProvider';
+import { useAuth } from '../../contexts/AuthContext';
+import { CHECKLIST_DISMISSED_KEY_PREFIX, BANNER_DISMISSED_KEY_PREFIX } from '../GettingStartedChecklist';
 import AutomationSettings from './AutomationSettings';
 import SubscriptionSettings from './SubscriptionSettings';
 import SecuritySettings from './SecuritySettings';
@@ -438,6 +442,78 @@ const SidebarContents: React.FC<{
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────
+// ── Help / onboarding recovery panel ─────────────────────────────────────────
+// Compact replacement for embedding the full HelpView inside Settings.
+// Wires the two onboarding-recovery actions that were stranded in the dead
+// HelpSettings component (which had zero imports anywhere).
+const HelpOnboardingPanel: React.FC = () => {
+    const { resetTour } = useOnboarding();
+    const { addToast, navigateTo } = useUI();
+    const { currentUser } = useAuth();
+
+    const handleRestartTour = () => {
+        resetTour();
+        addToast("App tour has been reset and will restart now.", { type: 'success' });
+    };
+
+    const handleResetChecklist = () => {
+        const firmId = (currentUser as any)?.firmId;
+        if (!firmId) {
+            addToast("Could not reset — no workspace is currently active.", { type: 'error' });
+            return;
+        }
+        try {
+            localStorage.removeItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`);
+            localStorage.removeItem(`${BANNER_DISMISSED_KEY_PREFIX}${firmId}`);
+            addToast("Setup checklist reset. The Getting Started widget will reappear on your next dashboard visit.", { type: 'success' });
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (e) {
+            addToast("Could not reset the checklist — please try again.", { type: 'error' });
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Help & Onboarding</h3>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">Re-run the app tour, restore the Getting Started checklist, or open the full Help Center.</p>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-800 rounded-lg border border-black/5 dark:border-white/5 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">Restart App Tour</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">Replay the guided tour of the main screens.</p>
+                    </div>
+                    <button onClick={handleRestartTour} className="flex-shrink-0 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-colors">
+                        Restart
+                    </button>
+                </div>
+                <div className="border-t border-slate-100 dark:border-zinc-700" />
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">Restore Setup Checklist</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">Re-show the Getting Started widget if you dismissed it. Your real progress is kept.</p>
+                    </div>
+                    <button onClick={handleResetChecklist} className="flex-shrink-0 px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg transition-colors">
+                        Restore
+                    </button>
+                </div>
+                <div className="border-t border-slate-100 dark:border-zinc-700" />
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">Full Help Center</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">16 guides: getting started, billing, security, portals, AI assistant and more.</p>
+                    </div>
+                    <button onClick={() => navigateTo('help')} className="flex-shrink-0 px-4 py-2 border border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-xs font-bold rounded-lg transition-colors">
+                        Open
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const SettingsView: React.FC = () => {
     const { coreState } = useCoreState();
     const { theme, setTheme, settingsTargetId, navigateTo, currentHistoryEntry, openModal, addToast } = useUI();
@@ -603,7 +679,16 @@ export const SettingsView: React.FC = () => {
                     onDeleteDocumentCategory={props.onDeleteDocumentCategory}
                     automationRules={coreState.automationRules}
                 />;
-            case 'help': return <HelpView />;
+            case 'help': return (
+                // SIMPLIFY FIX: the full 1,094-line HelpView used to render inside
+                // this narrow settings column (duplicating the standalone 'help'
+                // view reachable from mobile More). Now the settings section is a
+                // compact onboarding-recovery panel + a link to the full Help
+                // Center. This also recovers the "Restart tour" / "Reset setup
+                // checklist" actions that were stranded in the dead HelpSettings
+                // component (zero imports).
+                <HelpOnboardingPanel />
+            );
             case 'changelog': return <ChangelogSettings />;
             case 'legalIntel': return <LegalIntelligenceHub firmId={props.firmDetails?.id || ''} />;
             case 'recovery': return <AccountRecoverySettings />;

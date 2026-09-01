@@ -125,50 +125,9 @@ const NavItemLink: React.FC<{
 };
 
 
-const RevenueEngineShieldIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <polyline points="9 12 11 14 15 10" />
-    </svg>
-);
-
-const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebarRetracted: boolean; firmId: string }> = ({ setView, currentView, isSidebarRetracted, firmId }) => {
-    const { currentUser: engineUser } = useAuth();
-    const isActive = currentView === 'atriumEngine';
-    const defaulters = useQuery(api.sentry.getDefaulters, firmId ? { firmId, userEmail: engineUser?.email } : 'skip');
-    const criticalCount = (defaulters || []).filter((d: any) => (d.daysOverdue ?? 0) > 14).length;
-
-    return (
-        <button
-            onClick={() => setView('atriumEngine', null)}
-            className={`
-                group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
-                ${isActive
-                    ? 'bg-emerald-600 text-white dark:bg-emerald-500 font-bold shadow-md shadow-emerald-600/20'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
-                }
-            `}
-            aria-label="Revenue Monitor" title="Revenue Monitor"
-        >
-            <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-primary-500' : 'text-slate-400 dark:text-zinc-500 group-hover:text-primary-500'}`}>
-                <RevenueEngineShieldIcon className="w-5 h-5" />
-            </div>
-            {!isSidebarRetracted && (
-                <div className="flex-1 flex items-center justify-between min-w-0">
-                    <span className="text-sm truncate">Revenue Monitor</span>
-                    {criticalCount > 0 && (
-                        <span className="ml-2 bg-rose-600 text-white text-3xs font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                            {criticalCount}
-                        </span>
-                    )}
-                </div>
-            )}
-            {isSidebarRetracted && criticalCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-zinc-900 animate-pulse" />
-            )}
-        </button>
-    );
-};
+// SIMPLIFY FIX: dead RevenueEngineShieldIcon + RevenueEngineNavItem removed —
+// the nav item was never rendered (Revenue Monitor lives in Financials now;
+// BottomNav has its own icon copy). ~45 LOC of unreachable code.
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) => {
     const { matterState } = useMatterState();

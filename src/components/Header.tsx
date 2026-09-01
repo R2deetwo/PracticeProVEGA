@@ -624,7 +624,7 @@ const Header: React.FC = React.memo(() => {
                                                                     actions.handleDismissNotification(notifId);
                                                                 }
                                                             }}
-                                                            className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-all"
+                                                            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-all"
                                                             title="Delete"
                                                         >
                                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

@@ -60,7 +60,7 @@ const TrialNudgeBanner: React.FC = () => {
         title: 'Day 1 — Try recording a payment',
         body: 'Record your first rent payment or invoice to see how Atrium/Vega tracks cash flow automatically.',
         cta: 'Record Payment',
-        ctaAction: () => navigateTo('finance'),
+        ctaAction: () => navigateTo('billing'),
         urgency: 'info' as const,
       };
     }

@@ -23,6 +23,9 @@ import {
 } from '../../utils/formatting';
 import { RealEstateUnit } from '../../types';
 import { recordActionUsed } from './MatterIntakeWizard';
+// NOTE: MatterIntakeWizard (the 4-screen Enterprise wizard) is NO LONGER
+// mounted anywhere — see MatterForm's de-duplication note. This file remains
+// only as the home of shared exports (recordActionUsed, autoFormatSuitTitle).
 import { UserAssignment } from './UserAssignment';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 
@@ -300,7 +303,12 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
     const [rcNumber, setRcNumber]   = useState('');
     const [shareCapital, setShareCapital] = useState(0);
 
+    // SIMPLIFY FIX: align with MatterDetailView's CONTENTIOUS_MATTER_TYPES —
+    // Family Law is contentious (parties + process apply) but was excluded
+    // here, so Enterprise family-law matters got no process/parties section.
     const isLitigation = matterType === MatterType.CivilLitigation ||
+        matterType === MatterType.FamilyLaw ||
+        matterType === MatterType.CriminalDefense ||
         matterType === MatterType.Tax || matterType === MatterType.OilGas ||
         matterType === MatterType.EmploymentLabor;
 
@@ -401,7 +409,10 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 createdAt: new Date().toISOString(),
                 stageLastUpdated: new Date().toISOString(),
                 stage: 'Intake',
-                court: court,
+                // SIMPLIFY FIX (data loss): court defaulted to FederalHighCourt and
+                // was submitted for every matter (corporate/real-estate included),
+                // polluting matter detail. Only send a court for litigation matters.
+                court: isLitigation ? court : '',
                 judicialDivision,
                 suitNumber,
                 originatingProcess: isLitigation ? legalAction : '',
@@ -411,11 +422,25 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 rcNumber: matterType === MatterType.CorporateCommercial ? rcNumber : '',
                 shareCapital: matterType === MatterType.CorporateCommercial ? shareCapital : 0,
                 specialtyData: {
+                    // SIMPLIFY FIX (data loss): the UI collected these fields
+                    // (some labelled required) but submit silently dropped them.
+                    // They now persist under specialtyData.realEstate so nothing
+                    // the user typed disappears.
                     realEstate: matterType === MatterType.RealEstate ? {
                         purchasePrice: propertyValue,
                         titleDocument: titleDoc as any,
                         propertyId: linkedPropertyId,
-                        units: unitsData
+                        units: unitsData,
+                        propertyAddress,
+                        propertyCategory,
+                        propertyType,
+                        propertyStatus,
+                        targetPrice,
+                        listingAgent,
+                        disputeCourt,
+                        disputeSuitNo,
+                        adverseParty,
+                        hasLitigation: reHasLitigation,
                     } : undefined,
                     firmRepresentingRole: activeProcessConfig.primaryPartyLabel,
                     processIntakeFields: processFields,

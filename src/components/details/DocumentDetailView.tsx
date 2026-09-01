@@ -345,43 +345,19 @@ const DocumentDetailViewContent: React.FC = () => {
                 {!isLocal && (
                     <div className="flex flex-col items-end gap-2">
                         {document.isCourtProcess && (
-                            <div className="flex flex-col items-end">
-                                <span className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
-                                <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
-                                    <Tooltip text="Document is still being drafted">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'draft' })}
-                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Draft
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Formally filed with the court">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'filed' })}
-                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Filed
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Served on the opposing party">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'served' })}
-                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Served
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Proof of Service Filed">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'acknowledged' })}
-                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Proof of Service
-                                        </button>
-                                    </Tooltip>
-                                </div>
-                            </div>
+                            <Tooltip text="View / update in the Pipeline tab">
+                                <button
+                                    onClick={() => setActiveTab('litigation')}
+                                    className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg border transition-all ${
+                                        document.litigationStatus === 'acknowledged' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
+                                        : document.litigationStatus === 'served' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                        : document.litigationStatus === 'filed' ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800'
+                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700'
+                                    }`}
+                                >
+                                    {document.litigationStatus === 'acknowledged' ? 'Proof of Service' : document.litigationStatus === 'served' ? 'Served' : document.litigationStatus === 'filed' ? 'Filed' : 'Draft'} &rarr;
+                                </button>
+                            </Tooltip>
                         )}
                         <div className="flex items-center gap-2">
                             <Tooltip text="Edit Document Metadata">

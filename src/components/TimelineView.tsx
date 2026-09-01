@@ -111,22 +111,25 @@ const TimelineView: React.FC = () => {
                          />
                      </div>
                 </div>
-                <div className="hidden lg:flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-zinc-400">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full"></div> Today</div>
-                    <div className="flex items-center gap-2"><div className="w-4 h-2.5 bg-blue-200 dark:bg-blue-900/50 border border-blue-400 rounded-sm"></div> Active Phase</div>
-                    <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-blue-500 rotate-45 transform"></div> Hearing</div>
-                    <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-orange-500 rotate-45 transform"></div> Deadline</div>
-                </div>
+                {/* SIMPLIFY FIX: legend was hidden lg:flex — invisible on phones,
+                    where colored diamonds appeared with no explanation. The legend
+                    now lives inside the dismissible info banner below, which is
+                    already responsive, so mobile users see it exactly once. */}
             </header>
 
-            {/* Info Banner */}
+            {/* Info Banner — includes the legend (SIMPLIFY FIX: previously the
+                legend was desktop-only, leaving Android users with unexplained
+                colored diamonds). */}
             {showInfo && hasMatters && (
                 <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 p-2 px-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-blue-800 dark:text-blue-200">
+                    <div className="flex items-center gap-2 text-xs text-blue-800 dark:text-blue-200 flex-wrap">
                         <InfoIcon className="w-4 h-4" />
-                        <span><strong>Roadmap View:</strong> Bars represent the duration of the current stage. Diamonds mark critical dates.</span>
+                        <span><strong>Roadmap View:</strong> Bars = current stage duration. Diamonds = critical dates:</span>
+                        <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-blue-500 rotate-45 transform inline-block"></div> Hearing</span>
+                        <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-orange-500 rotate-45 transform inline-block"></div> Deadline</span>
+                        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded-full inline-block"></div> Today</span>
                     </div>
-                    <button onClick={() => setShowInfo(false)} className="text-blue-500 hover:text-blue-700"><DismissIcon className="w-4 h-4" /></button>
+                    <button onClick={() => setShowInfo(false)} className="text-blue-500 hover:text-blue-700 flex-shrink-0"><DismissIcon className="w-4 h-4" /></button>
                 </div>
             )}
 

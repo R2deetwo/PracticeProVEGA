@@ -124,19 +124,24 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
         <div className="card-premium flex flex-col h-full overflow-hidden halo-hover transition-all duration-300">
             <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/30 dark:bg-zinc-900/30 gap-2">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                   {/* SIMPLIFY FIX: replaced the hidden chevron carousel (users had
+                       no way to know 'Review'/'Stale' existed — the label just
+                       silently changed) with a visible 3-segment pill. 'Stale'
+                       renamed to 'Quiet' (plain language for 21+ days no activity). */}
                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 flex-shrink-0">
-                        <button 
-                            onClick={handlePrevCategory}
-                            className="active-press touch-target p-1 rounded-md text-slate-400 hover:text-primary-600 transition-all"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                        </button>
-                        <button 
-                            onClick={handleNextCategory}
-                            className="active-press touch-target p-1 rounded-md text-slate-400 hover:text-primary-600 transition-all"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-                        </button>
+                        {(['Recent', 'Review', 'Quiet'] as const).map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveCategory(cat === 'Quiet' ? 'Stale' : cat)}
+                                className={`px-2 py-1 text-3xs font-black uppercase tracking-wide rounded-md transition-all ${
+                                    (cat === 'Quiet' ? activeCategory === 'Stale' : activeCategory === cat)
+                                        ? 'bg-white dark:bg-zinc-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
                    </div>
                     <div className="group flex items-center gap-1.5 min-w-0">
                        {activeCategory === 'Stale' ? (
@@ -200,7 +205,7 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                         <div className="font-semibold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate">{item.matter.title}</div>
                                         <p className="text-2xs text-slate-500 font-medium truncate group-hover:text-primary-600/80 transition-colors">
                                             {activeCategory === 'Stale' ? (
-                                                <span className="text-amber-600 font-bold">Stale for {Math.floor((new Date().getTime() - new Date(item.lastUpdate).getTime()) / (1000 * 3600 * 24))} days</span>
+                                                <span className="text-amber-600 font-bold">No activity for {Math.floor((new Date().getTime() - new Date(item.lastUpdate).getTime()) / (1000 * 3600 * 24))} days</span>
                                             ) : activeCategory === 'Review' ? (
                                                 <span className="text-primary-600 font-bold">Pending Review</span>
                                             ) : (

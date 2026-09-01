@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Contact, ContactCategory, ModalType, Lead } from '../types';
+import { Contact, ContactCategory, ModalType } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useMatterState } from '../contexts/MatterContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useDataState } from '../contexts/DataContext';
 import { useTerminology } from '../contexts/ProductContext';
-import { PlusIcon, GoogleIcon, ContactsIcon, SearchIcon, RevertIcon } from '../constants';
+// SIMPLIFY FIX: GoogleIcon import removed — the Google Contacts sync button
+// was removed from the UI in a prior session; the icon import was orphaned.
+import { PlusIcon, ContactsIcon, SearchIcon, RevertIcon } from '../constants';
 import { useHighlight } from '../hooks/useHighlight';
 import EmptyState from './EmptyState';
 import { ContactsSkeleton } from './toolkit/Skeleton';
@@ -55,19 +57,15 @@ const ContactListContent: React.FC<{
     activeCategory: string;
     onCategoryChange: (category: string) => void;
     selectedId?: string | null;
-    leads?: Lead[];
     contactsLabel?: string;
-}> = ({ contacts, contactCategories, openModal, onViewDetails, activeCategory, onCategoryChange, selectedId, leads, contactsLabel }) => {
+}> = ({ contacts, contactCategories, openModal, onViewDetails, activeCategory, onCategoryChange, selectedId, contactsLabel }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useHighlight(containerRef, 'contacts');
     const { coreState, isDataLoaded } = useCoreState();
-    const { handleSyncGoogleContacts } = useDataActions();
-    const { openModal: openQuickLook, addToast } = useUI();
+    const { openModal: openQuickLook } = useUI();
     // Default to 'Contacts' if not passed (back-compat).
     const label = contactsLabel || 'Contacts';
-    const isGoogleContactsConnected = coreState?.firmDetails?.integrations?.googleContacts || false;
     const [searchTerm, setSearchTerm] = useState('');
-    const [isSyncing, setIsSyncing] = useState(false);
 
     const filteredContacts = useMemo(() => {
         const safeContacts = contacts || [];
@@ -100,17 +98,8 @@ const ContactListContent: React.FC<{
         }
     });
 
-    const onSyncClick = async () => {
-        setIsSyncing(true);
-        try {
-            await handleSyncGoogleContacts();
-            addToast("Google Contacts synced successfully.", { type: 'success' });
-        } catch (e) {
-            addToast("Sync failed.", { type: 'error' });
-        } finally {
-            setIsSyncing(false);
-        }
-    };
+    // SIMPLIFY FIX: dead onSyncClick Google-sync handler removed (the button
+    // that called it no longer exists).
 
     useEffect(() => {
         if (selectedIndex >= 0) {
@@ -214,7 +203,6 @@ const ContactsView: React.FC = () => {
                 activeCategory={activeContactCategory}
                 onCategoryChange={onContactCategoryChange}
                 selectedId={selectedId}
-                leads={coreState.leads}
                 contactsLabel={contactsLabel}
             />
         </div>

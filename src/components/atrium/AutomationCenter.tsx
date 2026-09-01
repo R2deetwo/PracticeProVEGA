@@ -130,7 +130,7 @@ const AutomationCenter: React.FC = () => {
 
   const handleBulkRentReminder = async () => {
     const props = (coreState.properties || []).filter(p => p.rentalDetails?.tenantPhone);
-    if (props.length === 0) { addToast(`No occupied ${terminology.matter.toLowerCase()}s with phone numbers found`, { type: 'error' }); return; }
+    if (props.length === 0) { addToast(`No occupied ${terminology.matter.toLowerCase() === 'property' ? 'properties' : terminology.matter.toLowerCase() + 's'} with phone numbers found`, { type: 'error' }); return; }
     addToast(`Sending ${Math.min(props.length, 20)} reminder(s)…`, { type: 'info' });
     let sent = 0, failed = 0;
     for (const p of props.slice(0, 20)) {
@@ -164,8 +164,8 @@ const AutomationCenter: React.FC = () => {
       {/* Header */}
       <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">{terminology.matters} Notifications</h2>
-          <p className="text-xs text-slate-500 mt-0.5">WhatsApp · Email · Portal automation bridge</p>
+          <h2 className="text-xl font-bold text-white tracking-tight">Automated Messages</h2>
+          <p className="text-xs text-slate-500 mt-0.5">WhatsApp · Email · Portal reminders, sent automatically</p>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
           <button onClick={() => setShowTemplates(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
@@ -382,7 +382,7 @@ const AutomationCenter: React.FC = () => {
                             delete next[k];
                             setTemplates(next);
                           }}
-                          className="text-slate-600 hover:text-rose-500 text-2xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-slate-600 hover:text-rose-500 text-2xs opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         >
                           Delete
                         </button>

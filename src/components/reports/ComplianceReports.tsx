@@ -18,7 +18,10 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
     
     // Only show internal team members (Lawyers, Paralegals, External Counsel)
     // Portal users (Tenants, Clients) must never appear in compliance reports.
-    const INTERNAL_ROLES = [UserRole.Lawyer, UserRole.Paralegal, UserRole.ExternalCounsel];
+    // SIMPLIFY FIX: include Admin — a solo-admin firm (the default Vega user)
+    // previously saw an empty compliance table even after filling their own
+    // Practicing Fee / NBA / CPD details in My Profile.
+    const INTERNAL_ROLES = [UserRole.Admin, UserRole.Lawyer, UserRole.Paralegal, UserRole.ExternalCounsel];
     const teamStandards = users.filter(u => INTERNAL_ROLES.includes(u.role)).map(user => ({
         ...user,
         ...(user.professionalStandards || {
@@ -32,7 +35,7 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
         <div className="space-y-6">
             <div className="mb-6">
                  <ProTip id="compliance_reporting_tip">
-                   To update data on this report, visit the relevant sections. Professional Standards for team members can be updated by an Admin in 'Settings &gt; Firm Settings', and you can update your own in 'Settings &gt; My Profile'.
+                   To update data on this report, visit the relevant sections. Professional Standards for team members can be updated by an Admin in 'Settings &gt; Firm Details', and you can update your own in 'Settings &gt; My Profile'.
                 </ProTip>
             </div>
 

@@ -4,7 +4,7 @@ import { Invoice, InvoiceStatus, ModalType, AppState } from '../types';
 import { CheckCircleIcon, MailIcon, RevertIcon, BillingIcon, PlusIcon, ExclamationTriangleIcon } from '../constants';
 import { Clock, AlertCircle, CheckCircle, FileText } from 'lucide-react';
 import Tooltip from './Tooltip';
-import StatCard from './StatCard';
+// SIMPLIFY FIX: StatCard import removed with the duplicate KPI row.
 import { formatNaira } from '../utils/formatting';
 import NairaSymbol from './NairaSymbol';
 import { useHighlight } from '../hooks/useHighlight';
@@ -133,14 +133,6 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
         });
     };
 
-    const financialSummary = useMemo(() => {
-        const safeInvoices = invoices || [];
-        const totalBilled = safeInvoices.reduce((sum, i) => sum + (i.lineItems || []).reduce((s, li) => s + (li.total || 0), 0), 0);
-        const totalPaid = safeInvoices.filter(i => i.status === 'Paid').reduce((sum, i) => sum + (i.lineItems || []).reduce((s, li) => s + (li.total || 0), 0), 0);
-        const outstanding = totalBilled - totalPaid;
-        const overdue = safeInvoices.filter(i => i.status === 'Overdue').reduce((sum, i) => sum + (i.lineItems || []).reduce((s, li) => s + (li.total || 0), 0), 0);
-        return { totalBilled, totalPaid, outstanding, overdue };
-    }, [invoices]);
 
     const filteredInvoices = useMemo(() => {
         let items = [...(invoices || [])];
@@ -160,12 +152,12 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
 
     return (
         <div ref={containerRef}>
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-2">
-                <StatCard title="Total Outstanding" value={<><NairaSymbol />{formatNaira(financialSummary.outstanding)}</>} icon={<Clock className="w-full h-full" />} colorClass="bg-yellow-500" scrollOnOverflow={true} />
-                <StatCard title="Total Overdue" value={<><NairaSymbol />{formatNaira(financialSummary.overdue)}</>} icon={<AlertCircle className="w-full h-full" />} colorClass="bg-red-500" scrollOnOverflow={true} />
-                <StatCard title="Total Paid (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalPaid)}</>} icon={<CheckCircle className="w-full h-full" />} colorClass="bg-green-500" scrollOnOverflow={true} />
-                <StatCard title="Total Billed (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalBilled)}</>} icon={<FileText className="w-full h-full" />} colorClass="bg-blue-500" scrollOnOverflow={true} />
-            </div>
+            {/* SIMPLIFY FIX: the invoice tab's own 4 StatCards (Total Outstanding /
+                Total Overdue / Total Paid / Total Billed — lineItems-based) were
+                removed. The page-level KPI strip directly above (Collected /
+                Outstanding / Defaults / Invoices) already covers this, and the two
+                "Outstanding" numbers used DIFFERENT formulas (lineItems vs
+                total_amount||subTotal) so they regularly disagreed with each other. */}
 
             <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
                 <input autoComplete="off" data-lpignore="true" 

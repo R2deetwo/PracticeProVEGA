@@ -114,15 +114,16 @@ const ArchiveView: React.FC = () => {
     <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
         <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
             <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Archive</h2>
+            {/* SIMPLIFY FIX: destructive bulk-delete demoted from a red header
+                button to a quiet text link — it sat above restore actions on a
+                page that's usually empty, begging for accidental clicks. */}
             {archive.length > 0 && (
                 <button
                     onClick={onEmptyArchive}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-sm flex items-center gap-2 text-xs uppercase"
+                    className="px-2 py-1 text-slate-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 text-xs font-bold underline-offset-2 hover:underline transition-colors"
+                    title="Permanently delete everything in the archive"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Empty Archive
+                    Empty Archive…
                 </button>
             )}
         </header>

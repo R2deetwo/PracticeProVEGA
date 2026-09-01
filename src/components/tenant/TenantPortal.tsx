@@ -144,6 +144,9 @@ const TenantPortal: React.FC = () => {
     if (['dashboard', 'notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents', 'visitors', 'community'].includes(hash)) return hash as TabId;
     return 'dashboard';
   });
+  // SIMPLIFY FIX: state for the mobile bottom-nav "More" sheet (previously the
+  // More button just jumped to the Notices tab with no menu at all).
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
 
   // Repair mutation for fixing missing firmId on portal user records
   const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
@@ -700,12 +703,12 @@ const TenantPortal: React.FC = () => {
             )}
           </button>
         ))}
-        {/* More button — opens a sheet with all tabs */}
+        {/* More button — opens a bottom sheet with the remaining tabs.
+            SIMPLIFY FIX: it previously just jumped to the first remaining tab
+            (always Notices) with no menu — users thought "More" was broken
+            because the sheet the label promises never appeared. */}
         <button
-          onClick={() => {
-            const allTabs = tabs.filter(t => !['dashboard', 'ledger', 'messages', 'maintenance', 'payments'].includes(t.id));
-            if (allTabs.length > 0) handleTabChange(allTabs[0].id);
-          }}
+          onClick={() => setShowMoreSheet(true)}
           className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-slate-400 dark:text-zinc-500"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -714,6 +717,38 @@ const TenantPortal: React.FC = () => {
           <span className="text-2xs font-bold">More</span>
         </button>
       </div>
+
+      {/* ─── More sheet (mobile) ───────────────────────────────────────── */}
+      {showMoreSheet && (
+        <div className="sm:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowMoreSheet(false)} />
+          <div className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl border-t border-slate-200 dark:border-zinc-800 max-h-[70dvh] overflow-y-auto pb-safe animate-fade-in">
+            <div className="sticky top-0 bg-white dark:bg-zinc-900 px-4 py-3 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400">More</span>
+              <button onClick={() => setShowMoreSheet(false)} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200" aria-label="Close">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2 p-4">
+              {tabs.filter(t => !['dashboard', 'ledger', 'messages', 'maintenance', 'payments'].includes(t.id) && !t.disabled).map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setShowMoreSheet(false); handleTabChange(t.id); }}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 active:scale-95 transition-all relative"
+                >
+                  {t.icon}
+                  <span className="text-2xs font-bold text-center leading-tight">{t.label}</span>
+                  {t.badge && t.badge > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-3xs font-bold rounded-full flex items-center justify-center">
+                      {t.badge > 99 ? '99+' : t.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

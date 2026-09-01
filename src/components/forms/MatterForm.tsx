@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
+import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, LitigationParty } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -15,7 +15,8 @@ import { inputModern } from '../../utils/formStyles';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { MatterIntakeWizard } from './MatterIntakeWizard';
+// SIMPLIFY FIX: import removed with the Enterprise branch above.
+// import { MatterIntakeWizard } from './MatterIntakeWizard';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
 import { translateError } from '../../utils/errorTranslator';
 
@@ -170,21 +171,16 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
 
     const availableWorkflows = executionState.workflows && executionState.workflows.length > 0 ? executionState.workflows : workflows;
 
-    // ── Enterprise Routing ──────────────────────────────────────────────────
-    // New matters (not edits) on Enterprise plan go through the guided Intake Wizard
-    const isEnterpriseFirm = coreState.firmDetails?.subscriptionPlan === SubscriptionPlan.Enterprise;
-    const isCreatingNew = !matterToEdit;
-    if (isEnterpriseFirm && isCreatingNew) {
-        return (
-            <MatterIntakeWizard
-                users={coreState.users || []}
-                contacts={contacts}
-                currentUser={currentUser}
-                onClose={onClose}
-                onAddMatter={onAddMatter}
-            />
-        );
-    }
+    // ── SIMPLIFY FIX: Enterprise de-duplication ───────────────────────────
+    // The old branch here routed Enterprise firms to MatterIntakeWizard (a
+    // 4-screen wizard), while the SAME firm got SmartMatterModal (a different
+    // 2-step creator) when clicking any "New Matter" button (ModalManager
+    // intercepts newMatter for Enterprise first). Two creators, one firm,
+    // depending on entry point. This branch only fired when ALOA opened the
+    // form via DockedModal. Removed: Enterprise now gets the same universal
+    // MatterForm here, and SmartMatterModal remains the sole Enterprise
+    // creator for the primary button path. MatterIntakeWizard is retired
+    // (its extraTasks editor also silently discarded user-entered tasks).
     // ────────────────────────────────────────────────────────────────────────
 
     // --- State ---

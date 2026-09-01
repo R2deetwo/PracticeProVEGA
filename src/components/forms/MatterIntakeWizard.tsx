@@ -1219,9 +1219,15 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 status: 'Active' as any,
                 createdAt: new Date().toISOString(),
                 stageLastUpdated: new Date().toISOString(),
-                stage: 'Initial Review',
+                // SIMPLIFY FIX: match MatterForm/SmartMatterModal initial stage
+                // ('Intake') so board columns line up — 'Initial Review' isn't in
+                // default workflows, so wizard-created matters landed in "Other".
+                stage: 'Intake',
                 court: formData.jurisdiction || '',
-                judicialDivision: formData.selectedState || '',
+                // SIMPLIFY FIX: don't overwrite the user's Judicial Division
+                // input with the state name ("Lagos" was landing in the
+                // Division field on matter detail).
+                judicialDivision: formData.judicialDivision || '',
                 originatingProcess: formData.legalAction || '',
                 specialtyData: { 
                     firmRepresentingRole: formData.representingSide,

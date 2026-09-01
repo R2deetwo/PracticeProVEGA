@@ -210,7 +210,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     a firm identifier.
                 </p>
                 <p className="text-xs text-slate-400 dark:text-zinc-500">
-                    The URL should look like: <code className="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded">/Sentry Pass?firmId=YOUR_FIRM_ID</code>
+                    The URL should look like: <code className="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded">/gatehouse?firmId=YOUR_FIRM_ID</code>
                 </p>
             </div>
         );

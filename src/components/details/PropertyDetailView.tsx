@@ -10,7 +10,9 @@ import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
+// SIMPLIFY FIX: ComposeModal import removed — the instance near the end of
+// this file was unreachable (showCompose was never set true anywhere).
+// import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 import { useFeatures } from '../../hooks/useFeatures';
 import { DocumentsTab } from './DocumentsTab';
 import { useMatterState } from '../../contexts/MatterContext';
@@ -131,13 +133,11 @@ const PropertyDetailViewContent: React.FC = () => {
     const [showAddUnitForm, setShowAddUnitForm] = useState(false);
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
-    const [showUnitMessaging, setShowUnitMessaging] = useState(false);
-
     // ComposeMessageModal recipient — when set, the unified compose modal opens.
     // Set by clicking [Message] on any unit card.
     const [composeModalRecipient, setComposeModalRecipient] = useState<ComposeRecipient | null>(null);
-    const [showCompose, setShowCompose] = useState(false);
-    const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
+    // SIMPLIFY FIX: showUnitMessaging / showCompose / composePrefill removed —
+    // none could ever become true, and the UI they gated never rendered.
     const [showFullUnitDetail, setShowFullUnitDetail] = useState(false);
     const unitMenuInnerRef = useRef<HTMLDivElement>(null);
 
@@ -1095,7 +1095,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 onClick={() => handleInitializeMatter()}
                                                 className="w-full text-left px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 hover:border-blue-400 transition-all text-xs font-bold text-blue-700 dark:text-blue-300 flex justify-between items-center group mt-2"
                                             >
-                                                {isProperty ? 'Initialize File' : 'Initialize Matter'} <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
+                                                {isProperty ? 'Initialize File' : 'Initialize Matter'} <span className="text-blue-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">&rarr;</span>
                                             </button>
                                         ) : (
                                             <div className="mt-2 space-y-2">
@@ -1417,7 +1417,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     // Force re-render by toggling a state
                                                                     setDismissTick(t => t + 1);
                                                                 }}
-                                                                className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                                                                className="ml-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
                                                                 title="Dismiss this advisory"
                                                                 aria-label="Dismiss"
                                                             >
@@ -1441,105 +1441,20 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 const isSevenDayUpcoming = eviction.sevenDayNoticeStatus === 'due' && eviction.sevenDayNoticeDueDate && Date.now() < eviction.sevenDayNoticeDueDate;
                                                 const canUseEviction = isGrowthOrAbove || isKompleteFirm;
 
-                                                const handleWhatsApp = () => {
-                                                    if (!tenantPhone) return;
-                                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
-                                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
-                                                    // GRAMMAR FIX: If d.name already starts with "Unit" (e.g., "Unit 2"),
-                                                    // don't prepend another "Unit" — that would create "regarding Unit Unit 2".
-                                                    const unitName = d.name || '';
-                                                    const unitRef = unitName.toLowerCase().startsWith('unit') ? unitName : `Unit ${unitName}`;
-                                                    const msg = encodeURIComponent(`Hello ${d.tenantName || 'Resident'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding ${unitRef} at ${property.address}.`);
-                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-                                                };
-
-                                                const handleEmailTenant = () => {
-                                                    openModal('composeEmail', null, {
-                                                        to: tenantEmail,
-                                                        subject: `Re: ${d.name} — ${property.address}`,
-                                                    });
-                                                };
-
-                                                const handleOpenInbox = () => {
-                                                    try {
-                                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
-                                                            unitId: unit.id,
-                                                            unitName: d.name,
-                                                            tenantName: d.tenantName,
-                                                            tenantPhone,
-                                                            tenantEmail,
-                                                            rentAmount: d.rentAmount,
-                                                            propertyAddress: property.address,
-                                                        }));
-                                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
-                                                    } catch (e) {}
-                                                    navigateTo('atriumEngine');
-                                                };
-
-                                                const handleSendPortalMessage = async () => {
-                                                    // If resident has an email, send a REAL portal invite
-                                                    // (generates token + sends email via Brevo). If no email,
-                                                    // fall back to in-app portal message only.
-                                                    if (tenantEmail) {
-                                                        try {
-                                                            const result = await convex.action(api.portals.createPortalInvite, {
-                                                                firmId: coreState.firmDetails?.id || '',
-                                                                inviterId: currentUser?.id || '',
-                                                                inviteeEmail: tenantEmail,
-                                                                inviteeName: d.tenantName || 'Resident',
-                                                                inviteePhone: tenantPhone || '',
-                                                                portalType: 'resident',
-                                                                relatedId: unit.id,
-                                                                channel: 'email',
-                                                            });
-                                                            if (result?.emailSimulated) {
-                                                                addToast('Portal invite email simulated — Brevo API key may not be configured on Convex.', { type: 'info' });
-                                                            } else if (result?.emailSent) {
-                                                                addToast(`Portal invite email sent to ${tenantEmail}.`, { type: 'success' });
-                                                            } else {
-                                                                addToast('Portal invite processed.', { type: 'success' });
-                                                            }
-                                                        } catch (err: any) {
-                                                            addToast(err.message || 'Failed to send portal invite', { type: 'error' });
-                                                        }
-                                                    } else {
-                                                        // No email — send in-app portal message as fallback
-                                                        try {
-                                                            await convex.mutation(api.portals.sendPortalMessage, {
-                                                                firmId: coreState.firmDetails?.id || '',
-                                                                senderId: currentUser?.id || '',
-                                                                senderName: currentUser?.name || 'Property Manager',
-                                                                senderRole: 'admin',
-                                                                subject: `Message for ${d.tenantName || 'Resident'}`,
-                                                                content: `Hello ${d.tenantName || 'Resident'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding ${(d.name || '').toLowerCase().startsWith('unit') ? d.name : `Unit ${d.name}`} at ${property.address}.`,
-                                                                unitId: unit.id,
-                                                            });
-                                                            addToast('Portal message sent (no email on file — in-app message only).', { type: 'success' });
-                                                        } catch (err: any) {
-                                                            addToast(err.message || 'Failed to send portal message', { type: 'error' });
-                                                        }
-                                                    }
-                                                };
-
-                                                const handleOpenCompose = () => {
-                                                    setComposePrefill({
-                                                        unitId: unit.id,
-                                                        unitName: d.name,
-                                                        tenantName: d.tenantName,
-                                                        tenantPhone,
-                                                        tenantEmail,
-                                                        rentAmount: d.rentAmount,
-                                                        propertyAddress: property.address,
-                                                    });
-                                                    setShowCompose(true);
-                                                };
+                                                // SIMPLIFY FIX: the old unit messaging strip + its five
+                                                // handlers (handleWhatsApp / handleEmailTenant /
+                                                // handleOpenInbox / handleSendPortalMessage /
+                                                // handleOpenCompose) were unreachable — showUnitMessaging
+                                                // was only ever set false, so the strip never rendered.
+                                                // Messaging now flows exclusively through the unified
+                                                // ComposeMessageModal via the Message button above.
 
                                                 return (
                                                     <div
                                                         key={unit.id}
                                                         data-unit-id={unit.id}
                                                         ref={isSelected ? (el: HTMLDivElement | null) => { /* removed scrollIntoView — caused scroll bounce when expanding unit details */ } : undefined}
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
                                                         className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${
                                                             isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'
@@ -1785,7 +1700,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             });
                                                                             setShowFullUnitDetail(false);
                                                                         }}
-                                                                        className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} aria-label="Message Resident" title="Message Resident">
+                                                                        className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600`} aria-label="Message Resident" title="Message Resident">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
                                                                     <button
@@ -1800,53 +1715,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         Gear icon removed per user request — just text now. */}
                                                                     <button
                                                                         type="button"
-                                                                        onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }}
-                                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }}
+                                                                        onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); }}
+                                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowFullUnitDetail(v => !v); }}
                                                                         className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details and more actions" title="Full unit details and more actions">
                                                                         {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
                                                                 </div>
-
-                                                                {/* ── Quick Messaging Strip (inline, compact) ── */}
-                                                                {showUnitMessaging && (
-                                                                    <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-3 animate-fade-in">
-                                                                        <p className="text-3xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">
-                                                                            Contact {d.tenantName || 'Resident'}
-                                                                        </p>
-                                                                        <div className="flex flex-wrap items-center gap-1.5">
-                                                                            {tenantPhone && (isGrowthOrAbove || isKompleteFirm) && (
-                                                                                <button onClick={handleWhatsApp} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg transition-colors">
-                                                                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-                                                                                </button>
-                                                                            )}
-                                                                            {tenantPhone && !isGrowthOrAbove && !isKompleteFirm && (
-                                                                                <button disabled aria-label="WhatsApp requires Growth plan or above" title="WhatsApp requires Growth plan or above" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/40 text-white/50 text-2xs font-bold rounded-lg cursor-not-allowed relative">
-                                                                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-                                                                                    <LockClosedIcon className="w-2.5 h-2.5 absolute top-0.5 right-0.5" />
-                                                                                </button>
-                                                                            )}
-                                                                            {tenantEmail && (
-                                                                                <button onClick={handleEmailTenant} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-2xs font-bold rounded-lg transition-colors">
-                                                                                    <Mail className="w-3.5 h-3.5" /> Email
-                                                                                </button>
-                                                                            )}
-                                                                            {tenantPhone && (
-                                                                                <a href={`tel:${tenantPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-2xs font-bold rounded-lg transition-colors">
-                                                                                    <Phone className="w-3.5 h-3.5" /> Call
-                                                                                </a>
-                                                                            )}
-                                                                            <button onClick={handleSendPortalMessage} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-2xs font-bold rounded-lg transition-colors">
-                                                                                <Eye className="w-3.5 h-3.5" /> Portal
-                                                                            </button>
-                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-2xs font-bold rounded-lg transition-colors">
-                                                                                <MessageSquare className="w-3.5 h-3.5 text-emerald-500" /> Compose
-                                                                            </button>
-                                                                        </div>
-                                                                        {!hasContactInfo && (
-                                                                            <p className="text-2xs text-slate-400 mt-2">No contact info saved — edit the unit to add phone or email.</p>
-                                                                        )}
-                                                                    </div>
-                                                                )}
 
                                                                 {/* ── Tier 2: Full Detail Card (shown on "More") ── */}
                                                                 {showFullUnitDetail && (
@@ -2498,16 +2372,6 @@ const PropertyDetailViewContent: React.FC = () => {
                 </div>
             </div>
 
-            {/* Compose Modal */}
-            {showCompose && coreState.firmDetails?.id && (
-                <ComposeModal
-                    firmId={coreState.firmDetails.id}
-                    prefill={composePrefill}
-                    onClose={() => { setShowCompose(false); setComposePrefill(undefined); }}
-                    onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') || msg.includes('requires') ? 'error' : 'success' })}
-                />
-            )}
-
             {/* Unified ComposeMessageModal — opened by [Message] button on unit cards.
                 Handles WhatsApp (WhatsApp API + Web fallback), Email, and Portal Invite
                 with email gating + tooltip. */}
@@ -2527,7 +2391,7 @@ const ActionButton: React.FC<{ onClick: () => void; label: string }> = ({ onClic
         className="w-full text-left px-3 py-2 bg-slate-50 dark:bg-zinc-700/50 rounded-lg border border-slate-100 dark:border-zinc-600 hover:border-primary-400 dark:hover:border-primary-500 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 flex justify-between items-center group hover:bg-white dark:hover:bg-zinc-700 hover:text-primary-600"
     >
         {label}
-        <span className="text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
+        <span className="text-primary-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">&rarr;</span>
     </button>
 );
 

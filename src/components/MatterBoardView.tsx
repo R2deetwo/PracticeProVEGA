@@ -6,7 +6,7 @@ import ScrollArrows from './ScrollArrows';
 import Tooltip from './Tooltip';
 import { formatDueDate, getDueDateColor, getDueDateBorderColor } from '../utils/colorUtils';
 import { useProduct, useTerminology } from '../contexts/ProductContext';
-import { ShieldCheckIcon, PlusIcon } from '../constants';
+import { ShieldCheckIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
 
 // Define local interface for enriched matter (consistent with List view logic, but passed down)
@@ -197,15 +197,10 @@ const MatterBoardView: React.FC<MatterBoardViewProps> = ({ matters, workflows, c
 
     return (
         <div className="flex flex-col h-full p-4 sm:p-6 lg:p-8 pb-0">
-            <div className="sticky top-0 bg-slate-50 dark:bg-zinc-900 z-20 py-4 -mt-4 -mx-4 px-4 shadow-sm border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center mb-4">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{terminology.matters}</h2>
-                <button
-                    onClick={() => openModal('newMatter')}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold text-sm shadow-md hover:bg-primary-700 flex items-center justify-center gap-2"
-                >
-                    <PlusIcon className="w-5 h-5" /> {terminology.newMatter}
-                </button>
-            </div>
+            {/* SIMPLIFY FIX: the board's internal header (title + "New" button)
+                was removed — MatterList's sticky header directly above it already
+                provides the title, view toggle, New button, filters and search.
+                Users previously saw "Matters / New" stacked twice. */}
             <DragDropContext onDragEnd={onDragEnd}>
                 <ScrollArrows>
                     <div className="flex gap-4 pb-4 min-h-[65vh]">

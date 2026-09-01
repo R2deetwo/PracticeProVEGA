@@ -126,18 +126,9 @@ const DocumentRow: React.FC<{
                     </div>
                 </div>
 
-                {/* Quick full-screen preview — icon-only, always visible, sits LEFT of the kebab menu */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (onQuickFullScreenPreview) onQuickFullScreenPreview(doc);
-                    }}
-                    className="flex items-center justify-center w-7 h-7 my-auto rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
-                    aria-label="Open in immersive reader"
-                    title="Open in immersive reader mode"
-                >
-                    <EyeIcon className="w-4 h-4" />
-                </button>
+                {/* SIMPLIFY FIX: standalone eye-icon removed — the kebab menu's
+                    "Full Screen Preview" runs the exact same handler; row click
+                    opens the detail view. Two identical-looking buttons confused users. */}
 
                 {/* Kebab menu — shown on ALL screen sizes (not just mobile) */}
                 <button
@@ -183,8 +174,8 @@ const DocumentRow: React.FC<{
                                     <ArrowsExpandIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                                 </div>
                                 <div className="text-left">
-                                    <span className="block text-sm font-semibold text-slate-700 dark:text-zinc-200">Full Screen Preview</span>
-                                    <span className="block text-3xs text-slate-400">Opens document in immersive reader mode</span>
+                                    <span className="block text-sm font-semibold text-slate-700 dark:text-zinc-200">Full-screen View</span>
+                                    <span className="block text-3xs text-slate-400">Opens the document edge-to-edge</span>
                                 </div>
                             </button>
 
@@ -292,7 +283,7 @@ const MatterGroup: React.FC<{
                     <Tooltip text="Upload to this Matter">
                         <button
                             onClick={(e) => { e.stopPropagation(); onUpload(matterId); }}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all opacity-0 group-hover:opacity-100"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                         >
                             <PlusIcon className="w-4 h-4" />
                         </button>
@@ -637,8 +628,28 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                 placeholder="Search documents..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                                className="w-full pl-9 pr-24 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                             />
+                            {/* SIMPLIFY FIX: "My / All files" toggle surfaced in the
+                                header. It previously lived only in the desktop-only
+                                sidebar (dead in the compact mount), so non-admins had
+                                NO way to see firm-wide documents from this page. */}
+                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                                <button
+                                    onClick={() => setAssignmentFilter('my')}
+                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-wide transition-colors ${assignmentFilter === 'my' ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'}`}
+                                    title="Only documents I uploaded or am assigned to"
+                                >
+                                    My
+                                </button>
+                                <button
+                                    onClick={() => setAssignmentFilter('all')}
+                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-wide transition-colors ${assignmentFilter === 'all' ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'}`}
+                                    title="All documents in the firm"
+                                >
+                                    All
+                                </button>
+                            </div>
                         </div>
                         {/* Selection toolbar */}
                         <div className="flex items-center gap-2 flex-wrap">

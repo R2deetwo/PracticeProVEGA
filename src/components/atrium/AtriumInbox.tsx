@@ -350,7 +350,7 @@ export const AtriumInbox: React.FC = () => {
                                     
                                     <button 
                                         onClick={(e) => handleDelete(e, msg._id)}
-                                        className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 p-1.5 text-slate-600 hover:text-rose-500 transition-all hover:bg-rose-500/10 rounded-lg"
+                                        className="absolute right-4 bottom-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1.5 text-slate-600 hover:text-rose-500 transition-all hover:bg-rose-500/10 rounded-lg"
                                     >
                                         <TrashIcon className="w-3.5 h-3.5" />
                                     </button>
@@ -411,7 +411,7 @@ export const AtriumInbox: React.FC = () => {
                                                 </p>
                                                 <button 
                                                     onClick={(e) => handleDelete(e, selectedMessage._id)}
-                                                    className="absolute -right-10 top-0 opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-rose-500 transition-all"
+                                                    className="absolute -right-10 top-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-600 hover:text-rose-500 transition-all"
                                                     title="Delete message"
                                                 >
                                                     <TrashIcon className="w-4 h-4" />
@@ -714,7 +714,7 @@ export const AtriumInbox: React.FC = () => {
                                                             entry.senderName || undefined,
                                                             entry.unitId || undefined
                                                         )}
-                                                        className="opacity-0 group-hover:opacity-100 mt-2 text-2xs text-slate-500 hover:text-emerald-400 font-bold flex items-center gap-1 transition-all"
+                                                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 mt-2 text-2xs text-slate-500 hover:text-emerald-400 font-bold flex items-center gap-1 transition-all"
                                                     >
                                                         <PrinterIcon className="w-3 h-3" /> Print this conversation
                                                     </button>

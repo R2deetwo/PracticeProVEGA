@@ -17,7 +17,8 @@ import { surfaceUploadError } from '../utils/convexUpload';
 import { useProduct } from '../contexts/ProductContext';
 import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
 import TeamMessageModal from './modals/TeamMessageModal';
-import { AtriumInbox } from './atrium/AtriumInbox';
+// SIMPLIFY FIX: dead AtriumInbox import removed — the WhatsApp & Email tab
+// was merged into Conversations (inbox) in a prior session.
 import { NoticeBoardTab, ScheduledTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
@@ -57,7 +58,9 @@ const PdfIcon = ({ className }: { className?: string }) => (
 // 'communications' = WhatsApp & Email (AtriumInbox — external-channel comms:
 //                    WhatsApp reminders, email demands, inbound replies, audit trail)
 //                    Only shown for property/unified firms.
-type MessagingTab = 'inbox' | 'team' | 'notices' | 'scheduled' | 'communications';
+// SIMPLIFY FIX: 'communications' removed from the union — the tab was removed
+// (inbound WhatsApp/Email threads now render inside Conversations/inbox).
+type MessagingTab = 'inbox' | 'team' | 'notices' | 'scheduled';
 
 // ── Channel label helpers (shared with AtriumInbox) ────────────────────
 const CHANNEL_COLORS: Record<string, string> = {
@@ -640,14 +643,13 @@ const MessagesView: React.FC = () => {
         if (hint === 'team') return 'team';
         if (hint === 'notices') return 'notices';
         if (hint === 'scheduled') return 'scheduled';
-        if (hint === 'communications') return 'communications';
         return 'inbox';
     });
 
     // Also switch tabs when navigating from notifications while already on messaging view
     useEffect(() => {
         const hint = currentHistoryEntry.context?.initialTab;
-        if (hint === 'inbox' || hint === 'team' || hint === 'notices' || hint === 'scheduled' || hint === 'communications') {
+        if (hint === 'inbox' || hint === 'team' || hint === 'notices' || hint === 'scheduled') {
             setActiveTab(hint as MessagingTab);
         }
         // If navigating to inbox with a specific inbound message ID, select it

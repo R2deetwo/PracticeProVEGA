@@ -9560,3 +9560,106 @@ Stage Summary:
 - Getting-Started wizard now captures the practice-type configuration (esp. Atrium) and reliably completes all 6 steps; tour + overlays sequenced sanely for brand-new accounts
 - AI drafting/chat is now multi-state aware (36 states + FCT), practice-profile aware, and held to an explicit quality bar; the DocumentForm drafting path had silently lost ALL firm context and is fixed
 - All deploys verified end-to-end (Vercel + Cloudflare + APK/Convex)
+
+---
+Task ID: page-audit-simplify-1
+Agent: main (Super Z)
+Task: Continue page-by-page audit with SIMPLIFICATION as the primary lens (reduce complexity for non-tech-savvy Nigerian users), report done/remaining status, implement first fix batch
+
+Work Log:
+- Sandbox was reset (repo + local worklog wiped) — re-cloned from GitHub
+  (R2deetwo/PracticeProVEGA, public); reconstructed audit state from the
+  committed worklog.md + git history
+- Ran 3 parallel Explore audits (Vega core, Vega secondary+settings+nav,
+  Atrium+portals) with a simplification-first checklist: ~50 findings
+  (P0/P1/P2) across Dashboard, Matters, Documents, Billing, Messages,
+  Settings, Property detail/form, TenantPortal, portals
+- KEY FINDINGS: 4 overlapping matter-creation surfaces; first-run
+  dashboard stacking 4 banners + auto-modal; Billing double-KPI with
+  conflicting "Outstanding" formulas; PropertyForm 44 fields/1 required;
+  6 ways to record a payment; atriumEngine 4/5 tabs duplicate Financials;
+  Settings 20 sections; hover-only affordances invisible on Android (15
+  sites); dead code across PropertyDetailView (messaging chain),
+  PropertyManagerView (full-page layout), HelpSettings/AIUsageDashboard,
+  ContactsView (Google sync), Sidebar (RevenueEngineNavItem),
+  RecentMattersWidget, MatterIntakeWizard (retired)
+- IMPLEMENTED (this batch, 27 files):
+  * Data-loss fixes: SmartMatterModal now persists propertyAddress/
+    category/type/status/targetPrice/listingAgent/dispute fields into
+    specialtyData.realEstate + court only sent when litigation;
+    MatterIntakeWizard stage 'Intake' (board alignment) + judicialDivision
+    no longer overwritten by state name
+  * 404 fix: TrialNudgeBanner Day-1 CTA navigated to nonexistent 'finance'
+    view -> 'billing'
+  * Mobile affordances: 15 hover-only controls (opacity-0
+    group-hover:opacity-100) -> opacity-100 md:opacity-0 pattern (always
+    visible on touch) across MatterList/DocumentList/CalendarView/Header/
+    PropertyManagerView/PropertyTrackingView/PropertyDetailView/
+    AtriumInbox/AutomationCenter/PropertyForm
+  * Matter-creation de-dup: removed MatterForm's Enterprise->IntakeWizard
+    branch (Enterprise firms got SmartMatterModal from buttons but
+    IntakeWizard from ALOA); SmartMatterModal is now the sole Enterprise
+    creator; wizard retired (kept as shared-export module)
+  * First-run banner consolidation: CompleteSetupBanner + TrialNudge
+    suppressed while records=0 (welcome banner + auto-open modal + sidebar
+    checklist remain as the single onboarding story)
+  * Board double-header removed (MatterBoardView internal header deleted)
+  * DocumentDetailView: duplicate litigation-status segmented control ->
+    status chip that deep-links to Pipeline tab
+  * DocumentList: eye-icon duplicate preview button removed; "My/All
+    files" toggle surfaced in header (non-admins previously had NO way to
+    see firm-wide files); jargon renamed ("immersive reader" ->
+    "Full-screen view")
+  * BillingView: invoice-tab StatCard row removed (conflicting
+    lineItems-based "Outstanding" vs page strip total_amount-based)
+  * ContactForm: email no longer required (WhatsApp-first clients) +
+    duplicate fallback category options deduped
+  * Compliance: Admin included in INTERNAL_ROLES (solo-admin firms saw an
+    empty compliance table); ProTip label corrected to "Firm Details"
+  * TenantPortal: mobile "More" button now opens a real bottom sheet
+    (grid of remaining tabs with badges) instead of jumping to Notices
+  * MatterDetail: "Endorsements" tab renamed "Notes"; unread-baseline
+    init keys fixed (overview->documents)
+  * Dashboard TasksWidget: dead "+N more in matter" wired to navigate to
+    tasks; mobile bare-number "View All" label always shown
+  * BottomNav: Documents replaces plan-gated Research in primary bar
+  * FocusMatterWidget: hidden chevron carousel -> visible 3-segment pill
+    (Recent/Review/Quiet), "Stale" -> plain language
+  * TimelineView: legend moved from desktop-only row into the responsive
+    dismissible info banner
+  * Settings help: full HelpView no longer embedded in the settings
+    column -> compact panel with "Restart tour"/"Restore setup checklist"
+    (recovered from dead HelpSettings) + link to full Help Center
+  * ArchiveView: destructive "Empty Archive" demoted from red header
+    button to quiet text link
+  * AutomationCenter: "Properties Notifications" -> "Automated Messages",
+    propertiess grammar fix; GatekeeperInterface: setup URL corrected to
+    /gatehouse; SmartMatterModal FamilyLaw/CriminalDefense aligned with
+    CONTENTIOUS_MATTER_TYPES
+  * Dead code removed: PropertyDetailView unreachable messaging strip +
+    5 handlers + ComposeModal instance; PropertyManagerView non-compact
+    branch (~165 LOC); ContactsView Google-sync remnants + dead leads
+    prop; Sidebar RevenueEngineNavItem; RecentMattersWidget file; dead
+    MatterIntakeWizard mount; MessagesView dead 'communications' tab type
+    + dead AtriumInbox import; BillingView duplicate KPI computation
+- Verified: tsc 147 (baseline 153, prior 148 — net improvement); vite
+  build green; all changes local (NOT pushed — PAT unavailable after
+  sandbox reset)
+
+Stage Summary:
+- Simplification audit round complete for ALL surfaces; this batch ships
+  ~35 of the ~50 findings (all P0 data-loss + the highest-value
+  simplification/density/mobile fixes + negative-LOC dead code removal)
+- REMAINING (queued, need product decisions or larger refactors):
+  1) Payment recording unification (6 entry points -> 1 flow, 3 data
+     stores)
+  2) atriumEngine dismantling (4/5 tabs duplicate Financials page)
+  3) PropertyForm quick-create (4 required fields + advanced accordions)
+  4) Settings tree merge (20 -> ~9 sections)
+  5) MessagesView inbox chrome strip (reorder/collapse machinery,
+     duplicate Team tab)
+  6) PropertyDetailView unit-card "More" tier (10 action chips) +
+     ServiceChargeBars mobile redesign
+  7) ComposeModal / notice-board / service-charge dashboard
+     consolidations; New Property owner-step merge; VacancyPipeline
+     share-link dead end; client intake chain decision

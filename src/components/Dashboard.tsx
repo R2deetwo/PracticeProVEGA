@@ -247,7 +247,13 @@ const Dashboard: React.FC = () => {
                 {/* Downgrade Banner */}
                 {isDowngradedState && <TierAccessBanner plan={plan} onUpgrade={handleUpgrade} />}
 
-                {/* CRO AUDIT Track C — C3: First-run welcome banner */}
+                {/* CRO AUDIT Track C — C3: First-run welcome banner
+                    SIMPLIFY FIX: the welcome banner is KEPT for zero-record firms
+                    (it teaches the 3-step quick start), but the two banners that
+                    duplicated it — CompleteSetupBanner and TrialNudge Day-0 — are
+                    suppressed while records are zero (see below). A new user now
+                    sees: welcome banner + auto-opened create modal + the sidebar
+                    Getting Started checklist, instead of 4 competing banners. */}
                 {!welcomeDismissed && (
                   <FirstRunWelcome
                     firstName={currentUser.name?.split(' ')[0] || 'User'}
@@ -278,15 +284,24 @@ const Dashboard: React.FC = () => {
                 {/* Same ErrorBoundary isolation as BroadcastBanner above —
                     a crash in either onboarding banner must not blank the
                     whole dashboard with a "View Error" wall. */}
+                {/* SIMPLIFY FIX: CompleteSetupBanner suppressed while the firm
+                    still has zero records — the sidebar Getting Started checklist
+                    (persistent, auto-completing) already covers this exact state,
+                    and the auto-opened create modal is the active call-to-action.
+                    The banner returns once the user has records but hasn't
+                    finished setup. */}
                 <ErrorBoundary fallback={null}>
-                    <CompleteSetupBanner />
+                    {hasAnyRecords && <CompleteSetupBanner />}
                 </ErrorBoundary>
 
                 {/* CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
                     Shows contextual value-driven messages on Days 0, 1, 3, 5, 7, 10, 13.
-                    Dismissible per-day via localStorage. */}
+                    Dismissible per-day via localStorage.
+                    SIMPLIFY FIX: suppressed while the firm has zero records —
+                    Day 0's message ("Add your first property or matter") duplicates
+                    the auto-opened create modal and the welcome flow. */}
                 <ErrorBoundary fallback={null}>
-                    <TrialNudgeBanner />
+                    {hasAnyRecords && <TrialNudgeBanner />}
                 </ErrorBoundary>
 
                 <div className="grid grid-cols-1 gap-4 sm:gap-8">

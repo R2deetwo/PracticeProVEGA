@@ -397,7 +397,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                                     onClick={() => cat.id === 'deadlines'
                                         ? openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })
                                         : openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
                                 >
                                     + Add
                                 </button>

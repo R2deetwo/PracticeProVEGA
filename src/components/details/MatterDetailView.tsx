@@ -218,13 +218,16 @@ const MatterDetailViewContent: React.FC = () => {
     }, [activeTab, matterData?.id]);
 
     // Auto-initialize baseline for new matters to avoid "everything is unread" shock
+    // SIMPLIFY FIX: 'overview' is a removed tab (resolveTab maps it to notes) and
+    // 'documents' was never initialized — fresh matters could show phantom unread
+    // counts on the Documents tab. Iterate over the four real tabs instead.
     useEffect(() => {
         if (!matterData) return;
         const isNewMatter = matterData.createdAt && (Date.now() - new Date(matterData.createdAt).getTime() < 60000);
         if (isNewMatter) {
-            ['overview', 'notes', 'schedule_tasks', 'billing'].forEach(t => {
-                if (getTabBaseline(t as MatterTab) === 0) {
-                    updateTabBaseline(t as MatterTab);
+            (['notes', 'schedule_tasks', 'billing', 'documents'] as MatterTab[]).forEach(t => {
+                if (getTabBaseline(t) === 0) {
+                    updateTabBaseline(t);
                 }
             });
         }
@@ -308,7 +311,7 @@ const MatterDetailViewContent: React.FC = () => {
                         <ul className="text-xs text-red-600 dark:text-red-400 space-y-1 font-medium">
                             {associatedTaskCount > 0 && <li>• {associatedTaskCount} Tasks will be deleted</li>}
                             {associatedDocCount > 0 && <li>• {associatedDocCount} Documents will be deleted</li>}
-                            {associatedNoteCount > 0 && <li>• {associatedNoteCount} Endorsements/Notes will be deleted</li>}
+                            {associatedNoteCount > 0 && <li>• {associatedNoteCount} Notes will be deleted</li>}
                             {associatedEventCount > 0 && <li>• {associatedEventCount} Calendar Events will be removed</li>}
                         </ul>
                     </div>
@@ -517,7 +520,10 @@ const MatterDetailViewContent: React.FC = () => {
                         The 'Brief' tab was removed per user request — it was non-functional
                         (MatterBrief component rendered mostly-empty widgets that duplicated
                         info already shown in Endorsements and Tasks). */}
-                    <TabButton label="Endorsements" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
+                    {/* SIMPLIFY FIX: "Endorsements" is legal jargon most Nigerian
+                        small-firm lawyers don't use for matter notes — renamed to "Notes".
+                        The code already called this tab 'notes'. */}
+                    <TabButton label="Notes" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
                     {/* DEEP AUDIT FIX: Renamed "Tasks" to "Tasks & Events" so users know
                         court dates (which are events) live here. The checklist hint
                         previously said "Schedule tab" which didn't exist. */}
@@ -535,7 +541,7 @@ const MatterDetailViewContent: React.FC = () => {
                             <div>
                                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-200 dark:border-zinc-700">
                                     <div className="w-1 h-5 bg-primary-500 rounded-full" />
-                                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Endorsements</h3>
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Notes</h3>
                                 </div>
                                 <TeamDiscussionTab
                                     matterId={matterData.id}

@@ -120,7 +120,8 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
             </button>
           </div>
           <button onClick={() => onNavigateAndHighlight('tasks', {})} className="active-press touch-target flex items-center gap-1 text-2xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest px-1">
-              {userTasks.total} <span className="opacity-40 hidden sm:inline">View All</span>
+              {/* SIMPLIFY FIX: label was hidden on mobile, leaving a bare number */}
+              {userTasks.total} <span className="opacity-40">View All</span>
           </button>
         </div>
       </div>
@@ -190,9 +191,12 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                               </div>
                           ))}
                           {matterGroup.tasks.length > 3 && (
-                            <div className="pt-0.5 text-3xs font-black uppercase tracking-widest text-primary-500/50 hover:text-primary-500 cursor-pointer transition-colors">
+                            <button
+                              onClick={() => onNavigateAndHighlight('tasks', {})}
+                              className="pt-0.5 text-3xs font-black uppercase tracking-widest text-primary-500/70 hover:text-primary-500 text-left w-full transition-colors"
+                            >
                                + {matterGroup.tasks.length - 3} more in matter
-                            </div>
+                            </button>
                           )}
                         </div>
                     </div>

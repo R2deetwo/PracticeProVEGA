@@ -159,8 +159,12 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !email) {
-            addToast('Name and Email are required.', { type: 'info' });
+        // SIMPLIFY FIX: only the Name is required. Many Nigerian client records
+        // are WhatsApp-first (phone only, no email) — blocking contact creation
+        // on email forced dummy emails into the DB. Portal invites already gate
+        // on email separately (the channel falls back to WhatsApp/SMS).
+        if (!name) {
+            addToast('Please enter a name.', { type: 'info' });
             return;
         }
         
@@ -321,9 +325,8 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                     {contactCategories.length === 0 ? (
                                         <>
                                             <option value="">Select Category</option>
-                                            <option value="Client">Client</option>
-                                            <option value="Vendor">Vendor</option>
-                                            {/* Legal categories — shown for Vega AND Komplete (hasLegalFeatures). */}
+                                            {/* SIMPLIFY FIX: deduped the fallback list — Client and
+                                                Vendor appeared twice for legal and property firms. */}
                                             {hasLegalFeatures && (
                                                 <>
                                                     <option value="Client">Client</option>
@@ -348,6 +351,11 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                                     <option value="Contractor">Contractor</option>
                                                 </>
                                             )}
+                                            {/* Fallback when a firm has neither feature flag
+                                                (pure trial default) — Client covers the common case. */}
+                                            {!hasLegalFeatures && !hasPropertyFeatures && (
+                                                <option value="Client">Client</option>
+                                            )}
                                         </>
                                     ) : (
                                         contactCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)
@@ -366,7 +374,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                             <label htmlFor="contactEmail" className={labelClass}>Email Address</label>
                             <div className="relative">
                                 <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                                <input autoComplete="off" data-lpignore="true"  type="email" id="contactEmail" value={email} onChange={e => setEmail(e.target.value)} className={`${commonInputClass} pl-11`} placeholder="name@domain.com" required />
+                                <input autoComplete="off" data-lpignore="true"  type="email" id="contactEmail" value={email} onChange={e => setEmail(e.target.value)} className={`${commonInputClass} pl-11`} placeholder="name@domain.com (optional)" />
                             </div>
                         </div>
                     </div>

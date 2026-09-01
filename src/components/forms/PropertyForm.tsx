@@ -2031,7 +2031,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveImage(idx)}
-                                    className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                    className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-sm"
                                 >
                                     <TrashIcon className="w-3 h-3" />
                                 </button>

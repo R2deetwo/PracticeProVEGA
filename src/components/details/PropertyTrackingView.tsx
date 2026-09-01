@@ -752,7 +752,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                             </div>
                                                         )}
 
-                                                        <div className="flex items-center justify-between gap-1 mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="flex items-center justify-between gap-1 mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                             {!record.taskId && stage.id !== 'fulfilled' && (
                                                                 <button 
                                                                     onClick={() => handleConvertToTask(record)}
