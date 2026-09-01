@@ -13,6 +13,14 @@ import { useUI } from '../../contexts/UIContext';
 import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
 import { NIGERIAN_STATES, PORTFOLIO_TYPE_OPTIONS, ATRIUM_FOCUS_OPTIONS } from '../../utils/jurisdictionConfig';
 import { FirmSpecialty } from '../../types';
+// PRACTICE-PROFILE ENGINE — pre-populates the firm's configuration (matter
+// types with sub-categories & stages, contact types, document folders,
+// event types, starter checklists) from the practice areas / portfolio
+// composition picked on Step 3. Additive + idempotent; runs on wizard
+// completion BEFORE the firm-settings save so blueprintAppliedAt can be
+// persisted in the same write.
+import { usePracticeProfile, mergePlans, type ApplyPlan } from '../../hooks/usePracticeProfile';
+import { useDataState } from '../../contexts/DataContext';
 // CRO AUDIT Track A — A3: use the real PaymentGatewayModal instead of the stub.
 import PaymentGatewayModal from './PaymentGatewayModal';
 
@@ -143,7 +151,7 @@ const PlanCard: React.FC<{
 };
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
-  const { createFirm, joinFirm, handleUpdateFirmDetails } = useDataActions();
+  const { createFirm, joinFirm, handleUpdateFirmDetails, addItem, updateItem, deleteItem } = useDataActions();
   const { currentUser, logout, refreshUser } = useAuth();
   const { navigateTo, addToast } = useUI();
   const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
@@ -352,6 +360,107 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const firmInviteCode: string | undefined =
     (firmBasicInfo as any)?.inviteCode || undefined;
 
+  // ── PRACTICE-PROFILE ENGINE (Step 3 selections → workspace blueprint) ──
+  // Uses the RAW appState collections (DB truth) — NOT coreState, whose
+  // product-mode fallback lists would produce false "duplicates" for rows
+  // that only exist as hardcoded display defaults. By wizard completion the
+  // DataProvider has synced the firm-scoped seeded rows (createFirm seeds
+  // contactCategories/documentCategories/eventTypes), so dedupe is exact.
+  const { appState } = useDataState();
+  const blueprint = usePracticeProfile({
+    contactCategories: (appState as any).contactCategories || [],
+    documentCategories: (appState as any).documentCategories || [],
+    eventTypes: (appState as any).eventTypes || [],
+    workflows: (appState as any).workflows || [],
+    checklistTemplates: (appState as any).checklistTemplates || [],
+    firmId: lookupFirmId,
+    addItem: addItem as any,
+    updateItem: updateItem as any,
+  });
+
+  // The plan for the current Step-3 selections, used by the Step-6 review
+  // row (what will be pre-configured) and by the apply on completion.
+  const blueprintPlan: ApplyPlan | null = React.useMemo(() => {
+    if (isAtrium && !isKomplete(product)) {
+      // Pure Atrium: portfolio blueprint only.
+      return blueprint.buildPlan({ kind: 'atrium', portfolioTypes, focusAreas });
+    }
+    if (isKomplete(product)) {
+      // Komplete: legal + portfolio blueprints merged and de-duplicated.
+      return mergePlans(
+        blueprint.buildPlan({ kind: 'legal', areas: practiceAreas }),
+        blueprint.buildPlan({ kind: 'atrium', portfolioTypes, focusAreas }),
+      );
+    }
+    // Vega: legal blueprint.
+    return blueprint.buildPlan({ kind: 'legal', areas: practiceAreas });
+  }, [blueprint, isAtrium, product, portfolioTypes, focusAreas, practiceAreas]);
+
+  /**
+   * Apply the practice blueprint, then prune the generic seeded
+   * contact/document categories that the curated profile does not use
+   * (WIZARD-ONLY — this runs seconds after createFirm, so nothing can
+   * reference the seeded rows yet; the Settings modal never prunes).
+   * Returns true when the blueprint was applied (created or merged > 0).
+   */
+  const applyBlueprint = async (): Promise<boolean> => {
+    if (!lookupFirmId) return false;
+    const hasSelection =
+      practiceAreas.length > 0 || portfolioTypes.length > 0 || focusAreas.length > 0;
+    if (!blueprintPlan || !hasSelection) return false;
+    try {
+      const res = await blueprint.applyPlan(blueprintPlan, lookupFirmId);
+      const applied = res.created + res.merged > 0;
+
+      // PRUNE: remove seeded (isSystem) contact/document categories the
+      // curated plan does NOT contain. The plan's items cover both "new"
+      // and "already existing" (duplicate) names, so anything seeded but
+      // absent from the plan is a stock default the profile doesn't want
+      // — e.g. "Court Staff"/"Judiciary" for a property manager.
+      const planContacts = new Set(
+        blueprintPlan.items
+          .filter(i => i.table === 'contactCategories')
+          .map(i => (i.label || '').trim().toLowerCase()),
+      );
+      const planDocs = new Set(
+        blueprintPlan.items
+          .filter(i => i.table === 'documentCategories')
+          .map(i => (i.label || '').trim().toLowerCase()),
+      );
+      const prunable: { table: string; id: string; name: string }[] = [
+        ...((appState as any).contactCategories || [])
+          .filter((c: any) => c.isSystem === true && !planContacts.has(String(c.name || '').trim().toLowerCase()))
+          .map((c: any) => ({ table: 'contactCategories', id: c.id, name: c.name })),
+        ...((appState as any).documentCategories || [])
+          .filter((d: any) => d.isSystem === true && !planDocs.has(String(d.name || '').trim().toLowerCase()))
+          .map((d: any) => ({ table: 'documentCategories', id: d.id, name: d.name })),
+      ];
+      for (const row of prunable) {
+        if (!row.id) continue;
+        try {
+          await deleteItem(row.table as any, row.id, row.name);
+        } catch { /* non-blocking — a leftover stock row is cosmetic */ }
+      }
+
+      if (applied) {
+        const c = blueprintPlan.counts;
+        addToast?.(
+          `Workspace pre-configured: ${c.matterTypes} matter types (${c.subCategories} sub-categories), ${c.contactTypes} contact types, ${c.documentCategories} document folders, ${c.checklists} checklists.`,
+          { type: 'success', duration: 8000 },
+        );
+      }
+      if (res.errors.length > 0) {
+        console.warn('[OnboardingWizard] blueprint apply errors:', res.errors);
+      }
+      return applied;
+    } catch (e) {
+      // Non-blocking: the firm can always apply the blueprint later from
+      // Settings → Firm Configuration (the checklist links there too).
+      console.warn('[OnboardingWizard] blueprint apply failed:', e);
+      return false;
+    }
+  };
+
   // Step 5 handler — persists the communication channel intent AND the
   // team-invite intent to firmDetails.settings, then calls onComplete().
   // Uses the patched handleUpdateFirmDetails which now falls back to
@@ -375,6 +484,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // than perpetually incomplete.
   const handleCompleteWizard = async () => {
     setIsSavingFinal(true);
+    // PRACTICE BLUEPRINT: apply BEFORE the firm-settings save so the
+    // blueprintAppliedAt flag (which the Getting-Started checklist reads)
+    // can be persisted in the same single write. Non-blocking on failure.
+    const blueprintApplied = await applyBlueprint();
     try {
       if (handleUpdateFirmDetails && lookupFirmId) {
         const now = Date.now();
@@ -393,6 +506,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             focusAreas: (isAtrium || isKomplete(product)) && focusAreas.length > 0 ? focusAreas : undefined,
             unitsUnderManagement: (isAtrium || isKomplete(product)) && unitsUnderManagement ? parseInt(unitsUnderManagement, 10) || undefined : undefined,
             completedAt: new Date().toISOString(),
+            // Blueprint applied by the Practice Profile Engine — the Getting
+            // Started checklist's "Pre-configure your practice/portfolio"
+            // item reads this flag (getGettingStartedChecklist). If this run
+            // didn't apply anything, preserve any earlier applied timestamp
+            // (resumed wizard / idempotent re-run) instead of wiping it.
+            blueprintAppliedAt: blueprintApplied
+              ? new Date().toISOString()
+              : (firmBasicInfo as any)?.practiceProfile?.blueprintAppliedAt,
           },
           settings: {
             communicationChannels: {
@@ -1252,6 +1373,37 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 </div>
               </div>
 
+              {/* Workspace Blueprint row — what the engine will pre-configure */}
+              {blueprintPlan && (practiceAreas.length > 0 || portfolioTypes.length > 0 || focusAreas.length > 0) && (
+                <div className="px-5 py-4 border-b border-slate-50 bg-emerald-50/40">
+                  <p className="text-2xs font-black text-emerald-600 uppercase tracking-widest">Workspace Blueprint</p>
+                  <p className="text-2xs text-slate-500 font-medium mt-1 leading-relaxed">
+                    When you press finish we pre-configure your workspace — nothing to do manually. You can refine everything later.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {blueprintPlan.counts.matterTypes > 0 && (
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-2xs font-bold rounded-full border border-indigo-100">
+                        {blueprintPlan.counts.matterTypes} matter types · {blueprintPlan.counts.subCategories} sub-categories
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-2xs font-bold rounded-full border border-emerald-100">
+                      {blueprintPlan.counts.contactTypes} contact types
+                    </span>
+                    <span className="px-2 py-0.5 bg-teal-50 text-teal-700 text-2xs font-bold rounded-full border border-teal-100">
+                      {blueprintPlan.counts.documentCategories} document folders
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-2xs font-bold rounded-full border border-blue-100">
+                      {blueprintPlan.counts.eventTypes} event types
+                    </span>
+                    {blueprintPlan.counts.checklists > 0 && (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-2xs font-bold rounded-full border border-amber-100">
+                        {blueprintPlan.counts.checklists} checklists
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Communication channels row */}
               <div className="px-5 py-4 border-b border-slate-50">
                 <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">Communication Channels</p>
@@ -1296,7 +1448,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 {isSavingFinal ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Saving…
+                    Configuring your workspace…
                   </span>
                 ) : (
                   'Start using PracticePro'

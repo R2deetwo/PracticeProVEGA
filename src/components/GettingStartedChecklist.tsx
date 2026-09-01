@@ -41,6 +41,11 @@ interface ChecklistItem {
 }
 
 const VEGA_ITEMS: ChecklistItem[] = [
+  // PRACTICE-PROFILE ENGINE: first-class item — drives adoption of the
+  // blueprint (auto-applied during onboarding, retroactive for existing
+  // firms). Deep-links to Settings → Firm Configuration → Practice
+  // Blueprint modal via the 'practice-blueprint' target.
+  { key: 'hasPracticeProfile', label: 'Pre-configure your practice', action: { kind: 'view', view: 'settings' }, hint: 'Pick your areas of law — we set up matching matter types, contact types and checklists.' },
   { key: 'hasMatter',        label: 'Create your first matter',  action: { kind: 'modal', modalType: 'newMatter' },     hint: 'A matter is any case or engagement.' },
   { key: 'hasContact',       label: 'Add a client contact',      action: { kind: 'modal', modalType: 'newContact' },    hint: 'Clients you can bill and message.' },
   { key: 'hasBankAccount',   label: 'Configure a bank account',  action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For trust and operating accounts.' },
@@ -50,6 +55,8 @@ const VEGA_ITEMS: ChecklistItem[] = [
 ];
 
 const ATRIUM_ITEMS: ChecklistItem[] = [
+  // PRACTICE-PROFILE ENGINE: first-class item — see VEGA_ITEMS note.
+  { key: 'hasPortfolioProfile', label: 'Pre-configure your portfolio', action: { kind: 'view', view: 'settings' }, hint: 'Pick your portfolio mix — we set up matching contact types, folders and checklists.' },
   { key: 'hasProperty',              label: 'Add your first property',     action: { kind: 'modal', modalType: 'newProperty' },    hint: 'Residential, commercial, or estate.' },
   { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → edit a unit → enter resident name.' },
   { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Units tab → edit a unit → set service charge.' },
@@ -158,6 +165,21 @@ const GettingStartedChecklist: React.FC = () => {
 
   const handleItemClick = (item: ChecklistItem) => {
     if ((checklist as any)[item.key] === true) return; // already done — no-op
+
+    // PRACTICE-PROFILE ENGINE: deep-link to Settings → Firm Configuration
+    // with the Practice Blueprint modal auto-opened.
+    if (item.key === 'hasPracticeProfile' || item.key === 'hasPortfolioProfile') {
+      setHighlightTarget({
+        view: 'settings' as any,
+        filter: { id: 'checklist-cta-blueprint' },
+        color: 'shimmer',
+      });
+      navigateTo('settings' as any, null, {
+        settingsTargetId: 'practice-blueprint',
+        checklistAction: item.key,
+      });
+      return;
+    }
 
     // BRIEF #1b: Prerequisite Interception
     // If the user clicks "Add a resident to a unit" but no properties exist yet,

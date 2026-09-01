@@ -3,12 +3,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { WorkflowDefinition, ChecklistTemplate, DocumentTemplate, DocumentTemplateCategory, ModalType, CustomEventType, ContactCategory, DocumentCategory, UserRole, AutomationRule } from '../../types';
 import WorkflowBuilderView from '../WorkflowBuilderView';
 import AutomationSettings from './AutomationSettings';
-import { InfoIcon, ClipboardListIcon, TagIcon, EditIcon, TrashIcon, LockClosedIcon, ZapIcon } from '../../constants';
+import { InfoIcon, ClipboardListIcon, TagIcon, EditIcon, TrashIcon, LockClosedIcon, ZapIcon, XIcon } from '../../constants';
 import { getEventTypeBadgeClass } from '../../utils/colorUtils';
 import Tooltip from '../Tooltip';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
+// PRACTICE-PROFILE ENGINE — retroactive entry: lets an existing firm pick
+// its practice areas / portfolio composition and pre-populate workflows,
+// contact types, document folders, event types and checklists (additive,
+// idempotent — existing configuration is never touched).
+import { PracticeProfileSetup } from '../PracticeProfileSetup';
+import { useDataState, useDataActions } from '../../contexts/DataContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 ${className || ''}`}>
@@ -69,7 +75,7 @@ interface TemplatesSettingsProps {
     onDeleteDocumentTemplate: (id: string, name: string) => void;
     onDeleteDocumentTemplateCategory: (id: string, name: string) => void;
     openModal: (modalType: ModalType, id?: string | null, context?: any) => void;
-    activeTab: TemplateSubTab | CategorySubTab | 'automations' | null;
+    activeTab: TemplateSubTab | CategorySubTab | 'automations' | 'practice-blueprint' | null;
     selectedWorkflowId?: string | null;
     selectedSubCategory?: string | null;
     // Categories Props
@@ -85,13 +91,34 @@ interface TemplatesSettingsProps {
 
 const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
     const { openModal, activeTab, onDeleteContactCategory, onDeleteDocumentCategory, automationRules, workflows } = props;
-    const { closeModal } = useUI();
+    const { closeModal, addToast } = useUI();
     const { isLegal, isProperty } = useProduct();
     const [topLevelTab, setTopLevelTab] = useState<'workflows' | 'categories' | 'automations'>(
         isLegal ? 'workflows' : 'categories'
     );
     const [workflowSubTab, setWorkflowSubTab] = useState<TemplateSubTab>('workflows');
     const [categorySubTab, setCategorySubTab] = useState<CategorySubTab>('events');
+
+    // ── PRACTICE-PROFILE ENGINE (retroactive entry) ─────────────────────
+    // Card at the top of Firm/Portfolio Configuration + the setup wizard
+    // modal it opens. Uses RAW appState (DB rows) for the engine's
+    // existing-collections so dedupe is exact — coreState's product-mode
+    // fallback lists would produce false "duplicates".
+    const [blueprintOpen, setBlueprintOpen] = useState(false);
+    const { appState } = useDataState();
+    const { addItem, updateItem, handleUpdateFirmDetails } = useDataActions();
+    const { coreState } = useCoreState();
+    const firmProfile = (coreState.firmDetails as any)?.practiceProfile || {};
+    const configuredAreas: string[] = firmProfile.practiceAreas || (coreState.firmDetails as any)?.firmSpecialties || [];
+    const configuredPortfolio: string[] = firmProfile.portfolioTypes || [];
+    const configuredFocus: string[] = firmProfile.focusAreas || [];
+    const blueprintApplied = !!firmProfile.blueprintAppliedAt;
+
+    // Deep-link support: Settings → target 'practice-blueprint' (used by the
+    // Getting Started checklist's "Pre-configure your practice" item).
+    useEffect(() => {
+        if (activeTab === 'practice-blueprint') setBlueprintOpen(true);
+    }, [activeTab]);
 
     useEffect(() => {
         if (activeTab) {
@@ -239,6 +266,54 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
 
     return (
         <div className="space-y-6">
+            {/* ── PRACTICE BLUEPRINT card ────────────────────────────────── */}
+            {/* Pre-populates matter types (sub-categories + stages), contact */}
+            {/* types, document folders, event types and checklists from the */}
+            {/* firm's practice areas / portfolio composition. Additive and  */}
+            {/* idempotent — re-running only adds what's missing.            */}
+            <div id="practice-blueprint" className="relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md">
+                <div className="relative z-10 p-6">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="flex-1 min-w-[240px]">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                                {isProperty && !isLegal ? 'Portfolio Blueprint' : 'Practice Blueprint'}
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed max-w-xl">
+                                {isLegal && isProperty
+                                    ? 'Pick your areas of law and portfolio composition — we set up matching matter types with sub-categories and stages, contact types, document folders, event types and starter checklists for both sides.'
+                                    : isProperty
+                                        ? 'Pick your portfolio composition and services — we set up matching contact types, document folders, event types and starter checklists.'
+                                        : 'Pick your areas of law — we set up matching matter types with sub-categories and stages, contact types, document folders, event types and starter checklists.'}
+                                {' '}Everything is editable afterwards, and re-running only adds what is missing.
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {blueprintApplied ? (
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-2xs font-bold rounded-full border border-emerald-200">Configured</span>
+                                ) : (
+                                    <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-2xs font-bold rounded-full border border-amber-200">Not configured yet</span>
+                                )}
+                                {configuredAreas.slice(0, 6).map(a => (
+                                    <span key={a} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-2xs font-bold rounded-full border border-indigo-100">{a}</span>
+                                ))}
+                                {configuredPortfolio.map(pt => (
+                                    <span key={pt} className="px-2 py-0.5 bg-teal-50 text-teal-700 text-2xs font-bold rounded-full border border-teal-100">{pt}</span>
+                                ))}
+                                {configuredFocus.slice(0, 4).map(f => (
+                                    <span key={f} className="px-2 py-0.5 bg-amber-50 text-amber-700 text-2xs font-bold rounded-full border border-amber-100">{f}</span>
+                                ))}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setBlueprintOpen(true)}
+                            data-tour-id="practice-blueprint-cta"
+                            className="flex-shrink-0 px-4 py-2.5 bg-primary-600 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-sm hover:bg-primary-700 transition-colors"
+                        >
+                            {blueprintApplied ? 'Adjust / Re-run' : 'Configure Now'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex gap-4 border-b border-slate-200 dark:border-zinc-700">
                 {isLegal && (
                     <button
@@ -299,6 +374,85 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
             {topLevelTab === 'automations' && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <AutomationSettings rules={automationRules} workflows={workflows} />
+                </div>
+            )}
+
+            {/* ── PRACTICE BLUEPRINT modal ───────────────────────────────── */}
+            {blueprintOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Practice blueprint setup"
+                    onClick={() => setBlueprintOpen(false)}
+                >
+                    <div
+                        className="min-h-full flex items-start justify-center p-4"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl shadow-premium my-8 overflow-hidden">
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800">
+                                <div>
+                                    <p className="text-2xs font-black text-primary-500 uppercase tracking-widest">
+                                        {isProperty && !isLegal ? 'Portfolio Blueprint' : 'Practice Blueprint'}
+                                    </p>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                        Pre-configure your workspace
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setBlueprintOpen(false)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                    aria-label="Close"
+                                >
+                                    <XIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <PracticeProfileSetup
+                                product={isProperty && !isLegal ? 'atrium' : isLegal && isProperty ? 'unified' : 'vega'}
+                                initialAreas={configuredAreas}
+                                initialPortfolioTypes={configuredPortfolio}
+                                initialFocusAreas={configuredFocus}
+                                firmId={coreState.firmDetails?.id || ''}
+                                onClose={() => setBlueprintOpen(false)}
+                                contactCategories={(appState as any).contactCategories || []}
+                                documentCategories={(appState as any).documentCategories || []}
+                                eventTypes={(appState as any).eventTypes || []}
+                                workflows={workflows}
+                                checklistTemplates={(appState as any).checklistTemplates || []}
+                                addItem={addItem as any}
+                                updateItem={updateItem as any}
+                                onApplied={async ({ areas, portfolioTypes, focusAreas, result }) => {
+                                    // Persist the selection so the card reflects the
+                                    // firm's profile and the Getting-Started checklist
+                                    // item (hasPracticeProfile) ticks off.
+                                    try {
+                                        const fd: any = coreState.firmDetails;
+                                        await handleUpdateFirmDetails({
+                                            id: fd?.id,
+                                            ...(areas.length > 0 ? { firmSpecialties: areas } : {}),
+                                            practiceProfile: {
+                                                ...(fd?.practiceProfile || {}),
+                                                practiceAreas: areas.length > 0 ? areas : (fd?.practiceProfile || {}).practiceAreas,
+                                                portfolioTypes: portfolioTypes.length > 0 ? portfolioTypes : (fd?.practiceProfile || {}).portfolioTypes,
+                                                focusAreas: focusAreas.length > 0 ? focusAreas : (fd?.practiceProfile || {}).focusAreas,
+                                                blueprintAppliedAt: result.created + result.merged > 0
+                                                    ? new Date().toISOString()
+                                                    : (fd?.practiceProfile || {}).blueprintAppliedAt,
+                                            },
+                                        });
+                                        addToast?.(
+                                            `Blueprint applied: ${result.created} additions created, ${result.merged} workflows enriched, ${result.skipped} already present.`,
+                                            { type: 'success', duration: 6000 },
+                                        );
+                                    } catch (e) {
+                                        console.warn('[TemplatesSettings] failed to persist practice profile:', e);
+                                        addToast?.('Blueprint items were created, but saving your practice profile failed. You can retry from Firm Details.', { type: 'info', duration: 6000 });
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

@@ -2037,8 +2037,18 @@ export const createFirm = mutation({
       });
     }
 
-    // Seed default document categories
-    const defaultCategories = [
+    // Seed default document categories — PRODUCT-AWARE.
+    // PRACTICE-PROFILE ENGINE FIX: previously every product (including
+    // Atrium property firms) got the legal-flavoured folders. Property firms
+    // now get property folders; unified (Komplete) firms get the union.
+    // These are only a FALLBACK — the OnboardingWizard's Practice Blueprint
+    // step curates real configuration for the firm's actual practice areas,
+    // and prunes any seeded rows that don't fit the chosen profile.
+    const product = args.product || "unified";
+    const isPropertyProduct = product === "property" || product === "atrium";
+    const isUnifiedProduct = product === "unified";
+
+    const legalDocCategories = [
       { name: "Pleadings", description: "Court filings, statements of claim, and defenses", color: "#3b82f6" },
       { name: "Correspondence", description: "Letters, emails, and client communications", color: "#10b981" },
       { name: "Evidence", description: "Exhibits, witness statements, and factual documents", color: "#8b5cf6" },
@@ -2046,6 +2056,19 @@ export const createFirm = mutation({
       { name: "Corporate", description: "CAC filings, board resolutions, and company documents", color: "#64748b" },
       { name: "Other", description: "Miscellaneous documents", color: "#94a3b8" }
     ];
+    const propertyDocCategories = [
+      { name: "Lease Agreements", description: "Tenancy agreements, renewals and addons", color: "#3b82f6" },
+      { name: "Title Deeds", description: "C-of-O, deeds of assignment, surveys, gazettes", color: "#10b981" },
+      { name: "Utility Bills", description: "Electricity, water and waste bills", color: "#8b5cf6" },
+      { name: "Service Charges", description: "Service charge invoices and statements", color: "#f59e0b" },
+      { name: "Maintenance Records", description: "Repair requests, job cards, artisan invoices", color: "#64748b" },
+      { name: "Tax/Rates", description: "Land use charge, tenement rates, receipts", color: "#94a3b8" }
+    ];
+    const defaultCategories = isPropertyProduct
+      ? propertyDocCategories
+      : isUnifiedProduct
+        ? [...legalDocCategories, ...propertyDocCategories.filter(c => !legalDocCategories.some(l => l.name === c.name))]
+        : legalDocCategories;
 
     for (const cat of defaultCategories) {
       await ctx.db.insert("documentCategories", {
@@ -2057,8 +2080,12 @@ export const createFirm = mutation({
       });
     }
 
-    // Seed default contact categories
-    const contactCategories = [
+    // Seed default contact categories — PRODUCT-AWARE (same fix).
+    // The old list seeded "Court Staff" / "Judiciary" / "Vendor" for every
+    // firm — categories real practices rarely use ("trashy defaults").
+    // They remain only as the LEGAL fallback; the wizard's blueprint step
+    // replaces them with the curated set for the firm's practice areas.
+    const legalContactCategories = [
       "Client",
       "Vendor",
       "Court Staff",
@@ -2066,6 +2093,19 @@ export const createFirm = mutation({
       "Judiciary",
       "Advocate"
     ];
+    const propertyContactCategories = [
+      "Landlord",
+      "Tenant",
+      "Property Agent",
+      "Facility Manager",
+      "Vendor/Artisan",
+      "Govt Agency"
+    ];
+    const contactCategories = isPropertyProduct
+      ? propertyContactCategories
+      : isUnifiedProduct
+        ? [...legalContactCategories, ...propertyContactCategories.filter(c => !legalContactCategories.some(l => l === c))]
+        : legalContactCategories;
 
     for (const cat of contactCategories) {
       await ctx.db.insert("contactCategories", {
@@ -2079,13 +2119,27 @@ export const createFirm = mutation({
     // the EventForm (which requires event types to exist for the type dropdown).
     // Without this, the EventForm's <select required> has no options and the form
     // can't be saved — meaning the "Add a court date" checklist item is impossible.
-    const defaultEventTypes = [
+    // PRODUCT-AWARE: property firms get rent/inspection/maintenance events instead
+    // of court-centric ones (unified gets the union).
+    const legalEventTypes = [
       { name: "Court Hearing", color: "#ef4444" },
       { name: "Mention", color: "#f59e0b" },
       { name: "Client Meeting", color: "#3b82f6" },
       { name: "Filing Deadline", color: "#f97316" },
       { name: "Consultation", color: "#10b981" },
     ];
+    const propertyEventTypes = [
+      { name: "Rent Due Date", color: "#ef4444" },
+      { name: "Inspection", color: "#f59e0b" },
+      { name: "Maintenance Visit", color: "#f97316" },
+      { name: "Lease Expiry", color: "#3b82f6" },
+      { name: "Payment Follow-up", color: "#10b981" },
+    ];
+    const defaultEventTypes = isPropertyProduct
+      ? propertyEventTypes
+      : isUnifiedProduct
+        ? [...legalEventTypes, ...propertyEventTypes.filter(e => !legalEventTypes.some(l => l.name === e.name))]
+        : legalEventTypes;
     for (const et of defaultEventTypes) {
       await ctx.db.insert("eventTypes", {
         firmId,
@@ -7586,6 +7640,19 @@ export const getGettingStartedChecklist = query({
 
     const hasInvitedResidentToPortal = portalInvitesSent.length > 0;
 
+    // PRACTICE-PROFILE ENGINE: "Pre-configure your practice / portfolio"
+    // checklist item. True when the Practice Blueprint has been applied —
+    // either automatically at wizard completion (OnboardingWizard persists
+    // practiceProfile.blueprintAppliedAt after the engine runs) or
+    // retroactively from Settings → Firm Configuration (the blueprint modal
+    // persists the same flag). Firms that completed the wizard BEFORE the
+    // engine shipped have practiceProfile.completedAt but no
+    // blueprintAppliedAt — their item stays incomplete so the checklist
+    // routes them to the one-click retroactive setup.
+    const blueprintApplied = !!(firm as any)?.practiceProfile?.blueprintAppliedAt;
+    const hasPracticeProfile = blueprintApplied;
+    const hasPortfolioProfile = blueprintApplied;
+
     // Has sent at least one WhatsApp or email reminder — check notifications
     // of type 'service_charge_reminder' or 'invoice_sent' as a proxy.
     const hasSentReminder = await (async () => {
@@ -7618,6 +7685,9 @@ export const getGettingStartedChecklist = query({
       hasInvitedUser,
       hasInvitedResidentToPortal,
       hasSentReminder,
+      // PRACTICE-PROFILE ENGINE flags (see computation above).
+      hasPracticeProfile,
+      hasPortfolioProfile,
       userCount: usersInFirm.length,
       // SKIPPED-STATE FIX: Surface the team-invite opt-out so the checklist UI
       // can render "Skipped — invite when you're ready" instead of perpetually

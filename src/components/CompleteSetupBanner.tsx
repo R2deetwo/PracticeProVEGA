@@ -31,6 +31,9 @@ import { BANNER_DISMISSED_KEY_PREFIX } from './GettingStartedChecklist';
 // Mirror of the item configs in GettingStartedChecklist — kept here so the
 // banner doesn't need to import the sidebar component (avoids circular refs).
 const VEGA_ITEMS = [
+  // PRACTICE-PROFILE ENGINE — mirrors GettingStartedChecklist (see note
+  // there). 'Next: …' surfaces this first, lifting blueprint adoption.
+  { key: 'hasPracticeProfile', label: 'Pre-configure your practice', action: { kind: 'view', view: 'settings' } },
   { key: 'hasMatter',        label: 'Create your first matter',  action: { kind: 'modal', modalType: 'newMatter' } },
   { key: 'hasContact',       label: 'Add a client contact',      action: { kind: 'modal', modalType: 'newContact' } },
   { key: 'hasBankAccount',   label: 'Configure a bank account',  action: { kind: 'modal', modalType: 'newBankAccount' } },
@@ -40,6 +43,8 @@ const VEGA_ITEMS = [
 ] as const;
 
 const ATRIUM_ITEMS = [
+  // PRACTICE-PROFILE ENGINE — mirrors GettingStartedChecklist.
+  { key: 'hasPortfolioProfile', label: 'Pre-configure your portfolio', action: { kind: 'view', view: 'settings' } },
   { key: 'hasProperty',              label: 'Add your first property',     action: { kind: 'modal', modalType: 'newProperty' } },
   { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view', view: 'properties' } },
   { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view', view: 'properties' } },
@@ -107,7 +112,13 @@ const CompleteSetupBanner: React.FC = () => {
     }
 
     if (nextItem.action.kind === 'view') {
-      navigateTo(nextItem.action.view as any, null);
+      // PRACTICE-PROFILE ENGINE: blueprint items deep-link to the Firm
+      // Configuration blueprint modal (same target the checklist uses).
+      if (nextItem.key === 'hasPracticeProfile' || nextItem.key === 'hasPortfolioProfile') {
+        navigateTo('settings' as any, null, { settingsTargetId: 'practice-blueprint' });
+      } else {
+        navigateTo(nextItem.action.view as any, null);
+      }
     } else {
       openModal(nextItem.action.modalType as any);
     }

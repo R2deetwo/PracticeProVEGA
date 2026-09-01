@@ -73,7 +73,7 @@ import { useProduct } from '../../contexts/ProductContext';
 
 type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal' | 'securityAccess' | 'intake' | 'categories' | 'display';
 
-const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' }> = {
+const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' | 'practice-blueprint' }> = {
     'my-profile': { main: 'profile' },
     'professional-standards': { main: 'profile' },
     'firm-details': { main: 'firm' },
@@ -86,6 +86,10 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'agent-management': { main: 'agents' },
     'api-config': { main: 'agents' },
     'workflow-management': { main: 'templates', sub: 'workflows' },
+    // PRACTICE-PROFILE ENGINE: deep-link target for the Getting Started
+    // checklist's "Pre-configure your practice" item — opens Firm
+    // Configuration with the Practice Blueprint modal.
+    'practice-blueprint': { main: 'templates', sub: 'practice-blueprint' },
     'checklist-template-management': { main: 'templates', sub: 'checklists' },
     'document-template-management': { main: 'templates', sub: 'documents' },
     'event-type-management': { main: 'templates', sub: 'events' },
@@ -443,7 +447,7 @@ export const SettingsView: React.FC = () => {
     const { canUseAuditLogs, canUseAI, canUseAutomation } = useFeatures();
 
     const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
-    const [activeSubTab, setActiveSubTab] = useState<TemplateSubTab | CategorySubTab | 'automations' | null>(null);
+    const [activeSubTab, setActiveSubTab] = useState<TemplateSubTab | CategorySubTab | 'automations' | 'practice-blueprint' | null>(null);
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
     const processedTargetIdRef = useRef<string | null>(null);
     const permissions = usePermissions();
