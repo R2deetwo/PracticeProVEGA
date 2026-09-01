@@ -1,4 +1,27 @@
 ---
+Task ID: 5
+Agent: Super Z (main)
+Task: Practice Profile Engine — integrate & ship the practice-area configuration pre-fill (repo was re-cloned with the fresh PAT the user supplied; prior session built the engine as a standalone package but could not apply it because the old PAT was revoked).
+
+Work Log:
+- Fresh PAT ghp_vhdm... valid for user R2deetwo; live repo is R2deetwo/PracticeProVEGA (not practice-pro). Re-cloned; prior work (commit 96bdee34) had already added wizard Step 3 practice-profile collection but NOT the blueprint engine.
+- Surveyed integration surfaces: CoreContext (hardcoded product lists ALWAYS overriding DB rows — the "trashy defaults" root cause #1), DataProvider addItem/updateItem/deleteItem contracts (id mapped from _id for server rows), createFirm (seeds legal-flavoured categories for EVERY product — root cause #2), GettingStartedChecklist/CompleteSetupBanner item lists, TemplatesSettings tabs, SettingsView tabMapping, Convex getGettingStartedChecklist.
+- Copied the 4 engine files into the repo (practiceProfileLibrary.ts, atriumProfileLibrary.ts, usePracticeProfile.ts, PracticeProfileSetup.tsx) with 3 adjustments: gray→yellow event colours (PALETTE_COLORS alignment), disabled-logic fix on the select step, and a new mergePlans() + component support so Komplete/unified firms get legal+portfolio plans merged and de-duplicated.
+- CONTENT GAP FIX: added the "Under Litigation (Land Dispute)" sub-category to the Real Estate workflow (the user explicitly asked for "Acquisition, Under Litigation" — Acquisition existed as "Property Acquisition (Conveyancing)", Under Litigation was missing).
+- OnboardingWizard: engine hook on raw appState (DB truth, not coreState fallbacks); Step-6 review "Workspace Blueprint" row with counts; handleCompleteWizard now applies the plan BEFORE the firm-settings save and persists practiceProfile.blueprintAppliedAt in the same write (preserving any earlier timestamp on no-op re-runs); prunes seeded isSystem contact/document categories the curated plan doesn't use (wizard-only, seconds after createFirm; Settings modal never prunes); toast summary; everything non-blocking.
+- TemplatesSettings: "Practice Blueprint" card at the top of Firm Configuration (status + configured areas + Configure/Adjust CTA) opening the PracticeProfileSetup modal; onApplied persists practiceProfile incl. blueprintAppliedAt; SettingsView tabMapping + activeTab type extended with 'practice-blueprint' deep-link.
+- GettingStartedChecklist + CompleteSetupBanner: new first-class items hasPracticeProfile / hasPortfolioProfile (first position, deep-link to the blueprint modal). Convex getGettingStartedChecklist computes both flags from firm.practiceProfile.blueprintAppliedAt — pre-engine firms stay incomplete on purpose so the checklist routes them to the one-click retroactive setup.
+- CoreContext DB-first fix: hardcoded product lists only apply when the firm has zero saved rows; firms with blueprint-curated rows now see THEIR rows.
+- createFirm: product-aware seeding (property firms get property categories/folders/events; unified gets the union; legal unchanged).
+- Verification: tsc 148 (baseline 153, zero errors in touched files); vite build clean; convex tsconfig 0 errors; 24/24 runtime smoke tests via esbuild bundle (fresh apply counts, idempotency, delta, workflow-merge w/ custom sub-category survival, Labour/Labor + Defence/Defense bridges, Atrium overlays, mergePlans de-dup + counts).
+- Committed 2c2e995e (11 files, +4796/−77) and pushed to main via PAT. vercel-deploy, cloudflare-deploy and build-apk (contains the Convex deploy step — required for the myFunctions.ts changes) all triggered.
+
+Stage Summary:
+- Practice Profile Engine shipped: new firms get a curated workspace automatically at wizard completion; existing firms get a first-class checklist item + Firm Configuration card for one-click retroactive setup.
+- Trashy-defaults fixed at BOTH ends: DB-first display (CoreContext) and product-aware server seeding (createFirm).
+- TS baseline now 148 (was 153). Smoke test harness saved at /home/z/my-project/scripts/smoke_test_repo.ts (esbuild + react stub).
+- Deploy status at write time: 3 workflows in_progress on 2c2e995e — verification pending in the follow-up entry.
+---
 Task ID: 4
 Agent: Main Agent
 Task: Master Engineering Prompt — Responsive Tour UX & Premium Retainer Automation
