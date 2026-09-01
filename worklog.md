@@ -1,4 +1,18 @@
 ---
+Task ID: 5 (deploy verification)
+Agent: Super Z (main)
+Task: Verify the practice-blueprint deployment on all three surfaces.
+
+Work Log:
+- Pushed 2c2e995e (feature, 11 files +4796/-77) then 353e0e92 (worklog). The second push superseded the first run set via per-branch concurrency groups — the 353e0e92 runs carry the feature.
+- Deploy to Vercel: SUCCESS on 353e0e92. Live check: https://practice-pro-vega.vercel.app serves index-Bx477Zeo.js which contains the blueprint apply toast ("Workspace pre-configured").
+- Deploy to Cloudflare Workers: SUCCESS on 353e0e92. Live check: practice-pro-vega.prototypechigo.workers.dev serves module-settings-DYDs69th.js containing "Practice Blueprint", "practice-blueprint" (x2), "blueprintAppliedAt", plus the full curated library ("Under Litigation", "Land Dispute", "Governor's Consent", "Debt Recovery (Undefended List)", "Estate Agent"). Main index chunk statically imports the settings chunk, so the library resolves at startup.
+- Build Android APK: SUCCESS on 353e0e92, and its "Deploy Convex backend" step (npx convex deploy) succeeded — the backend changes (getGettingStartedChecklist hasPracticeProfile/hasPortfolioProfile + product-aware createFirm seeding) are live on production Convex gregarious-malamute-537.
+
+Stage Summary:
+- Feature live on Vercel + Cloudflare + production Convex. APK published by the bot bump process.
+- Follow-ups for the next session: (a) found no firm-facing way to re-open the blueprint from the Help view — consider adding a link; (b) later phases from the design doc (automations recipes wiring, document-template seeding, state-specific library variants, AI sub-category feed into drafting prompts); (c) remind user to revoke the PAT ghp_vhdm... once work concludes.
+---
 Task ID: 5
 Agent: Super Z (main)
 Task: Practice Profile Engine — integrate & ship the practice-area configuration pre-fill (repo was re-cloned with the fresh PAT the user supplied; prior session built the engine as a standalone package but could not apply it because the old PAT was revoked).
