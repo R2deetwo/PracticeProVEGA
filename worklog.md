@@ -9663,3 +9663,89 @@ Stage Summary:
   7) ComposeModal / notice-board / service-charge dashboard
      consolidations; New Property owner-step merge; VacancyPipeline
      share-link dead end; client intake chain decision
+---
+Task ID: page-audit-simplify-2
+Agent: main (Super Z)
+Task: Page-by-page audit round 3 — aggressive simplification of the remaining queue from round 2 (user lens: remove steps, fields, and decisions non-tech-savvy Nigerian users don't need); push round-2 commit with the user's new PAT and verify deploys.
+
+Work Log:
+- Pushed pending c27ea46 (round 2) with the new PAT (old PAT ghp_vhdm...
+  was retired); all 3 workflows green on c27ea46 (Vercel/CF/APK+Convex)
+- Ran 3 parallel Explore mapping agents (Vega core, Atrium/payments,
+  payments+intake chains) — one rate-limited and was relaunched narrowed;
+  produced the full target map incl. exact dead-field/downstream-reader
+  matrices
+- MESSAGES: removed standalone Team tab (~360 LOC; inbox Team DMs section
+  + thread already provide it 1:1 — notifications deep-link to the inbox,
+  never the tab) + 'New team message' button added on the Team DMs section;
+  removed reorder machinery (arrows/localStorage persistence/order
+  wrappers, ~130 LOC), dead roleFilter/searchQuery states, dead
+  filteredConversations/lastMessageTimeByConv memos, dead
+  activeConversation/activeMessages/selectedId; fixed
+  markNotificationsAsRead typo (runtime ReferenceError on system-inbox
+  click)
+- SETTINGS: merged 18 flat sections into 9 grouped rows w/ indented
+  sub-lists (groups keep per-child permission gates + all 31 deep-link
+  tabMapping keys; SecurityAccessView back now returns to its group);
+  deleted IntakeSettings (handleUpdateIntakeForm/handleDeleteIntakeForm
+  declared in types but implemented NOWHERE — saving would crash; the
+  intakeForms table has no writer) + HelpSettings (579) + AIUsageDashboard
+  (630), both zero-import
+- DEAD INTAKE CHAIN deleted end-to-end: ClientIntakePortal (view branch
+  never navigable), ClientIntakeRecorder (stub that only toasts 'not yet
+  available'), SendIntakeLinkModal (registered, never opened),
+  newLead/activateLead modal cases + LeadForm (never opened),
+  MatterIntakeWizard (retired; recordActionUsed wrote a localStorage
+  frequency map nothing reads — call site removed too), AiIntakeAnalysis,
+  'intake' view + ModalType/View/CREATE_MODAL_TYPES/title-registry refs
+- ATRIUM ENGINE removed: 'atriumEngine' view (RevenueMonitor) deleted —
+  4/5 tabs rendered the identical components already in Financials tabs;
+  AtriumInbox (only unique tab) became Financials 'Inbox' tab; deep links
+  repointed (StatsWidget Outstanding Rent, PDV 4x, AloaChat service_charge
+  insights) with new billingTab context support in BillingView (deep link
+  opens the exact tab); /atriumEngine URL redirects to billing; old
+  broadcast-notification viewMap redirects; BottomNav dead Revenue item +
+  RevenueEngineShieldIcon removed; geminiService/AgencyHub/AppContext/
+  SaveToNoteForm view checks cleaned
+- PAYMENTS: 'recordRentPayment' ledger-only modal (wrapper + registry +
+  ModalType + PDV 'Ledger' chip) deleted; PropertyTrackingView 'Add rent
+  payment' form replaced by the Collect Rent flow (keeps read-only
+  history/receipts); dead handlePayInvoice hook removed
+  (ClientBillingTab dead destructure cleaned) — rent recording now has
+  ONE flow: Collect Rent (receipt + ledger + rent history + mgmt-fee
+  invoice)
+- PROPERTY FORM: Rent Amount now REQUIRED for rent-collecting tenanted
+  properties (submit check auto-opens the rental accordion + toast);
+  removed write-only/no-reader UI: Amenities section (zero readers),
+  Photos & Documents section (zero display readers), Listing Agent,
+  Rent Due Alerts checkbox, Periodic Review + Next Rent Review (dead PDF
+  generator import removed from PropertyManagerView), 11-option Title
+  select — existing data round-trips untouched via propertyToEdit
+- PDV: 'Auto Rent Demands' status card removed (autoRentDemand never
+  written anywhere — permanently showed 'Not enabled'); tier-2 unit chips
+  left as-is (already contextual state machine); NEW 'Share' chip on
+  Vacant/Listed unit cards copying a real /apply/:propertyId?unit=<name>
+  link
+- LEAD FUNNEL: VacancyPipeline 'Share Application Link' button removed
+  (copied bare /apply that 404s, then pointed users to a per-unit share
+  feature that never existed); AtriumPublicApplicationForm reads ?unit=
+  and attaches 'Applying for unit: X' to the lead notes
+- Verified: tsc 126 (baseline 147 — net -21; zero new errors, several
+  pre-existing ones eliminated); vite build green; committed 33c320e
+  (37 files, +336/-5,203) and pushed; Cloudflare deploy SUCCESS,
+  Vercel/APK in progress at log time (c27ea46 all green)
+
+Stage Summary:
+- Round-3 queue CLOSED except deliberately deferred items: (1) dual
+  service-charge tracking systems (service_charges table vs
+  properties.rentalDetails.scPeriods blob) need a data migration before
+  unification; (2) payment_proofs tenant submissions have no firm-side
+  review UI (getPaymentProofsByFirm/updatePaymentProofStatus have zero
+  frontend callers) — needs an AtriumInbox review step, not deletion;
+  (3) ComposeModal vs NoticeBoard composition overlap — product decision
+  pending; (4) PropertyForm dispute section + % fees -> direct amounts +
+  owner-picker dedupe (ModalManager/DockedModal) queued for round 4
+- App complexity: 9 settings rows (was 18-20), 1 rent-payment flow (was
+  6), no duplicate Atrium financial hub, no dead intake/lead surfaces,
+  shareable application links work end-to-end for the first time
+- REMINDER: revoke the new PAT (pasted in chat) when work concludes
