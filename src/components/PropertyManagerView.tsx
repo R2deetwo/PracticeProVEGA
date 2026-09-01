@@ -13,7 +13,8 @@ import NairaSymbol from './NairaSymbol';
 import { formatNaira, formatLargeNumber, normalizeAddress } from '../utils/formatting';
 import EmptyState from './EmptyState';
 import ErrorBoundary from './ErrorBoundary';
-import { generateRentReviewNoticePdf } from '../services/reportGenerator';
+// SIMPLIFY FIX: dead generateRentReviewNoticePdf import removed — nothing ever
+// called it, and the form field feeding it (nextRentReview) was retired.
 import { MailIcon } from '../constants';
 
 interface PropertyManagerViewProps {

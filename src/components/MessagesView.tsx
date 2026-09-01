@@ -9,7 +9,6 @@ import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { PaperClipIcon, SendIcon, TrashIcon, DocumentIcon, ChevronRightIcon, ClockIcon, CheckIcon, DownloadIcon, PlusIcon, BellIcon, SparklesIcon } from '../constants';
 import { getUserColor, getInitials, timeAgo } from '../utils/colorUtils';
-import { getAssistantName } from '../utils/assistantIdentity';
 import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
@@ -51,16 +50,15 @@ const PdfIcon = ({ className }: { className?: string }) => (
 );
 
 // ── Tab type for the unified messaging hub ──────────────────────────────
-// 'inbox'         = Conversations (live 2-way portal chat with clients/residents)
-// 'team'          = Team Chat (internal firm conversations)
-// 'notices'       = Notice Board (property only)
-// 'scheduled'     = Scheduled messages (queued for future send)
-// 'communications' = WhatsApp & Email (AtriumInbox — external-channel comms:
-//                    WhatsApp reminders, email demands, inbound replies, audit trail)
-//                    Only shown for property/unified firms.
-// SIMPLIFY FIX: 'communications' removed from the union — the tab was removed
-// (inbound WhatsApp/Email threads now render inside Conversations/inbox).
-type MessagingTab = 'inbox' | 'team' | 'notices' | 'scheduled';
+// 'inbox'     = Conversations (portal chat with clients/residents + team DMs)
+// 'notices'   = Notice Board (property only)
+// 'scheduled' = Scheduled messages (queued for future send)
+// SIMPLIFY FIX: 'communications' removed — inbound WhatsApp/Email threads now
+// render inside Conversations.
+// SIMPLIFY FIX: 'team' removed — the standalone Team tab duplicated the
+// inbox's "Team DMs" section + thread 1:1; team chat lives inside
+// Conversations ("New team message" button on that section).
+type MessagingTab = 'inbox' | 'notices' | 'scheduled';
 
 // ── Channel label helpers (shared with AtriumInbox) ────────────────────
 const CHANNEL_COLORS: Record<string, string> = {
@@ -527,12 +525,7 @@ const SectionHeader: React.FC<{
     isCollapsed: boolean;
     onToggle: () => void;
     accentColor?: string;
-    /** Reordering: called when user clicks the up/down arrows. Undefined = no reordering (fixed section). */
-    onMoveUp?: () => void;
-    onMoveDown?: () => void;
-    canMoveUp?: boolean;
-    canMoveDown?: boolean;
-}> = ({ icon, label, count, unreadCount, isCollapsed, onToggle, accentColor = 'text-slate-500', onMoveUp, onMoveDown, canMoveUp, canMoveDown }) => (
+}> = ({ icon, label, count, unreadCount, isCollapsed, onToggle, accentColor = 'text-slate-500' }) => (
     <div className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border-b border-slate-100 dark:border-zinc-800 group">
         <button
             onClick={onToggle}
@@ -555,28 +548,6 @@ const SectionHeader: React.FC<{
             <span className="text-2xs text-slate-400 font-medium flex-shrink-0">
                 {count}
             </span>
-        )}
-        {/* Reorder arrows — only shown for movable sections. PracticePro Team
-            doesn't get these (it's always first). */}
-        {onMoveUp && (
-            <button
-                onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
-                disabled={!canMoveUp}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-all flex-shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
-                title="Move up"
-            >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
-            </button>
-        )}
-        {onMoveDown && (
-            <button
-                onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
-                disabled={!canMoveDown}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-all flex-shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
-                title="Move down"
-            >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-            </button>
         )}
     </div>
 );
@@ -633,14 +604,12 @@ const MessagesView: React.FC = () => {
         firmId ? { firmId } : 'skip'
     );
     const messages = chatMessagesResult || [];
-    const activeConversationId = currentHistoryEntry.context?.activeConversationId;
     const onNavigate = (view: any, id: any, context: any) => navigateTo(view, id, context);
 
     // ── Tab state — respect initialTab from navigation context (e.g. notification click) ──
     const [activeTab, setActiveTab] = useState<MessagingTab>(() => {
         const hint = currentHistoryEntry.context?.initialTab;
         if (hint === 'inbox') return 'inbox';
-        if (hint === 'team') return 'team';
         if (hint === 'notices') return 'notices';
         if (hint === 'scheduled') return 'scheduled';
         return 'inbox';
@@ -649,7 +618,7 @@ const MessagesView: React.FC = () => {
     // Also switch tabs when navigating from notifications while already on messaging view
     useEffect(() => {
         const hint = currentHistoryEntry.context?.initialTab;
-        if (hint === 'inbox' || hint === 'team' || hint === 'notices' || hint === 'scheduled') {
+        if (hint === 'inbox' || hint === 'notices' || hint === 'scheduled') {
             setActiveTab(hint as MessagingTab);
         }
         // If navigating to inbox with a specific inbound message ID, select it
@@ -695,10 +664,8 @@ const MessagesView: React.FC = () => {
         }
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
-    // ── Team Chat state (existing logic) ──
+    // ── Team DM state (team chat renders inside the Conversations inbox) ──
     const teamChatEndRef = useRef<HTMLDivElement>(null);
-    const [selectedId, setSelectedId] = useState<string | null>(activeConversationId || null);
-    const [searchQuery, setSearchQuery] = useState('');
     const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
@@ -818,41 +785,12 @@ const MessagesView: React.FC = () => {
         });
     };
 
-    // ─── ACCORDION REORDERING (Aug 2026) ──────────────────────────────
-    // Users can reorder accordion sections (except PracticePro Team which
-    // is always first). Order is persisted to localStorage per-user.
-    // Movable sections: team, inbound, portal_clients, portal_residents, client
-    // Fixed section: system (PracticePro Team — always at top)
-    const MOVABLE_SECTIONS_KEY = 'practicepro_inbox_section_order';
-    const DEFAULT_SECTION_ORDER = ['team', 'inbound', 'portal_clients', 'portal_residents', 'client'];
-    const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
-        try {
-            const saved = localStorage.getItem(MOVABLE_SECTIONS_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch {}
-        return DEFAULT_SECTION_ORDER;
-    });
-    const moveSection = useCallback((sectionId: string, direction: 'up' | 'down') => {
-        setSectionOrder(prev => {
-            const idx = prev.indexOf(sectionId);
-            if (idx === -1) return prev;
-            const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-            if (newIdx < 0 || newIdx >= prev.length) return prev;
-            const next = [...prev];
-            [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-            try { localStorage.setItem(MOVABLE_SECTIONS_KEY, JSON.stringify(next)); } catch {}
-            return next;
-        });
-    }, []);
+    // SIMPLIFY FIX: accordion REORDERING removed — reorder arrows, persisted
+    // order, and per-section order wrappers were chrome users never asked for.
+    // Sections render in a fixed, sensible order; collapse/expand remains.
 
-    // Role filter: All / Client / Resident.
-    // Role filter REMOVED (Aug 2026) — Clients and Residents now have
-    // separate accordions, making the role filter pills redundant.
-    // Keeping the state for backward compat but it's always 'all'.
-    const [roleFilter] = useState<'all' | 'Client' | 'Tenant'>('all');
+    // SIMPLIFY FIX: roleFilter state removed — Clients/Residents already live
+    // in separate accordions, so the filter was permanently 'all' (dead state).
 
     // Search query for filtering by name/subject
     const [conversationSearch, setConversationSearch] = useState('');
@@ -1152,117 +1090,15 @@ const MessagesView: React.FC = () => {
         }
     };
 
-    // ── Team Chat: filtered conversations (existing logic) ──
-    //
-    // `lastMessageTimeByConv` pre-computes, for each conversationId, the
-    // timestamp of its most recent message. This is a single O(n) pass over
-    // `messages` and replaces the previous O(n²) sort comparator that called
-    // `messages.filter(...)` once per conversation per comparison — which
-    // was the dominant cost when the message list grew past a few hundred
-    // entries (the comparator ran ~n·log(n) times, each filtering the full
-    // messages array twice).
-    const lastMessageTimeByConv = useMemo(() => {
-        const map = new Map<string, number>();
-        if (!Array.isArray(messages)) return map;
-        for (const m of messages) {
-            if (!m || !m.conversationId) continue;
-            const convId = m.conversationId.toString();
-            const t = m.timestamp ? new Date(m.timestamp).getTime() : 0;
-            const prev = map.get(convId);
-            // Track the maximum timestamp seen per conversation so the Map
-            // holds the true "last activity" time regardless of array order.
-            if (prev === undefined || (t > prev && !isNaN(t))) {
-                map.set(convId, isNaN(t) ? 0 : t);
-            }
-        }
-        return map;
-    }, [messages]);
-
-    const filteredConversations = useMemo(() => {
-        const chats = conversations
-            .filter((c: any) => {
-                if (!c) return false;
-                if (c.hiddenForUserIds?.includes(currentUser.id)) return false;
-                if (!c.memberIds?.includes(currentUser.id)) return false;
-                if (!searchQuery) return true;
-                const lowerQuery = searchQuery.toLowerCase();
-                if (c.type === 'channel') return c.name?.toLowerCase().includes(lowerQuery);
-                const otherMemberId = c.memberIds?.find((id: string) => id !== currentUser.id);
-                const otherMember = users.find(u => u.id === otherMemberId);
-                return otherMember?.name?.toLowerCase().includes(lowerQuery) ?? false;
-            })
-            .sort((a: any, b: any) => {
-                // O(1) Map lookups instead of two full `messages.filter(...)`
-                // calls per comparison. Conversations with no messages sort
-                // to the bottom (time 0).
-                const timeA = lastMessageTimeByConv.get(a.id?.toString()) ?? 0;
-                const timeB = lastMessageTimeByConv.get(b.id?.toString()) ?? 0;
-                return timeB - timeA;
-            });
-
-        const systemUnreadCount = (coreState.notifications || []).filter(n =>
-            n && n.userId === currentUser.id &&
-            !n.isRead &&
-            n.link?.view === 'messaging' &&
-            n.link?.context?.systemInbox
-        ).length;
-
-        const hasSystemMessages = myFeedback.length > 0;
-
-        if (hasSystemMessages && (!searchQuery || 'system inbox ai assistant aloa aria practicepro team'.includes(searchQuery.toLowerCase()))) {
-            const systemConv = {
-                id: 'system-inbox',
-                type: 'system',
-                name: `${getAssistantName(isProperty)} Assistant`,
-                memberIds: [currentUser.id],
-                _isSystem: true,
-                unreadCount: systemUnreadCount,
-                lastMsg: myFeedback[0]
-            } as any;
-            return [systemConv, ...chats];
-        }
-
-        return chats;
-    }, [conversations, lastMessageTimeByConv, searchQuery, currentUser, users, myFeedback, coreState.notifications, isProperty]);
-
+    // Auto-scroll the selected team-DM thread (inside Conversations) to the bottom
     useEffect(() => {
-        if (activeConversationId) {
-            setSelectedId(activeConversationId);
-        }
-    }, [activeConversationId]);
-
-    // Auto-scroll team chat to bottom when messages change or conversation selected
-    useEffect(() => {
-        const activeTeamConvId = (activeTab === 'team' ? selectedId : null) ||
-                                  (selectedInboxType === 'team' ? selectedInboxId : null);
-        if (activeTeamConvId) {
+        if (selectedInboxType === 'team' && selectedInboxId) {
             const timer = setTimeout(() => {
                 teamChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             }, 100);
             return () => clearTimeout(timer);
         }
-    }, [activeTab, selectedId, selectedInboxType, selectedInboxId, messages]);
-
-    const activeConversation = conversations?.filter(Boolean).find((c: any) => c && (c.id === selectedId || String(c._id) === String(selectedId)));
-    const activeMessages = Array.isArray(messages) ? messages.filter((m: any) => m && (String(m.conversationId) === String(selectedId))) : [];
-
-    // Clear team chat notifications for active conversation
-    useEffect(() => {
-        const isSpecificId = selectedId && selectedId.length > 10;
-        if (isSpecificId) {
-            const conversationNotificationIds = (coreState.notifications || [])
-                .filter(n => {
-                    if (!n || !n.link) return false;
-                    const matchesView = n.link.view === 'messaging';
-                    const matchesContext = n.link?.context?.activeConversationId?.toString() === selectedId;
-                    const matchesLinkId = n.link?.id?.toString() === selectedId;
-                    const matchesSystemInbox = selectedId === 'system-inbox' && n.link.context?.systemInbox;
-                    return !n.isRead && n.userId === currentUser.id && matchesView && (matchesContext || matchesLinkId || matchesSystemInbox);
-                })
-                .map(n => n.id);
-            if (conversationNotificationIds.length > 0) handleMarkNotificationsRead(conversationNotificationIds);
-        }
-    }, [selectedId, coreState.notifications, handleMarkNotificationsRead, currentUser.id]);
+    }, [selectedInboxType, selectedInboxId, messages]);
 
     const renderSidebarPreview = (msg: ChatMessage | undefined) => {
         if (!msg) return 'No messages yet';
@@ -1496,10 +1332,10 @@ const MessagesView: React.FC = () => {
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => activeTab === 'team' ? setShowTeamMessage(true) : setShowCompose(true)}
+                            onClick={() => setShowCompose(true)}
                             className="p-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold min-h-[40px]"
                         >
-                            <PlusIcon className="w-4 h-4" /> {activeTab === 'team' ? 'New Message' : 'Compose'}
+                            <PlusIcon className="w-4 h-4" /> Compose
                         </button>
                     </div>
                 </div>
@@ -1529,20 +1365,6 @@ const MessagesView: React.FC = () => {
                                 {totalInboxUnread > 9 ? '9+' : totalInboxUnread}
                             </span>
                         )}
-                    </button>
-
-                    {/* Team Chat tab — restored for in-app team messaging.
-                        Uses chatConversations/chatMessages tables. */}
-                    <button
-                        onClick={() => setActiveTab('team')}
-                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
-                            activeTab === 'team'
-                                ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                        }`}
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                        <span className="hidden sm:inline">Team</span>
                     </button>
 
                     {/* Notice Board Tab — available for ALL firms (both Vega
@@ -1785,7 +1607,7 @@ const MessagesView: React.FC = () => {
                                                             n.link?.context?.systemInbox
                                                         );
                                                         if (systemNotifs.length > 0) {
-                                                            markNotificationsAsRead(systemNotifs.map(n => String(n.id || n._id || '')));
+                                                            handleMarkNotificationsRead(systemNotifs.map((n: any) => String(n.id || n._id || '')));
                                                         }
                                                     }}
                                                     className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all duration-200 hover:bg-primary-950/40 hover:border-primary-500/30 border-l-2 ${selectedInboxId === 'system-inbox' ? 'bg-primary-50 dark:bg-primary-900/20 border-l-primary-500' : 'border-l-transparent'}`}
@@ -1829,7 +1651,7 @@ const MessagesView: React.FC = () => {
                                             )}
 
                                             {/* ── Section: Inbound WhatsApp & Email (Atrium/Komplete only) ── */}
-                                            <div style={{ order: sectionOrder.indexOf('inbound') }}>
+                                            <div>
                                             {hasPropertyFeatures && (atriumInbound as any[]).length > 0 && (
                                                 <>
                                                     <SectionHeader
@@ -1840,10 +1662,6 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('inbound')}
                                                         onToggle={() => toggleSection('inbound')}
                                                         accentColor="text-amber-500"
-                                                        onMoveUp={() => moveSection('inbound', 'up')}
-                                                        onMoveDown={() => moveSection('inbound', 'down')}
-                                                        canMoveUp={sectionOrder.indexOf('inbound') > 0}
-                                                        canMoveDown={sectionOrder.indexOf('inbound') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('inbound') && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
@@ -1875,9 +1693,9 @@ const MessagesView: React.FC = () => {
                                             )}
 
                                             </div>
-                                            <div style={{ order: sectionOrder.indexOf('team') }}>
+                                            <div>
                                             {/* ── Section: Team Direct Messages ────────────────────────── */}
-                                            {typeFilters.team && teamConversationsForInbox.length > 0 && (
+                                            {typeFilters.team && (
                                                 <>
                                                     <SectionHeader
                                                         icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}
@@ -1887,12 +1705,16 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('team')}
                                                         onToggle={() => toggleSection('team')}
                                                         accentColor="text-indigo-500"
-                                                        onMoveUp={() => moveSection('team', 'up')}
-                                                        onMoveDown={() => moveSection('team', 'down')}
-                                                        canMoveUp={sectionOrder.indexOf('team') > 0}
-                                                        canMoveDown={sectionOrder.indexOf('team') < sectionOrder.length - 1}
                                                     />
-                                                    {!collapsedSections.has('team') && teamConversationsForInbox.map((tc: any) => {
+                                                    {!collapsedSections.has('team') && (
+                                                        <>
+                                                        <button
+                                                            onClick={() => setShowTeamMessage(true)}
+                                                            className="w-full flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-zinc-800 text-left text-xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors"
+                                                        >
+                                                            <PlusIcon className="w-3.5 h-3.5" /> New team message
+                                                        </button>
+                                                        {teamConversationsForInbox.map((tc: any) => {
                                                 const convId = String(tc.conversationId);
                                                 const isThisSelected = selectedInboxId === convId && selectedInboxType === 'team';
                                                 const typeStyle = CONVERSATION_TYPE_STYLES.team;
@@ -1980,11 +1802,13 @@ const MessagesView: React.FC = () => {
                                                     </div>
                                                 );
                                                     })}
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
 
                                             </div>
-                                            <div style={{ order: sectionOrder.indexOf('portal_clients') }}>
+                                            <div>
                                             {/* ── Section: Clients (Portal Conversations — Client role) ── */}
                                             {(isLegal || isUnified) && (
                                                 <>
@@ -1996,10 +1820,6 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('portal_clients')}
                                                         onToggle={() => toggleSection('portal_clients')}
                                                         accentColor="text-violet-500"
-                                                        onMoveUp={() => moveSection('portal_clients', 'up')}
-                                                        onMoveDown={() => moveSection('portal_clients', 'down')}
-                                                        canMoveUp={sectionOrder.indexOf('portal_clients') > 0}
-                                                        canMoveDown={sectionOrder.indexOf('portal_clients') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('portal_clients') && (
                                                         clientPortalConversations.length > 0 ? clientPortalConversations.map((conv: any) => {
@@ -2071,7 +1891,7 @@ const MessagesView: React.FC = () => {
                                             )}
 
                                             </div>
-                                            <div style={{ order: sectionOrder.indexOf('portal_residents') }}>
+                                            <div>
                                             {/* ── Section: Residents (Portal Conversations — Tenant role) ── */}
                                             {(hasPropertyFeatures || isUnified) && (
                                                 <>
@@ -2083,10 +1903,6 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('portal_residents')}
                                                         onToggle={() => toggleSection('portal_residents')}
                                                         accentColor="text-sky-500"
-                                                        onMoveUp={() => moveSection('portal_residents', 'up')}
-                                                        onMoveDown={() => moveSection('portal_residents', 'down')}
-                                                        canMoveUp={sectionOrder.indexOf('portal_residents') > 0}
-                                                        canMoveDown={sectionOrder.indexOf('portal_residents') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('portal_residents') && (
                                                         residentPortalConversations.length > 0 ? residentPortalConversations.map((conv: any) => {
@@ -2158,7 +1974,7 @@ const MessagesView: React.FC = () => {
                                             )}
 
                                             </div>
-                                            <div style={{ order: sectionOrder.indexOf('client') }}>
+                                            <div>
                                             {/* ── Section: Client Messages (Legacy, Vega only) ── */}
                                             {!isProperty && clientMessages.filter((m: any) => !m.isRead).length > 0 && (
                                                 <>
@@ -2169,10 +1985,6 @@ const MessagesView: React.FC = () => {
                                                         isCollapsed={collapsedSections.has('client')}
                                                         onToggle={() => toggleSection('client')}
                                                         accentColor="text-violet-500"
-                                                        onMoveUp={() => moveSection('client', 'up')}
-                                                        onMoveDown={() => moveSection('client', 'down')}
-                                                        canMoveUp={sectionOrder.indexOf('client') > 0}
-                                                        canMoveDown={sectionOrder.indexOf('client') < sectionOrder.length - 1}
                                                     />
                                                     {!collapsedSections.has('client') && clientMessages
                                                 .filter((m: any) => !m.isRead)
@@ -3104,350 +2916,6 @@ const MessagesView: React.FC = () => {
                         </div>
 
                         {/* Compose Modal (for inbox/portal messages) — rendered outside tab blocks */}
-                    </div>
-                )}
-
-                {/* ═══ TEAM TAB ═══ — split-view layout matching Conversations */}
-                {activeTab === 'team' && (
-                    <div className="flex-1 flex overflow-hidden">
-                        {/* Left sidebar: team conversations list (~33%) */}
-                        <div className="w-full md:w-2/5 lg:w-1/3 border-r border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden">
-                            <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-                                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Team Messages</h3>
-                                <button
-                                    onClick={() => setShowTeamMessage(true)}
-                                    className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-bold"
-                                >
-                                    <PlusIcon className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto">
-                                {(coreState.chatConversations || []).filter((c: any) =>
-                                    c.type === 'direct' &&
-                                    c.memberIds?.includes(currentUser?.id || '')
-                                ).length === 0 &&
-                                (coreState.chatConversations || []).filter((c: any) =>
-                                    c.type === 'direct' &&
-                                    c.memberIds?.includes(currentUser?._id || '')
-                                ).length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                                        <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center mb-4">
-                                            <svg className="w-7 h-7 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                        </div>
-                                        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">No team messages yet</h3>
-                                        <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">Send a direct message to a team member.</p>
-                                        <button
-                                            onClick={() => setShowTeamMessage(true)}
-                                            className="px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors"
-                                        >
-                                            New Message
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-slate-100 dark:divide-zinc-800">
-                                        {(coreState.chatConversations || [])
-                                            .filter((c: any) =>
-                                                c.type === 'direct' &&
-                                                (c.memberIds?.includes(currentUser?.id || '') ||
-                                                 c.memberIds?.includes(currentUser?._id || ''))
-                                            )
-                                            .map((conv: any) => {
-                                                const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id && id !== currentUser?._id);
-                                                const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
-                                                const otherIsOnline = isPeerOnline(otherMemberId);
-                                                const convMessages = messages.filter(
-                                                    (m: any) => (String(m.conversationId) === String(conv.id) || String(m.conversationId) === String(conv._id)) && !m.isDeleted
-                                                );
-                                                // messages array is DESC (newest first), so [0] is the latest
-                                                const lastMsg = convMessages[0];
-
-                                                return (
-                                                    <div
-                                                        key={conv.id}
-                                                        onClick={() => setSelectedId(conv.id)}
-                                                        className={`group relative w-full flex items-start gap-3 py-2.5 px-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left cursor-pointer ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
-                                                    >
-                                                        <div className="relative flex-shrink-0">
-                                                            <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
-                                                                {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
-                                                            </div>
-                                                            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${otherIsOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
-                                                        </div>
-                                                        <div className="flex-1 min-w-0 pr-7">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                                                                    {otherMember?.name || 'Unknown'}
-                                                                </p>
-                                                                {lastMsg && (
-                                                                    <span className="text-2xs text-slate-400 flex-shrink-0 leading-5">
-                                                                        {new Date(lastMsg.timestamp || lastMsg.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">
-                                                                {lastMsg?.content || 'No messages yet'}
-                                                            </p>
-                                                        </div>
-                                                        {/* Delete conversation button — appears on hover (desktop) or always (touch).
-                                                            Positioned at the absolute right edge. The timestamp has mr-7 so it
-                                                            doesn't overlap this button. */}
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                const ok = await confirm({
-                                                                    title: 'Delete this conversation?',
-                                                                    message: `Your conversation with ${otherMember?.name || 'this team member'} will be permanently removed. All messages in it will be deleted.`,
-                                                                    confirmLabel: 'Delete',
-                                                                    cancelLabel: 'Cancel',
-                                                                    danger: true,
-                                                                });
-                                                                if (!ok) return;
-                                                                try {
-                                                                    // Delete all messages in the conversation first
-                                                                    const messageIds = convMessages.map((m: any) => m.id || m._id);
-                                                                    await Promise.all(messageIds.map((mid: string) =>
-                                                                        Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
-                                                                    ));
-                                                                    // Then delete the conversation itself
-                                                                    await handleDeleteChat(conv.id || conv._id, true, currentUser?.id || currentUser?._id || '');
-                                                                    if (selectedId === conv.id || selectedId === conv._id) setSelectedId(null);
-                                                                    addToast('Conversation deleted.', { type: 'success', duration: 2500 });
-                                                                } catch (err: any) {
-                                                                    addToast(err?.message || 'Failed to delete conversation.', { type: 'error' });
-                                                                }
-                                                            }}
-                                                            className="absolute top-1/2 right-2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                                            title="Delete conversation"
-                                                            aria-label="Delete conversation"
-                                                        >
-                                                            <TrashIcon className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Right panel: active chat thread (~67%) */}
-                        <div className="hidden md:flex flex-1 flex-col overflow-hidden">
-                            {selectedId && (() => {
-                                const conv = (coreState.chatConversations || []).find((c: any) => c.id === selectedId || c._id === selectedId);
-                                if (!conv) return (
-                                    <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-                                        Select a conversation
-                                    </div>
-                                );
-                                const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id && id !== currentUser?._id);
-                                const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
-                                const otherIsOnline = activePeers?.includes(otherMemberId);
-                                const convMessages = messages.filter(
-                                    (m: any) => (String(m.conversationId) === String(selectedId) || String(m.conversationId) === String(conv._id)) && !m.isDeleted
-                                ).sort((a: any, b: any) => {
-                                    const aTime = new Date(a.timestamp || a.createdAt || 0).getTime();
-                                    const bTime = new Date(b.timestamp || b.createdAt || 0).getTime();
-                                    return aTime - bTime; // ascending = oldest first, newest at bottom
-                                });
-
-                                const sendTeamReply = async () => {
-                                    if (!teamReplyText.trim()) return;
-                                    if (!selectedId) { addToast('No conversation selected.', { type: 'info' }); return; }
-                                    const text = teamReplyText.trim();
-                                    setTeamReplyText('');
-                                    try {
-                                        // Server-side mutation: atomically creates the
-                                        // chat message AND notifications for all other
-                                        // conversation members. Replaces the old client-side
-                                        // addItem('chatMessages') call that forgot to create
-                                        // notifications — fixing the "notifications stopped
-                                        // working" bug where recipients never got a bell badge.
-                                        await sendChatMessageMutation({
-                                            conversationId: selectedId || '',
-                                            content: text,
-                                            authorId: currentUser?._id || currentUser?.id || '',
-                                            authorName: currentUser?.name || '',
-                                            userEmail: currentUser?.email,
-                                            // FIX (TS2304): removed `attachments`/`attachmentNames`
-                                            // lines referencing a non-existent `pendingAttachments`
-                                            // state — sendChatMessage's Convex args don't accept
-                                            // them; team chat reply is text-only.
-                                            idempotencyKey: uuidv4(),
-                                        });
-                                    } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }
-                                };
-
-                                return (
-                                    <>
-                                        {/* Chat header */}
-                                        <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-3">
-                                            <div className="flex-shrink-0">
-                                                <div className="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
-                                                    {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white">{otherMember?.name || 'Unknown'}</p>
-                                                <p className="text-xs text-slate-400 flex items-center gap-1">
-                                                    {otherIsOnline ? (
-                                                        <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Active now</>
-                                                    ) : (
-                                                        <>{otherMember?.role || ''}</>
-                                                    )}
-                                                </p>
-                                            </div>
-                                            {/* Clear conversation button — bulk-deletes all messages in this conversation */}
-                                            {convMessages.length > 0 && (
-                                                <button
-                                                    onClick={async () => {
-                                                        const ok = await confirm({
-                                                            title: 'Clear all messages?',
-                                                            message: `All ${convMessages.length} message(s) in this conversation will be permanently deleted. The conversation itself will remain.`,
-                                                            confirmLabel: 'Clear all',
-                                                            cancelLabel: 'Cancel',
-                                                            danger: true,
-                                                        });
-                                                        if (!ok) return;
-                                                        try {
-                                                            const messageIds = convMessages.map((m: any) => m.id || m._id);
-                                                            await Promise.all(messageIds.map((mid: string) =>
-                                                                Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
-                                                            ));
-                                                            addToast('All messages cleared.', { type: 'success', duration: 2500 });
-                                                        } catch (err: any) {
-                                                            addToast(err?.message || 'Failed to clear messages.', { type: 'error' });
-                                                        }
-                                                    }}
-                                                    className="flex items-center gap-1 px-2.5 py-1.5 text-2xs font-bold text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors flex-shrink-0"
-                                                    title="Clear all messages in this conversation"
-                                                    aria-label="Clear all messages"
-                                                >
-                                                    <TrashIcon className="w-3.5 h-3.5" />
-                                                    <span className="hidden sm:inline">Clear all</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                        {/* Messages */}
-                                        <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 custom-scrollbar">
-                                            {convMessages.length === 0 ? (
-                                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>
-                                            ) : convMessages.map((msg: any) => {
-                                                const isMe = msg.authorId === currentUser?.id || msg.authorId === currentUser?._id;
-                                                const msgId = msg.id || msg._id;
-                                                return (
-                                                    <ChatMessageBubble
-                                                        key={msgId}
-                                                        content={msg.content}
-                                                        timestamp={msg.timestamp || msg.createdAt}
-                                                        isMe={isMe}
-                                                        isEdited={msg.isEdited}
-                                                        isEditing={editingMessageId === msgId}
-                                                        onCancelEdit={() => setEditingMessageId(null)}
-                                                        onStartEdit={() => setEditingMessageId(msgId)}
-                                                        onEdit={async (newContent) => {
-                                                            try {
-                                                                await handleEditMessage(msgId, newContent);
-                                                                setEditingMessageId(null);
-                                                                addToast('Message updated.', { type: 'success', duration: 2500 });
-                                                            } catch (err: any) {
-                                                                addToast(err?.message || 'Failed to edit message.', { type: 'error' });
-                                                            }
-                                                        }}
-                                                        onDelete={async () => {
-                                                            const ok = await confirm({
-                                                                title: 'Delete this message?',
-                                                                message: 'This message will be permanently removed from the conversation.',
-                                                                confirmLabel: 'Delete',
-                                                                cancelLabel: 'Cancel',
-                                                                danger: true,
-                                                            });
-                                                            if (!ok) return;
-                                                            try {
-                                                                await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
-                                                                addToast('Message deleted.', { type: 'success', duration: 2500 });
-                                                            } catch (err: any) {
-                                                                addToast(err?.message || 'Failed to delete message.', { type: 'error' });
-                                                            }
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-                                            <div ref={teamChatEndRef} />
-                                        </div>
-                                        {/* Reply input — uses .chat-input-dock for correct bottom-nav spacing */}
-                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 chat-input-dock">
-                                            <input
-                                                type="file"
-                                                ref={teamFileInputRef}
-                                                onChange={async (e) => {
-                                                    const file = e.target.files?.[0];
-                                                    if (!file) return;
-                                                    try {
-                                                        const postUrl = await generateUploadUrl();
-                                                        const res = await fetch(postUrl, { method: 'POST', body: file });
-                                                        if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
-                                                        const { storageId } = await res.json();
-                                                        if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
-                                                    } catch (uploadErr: any) {
-                                                        surfaceUploadError(addToast, file, uploadErr);
-                                                    } finally {
-                                                        if (teamFileInputRef.current) teamFileInputRef.current.value = '';
-                                                    }
-                                                }}
-                                                multiple
-                                                className="hidden"
-                                            />
-                                            {teamAttachments.length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mb-2">
-                                                    {teamAttachments.map((att, i) => (
-                                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg px-2.5 py-1.5 text-xs max-w-full min-w-0">
-                                                            <DocumentIcon className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300 min-w-0">{att.name}</span>
-                                                            <button onClick={() => setTeamAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5 flex-shrink-0">
-                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <AutoExpandingChatInput
-                                                    value={teamReplyText}
-                                                    onChange={setTeamReplyText}
-                                                    attachments={teamAttachments}
-                                                    onRemoveAttachment={(i) => setTeamAttachments(prev => prev.filter((_, j) => j !== i))}
-                                                    onAttachClick={() => teamFileInputRef.current?.click()}
-                                                    showVoiceButton={true}
-                                                    onVoiceRecorded={async (blob, duration) => {
-                                                        try {
-                                                            const postUrl = await generateUploadUrl();
-                                                            const res = await fetch(postUrl, { method: 'POST', body: blob });
-                                                            if (res.ok) {
-                                                                const { storageId } = await res.json();
-                                                                if (storageId) {
-                                                                    setTeamAttachments(prev => [...prev, { storageId, name: `voice-note-${duration}s.webm` }]);
-                                                                }
-                                                            }
-                                                        } catch (e: any) {
-                                                            surfaceUploadError(addToast, { name: `voice-note-${duration}s.webm`, size: blob.size }, e);
-                                                        }
-                                                    }}
-                                                    onSend={sendTeamReply}
-                                                    placeholder="Type a message..."
-                                                    sendDisabled={!teamReplyText.trim() && teamAttachments.length === 0}
-                                                    sendLabel="Send"
-                                                    sendAriaLabel="Send team message"
-                                                    containerClassName="flex-1"
-                                                />
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                            {!selectedId && (
-                                <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-                                    Select a conversation to view messages
-                                </div>
-                            )}
-                        </div>
                     </div>
                 )}
 

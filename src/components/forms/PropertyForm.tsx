@@ -594,6 +594,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             return;
         }
 
+        // SIMPLIFY FIX: rent amount is now required for rent-collecting tenanted
+        // properties — a property saved without rent silently breaks revenue
+        // views, receipts, and automations downstream.
+        if (rentCollectionMode === 'Full (Collect Rent)' && category === 'Tenanted Property' && !((unitsData[0]?.rentAmount ?? 0) > 0)) {
+            setOpenSections(prev => ({ ...prev, rental: true, primary: false }));
+            addToast('Please enter the Rent Amount for Unit 1 (opened below).', { type: 'info', duration: 5000 });
+            return;
+        }
+
         const firmId = coreState?.firmDetails?.id || currentUser?.firmId;
         if (!firmId) {
             addToast('Error: Firm identity not established. Please ensure you have completed onboarding.', { type: 'error' });
@@ -1201,42 +1210,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     </div>
                 </AccordionSection>
 
-                {/* --- Amenities Section --- */}
-                <AccordionSection id="amenities" isOpen={openSections.amenities} onToggle={toggleSection} title="Amenities" subtitle="Features" icon={<HomeIcon className="w-3.5 h-3.5" />} iconBg="bg-emerald-600">
-                    <div className="space-y-3 sm:space-y-4">
-                        <div className="flex gap-2">
-                            <input autoComplete="off" data-lpignore="true" 
-                                type="text"
-                                value={newAmenity}
-                                onChange={e => setNewAmenity(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddAmenity())}
-                                className={commonInputClass}
-                                placeholder="Add amenity (e.g. Swimming Pool, 24/7 Power)..."
-                            />
-                            <button
-                                type="button"
-                                onClick={handleAddAmenity}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
-                            >
-                                <PlusIcon className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            {amenities.map(amenity => (
-                                <div key={amenity} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-xs font-bold">
-                                    {amenity}
-                                    <button type="button" onClick={() => handleRemoveAmenity(amenity)} className="hover:text-rose-500 transition-colors">
-                                        <XIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            ))}
-                            {amenities.length === 0 && (
-                                <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest px-2 italic">No amenities listed yet.</p>
-                            )}
-                        </div>
-                    </div>
-                </AccordionSection>
+                {/* SIMPLIFY FIX: Amenities section removed — the amenities list had
+                    ZERO readers anywhere in the app (portals read a different
+                    per-unit field that this form never populated). Existing data
+                    round-trips untouched via propertyToEdit. */}
 
                 {/* --- Automation Settings --- */}
                 <AccordionSection id="automation" isOpen={openSections.automation} onToggle={toggleSection} title="Automation" subtitle="Alerts & VMS" icon={<ZapIcon className="w-3.5 h-3.5" />} iconBg="bg-amber-500">
@@ -1245,12 +1222,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Lease Expiry Alerts</span>
                         </label>
-                        {rentCollectionMode === 'Full (Collect Rent)' && (
-                            <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
-                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindRentDue} onChange={e => setRemindRentDue(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
-                                <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Rent Due Alerts</span>
-                            </label>
-                        )}
+                        {/* SIMPLIFY FIX: "Rent Due Alerts" checkbox removed —
+                            automationSettings.remindRentDue was written here but
+                            never read anywhere. Lease expiry + maintenance
+                            automations (which ARE read) remain. */}
                         <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={autoCreateMaintenanceTask} onChange={e => setAutoCreateMaintenanceTask(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 dark:text-amber-400 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Maintenance Tasks</span>
@@ -1415,10 +1390,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <input autoComplete="off" data-lpignore="true"  type="date" value={listingDate} onChange={e => setListingDate(e.target.value)} className={commonInputClass} />
                             </div>
                         </div>
-                        <div className="space-y-2 group">
-                            <label className={labelClass}>Listing Agent</label>
-                            <input autoComplete="off" data-lpignore="true"  type="text" value={listingAgent} onChange={e => setListingAgent(e.target.value)} className={commonInputClass} placeholder="Agent Name / Firm" />
-                        </div>
+                        {/* SIMPLIFY FIX: Listing Agent removed — saleDetails.listingAgent
+                            was written but never read anywhere. Target price + listing
+                            date (both read downstream) remain. */}
                     </div>
                 )}
 
@@ -1820,30 +1794,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group col-span-1 md:col-span-2">
                                     <label className={labelClass}>Resident Name</label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(5.5rem,auto)_1fr_1fr] gap-2">
-                                        <select 
-                                            value={unitsData[activeUnitIndex].occupantTitle || ''} 
-                                            onChange={e => {
-                                                const title = e.target.value;
-                                                updateUnit(activeUnitIndex, 'occupantTitle', title);
-                                                const u = unitsData[activeUnitIndex];
-                                                updateUnit(activeUnitIndex, 'tenantName', [title, u.occupantFirstName, u.occupantLastName].filter(Boolean).join(' '));
-                                            }} 
-                                            className={`${commonInputClass} w-full sm:w-auto`}
-                                        >
-                                            <option value="">Title</option>
-                                            <option value="Mr.">Mr.</option>
-                                            <option value="Mrs.">Mrs.</option>
-                                            <option value="Miss">Miss</option>
-                                            <option value="Ms.">Ms.</option>
-                                            <option value="Dr.">Dr.</option>
-                                            <option value="Chief">Chief</option>
-                                            <option value="Engr.">Engr.</option>
-                                            <option value="Pastor">Pastor</option>
-                                            <option value="Rev.">Rev.</option>
-                                            <option value="Alhaji">Alhaji</option>
-                                            <option value="Alhaja">Alhaja</option>
-                                        </select>
+                                    {/* SIMPLIFY FIX: the 11-option Title select was removed —
+                                        a decision users don't need to make. First + Last
+                                        name compose tenantName; existing titles round-trip. */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <input autoComplete="off" data-lpignore="true"  
                                             type="text" 
                                             value={unitsData[activeUnitIndex].occupantFirstName || ''} 
@@ -1943,23 +1897,11 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     </div>
                                 )}
 
-                                <label className={`flex items-center gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-primary-500/20 transition-all ${activeUnitIndex !== 0 ? 'md:col-start-2' : ''}`}>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="checkbox"
-                                        checked={unitsData[activeUnitIndex].isPeriodicReviewEnabled}
-                                        onChange={e => updateUnit(activeUnitIndex, 'isPeriodicReviewEnabled', e.target.checked)}
-                                        className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
-                                    />
-                                    <span className="text-2xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-widest">Enable Periodic Review</span>
-                                </label>
+                                {/* SIMPLIFY FIX: "Enable Periodic Review" + "Next Rent
+                                    Review" removed — nextRentReview had no reader anywhere
+                                    (the one import of its PDF generator was dead). Fields
+                                    round-trip untouched for existing properties. */}
                             </div>
-
-                            {unitsData[activeUnitIndex].isPeriodicReviewEnabled && (
-                                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm animate-fade-in space-y-2 group">
-                                    <label className={labelClass}>Next Rent Review</label>
-                                    <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].nextRentReview} onChange={e => updateUnit(activeUnitIndex, 'nextRentReview', e.target.value)} className={commonInputClass} />
-                                </div>
-                            )}
 
                             {/* MUTE / DEACTIVATE UNIT toggle — replaces hard delete.
                                 Muted units are hidden from the workspace grid but

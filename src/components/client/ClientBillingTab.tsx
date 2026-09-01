@@ -17,7 +17,6 @@ interface ClientBillingTabProps {
 export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invoices }) => {
     const { navigateTo, openModal, addToast } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
-    const { handlePayInvoice } = useDataActions();
     const [processingId, setProcessingId] = useState<string | null>(null);
 
     const outstandingInvoices = invoices.filter(inv => inv.status === InvoiceStatus.Unpaid || inv.status === InvoiceStatus.Overdue);

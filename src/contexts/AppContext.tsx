@@ -17,7 +17,7 @@ export const AppContextProvider: React.FC<{ children?: React.ReactNode }> = ({ c
     const [contextId, setContextId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (view === 'propertyDetail' || view === 'properties' || view === 'atriumEngine') {
+        if (view === 'propertyDetail' || view === 'properties') {
             setActiveContext('property');
             setContextId(selectedId || null);
         } else if (view === 'matterDetail' || view === 'matters' || view === 'compliance' || view === 'research') {

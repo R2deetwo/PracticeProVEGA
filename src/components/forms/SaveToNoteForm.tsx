@@ -47,7 +47,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
     const [content, setContent] = useState(existingNote?.content || initialContent);
     const [destinationType, setDestinationType] = useState<DestinationType>(() => {
         if (existingNote) return existingNote.propertyId ? 'property' : existingNote.matterId ? 'matter' : 'notebook';
-        if (view === 'properties' || view === 'propertyDetail' || view === 'atriumEngine') return 'property';
+        if (view === 'properties' || view === 'propertyDetail') return 'property';
         return 'matter';
     });
     const [selectedMatterId, setSelectedMatterId] = useState<string>(existingNote?.matterId || matterState.matters[0]?.id || '');

@@ -3192,7 +3192,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         const navTarget = insight.entityType === 'matter' ? 'matterDetail'
                                             : insight.entityType === 'task' ? 'tasks'
                                             : insight.entityType === 'event' ? 'calendar'
-                                            : insight.entityType === 'service_charge' ? 'atriumEngine'
+                                            : insight.entityType === 'service_charge' ? 'billing'
                                             : insight.entityType === 'firm' ? 'dashboard'
                                             : null;
 

@@ -497,7 +497,7 @@ IMPORTANT:
                     const thoughtPart = candidate?.content?.parts?.find((p: any) => p.thought === true || p.thoughtSignature);
                     const thoughtSignature = thoughtPart?.thoughtSignature || undefined;
 
-                    const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
+                    const isPropertyView = ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
                     const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
                     const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
                     const sanitized = validateAIResponse(rawText || '', agent === 'ARIA');
@@ -535,7 +535,7 @@ IMPORTANT:
             const thoughtPart = candidate?.content?.parts?.find((p: any) => p.thought === true || p.thoughtSignature);
             const thoughtSignature = thoughtPart?.thoughtSignature || undefined;
 
-            const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
+            const isPropertyView = ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
             const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
             const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
             const sanitized = validateAIResponse(rawText || '', agent === 'ARIA');
@@ -687,7 +687,7 @@ You are operating in RESEARCH MODE. Apply these rules:
     }
     if (!response.body) throw new Error('No stream body');
 
-    const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view || '');
+    const isPropertyView = ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view || '');
     const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
     const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
     let fullText = '';

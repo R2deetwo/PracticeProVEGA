@@ -29,10 +29,9 @@ import {
     DocumentTemplate, DocumentTemplateCategory, View, HistoryEntry, SubscriptionPlan
 } from '../../types';
 import {
-    UserCircleIcon, OfficeBuildingIcon, ClipboardListIcon, TagIcon,
-    DesktopComputerIcon, HelpCircleIcon, ZapIcon, FormIcon, ShieldCheckIcon,
-    LockClosedIcon, TrashIcon, MessagingIcon, BellIcon, ChevronRightIcon,
-    XIcon, ArrowLeftIcon
+    UserCircleIcon, OfficeBuildingIcon, ClipboardListIcon,
+    HelpCircleIcon, ZapIcon, ShieldCheckIcon,
+    LockClosedIcon, ChevronRightIcon, XIcon
 } from '../../constants';
 import { Menu as MenuIcon } from 'lucide-react';
 
@@ -62,10 +61,10 @@ import AccountRecoverySettings from './AccountRecoverySettings';
 import IntegrationSettings from './IntegrationSettings';
 import { PortalAccessSettings } from './PortalAccessSettings';
 import { NotificationSettings } from './NotificationSettings';
-// REACHABILITY FIX: these three panels were fully built but imported
-// nowhere — Intake form management, category management, and display/realtime
-// settings were unreachable dead features. Wired into the settings nav below.
-import { IntakeSettings } from './IntakeSettings';
+// SIMPLIFY FIX: IntakeSettings deleted — its save/delete handlers were
+// declared in types.ts but never implemented anywhere, so saving a form
+// called undefined at runtime, and the intakeForms table has no writer.
+// Categories and Display panels live on as grouped sub-sections.
 import CategoriesSettings from './CategoriesSettings';
 import DisplaySettings from './DisplaySettings';
 import SecurityAccessView from '../SecurityAccessView';
@@ -75,7 +74,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';
 import { useProduct } from '../../contexts/ProductContext';
 
-type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal' | 'securityAccess' | 'intake' | 'categories' | 'display';
+type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal' | 'securityAccess' | 'categories' | 'display';
 
 const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' | 'practice-blueprint' }> = {
     'my-profile': { main: 'profile' },
@@ -103,7 +102,6 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'theme-preference': { main: 'profile' }, // Long-press theme toggle target
     'notification-settings': { main: 'profile' },
     'automation-settings': { main: 'templates', sub: 'automations' },
-    'intake-form-management': { main: 'intake' },
     'category-management': { main: 'categories' },
     'display-and-realtime': { main: 'display' },
     'help-and-support': { main: 'help' },
@@ -195,6 +193,13 @@ const LockedDemoPanel: React.FC<{ title: string, description: string, onSignup: 
 
 // ─── Sidebar Contents (shared between desktop sidebar and mobile drawer) ─
 // Extracted so we don't duplicate the nav structure in two places.
+// ─── Sidebar Contents (shared between desktop sidebar and mobile drawer) ─
+// SIMPLIFY FIX (Sept 2026): the sidebar previously listed up to 18 flat
+// sections — overwhelming for non-technical users. Sections are merged into
+// 9 grouped rows; a group's child panels appear as a compact indented
+// sub-list when that group is active. Every previous tab id still works
+// (deep links and permissions are unchanged); children carry the exact
+// visibility gates the old flat rows had.
 const SidebarContents: React.FC<{
     activeTab: SettingsTab;
     onNavClick: (tab: SettingsTab) => void;
@@ -213,33 +218,136 @@ const SidebarContents: React.FC<{
     // CRO AUDIT FIX — need openModal for the feedback button
     const { openModal: openModalFromUI } = useUI();
 
+    const canManageConfig = permissions.canManageFirmDetails || permissions.canManageTemplates;
+
+    type Child = { id: SettingsTab; label: string; visible: boolean };
+    type Group = {
+        key: string; label: string; description?: string;
+        icon: React.ReactNode; domId?: string;
+        section: 'account' | 'practice' | 'system';
+        children: Child[];
+    };
+
+    const groups: Group[] = [
+        {
+            key: 'profile', label: 'My Profile', description: 'Info, alerts & appearance',
+            icon: <UserCircleIcon />, section: 'account',
+            children: [
+                { id: 'profile', label: 'Profile', visible: true },
+                { id: 'notifications', label: 'Notifications', visible: canManageConfig },
+                { id: 'display', label: 'Display', visible: canManageConfig },
+                { id: 'recovery', label: 'Account Recovery', visible: currentUser?.role === UserRole.Admin },
+            ],
+        },
+        {
+            key: 'agents', label: 'AI Settings', description: isProperty ? 'ARIA configuration' : 'ALOA configuration',
+            icon: <ZapIcon />, section: 'practice',
+            children: [{ id: 'agents', label: 'AI Settings', visible: canUseAI }],
+        },
+        {
+            key: 'firm', label: isProperty ? 'Portfolio Details' : 'Firm Details', description: 'Identity, branding & comms',
+            icon: <OfficeBuildingIcon />, domId: 'settings-nav-firm', section: 'practice',
+            children: [
+                { id: 'firm', label: 'Details', visible: permissions.canManageFirmDetails },
+                { id: 'communications', label: 'Communications', visible: canManageConfig },
+            ],
+        },
+        {
+            key: 'subscription', label: 'Billing & Plans', description: 'Subscription & add-ons',
+            icon: <div className="font-serif font-bold text-base">₦</div>, section: 'practice',
+            children: [{ id: 'subscription', label: 'Billing & Plans', visible: canManageConfig }],
+        },
+        {
+            key: 'portal', label: isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal',
+            description: 'Invitations & security',
+            icon: <ShieldCheckIcon className="text-primary-500" />, domId: 'portal-access', section: 'practice',
+            children: [
+                { id: 'portal', label: 'Portal', visible: canManageConfig },
+                { id: 'securityAccess', label: 'Security & Access', visible: canManageConfig },
+            ],
+        },
+        {
+            key: 'templates', label: isProperty ? 'Portfolio Configuration' : 'Firm Configuration',
+            description: 'Workflows, templates & categories',
+            icon: <ClipboardListIcon />, section: 'practice',
+            children: [
+                { id: 'templates', label: 'Templates & Workflows', visible: permissions.canManageTemplates },
+                { id: 'categories', label: 'Categories & Types', visible: permissions.canManageTemplates },
+            ],
+        },
+        {
+            key: 'security', label: 'Data & Security', description: 'Audit logs, backup & cleanup',
+            icon: canUseAuditLogs ? <ShieldCheckIcon /> : <LockClosedIcon />, section: 'system',
+            children: [
+                { id: 'security', label: 'Security', visible: true },
+                { id: 'data', label: 'Data & Export', visible: true },
+            ],
+        },
+        {
+            key: 'help', label: 'Help & Updates', description: 'Guides, support & release notes',
+            icon: <HelpCircleIcon />, section: 'system',
+            children: [
+                { id: 'help', label: 'Help', visible: true },
+                { id: 'changelog', label: 'What\'s New', visible: true },
+            ],
+        },
+    ];
+
+    if (isLegal && isEnterprise) {
+        groups.push({
+            key: 'legalIntel', label: 'Legal Intelligence', description: 'Statute library & research',
+            icon: <ShieldCheckIcon />, section: 'practice',
+            children: [{ id: 'legalIntel', label: 'Legal Intelligence', visible: true }],
+        });
+    }
+
+    const renderGroup = (g: Group) => {
+        const visibleChildren = g.children.filter(c => c.visible);
+        const groupIsActive = g.children.some(c => c.id === activeTab);
+        // Show a group when any child is visible — or when the active tab
+        // belongs to it, so a deep-linked panel is never orphaned in the nav.
+        if (visibleChildren.length === 0 && !groupIsActive) return null;
+        const defaultChild = visibleChildren[0] || g.children[0];
+        return (
+            <div key={g.key} className="mb-1">
+                <NavItem
+                    label={g.label}
+                    description={g.description}
+                    icon={g.icon}
+                    id={g.domId}
+                    isActive={groupIsActive}
+                    onClick={() => handleNav(defaultChild.id)}
+                    onCloseDrawer={onCloseDrawer}
+                />
+                {groupIsActive && visibleChildren.length > 1 && (
+                    <div className="mt-0.5 mb-1 space-y-0.5">
+                        {visibleChildren.map(c => (
+                            <button
+                                key={c.id}
+                                onClick={() => { handleNav(c.id); onCloseDrawer?.(); }}
+                                className={`w-full flex items-center gap-2 pl-11 pr-3 py-1.5 rounded-md text-left text-xs font-semibold transition-colors ${
+                                    activeTab === c.id
+                                        ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
+                                        : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800/60 hover:text-slate-700 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                {c.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-col gap-0 p-3">
             {/* ─── Account Section ─── */}
             <SectionHeading label="Account" />
-            <NavItem
-                label="My Profile"
-                description="Personal info & preferences"
-                icon={<UserCircleIcon />}
-                isActive={activeTab === 'profile'}
-                onClick={() => handleNav('profile')}
-                onCloseDrawer={onCloseDrawer}
-            />
+            {groups.filter(g => g.section === 'account').map(renderGroup)}
 
             {/* ─── Practice / Workspace Section ─── */}
             <SectionHeading label={isProperty ? 'Workspace' : 'Practice'} />
-
-            {canUseAI && (
-                <NavItem
-                    label="AI Settings"
-                    description={isProperty ? "ARIA configuration" : "ALOA configuration"}
-                    icon={<ZapIcon />}
-                    isActive={activeTab === 'agents'}
-                    onClick={() => handleNav('agents')}
-                    onCloseDrawer={onCloseDrawer}
-                />
-            )}
-
             {isProperty && !isUnified && (
                 <NavItem
                     label="Revenue Protection Guide"
@@ -248,183 +356,22 @@ const SidebarContents: React.FC<{
                     onClick={() => { onCloseDrawer?.(); navigateTo('help', null, { activeSection: 'revenue-engine' }); }}
                 />
             )}
-
-            {(permissions.canManageFirmDetails || permissions.canManageTemplates) && (
-                <>
-                    {permissions.canManageFirmDetails && (
-                        <NavItem
-                            label={isProperty ? 'Portfolio Details' : 'Firm Details'}
-                            description="Identity, branding, integrations"
-                            icon={<OfficeBuildingIcon />}
-                            id="settings-nav-firm"
-                            isActive={activeTab === 'firm'}
-                            onClick={() => handleNav('firm')}
-                            onCloseDrawer={onCloseDrawer}
-                        />
-                    )}
-                    <NavItem
-                        label="Billing & Plans"
-                        description="Subscription & add-ons"
-                        icon={<div className="font-serif font-bold text-base">₦</div>}
-                        isActive={activeTab === 'subscription'}
-                        onClick={() => handleNav('subscription')}
-                        onCloseDrawer={onCloseDrawer}
-                    />
-                    <NavItem
-                        label="Communications"
-                        description="WhatsApp & email gateways"
-                        icon={<MessagingIcon />}
-                        isActive={activeTab === 'communications'}
-                        onClick={() => handleNav('communications')}
-                        onCloseDrawer={onCloseDrawer}
-                    />
-                    <NavItem
-                        label="Notifications"
-                        description="Email alert preferences"
-                        icon={<BellIcon />}
-                        isActive={activeTab === 'notifications'}
-                        onClick={() => handleNav('notifications')}
-                        onCloseDrawer={onCloseDrawer}
-                    />
-                    <NavItem
-                        label={isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal'}
-                        description="Invitations & service types"
-                        icon={<ShieldCheckIcon className="text-primary-500" />}
-                        id="portal-access"
-                        isActive={activeTab === 'portal'}
-                        onClick={() => handleNav('portal')}
-                        onCloseDrawer={onCloseDrawer}
-                    />
-                    <NavItem
-                        label="Security & Access"
-                        description="Access code architecture & data protection"
-                        icon={<ShieldCheckIcon className="text-slate-500" />}
-                        isActive={activeTab === 'securityAccess'}
-                        onClick={() => handleNav('securityAccess')}
-                        onCloseDrawer={onCloseDrawer}
-                    />
-                    {permissions.canManageTemplates && (
-                        <NavItem
-                            label={isProperty ? 'Portfolio Configuration' : 'Firm Configuration'}
-                            description="Workflows, checklists, templates"
-                            icon={<ClipboardListIcon />}
-                            isActive={activeTab === 'templates'}
-                            onClick={() => handleNav('templates')}
-                            onCloseDrawer={onCloseDrawer}
-                        />
-                    )}
-                    {/* REACHABILITY FIX: Intake Forms + Category Management were
-                        complete-but-unreachable panels. Now surfaced next to the
-                        other configuration items. */}
-                    {permissions.canManageTemplates && (
-                        <NavItem
-                            label="Intake Forms"
-                            description={isProperty ? 'Public application forms' : 'Client intake forms & rules'}
-                            icon={<FormIcon />}
-                            isActive={activeTab === 'intake'}
-                            onClick={() => handleNav('intake')}
-                            onCloseDrawer={onCloseDrawer}
-                        />
-                    )}
-                    {permissions.canManageTemplates && (
-                        <NavItem
-                            label="Categories & Types"
-                            description="Events, contacts, folders"
-                            icon={<TagIcon />}
-                            isActive={activeTab === 'categories'}
-                            onClick={() => handleNav('categories')}
-                            onCloseDrawer={onCloseDrawer}
-                        />
-                    )}
-                    <NavItem
-                        label="Display & Realtime"
-                        description="Theme, density, live flashes"
-                        icon={<DesktopComputerIcon />}
-                        isActive={activeTab === 'display'}
-                        onClick={() => handleNav('display')}
-                        onCloseDrawer={onCloseDrawer}
-                    />
-
-                    {/* REACHABILITY FIX: ComplianceView (NBA fee/CPD/KYC
-                        tracking) had NO navigation entry — only /compliance.
-                        Surfaced here for legal firms. */}
-                    {isLegal && (
-                        <NavItem
-                            label="Compliance"
-                            description="Practicing fees, CPD & standards"
-                            icon={<ShieldCheckIcon className="text-amber-500" />}
-                            isActive={false}
-                            onClick={() => navigateTo('compliance')}
-                            onCloseDrawer={onCloseDrawer}
-                        />
-                    )}
-                    {isLegal && isEnterprise && (
-                        <NavItem
-                            label="Legal Intelligence"
-                            description="Statute library & research"
-                            icon={<ShieldCheckIcon />}
-                            isActive={activeTab === 'legalIntel'}
-                            onClick={() => handleNav('legalIntel')}
-                            onCloseDrawer={onCloseDrawer}
-                        />
-                    )}
-                </>
+            {groups.filter(g => g.section === 'practice').map(renderGroup)}
+            {canManageConfig && isLegal && (
+                <NavItem
+                    label="Compliance"
+                    description="Practicing fees, CPD & standards"
+                    icon={<ShieldCheckIcon className="text-amber-500" />}
+                    isActive={false}
+                    onClick={() => navigateTo('compliance')}
+                    onCloseDrawer={onCloseDrawer}
+                />
             )}
 
             {/* ─── System Section ─── */}
             <SectionHeading label="System" />
-            <NavItem
-                label="Data & Export"
-                description="Backup and cleanup"
-                icon={<TrashIcon />}
-                isActive={activeTab === 'data'}
-                onClick={() => handleNav('data')}
-                onCloseDrawer={onCloseDrawer}
-            />
-            <NavItem
-                label="Security"
-                description="Audit logs & access"
-                icon={canUseAuditLogs ? <ShieldCheckIcon /> : <LockClosedIcon />}
-                isActive={activeTab === 'security'}
-                onClick={() => handleNav('security')}
-                onCloseDrawer={onCloseDrawer}
-            />
-            {currentUser?.role === UserRole.Admin && (
-                <NavItem
-                    label="Account Recovery"
-                    description="Admin recovery tools"
-                    icon={<ShieldCheckIcon className="text-indigo-500" />}
-                    isActive={activeTab === 'recovery'}
-                    onClick={() => handleNav('recovery')}
-                    onCloseDrawer={onCloseDrawer}
-                />
-            )}
-            <NavItem
-                label="Help"
-                description="Guides & support"
-                icon={<HelpCircleIcon />}
-                isActive={activeTab === 'help'}
-                onClick={() => handleNav('help')}
-                onCloseDrawer={onCloseDrawer}
-            />
-            <NavItem
-                label="What's New"
-                description="Recent updates"
-                icon={
-                    <span className="relative flex items-center justify-center w-4 h-4">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full" />
-                    </span>
-                }
-                isActive={activeTab === 'changelog'}
-                onClick={() => handleNav('changelog')}
-                onCloseDrawer={onCloseDrawer}
-            />
-            {/* CRO AUDIT FIX — Feedback button restored to settings nav so it's
-                always visible. Was buried inside ProfileSettings > General sub-tab
-                and users couldn't find it. */}
+            {groups.filter(g => g.section === 'system').map(renderGroup)}
+            {/* CRO AUDIT FIX — Feedback button kept visible in the nav. */}
             <NavItem
                 label="Share Feedback"
                 description="Report issues or suggest features"
@@ -695,8 +642,7 @@ export const SettingsView: React.FC = () => {
             case 'communications': return <IntegrationSettings />;
             case 'notifications': return <NotificationSettings />;
             case 'portal': return <PortalAccessSettings />;
-            case 'securityAccess': return <SecurityAccessView onBack={() => setActiveTab('profile')} />;
-            case 'intake': return <IntakeSettings />;
+            case 'securityAccess': return <SecurityAccessView onBack={() => setActiveTab('portal')} />;
             case 'categories': return (
                 <CategoriesSettings
                     eventTypes={coreState.eventTypes}
@@ -731,7 +677,6 @@ export const SettingsView: React.FC = () => {
         notifications: 'Notifications',
         portal: isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal',
         securityAccess: 'Security & Access',
-        intake: 'Intake Forms',
         categories: 'Categories & Types',
         display: 'Display & Realtime',
     };

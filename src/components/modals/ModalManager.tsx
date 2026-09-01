@@ -1,5 +1,4 @@
 import React from 'react';
-import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Modal } from './Modal';
@@ -12,7 +11,6 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIsProperty, useTerminology } from '../../contexts/ProductContext';
-import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { ModalType, FileDetails } from '../../types';
 
 // Auth
@@ -53,7 +51,6 @@ import PropertyForm from '../forms/PropertyForm';
 import CollectRentModal from './CollectRentModal';
 import MergeContactModal from './MergeContactModal';
 import NotebookForm from '../forms/NotebookForm';
-import LeadForm from '../forms/LeadForm';
 import { SaveToNoteForm } from '../forms/SaveToNoteForm';
 import { LinkMatterToContactForm } from '../forms/LinkMatterToContactForm';
 import NotePageForm from '../forms/NotePageForm';
@@ -87,7 +84,6 @@ import LeadCaptureModal from './LeadCaptureModal';
 import WorkspaceSetupModal from './WorkspaceSetupModal';
 import SendPostActivationEmailModal from './SendPostActivationEmailModal';
 import FolderPermissionsModal from './FolderPermissionsModal';
-import SendIntakeLinkModal from './SendIntakeLinkModal';
 import { expandRecurringEvents } from '../../utils/calendarUtils';
 import AIConsentModal from './AIConsentModal';
 
@@ -134,174 +130,6 @@ const AIConsentModalWrapper: React.FC<{ modalContext: any; closeModal: () => voi
   };
 
   return <AIConsentModal onAccept={handleAccept} onDecline={handleDecline} />;
-};
-
-// Record Rent Payment — calls the Atrium ledger directly from the cog menu
-const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: () => void }> = ({ modalContext, closeModal }) => {
-  const addEntry = useMutation(api.sentry.addLedgerEntry);
-  const { coreState } = useCoreState();
-  const { updateItem } = useDataActions();
-  const { addToast } = useUI();
-  const { queueMutation, isOnline } = useOfflineQueue();
-  const { currentUser } = useAuth();
-  const isProperty = useIsProperty();
-  const firmId = coreState.firmDetails?.id || '';
-  const [amount, setAmount] = React.useState(modalContext?.rentAmount ? String(modalContext.rentAmount) : '');
-  const [status, setStatus] = React.useState<'cleared' | 'pending' | 'defaulted'>('cleared');
-  const [loading, setLoading] = React.useState(false);
-  const unitId = modalContext?.unitId || '';
-  const unitName = modalContext?.unitName || 'Unit';
-  const tenantName = modalContext?.tenantName || '';
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!unitId || !amount) return;
-    const amountNum = parseFloat(amount);
-    if (Number.isNaN(amountNum) || amountNum <= 0) return;
-    setLoading(true);
-    try {
-      const propertyRecord = (coreState.properties || []).find(p => p.id === unitId);
-      const today = new Date().toISOString().split('T')[0];
-
-      // OFFLINE PATH — rent payment recorded from the cog menu / quick action.
-      // Same field-use scenario as CollectRentModal: agent standing in a
-      // building collecting cash. Queue both the ledger entry AND the
-      // property update so neither is lost.
-      if (!isOnline) {
-        queueMutation({
-          mutationName: 'addLedgerEntry',
-          args: {
-            firmId,
-            propertyId: propertyRecord?.id || unitId,
-            unitId,
-            amount: amountNum,
-            type: 'rent',
-            status,
-            channel: 'Bank Transfer',
-            description: `Rent payment${tenantName ? ' from ' + tenantName : ''}`,
-            paymentRef: '',
-            userEmail: currentUser?.email,
-          },
-          label: `Rent ledger — ${unitName}${tenantName ? ` (${tenantName})` : ''}`,
-        });
-
-        if (propertyRecord) {
-          const newPayment = {
-            id: `pay_${Date.now()}`,
-            dueDate: today,
-            paidDate: today,
-            amount: amountNum,
-            status: 'paid' as const,
-            paymentMethod: 'Bank Transfer',
-            receiptNumber: `REC-${Date.now().toString().slice(-6)}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`,
-          };
-          queueMutation({
-            mutationName: 'updateItem',
-            args: {
-              table: 'properties',
-              id: propertyRecord.id,
-              data: {
-                rentPaymentHistory: [newPayment, ...(propertyRecord.rentPaymentHistory || [])],
-                status: propertyRecord.status === 'Vacant' ? 'Occupied' : propertyRecord.status,
-              },
-              itemName: 'Property Payment',
-            },
-            label: `Property update — ${unitName}`,
-          });
-        }
-
-        addToast(`Rent payment saved offline for ${unitName}. Will sync when you reconnect.`, { type: 'info', duration: 6000 });
-        closeModal();
-        return;
-      }
-
-      await addEntry({
-        firmId,
-        propertyId: propertyRecord?.id || unitId,
-        unitId,
-        amount: amountNum,
-        type: 'rent',
-        status,
-        channel: 'Bank Transfer',
-        description: `Rent payment${tenantName ? ' from ' + tenantName : ''}`,
-        paymentRef: '',
-        userEmail: currentUser?.email,
-      });
-
-      if (propertyRecord) {
-        const newPayment = {
-          id: `pay_${Date.now()}`,
-          dueDate: today,
-          paidDate: today,
-          amount: amountNum,
-          status: 'paid' as const,
-          paymentMethod: 'Bank Transfer',
-          receiptNumber: `REC-${Date.now().toString().slice(-6)}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`,
-        };
-        await updateItem('properties', {
-          ...propertyRecord,
-          id: propertyRecord.id,
-          rentPaymentHistory: [newPayment, ...(propertyRecord.rentPaymentHistory || [])],
-          status: propertyRecord.status === 'Vacant' ? 'Occupied' : propertyRecord.status,
-        }, 'Property Payment');
-      }
-
-      addToast(`Rent payment recorded for ${unitName}`, { type: 'success' });
-      closeModal();
-    } catch (err) {
-      addToast('Failed to record payment', { type: 'error' });
-    } finally { setLoading(false); }
-  };
-
-  return (
-    <div className="p-6 space-y-5">
-      <div>
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Rent Payment</h3>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {unitName}{tenantName ? ` • Tenant: ${tenantName}` : ''}
-        </p>
-        {/* Ledger vs Invoice explainer */}
-        <div className="mt-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100">
-          <p className="text-2xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
-            <strong>Atrium Ledger</strong> tracks rent & service charges for this property.
-            Formal <strong>Invoices</strong> (for {isProperty ? 'professional fees' : 'professional/legal fees'}) are managed separately in Billing.
-          </p>
-        </div>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Amount</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₦</span>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required min="0"
-              className="w-full pl-8 pr-3 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="0.00" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Did they pay?</label>
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              ['cleared', 'Yes, paid', 'border-emerald-500 bg-emerald-50 text-emerald-700', <CheckCircle2 className="w-3.5 h-3.5" />], 
-              ['pending', 'Pending', 'border-amber-500 bg-amber-50 text-amber-700', <Clock className="w-3.5 h-3.5" />], 
-              ['defaulted', 'Defaulted', 'border-rose-500 bg-rose-50 text-rose-700', <XCircle className="w-3.5 h-3.5" />]
-            ] as const).map(([val, label, activeClass, icon]) => (
-              <button key={val as string} type="button" onClick={() => setStatus(val as any)}
-                className={`py-2 rounded-lg border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
-                }`}>{icon} {label as string}</button>
-            ))}
-          </div>
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
-            {loading ? 'Saving...' : 'Record Payment'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
 };
 
 const ModalManager: React.FC = () => {
@@ -453,13 +281,6 @@ const ModalManager: React.FC = () => {
         content = <CollectRentModal property={property} onClose={closeModal} />;
       }
       break;
-    }
-    case 'recordRentPayment': {
-      return (
-        <Modal isOpen={true} onClose={closeModal} title="" size="sm">
-          <RecordRentPaymentModalWrapper modalContext={modalContext} closeModal={closeModal} />
-        </Modal>
-      );
     }
     case 'linkContactToMatter': {
       const matter = matterState.matters.find(m => m.id === editingId);
@@ -1070,30 +891,6 @@ const ModalManager: React.FC = () => {
     case 'workspaceSetup':
       content = <WorkspaceSetupModal onSuccess={() => { }} pendingAction={modalContext?.pendingAction} onClose={closeModal} />;
       break;
-    case 'newLead':
-      content = <LeadForm onClose={closeModal} initialContext={modalContext?.fields || modalContext} />;
-      break;
-    case 'sendIntakeLink': {
-      content = <SendIntakeLinkModal />;
-      break;
-    }
-    case 'activateLead': {
-      const lead = coreState.leads?.find(l => l.id === editingId);
-      if (lead) {
-        content = <ConfirmationModal
-          title="Convert Lead to Contact?"
-          message={`Are you sure you want to convert "${lead.name}" from a lead to a full contact? This will create a new Contact record and remove them from your Lead pipeline.`}
-          confirmText="Convert to Contact"
-          confirmButtonClass="bg-primary-600 hover:bg-primary-700"
-          onConfirm={() => {
-            dataHandlers.handleAddLead({ name: lead.name, email: lead.email || '' }, false);
-            closeModal();
-          }}
-          onCancel={closeModal}
-        />;
-      }
-      break;
-    }
     case 'sendPostActivationEmail':
       content = <SendPostActivationEmailModal />;
       break;

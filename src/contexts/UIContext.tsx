@@ -167,9 +167,6 @@ const getModalTitle = (modalType: ModalType): string => {
         case 'editNotebook': return 'Edit Notebook';
         case 'newPage': return 'New Page';
         case 'copyPage': return 'Copy Page';
-        case 'newLead': return 'New Lead';
-        case 'activateLead': return 'Activate Lead';
-        case 'sendIntakeLink': return 'Send Intake Link';
         case 'sendPostActivationEmail': return 'Send Welcome Email';
         case 'requestFinancialDocument': return 'Request Document';
         case 'linkContactToMatter': return 'Link Contacts';
@@ -200,7 +197,6 @@ const getModalTitle = (modalType: ModalType): string => {
         case 'batchUpload': return 'Upload Files';
         case 'joinFirm': return 'Join Firm';
         case 'aiConsent': return 'AI Assistant Consent';
-        case 'recordRentPayment': return 'Record Payment';
         case 'create_matter': return 'Create Matter';
         case 'create_contact': return 'Create Contact';
         case 'create_task': return 'Create Task';
@@ -574,6 +570,9 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         // instead of the actual terms document.
         if (location.pathname === '/portal-terms-of-use') mappedView = 'portalTermsOfUse' as any;
         if (location.pathname === '/resources') mappedView = 'resources' as any;
+        // SIMPLIFY FIX: the standalone 'atriumEngine' view was removed (its
+        // tabs were duplicates of Financials). Old bookmarks/links redirect.
+        if (location.pathname === '/atriumEngine') mappedView = 'billing';
         if (currentView === 'matters' && currentId) mappedView = 'matterDetail';
         if (currentView === 'contacts' && currentId) mappedView = 'contactDetail';
         if (currentView === 'documents' && currentId) mappedView = 'documentDetail';
@@ -726,7 +725,6 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 'documentDetail': 'documents',
                 'contactDetail': 'contacts',
                 'editor': 'matters',
-                'atriumEngine': 'billing',
                 // Public legal/docs pages — fall back to Resources, which is
                 // the page that links to all of them. Better than 'dashboard'
                 // for unauthenticated visitors (who can't access dashboard).
@@ -772,9 +770,9 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         'newDraft', 'newChannel', 'newDirectMessage', 'addResearchSource',
         'newEventType', 'newContactCategory', 'newDocumentCategory',
         'newChecklistTemplate', 'newWorkflow', 'addProperty', 'addContact',
-        'addUnit', 'addBankAccount', 'newLead', 'newExpenseCategory',
+        'addUnit', 'addBankAccount', 'newExpenseCategory',
         'newDocumentTemplate', 'newDocumentTemplateCategory',
-        'sendIntakeLink', 'sendPostActivationEmail',
+        'sendPostActivationEmail',
     ];
 
     const openModal = React.useCallback((modalType: ModalType, id: string | null = null, context: any = null) => {

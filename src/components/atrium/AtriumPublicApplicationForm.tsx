@@ -13,6 +13,12 @@ import { Building2 as BuildingOfficeIcon, User as UserIcon, DollarSign as Curren
  *   3. They can advance the lead through: Inquiry → Vetted → Lease_Generated → Closed
  */
 export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propertyName: string }> = ({ propertyId, propertyName }) => {
+    // SIMPLIFY FIX: shared links may carry ?unit=<name> from the property
+    // unit card's Share button — show it and attach it to the lead notes so
+    // the manager knows which unit the applicant means.
+    const [unitHint] = useState(() => {
+        try { return new URLSearchParams(window.location.search).get('unit') || ''; } catch { return ''; }
+    });
     const [applicantName, setApplicantName] = useState('');
     const [contactInfo, setContactInfo] = useState('');
     const [proposedRent, setProposedRent] = useState('');
@@ -54,7 +60,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                 applicantName: applicantName.trim(),
                 contactInfo: contactInfo.trim(),
                 proposedRent: proposedRent ? parseFloat(proposedRent) : undefined,
-                notes: notes.trim() || undefined,
+                notes: [notes.trim(), unitHint ? `Applying for unit: ${unitHint}` : ''].filter(Boolean).join('\n') || undefined,
             });
             setSubmitted(true);
         } catch (err: any) {
@@ -86,7 +92,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">Tenancy Application</h2>
-                    <p className="text-sm text-slate-500">Applying for: <span className="font-semibold text-slate-700 dark:text-slate-300">{propertyName}</span></p>
+                    <p className="text-sm text-slate-500">Applying for: <span className="font-semibold text-slate-700 dark:text-slate-300">{propertyName}{unitHint ? ` — Unit ${unitHint}` : ''}</span></p>
                 </div>
             </div>
 

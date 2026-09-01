@@ -258,24 +258,12 @@ const VacancyPipeline: React.FC = () => {
           <p className="text-xs text-slate-500 mt-0.5">Inquiry → Closed conversion tracking</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          {/* Public lead capture: shareable application link. The /apply/:id
-              route was previously orphaned (the form component existed but was
-              never mounted) — this makes the funnel usable end-to-end. */}
-          <button
-            onClick={() => {
-              const url = `${window.location.origin}/apply`;
-              const msg = `Share per-unit application links from a property's detail page (Units tab → Share Application Link), or send prospective tenants to ${url}/<propertyId>.`;
-              if (navigator.clipboard?.writeText) {
-                navigator.clipboard.writeText(url).catch(() => {});
-              }
-              alert(msg);
-            }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold rounded-lg transition-colors sm:w-auto w-full"
-            title="Copy the public application base link"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-            Share Application Link
-          </button>
+          {/* SIMPLIFY FIX: the old "Share Application Link" button was removed —
+              it copied a bare /apply URL (no propertyId) that 404'd, then told
+              users to use a per-unit Share feature that didn't exist anywhere.
+              Real share links now come from each property's unit card (Vacant/
+              Listed units → "Share" chip), which copies a working
+              /apply/:propertyId?unit=<name> link to this pipeline. */}
           <button onClick={() => setShowAdd(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
             <PlusIcon /> Add Applicant
           </button>

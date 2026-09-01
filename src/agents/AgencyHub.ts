@@ -20,8 +20,8 @@ export const getSystemInstruction = (
 ): string => {
     // Determine the active agent mode early to avoid hoisting issues
     const isAtriumMode = currentUser.product === 'property' || 
-                         (currentUser.product === 'unified' && ['atriumEngine', 'properties', 'propertyDetail'].includes(currentHistoryEntry.view)) ||
-                         ['atriumEngine', 'properties', 'propertyDetail'].includes(currentHistoryEntry.view);
+                         (currentUser.product === 'unified' && ['properties', 'propertyDetail'].includes(currentHistoryEntry.view)) ||
+                         ['properties', 'propertyDetail'].includes(currentHistoryEntry.view);
     const isAdmin = currentUser.role === 'Admin';
 
     let localDocsPrompt = "";

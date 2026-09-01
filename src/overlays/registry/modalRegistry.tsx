@@ -71,7 +71,6 @@ const StageChecklistForm = lazy(() => import('../../components/forms/StageCheckl
 const NewResearchNotebookForm = lazy(() => import('../../components/forms/NewResearchNotebookForm').then(m => ({ default: m.default })));
 const NotebookForm = lazy(() => import('../../components/forms/NotebookForm').then(m => ({ default: m.default })));
 const NotePageForm = lazy(() => import('../../components/forms/NotePageForm').then(m => ({ default: m.default })));
-const LeadForm = lazy(() => import('../../components/forms/LeadForm').then(m => ({ default: m.default })));
 const SaveToNoteForm = lazy(() => import('../../components/forms/SaveToNoteForm').then(m => ({ default: m.SaveToNoteForm })));
 const LinkMatterToContactForm = lazy(() => import('../../components/forms/LinkMatterToContactForm').then(m => ({ default: m.LinkMatterToContactForm })));
 
@@ -99,7 +98,6 @@ const LeadCaptureModal = lazy(() => import('../../components/modals/LeadCaptureM
 const WorkspaceSetupModal = lazy(() => import('../../components/modals/WorkspaceSetupModal').then(m => ({ default: m.default })));
 const SendPostActivationEmailModal = lazy(() => import('../../components/modals/SendPostActivationEmailModal').then(m => ({ default: m.default })));
 const FolderPermissionsModal = lazy(() => import('../../components/modals/FolderPermissionsModal').then(m => ({ default: m.default })));
-const SendIntakeLinkModal = lazy(() => import('../../components/modals/SendIntakeLinkModal').then(m => ({ default: m.default })));
 const BatchUploadModal = lazy(() => import('../../components/modals/BatchUploadModal').then(m => ({ default: m.default })));
 const JoinFirmModal = lazy(() => import('../../components/modals/JoinFirmModal').then(m => ({ default: m.default })));
 const MatterIngestionWizard = lazy(() => import('../../components/modals/MatterIngestionWizard').then(m => ({ default: m.default })));
@@ -243,13 +241,6 @@ export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
     title: 'Issue Rent Receipt',
     size: 'lg',
   },
-  recordRentPayment: {
-    // Special wrapping — needs useOfflineQueue, useMutation(api.sentry.addLedgerEntry)
-    needsSpecialWrapping: true,
-    title: 'Record Rent Payment',
-    size: 'sm',
-  },
-
   // ─── Documents ───────────────────────────────────────────────────────
   newDocument: {
     component: DocumentForm as any,
@@ -570,22 +561,6 @@ export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
     size: 'md',
   },
 
-  // ─── Leads & Pipeline ───────────────────────────────────────────────
-  newLead: {
-    component: LeadForm as any,
-    title: 'New Lead',
-    size: 'sm',
-  },
-  activateLead: {
-    component: ConfirmationModal as any,
-    title: 'Convert Lead to Contact?',
-    size: 'sm',
-  },
-  sendIntakeLink: {
-    component: SendIntakeLinkModal as any,
-    title: 'Send Intake Link',
-    size: 'sm',
-  },
   sendPostActivationEmail: {
     component: SendPostActivationEmailModal as any,
     title: 'Send Post-Activation Email',

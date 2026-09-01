@@ -18,7 +18,6 @@ import { MatterForm } from '../forms/MatterForm';
 import { DocumentForm } from '../forms/DocumentForm';
 import TaskForm from '../forms/TaskForm';
 import ContactForm from '../forms/ContactForm';
-import LeadForm from '../forms/LeadForm';
 import { EventForm } from '../forms/EventForm';
 import TaskDetailModal from './TaskDetailModal';
 import WorkflowForm from '../forms/WorkflowForm';
@@ -197,10 +196,6 @@ export const DockedModal: React.FC = () => {
           onAddContact={dataHandlers.handleAddContact} onUpdateContact={dataHandlers.handleUpdateContact} onClose={closeModal} contactToEdit={contact} contactCategories={coreState.contactCategories} initialContext={modalContext?.fields || modalContext} 
           isCompact={true}
         />;
-        break;
-      }
-      case 'newLead': {
-        content = <LeadForm onClose={closeModal} initialContext={modalContext?.fields || modalContext} />;
         break;
       }
       case 'newEvent':

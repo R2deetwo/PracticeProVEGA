@@ -13,7 +13,6 @@ import { useProduct } from '../../contexts/ProductContext';
 import { ClientDocumentsTab } from './ClientDocumentsTab';
 import { timeAgo, getInitials, getUserColor } from '../../utils/colorUtils';
 import { sanitize } from '../../utils/sanitization';
-import { ClientIntakeRecorder } from './ClientIntakeRecorder';
 import { ClientBillingTab } from './ClientBillingTab';
 import ErrorBoundary from '../ErrorBoundary';
 

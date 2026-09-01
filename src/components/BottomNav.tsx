@@ -25,18 +25,11 @@ const MoreIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-const RevenueEngineShieldIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <polyline points="9 12 11 14 15 10" />
-    </svg>
-);
 
 const navItemsList: NavItemDef[] = [
     { view: 'dashboard', text: 'Home', icon: <DashboardIcon />, permission: () => true },
     { view: 'matters', text: 'Matters', icon: <MattersIcon />, permission: () => true },
     { view: 'tasks', text: 'Tasks', icon: <TasksIcon />, permission: () => true },
-    { view: 'atriumEngine', text: 'Revenue', icon: <RevenueEngineShieldIcon />, permission: () => true },
     { view: 'research', text: 'Research', icon: <ResearchIcon />, permission: () => true },
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },
     { view: 'contacts', text: 'Contacts', icon: <ContactsIcon />, permission: () => true },
@@ -143,11 +136,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     });
 
     const filteredNavItems = labeledNavItems.filter(item => {
-        // Revenue monitor standalone view: hidden from bottom nav — Revenue
-        // Monitor is now a tab inside the Financials page. We keep the
-        // 'atriumEngine' view registered for backward compat (deep links
-        // from old notifications etc.) but don't surface it in the nav.
-        if (item.view === 'atriumEngine') return false;
         // Matters: only show for legal product users
         if (item.view === 'matters' && isProperty && !isUnified) return false;
         // Research: only show for legal product users  

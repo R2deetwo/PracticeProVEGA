@@ -66,14 +66,6 @@ export const useFinance = (appState: AppState, actions: any) => {
     }, [appState.contacts, appState.firmDetails, currentUser, actions]);
 
     /**
-     * Record payment for an invoice.
-     */
-    const handlePayInvoice = useCallback(async (id: string) => {
-        await actions.updateItem('invoices', { id, status: InvoiceStatus.Paid, paidDate: new Date().toISOString() }, 'Invoice');
-        addToast("Invoice marked as paid.", { type: 'success' });
-    }, [actions, addToast]);
-
-    /**
      * Update invoice status manually.
      * FIX: when an invoice transitions to Paid, also stamp `paidDate`.
      * Previously only `status` was written, so the "Collected (This Month)"
@@ -152,7 +144,6 @@ export const useFinance = (appState: AppState, actions: any) => {
 
     return {
         handleGenerateInvoice,
-        handlePayInvoice,
         handleUpdateInvoiceStatus,
         handleRevertPayment,
         handleSendInvoiceReminder,

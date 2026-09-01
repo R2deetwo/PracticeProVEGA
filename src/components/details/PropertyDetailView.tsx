@@ -5,7 +5,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon, TrashIcon } from '../../constants';
 import { formatNaira, formatNairaCompact, formatNairaFull, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown, Share2 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
@@ -1137,15 +1137,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                    {isLeased && (
-                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-100 dark:border-zinc-700">
-                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${property.automationSettings?.autoRentDemand ? 'bg-green-500' : 'bg-slate-300'}`} />
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Auto Rent Demands</p>
-                                                <p className="text-2xs text-slate-400">{property.automationSettings?.autoRentDemand ? 'Active — demands sent on arrears' : 'Not enabled'}</p>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* SIMPLIFY FIX: "Auto Rent Demands" status card removed —
+                                        automationSettings.autoRentDemand is never written by any
+                                        form or flow, so this permanently displayed "Not enabled"
+                                        (a lie). Real arrears automation lives in Financials →
+                                        Reminder Rules. */}
                                     {!isLeased && !isSale && (
                                         <p className="text-xs text-slate-400 italic">No automations configured for this property type.</p>
                                     )}
@@ -1711,6 +1707,33 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     >
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
+                                                                    {/* ── Share Application Link (Vacant/Listed units) ──
+                                                                        SIMPLIFY FIX: this is the REAL share surface. The Vacancy
+                                                                        Pipeline's old "Share Application Link" button copied a bare
+                                                                        /apply URL that 404s and told users to come here — but this
+                                                                        chip didn't exist. Copies a working /apply/:propertyId link
+                                                                        (with ?unit= hint) that renders the public application form. */}
+                                                                    {(unit.status === 'Vacant' || unit.status === 'Listed') && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                const sharePropertyId = isEmbeddedUnit(unit) ? property.id : unit.id;
+                                                                                const url = `${window.location.origin}/apply/${sharePropertyId}?unit=${encodeURIComponent(d.name)}`;
+                                                                                if (navigator.clipboard?.writeText) {
+                                                                                    navigator.clipboard.writeText(url)
+                                                                                        .then(() => addToast(`Application link for ${d.name} copied — share it with prospective tenants.`, { type: 'success' }))
+                                                                                        .catch(() => addToast(`Copy failed. Link: ${url}`, { type: 'info', duration: 8000 }));
+                                                                                } else {
+                                                                                    addToast(`Link: ${url}`, { type: 'info', duration: 8000 });
+                                                                                }
+                                                                            }}
+                                                                            className="h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800"
+                                                                            aria-label="Copy application link" title="Copy public application link for this unit"
+                                                                        >
+                                                                            <Share2 className="w-3 h-3" /> Share
+                                                                        </button>
+                                                                    )}
                                                                     {/* More button — reveals full detail card.
                                                                         Gear icon removed per user request — just text now. */}
                                                                     <button
@@ -1860,11 +1883,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             Styled as subtle outline chips with gentle hover fills.
                                                                             Single horizontal flex row with flex-wrap for small screens. */}
                                                                         <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3">
-                                                                            {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 whitespace-nowrap" aria-label="Ledger-only entry (no receipt)" title="Ledger-only entry (no receipt)">
-                                                                                    <Wallet className="w-3.5 h-3.5" /> Ledger
-                                                                                </button>
-                                                                            )}
+                                                                            {/* SIMPLIFY FIX: "Ledger-only" rent entry removed — recording a rent
+                                                                                payment now has ONE flow (Collect Rent: receipt + ledger +
+                                                                                history + fee invoice) from the unit card / Financials. */}
                                                                             {/* STATE GATING — when a notice is served, the "Quit Notice"
                                                                                 button transitions to a muted/secondary state (opacity-60).
                                                                                 Clicking it triggers the supersede confirmation modal
@@ -2083,8 +2104,8 @@ const PropertyDetailViewContent: React.FC = () => {
                         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center justify-between">
                                 <h3 className="text-sm font-bold text-slate-800 dark:text-white">Revenue Breakdown by Unit</h3>
-                                <button onClick={() => navigateTo('atriumEngine')} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                                    Full Revenue Monitor <span>&rarr;</span>
+                                <button onClick={() => navigateTo('billing', null, { billingTab: 'revenue' })} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                    Full Service Charges <span>&rarr;</span>
                                 </button>
                             </div>
                             <div className="overflow-x-auto">
@@ -2166,7 +2187,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                 <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                 <span className="text-sm font-bold text-slate-700 dark:text-zinc-200">Firm-wide Revenue Monitor</span>
                             </div>
-                            <button onClick={() => navigateTo('atriumEngine')} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors">
+                            <button onClick={() => navigateTo('billing', null, { billingTab: 'revenue' })} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors">
                                 Open &rarr;
                             </button>
                         </div>
@@ -2254,14 +2275,14 @@ const PropertyDetailViewContent: React.FC = () => {
                                     <h4 className="font-bold text-slate-900 dark:text-white mb-1">Financial Reconciliation</h4>
                                     <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed mb-3">
                                         All invoices and receipts are synchronized with the{' '}
-                                        <button onClick={() => navigateTo('atriumEngine')} className="font-bold text-emerald-600 hover:underline">Revenue Monitor</button>.
+                                        <button onClick={() => navigateTo('billing', null, { billingTab: 'payments' })} className="font-bold text-emerald-600 hover:underline">Payments & Receipts</button>.
                                     </p>
 
                                     {propertyLedgerEntries.length > 0 && (
                                         <div className="bg-white/60 dark:bg-black/20 rounded-lg border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
                                             <div className="px-4 py-2 bg-emerald-100/50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
                                                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Recent Ledger</span>
-                                                <button onClick={() => navigateTo('atriumEngine')} className="text-2xs font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
+                                                <button onClick={() => navigateTo('billing', null, { billingTab: 'payments' })} className="text-2xs font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
                                             </div>
                                             <div className="divide-y divide-emerald-100 dark:divide-emerald-900/30">
                                                 {propertyLedgerEntries.map(entry => (

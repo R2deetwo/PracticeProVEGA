@@ -22,10 +22,9 @@ import {
     parseFormattedNumber
 } from '../../utils/formatting';
 import { RealEstateUnit } from '../../types';
-import { recordActionUsed } from './MatterIntakeWizard';
-// NOTE: MatterIntakeWizard (the 4-screen Enterprise wizard) is NO LONGER
-// mounted anywhere — see MatterForm's de-duplication note. This file remains
-// only as the home of shared exports (recordActionUsed, autoFormatSuitTitle).
+// SIMPLIFY FIX: MatterIntakeWizard file deleted (retired Enterprise wizard,
+// never mounted). Its recordActionUsed helper wrote a localStorage frequency
+// map that nothing reads — the call site was removed too.
 import { UserAssignment } from './UserAssignment';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 
@@ -453,7 +452,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 createPortal: false,
             } : null;
 
-            if (isLitigation && legalAction) recordActionUsed(legalAction);
+            if (isLitigation && legalAction) { /* frequency tracking removed — no reader */ }
 
             const res = await onAddMatter(matterData, clientPayload);
 

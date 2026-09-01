@@ -865,7 +865,7 @@ export const BroadcastBanner: React.FC = () => {
                                                 'billing': 'billing',
                                                 'settings': 'settings',
                                                 'dashboard': 'dashboard',
-                                                'atriumEngine': 'atriumEngine',
+                                                'atriumEngine': 'billing',
                                             };
                                             const targetView = viewMap[view] || view;
 

@@ -52,11 +52,10 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
     const isManagementOnly = property.rentCollectionMode === 'Management Only (No Rent)';
     const [activeSection, setActiveSection] = useState<'timeline' | 'rent' | 'maintenance'>(isLeased ? 'timeline' : 'timeline');
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addType, setAddType] = useState<'rent' | 'maintenance' | 'event' | 'lease_setup'>('event');
+    const [addType, setAddType] = useState<'maintenance' | 'event' | 'lease_setup'>('event');
     
     // Local state for formatted inputs in the modal
     const [localRentAmount, setLocalRentAmount] = useState<string>('');
-    const [localPaymentAmount, setLocalPaymentAmount] = useState<string>('');
 
     // Controlled Lease State
     const [leaseStart, setLeaseStart] = useState<string>('');
@@ -233,86 +232,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
         const now = new Date().toISOString();
         const today = now.split('T')[0];
 
-        if (addType === 'rent') {
-            const amount = parseFormattedNumber(data.amount as string);
-            const newPayment: RentPayment = {
-                id: uuidv4(),
-                dueDate: data.dueDate as string,
-                paidDate: data.paidDate as string,
-                amount,
-                status: 'paid', // Assuming recorded means paid
-                paymentMethod: data.method as string,
-                receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
-                periodStart: data.periodStart as string,
-                periodEnd: data.periodEnd as string
-            };
-
-            updated.rentPaymentHistory = [newPayment, ...(updated.rentPaymentHistory || [])];
-
-            const firmId = property.firmId || coreState.firmDetails?.id || '';
-            if (firmId && amount > 0) {
-                try {
-                    const tenantContact = matterState.contacts.find(c =>
-                        (c.email && c.email === property.rentalDetails?.tenantEmail) ||
-                        (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
-                        (c.name && c.name === property.rentalDetails?.tenantName)
-                    );
-                    // OFFLINE PATH — queue the ledger entry, the critical
-                    // financial record. The property's rentPaymentHistory
-                    // update (below) will also be queued via the onUpdate
-                    // handler if we add offline support there in the future;
-                    // for now, at least the ledger record survives.
-                    if (!isOnline) {
-                        queueMutation({
-                            mutationName: 'addLedgerEntry',
-                            args: {
-                                firmId,
-                                propertyId: property.id,
-                                unitId: property.id,
-                                tenantId: tenantContact?.id,
-                                amount,
-                                type: 'rent',
-                                status: 'cleared',
-                                channel: (data.method as string) || 'Manual',
-                                description: `Rent payment for ${property.address}`,
-                                period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
-                                userEmail: currentUser?.email,
-                            },
-                            label: `Rent ledger — ${property.address}`,
-                        });
-                        // Don't return — let the property update flow through
-                        // (it goes through onUpdate which is a separate path).
-                    } else {
-                        await addLedgerEntry({
-                            firmId,
-                            propertyId: property.id,
-                            unitId: property.id,
-                            tenantId: tenantContact?.id,
-                            amount,
-                            type: 'rent',
-                            status: 'cleared',
-                            channel: (data.method as string) || 'Manual',
-                            description: `Rent payment for ${property.address}`,
-                            period: data.periodStart && data.periodEnd ? `${data.periodStart} to ${data.periodEnd}` : undefined,
-                            userEmail: currentUser?.email,
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Ledger sync failed for rent payment:', e);
-                    addToast('Payment saved on property, but revenue ledger sync failed.', { type: 'info' });
-                }
-            }
-
-            // Add to timeline
-            const newEvent: PropertyEvent = {
-                id: uuidv4(),
-                type: 'rent_collected',
-                date: data.paidDate || today,
-                description: `Rent payment received via ${data.method}`,
-                amount
-            };
-            updated.trackingTimeline = [newEvent, ...(updated.trackingTimeline || [])];
-        } else if (addType === 'maintenance') {
+        if (addType === 'maintenance') {
             const newRecord: MaintenanceRecord = {
                 id: uuidv4(),
                 date: data.date || today,
@@ -601,9 +521,17 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                 <div className="p-4 border-b border-slate-100 dark:border-zinc-700 flex justify-end">
                     <button
                         onClick={() => { 
-                            const type = activeSection === 'rent' ? 'rent' : activeSection === 'maintenance' ? 'maintenance' : 'event';
+                            if (activeSection === 'rent') {
+                                // SIMPLIFY FIX: rent recording unified — the Collect
+                                // Rent flow (receipt + ledger + rent history +
+                                // management-fee invoice) is now the single way to
+                                // record a rent payment. This page keeps its
+                                // read-only rent history + receipts.
+                                openModal('collectRent', property.id);
+                                return;
+                            }
+                            const type = activeSection === 'maintenance' ? 'maintenance' : 'event';
                             setAddType(type); 
-                            if (type === 'rent') setLocalPaymentAmount(formatNumberWithCommas(property.rentalDetails?.rentAmount));
                             setShowAddModal(true); 
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-primary-500/20 transition-all"
@@ -794,8 +722,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                     <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-bold">
-                                {addType === 'rent' ? 'Record Rent Payment' :
-                                    addType === 'maintenance' ? 'Log Maintenance Request' :
+                                {addType === 'maintenance' ? 'Log Maintenance Request' :
                                         addType === 'lease_setup' ? 'Edit Lease Terms' : 'Add Event'}
                             </h3>
                             <button onClick={() => setShowAddModal(false)}><XMarkIcon className="w-6 h-6 text-slate-400" /></button>
@@ -808,53 +735,6 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                             await handleSave(data);
                         }} className="space-y-4">
 
-                            {addType === 'rent' && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Amount Paid</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₦</span>
-                                            <input autoComplete="off" data-lpignore="true"  
-                                                type="text" 
-                                                name="amount" 
-                                                value={localPaymentAmount}
-                                                onChange={e => setLocalPaymentAmount(formatNumberWithCommas(e.target.value))}
-                                                className="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" 
-                                                required 
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="dueDate" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Paid Date</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="paidDate" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">Period Start</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="periodStart" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">Period End</label>
-                                            <input autoComplete="off" data-lpignore="true"  type="date" name="periodEnd" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
-                                        <select name="method" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800">
-                                            <option value="Transfer">Bank Transfer</option>
-                                            <option value="Cash">Cash</option>
-                                            <option value="Cheque">Cheque</option>
-                                            <option value="POS">POS</option>
-                                        </select>
-                                    </div>
-                                </>
-                            )}
 
                             {addType === 'event' && (
                                 <div className="space-y-4">

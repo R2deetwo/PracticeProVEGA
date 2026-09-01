@@ -114,13 +114,10 @@ import PropertyDetailView from './details/PropertyDetailView';
 import OnboardingTour from './OnboardingTour';
 import ClientDashboard from './client/ClientDashboard';
 import { ClientMatterDetailView } from './client/ClientMatterDetailView';
-import { ClientIntakePortal } from './client/ClientIntakePortal';
 import TenantPortal from './tenant/TenantPortal';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { PortalTermsOfUse } from './PortalTermsOfUse';
-
-import { RevenueMonitor } from './atrium/RevenueMonitor';
 
 import DataProcessingAgreement from './DataProcessingAgreement';
 import CookiePolicy from './CookiePolicy';
@@ -218,9 +215,6 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                 return <ViewWrapper><ClientMatterDetailView /></ViewWrapper>;
             }
 
-            if (view === 'intake' && selectedId) {
-                return <ViewWrapper><ClientIntakePortal /></ViewWrapper>;
-            }
             return <ViewWrapper><ClientDashboard /></ViewWrapper>;
         }
 
@@ -377,14 +371,6 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     </ViewWrapper>
                 );
 
-
-            case 'atriumEngine': return (
-                <ViewWrapper>
-                    <FeatureGuard requiredProduct="property">
-                        <RevenueMonitor />
-                    </FeatureGuard>
-                </ViewWrapper>
-            );
 
             case 'tenantPortal': return (
                 <ViewWrapper>

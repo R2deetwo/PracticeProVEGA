@@ -22,6 +22,10 @@ import ServiceChargeMonitor from './atrium/ServiceChargeMonitor';
 import LedgerManager from './atrium/LedgerManager';
 import VacancyPipeline from './atrium/VacancyPipeline';
 import AutomationCenter from './atrium/AutomationCenter';
+// SIMPLIFY FIX: AtriumInbox moved here from the deleted 'atriumEngine' view
+// (RevenueMonitor) — it was the only one of that view's 5 tabs that didn't
+// already exist as a Financials tab.
+import { AtriumInbox } from './atrium/AtriumInbox';
 
 const getStatusBadgeClass = (status: InvoiceStatus) => {
     switch (status) {
@@ -231,7 +235,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
 
 export const BillingView: React.FC = () => {
     const { financeState } = useFinanceState();
-    const { openModal, navigateTo, closeModal } = useUI();
+    const { openModal, navigateTo, closeModal, currentHistoryEntry } = useUI();
     const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment } = useDataActions();
     const features = useFeatures();
     const { isProperty, isUnified, product } = useProduct();
@@ -241,8 +245,17 @@ export const BillingView: React.FC = () => {
     type ProductScope = 'legal' | 'property' | 'combined';
     const [productScope, setProductScope] = useState<ProductScope>(isUnified ? 'combined' : isProperty ? 'property' : 'legal');
 
-    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'monitor' | 'trust';
-    const [activeTab, setActiveTab] = useState<FinancialsTab>('invoices');
+    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust';
+    const [activeTab, setActiveTab] = useState<FinancialsTab>(() => {
+        const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
+        return t || 'invoices';
+    });
+    // SIMPLIFY FIX: deep links can select a specific Financials tab directly
+    // (e.g. the dashboard "Outstanding Rent" card opens Service Charges).
+    useEffect(() => {
+        const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
+        if (t) setActiveTab(t);
+    }, [currentHistoryEntry.context?.billingTab]);
 
     const allTabs: { id: FinancialsTab; label: string; badge?: string; productTag?: 'Legal' | 'Property' }[] = [
         { id: 'invoices', label: 'Invoices & Demands' },
@@ -253,6 +266,7 @@ export const BillingView: React.FC = () => {
             { id: 'payments', label: 'Payments & Receipts', productTag: 'Property' },
             { id: 'vacancies', label: 'Vacancies', productTag: 'Property' },
             { id: 'automations', label: 'Reminder Rules', productTag: 'Property' },
+            { id: 'inbox', label: 'Inbox', productTag: 'Property' },
         );
     }
     if (features.canUseRetainerAutoBilling) {
@@ -462,6 +476,12 @@ export const BillingView: React.FC = () => {
                 {activeTab === 'automations' && (isProperty || isUnified) && productScope !== 'legal' && (
                     <div className="min-h-[500px]">
                         <AutomationCenter />
+                    </div>
+                )}
+
+                {activeTab === 'inbox' && (isProperty || isUnified) && productScope !== 'legal' && (
+                    <div className="min-h-[500px]">
+                        <AtriumInbox />
                     </div>
                 )}
 

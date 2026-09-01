@@ -17,7 +17,7 @@ interface StatsWidgetProps {
     propertyRevenue?: number;
     activeLeasesCount?: number;
     occupancyRate?: number;
-    navigateTo: (view: View) => void;
+    navigateTo: (view: View, id?: string | null, context?: any) => void;
     isCompact?: boolean;
     isLoading?: boolean;
     currentUser: User;
@@ -38,7 +38,7 @@ interface OutstandingCardProps {
     showInvoices: boolean;
     showRent: boolean;
     isLoading: boolean;
-    navigateTo: (view: View) => void;
+    navigateTo: (view: View, id?: string | null, context?: any) => void;
 }
 
 const OutstandingCard: React.FC<OutstandingCardProps> = ({
@@ -55,7 +55,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     const displayInvoices = showTabs ? activeTab === 'invoices' : showInvoices;
     const value = displayInvoices ? outstandingRevenue : propertyRevenue;
     const label = displayInvoices ? 'Outstanding Invoices' : 'Outstanding Rent';
-    const nav: View = displayInvoices ? 'billing' : 'atriumEngine';
+    const nav: View = 'billing';
     const colorClass = displayInvoices ? 'bg-yellow-500' : 'bg-amber-500';
     const textClass = displayInvoices ? 'text-yellow-500' : 'text-amber-500';
 
@@ -67,7 +67,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     return (
         <div
             className="relative card-premium p-4 halo-hover h-28 cursor-pointer active:scale-[0.98] flex flex-col justify-between group"
-            onClick={() => navigateTo(nav)}
+            onClick={() => navigateTo(nav, null, displayInvoices ? undefined : { billingTab: 'revenue' })}
         >
             {/* Watermark icon in top-right */}
             <div className="absolute top-3 right-3 opacity-20 pointer-events-none">
