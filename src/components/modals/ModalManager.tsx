@@ -48,6 +48,7 @@ import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
 import { StageChecklistForm } from '../forms/StageChecklistForm';
 import NewResearchNotebookForm from '../forms/NewResearchNotebookForm';
 import PropertyForm from '../forms/PropertyForm';
+import { PropertyOwnerPicker } from './PropertyOwnerPicker';
 import CollectRentModal from './CollectRentModal';
 import MergeContactModal from './MergeContactModal';
 import NotebookForm from '../forms/NotebookForm';
@@ -353,59 +354,13 @@ const ModalManager: React.FC = () => {
       if (contact) {
         content = <PropertyForm contact={contact} propertyToEdit={propertyToEdit} activeUnitId={modalContext?.activeUnitId} autoExpandRental={modalContext?.autoExpandRental} autoAddUnit={modalContext?.autoAddUnit} onSave={dataHandlers.onUpdateContactProperties} onClose={closeModal} />;
       } else {
-        // If no contact selected yet, show a selector
+        // Shared owner selector (round-4 dedupe with DockedModal).
         content = (
-          <div className="p-1 sm:p-4">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Select Owner</h3>
-                <p className="text-sm text-slate-500">Select a contact to manage or add properties to their portfolio.</p>
-              </div>
-              <button 
-                onClick={() => openModal('newContact', null, { returnTo: 'newProperty' })}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
-                Add New Contact
-              </button>
-            </div>
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-              {matterState.contacts.length > 0 ? matterState.contacts.sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => openModal('newProperty', c.id)}
-                  className="w-full text-left p-4 rounded-lg border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30/50 transition-all flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold group-hover:bg-primary-100 group-hover:text-primary-600">
-                      {c.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-700 dark:text-zinc-300 group-hover:text-primary-700">{c.name}</p>
-                      <p className="text-xs text-slate-500">{c.category} • {c.email || 'No email'}</p>
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-primary-600 text-white shadow-lg -translate-x-2 group-hover:translate-x-0 transition-all">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                  </div>
-                </button>
-              )) : (
-                <div className="text-center py-20 bg-slate-50 dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                  </div>
-                  <p className="text-slate-500 font-medium mb-6">No contacts found in your workspace.</p>
-                  <button 
-                    onClick={() => openModal('newContact', null, { returnTo: 'newProperty' })}
-                    className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-primary-500/30 transition-all inline-flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
-                    Create First Contact
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <PropertyOwnerPicker
+            contacts={matterState.contacts}
+            onSelect={(contactId) => openModal('newProperty', contactId)}
+            onCreateNew={() => openModal('newContact', null, { returnTo: 'newProperty' })}
+          />
         );
       }
       break;

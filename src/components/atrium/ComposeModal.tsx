@@ -821,8 +821,8 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
           <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">Compose Message</h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400">Preview before sending — all sends are logged</p>
+            <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">Direct Message</h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Send to specific tenants via WhatsApp or Email — every send is logged. For announcements to all residents, use the Notice Board.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none p-1" aria-label="Close">×</button>
         </div>

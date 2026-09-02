@@ -187,10 +187,16 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 .map(p => {
                     const rd = p.rentalDetails || {};
                     const rent = Number(rd.rentAmount) || 0;
-                    const lf = Number(rd.legalFee) || 0;
-                    const af = Number(rd.agencyFee) || 0;
-                    const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
-                    const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
+                    let lf = Number(rd.legalFee) || 0;
+                    let af = Number(rd.agencyFee) || 0;
+                    const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
+                    const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
+                    // Amount-first healing: legacy rows could be saved with a
+                    // percentage but a zero amount (the old % input only
+                    // recomputed the amount on rent/pct edits). Reconstruct the
+                    // amount so the naira input shows what the user meant.
+                    if (lf === 0 && legalPct > 0 && rent > 0) lf = Math.round(rent * (legalPct / 100));
+                    if (af === 0 && agencyPct > 0 && rent > 0) af = Math.round(rent * (agencyPct / 100));
                     return {
                         ...rd,
                         id: p.id,
@@ -213,10 +219,13 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             if (propertyToEdit.rentalDetails) {
                 const rd = propertyToEdit.rentalDetails;
                 const rent = Number(rd.rentAmount) || 0;
-                const lf = Number(rd.legalFee) || 0;
-                const af = Number(rd.agencyFee) || 0;
-                const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
-                const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
+                let lf = Number(rd.legalFee) || 0;
+                let af = Number(rd.agencyFee) || 0;
+                const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
+                const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
+                // Amount-first healing (see the multi-unit branch above).
+                if (lf === 0 && legalPct > 0 && rent > 0) lf = Math.round(rent * (legalPct / 100));
+                if (af === 0 && agencyPct > 0 && rent > 0) af = Math.round(rent * (agencyPct / 100));
                 return [{ 
                     ...rd, 
                     id: propertyToEdit.id, 
@@ -251,10 +260,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             serviceChargeStatus: 'UNPAID' as const,
             outstandingServiceChargeBalance: 0,
             legalFee: 0,
-            legalFeePercentage: 10,
+            legalFeePercentage: 0,
             isLegalNA: false,
             agencyFee: 0,
-            agencyFeePercentage: 10,
+            agencyFeePercentage: 0,
             isAgencyNA: false,
             cautionDeposit: 0,
             isCautionNA: false,
@@ -262,15 +271,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         }];
     });
 
-    // Local string buffers for % inputs so decimal typing (e.g. "2.") isn't snapped to "2"
-    const [agencyPctStr, setAgencyPctStr] = useState<string>(() => String(unitsData[0]?.agencyFeePercentage ?? 10));
-    const [legalPctStr, setLegalPctStr] = useState<string>(() => String(unitsData[0]?.legalFeePercentage ?? 10));
-
-    // Sync % string buffers when switching active unit
-    useEffect(() => {
-        setAgencyPctStr(String(unitsData[activeUnitIndex]?.agencyFeePercentage ?? 10));
-        setLegalPctStr(String(unitsData[activeUnitIndex]?.legalFeePercentage ?? 10));
-    }, [activeUnitIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+    // (Round-4: the % string buffers were removed with the % inputs — the
+    //  amount inputs format directly through formatNumberWithCommas.)
 
     // Jump to the specific unit (when opened from a unit card)
     useEffect(() => {
@@ -308,10 +310,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             serviceChargeStatus: 'UNPAID' as const,
             outstandingServiceChargeBalance: 0,
             legalFee: 0,
-            legalFeePercentage: 10,
+            legalFeePercentage: 0,
             isLegalNA: false,
             agencyFee: 0,
-            agencyFeePercentage: 10,
+            agencyFeePercentage: 0,
             isAgencyNA: false,
             cautionDeposit: 0,
             isCautionNA: false,
@@ -400,10 +402,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         serviceChargeStatus: 'UNPAID' as const,
                         outstandingServiceChargeBalance: 0,
                         legalFee: 0,
-                        legalFeePercentage: 10,
+                        legalFeePercentage: 0,
                         isLegalNA: false,
                         agencyFee: 0,
-                        agencyFeePercentage: 10,
+                        agencyFeePercentage: 0,
                         isAgencyNA: false,
                         cautionDeposit: 0,
                         isCautionNA: false,
@@ -421,7 +423,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [caseNumber, setCaseNumber] = useState(propertyToEdit?.disputeDetails?.caseNumber || '');
     const [court, setCourt] = useState(propertyToEdit?.disputeDetails?.court || '');
     const [opposingParty, setOpposingParty] = useState(propertyToEdit?.disputeDetails?.opposingParty || '');
-    const [disputeStatus, setDisputeStatus] = useState(propertyToEdit?.disputeDetails?.status || '');
+    // (Round-4: disputeStatus state removed — it had no input UI and no
+    //  readers anywhere; the linked matter owns the dispute's real status.)
     const [linkedMatterId, setLinkedMatterId] = useState(propertyToEdit?.matterId || '');
 
     // Sale Specifics
@@ -442,36 +445,32 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             const oldValue = prev[index][field];
             const newUnits = [...prev];
             newUnits[index] = { ...newUnits[index], [field]: value };
-            
-            // Recalculate legalFee / agencyFee if rentAmount, percentage, or N/A changes
+
+            // AMOUNT-FIRST fee model (round-4): the naira amounts are the source
+            // of truth; the legacy percentage fields are derived so older
+            // readers (letters, placeholder registry) keep working.
+            const derivePct = (amount: number, rent: number) =>
+                rent > 0 ? Math.round((amount / rent) * 100) : 0;
+
+            // Rent changed → re-derive percentages from the stored amounts.
             if (field === 'rentAmount') {
                 const rent = Number(value) || 0;
-                const legalPct = newUnits[index].legalFeePercentage ?? 10;
-                const agencyPct = newUnits[index].agencyFeePercentage ?? 10;
-                newUnits[index].legalFee = newUnits[index].isLegalNA ? 0 : Math.round(rent * (legalPct / 100));
-                newUnits[index].agencyFee = newUnits[index].isAgencyNA ? 0 : Math.round(rent * (agencyPct / 100));
+                newUnits[index].legalFeePercentage = newUnits[index].isLegalNA ? 0 : derivePct(newUnits[index].legalFee || 0, rent);
+                newUnits[index].agencyFeePercentage = newUnits[index].isAgencyNA ? 0 : derivePct(newUnits[index].agencyFee || 0, rent);
             }
-            if (field === 'legalFeePercentage') {
-                const pct = Number(value) || 0;
-                const rent = newUnits[index].rentAmount || 0;
-                newUnits[index].legalFee = newUnits[index].isLegalNA ? 0 : Math.round(rent * (pct / 100));
+            // Amount typed → re-derive its percentage.
+            if (field === 'legalFee') {
+                newUnits[index].legalFeePercentage = newUnits[index].isLegalNA ? 0 : derivePct(Number(value) || 0, newUnits[index].rentAmount || 0);
             }
-            if (field === 'agencyFeePercentage') {
-                const pct = Number(value) || 0;
-                const rent = newUnits[index].rentAmount || 0;
-                newUnits[index].agencyFee = newUnits[index].isAgencyNA ? 0 : Math.round(rent * (pct / 100));
+            if (field === 'agencyFee') {
+                newUnits[index].agencyFeePercentage = newUnits[index].isAgencyNA ? 0 : derivePct(Number(value) || 0, newUnits[index].rentAmount || 0);
             }
+            // N/A toggled → zero both the amount and its percentage.
             if (field === 'isLegalNA') {
-                const isNA = !!value;
-                const pct = newUnits[index].legalFeePercentage ?? 10;
-                const rent = newUnits[index].rentAmount || 0;
-                newUnits[index].legalFee = isNA ? 0 : Math.round(rent * (pct / 100));
+                if (value) { newUnits[index].legalFee = 0; newUnits[index].legalFeePercentage = 0; }
             }
             if (field === 'isAgencyNA') {
-                const isNA = !!value;
-                const pct = newUnits[index].agencyFeePercentage ?? 10;
-                const rent = newUnits[index].rentAmount || 0;
-                newUnits[index].agencyFee = isNA ? 0 : Math.round(rent * (pct / 100));
+                if (value) { newUnits[index].agencyFee = 0; newUnits[index].agencyFeePercentage = 0; }
             }
             
             // Auto-calculate Lease End Date
@@ -661,7 +660,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 caseNumber,
                 court,
                 opposingParty,
-                status: disputeStatus
+                status: propertyToEdit?.disputeDetails?.status
             };
         }
 
@@ -953,7 +952,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             caseNumber,
                             court,
                             opposingParty,
-                            status: disputeStatus
+                            status: propertyToEdit?.disputeDetails?.status
                         }
                     }
                 }
@@ -1480,10 +1479,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         serviceChargeStatus: 'UNPAID' as const,
                                         outstandingServiceChargeBalance: 0,
                                         legalFee: 0,
-                                        legalFeePercentage: 10,
+                                        legalFeePercentage: 0,
                                         isLegalNA: false,
                                         agencyFee: 0,
-                                        agencyFeePercentage: 10,
+                                        agencyFeePercentage: 0,
                                         isAgencyNA: false,
                                         cautionDeposit: 0,
                                         isCautionNA: false,
@@ -1651,35 +1650,28 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 )}
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className={labelClass}>Legal Fee (%)</label>
+                                        <label className={labelClass}>Legal Fee (<NairaSymbol />)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
                                         </label>
                                     </div>
+                                    {/* Round-4 SIMPLIFY: amount-first input — users think in naira,
+                                        not percentages. The derived % of rent is shown as a hint.
+                                        (Was: a % input with the naira amount crammed in the corner.) */}
                                     <div className="relative rounded-lg shadow-xs">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
                                             disabled={unitsData[activeUnitIndex].isLegalNA}
-                                            value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : legalPctStr}
-                                            onChange={e => {
-                                                const raw = e.target.value;
-                                                setLegalPctStr(raw);
-                                                if (raw !== '' && !raw.endsWith('.')) {
-                                                    updateUnit(activeUnitIndex, 'legalFeePercentage', parseFormattedNumber(raw));
-                                                }
-                                            }}
-                                            onBlur={() => {
-                                                const parsed = parseFormattedNumber(legalPctStr);
-                                                setLegalPctStr(String(parsed));
-                                                updateUnit(activeUnitIndex, 'legalFeePercentage', parsed);
-                                            }}
-                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
-                                            placeholder="10"
+                                            value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].legalFee || 0)}
+                                            onChange={e => updateUnit(activeUnitIndex, 'legalFee', parseFormattedNumber(e.target.value))}
+                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pl-8 pr-20`}
+                                            placeholder="0.00"
                                         />
-                                        {!unitsData[activeUnitIndex].isLegalNA && (
-                                            <div className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
-                                                ₦{(unitsData[activeUnitIndex].legalFee || 0).toLocaleString()}
+                                        {!unitsData[activeUnitIndex].isLegalNA && (unitsData[activeUnitIndex].legalFee || 0) > 0 && (unitsData[activeUnitIndex].rentAmount || 0) > 0 && (
+                                            <div className="absolute right-3 top-2.5 text-2xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
+                                                {Math.round(((unitsData[activeUnitIndex].legalFee || 0) / (unitsData[activeUnitIndex].rentAmount || 1)) * 100)}% of rent
                                             </div>
                                         )}
                                     </div>
@@ -1689,35 +1681,26 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className={labelClass}>Agency Fee (%)</label>
+                                        <label className={labelClass}>Agency Fee (<NairaSymbol />)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
                                         </label>
                                     </div>
+                                    {/* Round-4 SIMPLIFY: amount-first input (see Legal Fee note). */}
                                     <div className="relative rounded-lg shadow-xs">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
                                             disabled={unitsData[activeUnitIndex].isAgencyNA}
-                                            value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : agencyPctStr}
-                                            onChange={e => {
-                                                const raw = e.target.value;
-                                                setAgencyPctStr(raw);
-                                                if (raw !== '' && !raw.endsWith('.')) {
-                                                    updateUnit(activeUnitIndex, 'agencyFeePercentage', parseFormattedNumber(raw));
-                                                }
-                                            }}
-                                            onBlur={() => {
-                                                const parsed = parseFormattedNumber(agencyPctStr);
-                                                setAgencyPctStr(String(parsed));
-                                                updateUnit(activeUnitIndex, 'agencyFeePercentage', parsed);
-                                            }}
-                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
-                                            placeholder="10"
+                                            value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].agencyFee || 0)}
+                                            onChange={e => updateUnit(activeUnitIndex, 'agencyFee', parseFormattedNumber(e.target.value))}
+                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pl-8 pr-20`}
+                                            placeholder="0.00"
                                         />
-                                        {!unitsData[activeUnitIndex].isAgencyNA && (
-                                            <div className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
-                                                ₦{(unitsData[activeUnitIndex].agencyFee || 0).toLocaleString()}
+                                        {!unitsData[activeUnitIndex].isAgencyNA && (unitsData[activeUnitIndex].agencyFee || 0) > 0 && (unitsData[activeUnitIndex].rentAmount || 0) > 0 && (
+                                            <div className="absolute right-3 top-2.5 text-2xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
+                                                {Math.round(((unitsData[activeUnitIndex].agencyFee || 0) / (unitsData[activeUnitIndex].rentAmount || 1)) * 100)}% of rent
                                             </div>
                                         )}
                                     </div>

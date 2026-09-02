@@ -6,6 +6,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { AtriumInboundMessage, AutomationChannel, AuditTrailEntry } from '../../types';
 import { ComposeModal, ComposeModalPrefill } from './ComposeModal';
+import { PaymentProofsTab } from './PaymentProofsTab';
 import { CommunicationPrintView } from './CommunicationPrintView';
 import { 
     Mail as EnvelopeIcon, 
@@ -22,6 +23,7 @@ import {
     ArrowDownLeft as ArrowDownLeftIcon,
     ChevronDown as ChevronDownIcon,
     FileText as FileTextIcon,
+    Receipt as ReceiptIcon,
 } from 'lucide-react';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { translateError } from '../../utils/errorTranslator';
@@ -56,7 +58,7 @@ const MSG_TYPE_LABELS: Record<string, string> = {
   maintenance_update: 'Maintenance',
 };
 
-type InboxTab = 'inbox' | 'audit';
+type InboxTab = 'inbox' | 'proofs' | 'audit';
 
 export const AtriumInbox: React.FC = () => {
     const { currentUser } = useAuth();
@@ -98,6 +100,16 @@ export const AtriumInbox: React.FC = () => {
 
     // Automation logs for quick counts
     const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip') || [];
+
+    // Payment proof submissions (round-4: firm-side review). Badge counts
+    // only the ones awaiting action so a reviewed pile doesn't shout.
+    const paymentProofs = useQuery(
+        api.portals.getPaymentProofsByFirm,
+        firmId ? { firmId } : 'skip'
+    );
+    const pendingProofs = (paymentProofs || []).filter(
+        (p: any) => !['approved', 'verified', 'rejected', 'declined'].includes(p.status)
+    ).length;
     
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
@@ -291,6 +303,22 @@ export const AtriumInbox: React.FC = () => {
                     )}
                 </button>
                 <button
+                    onClick={() => setActiveTab('proofs')}
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
+                        activeTab === 'proofs'
+                            ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+                            : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600'
+                    }`}
+                >
+                    <ReceiptIcon className="w-3.5 h-3.5" />
+                    Payment Proofs
+                    {pendingProofs > 0 && (
+                        <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-amber-600 text-white">
+                            {pendingProofs}
+                        </span>
+                    )}
+                </button>
+                <button
                     onClick={() => setActiveTab('audit')}
                     className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
                         activeTab === 'audit'
@@ -309,7 +337,14 @@ export const AtriumInbox: React.FC = () => {
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'inbox' ? (
+            {activeTab === 'proofs' ? (
+                /* ─── PAYMENT PROOFS REVIEW ────────────────────────── */
+                <PaymentProofsTab
+                    firmId={firmId || undefined}
+                    userEmail={currentUser?.email || undefined}
+                    properties={coreState.properties || []}
+                />
+            ) : activeTab === 'inbox' ? (
                 /* ─── INBOX VIEW ────────────────────────────────────────────────── */
                 <div className="flex flex-1 sm:overflow-hidden">
                     {/* Threads List - Hidden on mobile if thread selected */}
