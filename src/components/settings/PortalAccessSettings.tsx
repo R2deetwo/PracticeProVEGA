@@ -978,7 +978,7 @@ export const PortalAccessSettings: React.FC = () => {
       let hardDeletedCount = 0;
       for (const id of invitesToHardDelete) {
         try {
-          await hardDeleteInvite({ inviteId: id as any });
+          await hardDeleteInvite({ inviteId: id as any, userEmail: currentUser?.email || undefined });
           hardDeletedCount++;
         } catch (e: any) {
           // Already deleted by Step 1 (new backend), or already gone — non-fatal

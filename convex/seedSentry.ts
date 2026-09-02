@@ -1,7 +1,13 @@
 import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+import { requireFounderCaller } from "./callerAuth";
 
+// Round 8 auth retrofit: Founder-only ops tool (pass founderEmail). Was a
+// fully unauthenticated no-args mutation that DELETED + re-inserted rows.
 export const seedDemo = mutation({
-  handler: async (ctx) => {
+  args: { founderEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireFounderCaller(ctx, { userEmail: args.founderEmail });
     const firmId = "atrium-demo-firm-id";
     
     // Clear existing to avoid duplicates if run multiple times

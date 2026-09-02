@@ -263,13 +263,11 @@ export const getBroadcastHistory = query({
  * non-sensitive platform announcements. The worst case is a user
  * deletes their own copy of a broadcast — no privilege escalation.
  */
-export const deleteBroadcastNotification = mutation({
-  args: { notificationId: v.string() },
-  handler: async (ctx, args) => {
-    await ctx.db.delete(args.notificationId as any);
-    return { success: true };
-  },
-});
+// Round 8 auth retrofit: deleteBroadcastNotification was DELETED (zero
+// callers). It deleted ANY notification row by raw id with no auth — the
+// "worst case" comment above understated it: an anonymous caller could
+// delete ANY user's notifications, not just their own broadcast copy.
+
 
 /**
  * getActiveBroadcastsForAdmin

@@ -1,11 +1,22 @@
 
-import { query, mutation, internalMutation } from "./_generated/server";
+import { mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { requireStaffCaller } from "./callerAuth";
 
 /**
  * mutation: trackEvent
  * Used to record an analytics event from the app.
  * Compatible with the Founder's Dashboard Project.
+ *
+ * Round 8 auth retrofit: firmId/userId were caller-supplied and trusted —
+ * anyone could forge analytics rows for any firm/user. The caller is now
+ * resolved against the users table and firm-scoped.
+ *
+ * Round 8 dead-code removal: getUsersList / getFirmsList (no-args dumps of
+ * every user email + firm directory), getDashboardData (global snapshots),
+ * getUserActivity / getFirmActivity (cross-firm analytics feeds) all had
+ * ZERO callers after the admin dashboard redesign and leaked cross-firm
+ * data to any unauthenticated caller. They were deleted.
  */
 export const trackEvent = mutation({
   args: {
@@ -13,8 +24,14 @@ export const trackEvent = mutation({
     userId: v.string(),
     event: v.string(),
     properties: v.any(),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, {
+      userEmail: args.userEmail,
+      userId: args.userId,
+      firmId: args.firmId,
+    });
     await ctx.db.insert("analytics_events", {
       firmId: args.firmId,
       userId: args.userId,
@@ -98,7 +115,7 @@ export const aggregateDailyMetrics = internalMutation({
           q.eq("firmId", firm._id as string).eq("date", isoPrevDate)
         )
         .first();
-      
+
       const matterGrowth = matters.length - (prevSnapshot?.totalMatters || 0);
 
       // Score 0-100: weighted average (base 50, +10 per login, +5 per new matter)
@@ -122,101 +139,4 @@ export const aggregateDailyMetrics = internalMutation({
       }
     }
   },
-});
-
-/**
- * query: getDashboardData
- * Retrives data for charts in the analytics dashboard.
- */
-export const getDashboardData = query({
-  args: { firmId: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    if (args.firmId) {
-      // Individual Firm View
-      const snapshots = await ctx.db
-        .query("usage_snapshots")
-        .withIndex("by_firm_date", (q) => q.eq("firmId", args.firmId as string))
-        .take(365);
-      
-      const health = await ctx.db
-        .query("firm_health_scores")
-        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId as string))
-        .first();
-
-      return { snapshots, health: health?.score || 0 };
-    } else {
-       // Global Founder View: Last 30 days of snapshots
-       const snapshots = await ctx.db.query("usage_snapshots").take(1000);
-       const firms = await ctx.db.query("firms").take(500);
-       const users = await ctx.db.query("users").take(500);
-       const healthScores = await ctx.db.query("firm_health_scores").take(500);
-       
-       const avgHealth = healthScores.length > 0 
-           ? healthScores.reduce((sum, h) => sum + h.score, 0) / healthScores.length
-           : 0;
-
-       return { 
-           globalSnapshots: snapshots.slice(-30),
-           firmsCount: firms.length,
-           usersCount: users.length,
-           avgHealth
-       };
-    }
-  },
-});
-
-export const getUserActivity = query({
-    args: { userId: v.string() },
-    handler: async (ctx, args) => {
-        return await ctx.db
-            .query("analytics_events")
-            .withIndex("by_user", (q) => q.eq("userId", args.userId))
-            .take(500);
-    }
-});
-
-export const getFirmActivity = query({
-    args: { firmId: v.string() },
-    handler: async (ctx, args) => {
-        return await ctx.db
-            .query("analytics_events")
-            .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-            .take(1000);
-    }
-});
-
-/**
- * query: getUsersList
- * Returns a full directory of all users across all firms.
- */
-export const getUsersList = query({
-    args: {},
-    handler: async (ctx) => {
-        const users = await ctx.db.query("users").take(500);
-        const presence = await ctx.db.query("presence").take(500);
-        
-        return users.map(u => ({
-            id: u._id,
-            email: u.email,
-            role: u.role,
-            firmId: u.firmId,
-            isActive: presence.some((p: any) => p.userId === u._id && p.updatedAt > (Date.now() - 15 * 60 * 1000))
-        }));
-    }
-});
-
-/**
- * query: getFirmsList
- * Returns a full directory of all firms on the platform.
- */
-export const getFirmsList = query({
-    args: {},
-    handler: async (ctx) => {
-        const firms = await ctx.db.query("firms").take(500);
-        return firms.map(f => ({
-            id: f._id,
-            name: f.name,
-            createdAt: f._creationTime
-        }));
-    }
 });

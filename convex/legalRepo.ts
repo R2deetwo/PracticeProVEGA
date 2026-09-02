@@ -1,10 +1,18 @@
 import { query, mutation, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
+import { resolveCaller } from "./callerAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LEGAL MODULES — CRUD
+// LEGAL MODULES — catalog reads
 // ─────────────────────────────────────────────────────────────────────────────
+// Round 8 auth retrofit: this module previously exported 14 public functions.
+// Seven had zero callers AND no auth: upsertModule / deleteModule / addStatute
+// (wrote the shared legal library), logUsage / logAloaModuleUsage (spoofable
+// telemetry), getArchivedNotes + restoreNote (read/restored ANY firm's notes).
+// All seven were deleted. The live license-management surfaces are now
+// caller-verified: Founders may manage any firm's licenses (the Founder App
+// admission rule); firm staff may only manage their own firm's.
 
 export const getAllModules = query({
     args: {},
@@ -20,46 +28,6 @@ export const getModulesByCategory = query({
             .query("legal_modules")
             .withIndex("by_category", q => q.eq("category", category))
             .take(100);
-    },
-});
-
-export const upsertModule = mutation({
-    args: {
-        moduleKey: v.string(),
-        name: v.string(),
-        shortName: v.string(),
-        category: v.string(),
-        jurisdiction: v.string(),
-        authority: v.string(),
-        version: v.optional(v.string()),
-        description: v.optional(v.string()),
-        coverageAreas: v.array(v.string()),
-        primaryMatterTypes: v.array(v.string()),
-        status: v.string(),
-        isBundled: v.boolean(),
-        lastUpdated: v.optional(v.string()),
-        pricingType: v.optional(v.string()),
-        priceAmount: v.optional(v.number()),
-        currency: v.optional(v.string()),
-        billingInterval: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const existing = await ctx.db
-            .query("legal_modules")
-            .withIndex("by_moduleKey", q => q.eq("moduleKey", args.moduleKey))
-            .first();
-        if (existing) {
-            await ctx.db.patch(existing._id, args);
-            return existing._id;
-        }
-        return await ctx.db.insert("legal_modules", args);
-    },
-});
-
-export const deleteModule = mutation({
-    args: { id: v.id("legal_modules") },
-    handler: async (ctx, { id }) => {
-        await ctx.db.delete(id);
     },
 });
 
@@ -107,28 +75,6 @@ export const searchStatutes = action({
     },
 });
 
-export const addStatute = mutation({
-    args: {
-        moduleKey: v.string(),
-        title: v.string(),
-        year: v.optional(v.number()),
-        chapter: v.optional(v.string()),
-        documentType: v.optional(v.string()),
-        court: v.optional(v.string()),
-        parties: v.optional(v.string()),
-        suitNumber: v.optional(v.string()),
-        dateOfDelivery: v.optional(v.string()),
-        fullText: v.optional(v.string()),
-        summary: v.optional(v.string()),
-        citation: v.optional(v.string()),
-        tags: v.array(v.string()),
-        sourceUrl: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        return await ctx.db.insert("statutes", args);
-    },
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // FIRM LICENSES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -144,44 +90,85 @@ export const getLicensesForFirm = query({
     },
 });
 
+/**
+ * All licenses, scoped by caller: Founders see every firm's licenses;
+ * firm staff see only their own firm's (previously ANY caller received
+ * the full cross-firm licensing table).
+ */
 export const getAllLicenses = query({
-    args: {},
-    handler: async (ctx) => {
-        return await ctx.db.query("firm_licenses").take(500);
+    args: { userEmail: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        if (String(caller.role || "") === "Founder") {
+            return await ctx.db.query("firm_licenses").take(500);
+        }
+        return await ctx.db
+            .query("firm_licenses")
+            .withIndex("by_firmId", q => q.eq("firmId", caller.firmId as any))
+            .take(500);
     },
 });
 
+/**
+ * Grant a module license. Founders may grant to any firm; firm staff may
+ * only license their own firm (previously any caller could grant any firm
+ * an Enterprise plan — a billing bypass).
+ */
 export const grantLicense = mutation({
     args: {
         firmId: v.string(),
         moduleKey: v.string(),
         plan: v.string(),
+        userEmail: v.optional(v.string()),
     },
-    handler: async (ctx, { firmId, moduleKey, plan }) => {
+    handler: async (ctx, args) => {
+        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const isFounder = String(caller.role || "") === "Founder";
+        if (!isFounder) {
+            const firmId = String(caller.firmId || "");
+            if (!firmId || firmId !== String(args.firmId)) {
+                throw new Error(
+                    "Not authorized: staff may only license their own firm. Cross-firm grants require a Founder."
+                );
+            }
+        }
+
         const existing = await ctx.db
             .query("firm_licenses")
-            .withIndex("by_firmId_moduleKey", q => q.eq("firmId", firmId).eq("moduleKey", moduleKey))
+            .withIndex("by_firmId_moduleKey", q => q.eq("firmId", args.firmId).eq("moduleKey", args.moduleKey))
             .first();
         if (existing) {
-            await ctx.db.patch(existing._id, { isActive: true, plan, revokedAt: undefined });
+            await ctx.db.patch(existing._id, { isActive: true, plan: args.plan, revokedAt: undefined });
             return existing._id;
         }
         return await ctx.db.insert("firm_licenses", {
-            firmId,
-            moduleKey,
+            firmId: args.firmId,
+            moduleKey: args.moduleKey,
             isActive: true,
-            plan,
+            plan: args.plan,
             grantedAt: new Date().toISOString(),
         });
     },
 });
 
+/** Revoke a module license — same Founder/staff-own-firm rule as grantLicense. */
 export const revokeLicense = mutation({
-    args: { firmId: v.string(), moduleKey: v.string() },
-    handler: async (ctx, { firmId, moduleKey }) => {
+    args: { firmId: v.string(), moduleKey: v.string(), userEmail: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const isFounder = String(caller.role || "") === "Founder";
+        if (!isFounder) {
+            const firmId = String(caller.firmId || "");
+            if (!firmId || firmId !== String(args.firmId)) {
+                throw new Error(
+                    "Not authorized: staff may only revoke their own firm's licenses."
+                );
+            }
+        }
+
         const license = await ctx.db
             .query("firm_licenses")
-            .withIndex("by_firmId_moduleKey", q => q.eq("firmId", firmId).eq("moduleKey", moduleKey))
+            .withIndex("by_firmId_moduleKey", q => q.eq("firmId", args.firmId).eq("moduleKey", args.moduleKey))
             .first();
         if (license) {
             await ctx.db.patch(license._id, { isActive: false, revokedAt: new Date().toISOString() });
@@ -193,19 +180,30 @@ export const revokeLicense = mutation({
 // USAGE LOGS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Module usage logs, scoped by caller: Founders see all firms; staff see
+ * their own firm only (previously returned the global cross-firm feed).
+ */
 export const getUsageLogs = query({
     args: {
+        userEmail: v.optional(v.string()),
         firmId: v.optional(v.string()),
         moduleKey: v.optional(v.string()),
     },
-    handler: async (ctx, { firmId, moduleKey }) => {
-        if (firmId) {
+    handler: async (ctx, args) => {
+        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const isFounder = String(caller.role || "") === "Founder";
+        // Non-founders are pinned to their own firm regardless of args.
+        const scopeFirmId = isFounder ? args.firmId : String(caller.firmId || "");
+
+        if (scopeFirmId) {
             return await ctx.db
                 .query("module_usage_logs")
-                .withIndex("by_firmId", q => q.eq("firmId", firmId))
+                .withIndex("by_firmId", q => q.eq("firmId", scopeFirmId))
                 .order("desc")
                 .take(500);
         }
+        const moduleKey = args.moduleKey;
         if (moduleKey) {
             return await ctx.db
                 .query("module_usage_logs")
@@ -215,69 +213,4 @@ export const getUsageLogs = query({
         }
         return await ctx.db.query("module_usage_logs").order("desc").take(500);
     },
-});
-
-export const logUsage = mutation({
-    args: {
-        firmId: v.string(),
-        moduleKey: v.string(),
-        action: v.string(),
-        sourceType: v.string(),
-    },
-    handler: async (ctx, args) => {
-        await ctx.db.insert("module_usage_logs", {
-            ...args,
-            loggedAt: new Date().toISOString(),
-        });
-    },
-});
-
-/**
- * Specifically used by ARIA to log usage while attributing the source
- */
-export const logAloaModuleUsage = mutation({
-    args: {
-        firmId: v.string(),
-        moduleKey: v.string(),
-        query: v.string(),
-        sourceType: v.literal("module"),
-    },
-    handler: async (ctx, args) => {
-        await ctx.db.insert("module_usage_logs", {
-            firmId: args.firmId,
-            moduleKey: args.moduleKey,
-            action: `ARIA Query: ${args.query}`,
-            sourceType: "module",
-            loggedAt: new Date().toISOString(),
-        });
-    },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NOTES ARCHIVE
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getArchivedNotes = query({
-    args: { contextType: v.optional(v.string()) },
-    handler: async (ctx, args) => {
-        let q = ctx.db.query("notePages")
-            .filter(qFilter => qFilter.neq(qFilter.field("archivedAt"), undefined));
-        
-        if (args.contextType && args.contextType !== 'all') {
-             q = q.filter(qFilter => qFilter.eq(qFilter.field("contextType"), args.contextType));
-        }
-        
-        return await q.collect();
-    }
-});
-
-export const restoreNote = mutation({
-    args: { id: v.id("notePages") },
-    handler: async (ctx, args) => {
-        const note = await ctx.db.get(args.id);
-        if (!note) {
-            throw new Error("Note not found");
-        }
-        await ctx.db.patch(args.id, { archivedAt: undefined });
-    }
 });

@@ -1,13 +1,18 @@
 import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+import { requireFounderCaller } from "./callerAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SEED FUNCTION FOR LAW REPOSITORY
 // Run this via the Convex dashboard or: npx convex run seedLegalRepo:seed
+// Round 8 auth retrofit: now Founder-only (pass founderEmail). Was a fully
+// unauthenticated no-args mutation writing the shared legal library.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const seed = mutation({
-    args: {},
-    handler: async (ctx) => {
+    args: { founderEmail: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        await requireFounderCaller(ctx, { userEmail: args.founderEmail });
         const modules = [
             {
                 moduleKey: "lagos_hc_civil_2019",

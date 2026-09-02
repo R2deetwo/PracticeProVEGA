@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { LEGAL_MODULES, LegalModule, ModuleCategory } from '../../utils/legalModules';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
     BookOpenIcon, 
     ShieldCheckIcon, 
@@ -169,7 +170,10 @@ const ModuleCard: React.FC<{ module: LegalModule }> = ({ module }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
-    const allLicenses = useQuery(api.legalRepo.getAllLicenses) || [];
+    // Round 8 auth retrofit: pass the caller's email for server-side verification.
+    const { currentUser } = useAuth() as any;
+    const userEmail = currentUser?.email || undefined;
+    const allLicenses = useQuery(api.legalRepo.getAllLicenses, userEmail ? { userEmail } : {}) || [];
     const allModules = useQuery(api.legalRepo.getAllModules) || [];
     const grantLicenseMutation = useMutation(api.legalRepo.grantLicense);
     const revokeLicenseMutation = useMutation(api.legalRepo.revokeLicense);
@@ -183,7 +187,8 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
             await grantLicenseMutation({
                 firmId: newLicense.targetFirmId,
                 moduleKey: newLicense.moduleKey,
-                plan: newLicense.plan
+                plan: newLicense.plan,
+                userEmail
             });
             setShowGrant(false);
             setNewLicense({ targetFirmId: '', moduleKey: '', plan: 'Enterprise' });
@@ -299,14 +304,14 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                                         <td className="py-4 px-6 text-right">
                                             {l.isActive ? (
                                                 <button 
-                                                    onClick={() => revokeLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey })}
+                                                    onClick={() => revokeLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey, userEmail })}
                                                     className="text-3xs font-black text-rose-500/80 hover:text-rose-600 uppercase tracking-tight hover:underline"
                                                 >
                                                     Revoke
                                                 </button>
                                             ) : (
                                                 <button 
-                                                    onClick={() => grantLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey, plan: l.plan })}
+                                                    onClick={() => grantLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey, plan: l.plan, userEmail })}
                                                     className="text-3xs font-black text-emerald-600/80 hover:text-emerald-700 uppercase tracking-tight hover:underline"
                                                 >
                                                     Reactivate
@@ -336,7 +341,11 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const UsageLogsTab: React.FC = () => {
-    const usageLogs = useQuery(api.legalRepo.getUsageLogs, {}) || [];
+    // Round 8 auth retrofit: pass the caller's email — the server scopes
+    // logs to their firm (Founders see all firms).
+    const { currentUser } = useAuth() as any;
+    const userEmail = currentUser?.email || undefined;
+    const usageLogs = useQuery(api.legalRepo.getUsageLogs, userEmail ? { userEmail } : 'skip') || [];
     const allModules = useQuery(api.legalRepo.getAllModules) || [];
 
     return (

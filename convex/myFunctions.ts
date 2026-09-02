@@ -6,6 +6,7 @@ import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
 import { numericCode, codeFromCharset } from "./secureRandom";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
+import { requireStaffCaller, requireFounderCaller, assertSameFirm } from "./callerAuth";
 import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
 
@@ -3236,7 +3237,7 @@ export const createTask = mutation({
  * Unlike the frontend logActivity (which goes through createItem),
  * this is guaranteed to execute even if the client disconnects.
  */
-export const logActivity = mutation({
+export const logActivity = internalMutation({
   args: {
     firmId: v.string(),
     userId: v.optional(v.string()),
@@ -4862,6 +4863,8 @@ export const getAloaMessages = query({
 export const createAloaConversation = mutation({
   args: { firmId: v.string(), userId: v.string(), title: v.string() },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: resolve the caller, verify firm scope.
+    await requireStaffCaller(ctx, { userId: args.userId, firmId: args.firmId });
     return await ctx.db.insert("aloaConversations", {
       firmId: args.firmId,
       userId: args.userId,
@@ -4901,8 +4904,18 @@ export const saveAloaMessage = mutation({
 });
 
 export const deleteAloaConversation = mutation({
-  args: { conversationId: v.string() },
+  args: { conversationId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: the caller must belong to the conversation's firm.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const conversation = await ctx.db
+      .query("aloaConversations")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
+      .collect()
+      .then((rows: any[]) => rows.find((r: any) => String(r._id) === String(args.conversationId)));
+    if (!conversation) {
+      throw new Error("Conversation not found in your firm.");
+    }
     // Delete messages first
     const messages = await ctx.db
       .query("aloaMessages")
@@ -4919,10 +4932,14 @@ export const deleteAloaConversation = mutation({
 
 
 export const markAloaActionCompleted = mutation({
-  args: { messageId: v.id("aloaMessages") },
+  args: { messageId: v.id("aloaMessages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: verify the message belongs to the caller's firm.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
     const msg = await ctx.db.get(args.messageId);
-    if (msg && msg.toolAction) {
+    if (!msg) throw new Error("Message not found");
+    assertSameFirm(caller, msg.firmId as any);
+    if (msg.toolAction) {
       await ctx.db.patch(args.messageId, {
         toolAction: { ...msg.toolAction, isCompleted: true }
       });
@@ -5188,7 +5205,10 @@ export const adminForceVerify = mutation({
  * Returns { success: false } if the firm has hit its monthly cap,
  * prompting the caller to surface an upgrade CTA instead of sending.
  */
-export const incrementWhatsAppQuota = mutation({
+export const incrementWhatsAppQuota = internalMutation({
+  // Round 8 auth retrofit: internal-only. Was a PUBLIC mutation — any
+  // internet caller could inflate any firm's WhatsApp quota by spamming it.
+  // Its only caller is communications.sendWhatsApp (server-side).
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
     const firm = await ctx.db.get(args.firmId as any) as any;
@@ -5245,8 +5265,12 @@ export const resetWhatsAppQuotaMonthly = internalMutation({
  * that replaces the entire units array.
  */
 export const addUnitToProperty = mutation({
-  args: { propertyId: v.string(), firmId: v.string(), unitData: v.any() },
+  args: { propertyId: v.string(), firmId: v.string(), unitData: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: firmId was caller-supplied and only checked
+    // against the property (spoofable — pass the victim's firmId). Resolve
+    // the caller and verify the firm is THEIRS.
+    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
     const { propertyId, firmId, unitData } = args;
     let property: any = null;
     try { property = await ctx.db.get(propertyId as any); } catch (e) {}
@@ -5273,8 +5297,10 @@ export const addUnitToProperty = mutation({
  * Dedicated mutation so we never accidentally overwrite sibling units.
  */
 export const removeUnitFromProperty = mutation({
-  args: { propertyId: v.string(), firmId: v.string(), unitId: v.string() },
+  args: { propertyId: v.string(), firmId: v.string(), unitId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: same spoofable-firmId fix as addUnitToProperty.
+    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
     const { propertyId, firmId, unitId } = args;
     let property: any = null;
     try { property = await ctx.db.get(propertyId as any); } catch (e) {}
@@ -5311,6 +5337,12 @@ export const setMatterPrivacy = mutation({
   },
   handler: async (ctx, args) => {
     const { matterId, firmId, isPrivate, requestUserId } = args;
+
+    // Round 8 auth retrofit: firmId and requestUserId were both caller-
+    // supplied, so an attacker could pass a victim firm's id plus an
+    // assigned user's id and satisfy every check. Resolve requestUserId to
+    // a real user and verify the firm is theirs.
+    await requireStaffCaller(ctx, { userId: requestUserId, firmId });
 
     let matter: any = null;
     try { matter = await ctx.db.get(matterId as any); } catch (e) { throw new Error("Matter not found"); }
@@ -6610,10 +6642,10 @@ export const purgeStalePendingAddons = mutation({
     founderEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    if (!FOUNDER_EMAILS.includes(args.founderEmail)) {
-      throw new Error("Only the founder can purge stale add-on requests");
-    }
+    // Round 8 auth retrofit: the founderEmail allowlist was spoofable —
+    // knowing founder@practicepro.ng was enough. Resolve the user and
+    // require the Founder role (the Founder App admission rule).
+    await requireFounderCaller(ctx, { userEmail: args.founderEmail });
 
     const CUTOFF_HOURS = 72;
     const cutoffTime = new Date(Date.now() - CUTOFF_HOURS * 60 * 60 * 1000).toISOString();
@@ -7267,10 +7299,10 @@ export const updateOrgPayoutDetails = mutation({
     founderEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    if (!FOUNDER_EMAILS.includes(args.founderEmail)) {
-      throw new Error("Only the founder can update payout details");
-    }
+    // Round 8 auth retrofit: the hardcoded FOUNDER_EMAILS allowlist only
+    // proved the caller KNEW a founder address. Resolve the user and
+    // require the Founder role (the Founder App admission rule).
+    await requireFounderCaller(ctx, { userEmail: args.founderEmail });
 
     // Validate NUBAN: 10 digits
     if (!/^\d{10}$/.test(args.accountNumber)) {

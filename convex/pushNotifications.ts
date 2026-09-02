@@ -25,6 +25,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { resolveCaller, assertSameFirm } from "./callerAuth";
 
 // ─── Token Registration ──────────────────────────────────────────────────────
 
@@ -37,6 +38,12 @@ export const registerPushToken = mutation({
     deviceName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: userId was trusted as-is — any caller could
+    // register push tokens against a victim's account. Resolve the caller
+    // (ANY role — portal users on mobile also register push tokens) and,
+    // when a firmId is supplied, require it to be the caller's own firm.
+    const caller = await resolveCaller(ctx, { userId: args.userId });
+    if (args.firmId) assertSameFirm(caller, args.firmId);
     const now = Date.now();
 
     // Check if token already exists
@@ -75,8 +82,22 @@ export const registerPushToken = mutation({
 });
 
 export const unregisterPushToken = mutation({
-  args: { token: v.string() },
+  args: { token: v.string(), userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: token-only unregistration let any caller
+    // knock another user's device out of the notification loop (silent
+    // DoS). When the token record exists, the caller must own it.
+    if (args.userId) {
+      const caller = await resolveCaller(ctx, { userId: args.userId });
+      const owned = await ctx.db
+        .query("user_push_tokens")
+        .withIndex("by_token", (q: any) => q.eq("token", args.token))
+        .first();
+      if (owned && String(owned.userId) !== String(caller._id)) {
+        throw new Error("Not authorized: this push token belongs to a different user.");
+      }
+    }
+
     const existing = await ctx.db
       .query("user_push_tokens")
       .withIndex("by_token", (q: any) => q.eq("token", args.token))
@@ -322,64 +343,11 @@ export const notifyAppUpdate = mutation({
 // Convex's default runtime doesn't support Node.js APIs like Buffer/crypto.
 // The scheduler calls internal.pushNotificationsNode.sendFcmPush from here.
 
-// ─── General Purpose: Send to specific users ────────────────────────────────
-
-/**
- * sendToUsers — Internal mutation helper that creates in-app notifications
- * for a list of users. Other mutations can call this + schedule the FCM action.
- */
-export const sendToUsers = mutation({
-  args: {
-    userIds: v.array(v.string()),
-    title: v.string(),
-    body: v.string(),
-    type: v.string(),
-    priority: v.optional(v.string()),
-    actionType: v.optional(v.string()),
-    actionUrl: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    let count = 0;
-
-    for (const userId of args.userIds) {
-      await ctx.db.insert("app_notifications", {
-        userId,
-        firmId: undefined,
-        title: args.title,
-        body: args.body,
-        type: args.type,
-        priority: args.priority || "normal",
-        actionType: args.actionType,
-        actionUrl: args.actionUrl,
-        isRead: false,
-        createdAt: now,
-      });
-      count++;
-    }
-
-    // Get push tokens for these users
-    const tokens: string[] = [];
-    for (const userId of args.userIds) {
-      const userTokens = await ctx.db
-        .query("user_push_tokens")
-        .withIndex("by_user_active", (q: any) => q.eq("userId", userId).eq("isActive", true))
-        .collect();
-      tokens.push(...userTokens.map((t: any) => t.token));
-    }
-
-    if (tokens.length > 0) {
-      ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-        tokens,
-        title: args.title,
-        body: args.body,
-        data: { type: args.type, actionUrl: args.actionUrl },
-      });
-    }
-
-    return { success: true, count, pushTokens: tokens.length };
-  },
-});
+// Round 8 auth retrofit: sendToUsers was DELETED. It was a public, fully
+// unauthenticated mutation that inserted in-app notifications and dispatched
+// FCM pushes to ARBITRARY user ids — a mass-notification/impersonation
+// primitive with zero callers. (sendTestPush/notifyAppUpdate remain, but
+// both verify the Founder role.)
 
 /**
  * mutation: sendTestPush

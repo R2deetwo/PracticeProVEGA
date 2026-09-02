@@ -11,6 +11,14 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { randomHex } from "./secureRandom";
 import { createUnitResolver } from "./unitLookup";
+import { requirePortalCaller } from "./callerAuth";
+
+// Round 8 auth retrofit: fundWalletPublic (a PUBLIC mutation that credited
+// ANY wallet by an arbitrary amount with NO Paystack verification) was
+// DELETED — its only verified path is initiateWalletFunding →
+// verifyWalletFunding, which credits only after Paystack confirms the
+// transaction server-side. The tenant self-service endpoints below now
+// verify the caller is the wallet's own portal user.
 
 const DEFAULT_LOW_BALANCE_THRESHOLD = 1000;
 
@@ -60,13 +68,23 @@ export const getOrCreateWallet = internalMutation({
 // ─── Public: resident gets their wallet + recent transactions ─────────────
 
 export const getMyWallet = query({
-  args: { tenantId: v.string() },
+  args: { tenantId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: tenantId was the ONLY scoping — any caller
+    // could read any resident's balance and transactions. Verify the
+    // caller is the wallet's own portal user.
+    const caller = await requirePortalCaller(ctx, { userEmail: args.userEmail });
     const wallet = await ctx.db
       .query("resident_wallets")
       .withIndex("by_tenant", (q: any) => q.eq("tenantId", args.tenantId))
       .first();
     if (!wallet) return null;
+    // Cross-tenant read protection: wallet keys can be user ids or legacy
+    // contact ids; when the key is a user id it must be the caller's own.
+    if (String(wallet.tenantId) !== String(caller._id) &&
+        String(wallet.tenantId) !== String((caller as any).tenantId || "")) {
+      throw new Error("Not authorized: this wallet belongs to a different resident.");
+    }
 
     const recentTransactions = await ctx.db
       .query("wallet_transactions")
@@ -81,13 +99,20 @@ export const getMyWallet = query({
 // ─── Public: toggle auto-deduct ───────────────────────────────────────────
 
 export const toggleAutoDeduct = mutation({
-  args: { tenantId: v.string(), enabled: v.boolean() },
+  args: { tenantId: v.string(), enabled: v.boolean(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: tenantId was caller-supplied — anyone could
+    // toggle any resident's auto-deduct (stopping their charge coverage).
+    const caller = await requirePortalCaller(ctx, { userEmail: args.userEmail });
     const wallet = await ctx.db
       .query("resident_wallets")
       .withIndex("by_tenant", (q: any) => q.eq("tenantId", args.tenantId))
       .first();
     if (!wallet) throw new Error("Wallet not found");
+    if (String(wallet.tenantId) !== String(caller._id) &&
+        String(wallet.tenantId) !== String((caller as any).tenantId || "")) {
+      throw new Error("Not authorized: this wallet belongs to a different resident.");
+    }
     await ctx.db.patch(wallet._id, { autoDeductEnabled: args.enabled, updatedAt: Date.now() });
     return { success: true, autoDeductEnabled: args.enabled };
   },
@@ -130,15 +155,13 @@ export const fundWallet = internalMutation({
 
 // ─── Public: fund wallet (frontend wrapper) ───────────────────────────────
 
-export const fundWalletPublic = mutation({
-  args: {
-    tenantId: v.string(), firmId: v.string(), propertyId: v.string(),
-    amount: v.number(), paystackReference: v.optional(v.string()),
-  },
-  handler: async (ctx, args): Promise<{ success: boolean; newBalance?: number; reference?: string }> => {
-    return await ctx.runMutation(internal.wallets.fundWallet, args);
-  },
-});
+// Round 8 auth retrofit: fundWalletPublic was DELETED. It was a PUBLIC
+// mutation that credited ANY wallet by an arbitrary amount with NO Paystack
+// verification — an unauthenticated money-writing primitive. The verified
+// path (initiateWalletFunding -> Paystack -> verifyWalletFunding, which
+// credits only after server-side transaction verification) is the ONLY
+// funding route now. The internal fundWallet remains for that path.
+
 
 // ─── Paystack: initiate wallet funding ────────────────────────────────────
 

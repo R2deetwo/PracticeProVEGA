@@ -47,7 +47,7 @@ export const SalesPipeline: React.FC = () => {
 
     const handleStatusChange = async (inquiryId: string, newStatus: string) => {
         try {
-            await updateStatus({ inquiryId: inquiryId as any, status: newStatus as any });
+            await updateStatus({ inquiryId: inquiryId as any, status: newStatus as any, userEmail: currentUser?.email || undefined });
             addToast(`Lead marked as ${newStatus}.`, { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to update lead status.', { type: 'error' });

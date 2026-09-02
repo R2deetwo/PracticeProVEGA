@@ -212,8 +212,10 @@ const TenantPortal: React.FC = () => {
   );
 
   // ── Resident Wallet (prepaid balance for auto-deducting charges) ──
-  const walletData = useQuery(api.wallets.getMyWallet, userId ? { tenantId: userId } : 'skip');
-  const fundWallet = useMutation(api.wallets.fundWalletPublic);
+  const walletData = useQuery(api.wallets.getMyWallet, userId ? { tenantId: userId, userEmail: email || undefined } : 'skip');
+  // Round 8: fundWalletPublic (unverified direct wallet credit) was deleted
+  // server-side; funding goes through initiateWalletFunding -> Paystack ->
+  // verifyWalletFunding only.
   const toggleAutoDeduct = useMutation(api.wallets.toggleAutoDeduct);
   const initiateWalletFunding = useAction(api.wallets.initiateWalletFunding);
   const [walletFundAmount, setWalletFundAmount] = useState('');
@@ -638,7 +640,7 @@ const TenantPortal: React.FC = () => {
           </div>
         ) : (
           <>
-            {activeTab === 'dashboard' && <TabErrorBoundary tabName="Dashboard"><DashboardTab tenantInfo={tenantInfo} onNavigate={handleTabChange} walletData={walletData} fundWallet={fundWallet} toggleAutoDeduct={toggleAutoDeduct} initiateWalletFunding={initiateWalletFunding} userId={userId} effectiveFirmId={effectiveFirmId} email={email} walletFundAmount={walletFundAmount} setWalletFundAmount={setWalletFundAmount} isFunding={isFunding} setIsFunding={setIsFunding} /></TabErrorBoundary>}
+            {activeTab === 'dashboard' && <TabErrorBoundary tabName="Dashboard"><DashboardTab tenantInfo={tenantInfo} onNavigate={handleTabChange} walletData={walletData} toggleAutoDeduct={toggleAutoDeduct} initiateWalletFunding={initiateWalletFunding} userId={userId} effectiveFirmId={effectiveFirmId} email={email} walletFundAmount={walletFundAmount} setWalletFundAmount={setWalletFundAmount} isFunding={isFunding} setIsFunding={setIsFunding} /></TabErrorBoundary>}
             {activeTab === 'notices' && <TabErrorBoundary tabName="Notices"><NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
             {activeTab === 'ledger' && <TabErrorBoundary tabName="Ledger"><LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
             {activeTab === 'receipts' && <TabErrorBoundary tabName="Receipts"><ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
@@ -812,11 +814,11 @@ class TabErrorBoundary extends React.Component<
 // pay internet, report maintenance, send a message.
 const DashboardTab: React.FC<{
   tenantInfo: any; onNavigate: (tab: TabId) => void;
-  walletData?: any; fundWallet?: any; toggleAutoDeduct?: any; initiateWalletFunding?: any;
+  walletData?: any; toggleAutoDeduct?: any; initiateWalletFunding?: any;
   userId?: string; effectiveFirmId?: string; email?: string;
   walletFundAmount?: string; setWalletFundAmount?: (v: string) => void;
   isFunding?: boolean; setIsFunding?: (v: boolean) => void;
-}> = ({ tenantInfo, onNavigate, walletData, fundWallet, toggleAutoDeduct, initiateWalletFunding, userId, effectiveFirmId, email, walletFundAmount, setWalletFundAmount, isFunding, setIsFunding }) => {
+}> = ({ tenantInfo, onNavigate, walletData, toggleAutoDeduct, initiateWalletFunding, userId, effectiveFirmId, email, walletFundAmount, setWalletFundAmount, isFunding, setIsFunding }) => {
   const { currentUser } = useAuth();
   const { addToast } = useUI();
   // Uses the canonical formatNaira from utils/formatting.ts.
@@ -955,7 +957,7 @@ const DashboardTab: React.FC<{
             </div>
             {walletData?.wallet && (
               <button
-                onClick={() => toggleAutoDeduct?.({ tenantId: userId, enabled: !walletData.wallet.autoDeductEnabled })}
+                onClick={() => toggleAutoDeduct?.({ tenantId: userId, enabled: !walletData.wallet.autoDeductEnabled, userEmail: email || undefined })}
                 className={`text-2xs font-bold px-2.5 py-1 rounded-full transition-colors ${
                   walletData.wallet.autoDeductEnabled
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'

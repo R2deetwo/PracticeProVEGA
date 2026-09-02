@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { notifyFounders } from "./founderNotifications";
+import { requireFounderCaller } from "./callerAuth";
 
 /**
  * Sales Inquiries — Unauthenticated lead capture pipeline.
@@ -94,6 +95,9 @@ export const getUnreadSalesInquiryCount = query({
 });
 
 // Update inquiry status (for Founder App — marks as contacted/read)
+// Round 8 auth retrofit: was a bare id patch — any internet caller could
+// rewrite any lead's status/notes. Founder-only (the Sales Pipeline tab's
+// admission rule).
 export const updateInquiryStatus = mutation({
     args: {
         inquiryId: v.id("sales_inquiries"),
@@ -106,8 +110,10 @@ export const updateInquiryStatus = mutation({
             v.literal("spam"),
         ),
         notes: v.optional(v.string()),
+        userEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        await requireFounderCaller(ctx, { userEmail: args.userEmail });
         await ctx.db.patch(args.inquiryId, {
             status: args.status,
             notes: args.notes,

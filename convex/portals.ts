@@ -2,6 +2,7 @@ import { mutation, query, action, internalQuery, internalMutation, internalActio
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
+import { requireStaffCaller, requirePortalCaller, resolveCaller, assertSameFirm } from "./callerAuth";
 
 // ─── Portal Access Token Generator ──────────────────────────────────────────
 // Generates a UUID v4 token for portal URLs.
@@ -729,8 +730,12 @@ export const seedDefaultServiceRequestTypes = mutation({
   args: {
     firmId: v.string(),
     portalType: v.union(v.literal("resident"), v.literal("client")),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: firmId was trusted — any caller could seed
+    // rows into another firm's config.
+    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
     const existing = await ctx.db
       .query("service_request_types")
       .withIndex("by_firm_portal", (q) =>
@@ -830,6 +835,7 @@ export const createServiceRequestType = mutation({
 export const updateServiceRequestType = mutation({
   args: {
     typeId: v.id("service_request_types"),
+    userEmail: v.optional(v.string()),
     label: v.optional(v.string()),
     description: v.optional(v.string()),
     category: v.optional(v.string()),
@@ -839,19 +845,29 @@ export const updateServiceRequestType = mutation({
     sortOrder: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id patch — verify caller owns the type.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const type = await ctx.db.get(args.typeId);
+    if (!type) throw new Error("Service request type not found");
+    assertSameFirm(caller, type.firmId as any);
     const { typeId, ...updates } = args;
     // Strip undefined values so we don't accidentally overwrite with undefined
     const cleanUpdates: any = { updatedAt: Date.now() };
     for (const [k, v] of Object.entries(updates)) {
-      if (v !== undefined) cleanUpdates[k] = v;
+      if (v !== undefined && k !== "userEmail") cleanUpdates[k] = v;
     }
     await ctx.db.patch(typeId, cleanUpdates);
   },
 });
 
 export const deleteServiceRequestType = mutation({
-  args: { typeId: v.id("service_request_types") },
+  args: { typeId: v.id("service_request_types"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id delete — verify caller owns the type.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const type = await ctx.db.get(args.typeId);
+    if (!type) throw new Error("Service request type not found");
+    assertSameFirm(caller, type.firmId as any);
     await ctx.db.delete(args.typeId);
   },
 });
@@ -998,13 +1014,20 @@ export const getClientServiceRequestsByFirm = query({
 export const updateClientServiceRequestStatus = mutation({
   args: {
     requestId: v.id("client_service_requests"),
+    userEmail: v.optional(v.string()),
     status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
     resolution: v.optional(v.string()),
     assignedTo: v.optional(v.string()),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id patch — verify caller owns the request.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const request = await ctx.db.get(args.requestId);
+    if (!request) throw new Error("Service request not found");
+    assertSameFirm(caller, request.firmId as any);
     const { requestId, ...updates } = args;
+    delete (updates as any).userEmail;
     await ctx.db.patch(requestId, { ...updates, updatedAt: Date.now() });
 
     // Mirror the maintenance-ticket pattern: post a reply message to the
@@ -1766,7 +1789,7 @@ export const resendPortalInvite = action({
     const newToken = generateToken();
     const now = Date.now();
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
-    await ctx.runMutation(api.portals.updateInviteRecord, {
+    await ctx.runMutation(internal.portals.updateInviteRecord, {
       inviteId: args.inviteId,
       updates: { token: newToken, status: "pending", expiresAt, updatedAt: now },
     });
@@ -1887,7 +1910,11 @@ export const resendPortalInvite = action({
 });
 
 /** Internal mutation to update an invite record */
-export const updateInviteRecord = mutation({
+// Round 8 auth retrofit: updateInviteRecord was converted from a PUBLIC
+// mutation to an INTERNAL mutation — its only callers are inside this
+// module (the invite-token lifecycle). It previously let any internet
+// caller patch ANY invite record by raw id.
+export const updateInviteRecord = internalMutation({
   args: {
     inviteId: v.id("portal_invites"),
     updates: v.any(),
@@ -1896,6 +1923,8 @@ export const updateInviteRecord = mutation({
     await ctx.db.patch(args.inviteId, args.updates);
   },
 });
+
+
 
 /** Get a single invite by its ID (used by resendPortalInvite) */
 export const getPortalInviteById = query({
@@ -1916,16 +1945,9 @@ export const getPortalInvitesByFirm = query({
   },
 });
 
-export const acceptPortalInvite = mutation({
-  args: { inviteId: v.id("portal_invites") },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.inviteId, {
-      status: "accepted",
-      acceptedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-  },
-});
+// Round 8 auth retrofit: acceptPortalInvite was DELETED (zero callers,
+// unauthenticated patch of any invite/user record by raw id).
+
 
 export const revokePortalInvite = mutation({
   args: { inviteId: v.id("portal_invites") },
@@ -1989,8 +2011,13 @@ export const revokePortalInvite = mutation({
 
 /** Permanently delete a portal invite record (removes it from the list entirely) */
 export const deletePortalInvite = mutation({
-  args: { inviteId: v.id("portal_invites") },
+  args: { inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id delete — verify caller owns the invite.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) throw new Error("Invite not found");
+    assertSameFirm(caller, invite.firmId as any);
     await ctx.db.delete(args.inviteId);
   },
 });
@@ -2316,7 +2343,7 @@ export const setupPortalPassword = action({
     if (!invite) return { success: false, message: "Invalid invitation link." };
     if (invite.status === "revoked") return { success: false, message: "This invitation has been revoked." };
     if (invite.status === "expired" || invite.expiresAt < Date.now()) {
-      await ctx.runMutation(api.portals.updateInviteRecord, {
+      await ctx.runMutation(internal.portals.updateInviteRecord, {
         inviteId: invite._id,
         updates: { status: "expired", updatedAt: Date.now() },
       });
@@ -2554,7 +2581,7 @@ export const setupPortalPassword = action({
     }
 
     // 4. Mark invite as accepted (including terms acceptance timestamp)
-    await ctx.runMutation(api.portals.updateInviteRecord, {
+    await ctx.runMutation(internal.portals.updateInviteRecord, {
       inviteId: invite._id,
       updates: {
         status: "accepted",
@@ -2607,6 +2634,11 @@ export const selfHealClientContactLink = mutation({
     name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: firmId/userId were trusted — any caller could
+    // relink another firm's contact records. Verify the caller is the
+    // portal user themselves and firm-scoped.
+    const caller = await requirePortalCaller(ctx, { userId: args.userId, userEmail: args.email });
+    assertSameFirm(caller, args.firmId);
     const email = (args.email || "").toLowerCase().trim();
     if (!email && !args.name) return { contactId: null, linked: false };
 
@@ -2647,6 +2679,9 @@ export const selfHealClientContactLink = mutation({
 export const registerForPushNotifications = mutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: userId was trusted — any caller could flip
+    // another user's smart-delivery switch. Resolve the real user first.
+    await resolveCaller(ctx, { userId: args.userId });
     const now = Date.now();
     try {
       await ctx.db.patch(args.userId as any, {
@@ -2667,21 +2702,9 @@ export const registerForPushNotifications = mutation({
  * notification permission or uninstalls the app. Clears the flag so
  * the backend falls back to email delivery.
  */
-export const unregisterFromPushNotifications = mutation({
-  args: { userId: v.string() },
-  handler: async (ctx, args) => {
-    try {
-      await ctx.db.patch(args.userId as any, {
-        pushNotificationEnabled: false,
-        pushNotificationRegisteredAt: undefined,
-        updatedAt: new Date().toISOString(),
-      } as any);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err?.message };
-    }
-  },
-});
+// Round 8 auth retrofit: unregisterFromPushNotifications was DELETED (zero callers,
+// unauthenticated patch of any invite/user record by raw id).
+
 
 /**
  * repairPortalUserFirmId — Repairs a portal user whose firmId is missing.
@@ -2961,11 +2984,16 @@ export const createScheduledMessage = mutation({
     scheduledFor: v.number(),
     isAutomation: v.optional(v.boolean()),
     triggeredBy: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: firmId was trusted — any caller could schedule
+    // messages into another firm's pipeline.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
     const now = Date.now();
     return await ctx.db.insert("scheduled_messages", {
       ...args,
+      triggeredBy: args.triggeredBy || caller.email || undefined,
       status: "scheduled",
       createdAt: now,
       updatedAt: now,
@@ -2974,8 +3002,13 @@ export const createScheduledMessage = mutation({
 });
 
 export const cancelScheduledMessage = mutation({
-  args: { messageId: v.id("scheduled_messages") },
+  args: { messageId: v.id("scheduled_messages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id patch — verify caller owns the message.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const message = await ctx.db.get(args.messageId);
+    if (!message) throw new Error("Scheduled message not found");
+    assertSameFirm(caller, message.firmId as any);
     await ctx.db.patch(args.messageId, {
       status: "cancelled",
       updatedAt: Date.now(),
@@ -4655,8 +4688,15 @@ export const getPortalMessagesBySender = query({
  * markPortalMessageRead — Marks a portal message as read.
  */
 export const markPortalMessageRead = mutation({
-  args: { messageId: v.id("portal_messages") },
+  args: { messageId: v.id("portal_messages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id patch — verify caller owns the message.
+    // (portal_messages.firmId is nullable: unscoped rows are only mutable by
+    // a caller whose firm matches, or by any staff caller when null.)
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const message = await ctx.db.get(args.messageId);
+    if (!message) throw new Error("Message not found");
+    if (message.firmId) assertSameFirm(caller, message.firmId as any);
     await ctx.db.patch(args.messageId, { status: "read", isRead: true, updatedAt: Date.now() });
   },
 });
@@ -4763,6 +4803,15 @@ export const submitPaymentProof = mutation({
     idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: firmId/tenantId/tenantName were all caller-
+    // supplied and trusted — anyone could forge payment proofs into any
+    // firm's review queue. Verify the caller is the tenant portal user.
+    const caller = await requirePortalCaller(ctx, {
+      userEmail: args.tenantEmail,
+      userId: args.tenantId,
+    });
+    assertSameFirm(caller, args.firmId);
+
     // P11 DEDUP: If idempotencyKey is provided, check for an existing record.
     // If found, return the existing _id instead of creating a duplicate.
     if (args.idempotencyKey) {
@@ -5269,7 +5318,7 @@ export const createNotice = mutation({
     // logActivity fails (e.g., schema mismatch, timeout), the notice
     // creation still succeeds. The notice IS already in the DB at this point.
     try {
-      await ctx.runMutation(api.myFunctions.logActivity, {
+      await ctx.runMutation(internal.myFunctions.logActivity, {
         firmId: authFirmId,
         userId: args.authorId,
         userName: args.authorName,
@@ -5318,7 +5367,7 @@ export const archiveNotice = mutation({
     // Log activity
     const notice = await ctx.db.get(args.noticeId);
     if (notice) {
-      await ctx.runMutation(api.myFunctions.logActivity, {
+      await ctx.runMutation(internal.myFunctions.logActivity, {
         firmId: notice.firmId as string,
         action: "Archived notice",
         targetType: "notice",
@@ -5338,7 +5387,7 @@ export const restoreNotice = mutation({
     // Log activity
     const notice = await ctx.db.get(args.noticeId);
     if (notice) {
-      await ctx.runMutation(api.myFunctions.logActivity, {
+      await ctx.runMutation(internal.myFunctions.logActivity, {
         firmId: notice.firmId as string,
         action: "Restored notice",
         targetType: "notice",
@@ -5694,8 +5743,12 @@ export const updateNotificationPreferences = mutation({
   args: {
     firmId: v.string(),
     preferences: v.any(), // { [typeKey: string]: boolean }
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: firmId was trusted — any caller could rewrite
+    // another firm's notification preferences.
+    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
     const now = Date.now();
     const existing = await ctx.db
       .query("notification_preferences")

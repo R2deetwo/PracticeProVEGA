@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon, ClockIcon, TrashIcon } from '../../constants';
 
 const MSG_TYPE_LABELS: Record<string, string> = {
@@ -36,6 +37,7 @@ interface ScheduledTabProps {
 
 export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
   const { addToast } = useUI();
+  const { currentUser } = useAuth() as any;
 
   const scheduledMessages = useQuery(api.portals.getScheduledMessagesByFirm, firmId ? { firmId } : 'skip') || [];
   const cancelScheduled = useMutation(api.portals.cancelScheduledMessage);
@@ -66,6 +68,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
         messageType: scheduleForm.messageType,
         content: scheduleForm.content.trim(),
         scheduledFor: new Date(scheduleForm.scheduledFor).getTime(),
+        userEmail: currentUser?.email || undefined,
       });
       setScheduleForm({ channel: 'email', messageType: 'custom', content: '', scheduledFor: '' });
       setShowScheduleForm(false);
@@ -207,7 +210,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                     </div>
                     {msg.status === 'pending' && (
                       <button
-                        onClick={() => cancelScheduled({ messageId: msg._id }).then(() => addToast('Scheduled message cancelled.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to cancel.', { type: 'error' }))}
+                        onClick={() => cancelScheduled({ messageId: msg._id, userEmail: currentUser?.email || undefined }).then(() => addToast('Scheduled message cancelled.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to cancel.', { type: 'error' }))}
                         className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex-shrink-0"
                         title="Cancel scheduled message"
                       >

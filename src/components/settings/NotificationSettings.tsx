@@ -82,7 +82,7 @@ export const NotificationSettings: React.FC = () => {
     setSaving(prev => new Set(prev).add(typeKey));
 
     try {
-      await updatePrefs({ firmId, preferences: { [typeKey]: newEnabled } });
+      await updatePrefs({ firmId, preferences: { [typeKey]: newEnabled }, userEmail: currentUser?.email || undefined });
       addToast(`${typeKey.replace(/_/g, ' ')} emails ${newEnabled ? 'enabled' : 'disabled'}.`, { type: 'success' });
     } catch (err: any) {
       // Revert on error

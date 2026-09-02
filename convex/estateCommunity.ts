@@ -26,7 +26,7 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 
 // ════════════════════════════════════════════════════════════════════════
@@ -213,7 +213,7 @@ export const createBooking = mutation({
 
     // Log activity (non-blocking)
     try {
-      await ctx.runMutation(api.myFunctions.logActivity, {
+      await ctx.runMutation(internal.myFunctions.logActivity, {
         firmId,
         userId: auth.userId,
         userName: auth.user?.name || undefined,

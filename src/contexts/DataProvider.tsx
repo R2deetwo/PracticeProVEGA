@@ -212,7 +212,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 })
             }));
             try {
-                await addUnitToPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitData: tempUnit });
+                await addUnitToPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitData: tempUnit, userEmail: currentUser?.email || undefined });
                 return tempUnit;
             } catch (e) {
                 setAppState(prev => ({
@@ -238,7 +238,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 })
             }));
             try {
-                await removeUnitFromPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitId });
+                await removeUnitFromPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitId, userEmail: currentUser?.email || undefined });
             } catch (e) {
                 if (removedUnit) {
                     setAppState(prev => ({

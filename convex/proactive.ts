@@ -1,6 +1,7 @@
 import { internalMutation, internalAction, internalQuery, query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireStaffCaller, assertSameFirm } from "./callerAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROACTIVE INTELLIGENCE ENGINE — Phase 2
@@ -87,9 +88,18 @@ export const getInsightCounts = query({
 
 /** Dismiss an insight so it no longer appears in the feed. */
 export const dismissInsight = mutation({
-  args: { insightId: v.id("proactive_insights") },
-  handler: async (ctx, { insightId }) => {
-    await ctx.db.patch(insightId, { dismissed: true, dismissedAt: Date.now() });
+  args: {
+    insightId: v.id("proactive_insights"),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Round 8 auth retrofit: dismissing was a bare id patch — any internet
+    // caller could dismiss any firm's insights. Verify the caller owns it.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const insight = await ctx.db.get(args.insightId);
+    if (!insight) throw new Error("Insight not found");
+    assertSameFirm(caller, insight.firmId as any);
+    await ctx.db.patch(args.insightId, { dismissed: true, dismissedAt: Date.now() });
   },
 });
 // ─── CRON-TRIGGERED INTERNAL MUTATIONS ──────────────────────────────────────

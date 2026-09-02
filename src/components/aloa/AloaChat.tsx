@@ -187,7 +187,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const dismissInsightMutation = useMutation(api.proactive.dismissInsight);
     const handleDismissInsight = async (insightId: string) => {
         try {
-            await dismissInsightMutation({ insightId: insightId as any });
+            await dismissInsightMutation({ insightId: insightId as any, userEmail: currentUser?.email || undefined });
             addToast('Insight dismissed.', { type: 'info' });
         } catch (e) {
             console.warn('[Dismiss Insight] failed:', e);
@@ -1414,7 +1414,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             query,
                             firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                             scope: isProperty ? 'property' : 'legal',
-                            convexQuery: (name: any, args: any) => convex.query(name, args)
+                            convexQuery: (name: any, args: any) => convex.query(name, args),
+                            userId: currentUser?.id,
+                            userEmail: currentUser?.email || undefined
                         });
                     };
                     capturedAiContext.isFirmSearchEnabled = true;
@@ -2620,7 +2622,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         setShowHistory(false);
                                     }}
                                     onDelete={async (id) => {
-                                        await deleteConversationMutation({ conversationId: id });
+                                        await deleteConversationMutation({ conversationId: id, userEmail: currentUser?.email || undefined });
                                         if (activeConversationId === id) {
                                             setActiveConversationId(null);
                                             setMessages([]);

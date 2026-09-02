@@ -1,6 +1,6 @@
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // ─── INTERNAL WRAPPER: sendWhatsAppInternal ──────────────────────────────
 // internalMutation (like sentry.ts cron jobs) can't call ctx.runAction on
@@ -89,7 +89,7 @@ export const sendWhatsApp = action({
   handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
     // Check and increment quota — type explicitly to avoid circular inference
     const quotaResult: { success: boolean; error?: string; limit?: number } = await ctx.runMutation(
-      api.myFunctions.incrementWhatsAppQuota,
+      internal.myFunctions.incrementWhatsAppQuota,
       { firmId: args.firmId }
     );
     if (!quotaResult.success) {

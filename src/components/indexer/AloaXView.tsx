@@ -695,7 +695,7 @@ export const AloaXView: React.FC = () => {
       // ─ Sync to Convex (optional, non-blocking) ─────────────
       if (saveAloaDocument) {
         saveAloaDocument({
-          sessionId: pendingDoc.documentId, firmId,
+          sessionId: pendingDoc.documentId, firmId, userEmail: (currentUser as any)?.email || undefined,
           fileName: pendingDoc.metadata?.title || pendingDoc.fileName,
           documentType: pendingDoc.documentType, totalPages: pendingDoc.totalPages,
           totalChunks: pendingDoc.totalChunks,

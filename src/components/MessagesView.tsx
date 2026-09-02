@@ -1054,6 +1054,7 @@ const MessagesView: React.FC = () => {
                     requestId: ticketInfo.id as any,
                     status: newStatus,
                     resolution,
+                    userEmail: currentUser?.email || undefined,
                 });
             }
             addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
@@ -1228,7 +1229,7 @@ const MessagesView: React.FC = () => {
         // Use the existing markPortalMessageRead mutation for each one.
         const unreadPortal = (portalMessages as any[] || []).filter((m: any) => m.status === 'unread' || !m.isRead);
         for (const msg of unreadPortal) {
-            markPortalRead({ messageId: msg._id }).catch(() => {});
+            markPortalRead({ messageId: msg._id, userEmail: currentUser?.email || undefined }).catch(() => {});
         }
 
         // Also mark all conversations as read (unreadByAdmin → 0)

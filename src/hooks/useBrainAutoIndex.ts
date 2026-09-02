@@ -22,7 +22,7 @@ export const useBrainAutoIndex = () => {
     const convex = useConvex();
     const mutation = useMutation; // Note: we call this with (api.xxx)
     const isRunning = useRef(false);
-    const { appMode } = useAuth();
+    const { appMode, currentUser } = useAuth();
 
     useEffect(() => {
         const firmId = appState.firmDetails?.id;
@@ -51,7 +51,9 @@ export const useBrainAutoIndex = () => {
                         firmId,
                         scope: (appState.firmDetails?.product === 'atrium' || appState.firmDetails?.product === 'property') ? 'property' : 'legal',
                         convexQuery: (name: any, args: any) => convex.query(name, args),
-                        convexMutation: (name: any, args: any) => convex.mutation(name, args)
+                        convexMutation: (name: any, args: any) => convex.mutation(name, args),
+                        userId: currentUser?.id,
+                        userEmail: currentUser?.email || undefined
                     });
 
                     localStorage.setItem(STORAGE_KEY, now.toString());

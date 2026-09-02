@@ -769,7 +769,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 firmId: currentUser.firmId || 'none',
                 userId: currentUser.id,
                 event: 'User Logout',
-                properties: { email: currentUser.email }
+                properties: { email: currentUser.email },
+                userEmail: currentUser.email || undefined
             }).catch(e => console.warn("[Auth] Logout tracking failed:", e));
         }
 
@@ -1084,15 +1085,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             console.warn("[Auth] Demo login is not available in production.");
             return Promise.resolve({ success: false, message: "Demo mode is not available in production." });
         }
-        if (email) {
-            // Fire-and-forget tracking
-            trackEventMutation({
-                firmId: 'demo_firm',
-                userId: 'demo_user',
-                event: 'Demo Signup',
-                properties: { email, source: 'Landing Page' },
-            }).catch(e => console.warn("[Auth] Demo tracking failed:", e));
-        }
+        // Round 8: the pre-login 'Demo Signup' analytics event was removed —
+        // analytics.trackEvent now requires a verified session (auth retrofit),
+        // and this call fired before login with synthetic ids.
         return login('demo@practicepro.ng');
     }, [trackEventMutation, login]);
 
