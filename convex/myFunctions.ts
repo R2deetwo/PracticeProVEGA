@@ -3323,6 +3323,22 @@ async function resolveRecordForUpdate(
     if (!firmId) {
       throw new Error("Unauthenticated: userEmail required. Anonymous updates are no longer permitted.");
     }
+    // ROUND 9 FIX (firm-settings save bug): the `firms` table is SELF-REFERENTIAL —
+    // a firm document IS the firm, so it carries no `firmId` field of its own.
+    // The generic check below (`!existing.firmId || existing.firmId !== firmId`)
+    // therefore rejected EVERY firms-table update with "Unauthorized. This
+    // record belongs to another organization." — the user saw this as the
+    // "Failed to sync firm settings" toast after completing the setup wizard,
+    // which in turn meant practiceProfile.blueprintAppliedAt,
+    // settings.onboardingCompletedAt and every other firm-settings write
+    // (bank accounts, integrations, AI settings) never persisted.
+    // Ownership for a firm doc = its own _id must match the caller's firmId.
+    if (table === "firms") {
+      if (String(existing._id) !== String(firmId)) {
+        throw new Error("Unauthorized. This record belongs to another organization.");
+      }
+      return { docId: id };
+    }
     if (!existing.firmId || existing.firmId !== firmId) {
       throw new Error("Unauthorized. This record belongs to another organization.");
     }

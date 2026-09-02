@@ -213,6 +213,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // "Will anyone else be working in this workspace?" (Step 5)
   const [willInviteTeam, setWillInviteTeam] = useState<boolean | null>(null);
   const [isSavingFinal, setIsSavingFinal] = useState(false);
+  // ROUND 9 — live setup-stage label while the practice blueprint is being
+  // applied on wizard completion ("Setting up contact types… (4/9)") so the
+  // user sees what is actually happening instead of a frozen spinner.
+  const [setupStageLabel, setSetupStageLabel] = useState<string | null>(null);
 
   // ── PRACTICE PROFILE (Step 3) ─────────────────────────────────────────
   // "What kind of practice are you running?" — captures the practice-type
@@ -409,7 +413,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
       practiceAreas.length > 0 || portfolioTypes.length > 0 || focusAreas.length > 0;
     if (!blueprintPlan || !hasSelection) return false;
     try {
-      const res = await blueprint.applyPlan(blueprintPlan, lookupFirmId);
+      const res = await blueprint.applyPlan(blueprintPlan, lookupFirmId, (p) => {
+        setSetupStageLabel(
+          p.completed
+            ? 'Finishing up…'
+            : p.total > 0
+              ? `${p.label} (${p.done}/${p.total})`
+              : p.label,
+        );
+      });
       const applied = res.created + res.merged > 0;
 
       // PRUNE: remove seeded (isSystem) contact/document categories the
@@ -534,6 +546,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             teamInviteIntent: willInviteTeam === true ? 'invited' : 'solo',
             teamInviteIntentAt: now,
           },
+        }, {
+          // ROUND 9: silent success — the wizard already shows its own rich
+          // "Workspace pre-configured: …" toast; a second "Firm settings
+          // updated." toast here was noise (and a failure toast right
+          // after a success toast was actively confusing).
+          successToast: null,
         });
       }
     } catch (e) {
@@ -1448,12 +1466,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 {isSavingFinal ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Configuring your workspace…
+                    {setupStageLabel || 'Configuring your workspace…'}
                   </span>
                 ) : (
                   'Start using PracticePro'
                 )}
               </button>
+              {isSavingFinal && (
+                <p className="text-center text-2xs text-slate-400 font-medium">
+                  Keep this page open — we are creating your matter types, contact
+                  types, folders and checklists. This usually takes under a minute.
+                </p>
+              )}
               <button
                 onClick={() => setStep(5)}
                 disabled={isSavingFinal}

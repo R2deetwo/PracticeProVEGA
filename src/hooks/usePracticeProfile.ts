@@ -475,8 +475,31 @@ export function mergePlans(a: ApplyPlan, b: ApplyPlan): ApplyPlan {
   };
 }
 
+export interface ApplyProgress {
+  /** which stage is running (table key, or 'merges' / 'done') */
+  stage: string;
+  /** human label for the current stage */
+  label: string;
+  /** items completed within the current stage */
+  done: number;
+  /** items in the current stage */
+  total: number;
+  /** true once everything (incl. merges) has finished */
+  completed: boolean;
+}
+
+/** Stage order + display labels for the apply progress UI (round 9). */
+export const APPLY_STAGES: { table: PlanItem["table"]; label: string }[] = [
+  { table: "workflows", label: "Matter types & workflows" },
+  { table: "contactCategories", label: "Contact types" },
+  { table: "documentCategories", label: "Document folders" },
+  { table: "eventTypes", label: "Event types" },
+  { table: "checklistTemplates", label: "Checklists" },
+];
+
 export function usePracticeProfile(deps: UsePracticeProfileDeps) {
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<ApplyProgress | null>(null);
 
   const buildPlan = useCallback(
     (mode: {
@@ -505,45 +528,112 @@ export function usePracticeProfile(deps: UsePracticeProfileDeps) {
    * merges update existing records. All writes go through the
    * firm-scoped generic actions, so server-side authorisation and
    * firmId stamping behave exactly like the settings UI.
+   *
+   * ROUND 9 — staged progress: writes run table-group by table-group
+   * (workflows → contacts → doc folders → event types → checklists →
+   * merges) and progress is reported after every item via onProgress
+   * AND exposed as hook state (`progress`) so the UI can render a
+   * live "Setting up workflows… (3/7)" panel instead of a dead
+   * greyed-out button.
    */
   const applyPlan = useCallback(
-    async (plan: ApplyPlan, firmId: string): Promise<ApplyResult> => {
+    async (
+      plan: ApplyPlan,
+      firmId: string,
+      onProgress?: (p: ApplyProgress) => void,
+    ): Promise<ApplyResult> => {
       const result: ApplyResult = { created: 0, merged: 0, skipped: 0, errors: [] };
+      const emit = (p: ApplyProgress) => {
+        setProgress(p);
+        onProgress?.(p);
+      };
       setRunning(true);
       try {
-        for (const item of plan.items) {
-          if (item.duplicate) {
-            result.skipped++;
-            continue;
-          }
-          try {
-            await deps.addItem(item.table, { ...item.data, firmId });
-            result.created++;
-          } catch (err) {
-            result.errors.push(`${item.label}: ${(err as Error).message}`);
+        // Group non-duplicate items by table, in stage order.
+        const writeable = plan.items.filter((i) => !i.duplicate);
+        const byStage = APPLY_STAGES.map(({ table, label }) => ({
+          table,
+          label,
+          items: writeable.filter((i) => i.table === table),
+        }));
+        const skipped = plan.items.length - writeable.length;
+        result.skipped += skipped;
+
+        for (const stage of byStage) {
+          let done = 0;
+          emit({
+            stage: stage.table,
+            label: `Setting up ${stage.label.toLowerCase()}`,
+            done,
+            total: stage.items.length,
+            completed: false,
+          });
+          for (const item of stage.items) {
+            try {
+              await deps.addItem(item.table, { ...item.data, firmId });
+              result.created++;
+            } catch (err) {
+              result.errors.push(`${item.label}: ${(err as Error).message}`);
+            }
+            done++;
+            emit({
+              stage: stage.table,
+              label: `Setting up ${stage.label.toLowerCase()}`,
+              done,
+              total: stage.items.length,
+              completed: false,
+            });
           }
         }
+
+        // Workflow merges (enrich existing matter types with missing
+        // sub-categories) — a final, distinct stage.
+        emit({
+          stage: "merges",
+          label: "Enriching existing matter types",
+          done: 0,
+          total: plan.workflowMerges.length,
+          completed: false,
+        });
+        let mergesDone = 0;
         for (const merge of plan.workflowMerges) {
           const existing = deps.workflows.find(
             (w) =>
               (w.id || w._id) === merge.workflowId ||
               workflowTypeMatches(w.type, merge.workflowType),
           );
-          if (!existing) continue;
-          try {
-            await deps.updateItem("workflows", {
-              id: existing.id,
-              _id: existing._id,
-              subCategories: {
-                ...(existing.subCategories || {}),
-                ...merge.subCategories,
-              },
-            });
-            result.merged++;
-          } catch (err) {
-            result.errors.push(`${merge.workflowType}: ${(err as Error).message}`);
+          if (existing) {
+            try {
+              await deps.updateItem("workflows", {
+                id: existing.id,
+                _id: existing._id,
+                subCategories: {
+                  ...(existing.subCategories || {}),
+                  ...merge.subCategories,
+                },
+              });
+              result.merged++;
+            } catch (err) {
+              result.errors.push(`${merge.workflowType}: ${(err as Error).message}`);
+            }
           }
+          mergesDone++;
+          emit({
+            stage: "merges",
+            label: "Enriching existing matter types",
+            done: mergesDone,
+            total: plan.workflowMerges.length,
+            completed: false,
+          });
         }
+
+        emit({
+          stage: "done",
+          label: "Setup complete",
+          done: 1,
+          total: 1,
+          completed: true,
+        });
       } finally {
         setRunning(false);
       }
@@ -552,7 +642,7 @@ export function usePracticeProfile(deps: UsePracticeProfileDeps) {
     [deps],
   );
 
-  return { buildPlan, applyPlan, running };
+  return { buildPlan, applyPlan, running, progress };
 }
 
 /** Convenience: suggested matter-type list for currently selected areas. */

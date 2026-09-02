@@ -24,7 +24,7 @@ import {
   ATRIUM_PROFILES,
   ATRIUM_FOCUS_OVERLAYS,
 } from "../config/atriumProfileLibrary";
-import { usePracticeProfile, mergePlans, type ApplyPlan, type ApplyResult } from "../hooks/usePracticeProfile";
+import { usePracticeProfile, mergePlans, APPLY_STAGES, type ApplyPlan, type ApplyResult } from "../hooks/usePracticeProfile";
 
 export interface PracticeProfileSetupProps {
   product: "vega" | "atrium" | "unified";
@@ -133,6 +133,107 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
     setResult(res);
     setStep("result");
     onApplied?.({ areas, portfolioTypes, focusAreas, result: res });
+  };
+
+  // ---------------------------------------------------------------------
+  // ROUND 9 — staged setup progress
+  // ---------------------------------------------------------------------
+  // While the plan is being applied, replace the static greyed-out
+  // "Setting up…" button with a live stage-by-stage progress panel so
+  // the user can SEE where the setup is (workflows → contacts → folders
+  // → event types → checklists → enrichment) instead of staring at a
+  // frozen modal.
+  const activeStages = useMemo<{ key: string; label: string; count: number }[]>(() => {
+    if (!plan) return [];
+    const stages: { key: string; label: string; count: number }[] = APPLY_STAGES.map((s) => ({
+      key: s.table as string,
+      label: s.label,
+      count: plan.items.filter(
+        (i) => i.table === s.table && !i.duplicate,
+      ).length,
+    }));
+    if (plan.workflowMerges.length > 0) {
+      stages.push({
+        key: "merges",
+        label: "Enriching existing matter types",
+        count: plan.workflowMerges.length,
+      });
+    }
+    return stages.filter((s) => s.count > 0);
+  }, [plan]);
+
+  const renderSetupProgress = () => {
+    const p = hook.progress;
+    const currentIdx = p
+      ? activeStages.findIndex((s) => s.key === p.stage)
+      : -1;
+    return (
+      <div className="space-y-5" role="status" aria-live="polite">
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-4 w-4">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-30 animate-ping" />
+            <span className="relative inline-flex rounded-full h-4 w-4 border-2 border-primary-500 border-t-transparent animate-spin" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+              {p?.label || "Setting up your workspace…"}
+            </p>
+            {p && p.stage !== "done" && p.total > 0 && (
+              <p className="text-2xs text-slate-400">
+                {p.done} of {p.total}{" "}
+                {p.stage === "merges" ? "matter types" : "items"}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <ul className="space-y-1.5">
+          {activeStages.map((s, i) => {
+            const state =
+              p?.stage === "done" || (currentIdx > -1 && i < currentIdx)
+                ? "done"
+                : p?.stage === s.key
+                  ? "active"
+                  : "pending";
+            return (
+              <li
+                key={s.key}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-semibold transition-colors ${
+                  state === "active"
+                    ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
+                    : state === "done"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-slate-300 dark:text-zinc-600"
+                }`}
+              >
+                {state === "done" ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5 flex-shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : state === "active" ? (
+                  <span className="w-3.5 h-3.5 flex-shrink-0 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+                ) : (
+                  <span className="w-3.5 h-3.5 flex-shrink-0 rounded-full border-2 border-current opacity-40" />
+                )}
+                <span className="flex-1">{s.label}</span>
+                <span
+                  className={`text-2xs tabular-nums ${
+                    state === "pending" ? "" : "font-black"
+                  }`}
+                >
+                  {state === "pending" ? `${s.count} queued` : s.count}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <p className="text-2xs text-slate-400 leading-relaxed px-1">
+          Keep this open — this usually takes under a minute. Nothing in your
+          existing workspace is changed or deleted.
+        </p>
+      </div>
+    );
   };
 
   // ---------------------------------------------------------------------
@@ -298,7 +399,12 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
           {renderCount("Checklists", plan?.counts.checklists || 0)}
         </div>
 
-        <div className="space-y-4 max-h-[42vh] overflow-y-auto custom-scrollbar pr-1">
+        {hook.running ? (
+          <div className="p-4 bg-white dark:bg-zinc-800/60 rounded-xl border border-slate-200 dark:border-zinc-700">
+            {renderSetupProgress()}
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-[42vh] overflow-y-auto custom-scrollbar pr-1">
           {groups.map((g) => {
             const list = groupedList(g.table);
             if (list.length === 0) return null;
@@ -360,12 +466,14 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
             </section>
           )}
         </div>
+        )}
 
         <footer className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800">
           <button
             type="button"
+            disabled={hook.running}
             onClick={() => setStep("select")}
-            className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-700"
+            className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-default"
           >
             ← Back
           </button>
@@ -375,7 +483,11 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
             onClick={runApply}
             className="px-5 py-2.5 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 disabled:opacity-40 shadow-sm"
           >
-            {hook.running ? "Setting up…" : totalNew === 0 ? "Everything already set up" : `Apply ${totalNew} additions`}
+            {hook.running
+              ? hook.progress?.label || "Setting up…"
+              : totalNew === 0
+                ? "Everything already set up"
+                : `Apply ${totalNew} additions`}
           </button>
         </footer>
       </div>

@@ -81,7 +81,7 @@ export interface ExtendedDataActions extends DataActionsContextType {
     handleBulkUpdateProperties: (ids: string[], data: { status?: PropertyStatus, category?: PropertyCategory }) => Promise<void>;
     onUpdateContactProperties: (contactId: string, properties: Property[]) => void;
     handleDismissNotification: (id: string) => Promise<void>;
-    handleUpdateFirmDetails: (details: any) => Promise<void>;
+    handleUpdateFirmDetails: (details: any, opts?: { successToast?: string | null }) => Promise<void>;
     handleBulkArchiveTasks: (ids: string[]) => Promise<void>;
     handleBulkUpdateTaskStatus: (ids: string[], status: TaskStatus) => Promise<void>;
     handleBulkDeleteTasks: (ids: string[]) => Promise<void>;

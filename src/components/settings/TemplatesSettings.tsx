@@ -440,6 +440,14 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                                                     ? new Date().toISOString()
                                                     : (fd?.practiceProfile || {}).blueprintAppliedAt,
                                             },
+                                        }, {
+                                            // ROUND 9: silent success — the single
+                                            // "Blueprint applied: …" toast below covers
+                                            // this save. Previously the user saw BOTH
+                                            // "Firm settings updated." AND "Blueprint
+                                            // applied…" (or a failure toast right after
+                                            // a success toast when the save failed).
+                                            successToast: null,
                                         });
                                         addToast?.(
                                             `Blueprint applied: ${result.created} additions created, ${result.merged} workflows enriched, ${result.skipped} already present.`,

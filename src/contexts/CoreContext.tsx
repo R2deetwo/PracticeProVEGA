@@ -46,7 +46,7 @@ export interface CoreState {
 
 export interface CoreActions {
     handleUpdateUser: (userId: string, data: any) => void;
-    handleUpdateFirmDetails: (details: any) => void;
+    handleUpdateFirmDetails: (details: any, opts?: { successToast?: string | null }) => void;
     handleMarkNotificationsRead: (ids: string[]) => void;
     handleDismissNotification: (id: string) => void;
     handleClearAllNotifications: () => void;

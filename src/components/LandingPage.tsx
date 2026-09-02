@@ -407,7 +407,10 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Features</button>
                             <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Pricing</button>
                             <button onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Resources</button>
-                            <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
+                            {/* ROUND 9: Changelog previously scrolled to #pricing —
+                                the actual changelog (What's New) lives on the
+                                Resources page, so route there instead. */}
+                            <button onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
                         </div>
                     </div>
                 )}
@@ -692,8 +695,8 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         {/* Sub-copy */}
                         <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
                             {isVega
-                                ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
-                                : 'Purpose-built for Nigerian property portfolios — for professional property managers and diaspora property owners alike. Facilities management, service charge collection, a residents\' portal, and AI-powered revenue intelligence in one platform.'}
+                                ? 'Case management, AI-assisted drafting, and billing that respects Nigerian court practice — from intake to judgment, in one workspace.'
+                                : 'Rent and service-charge collection, a residents\' portal, maintenance workflows, and revenue intelligence — built for Nigerian property portfolios, at home or from abroad.'}
                         </p>
 
                         {/* CTAs — hidden on mobile because the MobileStickyCTA bar
@@ -1946,10 +1949,12 @@ const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ a
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12 md:mb-16">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-                        What Nigerian {isVega ? 'lawyers' : 'property managers'} say
+                        {isVega ? 'Why firms run on PracticePro' : 'Why portfolios run on PracticePro'}
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
-                        Real results from {isVega ? 'law firms' : 'property managers and owners'} across Nigeria and abroad.
+                        {isVega
+                            ? 'How Vega helps Nigerian law firms stay on top of matters, drafts, and billable work.'
+                            : 'How Atrium helps Nigerian property managers and owners keep collections on schedule.'}
                     </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
@@ -2036,7 +2041,7 @@ const FAQ_ITEMS = {
         },
         {
             q: "How does Sentry Pass (visitor management) work?",
-            a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 30-day free trial, then N15,000/month as an add-on.",
+            a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 30-day free trial, then ₦7,500/month as an add-on (included at no extra cost on Komplete).",
         },
         {
             q: "What happens if a resident doesn't pay?",

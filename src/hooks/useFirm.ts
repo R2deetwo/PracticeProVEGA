@@ -50,8 +50,17 @@ export const useFirm = (appState: AppState, actions: any) => {
      * currentUser.firmId is already set). The DataProvider merge is also
      * patched to always mirror `_id` onto `id`, but this hook stays defensive
      * so older cached state still works.
+     *
+     * ROUND 9 (toast fix): callers can control the toast behaviour via
+     * opts.successToast:
+     *   - omitted → "Firm settings updated." success toast (existing behaviour)
+     *   - null → silent (the caller shows its own richer toast — e.g. the
+     *     setup wizard / Practice Blueprint modal, which previously produced
+     *     TWO competing toasts: "Workspace pre-configured: …" followed by
+     *     "Firm settings updated.")
+     *   - a custom string → that message as the success toast
      */
-    const handleUpdateFirmDetails = useCallback(async (details: any) => {
+    const handleUpdateFirmDetails = useCallback(async (details: any, opts?: { successToast?: string | null }) => {
         if (!details) return;
         const existingFirm = appState.firmDetails as any;
         const firmId =
@@ -81,10 +90,15 @@ export const useFirm = (appState: AppState, actions: any) => {
                 data: dataToSave,
                 userEmail: currentUser?.email,
             });
-            addToast("Firm settings updated.", { type: 'success' });
+            if (opts?.successToast !== null) {
+                addToast(opts?.successToast ?? "Firm settings updated.", { type: 'success' });
+            }
         } catch (e) {
             console.error('[useFirm] handleUpdateFirmDetails failed:', e);
-            addToast("Failed to sync firm settings.", { type: 'error' });
+            // ROUND 9: honest, actionable error copy. The old generic
+            // "Failed to sync firm settings." told the user nothing about
+            // what to do next.
+            addToast("Could not save your firm settings. Nothing was lost — please try again, or retry from Settings → Firm Configuration if it keeps failing.", { type: 'error', duration: 6000 });
         }
     }, [appState.firmDetails, updateItemMutation, addToast, currentUser]);
 
