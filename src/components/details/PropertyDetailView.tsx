@@ -10,9 +10,6 @@ import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-// SIMPLIFY FIX: ComposeModal import removed — the instance near the end of
-// this file was unreachable (showCompose was never set true anywhere).
-// import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 import { useFeatures } from '../../hooks/useFeatures';
 import { DocumentsTab } from './DocumentsTab';
 import { useMatterState } from '../../contexts/MatterContext';

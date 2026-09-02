@@ -1,3 +1,24 @@
+/**
+ * ServiceChargeMonitor — the firm-side enforcement surface for recurring
+ * service bills (the `service_charges` Convex table).
+ *
+ * DUAL-SYSTEM NOTE (page-audit round 5):
+ * The app tracks service-charge money in TWO stores, on purpose:
+ *   1. THIS monitor (`service_charges` rows) — obligations & enforcement:
+ *      due reminders, defaulter alerts, penalties, wallet auto-deduct,
+ *      tenant-portal dues, WhatsApp notices. Category-level (Diesel,
+ *      Security, ...). Firm enters these via "Add Charge".
+ *   2. The lease ledger (`rentalDetails.scAmount/scPeriods`) — per-lease
+ *      period settlement shown in PropertyDetailView (ServiceChargeBars)
+ *      and healed during onboarding (OnboardUnitLedgerModal). Receipts/
+ *      PDV read from here.
+ * A full table unification was evaluated and DEFERRED (needs a data
+ * migration; the two stores model different domain objects). The round-5
+ * fix for the real user pain — double entry — is the "untracked lease
+ * charges" bridge below: units whose lease already declares a service
+ * charge but have no row here surface as one-tap pre-filled Track actions,
+ * so reminders/portal/auto-deduct switch on without re-typing anything.
+ */
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useAction } from 'convex/react';
@@ -50,20 +71,94 @@ const FilterIcon = ({ className = "w-4 h-4" }) => (
 // ── Helpers ───────────────────────────────────────────────────────────────
 const CYCLE_MS = { Monthly: 30 * 86400000, Quarterly: 90 * 86400000, Annually: 365 * 86400000 };
 const CAT_ICONS: Record<ServiceChargeCategory, string> = {
-  Diesel: '', Security: '', Cleaning: '', Water: '', Other: '',
+  Diesel: '⛽', Security: '🛡️', Cleaning: '🧹', Water: '💧', Other: '🔧',
 };
 const PENALTY_RATE = 0.05; // 5%
+
+// ── Lease-bridge helpers (round 5) ─────────────────────────────────────────
+/** Lease serviceChargeFrequency → monitor cycle. Bi-Annually has no row-level
+ *  cycle equivalent, so it maps to Annually (post-payment due-date advance is
+ *  editable per charge; the lease frequency is recorded in the notes). */
+const LEASE_CYCLE: Record<string, 'Monthly' | 'Quarterly' | 'Annually'> = {
+  Monthly: 'Monthly', Quarterly: 'Quarterly', 'Annually': 'Annually', 'Bi-Annually': 'Annually',
+};
+
+interface LeaseSc {
+  /** unit key as AddChargeModal's dropdown would submit it */
+  unitKey: string;
+  /** bare embedded-unit id (older rows may key on this) */
+  bareId: string;
+  label: string;
+  amount: number;
+  frequency?: string;
+}
+
+function shortAddr(address?: string): string {
+  return (address || '').split(',')[0] || 'Property';
+}
+
+/** Units whose lease (PropertyForm) already declares a service charge amount. */
+function deriveLeaseServiceCharges(properties: any[]): LeaseSc[] {
+  const out: LeaseSc[] = [];
+  for (const p of properties || []) {
+    const embedded: any[] = p?.units || [];
+    if (embedded.length > 0) {
+      for (const u of embedded) {
+        const rd = u?.rentalDetails || {};
+        const amount = Number(rd.serviceChargeAmount ?? u?.serviceChargeAmount ?? u?.serviceCharge ?? 0) || 0;
+        if (amount > 0) {
+          const unitName = u?.unitName || u?.name || '';
+          out.push({
+            unitKey: `${p.id}_${u?.id || unitName}`,
+            bareId: String(u?.id || ''),
+            label: unitName ? `${unitName} · ${shortAddr(p.address)}` : shortAddr(p.address),
+            amount,
+            frequency: rd.serviceChargeFrequency,
+          });
+        }
+      }
+    } else {
+      const rd = p?.rentalDetails || {};
+      const amount = Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0) || 0;
+      if (amount > 0) {
+        out.push({
+          unitKey: String(p.id),
+          bareId: String(p.id),
+          label: rd.unitName ? `${rd.unitName} · ${shortAddr(p.address)}` : shortAddr(p.address),
+          amount,
+          frequency: rd.serviceChargeFrequency,
+        });
+      }
+    }
+  }
+  return out;
+}
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // ── Add Charge Modal ──────────────────────────────────────────────────────
-const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmId, onClose }) => {
+export interface AddChargePrefill {
+  unitId?: string;
+  category?: ServiceChargeCategory;
+  amount?: number;
+  cycle?: 'Monthly' | 'Quarterly' | 'Annually';
+  notes?: string;
+}
+
+const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: AddChargePrefill }> = ({ firmId, onClose, prefill }) => {
   const upsert = useMutation(api.sentry.upsertServiceCharge);
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
-  const [form, setForm] = useState({ unitId: '', category: 'Diesel' as ServiceChargeCategory, amount: '', cycle: 'Annually' as 'Monthly' | 'Quarterly' | 'Annually', notes: '', nextDueDays: '0' });
+  const [form, setForm] = useState({
+    unitId: prefill?.unitId || '',
+    category: prefill?.category || 'Diesel' as ServiceChargeCategory,
+    amount: prefill?.amount != null ? String(prefill.amount) : '',
+    cycle: prefill?.cycle || 'Annually' as 'Monthly' | 'Quarterly' | 'Annually',
+    notes: prefill?.notes || '',
+    nextDueDays: '0',
+  });
   const [loading, setLoading] = useState(false);
 
   const units = useUnitDropdownOptions(coreState.properties || []);
@@ -264,14 +359,26 @@ const ServiceChargeMonitor: React.FC = () => {
   const allCharges = coreState.serviceCharges || [];
   const markPaidMutation = useMutation(api.sentry.markChargeAsPaid);
   const logAuto = useMutation(api.sentry.logAutomation);
+  const upsertCharge = useMutation(api.sentry.upsertServiceCharge);
   const { queueMutation, isOnline } = useOfflineQueue();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addPrefill, setAddPrefill] = useState<AddChargePrefill | undefined>(undefined);
   const [penaltyCharge, setPenaltyCharge] = useState<ServiceCharge | null>(null);
   const [partialPaymentCharge, setPartialPaymentCharge] = useState<ServiceCharge | null>(null);
   const [partialAmount, setPartialAmount] = useState('');
   const [toast, setToast] = useState('');
   const [filter, setFilter] = useState<'all' | 'defaulters' | 'critical' | 'partial'>('all');
+  const [bridging, setBridging] = useState(false);
+  // Session-scoped dismissal of the lease-bridge banner (re-appears next
+  // session while still actionable — it is a task, not decoration).
+  const [bridgeDismissed, setBridgeDismissed] = useState(() => {
+    try { return sessionStorage.getItem('pp_sc_bridge_dismissed') === '1'; } catch { return false; }
+  });
+  const dismissBridge = () => {
+    setBridgeDismissed(true);
+    try { sessionStorage.setItem('pp_sc_bridge_dismissed', '1'); } catch {}
+  };
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -308,6 +415,55 @@ const ServiceChargeMonitor: React.FC = () => {
     if (filter === 'partial') return allCharges.filter(c => c.serviceChargeStatus === 'PARTIALLY_PAID');
     return allCharges;
   }, [allCharges, filter]);
+
+  // ── Lease bridge (round 5): units with a lease-declared service charge
+  // that have no enforcement row here. Hidden in demo mode (mutations are
+  // firm-authenticated and would fail for the demo user) and behind the
+  // session dismissal. A unit counts as tracked if ANY non-min-vend charge
+  // row keys on its composite or bare id.
+  const isDemo = currentUser?.email === 'demo@practicepro.ng';
+  const untrackedLease = useMemo(() => {
+    if (isDemo) return [];
+    const tracked = new Set(allCharges.filter(c => !c.isMinimumVend).map(c => c.unitId));
+    return deriveLeaseServiceCharges(coreState.properties || []).filter(
+      l => !tracked.has(l.unitKey) && !tracked.has(l.bareId)
+    );
+  }, [isDemo, allCharges, coreState.properties]);
+
+  const bridgeOne = (l: LeaseSc): AddChargePrefill => ({
+    unitId: l.unitKey,
+    category: 'Other',
+    amount: l.amount,
+    cycle: LEASE_CYCLE[l.frequency ?? ''] ?? 'Annually',
+    notes: `Lease service charge — bridged from unit ledger${l.frequency ? ` (lease frequency: ${l.frequency})` : ''}`,
+  });
+
+  const handleTrackAll = async () => {
+    if (untrackedLease.length === 0 || bridging) return;
+    setBridging(true);
+    let ok = 0, failed = 0;
+    for (const l of untrackedLease) {
+      try {
+        await upsertCharge({
+          firmId,
+          unitId: l.unitKey,
+          category: 'Other',
+          amount: l.amount,
+          cycle: LEASE_CYCLE[l.frequency ?? ''] ?? 'Annually',
+          nextDueDate: Date.now(),
+          notes: `Lease service charge — bridged from unit ledger${l.frequency ? ` (lease frequency: ${l.frequency})` : ''}`,
+          userEmail: currentUser?.email,
+        });
+        ok++;
+      } catch { failed++; }
+    }
+    setBridging(false);
+    showToast(
+      failed > 0
+        ? `Bridged ${ok} of ${untrackedLease.length} units — ${failed} failed. Retry the remaining ones.`
+        : `Bridged ${ok} unit${ok === 1 ? '' : 's'} — reminders, defaulter alerts & tenant dues now active`
+    );
+  };
 
   const defaulters = allCharges.filter(c => c.isDefaulter);
   const critical = allCharges.filter(c => (c.daysOverdue ?? 0) > 14);
@@ -449,7 +605,7 @@ const ServiceChargeMonitor: React.FC = () => {
           </div>
           <p className="text-xs text-slate-500 mt-0.5">Automated defaulter tracking & enforcement</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
+        <button onClick={() => { setAddPrefill(undefined); setShowAddModal(true); }} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors sm:w-auto w-full">
           <PlusIcon /> Add Charge
         </button>
       </div>
@@ -472,6 +628,55 @@ const ServiceChargeMonitor: React.FC = () => {
           <p className="text-2xs text-slate-600 mt-1">on-time payments</p>
         </div>
       </div>
+
+      {/* Lease bridge banner (round 5): one-tap tracking for lease-declared
+          service charges that have no enforcement row yet. */}
+      {!bridgeDismissed && untrackedLease.length > 0 && (
+        <div className="flex-shrink-0 mx-4 sm:mx-6 mt-4 bg-amber-950/20 border border-amber-800/40 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-lg leading-none mt-0.5 flex-shrink-0">🔗</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-200">
+                {untrackedLease.length} unit{untrackedLease.length === 1 ? '' : 's'} with a lease service charge {untrackedLease.length === 1 ? 'is' : 'are'} not tracked here
+              </p>
+              <p className="text-2xs text-amber-500/90 mt-0.5">
+                Track {untrackedLease.length === 1 ? 'it' : 'them'} once to switch on due reminders, defaulter alerts, tenant-portal dues and wallet auto-deduct.
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                {untrackedLease.slice(0, 6).map(l => (
+                  <button
+                    key={l.unitKey}
+                    onClick={() => { setAddPrefill(bridgeOne(l)); setShowAddModal(true); }}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-2xs font-semibold text-slate-200 transition-colors max-w-[220px] truncate"
+                    title={`${l.label} — ₦${l.amount.toLocaleString('en-NG')}${l.frequency ? ` · ${l.frequency}` : ''}`}
+                  >
+                    {l.label} · ₦{formatLargeNumber(l.amount)}
+                  </button>
+                ))}
+                {untrackedLease.length > 6 && (
+                  <span className="text-2xs text-slate-500 px-1">+{untrackedLease.length - 6} more</span>
+                )}
+                <button
+                  onClick={handleTrackAll}
+                  disabled={bridging}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-md text-2xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {bridging ? (
+                    <><span className="w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full animate-spin" /> Bridging…</>
+                  ) : (
+                    <>Track All ({untrackedLease.length})</>
+                  )}
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={dismissBridge}
+              aria-label="Dismiss"
+              className="text-slate-500 hover:text-slate-300 text-sm leading-none flex-shrink-0"
+            >×</button>
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex-shrink-0 px-6 pb-3 flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
@@ -516,7 +721,13 @@ const ServiceChargeMonitor: React.FC = () => {
         </div>
       )}
 
-      {showAddModal && <AddChargeModal firmId={firmId} onClose={() => setShowAddModal(false)} />}
+      {showAddModal && (
+        <AddChargeModal
+          firmId={firmId}
+          prefill={addPrefill}
+          onClose={() => { setShowAddModal(false); setAddPrefill(undefined); }}
+        />
+      )}
       {penaltyCharge && <PenaltyModal charge={penaltyCharge} firmId={firmId} onClose={() => setPenaltyCharge(null)} onToast={showToast} />}
       
       {/* Partial Payment Modal */}
