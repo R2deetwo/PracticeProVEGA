@@ -3831,46 +3831,6 @@ export const getClientInvoices = query({
     });
   },
 });
-
-// ─── Migration: Fix legacy "Portal User" role → Client/Tenant ──────────
-// One-time migration to update any users created with the old "Portal User"
-// role. Cross-references their portal_invites records to determine whether
-// they should be Client or Tenant.
-export const migratePortalUserRoles = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const allUsers = await ctx.db.query("users").collect();
-    const portalUsers = allUsers.filter((u: any) => u.role === "Portal User");
-
-    if (portalUsers.length === 0) {
-      return { migrated: 0, message: "No Portal User records found." };
-    }
-
-    let migrated = 0;
-    for (const user of portalUsers) {
-      // Look up their invite to determine portal type
-      const invites = await ctx.db
-        .query("portal_invites")
-        .withIndex("by_email", (q) => q.eq("inviteeEmail", user.email || ""))
-        .collect();
-
-      const acceptedInvite = invites.find((inv: any) => inv.status === "accepted");
-      if (acceptedInvite) {
-        const newRole = acceptedInvite.portalType === "client" ? "Client" : "Tenant";
-        await ctx.db.patch(user._id, { role: newRole });
-        migrated++;
-      } else {
-        // No invite found — default to Tenant (property portal) since that's
-        // the more common case for "Portal User" accounts
-        await ctx.db.patch(user._id, { role: "Tenant" });
-        migrated++;
-      }
-    }
-
-    return { migrated, message: `Migrated ${migrated} Portal User(s) to Client/Tenant roles.` };
-  },
-});
-
 // ─── Client Contact Lookup for Portal ──────────────────────────────────────
 
 /**
@@ -5564,46 +5524,6 @@ export const getPortalAccessToken = query({
     return (user as any).portalAccessToken || null;
   },
 });
-
-/**
- * migratePortalAccessTokens — One-time migration to generate portal access
- * tokens for all existing portal users (Client/Tenant) who don't have one.
- * Returns the count of users updated.
- */
-export const migratePortalAccessTokens = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const allUsers = await ctx.db.query("users").collect();
-    let updated = 0;
-
-    for (const user of allUsers) {
-      const role = (user as any).role;
-      if (role !== "Client" && role !== "Tenant") continue;
-      if ((user as any).portalAccessToken) continue;
-
-      let token = generatePortalAccessToken();
-      let attempts = 0;
-      while (attempts < 10) {
-        const existing = await ctx.db
-          .query("users")
-          .withIndex("by_portal_access_token", (q) => q.eq("portalAccessToken", token))
-          .first();
-        if (!existing) break;
-        token = generatePortalAccessToken();
-        attempts++;
-      }
-
-      await ctx.db.patch(user._id, { portalAccessToken: token } as any);
-      updated++;
-    }
-
-    return { updated, total: allUsers.filter(u => {
-      const role = (u as any).role;
-      return role === "Client" || role === "Tenant";
-    }).length };
-  },
-});
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // NOTIFICATION PREFERENCES — Per-firm email toggle settings
 // ═══════════════════════════════════════════════════════════════════════════════

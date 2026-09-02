@@ -92,28 +92,6 @@ export const dismissInsight = mutation({
     await ctx.db.patch(insightId, { dismissed: true, dismissedAt: Date.now() });
   },
 });
-
-/** Dismiss all insights of a given category for a firm. */
-export const dismissAllInsights = mutation({
-  args: { firmId: v.string(), category: v.optional(v.string()) },
-  handler: async (ctx, { firmId, category }) => {
-    const all = await ctx.db
-      .query("proactive_insights")
-      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
-
-    const targets = category
-      ? all.filter((i) => i.category === category && !i.dismissed)
-      : all.filter((i) => !i.dismissed);
-
-    const now = Date.now();
-    for (const t of targets) {
-      await ctx.db.patch(t._id, { dismissed: true, dismissedAt: now });
-    }
-    return { dismissed: targets.length };
-  },
-});
-
 // ─── CRON-TRIGGERED INTERNAL MUTATIONS ──────────────────────────────────────
 
 /**

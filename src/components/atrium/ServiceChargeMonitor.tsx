@@ -280,12 +280,13 @@ const ChargeRow: React.FC<{
   charge: ServiceCharge;
   unitLabel: string;
   firmId: string;
+  hasTenant: boolean;
   onPenalty: () => void;
   onRestrict: () => void;
   onSendWhatsApp: () => void;
   onMarkPaid: () => void;
   onPartialPayment: () => void;
-}> = ({ charge, unitLabel, onPenalty, onRestrict, onSendWhatsApp, onMarkPaid, onPartialPayment }) => {
+}> = ({ charge, unitLabel, hasTenant, onPenalty, onRestrict, onSendWhatsApp, onMarkPaid, onPartialPayment }) => {
   const isCritical = (charge.daysOverdue ?? 0) > 14;
   const isPartial = charge.serviceChargeStatus === 'PARTIALLY_PAID';
   const isPaidFully = charge.serviceChargeStatus === 'PAID_FULLY';
@@ -311,6 +312,17 @@ const ChargeRow: React.FC<{
               isPartial ? 'bg-amber-900/60 text-amber-300' :
               isCritical ? 'bg-rose-900/60 text-rose-300' : charge.isDefaulter ? 'bg-amber-900/60 text-amber-300' : 'bg-slate-800 text-slate-500'
             }`}>{charge.isMinimumVend ? 'Min Vend' : charge.category}</span>
+            {/* No-tenant chip (round 7): round-6 backfill leaves rows unlinked
+                when the unit itself carries no tenant info — those rows are
+                invisible to tenant-portal dues, auto-deduct skips them, and
+                WhatsApp reminders can never fire. Surface it instead of failing
+                silently. */}
+            {!hasTenant && (
+              <span
+                className="text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-900/60 text-amber-300 cursor-help"
+                title="No tenant on this unit. Tenant-portal dues and wallet auto-deduct skip this charge, and WhatsApp reminders can't be sent. Add the tenant on the property's Units tab first."
+              >No tenant</span>
+            )}
             {/* Status badge */}
             {isPaidFully && <span className="text-3xs font-bold text-emerald-400">Paid</span>}
             {isPartial && <span className="text-3xs font-bold text-amber-400">Partial (₦{(charge.outstandingBalance ?? 0).toLocaleString()} owed)</span>}
@@ -414,6 +426,29 @@ const ServiceChargeMonitor: React.FC = () => {
     // 4. Last resort
     return unitId;
   };
+
+  // ── Tenant linkage (round 7) ─────────────────────────────────────────
+  // A charge is "tenant-linked" when it has a tenantId OR the unit/property
+  // it keys on carries tenant contact info (any of the four unitId shapes).
+  // Unlinked rows silently miss tenant-portal dues, wallet auto-deduct and
+  // WhatsApp reminders — the state round-6's backfill reported for rows
+  // whose units have no tenant info at all.
+  const unitHasTenantInfo = (unitId: string): boolean => {
+    const opt = unitById.get(unitId);
+    if (opt && (opt.tenantName || opt.tenantEmail || opt.tenantPhone)) return true;
+    // Bare embedded unit ids are not keyed in unitById — scan directly.
+    for (const prop of (coreState.properties || [])) {
+      for (const u of ((prop as any).units || [])) {
+        if (String(u.id ?? '') === String(unitId)) {
+          return !!(u.tenantName || u.tenantEmail || u.tenantPhone ||
+            (prop as any).rentalDetails?.tenantName || (prop as any).rentalDetails?.tenantEmail);
+        }
+      }
+    }
+    return false;
+  };
+  const chargeHasTenant = (charge: ServiceCharge): boolean =>
+    !!charge.tenantId || unitHasTenantInfo(charge.unitId);
 
   const charges = useMemo(() => {
     if (filter === 'defaulters') return allCharges.filter(c => c.isDefaulter);
@@ -558,8 +593,11 @@ const ServiceChargeMonitor: React.FC = () => {
     const phone = resolveTenantPhone(charge.tenantId);
     const preview = `Access restriction notice for ${getUnitLabel(charge.unitId)} — ${charge.category} overdue ${charge.daysOverdue} days.`;
     if (!phone) {
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${preview} (NOT SENT — no phone number on tenant record)`, status: 'failed', triggeredBy: currentUser?.id });
-      showToast('Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
+      const noTenant = !chargeHasTenant(charge);
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${preview} (NOT SENT — ${noTenant ? 'no tenant linked to this unit' : 'no phone number on tenant record'})`, status: 'failed', triggeredBy: currentUser?.id });
+      showToast(noTenant
+        ? 'No tenant linked to this unit — add the tenant on the property\u2019s Units tab first.'
+        : 'Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
       return;
     }
     try {
@@ -583,8 +621,11 @@ const ServiceChargeMonitor: React.FC = () => {
       : `Reminder: Your ${charge.category} charge of ₦${charge.amount.toLocaleString()} is ${charge.isDefaulter ? `${charge.daysOverdue} days overdue` : 'due soon'}.`;
     const phone = resolveTenantPhone(charge.tenantId);
     if (!phone) {
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${messageText} (NOT SENT — no phone number on tenant record)`, status: 'failed', triggeredBy: currentUser?.id });
-      showToast('Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
+      const noTenant = !chargeHasTenant(charge);
+      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${messageText} (NOT SENT — ${noTenant ? 'no tenant linked to this unit' : 'no phone number on tenant record'})`, status: 'failed', triggeredBy: currentUser?.id });
+      showToast(noTenant
+        ? 'No tenant linked to this unit — add the tenant on the property\u2019s Units tab first.'
+        : 'Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
       return;
     }
     try {
@@ -710,6 +751,7 @@ const ServiceChargeMonitor: React.FC = () => {
               charge={charge}
               unitLabel={getUnitLabel(charge.unitId)}
               firmId={firmId}
+              hasTenant={chargeHasTenant(charge)}
               onPenalty={() => setPenaltyCharge(charge)}
               onRestrict={() => handleRestrict(charge)}
               onSendWhatsApp={() => handleWhatsApp(charge)}
