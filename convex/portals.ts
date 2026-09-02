@@ -1235,8 +1235,12 @@ export const createPortalInvite = action({
     relatedId: v.optional(v.string()),
     channel: v.optional(v.string()),       // "email" | "whatsapp" | "both" — default "email"
     message: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; emailError: string; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean; whatsappError: string }> => {
+    // Round 8 auth retrofit: firmId/inviterId were trusted — any caller could
+    // send invites (email/WhatsApp via the firm's sender) for any firm.
+    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
     const now = Date.now();
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days — security: shorter window reduces risk of wrong-recipient access
     const token = generateToken();
@@ -1285,7 +1289,7 @@ export const createPortalInvite = action({
     }
 
     // 1. Insert the invite record
-    const inviteId: string = await ctx.runMutation(api.portals.insertInviteRecord, {
+    const inviteId: string = await ctx.runMutation(internal.portals.insertInviteRecord, {
       firmId: args.firmId,
       inviterId: args.inviterId,
       inviteeEmail: args.inviteeEmail,
@@ -1306,7 +1310,7 @@ export const createPortalInvite = action({
     // because no contact record would exist to link their userId to.
     if (args.portalType === "client") {
       try {
-        await ctx.runMutation(api.portals.ensureContactForClientInvite, {
+        await ctx.runMutation(internal.portals.ensureContactForClientInvite, {
           firmId: args.firmId,
           inviteeEmail: args.inviteeEmail,
           inviteeName: resolvedInviteeName,
@@ -1529,7 +1533,9 @@ export const createPortalInvite = action({
  * Internal mutation — only used by createPortalInvite action to write the DB record.
  * Not exported for direct frontend use.
  */
-export const insertInviteRecord = mutation({
+export const insertInviteRecord = internalMutation({
+  // Round 8 auth retrofit: internal-only (called by createPortalInvite).
+  // Was public — anyone could insert invite records into any firm.
   args: {
     firmId: v.string(),
     inviterId: v.string(),
@@ -1622,7 +1628,8 @@ export const insertInviteRecord = mutation({
  *   invitee accepts the invite and creates their portal user account (see
  *   setupPortalPassword → linkPortalUserToContact).
  */
-export const ensureContactForClientInvite = mutation({
+export const ensureContactForClientInvite = internalMutation({
+  // Round 8 auth retrofit: internal-only (called by createPortalInvite).
   args: {
     firmId: v.string(),
     inviteeEmail: v.optional(v.string()),
@@ -1727,7 +1734,9 @@ export const ensureContactForClientInvite = mutation({
  * Without this, the contact exists but the portal user can't see their
  * matters because the contact has no userId linkage.
  */
-export const linkPortalUserToContact = mutation({
+export const linkPortalUserToContact = internalMutation({
+  // Round 8 auth retrofit: internal-only (called by the invite-acceptance
+  // flow). Was public — anyone could relink another firm's contacts.
   args: {
     firmId: v.string(),
     userId: v.string(),
@@ -1771,6 +1780,7 @@ export const linkPortalUserToContact = mutation({
 export const resendPortalInvite = action({
   args: {
     inviteId: v.id("portal_invites"),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{
     token: string;
@@ -1781,9 +1791,13 @@ export const resendPortalInvite = action({
     whatsappSimulated: boolean;
     whatsappSkipped: boolean;
   }> => {
+    // Round 8 auth retrofit: was a bare-id action that regenerated invite
+    // tokens and re-sent email/WhatsApp — verify the caller owns the invite.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
     const existing: any = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
     if (!existing) throw new Error("Invitation not found");
     if (existing.status === "revoked") throw new Error("Cannot resend a revoked invitation");
+    assertSameFirm(caller, existing.firmId as any);
 
     // Refresh token + expiry on the existing record
     const newToken = generateToken();
@@ -1950,10 +1964,13 @@ export const getPortalInvitesByFirm = query({
 
 
 export const revokePortalInvite = mutation({
-  args: { inviteId: v.id("portal_invites") },
+  args: { inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id patch — verify caller owns the invite.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
     const invite = await ctx.db.get(args.inviteId);
     if (!invite) throw new Error("Invite not found");
+    assertSameFirm(caller, invite.firmId as any);
 
     // Toggle: if currently revoked, restore to accepted; if active/pending, revoke
     if (invite.status === "revoked") {
@@ -2057,12 +2074,19 @@ export const deletePortalInviteAndCleanup = mutation({
     inviteId: v.id("portal_invites"),
     inviteeEmail: v.optional(v.string()),
     inviteePhone: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Round 8 auth retrofit: bare-id delete + user-account reset — verify
+    // the caller owns the invite.
+    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
     const email = (args.inviteeEmail || "").toLowerCase().trim();
 
     // 0. Read the target invite first (we need its relatedId for user lookup later)
     const targetInvite = await ctx.db.get(args.inviteId);
+    if (targetInvite) {
+      assertSameFirm(caller, (targetInvite as any).firmId as any);
+    }
 
     // 1. HARD-DELETE the specified invite record. The admin clicked Delete,
     //    not Revoke — the record must disappear from the list entirely.
@@ -2599,7 +2623,7 @@ export const setupPortalPassword = action({
     // even though the contact + matter linkage was created at invite time.
     if (invite.portalType === "client" && portalUserDocId) {
       try {
-        await ctx.runMutation(api.portals.linkPortalUserToContact, {
+        await ctx.runMutation(internal.portals.linkPortalUserToContact, {
           firmId: invite.firmId,
           userId: portalUserDocId,
           email,

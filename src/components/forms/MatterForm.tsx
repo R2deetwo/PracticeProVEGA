@@ -666,7 +666,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 // MARK ALOA ACTION COMPLETED
                 if (initialContext?.aloaMessageId) {
                     try {
-                        await markAloaActionCompleted({ messageId: initialContext.aloaMessageId });
+                        await markAloaActionCompleted({ messageId: initialContext.aloaMessageId, userEmail: currentUser?.email || undefined });
                     } catch (e) {
                         console.error("Failed to mark ALOA action completed:", e);
                     }

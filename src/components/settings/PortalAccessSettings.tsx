@@ -167,6 +167,7 @@ const InviteForm: React.FC<{
 }> = ({ firmId, inviterId, portalType, onSent, onCancel }) => {
   const { addToast } = useUI();
   const convex = useConvex();
+  const { currentUser } = useAuth() as any; // round 8: caller identity for createPortalInvite
   const sendInvite = useAction(api.portals.createPortalInvite);
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
@@ -281,6 +282,7 @@ const InviteForm: React.FC<{
         portalType,
         relatedId: relatedId || undefined,
         channel,
+        userEmail: currentUser?.email || undefined,
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -900,7 +902,7 @@ export const PortalAccessSettings: React.FC = () => {
 
   const handleRevoke = async (inviteId: string) => {
     try {
-      await revokeInvite({ inviteId: inviteId as any });
+      await revokeInvite({ inviteId: inviteId as any, userEmail: currentUser?.email || undefined });
       // Check if the invite was revoked or restored by checking its current status
       // The backend toggles: revoked -> accepted (restore), active/pending -> revoked
       addToast('Portal access updated.', { type: 'success' });
@@ -935,6 +937,7 @@ export const PortalAccessSettings: React.FC = () => {
           inviteId: inviteId as any,
           inviteeEmail: inviteEmail || undefined,
           inviteePhone: invitePhone || undefined,
+          userEmail: currentUser?.email || undefined,
         });
       } catch (cleanupErr: any) {
         console.warn('[PortalAccessSettings] Cleanup mutation failed (continuing to hard-delete):', cleanupErr);
@@ -999,7 +1002,7 @@ export const PortalAccessSettings: React.FC = () => {
   const handleResend = async (invite: any) => {
     setResendingId(String(invite._id));
     try {
-      const result = await resendInvite({ inviteId: invite._id });
+      const result = await resendInvite({ inviteId: invite._id, userEmail: currentUser?.email || undefined });
       const parts: string[] = [];
       if (result.emailSent) parts.push('email delivered');
       else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');

@@ -174,6 +174,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                         relatedId: recipient.unitId,
                         channel: 'email',
                         message: finalMessage,
+                        userEmail: currentUser?.email || undefined,
                     });
                     if (result?.emailSimulated) {
                         addToast('Portal invite email was simulated — Brevo API key may not be configured on Convex.', { type: 'info' });
