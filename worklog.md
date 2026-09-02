@@ -9950,3 +9950,54 @@ Stage Summary:
   backfillServiceChargeTenants is authless but additive-only + idempotent
   (matches repo convention, minimal blast radius). PAT revocation from
   earlier rounds still unconfirmed.
+
+---
+Task ID: 9
+Agent: Super Z (main)
+Task: Round 6 completion — push c9f43cb, deploy backend, run the tenant
+backfill migration against production, verify end-to-end.
+
+Work Log:
+- User pasted a fresh scoped PAT ("whats next?"); pushed f020655
+  (c9f43cb code + docs). All 3 workflows green (Cloudflare, Vercel, APK).
+- DEPLOY-FREEZE DISCOVERED: `migrations:reportUnlinkedServiceCharges`
+  was NOT on gregarious-malamute-537 despite CI success. The APK job's
+  "Deploy Convex backend" step runs with `continue-on-error: true`, and
+  Convex's deploy-time strict typecheck of convex/ failed:
+  `unitLookup.ts:78 TS2322: Promise<any[]> | null not assignable to
+  Promise<any[]>` — assigning an `any` expression to the memoized
+  `propsPromise` resets control-flow narrowing. Root tsc (126-error
+  baseline) and `vite build` never see convex/, so the round-6 local
+  verification could not catch it; CI stayed green while the function
+  upload was skipped. (Also: CI "success" NEVER proves a Convex deploy
+  for this repo — always probe the deployment directly.)
+- Also corrected the HTTP trigger format: Convex's /api/query + /api/
+  mutation need `{"path":"module:function"}` (COLON), not slashes —
+  slash paths return "Could not find public function" for everything.
+- Fixed unitLookup.ts (typed intermediate const preserves narrowing);
+  verified locally: `tsc -p convex --noEmit` CLEAN, root tsc 126 =
+  baseline, 18/18 resolver unit tests pass. Committed 6507414, pushed.
+  CI green; this time the deploy log shows "Uploading functions to
+  Convex..." with no type errors — backend un-frozen; probe now
+  resolves. (The CI version-bump push attempts fail on the runner's
+  dirty tree and no-op locally — remote main stays at 6507414.)
+- RAN THE MIGRATION on production (gregarious-malamute-537):
+  dryRun → 12 total rows, 3 already linked, 1 linkable (tenant user
+  qn76t0ev… resolved via practiceprovega@gmail.com), 8 unresolved
+  (no tenant info on unit/property — nothing safe to write).
+  Real run → patched exactly 1 row (rn77hm91…). Post-report:
+  alreadyLinked 4, unlinked 8. Idempotency re-run: would-link 0.
+- Live frontend verified: version.json sha=6507414 status=healthy,
+  index 200.
+
+Stage Summary:
+- ROUND 6 CLOSED AND LIVE: migration-gated items fully shipped —
+  shared unitId resolver live on the backend, wallet auto-deduct /
+  reminders / receipts now resolve embedded units, service-charge
+  tenant backfill executed against production (additive, idempotent,
+  1 row healed, 8 documented-unresolvable, 3 pre-linked).
+- New repo knowledge: Convex deploys are continue-on-error — probe
+  functions (colon path format) after every push that changes convex/.
+- SECURITY: the PAT used this session was pasted in chat again —
+  revoke it (plus all earlier ones); runPhase1 authless-rewrite hazard
+  still open for a future hardening round.
