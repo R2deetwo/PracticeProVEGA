@@ -9749,3 +9749,75 @@ Stage Summary:
   6), no duplicate Atrium financial hub, no dead intake/lead surfaces,
   shareable application links work end-to-end for the first time
 - REMINDER: revoke the new PAT (pasted in chat) when work concludes
+
+---
+Task ID: page-audit-simplify-3 (round 4)
+Agent: main (Super Z)
+Task: Round 4 of the page-by-page simplification audit — close the queue
+deliberately deferred at the end of round 3 (payment_proofs review UI,
+PropertyForm dispute/fees/owner-picker, ComposeModal-vs-NoticeBoard
+product decision). Pushed as 58ecf80; all deploys verified.
+
+Work Log:
+- Reconstructed audit state from this worklog (rounds 1-3 all shipped
+  through 33c320e/5fccfac); white-screen incident (cyclic chunk) was
+  fixed and deployed as f1a2cea before this round began.
+- PAYMENT PROOFS: confirmed portals.getPaymentProofsByFirm /
+  updatePaymentProofStatus had ZERO frontend callers while tenants
+  actively submit proofs (submitPaymentProof + Payment History in
+  TenantPortal). Built PaymentProofsTab (new file): pending-first
+  review list inside AtriumInbox as a third tab ("Payment Proofs",
+  amber badge = pending count), cards show tenant/property/unit/
+  amount/period/method (Transfer vs Paystack)/description, attachments
+  viewable via api.myFunctions.getFileUrl on demand, one-tap Approve,
+  Reject with optional note (persisted as adminNote, shown to tenant
+  in their Payment History; statusGroup normalizes the messy 6-value
+  status vocabulary to 3 visual states). Uses the existing
+  requireFirmUser cross-firm auth in the mutation.
+- PROPERTYFORM FEES: Legal/Agency inputs flipped to amount-first
+  (naira, comma-formatted, N/A checkboxes kept) with derived "% of
+  rent" hint. updateUnit now derives legalFeePercentage/
+  agencyFeePercentage from amounts (rent edits re-derive; N/A zeroes
+  both). Load-time healing reconstructs amounts for legacy rows saved
+  with pct-but-zero-amount (old code only recomputed amounts on
+  rent/pct edits, so new properties could be saved amount=0/pct=10 →
+  PDV/letters showed ₦0). New-unit fee defaults 10 → 0 (no more
+  assumed fee). Management Fee % deliberately KEPT as a percentage —
+  it is genuinely % based (CollectRentModal computes fee = collected
+  rent × pct; PDV displays it).
+- PROPERTYFORM DISPUTE: removed write-only disputeStatus state (no
+  input UI, no readers anywhere; payload sites now round-trip
+  propertyToEdit's stored value; the linked matter owns the dispute's
+  real status).
+- OWNER PICKER: extracted shared PropertyOwnerPicker from the two
+  nearly-identical ~60-line "Select Owner" screens (ModalManager
+  center-modal + DockedModal side-modal, drifting styling/behavior).
+  Both systems render it with their own callbacks
+  (openModal('newProperty', id) vs setSelectedContactId). Hover arrow
+  now always visible on touch (audit mobile-affordance rule).
+- COMPOSEMODAL vs NOTICEBOARD product decision: KEEP BOTH — different
+  jobs (direct WhatsApp/Email to specific tenants vs broadcast
+  announcement to all residents + portal board). Headers now state
+  their job and point to each other ("Direct Message" + guidance;
+  NoticeBoard composer explainer). A unified composer stays deferred —
+  it would require merging two backends (sentry/communications vs
+  portals.createNotice), not worth the risk this round.
+- Verified: tsc 126 = baseline 126 with ZERO new errors (diffed
+  error-by-error vs stashed pristine tree); vite build green; browser
+  smoke test on fresh dist (landing + /vega, zero module-eval errors
+  via injected __errs trap). Committed 58ecf80 (8 files, +588/-203),
+  pushed; Cloudflare deploy SUCCESS (~75s); live version.json
+  sha=58ecf80 healthy; live site renders in browser.
+
+Stage Summary:
+- Round-4 queue CLOSED. Highest-value item shipped: the firm can now
+  SEE and act on tenant payment proofs (previously invisible money).
+- Fees are naira-first with legacy-compat derived percentages; dispute
+  section lost its dead status field; owner selection is one component.
+- Still deferred (round 5 candidates, both need data migrations or
+  deeper product calls): (1) dual service-charge tracking systems
+  (service_charges table vs properties.rentalDetails.scPeriods blob);
+  (2) unified composer (ComposeModal + NoticeBoard merge).
+- Convex note: getPaymentProofsByFirm/updatePaymentProofStatus already
+  existed server-side, so this round needed NO convex schema/function
+  changes and no npx convex deploy.
