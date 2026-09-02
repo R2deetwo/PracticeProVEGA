@@ -10057,3 +10057,103 @@ Stage Summary:
   convention uses per-function token validation; a systematic pass is
   a separate project); dual-SC unification stays deferred by design;
   PAT pasted this session still needs revocation.
+
+---
+Task ID: 11
+Agent: Super Z (main)
+Task: Round 8 — the systematic auth retrofit of live authless Convex
+functions (the pass flagged as "separate project" at the end of round 7).
+
+Work Log:
+- Rebuilt the authless-writer inventory with a precise classifier
+  (scripts-side r8-classify.js): 214 public writers total, 63 with no
+  validation evidence, 40 of them LIVE. Cross-checked against each
+  module's local guard conventions (sentry.ts already had
+  requireSentryAuth since the security sprint — those were false
+  positives; the classifier's loose invite/token heuristic also HID the
+  portal-invite family as "validated" — closed in 8b).
+- NEW convex/callerAuth.ts — the strict, generalizable guard module:
+  resolveCaller (Convex-Auth session / userId / email -> users row, NO
+  anonymous fallback — unlike requireFirmUser's permissive legacy path),
+  requireStaffCaller (portal roles blocked + firm match),
+  requirePortalCaller (Tenant/Client only), requireFounderCaller (the
+  Founder App admission rule), assertSameFirm (incl. joinedFirmIds).
+- RETROFITTED 35 live functions across 11 modules with guards +
+  firm/entity-ownership checks: analytics.trackEvent; embeddings.
+  addMemory/searchMemories; indexer.saveAloaDocument (cross-firm upsert
+  protection); legalRepo grant/revoke/getAllLicenses/getUsageLogs
+  (Founder: any firm; staff: own firm — was a billing bypass);
+  myFunctions create/deleteAloaConversation, add/removeUnitToProperty,
+  setMatterPrivacy, markAloaActionCompleted, updateOrgPayoutDetails +
+  purgeStalePendingAddons (hardcoded founder-email allowlist -> real
+  role check); portals seed/update/deleteServiceRequestType,
+  updateClientServiceRequestStatus, deletePortalInvite, selfHeal-
+  ClientContactLink (portal-caller), registerForPushNotifications,
+  create/cancelScheduledMessage, markPortalMessageRead,
+  submitPaymentProof (portal-caller + firm), updateNotificationPrefs,
+  and the 8b invite family: createPortalInvite, revoke/resend/
+  deletePortalInviteAndCleanup; proactive.dismissInsight;
+  pushNotifications register/unregisterPushToken (ownership);
+  salesInquiries.updateInquiryStatus (Founder); wallets.toggleAutoDeduct
+  + getMyWallet (portal-caller wallet ownership); seedLegalRepo:seed +
+  seedSentry:seedDemo (Founder-only ops tools).
+- INTERNALIZED 7 server-only helpers (public -> internal — the
+  _generated api.d.ts is fully structural, so mutation->internalMutation
+  re-types automatically, NO codegen needed): myFunctions.logActivity +
+  incrementWhatsAppQuota, portals.updateInviteRecord + insertInviteRecord
+  + ensureContactForClientInvite + linkPortalUserToContact,
+  embeddings.fetchResultsByIds (raw-id read primitive). All 8 internal
+  call sites updated to internal.*.
+- DELETED 27 dead unauthenticated hazards: wallets.fundWalletPublic
+  (PUBLIC wallet crediting by arbitrary amount with NO Paystack
+  verification — money-writing primitive), pushNotifications.sendToUsers
+  (authless mass push), analytics getUsersList/getFirmsList (no-args PII
+  dumps) + getDashboardData/getUserActivity/getFirmActivity,
+  legalRepo upsertModule/deleteModule/addStatute/logUsage/
+  logAloaModuleUsage/getArchivedNotes/restoreNote, indexer
+  saveCheckpoint/logEvent/publishRecord/deleteAloaDocument/
+  getCheckpoint/getAloaDocuments/getAloaDocument (leaky no-firm fallback),
+  portals acceptPortalInvite/unregisterFromPushNotifications,
+  broadcasts.deleteBroadcastNotification, embeddings.clearFirmMemories.
+- Client: thread userEmail/userId at every affected call site (16
+  files); pre-login 'Demo Signup' analytics event removed (endpoint now
+  requires a verified session); fundWalletPublic plumbing deleted from
+  TenantPortal.
+- Call-site completeness audited by script (every useMutation alias's
+  invocations checked for identity args — caught MatterForm's
+  markAloaActionCompleted and the PortalAccessSettings invite form).
+- Verified: tsc -p convex CLEAN both commits (the CI deploy gate),
+  root tsc 126 = baseline with IDENTICAL error sets (diffed against
+  stashed pristine tree), vite build green, dist + live /vega browser
+  smoke (mounted, 0 errors). unitLookup.ts untouched this round.
+- Pushed 0913f79 (+477/-593, 31 files) then abb81d5 (8b: +6 files).
+  All workflows green on both. Convex deploy logs verified directly:
+  "Uploading functions... Schema validation complete. Deployed" on both.
+- PRODUCTION PROBED DIRECTLY (never trust CI alone — deploy step is
+  continue-on-error): deleted + internalized functions all return
+  "Could not find public function" (fundWalletPublic, sendToUsers,
+  getUsersList, upsertModule, acceptPortalInvite, clearFirmMemories,
+  incrementWhatsAppQuota, logActivity, updateInviteRecord,
+  fetchResultsByIds, insertInviteRecord, linkPortalUserToContact);
+  guarded functions reject anonymous callers ("Unauthenticated: a
+  verified user session is required") — trackEvent, toggleAutoDeduct,
+  grantLicense, createAloaConversation confirmed live;
+  migrations:reportUnlinkedServiceCharges ops tool intentionally still
+  open (4 linked / 8 unresolved, unchanged). Live frontend sha=abb81d5
+  healthy + /vega browser-verified.
+
+Stage Summary:
+- ROUND 8 CLOSED AND LIVE: every live public Convex writer now verifies
+  its caller (35 guarded, 7 internalized, 27 dead hazards deleted);
+  the authless-attack-surface class from rounds 6-7 is closed. The
+  pre-existing requireFirmUser-style conventions were preserved — the
+  retrofit is the SAME model, made strict and systematic.
+- Remaining known gaps (documented, lower priority): feedback module
+  admin functions rely on the older soft convention; a few firm-scoped
+  READS still trust caller-supplied firmId (getLicensesForFirm,
+  brainIngestion.getSourcesForIndexing); rate limiting on the public
+  lead/contact forms; real Convex Auth migration (email-as-token is
+  inherently spoofable — knowing a staff email still satisfies the
+  convention; a session-based identity is the eventual fix).
+- PAT revocation STILL unconfirmed (multiple PATs pasted across
+  sessions — user must revoke all).
