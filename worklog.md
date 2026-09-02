@@ -10157,3 +10157,90 @@ Stage Summary:
   convention; a session-based identity is the eventual fix).
 - PAT revocation STILL unconfirmed (multiple PATs pasted across
   sessions — user must revoke all).
+
+---
+Task ID: 12
+Agent: Super Z (main)
+Task: Round 9 — user-directed round: staged setup progress, the
+workspace-configuration save bug, WorkflowForm slim-down, landing-page
+content refresh.
+
+Work Log:
+- User reports: (a) workspace configuration shows a success toast then
+  a "failed to sync" toast, (b) configuration not saved when leaving
+  and returning, (c) the Getting-Started checklist item never ticks,
+  (d) wants staged visual cues during setup instead of a greyed-out
+  "Setting up" button, (e) Add Workflow form too chunky, (f) landing
+  page content/claims review.
+- ROOT CAUSE (a+b+c are one bug): resolveRecordForUpdate required the
+  firm doc to carry a self-referential `firmId` field. Firm documents
+  NEVER have one (createFirm doesn't write it; verified live on firm
+  qx7… — no firmId key, practiceProfile null), so EVERY
+  updateItem('firms') threw "Unauthorized. This record belongs to
+  another organization." → useFirm's catch → "Failed to sync firm
+  settings." → practiceProfile.blueprintAppliedAt /
+  settings.onboardingCompletedAt / firmSpecialties never persisted →
+  the checklist's hasPracticeProfile stayed false and the wizard state
+  was lost on revisit. Same silent failure hit bank accounts,
+  integrations and AI settings. Introduced by acfad46's fail-closed
+  hardening; deleteItem's equivalent check is the fail-open form, so
+  only updateItem was affected.
+- Fix: firms table is self-referential — ownership check is
+  String(existing._id) === String(firmId).
+- Toast fix: handleUpdateFirmDetails(details, { successToast }) — the
+  OnboardingWizard and the Practice Blueprint modal suppress the
+  generic toast (they show their own richer one), removing the
+  success+failure double toast; error copy now explains what to do.
+- Staged progress: usePracticeProfile.applyPlan now executes the plan
+  table-group by table-group (workflows → contacts → doc folders →
+  event types → checklists → workflow merges) and reports per-item
+  progress via onProgress + a `progress` hook state. PracticeProfileSetup
+  renders a live stage checklist (spinner + per-stage item counts +
+  done ticks) while running — the greyed "Setting up…" button is gone.
+  OnboardingWizard's final button shows the live stage ("Setting up
+  contact types… (4/9)") with a keep-open note.
+- WorkflowForm slimmed: removed the redundant "Details"/"Process"
+  icon-header cards (modal chrome already titles the form), compact
+  stage rows (rounded-md per STYLE_GUIDE, was rounded-2xl), inline
+  "+ Add Stage" link, compact footer; cleaned dead imports.
+- LandingPage: Sentry Pass FAQ price corrected to ₦7,500 (was
+  N15,000 — canonical is tiers.ts "₦7.5K/mo value" + the feature
+  card's "Add-on ₦7.5K/mo"); testimonial section reframed from "Real
+  results from law firms across Nigeria" to "Why firms run on
+  PracticePro" (honest framing); footer "Changelog" now routes to
+  Resources (What's New lives there; it previously scrolled to
+  #pricing); hero sub-copy tightened. Verified claims: Paystack
+  "currently activating" (live probe: isPaystackActive=false),
+  2FA/MFA (requiresMfa login flow), 30-day money-back badge, support
+  tiers wording, dpo@practicepro.ng consistency across legal docs.
+- The sandbox's 18-test unit-resolver suite was recreated (it was
+  lost to a sandbox reset; unitLookup.ts itself untouched this round).
+- Verified: tsc -p convex CLEAN (deploy gate), root tsc 126 =
+  baseline, 18/18 resolver tests, vite build green, dist smoke.
+- Pushed 302eebd (+381/-127, 10 files). All 3 workflows green.
+- PRODUCTION VERIFIED DIRECTLY (deploy step is continue-on-error):
+  updateItem('firms', …) as the firm admin now returns success —
+  previously "Unauthorized" — which also proves the new Convex bundle
+  is live. End-to-end heal of the user's stuck state: wrote
+  practiceProfile.blueprintAppliedAt onto firm qx7… (admin
+  Prototypechigo@gmail.com), read it back, and
+  getGettingStartedChecklist now returns hasPracticeProfile: true.
+  Live frontend sha=302eebd; landing + /vega serve 200; round-9
+  strings confirmed present in the live index + module-settings
+  bundles (staged panel, slim form, new copy).
+
+Stage Summary:
+- ROUND 9 CLOSED AND LIVE. Firm-settings saves work for the first
+  time since acfad46 — the blueprint wizard's checklist tick,
+  persistence on revisit, and the toast pair are all resolved by one
+  ownership-check fix plus toast consolidation; setup now shows
+  stage-by-stage progress.
+- Data note: firms whose settings were saved between acfad46 and
+  302eebd silently failed — nothing was corrupted (addItem paths
+  always worked), the firms-record fields just never wrote; re-save
+  to recover. The user's own firm was healed directly as part of
+  verification.
+- Standing (unchanged from round 8): PAT revocation still
+  unconfirmed; feedback-module soft-convention guards, firm-scoped
+  reads, form rate limits, and the real Convex Auth migration remain
+  open follow-ups.
