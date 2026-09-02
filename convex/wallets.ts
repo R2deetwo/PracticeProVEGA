@@ -10,6 +10,7 @@ import { internalMutation, mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { randomHex } from "./secureRandom";
+import { createUnitResolver } from "./unitLookup";
 
 const DEFAULT_LOW_BALANCE_THRESHOLD = 1000;
 
@@ -218,19 +219,45 @@ export const processAutoDeductions = internalMutation({
     );
     chargesScanned = dueCharges.length;
 
+    // ROUND 6: shared unit resolver (convex/unitLookup.ts). The old
+    // `ctx.db.get(sc.unitId)` only resolved standalone-property Convex ids —
+    // embedded units (composite `propId_unitId` keys) were silently skipped,
+    // so their wallets were NEVER auto-deducted. The resolver handles all
+    // four unitId shapes and is memoized per firm.
+    const resolvers = new Map<string, ReturnType<typeof createUnitResolver>>();
+    const getResolver = (firmId: string) => {
+      let r = resolvers.get(firmId);
+      if (!r) {
+        r = createUnitResolver(ctx, firmId);
+        resolvers.set(firmId, r);
+      }
+      return r;
+    };
+
     for (const sc of dueCharges) {
-      const property = await ctx.db.get(sc.unitId as any);
-      if (!property) continue;
-      const rental = (property as any).rentalDetails as any;
-      const tenantId = sc.tenantId || rental?.tenantContactId || rental?.tenantPhone;
-      if (!tenantId) continue;
+      const ref = await getResolver(sc.firmId).resolveUnit(sc.unitId);
+      if (!ref) continue; // unit no longer exists (or cross-firm) — nothing to deduct from
+      const tenant = await getResolver(sc.firmId).tenantFor(ref);
 
-      const wallet = await ctx.db
-        .query("resident_wallets")
-        .withIndex("by_tenant", (q: any) => q.eq("tenantId", tenantId))
-        .first();
+      // Wallet lookup by candidate ids — wallets are keyed by the tenant's
+      // Convex user _id (portal currentUser.id), but legacy data may key on
+      // a raw contact id or the email. Try each candidate shape once.
+      const candidates = Array.from(new Set(
+        [sc.tenantId, tenant.userConvexId, tenant.email?.toLowerCase(), tenant.rawTenantId]
+          .filter((c): c is string => typeof c === "string" && c.length > 0)
+      ));
+      if (candidates.length === 0) continue; // unlinked charge — backfill/migration handles it
 
+      let wallet: any = null;
+      for (const c of candidates) {
+        wallet = await ctx.db
+          .query("resident_wallets")
+          .withIndex("by_tenant", (q: any) => q.eq("tenantId", c))
+          .first();
+        if (wallet) break;
+      }
       if (!wallet || !wallet.autoDeductEnabled) { autoDeductDisabled++; continue; }
+      const tenantId = wallet.tenantId; // canonical id for this wallet's transaction rows
 
       const amount = sc.outstandingBalance ?? sc.amount;
 

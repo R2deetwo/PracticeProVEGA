@@ -1321,11 +1321,14 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
 
   const isLoading = ledgerEntries === undefined || serviceCharges === undefined;
 
-  // Compute tenant-specific service charges
-  const tenantServiceCharges = useMemo(() => {
-    if (!serviceCharges || !resolvedTenantId) return [];
-    return serviceCharges.filter((sc: any) => sc.tenantId === resolvedTenantId);
-  }, [serviceCharges, resolvedTenantId]);
+  // ROUND 6: the server endpoint (portals.getTenantServiceCharges) already
+  // scopes rows via possibleTenantIds {userId, email, Convex user _id, raw
+  // tenant ids}. The old client re-filter `sc.tenantId === resolvedTenantId`
+  // was stricter than the server and HID legitimately-matched rows whenever
+  // the backfilled tenantId (Convex user _id) differed from the portal's
+  // resolvedTenantId (raw contact id) — exactly the rows the round-6
+  // migration backfills. Server result is authoritative; use it directly.
+  const tenantServiceCharges = useMemo(() => serviceCharges || [], [serviceCharges]);
 
   // Summary calculations
   const currentMonthSC = useMemo(() => {

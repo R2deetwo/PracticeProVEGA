@@ -1,6 +1,7 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
+import { createUnitResolver, canonicalTenantId } from "./unitLookup";
 
 // ─── AUTH HELPER ────────────────────────────────────────────────────────────
 
@@ -278,6 +279,24 @@ export const upsertServiceCharge = mutation({
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
     const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
     const { userEmail: _u, firmId: _f, ...data } = args;
+
+    // ROUND 6: auto-populate tenantId from the unit's tenant record when the
+    // caller didn't supply one (no caller ever does). Without it, the charge
+    // is invisible in tenant-portal dues and unreachable by wallet
+    // auto-deduct. Resolver handles all four unitId shapes.
+    let resolvedTenantId = args.tenantId ?? undefined;
+    if (!resolvedTenantId) {
+      try {
+        const resolver = createUnitResolver(ctx, auth.firmId);
+        const ref = await resolver.resolveUnit(args.unitId);
+        if (ref) {
+          resolvedTenantId = canonicalTenantId(await resolver.tenantFor(ref)) ?? undefined;
+        }
+      } catch {
+        // Resolution is best-effort — never block the charge write itself.
+      }
+    }
+
     // Find existing charge for this unit+category
     const existing = await ctx.db
       .query("service_charges")
@@ -289,10 +308,19 @@ export const upsertServiceCharge = mutation({
       if (existing.firmId !== auth.firmId) {
         throw new Error("Not authorized: service charge belongs to a different firm.");
       }
-      await ctx.db.patch(existing._id, { ...data, firmId: auth.firmId, isDefaulter: false });
+      // Preserve an existing tenantId unless this call supplies a better one
+      // (a bare patch with undefined would otherwise WIPE it — pre-existing
+      // data-loss footgun, closed with the same change).
+      const tenantId = resolvedTenantId ?? existing.tenantId;
+      await ctx.db.patch(existing._id, { ...data, tenantId, firmId: auth.firmId, isDefaulter: false });
       return existing._id;
     }
-    return await ctx.db.insert("service_charges", { ...data, firmId: auth.firmId, isDefaulter: false });
+    return await ctx.db.insert("service_charges", {
+      ...data,
+      tenantId: resolvedTenantId,
+      firmId: auth.firmId,
+      isDefaulter: false,
+    });
   },
 });
 
@@ -467,23 +495,23 @@ export const markChargeAsPaid = mutation({
     // send a confirmation message acknowledging the payment.
     if (newStatus === "PAID_FULLY") {
       try {
-        // Resolve tenant contact from the property/unit
-        const unitDoc = await ctx.db
-          .query("properties")
-          .withIndex("by_custom_id", q => q.eq("id", sc.unitId))
-          .first();
-        const altDoc = !unitDoc
-          ? await ctx.db.get(sc.unitId as any).catch(() => null)
-          : null;
-        const effectiveDoc = unitDoc || altDoc;
+        // ROUND 6: shared unit resolver — the old by_custom_id + db.get
+        // lookup only resolved standalone-property ids, so embedded units
+        // (composite unitIds) silently got NO payment receipt. Also reads
+        // tenant contact off the EMBEDDED UNIT (old code only checked
+        // property-level rentalDetails).
+        const resolver = createUnitResolver(ctx, auth.firmId);
+        const ref = await resolver.resolveUnit(sc.unitId);
 
-        if (effectiveDoc) {
-          const rd = (effectiveDoc as any).rentalDetails || {};
-          const tenantPhone: string = rd.tenantPhone || '';
-          const tenantEmail: string = rd.tenantEmail || '';
-          const tenantName: string = rd.tenantName || 'Tenant';
-          const unitName: string = rd.unitName || 'Unit';
-          const chargeLabel = sc.isMinimumVend ? ((effectiveDoc as any).minimumVendLabel || 'Minimum Vend') : sc.category;
+        if (ref) {
+          const tenant = await resolver.tenantFor(ref);
+          const tenantPhone: string = tenant.phone || '';
+          const tenantEmail: string = tenant.email || '';
+          const tenantName: string = tenant.name || 'Tenant';
+          const unitName: string = ref.unit
+            ? (ref.unit.unitName || ref.unit.name || ref.unit.id || 'Unit')
+            : ((ref.property as any).rentalDetails?.unitName || 'Unit');
+          const chargeLabel = sc.isMinimumVend ? (ref.property?.minimumVendLabel || 'Minimum Vend') : sc.category;
           const recipient = tenantPhone || tenantEmail;
 
           if (recipient) {
@@ -1028,6 +1056,22 @@ export const sendServiceChargeReminders = internalMutation({
       }
     }
 
+    // ROUND 6: shared unit resolver per firm (memoized property list) —
+    // handles composite `propId_unitId` keys AND reads tenant contact off
+    // the embedded unit itself. The old lookup chain (propertyMap →
+    // by_custom_id → db.get) only resolved property-level ids, so embedded
+    // units silently received NO reminders (and property-level reminder
+    // toggles / cool-off overrides were missed for them too).
+    const resolvers = new Map<string, ReturnType<typeof createUnitResolver>>();
+    const getResolver = (firmId: string) => {
+      let r = resolvers.get(firmId);
+      if (!r) {
+        r = createUnitResolver(ctx, firmId);
+        resolvers.set(firmId, r);
+      }
+      return r;
+    };
+
     for (const charge of actionableCharges) {
       // ── GUARD 0: Per-unit mute toggle ──
       if (charge.remindersMuted) {
@@ -1042,8 +1086,18 @@ export const sendServiceChargeReminders = internalMutation({
         continue;
       }
 
+      // 2. Resolve unit + tenant contact (all four unitId shapes) BEFORE the
+      // property-level guards, so they see the parent property too.
+      const resolver = getResolver(charge.firmId);
+      const ref = await resolver.resolveUnit(charge.unitId);
+      if (!ref) {
+        remindersSkipped++;
+        continue;
+      }
+      const tenantContact = await resolver.tenantFor(ref);
+
       // ── GUARD 2: Property-level reminders toggle ──
-      const parentProperty = propertyMap.get(charge.unitId);
+      const parentProperty: any = ref.property || propertyMap.get(charge.unitId);
       if (parentProperty && parentProperty.remindersEnabled === false) {
         remindersSkipped++;
         continue;
@@ -1064,36 +1118,16 @@ export const sendServiceChargeReminders = internalMutation({
         continue;
       }
 
-      // 2. Resolve tenant phone from the properties table
-      const unitDoc = parentProperty || await ctx.db
-        .query("properties")
-        .withIndex("by_custom_id", q => q.eq("id", charge.unitId))
-        .first();
-
-      if (!unitDoc) {
-        // Also try by Convex _id match
-        const altDoc = await ctx.db.get(charge.unitId as any).catch(() => null);
-        if (!altDoc) {
-          remindersSkipped++;
-          continue;
-        }
-      }
-
-      const effectiveDoc = unitDoc || propertyMap.get(charge.unitId);
-      if (!effectiveDoc) {
-        remindersSkipped++;
-        continue;
-      }
-
-      // Extract tenant contact info from rentalDetails
-      const rd = (effectiveDoc as any).rentalDetails || {};
-      const tenantPhone: string = rd.tenantPhone || '';
-      const tenantEmail: string = rd.tenantEmail || '';
-      const tenantName: string = rd.tenantName || 'Tenant';
-      const unitName: string = rd.unitName || 'Unit';
+      const effectiveDoc: any = ref.property;
+      const tenantPhone: string = tenantContact.phone || '';
+      const tenantEmail: string = tenantContact.email || '';
+      const tenantName: string = tenantContact.name || 'Tenant';
+      const unitName: string = ref.unit
+        ? (ref.unit.unitName || ref.unit.name || ref.unit.id || 'Unit')
+        : ((effectiveDoc.rentalDetails || {}).unitName || 'Unit');
       // Check if property has minimum vend enabled
-      const minimumVendEnabled = (effectiveDoc as any).minimumVendEnabled || false;
-      const vendLabel = charge.isMinimumVend ? ((effectiveDoc as any).minimumVendLabel || 'Minimum Vend') : null;
+      const minimumVendEnabled = effectiveDoc.minimumVendEnabled || false;
+      const vendLabel = charge.isMinimumVend ? (effectiveDoc.minimumVendLabel || 'Minimum Vend') : null;
 
       if (!tenantPhone && !tenantEmail) {
         remindersSkipped++;

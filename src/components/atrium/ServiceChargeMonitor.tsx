@@ -2,7 +2,7 @@
  * ServiceChargeMonitor — the firm-side enforcement surface for recurring
  * service bills (the `service_charges` Convex table).
  *
- * DUAL-SYSTEM NOTE (page-audit round 5):
+ * DUAL-SYSTEM NOTE (updated page-audit round 6):
  * The app tracks service-charge money in TWO stores, on purpose:
  *   1. THIS monitor (`service_charges` rows) — obligations & enforcement:
  *      due reminders, defaulter alerts, penalties, wallet auto-deduct,
@@ -12,12 +12,18 @@
  *      period settlement shown in PropertyDetailView (ServiceChargeBars)
  *      and healed during onboarding (OnboardUnitLedgerModal). Receipts/
  *      PDV read from here.
- * A full table unification was evaluated and DEFERRED (needs a data
- * migration; the two stores model different domain objects). The round-5
- * fix for the real user pain — double entry — is the "untracked lease
- * charges" bridge below: units whose lease already declares a service
- * charge but have no row here surface as one-tap pre-filled Track actions,
- * so reminders/portal/auto-deduct switch on without re-typing anything.
+ * The two stores model different domain objects (enforcement obligation vs
+ * lease-period settlement), so a full table merge remains out of scope. The
+ * migration-gated gaps WERE closed in round 6:
+ *   • `service_charges.tenantId` is now backfilled (convex/migrations.ts
+ *     backfillServiceChargeTenants — additive, idempotent) and auto-filled
+ *     on every upsert, so portal dues + wallet auto-deduct see all rows;
+ *   • every server consumer resolves unitIds through convex/unitLookup.ts,
+ *     which understands all four unitId shapes (custom id, Convex _id,
+ *     composite `propId_unitId`, bare embedded unit id) — embedded units
+ *     are no longer silently skipped by reminders / auto-deduct / receipts.
+ * The round-5 "untracked lease charges" bridge below remains the one-tap
+ * way to switch enforcement on for lease-declared charges.
  */
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
