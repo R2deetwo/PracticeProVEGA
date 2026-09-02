@@ -173,6 +173,26 @@ export default defineConfig(({ mode }) => {
               }
             }
 
+            // ── SHARED LEAF CHUNK ──────────────────────────────────────────
+            // src/types.ts (the home of ALL 18 app enums) and src/constants.ts
+            // must live in their own chunk. Without this rule, Rollup merged
+            // types.ts into module-atrium while module-settings imported it,
+            // creating a cyclic chunk pair (settings ↔ atrium). module-settings'
+            // top-level constants (AUTOMATION_RECIPES priority, specialty
+            // arrays, Object.values over enums) then executed while the atrium
+            // chunk was still mid-evaluation and the enum bindings were
+            // undefined:
+            //   TypeError: Cannot read properties of undefined (reading 'High')
+            //   → the entire module graph died → white screen for all visitors.
+            // A dedicated leaf chunk is a dependency of BOTH module chunks, so
+            // it is always fully evaluated first — enums are always ready.
+            if (
+              id.endsWith('/src/types.ts') ||
+              id.endsWith('/src/constants.ts')
+            ) {
+              return 'module-shared';
+            }
+
             if (
               id.includes('/research/') ||
               id.includes('ResearchStudio') ||
