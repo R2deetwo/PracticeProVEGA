@@ -10001,3 +10001,59 @@ Stage Summary:
 - SECURITY: the PAT used this session was pasted in chat again —
   revoke it (plus all earlier ones); runPhase1 authless-rewrite hazard
   still open for a future hardening round.
+
+---
+Task ID: 10
+Agent: Super Z (main)
+Task: Round 7 — authless-hazard cleanup (the runPhase1 class) + surface
+tenant linkage for unlinked service charges.
+
+Work Log:
+- Sandbox had been reset again; re-cloned at c1d04bf and rebuilt audit
+  state from this worklog. Round-7 scope taken from the standing follow-
+  ups: (a) the runPhase1 authless-destructive hazard flagged since
+  round 6, (b) the 8 unlinked SC rows' UX gap, (c) the broadcasts
+  startsWith watch-item.
+- Swept convex/ for authless writing functions via a body-pattern script
+  (scripts-side; heuristic) then VERIFIED each candidate by caller
+  analysis (src/, http routes, crons internal targets, string-based
+  mutation refs, scripts/). 129 authless writers exist total — most are
+  false positives (per-function token validation is the repo convention);
+  the true hazard class is dead code with global scope.
+- DELETED 6 dead authless functions (zero callers, all shapes checked):
+  migrations.runPhase1 + setDefaultProduct alias (rewrote amount-like
+  fields across 8 tables, set product on ALL firms — the flagged hazard),
+  analytics.backfillEvents, portals.migratePortalUserRoles,
+  portals.migratePortalAccessTokens, proactive.dismissAllInsights,
+  myFunctions.triggerBreachNotification (unauthenticated mass email).
+  Kept: seedLegalRepo:seed + seedSentry:seedDemo (documented dashboard
+  ops tools), myFunctions.incrementWhatsAppQuota (LIVE — the WhatsApp
+  quota gate called by communications.sendWhatsApp).
+- broadcasts startsWith watch-item: CLOSED — all call sites already
+  guarded with typeof checks (the Aug-31 hotfix covered them).
+- ServiceChargeMonitor: 'No tenant' amber chip on charge rows whose unit
+  carries no tenant info (client-side resolution via unitById + bare-
+  embedded scan, all four unitId shapes), plain-language tooltip; the
+  WhatsApp + access-restriction failure toasts and automation-log
+  reasons now distinguish 'no tenant linked to this unit' from 'no phone
+  number on tenant record' (previously misleading for the 8 unlinked
+  rows).
+- Verified: tsc -p convex clean (the CI deploy gate from round 6's
+  lesson), root tsc 126 = baseline, vite build green, dist browser smoke
+  (landing + /vega mount, 0 errors). Committed d193b3f (6 files,
+  +47/-299), pushed; all 3 workflows green.
+- PRODUCTION VERIFIED by direct probing (never trust CI alone here —
+  the Convex deploy step is continue-on-error): migrations:runPhase1
+  and proactive:dismissAllInsights now return 'Could not find public
+  function'; migrations:reportUnlinkedServiceCharges + broadcasts
+  endpoints still healthy (12 rows / 4 linked / 8 unlinked, unchanged);
+  live frontend sha=d193b3f healthy, landing + /vega browser-verified.
+
+Stage Summary:
+- ROUND 7 CLOSED AND LIVE: six dead unauthenticated destructive/global
+  functions removed from production (-299 LOC); unlinked-tenant state
+  now visible and correctly explained in the monitor.
+- Remaining open: full auth retrofit of live authless functions (repo
+  convention uses per-function token validation; a systematic pass is
+  a separate project); dual-SC unification stays deferred by design;
+  PAT pasted this session still needs revocation.
