@@ -10244,3 +10244,46 @@ Stage Summary:
   unconfirmed; feedback-module soft-convention guards, firm-scoped
   reads, form rate limits, and the real Convex Auth migration remain
   open follow-ups.
+
+---
+Task ID: 13
+Agent: Super Z (main)
+Task: Post-audit SaaS hardening plan — user asked for a complete,
+careful, no-half-measures plan covering every gap identified in the
+post-audit product assessment (identity, tests, revenue, staging,
+deploy pipeline, defense leftovers, observability, ops).
+
+Work Log:
+- Assessed SaaS fundamentals against the code (not the audit
+  worklog): password handling (PBKDF2-SHA512 600k, server-side,
+  per-account lockout — solid), identity model (email-as-token,
+  spoofable — the big gap), test coverage (zero wired tests),
+  payments (isPaystackActive=false probed live; webhook HMAC
+  verification already implemented but dormant), email infra (Brevo,
+  real), observability (frontend Sentry only).
+- Migration de-risk discoveries: users.tokenIdentifier + by_token
+  index already exist (schema was prepared for Convex Auth); "trust
+  on first use" hole found (accounts with no password set accept any
+  password on first login); verifyLogin has 100k->600k iteration
+  re-hash support; scope of the identity sweep = ~165 userEmail call
+  sites across ~60 files.
+- Wrote SAAS_HARDENING_PLAN.md (Rounds 10-17, 5 phases): 10 tests +
+  honest CI (Convex deploy out of the APK workflow, no
+  continue-on-error), 11 staging, 12 Paystack live + dunning + soft
+  downgrade, 13-15 Convex Auth (zero password resets, portals, MFA,
+  strict cutover with spoof-probe verification), 16 defense closeout
+  (feedback guards, firm-scoped reads, rate limits, CI audit script),
+  17 observability + runbook + backup/restore drill.
+- Sequencing rationale: tests first (protect everything after),
+  staging second (safe failure space), payments before auth (webhook
+  is signature-safe, business pain, days not weeks), auth last and
+  longest (maximum safety net), closeout after.
+- User explicitly declined PAT revocation for now (ongoing work) —
+  dropped from the standing list.
+- Committed docs-only; no code changes this round.
+
+Stage Summary:
+- PLAN COMMITTED. SAAS_HARDENING_PLAN.md is the authoritative tracker
+  for Rounds 10-17; per-round records continue in this worklog. Next
+  step: Round 10 (Vitest + convex-test in repo, regression tests for
+  rounds 8-9 bug classes, Convex deploy to its own gated workflow).
