@@ -9878,3 +9878,75 @@ Stage Summary:
   wallet auto-deduct on embedded units. Unified composer: permanent
   "no" unless requested.
 - REMINDER: revoke the PAT pasted in chat (still unconfirmed).
+
+---
+Task ID: 8
+Agent: Super Z (main)
+Task: Round 6 — the migration-gated items (round-3/4/5 deferred queue):
+service-charge tenant backfill + wallet auto-deduct on embedded units.
+
+Work Log:
+- Mapped the deferred queue precisely: (1) service_charges.tenantId was
+  NEVER populated by any writer — tenant-portal dues and wallet
+  auto-deduct silently depend on it; (2) every server-side unitId consumer
+  invented its own partial resolution (db.get / by_custom_id) that only
+  understands standalone-property ids — embedded units (composite
+  `propId_unitId` keys from usePropertyGroups/AddChargeModal/bridge, plus
+  bare embedded ids on older rows) were silently skipped by wallet
+  auto-deduct, payment receipts AND the reminder engine.
+- convex/unitLookup.ts (NEW): createUnitResolver(ctx, firmId) — resolves
+  all four unitId shapes with memoized firm property list + per-email user
+  lookups; tenantFor() derives contact info from the EMBEDDED UNIT first
+  (old code only read property-level rentalDetails), then the property;
+  canonicalTenantId() prefers the tenant's Convex user _id (what the
+  portal userId and wallet tenantId actually key on) with the raw stored
+  field as fallback.
+- convex/migrations.ts: reportUnlinkedServiceCharges (read-only) +
+  backfillServiceChargeTenants (additive-only: patches ONLY rows whose
+  tenantId is empty; rows whose unit can't be resolved are untouched and
+  reported; idempotent; dryRun mode). unitId values are intentionally NOT
+  rewritten — by_unit index dedupe and the bridge "tracked" check key on
+  the existing shapes; consumers now resolve all shapes instead.
+- wallets.processAutoDeductions: shared resolver + wallet lookup by
+  candidate ids (sc.tenantId, userConvexId, email, rawTenantId) — first
+  hit wins; transaction rows use the wallet's own canonical tenantId.
+- sentry.upsertServiceCharge: auto-populates tenantId via the resolver
+  when the caller doesn't supply one; edit path preserves the existing
+  tenantId (bare patch previously WIPED it — pre-existing footgun).
+- sentry markPaid confirmation + runDailyAutomation reminder engine:
+  resolver-based; embedded units now get receipts/reminders, and the
+  property-level remindersEnabled toggle + reminderCoolOffDays override
+  now apply to embedded-unit charges too (they were bypassed before).
+- TenantPortal dues tab: removed the client re-filter
+  (sc.tenantId === resolvedTenantId) — stricter than the server's
+  possibleTenantIds scoping, it HID exactly the rows the backfill links.
+- Verified: tsc error set identical to baseline (only line-number shifts,
+  zero new); vite build green, module-shared leaf chunk intact; browser
+  smoke (landing + /vega, console clean); 18/18 standalone unit tests for
+  the resolver (four shapes, underscore-laden custom ids, renamed units,
+  cross-firm rejection, case-insensitive email→user, fallback precedence).
+- Committed c9f43cb (6 files: 1 new, 5 modified). NOT yet pushed: no
+  GitHub credentials in this sandbox session — push is the single
+  remaining user action. Push triggers cloudflare-deploy (frontend) AND
+  build-apk (which runs `npx convex deploy` with the repo's
+  CONVEX_DEPLOY_KEY secret — verified "Deploy Convex backend: success" in
+  the round-5 run logs), so the migration functions go live with the push.
+- Post-deploy plan (ready): (1) POST /api/mutation
+  migrations:backfillServiceChargeTenants {"dryRun":true} against
+  gregarious-malamute-537 (HTTP API verified reachable, path-in-body
+  format, 200); (2) inspect the dry-run report; (3) run for real; (4)
+  re-run reportUnlinkedServiceCharges to confirm zero unlinked rows.
+
+Stage Summary:
+- The migration-gated queue is IMPLEMENTED and tested; the two systems
+  remain separate by design (obligations vs lease-period settlement) but
+  every gap that made them leak (invisible portal dues, skipped
+  auto-deduct, missing receipts/reminders for embedded units) is closed
+  behind one shared resolver + one additive backfill migration.
+- Single remaining hand-off: user pastes a scoped GitHub PAT → push → CI
+  deploys backend + frontend → dry-run migration → real run → verify.
+- SECURITY notes: runPhase1 in migrations.ts is authless AND rewrites
+  amounts — pre-existing hazard, flagged for a future hardening pass;
+  backfillServiceChargeTenants is authless but additive-only + idempotent
+  (matches repo convention, minimal blast radius). PAT revocation from
+  earlier rounds still unconfirmed.
