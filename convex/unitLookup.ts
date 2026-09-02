@@ -69,11 +69,16 @@ export function createUnitResolver(ctx: any, firmId: string) {
 
   const loadProps = (): Promise<any[]> => {
     if (!propsPromise) {
-      propsPromise = ctx.db
+      // Route the memoized promise through a typed const: assigning an `any`
+      // expression directly to propsPromise resets TS control-flow narrowing
+      // (re-widens to `Promise<any[]> | null` at the return), which is the
+      // error that broke the CI Convex deploy (TS2322 at the return).
+      const p: Promise<any[]> = ctx.db
         .query("properties")
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
         .collect()
-        .catch(() => [] as any[]);
+        .catch((): any[] => []);
+      propsPromise = p;
     }
     return propsPromise;
   };
