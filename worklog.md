@@ -9821,3 +9821,60 @@ Stage Summary:
 - Convex note: getPaymentProofsByFirm/updatePaymentProofStatus already
   existed server-side, so this round needed NO convex schema/function
   changes and no npx convex deploy.
+
+---
+Task ID: page-audit-simplify-5 (round 5)
+Agent: main (Super Z)
+Task: Round 5 — close the last deferred queue item (dual service-charge
+tracking systems) + debt cleanup. Pushed as b3770a9; deployed & verified.
+
+Work Log:
+- DUAL SC SYSTEMS — mapped both stores end to end first:
+  (A) service_charges Convex table = obligations & enforcement (reminders,
+  defaulter cron, penalties, wallet auto-deduct, tenant-portal dues,
+  markChargeAsPaid/settle both write ledger_entries). Load-bearing — cannot
+  be removed.
+  (B) rentalDetails.scAmount/scPeriods blob = lease-period receipt ledger
+  (ServiceChargeBars, OnboardUnitLedgerModal healing, PDV/letters). Also
+  load-bearing.
+  Full table unification RE-CONFIRMED DEFERRED: needs a data migration and
+  the two stores model different domain objects (category-level recurring
+  obligations vs per-lease period settlement). Decision documented in-file.
+- The REAL pain fixed instead: double entry. PropertyForm-configured lease
+  service charges were invisible to the monitor/portal/crons until someone
+  re-typed them via "Add Charge". ServiceChargeMonitor now derives units
+  whose lease declares a SC amount but have no non-min-vend service_charges
+  row (composite + bare unitId vocabularies both honored) and shows a
+  one-tap bridge: per-unit pre-filled Track chips (amount, cycle from lease
+  frequency — Bi-Annually maps to Annually with frequency recorded in
+  notes, category Other, self-documenting notes) + Track All batch upsert.
+  AddChargeModal gained prefill support. Hidden in demo mode (firm-auth
+  mutations would fail); session-scoped dismissal (actionable task, not
+  decoration). Convex query is reactive, so rows appear immediately.
+- Debt cleanup: CAT_ICONS dead empty-string map filled with real category
+  glyphs (rows previously rendered no category icon at all); dead
+  src/middleware/middleware.ts.bak removed (never imported, pure clutter);
+  stale commented ComposeModal import removed from PropertyDetailView.
+- Unified composer (ComposeModal + NoticeBoard merge): round-4 product
+  decision stands — different jobs, different backends; NOT work this
+  round, revisit only if the firm asks for it.
+- WATCH-ITEM discovered while mapping: wallets.processAutoDeductions does
+  ctx.db.get(sc.unitId) — treats unitId as a property id, so charges
+  tracked against EMBEDDED units (composite ids) are silently skipped by
+  wallet auto-deduct. Pre-existing; fixing needs a unitId normalization
+  migration. Same class as the deferred unification.
+- Verified: tsc 126 = baseline 126, ZERO errors in changed files; vite
+  build green (module-shared leaf chunk from the white-screen fix intact);
+  browser smoke on fresh dist (landing + /vega, React mounted). Pushed
+  b3770a9; Cloudflare deploy SUCCESS; live version.json sha=b3770a9
+  healthy; live /vega browser-verified rendering.
+
+Stage Summary:
+- Round-5 queue CLOSED. The dual-SC deferral is now a documented,
+  load-bearing design decision PLUS a working bridge that eliminates the
+  double-entry pain without any schema change or data migration.
+- Remaining deferred (both migration-gated, documented in code):
+  (1) service_charges table unification; (2) unitId normalization for
+  wallet auto-deduct on embedded units. Unified composer: permanent
+  "no" unless requested.
+- REMINDER: revoke the PAT pasted in chat (still unconfirmed).
