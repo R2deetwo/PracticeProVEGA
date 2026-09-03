@@ -10452,3 +10452,51 @@ Stage Summary:
   manual workflow run after that.
 - Next per plan: Round 12 (Paystack live + subscription lifecycle —
   needs Paystack TEST+LIVE keys from the user at round start).
+
+---
+Task ID: 15 (addendum)
+Agent: main (Round 11 close-out)
+Task: Close two ADDITIONAL ungated production deploy paths found by the
+round's own live verification.
+
+Work Log:
+- HOLE #1 (found + CLOSED): after the round's worklog commit (286daa9c,
+  docs-only) reached PRODUCTION with no promotion dispatched, traced it
+  to build-apk.yml's legacy final steps — "Sync master branch with main
+  (if: always())" force-pushed main→master, and Vercel's native GitHub
+  integration auto-deploys production from master. Removed both steps
+  (sync + the read-only "Verify Vercel production deploy" tail) from
+  build-apk.yml; deleted the remote master branch (git push origin
+  --delete master). build-admin-apk.yml checked: clean, no such steps.
+  PROOF: push 0c25e0db → Tests/Staging/APK all green, master stayed
+  absent, and no GitHub Action deployed prod.
+- HOLE #2 (found + repo-side closed, ONE user toggle remains): prod
+  STILL updated to 0c25e0db with no promotion and no master branch —
+  Vercel's native GitHub integration is connected to MAIN itself and
+  alive (it was believed broken since the b4b60abe stall; it is not).
+  This cannot be disabled from the repo (it is a Vercel project
+  setting). Repo-side, every path we control now follows the model.
+  ONE-TIME user choice, 30 seconds, Vercel dashboard → project →
+  Settings → Git: either "Disconnect" the Git integration, or set
+  Ignored Build Step to a command that exits 1 (skip) — the promotion
+  workflow's `vercel deploy --prebuilt` path is unaffected by Ignored
+  Build Step. Until then, pushes to main will also auto-deploy prod via
+  the native integration (ungated — it does not wait for Tests).
+- FINAL STATE: production formally promoted to 0c25e0db via
+  production-deploy.yml (run 33775622566, all green: resolve → ancestry
+  → gate → Convex deploy → SITE_URL → Vercel prod → live sha verify →
+  direct Convex probe). Independent probes: prod version.json =
+  0c25e0db healthy; POST /api/query debug_env:checkEnv = success.
+
+Stage Summary:
+- Round 11 fully closed. Deploy model, as enforced by the repo:
+  push→main = staging only; prod = deliberate promotion with gate +
+  live verification; older-sha promote = rollback. Cloudflare retired
+  (no tokens ever). master branch deleted. APK workflow no longer
+  feeds any deploy path.
+- User's two one-time items, both optional-but-recommended, both
+  minutes: (1) CONVEX_STAGING_DEPLOY_KEY + CONVEX_STAGING_URL secrets
+  to activate the staging backend; (2) the Vercel Git-integration
+  toggle (Disconnect or Ignored-Build-Step skip) to make prod strictly
+  promotion-only. Neither rotates, neither expires.
+- Next per plan: Round 12 (Paystack live + subscription lifecycle).
