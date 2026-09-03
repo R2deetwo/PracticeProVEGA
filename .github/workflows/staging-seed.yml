@@ -1,0 +1,71 @@
+name: Seed Staging Data
+
+# Round 11 (SaaS hardening plan) — populates the STAGING Convex deployment
+# with demo/test data. Run ONCE after the staging backend is created (see
+# staging-deploy.yml for that one-time setup), or any time staging data
+# needs a reset. Never touches the production deployment.
+#
+# Requires the CONVEX_STAGING_DEPLOY_KEY secret (the production deployment's
+# key is never used here).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: staging-seed
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    name: Seed demo data into staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify the staging key is present
+        env:
+          CONVEX_STAGING_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: |
+          if [ -z "$CONVEX_STAGING_DEPLOY_KEY" ]; then
+            echo "::error::CONVEX_STAGING_DEPLOY_KEY is not set. Create the staging Convex project first — see the instructions in the 'Deploy to Staging' workflow summary."
+            exit 1
+          fi
+          echo "✓ CONVEX_STAGING_DEPLOY_KEY is set"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify the staging functions are deployed
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: npx convex deploy --cmd "echo 'staging functions current'"
+
+      - name: Seed demo data (seedSentry:seedDemo)
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: npx convex run seedSentry:seedDemo
+
+      - name: Seed legal reference data (seedLegalRepo:seed)
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: npx convex run seedLegalRepo:seed
+
+      - name: Job summary
+        run: |
+          {
+            echo "## 🌱 Staging seeded"
+            echo ""
+            echo "- seedSentry:seedDemo and seedLegalRepo:seed ran against the"
+            echo "  STAGING Convex deployment (production untouched)."
+          } >> "$GITHUB_STEP_SUMMARY"

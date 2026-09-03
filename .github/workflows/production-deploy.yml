@@ -1,0 +1,221 @@
+name: Deploy to Production (promote)
+
+# Round 11 (SaaS hardening plan) — production is promoted DELIBERATELY.
+#
+# Push to main auto-deploys STAGING (staging-deploy.yml). Production only
+# changes when THIS workflow runs: manual trigger → full quality gate on the
+# pinned commit → Vercel prod + Convex prod → live verification (never trust
+# the deploy step — probe production directly, per the standing protocol).
+#
+# HOW TO USE:
+#   Actions tab → "Deploy to Production (promote)" → Run workflow
+#   → leave `sha` blank to promote the latest main commit.
+#
+# ROLLBACK: run this workflow with `sha` set to any OLDER main commit —
+# production redeploys that exact code. (No git surgery required.)
+#
+# Required GitHub secrets (already in use by the previous deploy workflows):
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, CONVEX_DEPLOY_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit to promote (blank = latest main; an older main SHA = rollback)'
+        required: false
+        default: ''
+
+concurrency:
+  group: production-deploy
+  # Never cancel a production deploy mid-flight.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ERROR_BASELINE: "131"
+
+jobs:
+  quality-gate:
+    name: Typecheck + unit tests (on the promoted commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      resolved_sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the commit to promote
+        id: resolve
+        env:
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+        run: |
+          if [ -n "$INPUT_SHA" ]; then
+            RESOLVED="$INPUT_SHA"
+          else
+            RESOLVED="${{ github.sha }}"
+          fi
+          echo "Promoting: $RESOLVED"
+          echo "sha=$RESOLVED" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the commit to promote
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Refuse commits that are not on main
+        env:
+          RESOLVED_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$RESOLVED_SHA" origin/main; then
+            echo "::error::Refusing to deploy: $RESOLVED_SHA is not part of main's history. Only main commits can be promoted to production."
+            exit 1
+          fi
+          echo "✓ $RESOLVED_SHA is an ancestor of origin/main"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (deploy gate — must be 0 errors)
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean (0 errors)"
+          else
+            echo "::error::convex/ typecheck FAILED — refusing to deploy the backend."
+            exit 1
+          fi
+
+      - name: Typecheck app (baseline-guarded)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
+          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
+            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+            exit 1
+          fi
+
+      - name: Run unit test suite
+        run: npx vitest run
+
+  deploy-production:
+    name: Deploy to production (Vercel + Convex) and verify live
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      PROMOTED_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
+    steps:
+      - name: Check required secrets
+        run: |
+          MISSING=0
+          for VAR in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID CONVEX_DEPLOY_KEY; do
+            if [ -z "${!VAR}" ]; then
+              echo "❌ $VAR secret is not set"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then exit 1; fi
+          echo "✓ All deployment secrets are set"
+
+      - name: Checkout the exact gated commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.quality-gate.outputs.resolved_sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (belt-and-braces before deploy)
+        run: npx tsc -p convex --noEmit
+
+      - name: Deploy Convex production backend
+        run: npx convex deploy --cmd "echo 'Convex production deployed'"
+
+      - name: Point SITE_URL at production on the Convex deployment
+        continue-on-error: true
+        env:
+          SITE_URL_VALUE: "https://practice-pro-vega.vercel.app"
+        run: |
+          if npx convex env set SITE_URL "$SITE_URL_VALUE"; then
+            echo "✓ SITE_URL=$SITE_URL_VALUE set on production"
+          else
+            echo "::warning::Could not set SITE_URL (the deploy key may lack env permissions). Set it once in the Convex dashboard if needed."
+          fi
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Build and deploy frontend to Vercel (production)
+        env:
+          COMMIT_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
+        run: |
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+
+      - name: Verify production frontend is healthy and serves the promoted commit
+        run: |
+          echo "Waiting for Vercel to finish deploying..."
+          PRODUCTION_URL="https://practice-pro-vega.vercel.app"
+          MAX_WAIT=120
+          WAITED=0
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            RESPONSE=$(curl -s "$PRODUCTION_URL/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
+            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
+            echo "  [${WAITED}s] status=$STATUS sha=$SHA (expecting ${PROMOTED_SHA:0:8})"
+            if [ "$STATUS" = "healthy" ] && [ "$SHA" = "${PROMOTED_SHA:0:8}" ]; then
+              echo "✅ Vercel production is healthy and serving the promoted commit (${PROMOTED_SHA:0:8})"
+              exit 0
+            fi
+            sleep 10
+            WAITED=$((WAITED + 10))
+          done
+          echo "::error::Production not verified after ${MAX_WAIT}s (sha=$SHA status=$STATUS, expected ${PROMOTED_SHA:0:8}). Check https://vercel.com/practice-pro-vega/practice-pro-vega/deployments"
+          exit 1
+
+      - name: Probe the Convex backend directly (never trust the deploy step)
+        run: |
+          PROBE=$(curl -s -X POST "https://gregarious-malamute-537.convex.cloud/api/query" \
+            -H "Content-Type: application/json" \
+            -d '{"path":"debug_env:checkEnv","args":{}}')
+          echo "Convex probe response (truncated): $(echo "$PROBE" | head -c 400)"
+          PROBE_STATUS=$(echo "$PROBE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "parse-error")
+          if [ "$PROBE_STATUS" != "success" ]; then
+            echo "::error::Direct Convex probe failed (status=$PROBE_STATUS) — the backend may not be serving the deployed functions."
+            exit 1
+          fi
+          echo "✅ Convex production backend answered a live query"
+
+      - name: Job summary
+        run: |
+          {
+            echo "## 🚀 Production promoted"
+            echo ""
+            echo "- Promoted commit: \`${PROMOTED_SHA}\`"
+            echo "- Frontend: https://practice-pro-vega.vercel.app (verified healthy, sha match)"
+            echo "- Backend: gregarious-malamute-537 (verified via live query probe)"
+            echo ""
+            echo "**Rollback:** re-run this workflow with \`sha\` = an older main commit."
+          } >> "$GITHUB_STEP_SUMMARY"

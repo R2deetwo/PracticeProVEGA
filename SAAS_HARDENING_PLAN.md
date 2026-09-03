@@ -221,6 +221,22 @@ passes on staging; both docs reviewed into the repo.
 | 16 | Defense closeout (guards, rate limits) | residual attack surface | tenant names (data) |
 | 17 | Observability + runbook + backup | silent failures, bus factor 1 | no |
 
-**Current status:** Round 10 CLOSED AND LIVE (8b61ca4d) — 54-test suite gating all deploys; Convex deploy in its own Tests-gated workflow (no continue-on-error); gate-blocking PROVEN on a live branch. Also shipped: Tasks-modal fix + DraftPro save-gate toggle (user requests). OPEN ITEM: CLOUDFLARE_API_TOKEN secret is invalid (expired/revoked) — user must rotate it and re-run the failed Cloudflare workflow; workers.dev still serves 555d73cb until then. Next: Round 11 (staging). This file is the
+**Current status:** Round 10 CLOSED (8b61ca4d — 54-test suite gating all
+deploys; Convex deploy in its own Tests-gated workflow; gate-blocking
+PROVEN on a live branch). Round 11 SHIPPED: push→main auto-deploys
+STAGING (Vercel preview + stable alias + a SEPARATE Convex staging
+deployment); production deploys ONLY via manual promotion
+(production-deploy.yml, full gate on the pinned commit + live sha
+verification + direct Convex probe; older-SHA input = instant rollback).
+CLOUDFLARE MIRROR RETIRED: the redundant workers.dev frontend copy
+required an API token that expired (red X on every push) — workflow +
+wrangler.jsonc deleted; Vercel is the sole production frontend; the old
+workers.dev URL serves the Sep 2 build until the worker is optionally
+deleted in the Cloudflare dashboard (nothing depends on it, no token
+ever needed again). ONE-TIME setup pending for staging: create the
+staging Convex project → paste CONVEX_STAGING_DEPLOY_KEY +
+CONVEX_STAGING_URL secrets (the staging workflow reports the exact
+steps until then, and never deploys a frontend pointed at prod data).
+Next: Round 12 (Paystack live + subscription lifecycle). This file is the
 authoritative tracker; each round's detailed record goes to
 worklog.md as before.

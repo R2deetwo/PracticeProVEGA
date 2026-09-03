@@ -18,8 +18,8 @@ name: Tests
 #      ERROR_BASELINE below; the gate fails only when the count GROWS.
 #   3. npx vitest run              → the in-repo test suite.
 #
-# Every deploy workflow (Convex, Cloudflare, Vercel, APK) requires this
-# gate (via job needs or workflow_run) — a red suite blocks deploys.
+# Every deploy workflow (Staging, Production, APK) runs this same gate
+# inline as a required job — a red suite blocks every deploy.
 
 on:
   push:

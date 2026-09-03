@@ -19,7 +19,7 @@ Built for the Nigerian jurisdiction, PracticePro combines practice management, f
 - **Backend:** Convex (serverless database + real-time sync)
 - **AI:** Google Gemini (ALOA/ARIA AI assistant, document analysis, legal research)
 - **Mobile:** Capacitor 8 (Android APK)
-- **Deployment:** Vercel (primary) + Cloudflare Workers (secondary)
+- **Deployment:** Vercel (production + staging preview alias, deployed by GitHub Actions) + Convex (separate production and staging deployments)
 - **Push Notifications:** Firebase Cloud Messaging (FCM)
 - **Payments:** Paystack + Flutterwave integrations (bank transfer live, card/USSD activating)
 
@@ -108,21 +108,28 @@ npm run build
 ```
 
 ### Deploy Pipelines (GitHub Actions)
-All three deploy pipelines auto-trigger on push to `main` (repo-stored secrets — no local tokens needed):
 
-| Workflow | Deploys | Output |
-|----------|---------|--------|
-| `vercel-deploy.yml` | Frontend | https://practice-pro-vega.vercel.app |
-| `cloudflare-deploy.yml` | Frontend (wrangler) | https://practice-pro-vega.prototypechigo.workers.dev |
-| `build-apk.yml` | Android APK **+ Convex backend** (`npx convex deploy`, gated on `CONVEX_DEPLOY_KEY`) | APK release + backend functions |
+Deploy model (Round 11 of the SaaS hardening plan): **push to `main` auto-deploys staging**; **production is promoted deliberately**. Everything runs from repo-stored secrets — no local tokens, no external dashboards needed for day-to-day work.
 
-> **Note:** The Convex backend deploys as a step inside `build-apk.yml`. A push that changes only backend functions still triggers it, but if a backend-only change needs faster propagation, re-run the workflow from the Actions tab.
+| Workflow | Trigger | Deploys | Output |
+|----------|---------|---------|--------|
+| `tests.yml` | every push + PR | — (quality gate) | typecheck + unit tests |
+| `staging-deploy.yml` | push to `main` | staging frontend + staging Convex | `https://staging-practice-pro-vega.vercel.app` (stable alias) |
+| `production-deploy.yml` | **manual only** (Run workflow) | production frontend + production Convex | https://practice-pro-vega.vercel.app |
+| `staging-seed.yml` | manual only | seeds staging Convex with demo data | — |
+| `build-apk.yml` | push to `main` | Android APK (user app) | APK release + tag |
+| `build-admin-apk.yml` | push to `main` | Android APK (founder/admin app) | APK release + tag |
 
-Manual fallbacks:
+> **Promoting to production:** Actions tab → **Deploy to Production (promote)** → Run workflow (leave `sha` blank for latest main). It runs the full quality gate on the pinned commit, deploys Vercel + Convex, then verifies the live site (version.json sha match + direct Convex query probe). **Rollback** = run the same workflow with an older main `sha` — production redeploys that exact code.
+
+> **Staging one-time setup:** create a second Convex project and add the `CONVEX_STAGING_DEPLOY_KEY` + `CONVEX_STAGING_URL` GitHub secrets — the staging workflow prints the exact 3 steps in its run summary until this is done. CI verifies the staging frontend build points at the staging backend and NEVER at production data.
+
+> **Retired in Round 11:** the Cloudflare Workers mirror (`practice-pro-vega.prototypechigo.workers.dev`) was deleted. It duplicated the Vercel frontend, depended on a rotating API token (which expired and red-X'd every push), and served stale code after that. Vercel is the single production frontend; the old workers.dev URL serves the Sep 2 build until the worker is (optionally) deleted in the Cloudflare dashboard — nothing in the repo depends on it.
+
+Manual fallbacks (require local CLI auth, normally never needed):
 ```bash
-npx convex deploy                 # backend only
-npx vercel --prod                 # Vercel frontend
-CLOUDFLARE_API_TOKEN=… npx wrangler deploy   # Cloudflare frontend
+npx convex deploy                 # backend only (production)
+npx vercel deploy --prod          # Vercel frontend (production)
 ```
 
 ### Build Android APK

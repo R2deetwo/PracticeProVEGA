@@ -51,7 +51,7 @@ interface DevReport {
   };
   deploymentStatus: {
     vercel: { url: string; status: string; lastChecked: string };
-    cloudflare: { url: string; status: string; lastChecked: string };
+    staging: { url: string; status: string; lastChecked: string };
   };
   knownIssues: { severity: string; issue: string; domain: string }[];
   metrics: {
@@ -78,7 +78,7 @@ async function main() {
     auditSummary: null,
     recentCommits: [],
     featureInventory: { totalRoutes: 0, totalComponents: 0, totalConvexFunctions: 0, totalSchemaTables: 0, products: [] },
-    deploymentStatus: { vercel: { url: '', status: '', lastChecked: '' }, cloudflare: { url: '', status: '', lastChecked: '' } },
+    deploymentStatus: { vercel: { url: '', status: '', lastChecked: '' }, staging: { url: '', status: '', lastChecked: '' } },
     knownIssues: [],
     metrics: { bundleSizeKB: 0, totalFiles: 0, linterErrors: 0 },
   };
@@ -174,8 +174,8 @@ async function main() {
     status: report.buildVersion.status === 'healthy' ? 'healthy' : 'unknown',
     lastChecked: new Date().toISOString(),
   };
-  report.deploymentStatus.cloudflare = {
-    url: 'https://practice-pro-vega.prototypechigo.workers.dev',
+  report.deploymentStatus.staging = {
+    url: 'https://staging-practice-pro-vega.vercel.app',
     status: report.buildVersion.status === 'healthy' ? 'healthy' : 'unknown',
     lastChecked: new Date().toISOString(),
   };
@@ -238,8 +238,8 @@ async function main() {
   md += `- **Products:** ${report.featureInventory.products.join(', ')}\n\n`;
   md += `## Deployment Status\n\n`;
   md += `| Platform | URL | Status |\n|----------|-----|--------|\n`;
-  md += `| Vercel | ${report.deploymentStatus.vercel.url} | ${report.deploymentStatus.vercel.status} |\n`;
-  md += `| Cloudflare | ${report.deploymentStatus.cloudflare.url} | ${report.deploymentStatus.cloudflare.status} |\n\n`;
+  md += `| Vercel (production) | ${report.deploymentStatus.vercel.url} | ${report.deploymentStatus.vercel.status} |\n`;
+  md += `| Vercel (staging alias) | ${report.deploymentStatus.staging.url} | ${report.deploymentStatus.staging.status} |\n\n`;
   md += `## Known Issues (${report.knownIssues.length})\n\n`;
   for (const issue of report.knownIssues.slice(0, 15)) {
     md += `- **[${issue.severity}]** [${issue.domain}] ${issue.issue}\n`;

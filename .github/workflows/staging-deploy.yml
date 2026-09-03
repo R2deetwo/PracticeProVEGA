@@ -1,0 +1,253 @@
+name: Deploy to Staging
+
+# Round 11 (SaaS hardening plan) — the deploy model changes:
+#   push to main  → auto-deploys STAGING (this workflow)
+#   production    → promoted DELIBERATELY via production-deploy.yml
+#                   (manual trigger, full gate, live verification)
+#
+# Staging = Vercel preview deployment (stable alias `staging`) + a SEPARATE
+# Convex staging deployment. Staging is where Paystack test cards and the
+# Round 13-15 auth cutover are allowed to fail without touching users.
+#
+# ONE-TIME setup (this workflow reports instructions until done):
+#   1. Create a second Convex project (e.g. practice-pro-vega-staging)
+#      in the Convex dashboard.
+#   2. Copy its Production Deploy Key → GitHub secret
+#      CONVEX_STAGING_DEPLOY_KEY
+#   3. Copy its deployment URL (https://<name>.convex.cloud) → GitHub
+#      secret CONVEX_STAGING_URL
+# Until both secrets exist this workflow runs the full quality gate and
+# SKIPS the deploy (green, with a visible summary) — it must never deploy
+# a frontend that talks to the production backend.
+#
+# SAFETY INVARIANT: the staging frontend build is verified to point at the
+# staging Convex URL before it is deployed. A build wired to the production
+# deployment fails this workflow.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ERROR_BASELINE: "131"
+
+jobs:
+  quality-gate:
+    name: Typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (deploy gate — must be 0 errors)
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean (0 errors)"
+          else
+            echo "::error::convex/ typecheck FAILED — fix before deploying."
+            exit 1
+          fi
+
+      - name: Typecheck app (baseline-guarded)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
+          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
+            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+            exit 1
+          fi
+
+      - name: Run unit test suite
+        run: npx vitest run
+
+  deploy-staging:
+    name: Deploy staging (backend + frontend)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CONVEX_STAGING_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+      CONVEX_STAGING_URL: ${{ secrets.CONVEX_STAGING_URL }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check staging backend configuration
+        id: staging_cfg
+        run: |
+          if [ -z "$CONVEX_STAGING_DEPLOY_KEY" ] || [ -z "$CONVEX_STAGING_URL" ]; then
+            {
+              echo "## ⏸ Staging deploy skipped — staging backend not configured yet"
+              echo ""
+              echo "The quality gate ran and is green, but the staging Convex deployment"
+              echo "does not exist yet, so nothing was deployed (staging must never point"
+              echo "at the production backend). One-time setup, ~2 minutes:"
+              echo ""
+              echo "1. **Create a second Convex project** (e.g. \`practice-pro-vega-staging\`) —"
+              echo "   dashboard → Add Project → choose a region close to production."
+              echo "2. **Add GitHub secret \`CONVEX_STAGING_DEPLOY_KEY\`** — copy the new"
+              echo "   project's Production Deploy Key (Settings → API Keys)."
+              echo "3. **Add GitHub secret \`CONVEX_STAGING_URL\`** — the new project's"
+              echo "   deployment URL, e.g. \`https://<name>.convex.cloud\`."
+              echo ""
+              echo "After both secrets exist, the next push to \`main\` deploys staging"
+              echo "automatically (backend + frontend with stable alias). Then run the"
+              echo "\`Seed Staging Data\` workflow once to populate test data."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "✓ Staging backend is configured"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout code
+        if: steps.staging_cfg.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        if: steps.staging_cfg.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.staging_cfg.outputs.configured == 'true'
+        run: npm ci --no-audit --no-fund
+
+      - name: Deploy Convex staging backend
+        if: steps.staging_cfg.outputs.configured == 'true'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: npx convex deploy --cmd "echo 'staging functions deployed'"
+
+      - name: Install Vercel CLI
+        if: steps.staging_cfg.outputs.configured == 'true'
+        run: npm install -g vercel@latest
+
+      - name: Build staging frontend (wired to the staging backend)
+        if: steps.staging_cfg.outputs.configured == 'true'
+        env:
+          VITE_CONVEX_URL: ${{ secrets.CONVEX_STAGING_URL }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "Building with VITE_CONVEX_URL=$CONVEX_STAGING_URL"
+          vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          vercel build --token="$VERCEL_TOKEN"
+
+      - name: Verify the bundle points at the STAGING backend (not production)
+        if: steps.staging_cfg.outputs.configured == 'true'
+        env:
+          PROD_CONVEX_URL: "gregarious-malamute-537"
+        run: |
+          if ! grep -rq "$CONVEX_STAGING_URL" dist/assets/ 2>/dev/null; then
+            echo "::error::The staging Convex URL was NOT found in the built bundle — VITE_CONVEX_URL did not reach the build. If a Vercel project env var (VITE_CONVEX_URL) is set to the production URL in the dashboard, it is overriding this build: remove or fix it."
+            exit 1
+          fi
+          echo "✓ Staging bundle talks to the staging Convex deployment"
+          if grep -rq "$PROD_CONVEX_URL" dist/assets/ 2>/dev/null; then
+            echo "::warning::The production Convex URL string appears in the bundle (likely a dead-code fallback constant). The staging URL check above is the authoritative gate."
+          fi
+
+      - name: Deploy to Vercel (preview) and pin the stable staging alias
+        if: steps.staging_cfg.outputs.configured == 'true'
+        id: vercel_deploy
+        run: |
+          DEPLOY_OUTPUT=$(vercel deploy --prebuilt --yes --token="$VERCEL_TOKEN" 2>&1 | tail -5)
+          echo "$DEPLOY_OUTPUT"
+          DEPLOY_URL=$(echo "$DEPLOY_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.vercel\.app' | tail -1)
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::error::Could not parse the preview deployment URL from vercel output."
+            exit 1
+          fi
+          echo "Preview deployment: $DEPLOY_URL"
+
+          ALIAS_OUTPUT=$(vercel alias set "$DEPLOY_URL" staging --token="$VERCEL_TOKEN" 2>&1)
+          echo "$ALIAS_OUTPUT"
+          ALIAS_URL=$(echo "$ALIAS_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+' | grep -v "$DEPLOY_URL" | head -1 || true)
+          if [ -z "$ALIAS_URL" ]; then
+            ALIAS_URL="https://staging-practice-pro-vega.vercel.app"
+          fi
+          echo "Staging alias: $ALIAS_URL"
+
+          {
+            echo "deploy_url=$DEPLOY_URL"
+            echo "alias_url=$ALIAS_URL"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify the deployed build serves this commit
+        if: steps.staging_cfg.outputs.configured == 'true'
+        run: |
+          DEPLOY_URL="${{ steps.vercel_deploy.outputs.deploy_url }}"
+          ALIAS_URL="${{ steps.vercel_deploy.outputs.alias_url }}"
+          EXPECTED="${{ github.sha }}"
+          EXPECTED="${EXPECTED:0:8}"
+          MAX_WAIT=90
+          WAITED=0
+          SHA="unknown"; STATUS="unknown"
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            RESPONSE=$(curl -s "$DEPLOY_URL/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
+            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
+            echo "  [${WAITED}s] deployment: sha=$SHA status=$STATUS (expecting $EXPECTED)"
+            if [ "$STATUS" = "healthy" ] && [ "$SHA" = "$EXPECTED" ]; then
+              echo "✅ Staging deployment is healthy and serves $EXPECTED"
+              echo "Deployment URL: $DEPLOY_URL"
+              echo "Staging alias:  $ALIAS_URL"
+              exit 0
+            fi
+            sleep 10
+            WAITED=$((WAITED + 10))
+          done
+          echo "⚠️ Staging deployment not verified after ${MAX_WAIT}s (sha=$SHA status=$STATUS). Deployment URL: $DEPLOY_URL — check Vercel."
+          exit 1
+
+      - name: Point SITE_URL at staging on the staging Convex deployment
+        if: steps.staging_cfg.outputs.configured == 'true'
+        continue-on-error: true
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+          STAGING_SITE_URL: ${{ steps.vercel_deploy.outputs.alias_url }}
+        run: |
+          if npx convex env set SITE_URL "$STAGING_SITE_URL"; then
+            echo "✓ SITE_URL=$STAGING_SITE_URL set on the staging deployment"
+          else
+            echo "::warning::Could not set SITE_URL on staging (the deploy key may lack env permissions). Set SITE_URL once in the Convex staging dashboard if needed."
+          fi
+
+      - name: Job summary
+        if: steps.staging_cfg.outputs.configured == 'true'
+        run: |
+          {
+            echo "## ✅ Staging deployed"
+            echo ""
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Staging URL (stable alias): ${{ steps.vercel_deploy.outputs.alias_url }}"
+            echo "- Fresh deployment URL: ${{ steps.vercel_deploy.outputs.deploy_url }}"
+            echo "- Staging Convex backend: \`$CONVEX_STAGING_URL\`"
+            echo ""
+            echo "Staging is auto-deployed on every push to main. Production is NOT —"
+            echo "promote deliberately with the **Deploy to Production (promote)**"
+            echo "workflow when staging is verified."
+          } >> "$GITHUB_STEP_SUMMARY"

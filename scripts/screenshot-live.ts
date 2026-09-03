@@ -13,7 +13,7 @@ async function main() {
 
     try {
       console.log(`\n=== Testing /${product} (mobile 375x812) ===`);
-      await page.goto(`https://practice-pro-vega.prototypechigo.workers.dev/${product}`, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.goto(`https://practice-pro-vega.vercel.app/${product}`, { waitUntil: 'networkidle', timeout: 30000 });
       await page.waitForTimeout(2000);
 
       const title = await page.title();

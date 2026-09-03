@@ -136,8 +136,8 @@ def build():
         "Lucide icons. Custom modal system with portal rendering.", body))
     story.append(Paragraph("<b>Mobile:</b> Capacitor (Android APK). Two separate APKs: consumer app + admin/founder app. "
         "GitHub Actions CI/CD for automated APK builds.", body))
-    story.append(Paragraph("<b>Deployment:</b> Cloudflare Workers (primary, practiceprovega.prototypechigo.workers.dev). "
-        "Vercel (backup, practice-pro-vega.vercel.app). Convex backend deployed via CLI.", body))
+    story.append(Paragraph("<b>Deployment:</b> Vercel (production, practice-pro-vega.vercel.app) with a Vercel preview-alias staging environment. "
+        "Convex backend deployed via GitHub Actions (separate staging + production deployments).", body))
     story.append(Paragraph("<b>Integrations:</b> Brevo (transactional email), Chakra Chat API (WhatsApp), "
         "Paystack (payment gateway), Google Drive, Gemini AI (document drafting).", body))
     story.append(PageBreak())

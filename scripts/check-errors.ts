@@ -15,7 +15,7 @@ async function main() {
     if (msg.type() === 'error') console.log(`[CONSOLE ERROR]: ${msg.text().slice(0, 400)}`);
   });
 
-  await page.goto('https://practice-pro-vega.prototypechigo.workers.dev/atrium', { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto('https://practice-pro-vega.vercel.app/atrium', { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
 
   console.log('\n=== Failed requests ===');
