@@ -221,6 +221,6 @@ passes on staging; both docs reviewed into the repo.
 | 16 | Defense closeout (guards, rate limits) | residual attack surface | tenant names (data) |
 | 17 | Observability + runbook + backup | silent failures, bus factor 1 | no |
 
-**Current status:** Round 10 not started. This file is the
+**Current status:** Round 10 CLOSED AND LIVE (8b61ca4d) — 54-test suite gating all deploys; Convex deploy in its own Tests-gated workflow (no continue-on-error); gate-blocking PROVEN on a live branch. Also shipped: Tasks-modal fix + DraftPro save-gate toggle (user requests). OPEN ITEM: CLOUDFLARE_API_TOKEN secret is invalid (expired/revoked) — user must rotate it and re-run the failed Cloudflare workflow; workers.dev still serves 555d73cb until then. Next: Round 11 (staging). This file is the
 authoritative tracker; each round's detailed record goes to
 worklog.md as before.

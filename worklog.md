@@ -10287,3 +10287,92 @@ Stage Summary:
   for Rounds 10-17; per-round records continue in this worklog. Next
   step: Round 10 (Vitest + convex-test in repo, regression tests for
   rounds 8-9 bug classes, Convex deploy to its own gated workflow).
+
+---
+Task ID: 14
+Agent: Super Z (main)
+Task: Round 10 — test suite + honest CI pipeline (SAAS_HARDENING_PLAN
+Phase 0), plus two user-reported fixes: Tasks page modal bug and the
+DraftPro save-prevention toggle.
+
+Work Log:
+- USER BUG 1 (tasks don't open as a modal): root cause —
+  TasksView.handleViewDetails called navigateTo('tasks', id), which
+  only changed the URL to /tasks/:id, a route NO component consumes
+  (UIContext has no tasks+id mapping; App.tsx renders the plain list).
+  The click visibly did nothing. Fixed: openModal('viewTask', id,
+  {openedFrom:'tasks'}) — matching every other task entry point
+  (DailyFocusView, CommandPalette, ContextMenu, MatterBrief…). The
+  commit that claimed this was fixed (2ea4e53f) never actually worked.
+- USER BUG 2 (DraftPro "prevents saving"): root cause — the
+  placeholder-completion gate hard-blocks print/PDF while any
+  [PLACEHOLDER] chip is unfilled, and saveAsFile('pdf') routed through
+  it. Compounding defects: (a) setIsSaved(true) ran even when the gate
+  BLOCKED the print — the editor then falsely believed it was saved
+  (Save button re-greyed, guard modal treated it as persisted);
+  (b) the guard modal's primary CTA "Save as PDF & Leave" called
+  confirmNavWithoutSave() unconditionally — users left with NOTHING
+  saved (silent data loss).
+- Fixes: user-facing escape hatch added (the user's explicit request):
+  a checkbox in the fill-placeholders modal — "Don't block saving or
+  printing while placeholders are unfilled" — persisted per user via
+  localStorage key practicepro_draftpro_allow_unfilled_placeholders;
+  when on, the gate downgrades to a reminder toast. handlePrint and
+  saveAsFile now return booleans; the false-isSaved and
+  leave-without-saving traps are closed; handlePrint moved above
+  saveAsFile (dep-array TDZ) via a surgical script.
+- TEST INFRASTRUCTURE: Vitest 4.1.11 in-repo (54 tests, three suites):
+  callerAuth.test.ts (20 — the round-8 guard matrix: spoofed email,
+  anonymous, portal-role, cross-firm, joined-firm, founder rules),
+  resolveRecordForUpdate.test.ts (11 — the round-9 firm-settings bug:
+  self-referential firms ownership, fail-closed anonymous, custom-id
+  paths; function exported for tests), unitLookup.test.ts (23 — the
+  round-6 resolver, reconstructed from the twice-lost sandbox script:
+  all four unitId shapes, firm scoping, tenant fallbacks,
+  canonicalTenantId, memoization, error-degradation paths).
+  package-lock.json synced (CI runs npm ci; vitest added via bun).
+- CI PIPELINE (the round's core): new tests.yml quality gate (convex
+  tsc 0-errors, root tsc baseline 131, vitest) on every push + PR; new
+  convex-deploy.yml — Convex deploy moved OUT of the Android APK
+  workflow into its own Tests-gated workflow with continue-on-error
+  REMOVED and a loud failure when CONVEX_DEPLOY_KEY is missing;
+  cloudflare/vercel/apk workflows all gained a needs:quality-gate job;
+  APK workflow's embedded Convex deploy step deleted. BONUS FIX:
+  build-admin-apk.yml's push trigger was corrupted ('branches: ain]' —
+  parsed as a branch named "ain]"), so the admin APK NEVER ran on
+  push; fixed to [main].
+- Root tsc baseline re-measured: pristine main = 131 (drifted from the
+  126 recorded in earlier rounds); Round 10 tree = 130 (net -1).
+- VERIFICATION: 54/54 tests, tsc -p convex CLEAN, root tsc 130<=131,
+  vite build green, browser smoke on live /vega (0 errors).
+- GATE PROOF (the plan's done-when): branch r10-gate-proof pushed with
+  a deliberately failing test → Tests workflow completed:failure on
+  that branch and NO deploy workflow ran (deploys trigger on main
+  only; convex-deploy additionally requires conclusion==success).
+  Branch deleted after proof. On main: Tests green → Convex deploy
+  green (log verified: "Uploading functions… Schema validation
+  complete. Deployed") → Vercel green (sha 8b61ca4d, healthy) → APK
+  green.
+- PROBLEM FOUND (user action required): the Cloudflare Workers deploy
+  FAILED on 8b61ca4d — CLOUDFLARE_API_TOKEN is set but INVALID
+  ("Invalid access token [code: 9109]"); it was valid for the
+  555d73cb deploy on Sep 2 and decayed (expired/revoked) by Sep 3.
+  workers.dev still serves 555d73cb (fine — docs-only since then; the
+  Round 10 frontend fixes are live on Vercel). USER MUST: regenerate
+  the Cloudflare API token (Workers permissions) and update the
+  CLOUDFLARE_API_TOKEN GitHub secret, then re-run the failed workflow
+  (or push any commit).
+- Sandbox hazard noted: mid-session, an environmental cleaner deleted
+  614 tracked binary files (upload/, download/, audit-results/) from
+  the working tree + flipped modes; restored via git checkout --
+  <deleted>; core.fileMode=false set. Push verified clean.
+
+Stage Summary:
+- ROUND 10 CLOSED AND LIVE (Vercel + Convex + APK; Cloudflare pending
+  user's token rotation). The repo now has a real test suite gating
+  every deploy, the Convex deploy is honest (own workflow, no
+  continue-on-error, tests-gated), and the failing-test-blocks-deploy
+  property was PROVEN on a live branch. Tasks open in a modal again;
+  DraftPro users can turn off the save-blocking placeholder gate and
+  the false-saved / leave-unsaved data-loss traps are closed.
+- Next per plan: Round 11 (staging environment).
