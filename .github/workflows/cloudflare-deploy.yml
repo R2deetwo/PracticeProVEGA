@@ -23,8 +23,54 @@ permissions:
   contents: read
 
 jobs:
+  # Round 10: the frontend deploy is gated on the same quality gate as
+  # the backend — a red test suite blocks every deploy, not just Convex.
+  quality-gate:
+    name: Typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ERROR_BASELINE: "131"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (deploy gate — must be 0 errors)
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean (0 errors)"
+          else
+            echo "::error::convex/ typecheck FAILED — fix before deploying."
+            exit 1
+          fi
+
+      - name: Typecheck app (baseline-guarded)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
+          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
+            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+            exit 1
+          fi
+
+      - name: Run unit test suite
+        run: npx vitest run
+
   deploy:
     name: Deploy to Cloudflare Workers
+    needs: quality-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

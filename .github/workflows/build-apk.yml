@@ -28,12 +28,57 @@ permissions:
   actions: write
 
 jobs:
+  # Round 10: the APK bundles the frontend users install — it must pass
+  # the same quality gate as every deploy. Tests fail → no APK build.
+  quality-gate:
+    name: Typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ERROR_BASELINE: "131"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (deploy gate — must be 0 errors)
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean (0 errors)"
+          else
+            echo "::error::convex/ typecheck FAILED — npx convex deploy will reject this code. Fix before pushing."
+            exit 1
+          fi
+
+      - name: Typecheck app (baseline-guarded)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
+          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
+            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+            exit 1
+          fi
+
+      - name: Run unit test suite
+        run: npx vitest run
+
   build:
     name: Build APK
+    needs: quality-gate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      HAS_CONVEX_KEY: ${{ secrets.CONVEX_DEPLOY_KEY != '' }}
       HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
       HAS_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID != '' }}
       HAS_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID != '' }}
@@ -168,12 +213,11 @@ jobs:
             fi
           done
 
-      - name: Deploy Convex backend
-        if: ${{ env.HAS_CONVEX_KEY == 'true' }}
-        continue-on-error: true
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: npx convex deploy --cmd "echo 'Convex deployed successfully'"
+      # Round 10: the Convex deploy step that used to live here was moved
+      # to .github/workflows/convex-deploy.yml — its own workflow, gated on
+      # the Tests workflow, with continue-on-error REMOVED. The old step
+      # silently swallowed deploy failures (Round 6 root cause) and buried
+      # the backend deploy inside an Android build job.
 
       - name: Build web app (bundled into APK)
         run: npx vite build

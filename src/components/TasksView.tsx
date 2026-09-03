@@ -132,9 +132,14 @@ export const TasksView: React.FC = () => {
         setSelectedTasks(new Set());
     };
 
+    // View handler — opens TaskDetailModal via ModalManager, matching every
+    // other task entry point in the app (DailyFocusView, CommandPalette,
+    // ContextMenu, MatterBrief…). Previously this called
+    // navigateTo('tasks', id), which only changed the URL to /tasks/:id —
+    // a route no component consumes, so the click visibly did nothing.
     const handleViewDetails = useCallback((id: string, context?: any) => {
-        navigateTo('tasks', id, { ...context, openedFrom: 'tasks' });
-    }, [navigateTo]);
+        openModal('viewTask', id, { ...context, openedFrom: 'tasks' });
+    }, [openModal]);
 
     // Edit handler — opens TaskForm in edit mode (same modal as 'newTask',
     // but with the second arg carrying the task id → becomes editingId).

@@ -1,0 +1,87 @@
+name: Tests
+
+# Round 10 (SaaS hardening plan) — the quality gate.
+#
+# BEFORE this workflow existed, CI built and deployed but never tested:
+# the deploy-freeze (Round 6) and the firm-settings save failure (Round 9)
+# were both found by hand-probing production because nothing else could
+# catch them. This suite locks in the regression classes from Rounds 6-9:
+#   - tests/unit/callerAuth.test.ts            (Round 8 auth retrofit)
+#   - tests/unit/resolveRecordForUpdate.test.ts (Round 9 firm-settings bug)
+#   - tests/unit/unitLookup.test.ts             (Round 6 shared unit resolver)
+#
+# The gates, in order:
+#   1. npx tsc -p convex --noEmit  → MUST be 0 errors (the real Convex
+#      deploy gate — a TS error here froze backend deploys for weeks in
+#      Round 6 while CI stayed green).
+#   2. root tsc --noEmit           → pre-existing debt baseline is
+#      ERROR_BASELINE below; the gate fails only when the count GROWS.
+#   3. npx vitest run              → the in-repo test suite.
+#
+# Every deploy workflow (Convex, Cloudflare, Vercel, APK) requires this
+# gate (via job needs or workflow_run) — a red suite blocks deploys.
+
+on:
+  push:
+    branches-ignore: []
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Pre-existing root-tsc technical debt, measured on pristine main at
+  # Round 10 (555d73cb). The gate fails when the count EXCEEDS this —
+  # drive it down over time, never up.
+  ERROR_BASELINE: "131"
+
+jobs:
+  quality-gate:
+    name: Typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (deploy gate — must be 0 errors)
+        run: |
+          echo "Running: npx tsc -p convex --noEmit"
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean (0 errors)"
+          else
+            echo "::error::convex/ typecheck FAILED. npx convex deploy will reject this code — fix before pushing. (This exact class froze backend deploys while CI stayed green: see worklog Round 6.)"
+            exit 1
+          fi
+
+      - name: Typecheck app (baseline-guarded)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -5
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
+          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
+            echo "::error::Root tsc error count ($ERRORS) exceeds the baseline ($ERROR_BASELINE). New type errors were introduced — fix them before deploy."
+            exit 1
+          fi
+          echo "✅ Root tsc within baseline"
+
+      - name: Run unit test suite
+        run: npx vitest run

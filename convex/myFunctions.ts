@@ -3301,8 +3301,14 @@ function sanitizeForConvex(val: any): any {
   return val;
 }
 
-/** Resolve Convex _id from internal id or legacy custom id field (mirrors deleteItem Strategy B). */
-async function resolveRecordForUpdate(
+/** Resolve Convex _id from internal id or legacy custom id field (mirrors deleteItem Strategy B).
+ *
+ * EXPORTED FOR TESTS (Round 10): this resolver was the locus of the Round 9
+ * firm-settings save bug (self-referential `firms` ownership check) — the
+ * regression suite in tests/unit/resolveRecordForUpdate.test.ts locks in
+ * the fixed behavior. Not part of the Convex public function surface.
+ */
+export async function resolveRecordForUpdate(
   ctx: { db: { get: (id: any) => Promise<any>; query: (table: any) => any } },
   table: string,
   id: string,

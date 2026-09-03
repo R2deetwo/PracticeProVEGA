@@ -673,6 +673,27 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
     // Modals
     const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | 'redraft' | null>(null);
+
+    // ─── Placeholder save-gate preference (Round 10 user request) ────────
+    // DraftPro hard-blocks printing / PDF / DOCX saving while [PLACEHOLDER]
+    // chips remain unfilled — by design for final documents, but frustrating
+    // for users who draft iteratively and want to save a work-in-progress.
+    // This per-user preference (localStorage, practicepro_* key convention)
+    // turns the hard block into a heads-up reminder instead.
+    const ALLOW_UNFILLED_PLACEHOLDERS_KEY = 'practicepro_draftpro_allow_unfilled_placeholders';
+    const [allowUnfilledPlaceholders, setAllowUnfilledPlaceholders] = useState<boolean>(() => {
+        try { return window.localStorage.getItem(ALLOW_UNFILLED_PLACEHOLDERS_KEY) === 'true'; } catch { return false; }
+    });
+    const toggleAllowUnfilledPlaceholders = useCallback((on: boolean) => {
+        setAllowUnfilledPlaceholders(on);
+        try { window.localStorage.setItem(ALLOW_UNFILLED_PLACEHOLDERS_KEY, String(on)); } catch { /* private mode */ }
+        addToast(
+            on
+                ? 'DraftPro will no longer block saving with unfilled placeholders.'
+                : 'DraftPro will again block saving until placeholders are filled.',
+            { type: 'info' }
+        );
+    }, [addToast]);
     // Track which ribbon dropdown is open (click-to-toggle, not hover).
     // Fixes the "two tooltips" issue: hover dropdowns appeared as broken
     // in-app tooltips clipped by the ribbon's overflow-x-auto container.
@@ -1486,182 +1507,24 @@ ${allCites.map((c: any) => {
     // creates a Document record so it appears in the Documents section.
     // The user can then download, preview, or share the file from there.
     const [isSavingFile, setIsSavingFile] = useState(false);
-    const saveAsFile = useCallback(async (format: 'docx' | 'pdf') => {
-        if (!editor) return;
-
-        // ─── PDF: Use iframe print pipeline (NOT html2canvas) ────────
-        // The browser's native print engine produces a vector PDF with
-        // proper page breaks, margins, and selectable text. html2canvas
-        // produces a rasterized screenshot that has gaps, orphan headings,
-        // and is affected by zoom level.
-        //
-        // For PDF: we open the print dialog — the user saves as PDF via
-        // the browser. This is the most reliable approach and produces a
-        // TRUE representation of what appears on the DraftPro canvas.
-        if (format === 'pdf') {
-            addToast('Opening print dialog — choose "Save as PDF" to save.', { type: 'info' });
-            handlePrint();
-            setIsSaved(true);
-            return;
-        }
-
-        // ─── DOCX: Use the OOXML export pipeline ─────────────────────
-        const startTime = Date.now();
-        try {
-            setIsSavingFile(true);
-            const html = editor.getHTML();
-            const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
-            const filename = `${safeTitle}.${format}`;
-            const mimeType = format === 'docx'
-                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                : 'application/pdf';
-
-            // ─── DIAGNOSTIC LOG ──────────────────────────────────────
-            // Logs the payload size and format so we can diagnose failures.
-            // (console.log removed in production cleanup)
-
-            addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
-
-            // Generate the Blob with a timeout
-            let blob: Blob;
-            const generateTimeout = format === 'pdf' ? 60000 : 30000; // PDF: 60s, DOCX: 30s
-            const generatePromise = (async () => {
-                if (format === 'docx') {
-                    return exportHtmlToDocxBlob(html, {
-                        title: title || 'Document',
-                        author: currentUser?.name || 'PracticePro',
-                        firmName: appState?.firmDetails?.name || '',
-                    });
-                } else {
-                    return exportHtmlToPdfBlob(html, {
-                        title: title || 'Document',
-                        author: currentUser?.name || 'PracticePro',
-                        firmName: appState?.firmDetails?.name || '',
-                        // PART 3 FIX: Pass the actual editor canvas element so
-                        // the PDF matches the editor's exact layout (margins,
-                        // header/footer, page breaks). Falls back to a temp
-                        // container if the ref isn't available.
-                        canvasElement: pageSheetsContainerRef.current || undefined,
-                    });
-                }
-            })();
-
-            // Race the generation against a timeout
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('timeout')), generateTimeout);
-            });
-
-            try {
-                blob = await Promise.race([generatePromise, timeoutPromise]);
-            } catch (genErr: any) {
-                console.error(`[saveAsFile] ${format.toUpperCase()} generation failed:`, genErr);
-                if (genErr.message === 'timeout') {
-                    addToast(`${format.toUpperCase()} generation timed out after ${generateTimeout / 1000}s. The document may be too large — try splitting it.`, { type: 'error' });
-                } else {
-                    addToast(`${format.toUpperCase()} generation failed: ${genErr.message}. Try again or use Print/PDF instead.`, { type: 'error' });
-                }
-                return;
-            }
-
-            // (diagnostic console.log removed in production cleanup)
-
-            // Upload to Convex storage with a timeout
-            addToast(`Uploading ${format.toUpperCase()} to documents…`, { type: 'info' });
-            const uploadStartTime = Date.now();
-
-            try {
-                const uploadTimeout = 120000; // 2 minutes for upload
-                const storageId = await Promise.race([
-                    uploadBlobToConvex(blob, generateUploadUrl),
-                    new Promise<never>((_, reject) => {
-                        setTimeout(() => reject(new Error('upload-timeout')), uploadTimeout);
-                    }),
-                ]);
-
-                // (diagnostic console.log removed in production cleanup)
-
-                // Create a Document record so it appears in the Documents section
-                await handleAddDocumentAndAnalyze({
-                    title: title || 'Untitled Document',
-                    firmId: appState?.firmDetails?.id || currentUser?.firmId || '',
-                    categoryId: 'drafts',
-                    dateFiled: new Date().toISOString(),
-                    source: 'generated',
-                    uploadedBy: currentUser?.id,
-                    content: html, // Keep HTML for in-app editing
-                    file: {
-                        name: filename,
-                        type: mimeType,
-                        size: blob.size,
-                        filePath: '',
-                        storageId, // The Convex storage ID — this is the key
-                    },
-                });
-
-                // Also trigger a browser download
-                const blobUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(blobUrl);
-
-                addToast(`${format.toUpperCase()} saved to Documents and downloaded.`, { type: 'success' });
-                setIsSaved(true);
-            } catch (uploadErr: any) {
-                console.error(`[saveAsFile] Upload failed:`, uploadErr);
-                if (uploadErr.message === 'upload-timeout') {
-                    addToast(`Upload timed out after 2 minutes. The file (${Math.round(blob.size / 1024)}KB) may be too large. Try a smaller document.`, { type: 'error' });
-                } else if (uploadErr.message?.includes('Failed to fetch')) {
-                    addToast(`Network error during upload. Check your internet connection and try again.`, { type: 'error' });
-                } else {
-                    addToast(`Upload failed: ${uploadErr.message}. The file was generated but could not be saved to Documents.`, { type: 'error' });
-                }
-            }
-        } catch (err: any) {
-            console.error(`[saveAsFile] Unexpected error:`, err);
-            addToast(`Unexpected error saving ${format.toUpperCase()}: ${err.message}`, { type: 'error' });
-        } finally {
-            setIsSavingFile(false);
-        }
-    }, [editor, title, currentUser, appState, addToast, generateUploadUrl, handleAddDocumentAndAnalyze]);
-
-    // Clears the editor and resets the title for a fresh start.
-    const handleNewDocument = useCallback(async () => {
-        if (!editor) return;
-        // Confirm if there's unsaved content
-        const hasContent = editor.getHTML().replace(/<[^>]*>/g, '').trim().length > 0;
-        if (hasContent && !isSaved) {
-            const ok = await confirmDialog({
-                title: 'Start New Document',
-                message: 'Start a new document? Unsaved changes will be lost.',
-                confirmLabel: 'Start New',
-                danger: true,
-            });
-            if (!ok) return;
-        }
-        editor.commands.clearContent();
-        editor.commands.setContent('<p></p>');
-        onTitleChange?.('Untitled Document');
-        setIsSaved(true);
-        originalDraftPromptRef.current = undefined;
-        setActiveDraftPrompt(undefined);
-        addToast('New document created', { type: 'success' });
-    }, [editor, isSaved, onTitleChange, addToast]);
-
-    const handlePrint = useCallback(() => {
-        if (!editor || editor.isDestroyed) return;
+        // Returns true when the print pipeline actually ran, false when the
+    // placeholder gate (or an error) blocked it — callers use this to avoid
+    // falsely marking the document saved / leaving with unsaved content.
+    const handlePrint = useCallback((): boolean => {
+        if (!editor || editor.isDestroyed) return false;
         let hasPlaceholders = false;
         editor.state.doc.descendants((node) => {
             if (node.type.name === 'legalPlaceholder') hasPlaceholders = true;
         });
 
-        if (hasPlaceholders) {
+        if (hasPlaceholders && !allowUnfilledPlaceholders) {
             addToast('Cannot Print: Please fill all outstanding placeholders first.', { type: 'error' });
             setActiveModal('fill_placeholders');
-            return;
+            return false;
+        }
+        // Preference on: warn, but let the user save their work-in-progress.
+        if (hasPlaceholders) {
+            addToast('Printing with unfilled placeholders — remember to fill them before filing.', { type: 'info' });
         }
 
         // ─── Iframe-based print pipeline ──────────────────────────────
@@ -1769,8 +1632,185 @@ ${allCites.map((c: any) => {
         } catch (e) {
             console.error('[DraftPro] Print setup failed:', e);
             addToast('Could not prepare document for printing.', { type: 'error' });
+            return false;
         }
-    }, [editor, addToast, title, appState.firmDetails, watermark]);
+        return true;
+    }, [editor, addToast, title, appState.firmDetails, watermark, allowUnfilledPlaceholders]);
+
+const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> => {
+        if (!editor) return false;
+
+        // ─── PDF: Use iframe print pipeline (NOT html2canvas) ────────
+        // The browser's native print engine produces a vector PDF with
+        // proper page breaks, margins, and selectable text. html2canvas
+        // produces a rasterized screenshot that has gaps, orphan headings,
+        // and is affected by zoom level.
+        //
+        // For PDF: we open the print dialog — the user saves as PDF via
+        // the browser. This is the most reliable approach and produces a
+        // TRUE representation of what appears on the DraftPro canvas.
+        if (format === 'pdf') {
+            const printed = handlePrint();
+            if (printed) {
+                addToast('Opening print dialog — choose "Save as PDF" to save.', { type: 'info' });
+                setIsSaved(true);
+            }
+            // Round 10 fix: previously setIsSaved(true) ran even when the
+            // placeholder gate blocked the print — the editor then believed
+            // it was saved (Save button re-greyed, guard modal treated the
+            // doc as persisted) while NOTHING had been saved. Only mark
+            // saved when the print pipeline actually ran.
+            return printed;
+        }
+
+        // ─── DOCX: Use the OOXML export pipeline ─────────────────────
+        const startTime = Date.now();
+        try {
+            setIsSavingFile(true);
+            const html = editor.getHTML();
+            const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const filename = `${safeTitle}.${format}`;
+            const mimeType = format === 'docx'
+                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                : 'application/pdf';
+
+            // ─── DIAGNOSTIC LOG ──────────────────────────────────────
+            // Logs the payload size and format so we can diagnose failures.
+            // (console.log removed in production cleanup)
+
+            addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
+
+            // Generate the Blob with a timeout
+            let blob: Blob;
+            const generateTimeout = format === 'pdf' ? 60000 : 30000; // PDF: 60s, DOCX: 30s
+            const generatePromise = (async () => {
+                if (format === 'docx') {
+                    return exportHtmlToDocxBlob(html, {
+                        title: title || 'Document',
+                        author: currentUser?.name || 'PracticePro',
+                        firmName: appState?.firmDetails?.name || '',
+                    });
+                } else {
+                    return exportHtmlToPdfBlob(html, {
+                        title: title || 'Document',
+                        author: currentUser?.name || 'PracticePro',
+                        firmName: appState?.firmDetails?.name || '',
+                        // PART 3 FIX: Pass the actual editor canvas element so
+                        // the PDF matches the editor's exact layout (margins,
+                        // header/footer, page breaks). Falls back to a temp
+                        // container if the ref isn't available.
+                        canvasElement: pageSheetsContainerRef.current || undefined,
+                    });
+                }
+            })();
+
+            // Race the generation against a timeout
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('timeout')), generateTimeout);
+            });
+
+            try {
+                blob = await Promise.race([generatePromise, timeoutPromise]);
+            } catch (genErr: any) {
+                console.error(`[saveAsFile] ${format.toUpperCase()} generation failed:`, genErr);
+                if (genErr.message === 'timeout') {
+                    addToast(`${format.toUpperCase()} generation timed out after ${generateTimeout / 1000}s. The document may be too large — try splitting it.`, { type: 'error' });
+                } else {
+                    addToast(`${format.toUpperCase()} generation failed: ${genErr.message}. Try again or use Print/PDF instead.`, { type: 'error' });
+                }
+                return false;
+            }
+
+            // (diagnostic console.log removed in production cleanup)
+
+            // Upload to Convex storage with a timeout
+            addToast(`Uploading ${format.toUpperCase()} to documents…`, { type: 'info' });
+            const uploadStartTime = Date.now();
+
+            try {
+                const uploadTimeout = 120000; // 2 minutes for upload
+                const storageId = await Promise.race([
+                    uploadBlobToConvex(blob, generateUploadUrl),
+                    new Promise<never>((_, reject) => {
+                        setTimeout(() => reject(new Error('upload-timeout')), uploadTimeout);
+                    }),
+                ]);
+
+                // (diagnostic console.log removed in production cleanup)
+
+                // Create a Document record so it appears in the Documents section
+                await handleAddDocumentAndAnalyze({
+                    title: title || 'Untitled Document',
+                    firmId: appState?.firmDetails?.id || currentUser?.firmId || '',
+                    categoryId: 'drafts',
+                    dateFiled: new Date().toISOString(),
+                    source: 'generated',
+                    uploadedBy: currentUser?.id,
+                    content: html, // Keep HTML for in-app editing
+                    file: {
+                        name: filename,
+                        type: mimeType,
+                        size: blob.size,
+                        filePath: '',
+                        storageId, // The Convex storage ID — this is the key
+                    },
+                });
+
+                // Also trigger a browser download
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+
+                addToast(`${format.toUpperCase()} saved to Documents and downloaded.`, { type: 'success' });
+                setIsSaved(true);
+                return true;
+            } catch (uploadErr: any) {
+                console.error(`[saveAsFile] Upload failed:`, uploadErr);
+                if (uploadErr.message === 'upload-timeout') {
+                    addToast(`Upload timed out after 2 minutes. The file (${Math.round(blob.size / 1024)}KB) may be too large. Try a smaller document.`, { type: 'error' });
+                } else if (uploadErr.message?.includes('Failed to fetch')) {
+                    addToast(`Network error during upload. Check your internet connection and try again.`, { type: 'error' });
+                } else {
+                    addToast(`Upload failed: ${uploadErr.message}. The file was generated but could not be saved to Documents.`, { type: 'error' });
+                }
+                return false;
+            }
+        } catch (err: any) {
+            console.error(`[saveAsFile] Unexpected error:`, err);
+            addToast(`Unexpected error saving ${format.toUpperCase()}: ${err.message}`, { type: 'error' });
+            return false;
+        } finally {
+            setIsSavingFile(false);
+        }
+    }, [editor, title, currentUser, appState, addToast, generateUploadUrl, handleAddDocumentAndAnalyze, handlePrint]);
+
+    // Clears the editor and resets the title for a fresh start.
+    const handleNewDocument = useCallback(async () => {
+        if (!editor) return;
+        // Confirm if there's unsaved content
+        const hasContent = editor.getHTML().replace(/<[^>]*>/g, '').trim().length > 0;
+        if (hasContent && !isSaved) {
+            const ok = await confirmDialog({
+                title: 'Start New Document',
+                message: 'Start a new document? Unsaved changes will be lost.',
+                confirmLabel: 'Start New',
+                danger: true,
+            });
+            if (!ok) return;
+        }
+        editor.commands.clearContent();
+        editor.commands.setContent('<p></p>');
+        onTitleChange?.('Untitled Document');
+        setIsSaved(true);
+        originalDraftPromptRef.current = undefined;
+        setActiveDraftPrompt(undefined);
+        addToast('New document created', { type: 'success' });
+    }, [editor, isSaved, onTitleChange, addToast]);
 
     // ─── Redraft Handler ──────────────────────────────────────────────────
     // Re-triggers the AI drafting engine using the original prompt plus any
@@ -2975,9 +3015,14 @@ ${allCites.map((c: any) => {
                             <button
                                 onClick={async () => {
                                     if (isSavingFile) return; // Block during save
-                                    // Save as PDF, then leave after the save completes
-                                    await saveAsFile('pdf');
-                                    confirmNavWithoutSave();
+                                    // Save as PDF, then leave ONLY if the save actually
+                                    // ran. Round 10 fix: when the placeholder gate
+                                    // blocked the print, this still left the editor —
+                                    // the user believed they'd saved and lost the
+                                    // draft. Now the guard stays open and the
+                                    // fill-placeholders modal opens on top instead.
+                                    const saved = await saveAsFile('pdf');
+                                    if (saved) confirmNavWithoutSave();
                                 }}
                                 disabled={isSavingFile}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2991,8 +3036,11 @@ ${allCites.map((c: any) => {
                             <button
                                 onClick={async () => {
                                     if (isSavingFile) return; // Block during save
-                                    await saveAsFile('docx');
-                                    confirmNavWithoutSave();
+                                    // Leave only when the DOCX save actually completed
+                                    // (generation failure / upload failure → the guard
+                                    // stays open so nothing is lost).
+                                    const saved = await saveAsFile('docx');
+                                    if (saved) confirmNavWithoutSave();
                                 }}
                                 disabled={isSavingFile}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3240,6 +3288,22 @@ ${allCites.map((c: any) => {
                                                 );
                                             })}
                                         </div>
+                                        {/* Round 10: user-facing escape hatch for the placeholder save-gate.
+                                            Toggling this ON lets the user save/print with unfilled
+                                            placeholders (reminder toast instead of a hard block). */}
+                                        <label className="flex items-start gap-2 pt-2 pb-1 cursor-pointer select-none">
+                                            <input
+                                                type="checkbox"
+                                                className="mt-0.5 w-3.5 h-3.5 accent-amber-500 shrink-0"
+                                                checked={allowUnfilledPlaceholders}
+                                                onChange={(e) => toggleAllowUnfilledPlaceholders(e.target.checked)}
+                                            />
+                                            <span className="text-2xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                                                Don't block saving or printing while placeholders are unfilled — I'll
+                                                fill them in myself before filing. DraftPro will show a reminder
+                                                instead of stopping me.
+                                            </span>
+                                        </label>
                                         <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
                                             <button type="button" onClick={closeFillModal} className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 font-bold py-2 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
                                             <button type="submit" className="flex-1 bg-amber-500 text-white font-bold py-2 rounded-lg hover:bg-amber-600 transition-colors">Apply All</button>

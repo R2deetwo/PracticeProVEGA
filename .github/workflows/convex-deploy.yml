@@ -1,0 +1,90 @@
+name: Deploy Convex Backend
+
+# Round 10 (SaaS hardening plan) — the Convex backend gets its OWN deploy
+# workflow, gated on the Tests workflow passing.
+#
+# WHY THIS EXISTS: the Convex deploy used to live inside the Android APK
+# build workflow with `continue-on-error: true` — the most critical
+# deployment step was hidden in the least related workflow, and green CI
+# proved NOTHING about the backend (Round 6: a TS2322 in convex/ froze
+# backend deploys for weeks while every workflow stayed green).
+#
+# Trigger: ONLY after the "Tests" workflow completes successfully on main.
+# A failing test suite therefore makes a backend deploy impossible.
+# The in-workflow `tsc -p convex` gate is belt-and-braces: `npx convex
+# deploy` itself typechecks and would reject the push — better to fail
+# BEFORE touching the deployment with a clear error message.
+#
+# Requires the CONVEX_DEPLOY_KEY secret (same secret the old APK-embedded
+# step used). If it is missing this workflow FAILS LOUDLY — no silent
+# skipping, ever again.
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: convex-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Convex (gated on Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only deploy when the triggering Tests run SUCCEEDED on main.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+
+    steps:
+      - name: Verify CONVEX_DEPLOY_KEY secret is present
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::error::CONVEX_DEPLOY_KEY secret is not set — the backend cannot deploy. Add it to the repository secrets (it previously lived only in the APK workflow)."
+            exit 1
+          fi
+          echo "✓ CONVEX_DEPLOY_KEY is set"
+
+      - name: Checkout code (the exact SHA the Tests run verified)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (explicit gate — must be 0 errors)
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean"
+          else
+            echo "::error::convex/ typecheck failed — refusing to deploy the backend. (Round 6 lesson: npx convex deploy rejects this exact class of error.)"
+            exit 1
+          fi
+
+      - name: Deploy Convex backend
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: npx convex deploy --cmd "echo 'Convex deployed successfully'"
+
+      - name: Report deployment
+        run: |
+          echo "✅ Convex backend deployed for ${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "Deployment: gregarious-malamute-537 (production)"
+          echo "Verify live functions directly — CI green does not prove the backend changed: probe via POST /api/query {\"path\":\"module:function\"}."
