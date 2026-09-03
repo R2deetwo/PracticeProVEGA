@@ -10376,3 +10376,79 @@ Stage Summary:
   DraftPro users can turn off the save-blocking placeholder gate and
   the false-saved / leave-unsaved data-loss traps are closed.
 - Next per plan: Round 11 (staging environment).
+
+---
+Task ID: 15
+Agent: main (Round 11)
+Task: Staging environment (SaaS hardening plan Round 11) + retire the
+Cloudflare mirror (user request: "why do i need a cloudflare token?
+everything is done through github — sort it out").
+
+Work Log:
+- USER BUG CLASS CLOSED (the Cloudflare annoyance): the workers.dev
+  frontend was a REDUNDANT MIRROR of the Vercel production frontend,
+  kept only as Vercel free-plan overflow insurance. Its rotating
+  CLOUDFLARE_API_TOKEN expired Sep 3 → every push showed a red X while
+  Vercel/Convex/APK were all green. Retired: cloudflare-deploy.yml +
+  wrangler.jsonc deleted; dev/audit scripts (screenshot-live,
+  check-errors, inspect-live, generate-dev-report, architecture PDF)
+  repointed to https://practice-pro-vega.vercel.app. The orphaned worker
+  keeps serving 555d73cb until optionally deleted in the Cloudflare
+  dashboard — nothing in the repo depends on it; NO Cloudflare
+  credential is ever needed again.
+- DEPLOY MODEL INVERTED (the round proper): push to main now auto-deploys
+  STAGING ONLY; production deploys via deliberate manual promotion.
+  - staging-deploy.yml (push to main + dispatch): full quality gate →
+    staging Convex deploy → Vercel preview build (VITE_CONVEX_URL =
+    staging deployment) → bundle verified to point at the STAGING
+    backend, hard-fail if it doesn't (a staging frontend must never talk
+    to prod data) → deploy + stable `staging` alias → version.json sha
+    verification → SITE_URL env set to the staging alias.
+  - production-deploy.yml (manual dispatch only): resolves the commit to
+    promote (input sha, blank = main head; OLDER sha = instant rollback),
+    refuses SHAs not on main (merge-base ancestry check), runs the full
+    gate on the pinned commit, deploys Convex prod + Vercel prod, then
+    verifies live (version.json sha match AND a direct Convex
+    debug_env:checkEnv query probe). SITE_URL set to the prod URL on the
+    Convex deployment (deploy key CAN set env vars — confirmed live).
+  - staging-seed.yml (manual): seeds demo data into staging only
+    (seedSentry:seedDemo + seedLegalRepo:seed via convex run).
+  - superseded vercel-deploy.yml + convex-deploy.yml deleted (the old
+    auto-prod-on-push path). tests.yml comment updated. README deploy
+    section rewritten (it still claimed Convex deployed inside the APK
+    workflow — stale since Round 10). .env.example documents the new
+    staging secrets.
+- ONE-TIME user setup (NOT a rotating credential — structural, ~2 min):
+  create a second Convex project, paste its Production Deploy Key as
+  CONVEX_STAGING_DEPLOY_KEY and its URL as CONVEX_STAGING_URL. Until
+  both exist, staging-deploy runs its gates and SKIPS the deploy with a
+  green status + exact setup instructions in the run summary (the
+  Cloudflare lesson: an unconfigured optional integration must never
+  look like a broken pipeline). Staging never deploys a frontend pointed
+  at the prod backend.
+- VERIFICATION (all live): local gates 54/54, convex tsc 0 errors, root
+  tsc 130<=131, 3 new workflow YAMLs validated. Push 9303a9fb → Tests
+  green, Deploy to Staging green (skip path verified: config check ran,
+  all deploy steps skipped, job success), APK green. Production
+  promotion dispatched on 9303a9fb via API → run 33773413157 ALL GREEN
+  (resolve → ancestry check → gate → Convex deploy → SITE_URL set →
+  Vercel prod → live verify → Convex probe). Independent probes (not
+  trusting CI): prod version.json = 9303a9fb healthy; Convex
+  POST /api/query debug_env:checkEnv = success. BRANCH PROOF: scratch
+  branch r11-staging-proof (ef15ebc6) pushed + staging dispatched on it
+  → Tests + Deploy to Staging ran, prod stayed at 9303a9fb; branch
+  deleted after.
+
+Stage Summary:
+- ROUND 11 CLOSED. Deploy topology now: push→main = staging (Vercel
+  preview + alias + separate Convex staging project); production = manual
+  promote with pinned-sha gate + live verification; older-sha promote =
+  documented rollback. Cloudflare fully retired — no external tokens
+  beyond the existing GitHub secrets (VERCEL_*, CONVEX_DEPLOY_KEY), all
+  deploys run through GitHub Actions.
+- OPEN (one-time, 2 min): CONVEX_STAGING_DEPLOY_KEY + CONVEX_STAGING_URL
+  secrets activate the staging backend; instructions live in every
+  staging run summary + README + .env.example. Staging seeding is one
+  manual workflow run after that.
+- Next per plan: Round 12 (Paystack live + subscription lifecycle —
+  needs Paystack TEST+LIVE keys from the user at round start).
