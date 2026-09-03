@@ -367,45 +367,13 @@ jobs:
             sleep 5
           done
 
-      - name: Sync master branch with main (for Vercel native integration)
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git push origin origin/main:refs/heads/master --force 2>&1 || true
-          echo "✓ master branch synced with main — Vercel native integration will deploy correct code"
-
-      - name: Verify Vercel production deploy is healthy
-        if: always()
-        env:
-          PRODUCTION_URL: https://practice-pro-vega.vercel.app
-        run: |
-          echo "=== Verifying Vercel production deploy (read-only) ==="
-          echo "Vercel's native GitHub integration deploys automatically on push to master."
-          echo "vercel.json's buildCommand marks version.json healthy after a successful build."
-          echo ""
-          echo "Waiting 90s for native integration to finish deploying..."
-          sleep 90
-
-          MAX_WAIT=240
-          WAITED=0
-          while [ $WAITED -lt $MAX_WAIT ]; do
-            RESPONSE=$(curl -s "$PRODUCTION_URL/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
-            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
-            SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
-            echo "  [${WAITED}s] status=$STATUS sha=$SHA"
-            if [ "$STATUS" = "healthy" ]; then
-              echo "✅ Production is healthy — version.json status=healthy"
-              echo "   Users will see refresh prompts within 1 minute."
-              exit 0
-            fi
-            sleep 15
-            WAITED=$((WAITED + 15))
-          done
-
-          echo "⚠️  Production version.json not marked healthy after ${MAX_WAIT}s."
-          echo "    This may indicate a build failure on Vercel — check:"
-          echo "    https://vercel.com/practice-pro-vega/practice-pro-vega/deployments"
-          echo "    The native integration will eventually mark it healthy once"
-          echo "    the build completes — no action needed from this workflow."
+      # Round 11: the "Sync master branch with main" + "Verify Vercel
+      # production deploy" steps that used to live here were REMOVED.
+      # They force-pushed main→master on every APK build so Vercel's
+      # native GitHub integration would auto-deploy PRODUCTION from
+      # master — an auto-deploy path that bypassed the deliberate
+      # promotion gate (caught live during Round 11 verification: a
+      # docs-only push reached production without any promotion).
+      # Production now deploys ONLY via production-deploy.yml, and the
+      # remote master branch has been deleted to disconnect the native
+      # integration's trigger for good.

@@ -126,6 +126,8 @@ Deploy model (Round 11 of the SaaS hardening plan): **push to `main` auto-deploy
 
 > **Retired in Round 11:** the Cloudflare Workers mirror (`practice-pro-vega.prototypechigo.workers.dev`) was deleted. It duplicated the Vercel frontend, depended on a rotating API token (which expired and red-X'd every push), and served stale code after that. Vercel is the single production frontend; the old workers.dev URL serves the Sep 2 build until the worker is (optionally) deleted in the Cloudflare dashboard — nothing in the repo depends on it.
 
+> **Also closed in Round 11 (found during round verification):** the APK workflow used to force-sync `main` → `master` after every build, and Vercel's native GitHub integration auto-deployed production from `master` — a second, ungated auto-deploy path that bypassed promotion entirely (a docs-only push reached production without any promotion). Those steps were removed and the remote `master` branch was deleted: the promotion workflow is now the ONLY path to production.
+
 Manual fallbacks (require local CLI auth, normally never needed):
 ```bash
 npx convex deploy                 # backend only (production)

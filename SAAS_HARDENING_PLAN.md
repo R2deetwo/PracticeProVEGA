@@ -237,6 +237,13 @@ ever needed again). ONE-TIME setup pending for staging: create the
 staging Convex project → paste CONVEX_STAGING_DEPLOY_KEY +
 CONVEX_STAGING_URL secrets (the staging workflow reports the exact
 steps until then, and never deploys a frontend pointed at prod data).
-Next: Round 12 (Paystack live + subscription lifecycle). This file is the
+Next: Round 12 (Paystack live + subscription lifecycle). ROUND-11
+POSTSCRIPT (hole found + closed): the APK workflow's legacy
+"main→master sync + Vercel native integration" pair turned out to be a
+SECOND ungated production auto-deploy path (a docs-only push reached
+prod with no promotion dispatched — caught by the round's own live
+verification). Both steps removed from build-apk.yml and the remote
+master branch deleted; promotion is now provably the only prod path.
+This file is the
 authoritative tracker; each round's detailed record goes to
 worklog.md as before.
