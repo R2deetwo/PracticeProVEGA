@@ -18,9 +18,18 @@
  * The "Update Available" variant (ToastRefreshNotification) is a separate
  * component that does NOT use this Toast — it has its own persistent,
  * non-auto-dismissing behavior with a pulsing green indicator dot.
+ *
+ * ROUND 15 — HOVER-HOLD AUTO-DISMISS (user spec):
+ * - Normal on-screen time is unchanged (default 3500ms, toast.duration wins).
+ * - Hovering the toast with the cursor KEEPS IT THERE past the normal time.
+ * - When the cursor leaves and the time already expired, it removes
+ *   gracefully (same fade/slide as the [X] button) — never a hard cut.
+ * - Hover logic is mouse-only (matchMedia '(hover: hover)') so mobile
+ *   tap-emulated mouse events never fight the swipe-to-dismiss gesture.
  */
 import React, { useState, useRef, useEffect } from 'react';
 import { Toast as ToastType } from '../types';
+import { ToastAutoDismiss } from '../utils/toastAutoDismiss';
 
 interface ToastProps {
   toast: ToastType;
@@ -34,11 +43,50 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
   const startXRef = useRef(0);
   const startTimeRef = useRef(0);
 
-  const handleManualClose = () => {
-    if (isExiting) return;
-    setIsExiting(true);
-    setTimeout(() => onRemove(toast.id), 300);
-  };
+  // ─── Hover-hold auto-dismiss (Round 15) ──────────────────────────────
+  // The countdown is NOT paused by hover — expiry is fixed at `duration`.
+  // Hover only suppresses the removal; the first mouse-leave after expiry
+  // removes the toast gracefully. Dismissal ownership lives here now
+  // (UIContext no longer blindly setTimeouts toasts out of state).
+  const duration = toast.duration || 3500;
+
+  // Mouse-only: touch devices must keep swipe-to-dismiss unimpeded
+  // (taps emulate mouseenter/mouseleave on some browsers).
+  const canHoverRef = useRef<boolean | null>(null);
+  if (canHoverRef.current === null) {
+    canHoverRef.current = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(hover: hover)').matches
+      : false;
+  }
+  const canHover = canHoverRef.current;
+
+  // Latest-callback refs: the controller is created once; onRemove identity
+  // may change across renders — always call through the ref.
+  const exitingRef = useRef(false);
+  const onRemoveRef = useRef(onRemove);
+  onRemoveRef.current = onRemove;
+
+  const controllerRef = useRef<ToastAutoDismiss | null>(null);
+  if (controllerRef.current === null) {
+    controllerRef.current = new ToastAutoDismiss(duration, () => {
+      if (exitingRef.current) return;
+      exitingRef.current = true;
+      setIsExiting(true);
+      setTimeout(() => onRemoveRef.current(toast.id), 300);
+    });
+  }
+
+  // Start the countdown on mount; cancel it on unmount (e.g. the swipe
+  // path removes the toast straight from state).
+  useEffect(() => {
+    controllerRef.current?.start();
+    return () => { controllerRef.current?.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Single graceful-exit funnel for every dismissal path: auto-expiry,
+  // hover-leave-after-expiry, [X] button, and link clicks.
+  const handleManualClose = () => controllerRef.current?.dismiss();
 
   const handleLinkClick = () => {
     if (toast.link) {
@@ -126,6 +174,8 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onMouseEnter={canHover ? () => controllerRef.current?.mouseEnter() : undefined}
+      onMouseLeave={canHover ? () => controllerRef.current?.mouseLeave() : undefined}
       style={{
         transform: `translateX(${swipeOffset}px)`,
         transition: isSwiping ? 'none' : 'transform 0.3s ease-out, opacity 0.3s ease-out',

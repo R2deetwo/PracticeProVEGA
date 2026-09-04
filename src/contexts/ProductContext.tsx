@@ -39,6 +39,18 @@ interface ProductContextValue {
   terminology: Terminology;
   /** Only populated when `isUnified` (KOMPLETE). VEGA/ATRIUM derive role from product variant. */
   signerContext: SignerContext | null;
+  /**
+   * ROUND 15: True once the product variant came from REAL data (demo
+   * flag for the demo user, the firm record once data is loaded, or the
+   * user record's own product field) — rather than the 'unified'
+   * hydration default. Until this flips true, `product`/`isProperty`/
+   * `isUnified` are provisional and completion-style logic (getting-
+   * started checklist celebration, setup banner) must NOT evaluate on
+   * them: during the hydration window the default briefly makes every
+   * firm look KOMPLETE, which historically let the wrong item set drive
+   * premature "You're all set!" celebration toasts.
+   */
+  isProductResolved: boolean;
 }
 
 const ProductContext = createContext<ProductContextValue>({
@@ -61,6 +73,7 @@ const ProductContext = createContext<ProductContextValue>({
     activeMatters: 'Active Matters'
   },
   signerContext: null,
+  isProductResolved: false,
 });
 
 export function ProductProvider({ children }: { children?: ReactNode }) {
@@ -156,11 +169,20 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
     };
     const product = (aliases[rawProduct] ?? rawProduct) as ProductType;
 
+    // ROUND 15: did the product decision come from real data, or the
+    // 'unified' hydration default? Mirrors the rawProduct resolution chain
+    // above (demo flag > firm record > user record > default). Consumers
+    // gate completion-style side effects on this so the provisional
+    // default can never drive "you're all set" logic.
+    const isProductResolved =
+      !!(demoProd && isDemoUser) ||
+      !!(currentUser && isDataLoaded && appState?.firmDetails) ||
+      !!currentUser?.product;
+
     // Derive boolean flags — clear, non-overlapping
     const isAtrium = product === "atrium";
     const isVega = product === "vega";
     const isUnified = product === "unified";
-
     // FEATURE FLAGS — which product features are available.
     // Komplete (unified) has BOTH legal and property features.
     const isLegal = isVega || isUnified;
@@ -220,7 +242,7 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       };
     }
 
-    return { product, isLegal, isProperty, isUnified, isVega, isAtrium, hasPropertyFeatures, hasLegalFeatures, terminology, signerContext };
+    return { product, isLegal, isProperty, isUnified, isVega, isAtrium, hasPropertyFeatures, hasLegalFeatures, terminology, signerContext, isProductResolved };
   }, [currentUser, isDataLoaded, appState?.firmDetails]);
 
   return (

@@ -74,7 +74,7 @@ const KOMPLETE_ITEMS: ChecklistItem[] = [
 const GettingStartedChecklist: React.FC = () => {
   const { currentUser } = useAuth();
   const { navigateTo, openModal, addToast, setHighlightTarget } = useUI();
-  const { isProperty, isUnified } = useProduct();
+  const { isProperty, isUnified, isProductResolved } = useProduct();
   const firmId = (currentUser as any)?.firmId || '';
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -96,44 +96,99 @@ const GettingStartedChecklist: React.FC = () => {
     firmId ? { firmId } : 'skip'
   );
 
-  // Auto-dismiss once ALL items are complete (or deliberately skipped) —
-  // no point showing an empty list.
+  // ROUND 15 — CELEBRATION CORRECTNESS. The user reported the "You're
+  // all set!" toast firing while one checklist step was still incomplete.
+  // Root cause class: the celebration effect evaluated `allDone` on EVERY
+  // pass — including passes where the product flags were still in their
+  // hydration window (ProductContext's rawProduct defaults to 'unified'
+  // until firm/user data lands), so the WRONG item set could transiently
+  // look complete. Three gates now make the celebration provably correct:
   //
-  // SKIPPED-STATE FIX: The team-invite item can be in 3 states:
-  //   - true (complete — invited or a teammate joined)
-  //   - false + skippedTeamInvite === true (admin chose "Just me for now"
-  //     in the wizard → item is skipped, not incomplete)
-  //   - false + skippedTeamInvite === false (genuinely incomplete)
-  // For auto-dismiss, both "complete" and "skipped" count as "done" so a
-  // solo practitioner can reach 100% without being blocked by a step they
-  // deliberately opted out of.
+  //   GATE 1 — settled flags: never evaluate while !isProductResolved.
+  //   GATE 2 — genuine transition: allDone must flip false → true
+  //            (tracked in allDoneConfirmedRef), not merely be true.
+  //   GATE 3 — stability: after the transition, re-verify against the
+  //            LATEST checklist + item set 1s later before toasting,
+  //            auto-dismissing, or persisting the dismissal to
+  //            localStorage. A flicker that reverts cancels everything.
+  //
+  // SKIPPED-STATE (unchanged): 'hasInvitedUser' counts as done when the
+  // admin chose "Just me for now" (skippedTeamInvite) so solo
+  // practitioners can legitimately reach 100%.
+  const isItemDone = (cl: any, item: ChecklistItem): boolean => {
+    if (cl[item.key] === true) return true;
+    if (item.key === 'hasInvitedUser' && cl.skippedTeamInvite === true) return true;
+    return false;
+  };
+
+  const allDoneConfirmedRef = useRef(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest evaluation snapshot — updated every relevant render so the
+  // delayed confirmation re-verifies against CURRENT data, not the
+  // closure captured when the timer was armed.
+  const latestEvalRef = useRef<{ checklist: any; items: ChecklistItem[] } | null>(null);
+
   useEffect(() => {
     if (!checklist || isDismissed) return;
+    // GATE 1: flags must be settled — the hydration-default window can
+    // briefly evaluate the wrong (KOMPLETE) item set for VEGA/ATRIUM firms.
+    if (!isProductResolved) return;
+
     const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
-    const allDone = items.every(item => {
-      const value = (checklist as any)[item.key];
-      if (value === true) return true;
-      // Team-invite item: 'skipped' counts as done
-      if (item.key === 'hasInvitedUser' && (checklist as any).skippedTeamInvite === true) return true;
-      return false;
-    });
+    latestEvalRef.current = { checklist, items };
+    const allDone = items.every(item => isItemDone(checklist, item));
+
     if (allDone) {
-      // PHASE 1 FIX: Show celebration before auto-dismissing.
-      addToast?.('🎉 You\'re all set! You\'ve completed the Getting Started checklist. Explore the rest of PracticePro at your own pace.', { type: 'success', duration: 8000 });
-      setIsDismissed(true);
-      try {
-        localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
-      } catch {}
+      // GATE 2 + GATE 3: arm a delayed confirmation the FIRST time we see
+      // all-done; the toast/dismiss/persist only happens after it holds.
+      if (!allDoneConfirmedRef.current && confirmTimerRef.current === null) {
+        confirmTimerRef.current = setTimeout(() => {
+          confirmTimerRef.current = null;
+          // Re-verify with the LATEST snapshot — a transient flicker that
+          // reverted (or new data marking an item incomplete again)
+          // cancels the celebration entirely and re-arms the transition.
+          const snap = latestEvalRef.current;
+          if (!snap) return;
+          if (!snap.items.every(item => isItemDone(snap.checklist, item))) return;
+          allDoneConfirmedRef.current = true;
+          // PHASE 1 FIX: Show celebration before auto-dismissing.
+          addToast?.('🎉 You\'re all set! You\'ve completed the Getting Started checklist. Explore the rest of PracticePro at your own pace.', { type: 'success', duration: 8000 });
+          setIsDismissed(true);
+          try {
+            localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
+          } catch {}
+        }, 1000);
+      }
+    } else {
+      // Not all done — reset the transition state and cancel any pending
+      // confirmation (the flicker-revert case).
+      allDoneConfirmedRef.current = false;
+      if (confirmTimerRef.current !== null) {
+        clearTimeout(confirmTimerRef.current);
+        confirmTimerRef.current = null;
+      }
     }
-  }, [checklist, isDismissed, isProperty, isUnified, firmId, addToast]);
+  }, [checklist, isDismissed, isProperty, isUnified, isProductResolved, firmId, addToast]);
+
+  // Cancel a pending confirmation if the component unmounts mid-delay.
+  useEffect(() => () => {
+    if (confirmTimerRef.current !== null) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
+  }, []);
 
   // BRIEF #7: Completion celebration toast — when an item transitions from
   // incomplete → complete, show a brief success toast acknowledging the
   // progress. This gives the user immediate feedback that their action was
   // registered and the checklist updated reactively.
+  //
+  // ROUND 15: gated on isProductResolved — during the hydration window the
+  // provisional 'unified' default evaluates KOMPLETE_ITEMS, and flag flips
+  // would otherwise re-run this effect against the wrong item set.
   const prevChecklistRef = useRef(checklist);
   useEffect(() => {
-    if (!prevChecklistRef.current || !checklist) {
+    if (!prevChecklistRef.current || !checklist || !isProductResolved) {
       prevChecklistRef.current = checklist;
       return;
     }
@@ -147,19 +202,18 @@ const GettingStartedChecklist: React.FC = () => {
       }
     }
     prevChecklistRef.current = checklist;
-  }, [checklist, isProperty, isUnified, addToast]);
+  }, [checklist, isProperty, isUnified, isProductResolved, addToast]);
 
-  // Don't render until checklist data is loaded — avoids a flash of empty items.
-  if (!firmId || !checklist || isDismissed) return null;
+  // Don't render until checklist data is loaded AND product flags are
+  // settled — avoids a flash of empty items AND a flash of WRONG items
+  // (the hydration window's provisional 'unified' default would briefly
+  // render KOMPLETE items on a VEGA/ATRIUM sidebar).
+  if (!firmId || !checklist || isDismissed || !isProductResolved) return null;
 
   const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
   // SKIPPED-STATE: 'skipped' counts toward progress so solo practitioners
   // can reach 100% without being blocked by a deliberate opt-out.
-  const doneCount = items.filter(item => {
-    if ((checklist as any)[item.key] === true) return true;
-    if (item.key === 'hasInvitedUser' && (checklist as any).skippedTeamInvite === true) return true;
-    return false;
-  }).length;
+  const doneCount = items.filter(item => isItemDone(checklist, item)).length;
   const totalCount = items.length;
   const progressPct = Math.round((doneCount / totalCount) * 100);
 

@@ -671,7 +671,9 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             // CAP: maximum 3 visible toasts at any time. Older toasts
             // are dropped so the screen doesn't fill up with a cascade
             // of alerts (e.g. when deleting a multi-unit property).
-            const newToasts = [...prev, { id, message, type: options?.type || 'info', link: options?.link }];
+            // duration is stored on the toast — the Toast component owns
+            // dismissal (auto-dismiss with hover-hold; see ToastAutoDismiss).
+            const newToasts = [...prev, { id, message, type: options?.type || 'info', link: options?.link, duration: options?.duration }];
             if (newToasts.length > 3) {
                 return newToasts.slice(-3);
             }
@@ -687,10 +689,10 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 import('../utils/haptics').then(m => m.haptics.light());
             }
         } catch {}
-        const duration = options?.duration || 3500;
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== id));
-        }, duration);
+        // Round 15: NO unconditional setTimeout here anymore. The Toast
+        // component now owns its own dismissal via ToastAutoDismiss —
+        // same default timing (3500ms), but hovering the toast holds it
+        // in place and it removes gracefully on mouse-leave after expiry.
     }, []);
 
     React.useEffect(() => {

@@ -58,7 +58,7 @@ const KOMPLETE_ITEMS = [...VEGA_ITEMS, ...ATRIUM_ITEMS.filter(a => !VEGA_ITEMS.s
 const CompleteSetupBanner: React.FC = () => {
   const { currentUser } = useAuth();
   const { navigateTo, openModal, addToast } = useUI();
-  const { isProperty, isUnified } = useProduct();
+  const { isProperty, isUnified, isProductResolved } = useProduct();
   const firmId = (currentUser as any)?.firmId || '';
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -75,7 +75,11 @@ const CompleteSetupBanner: React.FC = () => {
     firmId ? { firmId } : 'skip'
   );
 
-  if (!firmId || !checklist || isDismissed) return null;
+  // ROUND 15: hold rendering until the product flags are settled — during
+  // the hydration window the provisional 'unified' default would briefly
+  // show KOMPLETE items ("Create your first matter"...) on an ATRIUM or
+  // VEGA dashboard, and surface the wrong "Next:" step + step count.
+  if (!firmId || !checklist || isDismissed || !isProductResolved) return null;
 
   const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
   const incompleteItems = items.filter(item => (checklist as any)[item.key] !== true);
