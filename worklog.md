@@ -10712,3 +10712,11 @@ Stage Summary:
   mirror: orphaned worker should be deleted in the CF dashboard — it is
   permanently frozen at 555d73cb and will keep confusing anyone who
   visits it.
+- DEPLOY: a32d1b9e → Tests GREEN (113/113) → Staging GREEN (skip
+  path) → APK GREEN → production promotion run 33909889162 ALL GREEN.
+  Independently probed live: version.json sha=a32d1b9e healthy; the
+  Convex sessions module answers (sessions:validateSessionToken →
+  null for a bad token, i.e. deployed + validating); the live bundle
+  carries the FeatureGuard auto-redirect (old "Feature Not Available"
+  wall copy is GONE), the signup consent recording, the mobile banner
+  classes, and the bearer-session client code (module-atrium chunk).
