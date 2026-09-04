@@ -324,7 +324,7 @@
                            pathname.startsWith('/usage') || pathname.startsWith('/data-processing');
 
       // Check if the user has an active session (not just a cached theme)
-      const hasSession = localStorage.getItem('practicepro_user_session') || localStorage.getItem('convex_client_jwt');
+      const hasSession = localStorage.getItem('practicepro_user_session') || sessionStorage.getItem('practicepro_user_session') || localStorage.getItem('convex_client_jwt');
 
       if (isPublicRoute || !hasSession) {
         // Always use light theme on public routes and when not logged in
@@ -332,8 +332,46 @@
         return;
       }
 
-      // Only apply the user's saved theme when logged in and on an app route
-      const theme = localStorage.getItem('practicepro_theme') || 'system';
+      // R12 — USER-SCOPED THEMES AT BOOT (was: the shared global key).
+      // The pre-R12 boot script read the single `practicepro_theme` key,
+      // which is shared by EVERY account and tab on the machine — a user
+      // who just verified their email would boot into whatever theme the
+      // PREVIOUS account had picked (the reported dark onboarding). Now:
+      //   1. The legacy key is purged — nothing reads it anymore.
+      //   2. The session token IS the account email, so this account's own
+      //      theme key (`practicepro_theme_u:<email>`) is used instead.
+      //   3. Onboarding-in-progress (same 1h wizard window App.tsx honors)
+      //      always boots light.
+      //   4. No saved preference (fresh account) boots LIGHT — never the
+      //      OS preference — so a dark-OS machine still shows the branded
+      //      white onboarding. React's UIContext re-applies 'system' on
+      //      mount if that is the account's actual state.
+      try { localStorage.removeItem('practicepro_theme'); } catch(e) {}
+
+      var wizardInProgress = false;
+      try {
+        const ts = sessionStorage.getItem('practicepro_wizard_in_progress_ts');
+        wizardInProgress = !!ts && (Date.now() - parseInt(ts, 10)) < 60 * 60 * 1000;
+      } catch (e) {}
+
+      var email = null;
+      try {
+        const raw = sessionStorage.getItem('practicepro_user_session') || localStorage.getItem('practicepro_user_session');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          email = (parsed && parsed.token ? String(parsed.token) : '').toLowerCase().trim() || null;
+        }
+      } catch (e) {}
+
+      var theme = null;
+      if (email && !wizardInProgress) {
+        try { theme = localStorage.getItem('practicepro_theme_u:' + email); } catch (e) {}
+      }
+
+      if (!theme) {
+        root.classList.add('light');
+        return;
+      }
 
       if (theme === 'dark') {
           root.classList.add('dark');
@@ -357,6 +395,8 @@
           root.classList.add('theme-army-light');
       } else if (theme === 'system') {
         if (window.matchMedia('(prefers-color-scheme: dark)').matches) { root.classList.add('dark'); }
+      } else {
+        root.classList.add('light');
       }
     } catch(e) {}
   })();

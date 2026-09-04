@@ -8,6 +8,8 @@ import { useQuery, useMutation } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 import { useAuth } from './AuthContext';
+// R12: user-scoped theme storage (kills the cross-account/cross-tab theme leak)
+import { loadUserTheme, saveUserTheme, purgeLegacyThemeKey } from '../utils/themeStorage';
 
 export interface UIContextType {
     theme: Theme;
@@ -206,11 +208,17 @@ const getModalTitle = (modalType: ModalType): string => {
 
 export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
 
-    // Theme State - Initialize from LocalStorage to prevent flicker
-    const [theme, setTheme] = React.useState<Theme>(() => {
-        const stored = localStorage.getItem('practicepro_theme');
-        return (stored as Theme) || 'system';
-    });
+    // R12: Theme state — starts at 'system'. The actual per-user preference
+    // is loaded by the login effect below from a USER-SCOPED key (see
+    // utils/themeStorage). The pre-R12 global `practicepro_theme` read
+    // leaked the previous user's theme across accounts and tabs (user
+    // report: dark onboarding after email verification on a machine where
+    // another account had picked dark). The legacy key is purged on login.
+    const [theme, setTheme] = React.useState<Theme>('system');
+    // Bumped by the 'practicepro:theme-sync' event (dispatched by App.tsx
+    // when the onboarding wizard completes) and by OS-pref changes while in
+    // 'system' mode, so the theme effect below re-evaluates immediately.
+    const [themeSyncTick, setThemeSyncTick] = React.useState(0);
 
     const { currentUser } = useAuth();
     const navigate = useNavigate();
@@ -350,12 +358,50 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         return () => clearInterval(interval);
     }, [currentUser?.id, currentUser?.firmId, currentUser?.name, currentUser?.email]);
 
+    // ─── R12: USER-SCOPED THEME LOAD/RESET ────────────────────────────────
+    // On login / session restore: purge the legacy shared key (it is the
+    // cross-account leak vector and cannot be attributed to a specific
+    // user), then adopt this account's own saved theme.
+    // On logout (email → null): reset to 'system' so the next account (or
+    // the public pages) starts from a neutral state — the previous user's
+    // theme never bleeds into the next session.
+    // Deps are ONLY the email — live theme changes made while logged in are
+    // persisted by the theme effect below, not re-loaded here.
+    React.useEffect(() => {
+        const email = currentUser?.email;
+        if (!email) {
+            setTheme('system');
+            return;
+        }
+        purgeLegacyThemeKey();
+        const stored = loadUserTheme(email);
+        setTheme((stored as Theme) || 'system');
+    }, [currentUser?.email]);
+
+    // R12: the wizard completion signal. App.tsx removes the wizard flag
+    // and dispatches 'practicepro:theme-sync'; bumping the tick re-runs the
+    // theme effect so the user's chosen theme (no longer forced light)
+    // applies the moment onboarding ends — no stale light lock.
+    React.useEffect(() => {
+        const handler = () => setThemeSyncTick(t => t + 1);
+        window.addEventListener('practicepro:theme-sync', handler);
+        return () => window.removeEventListener('practicepro:theme-sync', handler);
+    }, []);
+
     // Theme Effect - Applies class to HTML root
     // IMPORTANT: The user's saved theme (which may override brand colors)
     // is ONLY applied after login. On the landing page, login screen, and
     // signup screen, we always use the default brand green (#16A34A) so
     // the landing page looks consistent regardless of what theme the user
     // previously chose.
+    //
+    // R12: the same light-forcing now applies DURING ONBOARDING (any point
+    // before the workspace exists). Onboarding must always render white
+    // with green branding — mirroring App.tsx's exact OnboardingWizard
+    // mount condition: an authenticated non-portal user with no firmId, or
+    // inside the wizard-in-progress window after the firm was created.
+    // Persisting the choice is USER-SCOPED (utils/themeStorage) — one
+    // account's theme can never appear in another account's view.
     React.useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove(
@@ -368,6 +414,22 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         // On the landing page / login / signup (no currentUser), use the
         // default light theme with brand green.
         if (!currentUser) {
+            root.classList.add('light');
+            return;
+        }
+
+        // R12: onboarding-active check — same rule App.tsx uses to render
+        // the OnboardingWizard. While active, force light: a fresh user
+        // must never inherit another account's (or their OS) dark theme
+        // during setup.
+        const isPortalUserRole = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
+        let wizardInProgress = false;
+        try {
+            const ts = sessionStorage.getItem('practicepro_wizard_in_progress_ts');
+            wizardInProgress = !!ts && (Date.now() - parseInt(ts, 10)) < 60 * 60 * 1000;
+        } catch { wizardInProgress = false; }
+        const onboardingActive = !isPortalUserRole && (!currentUser.firmId || wizardInProgress);
+        if (onboardingActive) {
             root.classList.add('light');
             return;
         }
@@ -401,28 +463,23 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             root.classList.add('light');
         }
 
-        localStorage.setItem('practicepro_theme', theme);
-    }, [theme, currentUser]);
+        // R12: persist under the USER-SCOPED key (never the legacy shared
+        // one). Unauthenticated / onboarding states never persist.
+        saveUserTheme(currentUser.email, theme);
+    }, [theme, currentUser, themeSyncTick]);
 
     // System theme change listener — when the user's OS theme changes and the
     // app is in 'system' mode, re-apply the theme so the dark/light class
-    // updates in real time. Without this, switching the OS theme while the
-    // app is open has no effect until the user manually toggles or reloads.
-    // This also serves as a "force re-apply" mechanism: if the theme class
-    // somehow gets out of sync with the state, this listener fires on any
-    // matchMedia change and re-runs the effect above.
+    // updates in real time. R12: instead of writing the root class directly,
+    // this now bumps the sync tick so the re-apply flows through the theme
+    // effect above (which knows about onboarding force-light and user
+    // scoping). Without this, switching the OS theme while the app is open
+    // had no effect until the user manually toggled or reloaded — and the
+    // direct-write path could set 'dark' even mid-onboarding.
     React.useEffect(() => {
         if (theme !== 'system') return;
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const handler = () => {
-            const root = window.document.documentElement;
-            root.classList.remove('light', 'dark');
-            if (mq.matches) {
-                root.classList.add('dark');
-            } else {
-                root.classList.add('light');
-            }
-        };
+        const handler = () => setThemeSyncTick(t => t + 1);
         mq.addEventListener('change', handler);
         return () => mq.removeEventListener('change', handler);
     }, [theme]);

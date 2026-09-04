@@ -23,11 +23,13 @@
  *   - Webhooks: https://paystack.directory/docs/webhooks
  */
 
-import { internalAction, httpAction, query, action } from "./_generated/server";
+import { internalAction, httpAction, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { randomHex } from "./secureRandom";
+// R12: webhook event coverage — refund events notify the founders too.
+import { notifyFounders } from "./founderNotifications";
 
 // ─── CHECK IF PAYSTACK IS ACTIVE ───────────────────────────────────────────
 // Frontend uses this to decide whether to show "Pay with Card" (Paystack)
@@ -312,15 +314,40 @@ export const handlePaystackWebhook = httpAction(async (ctx, request) => {
 
     const event = JSON.parse(body);
 
-    // Only handle successful charge events
-    if (event.event !== "charge.success") {
-      return new Response(JSON.stringify({ status: "ignored" }), {
+    // ─── R12: EVENT AUDIT TRAIL (dedupe + record EVERY verified event) ──
+    // Before R12 the handler only acted on charge.success and silently
+    // discarded everything else — failed charges and refunds left no
+    // trace. Now every signature-verified event is recorded (deduped),
+    // charge.failed / refund.processed get notifications, and duplicate
+    // deliveries short-circuit (webhook redeliveries are common).
+    const tx = event.data || {};
+    const eventId = `${event.event}:${tx.id ?? tx.reference ?? 'unknown'}`;
+    const recordResult = await ctx.runMutation(internal.paystack.recordPaystackEvent, {
+      eventId,
+      eventType: String(event.event || 'unknown'),
+      reference: tx.reference ? String(tx.reference) : undefined,
+      amount: typeof tx.amount === 'number' ? tx.amount / 100 : undefined, // kobo → NGN
+      status: tx.status ? String(tx.status) : undefined,
+      raw: event,
+    });
+    if (!recordResult.isNew) {
+      // Duplicate delivery of an event we already fully processed.
+      return new Response(JSON.stringify({ status: "duplicate", eventId }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const tx = event.data;
+    // Only charge.success activates payments; every other event type has
+    // already been recorded (and failed/refund notifications dispatched)
+    // by recordPaystackEvent above.
+    if (event.event !== "charge.success") {
+      return new Response(JSON.stringify({ status: "recorded" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const reference = tx.reference;
 
     // Update the invoice — this is the ONLY path that sets Paid for Paystack
@@ -336,3 +363,137 @@ export const handlePaystackWebhook = httpAction(async (ctx, request) => {
       headers: { "Content-Type": "application/json" },
     });
   });
+
+/**
+ * R12 — recordPaystackEvent (internal): webhook event audit trail.
+ *
+ * Called by handlePaystackWebhook for EVERY signature-verified event.
+ *   1. Dedupes by eventId (Paystack redelivers; charge.success must never
+ *      double-run).
+ *   2. Inserts a row into paystackEvents (full raw payload) — the founder
+ *      dashboard's audit trail for disputes + reconciliation.
+ *   3. charge.failed  → in-app notification to the firm admin (resolved
+ *      from the reference's subscriptionRequest when possible).
+ *      refund.processed → flags the subscriptionRequest 'refund_review'
+ *      (founder decision — never auto-revert a live plan), notifies the
+ *      firm admin AND the founders.
+ *   4. All other event types are recorded with handled='recorded_only'.
+ */
+export const recordPaystackEvent = internalMutation({
+  args: {
+    eventId: v.string(),
+    eventType: v.string(),
+    reference: v.optional(v.string()),
+    amount: v.optional(v.number()),
+    status: v.optional(v.string()),
+    raw: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("paystackEvents")
+      .withIndex("by_eventId", (q: any) => q.eq("eventId", args.eventId))
+      .first();
+    if (existing) {
+      return { isNew: false };
+    }
+
+    // Resolve the firm from the reference's subscription request when
+    // possible (charge.failed / refund notifications need a recipient).
+    let firmId: string | null = null;
+    if (args.reference) {
+      const subRequest = await ctx.db
+        .query("subscriptionRequests")
+        .withIndex("by_reference", (q: any) => q.eq("transactionReference", args.reference))
+        .first();
+      if (subRequest?.firmId) {
+        firmId = subRequest.firmId;
+      }
+    }
+
+    let handled = 'recorded_only';
+    const nowIso = new Date().toISOString();
+
+    if (args.eventType === 'charge.failed') {
+      handled = 'charge_failed';
+      if (firmId) {
+        const admin = await ctx.db
+          .query("users")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+          .filter((q: any) => q.eq(q.field("role"), "Admin"))
+          .first();
+        if (admin) {
+          await ctx.db.insert("notifications", {
+            firmId,
+            userId: admin._id,
+            title: 'Card Payment Failed',
+            message: `A card payment attempt${args.reference ? ` (${args.reference})` : ''} did not go through. No money moved and your plan is unchanged — you can retry the payment from Billing & Plans.`,
+            type: 'payment_failed',
+            link: { view: 'settings', id: 'subscription-management', context: {} },
+            timestamp: nowIso,
+            isRead: false,
+          } as any);
+        }
+      }
+    } else if (args.eventType === 'refund.processed') {
+      handled = 'refund_processed';
+      if (firmId) {
+        const admin = await ctx.db
+          .query("users")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+          .filter((q: any) => q.eq(q.field("role"), "Admin"))
+          .first();
+        if (admin) {
+          await ctx.db.insert("notifications", {
+            firmId,
+            userId: admin._id,
+            title: 'Refund Processed',
+            message: `A refund${args.reference ? ` for ${args.reference}` : ''}${args.amount ? ` of ₦${args.amount.toLocaleString('en-NG')}` : ''} was processed. Our team will follow up on any impact to your subscription.`,
+            type: 'payment_refund',
+            link: { view: 'settings', id: 'subscription-management', context: {} },
+            timestamp: nowIso,
+            isRead: false,
+          } as any);
+        }
+        // Flag the matching subscription request for founder review —
+        // a refund must NEVER auto-revert a live plan (that's a human
+        // decision; the flag surfaces it in SubscriptionRequestsCenter).
+        if (args.reference) {
+          const subRequest = await ctx.db
+            .query("subscriptionRequests")
+            .withIndex("by_reference", (q: any) => q.eq("transactionReference", args.reference))
+            .first();
+          if (subRequest) {
+            await ctx.db.patch(subRequest._id, {
+              status: 'refund_review',
+              reviewedAt: nowIso,
+              reviewedBy: 'paystack_webhook',
+              updatedAt: nowIso,
+            } as any);
+          }
+        }
+        await notifyFounders(ctx, {
+          title: 'Refund Processed',
+          message: `A Paystack refund was processed${args.reference ? ` for ${args.reference}` : ''}${args.amount ? ` (₦${args.amount.toLocaleString('en-NG')})` : ''}${firmId ? ` on firm ${firmId}` : ''}. The subscription request is flagged 'refund_review' — decide whether to adjust the firm's plan.`,
+          type: 'payment_refund',
+          link: { view: 'admin', id: 'subscription-requests', context: {} },
+        });
+      }
+    } else if (args.eventType === 'charge.success') {
+      handled = 'charge_success';
+    }
+
+    await ctx.db.insert("paystackEvents", {
+      eventId: args.eventId,
+      eventType: args.eventType,
+      reference: args.reference ?? null,
+      amount: args.amount ?? null,
+      status: args.status ?? null,
+      firmId,
+      handled,
+      raw: args.raw,
+      receivedAt: nowIso,
+    } as any);
+
+    return { isNew: true, firmId, handled };
+  },
+});

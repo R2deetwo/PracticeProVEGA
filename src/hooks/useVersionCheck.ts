@@ -160,7 +160,7 @@ export function useVersionCheck(): VersionCheckState {
       /^practicepro_original_session$/,
       /^practicepro_impersonation_role$/,
       /^practicepro_session_locked$/,
-      /^practicepro_theme$/,
+      /^practicepro_theme_u:/, // R12: per-user theme prefs survive refresh (scoped per account)
       /^practicepro_fontSize$/,
       /^practicepro_cookie_consent$/,
       /^practicepro_ai_consent$/,

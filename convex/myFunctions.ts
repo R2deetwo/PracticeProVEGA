@@ -9,6 +9,9 @@ import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { requireStaffCaller, requireFounderCaller, assertSameFirm } from "./callerAuth";
 import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
+// R12: subscription dunning + grace + soft downgrade — pure decision logic
+// (kept separate so tests/unit/dunning.test.ts can lock the stage machine).
+import { computeDunningAction, DunningAction } from "./dunning";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
@@ -6352,6 +6355,12 @@ export const activateFirmSubscription = internalMutation({
       trialPlan: null,
       billingInterval: args.billingInterval || 'annual',
       nextBillingDate: computeNextBillingDate(args.billingInterval || 'annual', now),
+      // R12: confirmed payment resets the dunning lifecycle wholesale —
+      // past-due/grace markers cleared, the firm is current again.
+      dunningStage: null,
+      pastDueAt: null,
+      downgradedAt: null,
+      downgradedFromPlan: null,
       updatedAt: now,
     } as any);
 
@@ -6421,6 +6430,249 @@ export const expirePendingSubscriptionRequests = internalMutation({
       reverted++;
     }
     return { success: true, reverted };
+  },
+});
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ * R12 — SUBSCRIPTION DUNNING + GRACE + SOFT DOWNGRADE
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * Until R12, `nextBillingDate` (written by activateFirmSubscription) was
+ * dead data: nothing ever read it, so a firm that stopped paying kept its
+ * plan forever. The daily cron now drives the full lifecycle (decision
+ * logic: convex/dunning.ts, tested in tests/unit/dunning.test.ts):
+ *
+ *   7d + 1d before renewal → in-app notification + Brevo reminder email
+ *   renewal date passes     → adminStatus 'past_due', 14-day grace starts
+ *   day 7 + day 13 of grace → reminder + final warning
+ *   day 14                  → SOFT downgrade to Core — data is NEVER
+ *                            deleted; tier gates enforce Core limits and
+ *                            a confirmed payment restores everything
+ *                            (activateFirmSubscription resets the state).
+ *
+ * Split (Convex rule: mutations are db-only, actions do fetch):
+ *   runSubscriptionDunning   — internalAction, the CRON TARGET: runs the
+ *                              mutation below, then sends the Brevo emails
+ *                              for whatever notices it produced.
+ *   applySubscriptionDunning — internalMutation: scan + decide + patch +
+ *                              in-app notifications; returns the email
+ *                              payloads (never sends them itself).
+ */
+export interface DunningEmailPayload {
+  to: string;
+  subject: string;
+  html: string;
+  productName?: string;
+}
+
+export interface DunningRunResult {
+  success: boolean;
+  scanned: number;
+  notified: number;
+  downgraded: number;
+  emails: DunningEmailPayload[];
+}
+
+export const runSubscriptionDunning = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{
+    success: boolean;
+    scanned: number;
+    notified: number;
+    downgraded: number;
+    emailsAttempted: number;
+  }> => {
+    const result: DunningRunResult = await ctx.runMutation(
+      internal.myFunctions.applySubscriptionDunning,
+      {},
+    );
+
+    // Brevo delivery lives in the action layer. Failures are logged but
+    // never fail the run — the in-app notification + stage marker are the
+    // source of truth, and the next daily run does not re-send (the stage
+    // already advanced).
+    for (const email of result.emails) {
+      try {
+        await sendBrevoEmail(email);
+      } catch (e: any) {
+        console.warn(`[Dunning] email send failed (${email.to}):`, e?.message);
+      }
+    }
+
+    return {
+      success: true,
+      scanned: result.scanned,
+      notified: result.notified,
+      downgraded: result.downgraded,
+      emailsAttempted: result.emails.length,
+    };
+  },
+});
+
+export const applySubscriptionDunning = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<DunningRunResult> => {
+    const now = Date.now();
+    const nowIso = new Date().toISOString();
+    // Pre-expiry notices only matter within 7 days of renewal; past-due
+    // firms (grace ladder) are all nextBillingDate <= now. One scan covers
+    // both: everything up to 8 days ahead. (ISO strings sort
+    // chronologically, so the index range is a valid time range.)
+    const horizonIso = new Date(now + 8 * 24 * 60 * 60 * 1000).toISOString();
+
+    const firms = await ctx.db
+      .query("firms")
+      .withIndex("by_next_billing", (q: any) => q.lte("nextBillingDate", horizonIso))
+      .take(500);
+
+    const emails: DunningEmailPayload[] = [];
+    let notified = 0;
+    let downgraded = 0;
+    let scanned = 0;
+
+    for (const firm of firms) {
+      const action: DunningAction = computeDunningAction(firm as any, now);
+      if (action.kind === 'none') {
+        scanned++;
+        continue;
+      }
+      scanned++;
+
+      // The firm admin is the dunning recipient (same convention as
+      // expireTrials — the admin owns billing for the workspace).
+      const admin = await ctx.db
+        .query("users")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firm._id))
+        .filter((q: any) => q.eq(q.field("role"), "Admin"))
+        .first();
+
+      const planName = firm.subscriptionPlan || 'Core';
+      const renewalDate = firm.nextBillingDate
+        ? new Date(firm.nextBillingDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '—';
+
+      // ── Soft downgrade (terminal for this billing cycle) ──────────────
+      if (action.kind === 'downgrade') {
+        await ctx.db.patch(firm._id, {
+          ...action.patch,
+          updatedAt: nowIso,
+        } as any);
+        downgraded++;
+
+        if (admin?.email) {
+          await ctx.db.insert("notifications", {
+            firmId: firm._id,
+            userId: admin._id,
+            title: 'Plan Moved to Core',
+            message: `Your ${planName} plan's billing period ended without a confirmed renewal, so the workspace is now on Core. Your data is safe and fully intact — nothing was deleted. Renew to restore ${planName} features.`,
+            type: 'subscription_downgraded',
+            link: { view: 'settings', id: 'subscription-management', context: {} },
+            timestamp: nowIso,
+            isRead: false,
+          } as any);
+          emails.push({
+            to: admin.email,
+            subject: `Your workspace is now on the Core plan (data intact)`,
+            html: brandedEmailWrapper({
+              productName: getProductBranding(firm.product || undefined).name,
+              productColor: getProductBranding(firm.product || undefined).productColor,
+              tagline: getProductBranding(firm.product || undefined).tagline,
+              bodyHtml: `
+                <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Your ${planName} plan has moved to Core</p>
+                <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+                  The billing period that ended on ${renewalDate} was not renewed, and the 14-day grace period has
+                  now closed. Your workspace is on the Core plan.
+                </p>
+                <p style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:20px;color:#14532d;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+                  <strong>Your data is safe.</strong> Every matter, property, tenant, document and ledger you
+                  created on ${planName} is intact and waiting — nothing was deleted. Core limits apply to
+                  <em>new</em> activity. Renew your subscription to unlock everything again instantly.
+                </p>
+                <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0;">
+                  Renew from Billing &amp; Plans in your workspace, or reply to this email and our team will help.
+                </p>`,
+            }),
+            productName: getProductBranding(firm.product || undefined).name,
+          });
+        }
+        continue;
+      }
+
+      // ── Reminder notices (pre7 / pre1 / past_due / grace7 / final) ────
+      await ctx.db.patch(firm._id, {
+        ...action.patch,
+        updatedAt: nowIso,
+      } as any);
+      notified++;
+
+      const stageCopy: Record<string, { title: string; message: string; subject: string; body: string }> = {
+        pre7: {
+          title: 'Renewal Due in 7 Days',
+          message: `Your ${planName} plan renews on ${renewalDate}. Confirm your payment to keep every feature — and avoid the collections calls.`,
+          subject: `Your ${planName} renewal is due in 7 days (${renewalDate})`,
+          body: `Your ${planName} subscription renews on <strong>${renewalDate}</strong>. Renewing on time keeps every feature active with zero interruption.`,
+        },
+        pre1: {
+          title: 'Renewal Due Tomorrow',
+          message: `Your ${planName} plan renews tomorrow (${renewalDate}). Confirm payment today to avoid entering the grace window.`,
+          subject: `Final reminder: your ${planName} renews tomorrow`,
+          body: `Your ${planName} subscription renews <strong>tomorrow, ${renewalDate}</strong>. If payment isn't confirmed by then, your workspace enters a 14-day grace period before moving to Core.`,
+        },
+        past_due: {
+          title: 'Payment Overdue — Grace Period Started',
+          message: `Your ${planName} renewal was due ${renewalDate} and hasn't been confirmed. You have 14 days of full access while we retry — settle to keep ${planName} active.`,
+          subject: `Payment overdue — 14-day grace period has started`,
+          body: `Your ${planName} renewal was due <strong>${renewalDate}</strong> and we haven't received confirmation. Your workspace stays fully functional for <strong>14 days</strong> (until the grace window closes).`,
+        },
+        grace7: {
+          title: 'Payment Overdue — 7 Days Left in Grace',
+          message: `Your ${planName} plan is past due with 7 days of grace remaining. After that the workspace moves to Core (your data stays intact).`,
+          subject: `Payment overdue — 7 days left before your plan changes`,
+          body: `Your ${planName} plan is past due. You have <strong>7 days</strong> left in the grace period. After it closes, the workspace moves to Core — your data stays safe and intact, but ${planName} features pause until you renew.`,
+        },
+        final: {
+          title: 'Final Notice — Plan Changes Tomorrow',
+          message: `Last call: your ${planName} grace period ends tomorrow. Renew today to keep ${planName} active — after tomorrow the workspace moves to Core (data intact).`,
+          subject: `Final notice: your ${planName} features pause tomorrow`,
+          body: `This is the final notice for your past-due ${planName} plan. The grace period closes <strong>tomorrow</strong>, after which the workspace moves to Core. Your data is never deleted — renew to keep everything running.`,
+        },
+      };
+
+      const copy = stageCopy[action.stage];
+      if (admin?.email && copy) {
+        await ctx.db.insert("notifications", {
+          firmId: firm._id,
+          userId: admin._id,
+          title: copy.title,
+          message: copy.message,
+          type: 'subscription_dunning',
+          link: { view: 'settings', id: 'subscription-management', context: {} },
+          timestamp: nowIso,
+          isRead: false,
+        } as any);
+        const brand = getProductBranding(firm.product || undefined);
+        emails.push({
+          to: admin.email,
+          subject: copy.subject,
+          html: brandedEmailWrapper({
+            productName: brand.name,
+            productColor: brand.productColor,
+            tagline: brand.tagline,
+            bodyHtml: `
+              <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">${copy.title}</p>
+              <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">${copy.body}</p>
+              <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0;">
+                You can confirm payment from Billing &amp; Plans in your workspace — card payment or bank
+                transfer with proof upload. If anything looks wrong, reply to this email and we'll sort it out.
+              </p>`,
+          }),
+          productName: brand.name,
+        });
+      }
+    }
+
+    return { success: true, scanned, notified, downgraded, emails };
   },
 });
 

@@ -239,6 +239,21 @@ crons.daily(
   {}
 );
 
+// ─── R12: SUBSCRIPTION DUNNING + GRACE + SOFT DOWNGRADE ─────────────────────
+// Daily at 0:20 UTC (1:20 AM WAT). Drives the paid-subscription lifecycle
+// from nextBillingDate: 7d/1d pre-renewal reminders, 14-day past-due grace
+// (adminStatus 'past_due') with day-7 + day-13 warnings, then a SOFT
+// downgrade to Core — data is never deleted, and a confirmed payment
+// (activateFirmSubscription) restores the plan and resets the lifecycle.
+// Decision logic: convex/dunning.ts (pure, tested in
+// tests/unit/dunning.test.ts); mutations/emails: convex/myFunctions.ts.
+crons.daily(
+  "runSubscriptionDunning",
+  { hourUTC: 0, minuteUTC: 20 },
+  internal.myFunctions.runSubscriptionDunning,
+  {}
+);
+
 // ─── SETUP WIZARD: COMMUNICATION SETUP REMINDER ────────────────────────────
 // Daily at 8:00 AM UTC (9:00 AM WAT). Scans firms whose
 // settings.communicationSetupReminderAt has passed (set 7 days after onboarding

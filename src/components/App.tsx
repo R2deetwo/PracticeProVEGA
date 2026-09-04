@@ -1433,6 +1433,10 @@ export const App: React.FC = () => {
         if (currentUser && !isPortalUserRole && (!currentUser.firmId || wizardInProgress) && flowState !== 'splash') {
             return <OnboardingWizard onComplete={() => {
                 try { sessionStorage.removeItem('practicepro_wizard_in_progress'); sessionStorage.removeItem('practicepro_wizard_in_progress_ts'); } catch { /* noop */ }
+                // R12: signal UIContext to re-apply the theme now that the
+                // wizard-in-progress window is closed (onboarding force-light
+                // ends here, not on the next state change).
+                window.dispatchEvent(new Event('practicepro:theme-sync'));
                 setFlowState('app');
             }} />;
         }

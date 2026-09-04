@@ -63,16 +63,29 @@ export default defineSchema({
     // ─── BILLING METADATA (CRO Audit P3 — previously read by founder dashboard but missing) ──
     billingInterval: nullableString,     // 'monthly' | 'annual'
     nextBillingDate: nullableString,     // ISO date string
-    adminStatus: nullableString,         // 'active' | 'suspended' | 'trial' | 'pending'
+    adminStatus: nullableString,         // 'active' | 'suspended' | 'trial' | 'pending' | 'past_due'
     adminNotes: nullableString,
     lastActive: nullableString,          // ISO date string of last user activity
+    // ─── R12: SUBSCRIPTION DUNNING + GRACE + SOFT DOWNGRADE ──────────────
+    // Lifecycle driven by convex/dunning.ts (computeDunningAction) via the
+    // daily runSubscriptionDunning cron. Progress markers on the firm:
+    //   pre7 → pre1 → past_due → grace7 → final → downgraded
+    // 'downgraded' is terminal: the firm rests on Core (data NEVER deleted)
+    // until a confirmed payment re-activates it (activateFirmSubscription
+    // resets all four fields).
+    dunningStage: nullableString,        // current dunning lifecycle stage
+    pastDueAt: nullableNumber,           // epoch ms — when the renewal date passed
+    downgradedAt: nullableNumber,        // epoch ms — when the soft downgrade fired
+    downgradedFromPlan: nullableString,  // the paid plan the firm lost (for restore UX)
     ingestionAccess: v.optional(v.boolean()),
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
   }).index("by_invite", ["inviteCode"])
-    .index("by_trial_ends", ["trialEndsAt"]),   // for trial-expiry cron scans
+    .index("by_trial_ends", ["trialEndsAt"])      // for trial-expiry cron scans
+    // R12: dunning cron scans (pre-expiry reminders + past-due grace ladder)
+    .index("by_next_billing", ["nextBillingDate"]),
 
   // 2. Users (Profiles)
   users: defineTable({
@@ -1901,6 +1914,29 @@ export default defineSchema({
     .index("by_auto_revert", ["autoRevertAt"])
     .index("by_custom_id", ["id"])
     .index("by_idempotency", ["idempotencyKey"]),
+
+  // ─── PAYSTACK EVENT AUDIT TRAIL (R12 — webhook event coverage) ──────────
+  // Every webhook event that passes the HMAC-SHA512 signature check is
+  // recorded here (deduped by Paystack's event id). Before R12 the handler
+  // only acted on charge.success and silently discarded everything else —
+  // failed charges and refunds left no trace. charge.failed and
+  // refund.processed additionally notify the firm admin; the table gives
+  // the founder dashboard a full audit trail for disputes + reconciliation.
+  paystackEvents: defineTable({
+    eventId: v.string(),                   // Paystack's event id (dedupe key)
+    eventType: v.string(),                 // e.g. 'charge.success' | 'charge.failed' | 'refund.processed'
+    reference: nullableString,             // tx.reference when present
+    amount: nullableNumber,                // NGN (kobo already divided)
+    status: nullableString,                // tx.status when present ('success' | 'failed' | 'abandoned'…)
+    firmId: nullableString,                // resolved from the reference's subscriptionRequest when possible
+    handled: v.optional(v.string()),       // 'charge_success' | 'charge_failed' | 'refund_processed' | 'recorded_only'
+    raw: v.optional(v.any()),              // the verified event payload (bounded by Paystack's size)
+    receivedAt: v.string(),                // ISO timestamp
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_eventType", ["eventType"])
+    .index("by_reference", ["reference"])
+    .index("by_firm", ["firmId"]),
 
   // ─── ADD-ONS (CRO Audit — upsellable extras: extra WhatsApp, extra seats, etc.) ──
   // Each row represents a single add-on purchase (one firm, one add-on type, one billing cycle).

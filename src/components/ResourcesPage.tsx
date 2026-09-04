@@ -6,8 +6,9 @@ import { sanitize } from '../utils/sanitization';
 /**
  * The public Resources page must ALWAYS render in light mode, regardless of:
  *   - the user's system `prefers-color-scheme: dark` setting
- *   - the saved `practicepro_theme` value in localStorage (see inline
- *     script in index.html that toggles `html.dark`)
+ *   - the saved per-user `practicepro_theme_u:<email>` value in localStorage
+ *     (see inline script in index.html that toggles `html.dark`; R12 made
+ *     theme storage user-scoped)
  *
  * Two safeguards:
  *   1. All Tailwind `dark:` variant classes have been stripped from this

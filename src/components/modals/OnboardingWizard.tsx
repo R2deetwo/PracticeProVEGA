@@ -194,6 +194,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDataMigration, setIsDataMigration] = useState(false);
+  // R12 FIX (overlap bug): the "What's included" expansion is now React state
+  // rendered IN-FLOW below the checkbox row. It was previously a <details>
+  // popover with `absolute` positioning but NO positioned ancestor - the
+  // dropdown escaped the card, rendered on top of the DPA consent line
+  // (and clipped its own text in the process).
+  const [showMigrationDetails, setShowMigrationDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Show all plans or just the pre-selected one
   const [showAllPlans, setShowAllPlans] = useState(false);
@@ -806,35 +812,42 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                   <label htmlFor="data-migration" className="text-xs font-bold text-slate-700 cursor-pointer flex-1">
                     Managed Data Migration <span className="font-normal text-slate-500">(+₦150k)</span>
                   </label>
-                  <details className="group/det">
-                    <summary className="text-2xs font-semibold text-primary-600 cursor-pointer hover:text-primary-800 transition-colors list-none inline-flex items-center gap-1">
-                      What's included
-                      <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
-                    <div className="absolute mt-2 p-3 bg-white border border-slate-200 rounded-lg shadow-lg z-10 max-w-xs space-y-1.5 text-2xs text-slate-600 leading-relaxed">
-                      <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
-                            <span>Up to <strong>50 tenant/unit</strong> entries</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
-                            <span><strong>Lease terms</strong> & rent cycles</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
-                            <span><strong>Property details</strong> & unit specs</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-1 h-1 rounded-full bg-primary-400 flex-shrink-0" />
-                            <span><strong>Opening balances</strong> if available</span>
-                          </div>
-                        </div>
-                        <p className="text-slate-500 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
-                      </div>
-                    </details>
+                  <button
+                    type="button"
+                    aria-expanded={showMigrationDetails}
+                    onClick={() => setShowMigrationDetails(v => !v)}
+                    className="text-2xs font-semibold text-primary-600 cursor-pointer hover:text-primary-800 transition-colors inline-flex items-center gap-1 flex-shrink-0"
+                  >
+                    What's included
+                    <svg className={`w-3 h-3 transition-transform ${showMigrationDetails ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
                 </div>
+                {/* R12: in-flow expansion - the card grows and pushes the DPA
+                    consent line below down. Never overlaps, never clips. */}
+                {showMigrationDetails && (
+                  <div className="mt-3 pt-3 border-t border-slate-200 text-2xs text-slate-600 leading-relaxed space-y-2">
+                    <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                      <div className="flex items-start gap-1.5">
+                        <span className="w-1 h-1 mt-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                        <span>Up to <strong>50 tenant/unit</strong> entries</span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <span className="w-1 h-1 mt-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                        <span><strong>Lease terms</strong> & rent cycles</span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <span className="w-1 h-1 mt-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                        <span><strong>Property details</strong> & unit specs</span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <span className="w-1 h-1 mt-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                        <span><strong>Opening balances</strong> if available</span>
+                      </div>
+                    </div>
+                    <p className="text-slate-500">Additional entries beyond 50 units: ₦2,500 per entry.</p>
+                  </div>
+                )}
               </div>
             )}
 
