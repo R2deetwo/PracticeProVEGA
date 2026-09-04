@@ -10602,3 +10602,113 @@ Stage Summary:
   downgrade + webhook coverage). BLOCKED ON USER: Paystack TEST/LIVE
   keys + webhook URL registration for the live payment loop; tier
   enforcement audit deferred (documented in plan).
+
+---
+Task ID: 17
+Agent: main (Round 13)
+Task: Round 13 — four user-reported onboarding bugs + session identity
+foundation (SaaS hardening Phase 3, Round 1 of 3).
+
+Work Log:
+- CONTEXT: user tested a fresh ATRIUM signup and reported (a) the FIRST
+  screen after onboarding was the FeatureGuard dead-end wall "Feature not
+  available — this feature is part of Vega", (b) a legacy theme from a
+  previous user still showing (they were testing on the RETIRED
+  Cloudflare mirror, frozen at 555d73cb from Sep 2 — pre-R12 code; probed
+  live: mirror sha=555d73cb vs prod fe5eeb97), (c) the terms/privacy
+  acceptance demanded AGAIN on the first create action after already
+  accepting at signup, (d) the getting-started banner not mobile-optimized.
+  Directive: "if you sign up with Atrium, let's not take you to a page
+  where you don't belong… all users should set up with the white standard
+  light theme."
+- BUG (a) ROOT CAUSE: the app renders whatever URL the tab carries. A
+  fresh user's tab can sit on a stale protected route (e.g. /matters left
+  by a previous Vega session in that tab — the user's own multi-tab
+  multi-account testing pattern). Post-onboarding that URL renders
+  FeatureGuard('legal') against product='atrium' → the wall.
+  FIX (three layers):
+  1. App.tsx wizard onComplete now navigates('/', {replace:true}) — the
+     first post-onboarding screen is deterministically the dashboard and
+     the stale URL dies in history.
+  2. FeatureGuard REDESIGNED: no more dead-end wall + "Return to
+     Dashboard" button. A blocked user is auto-redirected to '/' (replace,
+     no back-trap) with ONE friendly toast naming both products. The
+     access matrix extracted to src/utils/productAccess.ts (pure) —
+     semantics unchanged from the pre-R13 inline logic.
+  3. tests/unit/productAccess.test.ts locks the matrix (incl. the exact
+     reported state: required 'legal' vs current 'atrium' → blocked →
+     auto-redirect, never a wall).
+- BUG (b): prod re-verified — R12 user-scoped themes ARE live on Vercel
+  (fe5eeb97 HTML contains the practicepro_theme_u: boot script). The
+  sighting matches the frozen mirror. Closed the remaining REAL gap
+  anyway: preference-less accounts now default 'light' (not 'system') —
+  a dark-OS machine can no longer flip a fresh user dark right after
+  onboarding before they ever chose a theme (UIContext load-effect
+  fallback; logged-out reset also 'light').
+- BUG (c) ROOT CAUSE: the signup form's ToS + Privacy checkboxes were
+  validation-only — never persisted. App.tsx's terms gate (localStorage
+  version + server termsAcceptance record) saw "no record" → the bottom
+  bar re-prompted the SAME consent on the first create. FIX: on
+  verification success (both fresh + migration paths) Signup.tsx now
+  calls markTermsAccepted() + records the server-side consent (same
+  recordTermsAcceptance mutation the bar uses; TERMS_VERSION exported
+  from TermsAcceptance.tsx). The bar can no longer appear for anyone who
+  accepted at signup; server record survives cleared localStorage.
+- BUG (d): FirstRunWelcome ("Welcome to Atrium… get started in 60
+  seconds") mobile pass: p-4/sm:p-6, text-base/sm:text-xl heading with
+  leading-snug + text-balance, text-[13px]/sm:text-sm list with
+  leading-relaxed, w-7/w-8 avatar, [10px] chip, 44px-class dismiss touch
+  target (p-2.5 + touch-target), min-h-[44px] CTA.
+- ROUND 13 PROPER (plan: "Convex Auth foundation, zero password resets"):
+  DEVIATION — first-party bearer sessions instead of @convex-dev/auth.
+  Rationale: the library's password provider ships its own hashing;
+  migrating the existing 100k→600k PBKDF2 users onto it is a credentials
+  migration we don't need — the security goal (backend verifies the
+  caller IS the person, not just that the email exists) is achieved with
+  a sessions table while every existing password keeps working, and the
+  Android WebView needs no cookie behavior changes (tokens work wherever
+  localStorage does). The plan's Round 15 strict-mode cutover works
+  identically on this foundation.
+  - convex/sha256.ts: pure-TS SHA-256 (node:crypto is action-only; session
+    validation must run in queries/mutations). FIPS 180-4 vectors pinned
+    in tests/unit/sha256.test.ts.
+  - convex/sessions.ts: 256-bit hex tokens (secureRandom), SHA-256-hashed
+    server-side (DB leak ≠ usable tokens), 30-day expiry, 10-session cap
+    per user, internal createSession / public validateSessionToken +
+    revokeSession + revokeAllUserSessions / cron cleanupExpiredSessions
+    (daily 03:00 UTC, 7-day graveyard for forensics). schema.ts: sessions
+    table (by_tokenHash / by_user / by_expiresAt). api.d.ts patched
+    (sessions module — regenerates on next convex deploy).
+  - verifyLogin (the ONLY place sessions are born — post password+MFA):
+    issues a bearer, returns sessionToken. Non-blocking: issuance failure
+    degrades to legacy email identity, login still succeeds.
+  - callerAuth.resolveCaller: bearer token is fully trusted (hash
+    verified; invalid/expired/revoked token THROWS — never falls through
+    to a spoofable email); legacy email path still works but LOGGED
+    (console.warn) during the R13→R15 window.
+  - AuthContext: stores the bearer (session + rememberMe localStorage),
+    exposes bearerToken, REVOKES on logout (live mutation + unload-safe
+    navigator.sendBeacon POST to /api/mutation — idempotent server-side),
+    clears stale bearers on signup-verify sessions. Impersonation/demo
+    flows untouched (Round 14 reworks impersonation per plan).
+- SECURITY OBSERVATION (feeds Round 15): unauthenticated POST
+  /api/query against prod Convex succeeds for public queries — exactly
+  the spoofable-surface class the plan documents. The session foundation
+  + strict mode is the path to closing it.
+- TESTS: +31 (sha256 vectors 8, sessions helpers 10, productAccess
+  matrix 13) — suite 113/113. GATES: convex tsc 0 errors (fixed a TS7022
+  circular-inference via the repo's established (internal as any)
+  pattern); root tsc 130 = baseline; vite build green (19.7s); dist
+  browser smoke: 0 errors, 0 console errors, boot theme light, /atrium
+  renders.
+
+Stage Summary:
+- All four user bugs fixed at root cause. Identity phase foundation live:
+  sessions issued at login, revoked at logout, verifiable anywhere
+  (pure-TS sha256), legacy path logged for the Round 15 sweep.
+- DEPLOY: see next entry (push → tests gate → staging → prod promotion).
+- Still blocked on user: Paystack LIVE keys + webhook registration (R12
+  revenue loop), CONVEX_STAGING_* secrets (staging backend). Cloudflare
+  mirror: orphaned worker should be deleted in the CF dashboard — it is
+  permanently frozen at 555d73cb and will keep confusing anyone who
+  visits it.

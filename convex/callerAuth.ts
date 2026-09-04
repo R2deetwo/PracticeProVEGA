@@ -1,5 +1,6 @@
 
 import { Doc } from "./_generated/dataModel";
+import { resolveUserBySessionToken } from "./sessions";
 
 /**
  * STRICT caller verification — Round 8 auth retrofit.
@@ -47,13 +48,36 @@ async function findUserByEmail(ctx: any, email: string): Promise<CallerUser | nu
 
 /**
  * Resolve the caller to a real users-table row. No anonymous fallback:
- * throws unless a Convex Auth session, a valid userId, or a known email
+ * throws unless a session token, a valid userId, or a known email
  * resolves to an existing user.
+ *
+ * R13 — SESSION IDENTITY (Phase 3 foundation):
+ *   1. Bearer session token (hash verified against the sessions table) is
+ *      FULLY TRUSTED — possession of the token proves the caller passed
+ *      password (+ MFA) at the login gateway.
+ *   2. Caller-supplied userId remains (pre-R13 path).
+ *   3. Caller-supplied email (the legacy identity convention) still works
+ *      during the migration window but is LOGGED, because it is spoofable:
+ *      anyone who knows an email can claim it. Round 15's strict mode
+ *      rejects it; the logs + call-site sweep make that cutover safe.
  */
 export async function resolveCaller(
   ctx: any,
-  opts: { userEmail?: string | null; userId?: string | null }
+  opts: { userEmail?: string | null; userId?: string | null; sessionToken?: string | null }
 ): Promise<CallerUser> {
+  // 0. R13: bearer session token — server-verified possession proof.
+  //    Takes precedence over every caller-supplied identity string.
+  if (opts.sessionToken) {
+    const u = await resolveUserBySessionToken(ctx, opts.sessionToken);
+    if (u) return u as CallerUser;
+    // An invalid/expired/revoked token must NOT silently fall through to a
+    // caller-supplied (spoofable) email — that would let an attacker pair
+    // a dead token with any email. Treat as unauthenticated.
+    throw new Error(
+      "Unauthenticated: the session token is invalid, expired, or revoked. Please sign in again."
+    );
+  }
+
   // 1. Convex Auth session (if ever configured) takes precedence.
   try {
     const identity = await ctx.auth.getUserIdentity();
@@ -75,7 +99,13 @@ export async function resolveCaller(
   }
 
   // 3. Caller-supplied email (the repo's legacy auth-token convention).
+  //    R13: still functional during the migration window, but logged —
+  //    this is the spoofable path Round 15's strict mode will reject.
   if (opts.userEmail) {
+    console.warn(
+      "[resolveCaller] legacy email identity used (spoofable; Round 15 strict mode will require a session token):",
+      String(opts.userEmail).toLowerCase().trim()
+    );
     const u = await findUserByEmail(ctx, opts.userEmail);
     if (u) return u;
   }

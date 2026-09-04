@@ -130,7 +130,7 @@ underneath; nothing is deleted.
 
 ## Phase 3 — Identity (the flagship, 3 rounds)
 
-### Round 13: Convex Auth foundation, zero password resets
+### Round 13: Convex Auth foundation, zero password resets ✅ (closed 2026-09-05)
 **Problem:** the "session" is a plain email string in localStorage;
 every backend call passes `userEmail` as an argument; the backend
 verifies the email EXISTS, never that the caller IS that person. The
@@ -151,6 +151,37 @@ accept ANY password on first login ("trust on first use").
   as fallback.
 - Verify session cookies work in the Android APK WebView (real
   technical risk — test on the APK build).
+
+**IMPLEMENTED (delivered with a deliberate deviation):** first-party
+bearer sessions instead of `@convex-dev/auth` — the library ships its
+own password hashing and would force a credentials migration we don't
+need; the security goal is met with zero password changes and no
+WebView cookie risk. Delivered:
+- `convex/sha256.ts` pure-TS SHA-256 (FIPS 180-4 vector-tested) —
+  session validation must run in queries/mutations where node:crypto
+  is unavailable.
+- `convex/sessions.ts` + `sessions` table: 256-bit hex tokens issued
+  ONLY by `verifyLogin` after password (+ MFA); stored SHA-256-hashed
+  (a DB leak leaks no usable tokens); 30-day expiry; 10-session cap;
+  daily 03:00 UTC cleanup with a 7-day forensic graveyard.
+- `resolveCaller`: bearer fully trusted (invalid/expired/revoked token
+  THROWS — never falls through to a spoofable email); legacy email
+  path still works during the window but logs a warning per call
+  (input for the Round 15 sweep); strict mode remains Round 15.
+- AuthContext stores the bearer (session + rememberMe), revokes on
+  logout via mutation + unload-safe `sendBeacon` (idempotent), exposes
+  `bearerToken` for the Round 15 call-site sweep.
+- APK: no cookies involved — tokens ride localStorage, which already
+  works in the Capacitor WebView (same mechanism as the existing
+  email session). Full APK login regression rides the build-apk gate.
+- Tests: +31 (sha256 vectors, session helpers, product-access matrix)
+  — suite 113/113.
+- Also closed this round (user-reported): fresh-signup "Feature not
+  available" dead-end (FeatureGuard now auto-redirects with a friendly
+  toast + wizard completion navigates to '/'), duplicate ToS/Privacy
+  re-prompt (signup consent now recorded — localStorage + server),
+  preference-less theme default light, getting-started banner mobile
+  pass.
 
 ### Round 14: Full coverage
 - Portal users (tenant/client — same PBKDF2 format via `portals.ts`)

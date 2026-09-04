@@ -362,7 +362,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     // On login / session restore: purge the legacy shared key (it is the
     // cross-account leak vector and cannot be attributed to a specific
     // user), then adopt this account's own saved theme.
-    // On logout (email → null): reset to 'system' so the next account (or
+    // On logout (email → null): reset to 'light' so the next account (or
     // the public pages) starts from a neutral state — the previous user's
     // theme never bleeds into the next session.
     // Deps are ONLY the email — live theme changes made while logged in are
@@ -370,12 +370,19 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     React.useEffect(() => {
         const email = currentUser?.email;
         if (!email) {
-            setTheme('system');
+            setTheme('light');
             return;
         }
         purgeLegacyThemeKey();
         const stored = loadUserTheme(email);
-        setTheme((stored as Theme) || 'system');
+        // R13: preference-less accounts default to LIGHT, never 'system'.
+        // The user's directive: "all users should set up with the white
+        // standard light theme." Onboarding already forces light (R12); this
+        // closes the follow-on gap where a dark-OS machine flipped a fresh
+        // user's UI to dark the moment onboarding ended, before they had
+        // ever chosen a theme. Only an EXPLICIT saved choice (including a
+        // deliberate 'system') is honored.
+        setTheme((stored as Theme) || 'light');
     }, [currentUser?.email]);
 
     // R12: the wizard completion signal. App.tsx removes the wizard flag

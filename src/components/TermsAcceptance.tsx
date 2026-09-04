@@ -34,7 +34,10 @@ interface TermsAcceptanceProps {
     onClose?: () => void;
 }
 
-const TERMS_VERSION = '2026-07-27-v4';
+// R13: exported so the Signup flow can record the SAME version it accepted
+// (Signup.tsx persists the consent at verification — kills the duplicate
+// terms re-prompt fresh users were hitting on their first create action).
+export const TERMS_VERSION = '2026-07-27-v4';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
 const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 

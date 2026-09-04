@@ -8,6 +8,9 @@ import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { EyeIcon, EyeOffIcon, MailIcon, CheckCircleIcon, ZapIcon } from '../../constants';
 import { AppMode, SubscriptionPlan } from '../../types';
+// R13: the signup form's ToS + Privacy checkboxes are a REAL legal consent —
+// record them so the app never re-prompts the same acceptance.
+import { markTermsAccepted, TERMS_VERSION } from '../TermsAcceptance';
 
 interface SignupProps {
  onSwitchToLogin: () => void;
@@ -44,6 +47,9 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  const [restoreSubmitted, setRestoreSubmitted] = React.useState(false);
  const [isSubmittingRestore, setIsSubmittingRestore] = React.useState(false);
  const submitDataRestoreRequest = useMutation(api.feedback.submitDataRestoreRequest);
+ // R13: durable consent record (NDPA §25) — same mutation the in-app
+ // TermsAcceptance bar writes, so the server sees the signup consent too.
+ const recordTermsAcceptance = useMutation(api.myFunctions.recordTermsAcceptance);
 
  const [passwordError, setPasswordError] = React.useState<string | null>(null);
 
@@ -187,6 +193,23 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    if (result.success) {
     // Clean up migration flag regardless of path
     localStorage.removeItem('pp_migration_email');
+
+    // R13 — kill the double terms prompt (both fresh + migration users:
+    // BOTH hard-accepted ToS + Privacy checkboxes in this form).
+    // Verification success = account active, so the consent recorded at
+    // submit becomes binding NOW: localStorage (fast UI gating) + database
+    // (durable NDPA §25 record — same mutation the in-app terms bar writes).
+    // Without this, the first create action post-onboarding re-prompted the
+    // SAME acceptance in the bottom terms bar — the exact duplicate the
+    // user reported. roleContext 'admin' mirrors resolveRoleContext() for
+    // a fresh firm creator (role=Admin).
+    try { markTermsAccepted(); } catch { /* cosmetic gating only */ }
+    recordTermsAcceptance({
+     termsVersion: TERMS_VERSION,
+     userEmail: email.toLowerCase().trim(),
+     roleContext: 'admin',
+     roleTermsVersion: 'admin-v1',
+    }).catch(e => console.warn('[Signup] consent record failed (non-blocking):', e));
 
     if (isMigrationUser) {
      // Show the restore request step instead of closing

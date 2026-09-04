@@ -268,4 +268,16 @@ crons.daily(
   {}
 );
 
+// ─── R13: SESSION CLEANUP ────────────────────────────────────────────────
+// Daily at 3:00 UTC (4:00 AM WAT). Deletes session rows that expired more
+// than 7 days ago (a 7-day graveyard preserves forensic visibility for
+// incident response — "was this session revoked or expired?" — before the
+// row is purged). Active sessions are never touched.
+crons.daily(
+  "cleanupExpiredSessions",
+  { hourUTC: 3, minuteUTC: 0 },
+  internal.sessions.cleanupExpiredSessions,
+  {}
+);
+
 export default crons;

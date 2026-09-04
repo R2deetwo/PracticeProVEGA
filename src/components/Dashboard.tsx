@@ -43,19 +43,22 @@ const FirstRunWelcome: React.FC<{
             : '+ Create Your First Record';
 
   return (
-    <div className="bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-2xl p-5 sm:p-6 mb-4 sm:mb-6 animate-fade-in shadow-lg shadow-primary-500/5">
-      <div className="flex items-start justify-between gap-4">
+    // R13 mobile audit: compact paddings/text on <sm, larger dismiss touch
+    // target, relaxed list leading — the banner was designed desktop-first
+    // and looked cramped/unbalanced on 360-414px phones.
+    <div className="bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 animate-fade-in shadow-lg shadow-primary-500/5">
+      <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-sm font-black">
+          <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-black flex-shrink-0">
               {firstName?.[0]?.toUpperCase() || 'P'}
             </div>
-            <span className="text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400">Welcome to {productName}</span>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 truncate">Welcome to {productName}</span>
           </div>
-          <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-2">
+          <h3 className="text-base sm:text-xl font-black text-slate-900 dark:text-white mb-2 leading-snug sm:leading-tight text-balance">
             Welcome, {firstName}! Here's how to get started in 60 seconds:
           </h3>
-          <ol className="space-y-1.5 text-sm text-slate-600 dark:text-zinc-300">
+          <ol className="space-y-1.5 sm:space-y-1.5 text-[13px] sm:text-sm text-slate-600 dark:text-zinc-300 leading-relaxed">
             {productName === 'Atrium' ? (
               <>
                 <li><span className="font-bold text-primary-600">1.</span> Add your first property (name, address, units).</li>
@@ -79,7 +82,8 @@ const FirstRunWelcome: React.FC<{
         </div>
         <button
           onClick={onDismiss}
-          className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
+          // 44px-class touch target on mobile (icon stays 20px visually)
+          className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors flex-shrink-0 -m-1 sm:m-0 p-2.5 sm:p-1 rounded-lg touch-target"
           aria-label="Dismiss welcome"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -89,7 +93,7 @@ const FirstRunWelcome: React.FC<{
       </div>
       <button
         onClick={() => { onCreateFirst(); onDismiss(); }}
-        className="mt-4 w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs uppercase tracking-widest rounded-lg shadow-lg shadow-primary-600/20 transition-all hover:-translate-y-0.5 active:scale-95"
+        className="mt-3 sm:mt-4 w-full sm:w-auto min-h-[44px] px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs sm:text-sm uppercase tracking-widest sm:tracking-wide-label rounded-lg sm:rounded-lg shadow-lg shadow-primary-600/20 transition-all hover:-translate-y-0.5 active:scale-95"
       >
         {cta}
       </button>

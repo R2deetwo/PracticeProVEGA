@@ -10,6 +10,12 @@ import { setInMemoryApiKey } from '../utils/aiUtils';
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
+// R13: bearer session token issued by the login gateway (verifyLogin →
+// convex/sessions.createSession). Stored client-side; verified
+// server-side by SHA-256 hash. Round 15's call-site sweep will send it on
+// every Convex call so resolveCaller can trust possession instead of the
+// spoofable caller-supplied email.
+const BEARER_KEY = 'practicepro_session_bearer';
 
 // Helper to determine if we're on a portal route
 // Checks both sessionStorage (same-tab) and localStorage (cross-tab/persistent)
@@ -28,6 +34,8 @@ export interface AuthContextType {
     currentUser: User | null;
     appMode: AppMode;
     isAccountRevoked: boolean;
+    /** R13: server-issued bearer token for the current login (null = legacy email session). */
+    bearerToken: string | null;
     login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean, portalType?: 'tenant' | 'client') => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
     signup: (firmName: string, fullName: string, email: string, password?: string, mode?: AppMode, inviteCode?: string, plan?: SubscriptionPlan, product?: 'legal' | 'property' | 'unified') => Promise<{ success: boolean, message?: string, requiresConfirmation?: boolean, debugCode?: string, code?: string }>;
     verifyEmail: (email: string, code: string) => Promise<{ success: boolean, message?: string }>;
@@ -137,6 +145,14 @@ const getInitialToken = () => {
 export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
     const convex = useConvex();
     const [sessionToken, setSessionToken] = React.useState<string | null>(getInitialToken);
+    // R13: bearer token from the login gateway. Survives refresh via storage
+    // (session + localStorage when rememberMe) so it's available for logout
+    // revocation and the Round 15 call-site sweep.
+    const [bearerToken, setBearerToken] = React.useState<string | null>(() => {
+        try {
+            return sessionStorage.getItem(BEARER_KEY) || localStorage.getItem(BEARER_KEY);
+        } catch { return null; }
+    });
     const [isStorageLoaded, setIsStorageLoaded] = React.useState(true);
 
     // B1 SHIP-BLOCKER FIX: Async verification of server-issued impersonation tokens.
@@ -252,6 +268,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
     const trackEventMutation = useMutation(api.analytics.trackEvent);
     const verifyLoginAction = useAction(api.myFunctions.verifyLogin);
+    const revokeSessionMutation = useMutation(api.sessions.revokeSession);
     const leaveFirmMutation = useMutation(api.myFunctions.leaveFirm);
     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
     const repairAccountConnectionMutation = useMutation(api.myFunctions.repairAccountConnection);
@@ -597,6 +614,30 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             // 3. Set Session
             setSessionToken(token);
 
+            // ─── R13: persist the login-gateway's bearer session ──────────
+            // verifyLogin (convex) issued an opaque 256-bit token after
+            // verifying password (+ MFA). Store it: logout will REVOKE it
+            // server-side, and Round 15's sweep sends it on every call so
+            // the backend trusts possession, not the spoofable email string.
+            const bearer = (verifyResult as any).sessionToken || null;
+            setBearerToken(bearer);
+            try {
+                if (bearer) {
+                    sessionStorage.setItem(BEARER_KEY, bearer);
+                    if (rememberMe) {
+                        localStorage.setItem(BEARER_KEY, bearer);
+                    } else {
+                        localStorage.removeItem(BEARER_KEY);
+                    }
+                } else {
+                    // Login gateway couldn't issue one (non-blocking failure
+                    // server-side) — clear any stale bearer from a previous
+                    // login so we never send a dead token.
+                    sessionStorage.removeItem(BEARER_KEY);
+                    localStorage.removeItem(BEARER_KEY);
+                }
+            } catch { /* storage unavailable — bearer stays in memory only */ }
+
             // ─── Clear demo product flag on real login ──────────────────
             // The demo flag ('practicepro_demo_product') is set by the
             // LeadCaptureModal when a user clicks "Try Demo". If demo login
@@ -721,6 +762,12 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 const token = email.toLowerCase().trim();
                 setSessionToken(token);
                 sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token }));
+                // R13: a signup-verified session has NO bearer (code-verified,
+                // not password-verified — the login gateway issues bearers).
+                // Clear any stale bearer from a previous user's login in this
+                // browser so it can never be misattributed to this session.
+                setBearerToken(null);
+                try { sessionStorage.removeItem(BEARER_KEY); localStorage.removeItem(BEARER_KEY); } catch {}
                 return { success: true };
             }
             return { success: false, message: result.message };
@@ -750,6 +797,38 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // Capture portal type BEFORE clearing session so we can redirect to the right login page
         const portalType = sessionStorage.getItem('practicepro_portal_type');
         const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
+
+        // ─── R13: REVOKE the server session before clearing anything ──────
+        // A stored bearer token that survives logout is exactly the kind of
+        // dangling credential the identity phase exists to eliminate. Best
+        // effort: send via BOTH the live mutation AND a sendBeacon POST
+        // (unload-safe — logout navigates away immediately after; the beacon
+        // is queued by the browser and survives the navigation). Server-side
+        // revoke is idempotent, so double delivery is harmless.
+        const bearerToRevoke = (() => {
+            try {
+                return sessionStorage.getItem(BEARER_KEY) || localStorage.getItem(BEARER_KEY);
+            } catch { return null; }
+        })();
+        if (bearerToRevoke) {
+            try {
+                revokeSessionMutation({ token: bearerToRevoke }).catch(() => { /* beacon is the fallback */ });
+            } catch { /* mutation not ready — beacon below still fires */ }
+            try {
+                const convexUrl =
+                    (import.meta as any).env?.VITE_CONVEX_URL ||
+                    'https://gregarious-malamute-537.convex.cloud';
+                const payload = JSON.stringify({ path: 'sessions:revokeSession', args: { token: bearerToRevoke } });
+                if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+                    navigator.sendBeacon(
+                        `${convexUrl}/api/mutation`,
+                        new Blob([payload], { type: 'application/json' })
+                    );
+                }
+            } catch { /* best effort only */ }
+            setBearerToken(null);
+            try { sessionStorage.removeItem(BEARER_KEY); localStorage.removeItem(BEARER_KEY); } catch {}
+        }
 
         // Suppress the browser's "Leave site?" beforeunload dialog during logout.
         // We're intentionally navigating away — the user has already confirmed
@@ -1097,6 +1176,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         appMode: AppMode.Multi,
         isLoadingSession: isLoading,
         isAccountRevoked,
+        // R13: server-issued bearer session token (null = legacy email session).
+        bearerToken,
         login,
         signup,
         verifyEmail,
@@ -1115,7 +1196,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         isImpersonating: !!originalSessionToken,
         revertToOriginalUser
     }), [
-        currentUser, isLoading, isAccountRevoked,
+        currentUser, isLoading, isAccountRevoked, bearerToken,
         login, signup, verifyEmail, resendConfirmation, logout,
         markOnboardingComplete, refreshUser, updateCurrentUser, loginAsDemoUser,
         deleteAccount, switchFirm, leaveFirm, deleteFirm, loginAsUser,

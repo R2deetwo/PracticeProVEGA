@@ -157,6 +157,26 @@ export default defineSchema({
     // docs without email are excluded from the index.
     .index("by_email", ["email"]),
 
+  // ─── R13: SESSION TOKENS (Phase 3 identity foundation) ──────────────────
+  // Bearer sessions issued by verifyLogin. Only the SHA-256 hash of the
+  // token is stored (convex/sha256.ts — pure TS so queries/mutations can
+  // validate without node:crypto). See convex/sessions.ts.
+  sessions: defineTable({
+    // SHA-256 hex of the opaque 256-bit token. Unique per session.
+    tokenHash: v.string(),
+    userId: v.id("users"),
+    userEmail: v.string(),
+    device: v.optional(v.string()),
+    createdAt: v.number(),
+    lastSeenAt: v.number(),
+    expiresAt: v.number(),
+    // Set on logout / revocation; null while active.
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_user", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
   // 3. Operational Data
   matters: defineTable({
     firmId: nullableString,

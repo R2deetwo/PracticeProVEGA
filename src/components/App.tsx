@@ -1433,6 +1433,13 @@ export const App: React.FC = () => {
         if (currentUser && !isPortalUserRole && (!currentUser.firmId || wizardInProgress) && flowState !== 'splash') {
             return <OnboardingWizard onComplete={() => {
                 try { sessionStorage.removeItem('practicepro_wizard_in_progress'); sessionStorage.removeItem('practicepro_wizard_in_progress_ts'); } catch { /* noop */ }
+                // R13: kill any stale deep-link URL the tab was sitting on
+                // (e.g. /matters left over from a previous Vega session in
+                // this same tab). The FIRST post-onboarding screen must be
+                // the dashboard, deterministically — a fresh Atrium user
+                // must never land on a legal view they don't have.
+                // replace: the stale URL shouldn't survive in history.
+                navigate('/', { replace: true });
                 // R12: signal UIContext to re-apply the theme now that the
                 // wizard-in-progress window is closed (onboarding force-light
                 // ends here, not on the next state change).

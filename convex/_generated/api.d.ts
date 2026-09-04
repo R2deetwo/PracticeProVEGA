@@ -48,6 +48,7 @@ import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
 import type * as sentry from "../sentry.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
+import type * as sessions from "../sessions.js";
 import type * as tierLimits from "../tierLimits.js";
 import type * as trustAccount from "../trustAccount.js";
 import type * as visitorManagement from "../visitorManagement.js";
@@ -101,6 +102,7 @@ declare const fullApi: ApiFromModules<{
   seedSentry: typeof seedSentry;
   sentry: typeof sentry;
   sentryWebhook: typeof sentryWebhook;
+  sessions: typeof sessions;
   tierLimits: typeof tierLimits;
   trustAccount: typeof trustAccount;
   visitorManagement: typeof visitorManagement;

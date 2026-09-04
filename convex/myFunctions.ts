@@ -1608,7 +1608,33 @@ export const verifyLogin = action({
 
       // Strip sensitive fields before returning user to client
       const { password: _pw, mfaCode: _mfa, verificationCode: _vc, recoveryCode: _rc, ...safeUser } = user;
-      return { success: true, user: safeUser };
+
+      // ─── R13: issue a bearer session token ────────────────────────────
+      // The login gateway is the ONLY place a session may be born: password
+      // (+ MFA when enabled) has been verified at this point. The token is
+      // returned to the client exactly once; only its SHA-256 hash is
+      // stored (convex/sessions.ts). resolveCaller trusts these sessions;
+      // Round 15 flips strict mode and rejects the legacy email path.
+      // Non-blocking: a session-store failure must NEVER fail an otherwise
+      // successful login — the client degrades to the legacy email
+      // identity during the migration window.
+      let sessionToken: string | undefined;
+      try {
+        // `as any` mirrors the repo's established pattern for cross-module
+        // scheduler/mutation references (e.g. sendVerificationEmail below) —
+        // a typed reference here creates a circular type inference through
+        // _generated/api → myFunctions (TS7022).
+        const session: any = await (ctx as any).runMutation((internal as any).sessions.createSession, {
+          userId: user._id,
+          userEmail: user.email || token,
+          device: "web",
+        });
+        sessionToken = session?.token;
+      } catch (e) {
+        console.warn("[verifyLogin] Session issuance failed (non-blocking, legacy identity still valid):", e);
+      }
+
+      return { success: true, user: safeUser, sessionToken };
     } else {
       const currentAttempts = (user.failedLoginAttempts || 0) + 1;
       const failureUpdates: any = { failedLoginAttempts: currentAttempts };
