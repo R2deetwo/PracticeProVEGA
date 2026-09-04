@@ -10767,3 +10767,51 @@ tokens carry expiries. The first promotion after this commit will fail fast
 with a clear message if the token is dead — that message contains the exact
 fix. If that happens, the only thing needed from the user is a fresh token
 (paste it and it gets set as the secret, or they add it in repo settings).
+
+---
+## Round 15 — toast hover-hold + premature getting-started celebration
+
+**User reports (verbatim intent):** (1) the getting-started completion
+toast fired while one checklist step was still incomplete; (2) toasts
+vanish too fast — normal time is fine, but hovering should keep the toast
+in place, and on mouse-leave after the time already expired it should
+remove gracefully.
+
+ROOT CAUSE (1): the celebration effect evaluated `allDone` on EVERY pass,
+including passes inside ProductContext's hydration window — rawProduct
+defaults to 'unified' until firm/user data lands, so VEGA/ATRIUM firms
+briefly evaluate the KOMPLETE item set (and any mid-session flag flicker
+re-runs the effect against a different set). Within one render the toast
+and the sidebar can't disagree; the disagreement the user saw required a
+transient wrong-set evaluation, and the effect also persisted the
+dismissal to localStorage immediately — making the damage sticky.
+
+FIX (1) — three gates, provably correct now:
+- ProductContext.isProductResolved (new): true only when the product
+  decision came from real data. GATE 1: celebration never evaluates
+  while flags are provisional. GATE 2: allDone must genuinely transition
+  false→true. GATE 3: 1s stability confirmation re-verified against the
+  LATEST checklist + item set before toast + auto-dismiss + localStorage
+  write; a flicker that reverts cancels everything and re-arms.
+- Sidebar + banner renders gated on resolved flags (no flash of
+  KOMPLETE items on a VEGA/ATRIUM dashboard). Per-item ✓ toasts gated
+  too. isItemDone() extracted as the single done-definition.
+
+FIX (2) — ToastAutoDismiss (src/utils/toastAutoDismiss.ts), exact user
+semantics: countdown NOT paused by hover; expiry fixed at duration;
+hover suppresses removal; first mouse-leave after expiry = graceful
+removal (same 300ms fade/slide as [X]). UIContext no longer blind-
+setTimeouts toasts; the Toast component owns dismissal. Mouse-only via
+matchMedia('(hover: hover)') — mobile swipe-to-dismiss untouched.
+
+TESTS: 127/127 (+14 toastAutoDismiss: normal timing, once-only, hover
+holds, leave-after-expiry, leave-before-expiry, degenerate zero
+duration). GATES: convex tsc 0; root tsc 130 = baseline; build green
+20.4s; browser smoke on dist: 0 console errors, hover-hold verified
+end-to-end via the app's practicepro-toast event, auto-timing control
+unchanged (scripts/smoke-toast-hover.mjs — reusable).
+
+DEPLOY: 02c17952 → tests → staging → prod promotion (see next entry).
+Cloudflare mirror deploy still pending the user's fresh CF API token
+(the Round 14 restoration is wired; promotion fails fast at token
+verify with exact remediation until then).
