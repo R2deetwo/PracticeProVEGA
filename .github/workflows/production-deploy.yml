@@ -4,8 +4,16 @@ name: Deploy to Production (promote)
 #
 # Push to main auto-deploys STAGING (staging-deploy.yml). Production only
 # changes when THIS workflow runs: manual trigger → full quality gate on the
-# pinned commit → Vercel prod + Convex prod → live verification (never trust
-# the deploy step — probe production directly, per the standing protocol).
+# pinned commit → Vercel prod + Convex prod + Cloudflare mirror → live
+# verification (never trust the deploy step — probe production directly,
+# per the standing protocol).
+#
+# Round 14: Cloudflare (practice-pro-vega.prototypechigo.workers.dev) is a
+# FULL production target again — deployed and verified on the exact same
+# promoted commit as Vercel, inside this same pipeline. It was wrongly
+# retired in Round 11 when its API token expired; the fix for an expired
+# token is a new token, not deleting a production site the user never asked
+# to remove.
 #
 # HOW TO USE:
 #   Actions tab → "Deploy to Production (promote)" → Run workflow
@@ -16,6 +24,7 @@ name: Deploy to Production (promote)
 #
 # Required GitHub secrets (already in use by the previous deploy workflows):
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, CONVEX_DEPLOY_KEY
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (Cloudflare mirror target)
 
 on:
   workflow_dispatch:
@@ -216,6 +225,103 @@ jobs:
             echo "- Promoted commit: \`${PROMOTED_SHA}\`"
             echo "- Frontend: https://practice-pro-vega.vercel.app (verified healthy, sha match)"
             echo "- Backend: gregarious-malamute-537 (verified via live query probe)"
+            echo "- Cloudflare: https://practice-pro-vega.prototypechigo.workers.dev (see deploy-cloudflare job)"
             echo ""
             echo "**Rollback:** re-run this workflow with \`sha\` = an older main commit."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-cloudflare:
+    name: Deploy to production (Cloudflare mirror) and verify live
+    needs: [quality-gate, deploy-production]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROMOTED_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
+    steps:
+      - name: Check required secrets
+        run: |
+          MISSING=0
+          for VAR in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!VAR}" ]; then
+              echo "❌ $VAR secret is not set"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then
+            echo "::error::Cloudflare secrets missing. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository secrets (Settings → Secrets and variables → Actions), then re-run this workflow with the same sha."
+            exit 1
+          fi
+          echo "✓ Cloudflare secrets are set"
+
+      # Round 11 retired this target because the token EXPIRED and red-X'd
+      # every push. Fail fast with the exact fix instead of letting a 401
+      # surface from deep inside wrangler after a full build.
+      - name: Verify the Cloudflare API token is active (fail fast)
+        run: |
+          VERIFY=$(curl -s --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            https://api.cloudflare.com/client/v4/user/tokens/verify)
+          TOKEN_STATUS=$(echo "$VERIFY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('result',{}).get('status',''))" 2>/dev/null || echo "parse-error")
+          echo "Token verify response (truncated): $(echo "$VERIFY" | head -c 300)"
+          if [ "$TOKEN_STATUS" != "active" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not active (status='$TOKEN_STATUS'). This is the exact failure that retired the mirror in Round 11 — the fix is a fresh token, NOT deleting the site. Fix: dash.cloudflare.com → My Profile → API Tokens → Create Token (template: Edit Cloudflare Workers, scoped to this account) → GitHub repo Settings → Secrets and variables → Actions → update CLOUDFLARE_API_TOKEN → re-run this workflow with the same sha."
+            exit 1
+          fi
+          echo "✓ Cloudflare API token is active"
+
+      - name: Checkout the exact gated commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.quality-gate.outputs.resolved_sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # prebuild (generate-version-manifest.cjs) bakes the pinned commit's
+      # git sha + branch into version.json, so the mirror reports exactly
+      # the promoted release — the same file Vercel serves.
+      - name: Build web app
+        run: npm run build
+
+      - name: Deploy to Cloudflare Workers
+        run: npx wrangler deploy --config wrangler.jsonc
+
+      - name: Verify Cloudflare mirror is healthy and serves the promoted commit
+        run: |
+          echo "Waiting for Cloudflare to propagate..."
+          MIRROR_URL="https://practice-pro-vega.prototypechigo.workers.dev"
+          MAX_WAIT=120
+          WAITED=0
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            RESPONSE=$(curl -s "$MIRROR_URL/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
+            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
+            echo "  [${WAITED}s] status=$STATUS sha=$SHA (expecting ${PROMOTED_SHA:0:8})"
+            if [ "$STATUS" = "healthy" ] && [ "$SHA" = "${PROMOTED_SHA:0:8}" ]; then
+              echo "✅ Cloudflare mirror is healthy and serving the promoted commit (${PROMOTED_SHA:0:8})"
+              exit 0
+            fi
+            sleep 10
+            WAITED=$((WAITED + 10))
+          done
+          echo "::error::Cloudflare mirror not verified after ${MAX_WAIT}s (sha=$SHA status=$STATUS, expected ${PROMOTED_SHA:0:8}). Note: workers.dev edge caches can lag — the SPA-fallback cache poisoning mitigation is per-deploy CSS rotation (see wrangler.jsonc). If sha mismatches persist, check the deploy logs above."
+          exit 1
+
+      - name: Job summary
+        run: |
+          {
+            echo "## ☁️ Cloudflare mirror promoted"
+            echo ""
+            echo "- Same promoted commit as Vercel: \`${PROMOTED_SHA}\`"
+            echo "- URL: https://practice-pro-vega.prototypechigo.workers.dev (verified healthy, sha match)"
+            echo ""
+            echo "Cloudflare and Vercel now serve the identical release — restoring this target was the Round 14 correction of the Round 11 mistake."
           } >> "$GITHUB_STEP_SUMMARY"
