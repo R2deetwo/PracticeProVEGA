@@ -10500,3 +10500,105 @@ Stage Summary:
   toggle (Disconnect or Ignored-Build-Step skip) to make prod strictly
   promotion-only. Neither rotates, neither expires.
 - Next per plan: Round 12 (Paystack live + subscription lifecycle).
+---
+Task ID: 16 (Round 12)
+Agent: main
+Task: Round 12 — user-reported onboarding bugs (the "What's included"
+overlap + the cross-account/cross-tab theme leak) + the plan's
+subscription-lifecycle work that is not blocked on Paystack keys.
+
+Work Log:
+- USER BUG 1 (overlap): OnboardingWizard's Managed Data Migration card
+  used a native <details> whose expanded panel had `absolute` positioning
+  with NO positioned ancestor — the popover escaped the card, rendered ON
+  TOP of the "I agree to the Data Protection Agreement…" consent line,
+  and clipped its own text (confirmed in the user's screenshot via
+  vision analysis). Fixed: React-state expansion (`showMigrationDetails`)
+  rendered IN-FLOW below the checkbox row — the card grows, the DPA line
+  moves down, nothing can ever overlap. Bullets switch to
+  `grid-cols-1 sm:grid-cols-2` + `items-start` dots (mobile-safe);
+  chevron rotates via aria-expanded button.
+- USER BUG 2 (theme leak — the deeper ask): themes lived in ONE shared
+  localStorage key (`practicepro_theme`), which is shared by every tab
+  AND every account on the same browser — exactly why "when I log in
+  with another user, the previous user's theme shows" and why the
+  post-email-verification onboarding booted dark. THREE layers fixed:
+  1. NEW src/utils/themeStorage.ts — user-scoped keys
+     (`practicepro_theme_u:<email>`), legacy key purged on login (it
+     cannot be attributed to whoever set it, so it is dropped — users
+     re-pick their theme once). 2. UIContext: theme loads per-account on
+     login and resets to 'system' on logout; persistence writes ONLY the
+     user-scoped key. 3. index.html's PRE-REACT boot script (the actual
+     first-paint source of the dark onboarding): derives the account
+     email from the session token, applies only that account's key,
+     boots LIGHT for preference-less accounts (never the OS dark), and
+     honors the same 1h wizard-in-progress window App.tsx uses.
+- ONBOARDING ALWAYS LIGHT (the reported screenshot): UIContext's theme
+  effect now mirrors App.tsx's exact OnboardingWizard mount condition
+  (authenticated non-portal user with no firmId OR wizard-in-progress)
+  and forces the light class while it holds; App.tsx dispatches the new
+  `practicepro:theme-sync` event when the wizard completes so the
+  user's theme applies the moment onboarding ends (no stale light
+  lock). The 'system' OS-change listener now routes through the same
+  effect (was a direct root-class write that could set dark even
+  mid-onboarding).
+- Version-refresh preserve patterns updated (useVersionCheck): user-
+  scoped theme keys survive; the legacy shared key is now wiped on
+  version refresh (free cleanup; login purge is the primary path).
+- ROUND 12 PLAN WORK — subscription lifecycle (the half not blocked on
+  Paystack keys): `nextBillingDate` was dead data (activateFirmSubscription
+  wrote it; nothing ever read it — a firm that stopped paying kept its
+  plan forever). NEW convex/dunning.ts (pure stage machine, 28 unit
+  tests) + runSubscriptionDunning internalAction (cron 0:20 UTC) +
+  applySubscriptionDunning internalMutation: 7d/1d pre-renewal
+  reminders, 14-day past-due grace (adminStatus 'past_due'), day-7 +
+  day-13 warnings, then SOFT downgrade to Core — data is NEVER deleted,
+  tier gates enforce Core limits, and a confirmed payment
+  (activateFirmSubscription) resets the entire lifecycle. In-app
+  notifications + Brevo emails (action layer sends; failures logged,
+  never fail the run). New firms fields: dunningStage / pastDueAt /
+  downgradedAt / downgradedFromPlan (+ by_next_billing index).
+- ROUND 12 PLAN WORK — webhook event coverage: every signature-verified
+  Paystack event is now recorded (deduped by `<event>:<data.id>`) in a
+  NEW paystackEvents audit table; charge.failed notifies the firm
+  admin; refund.processed notifies admin + founders AND flags the
+  subscriptionRequest 'refund_review' (a refund never auto-reverts a
+  live plan — founder decision); duplicate webhook deliveries
+  short-circuit (webhook redeliveries are common; charge.success can
+  never double-run). charge.success behavior unchanged.
+- TESTS: +28 (dunning stage machine incl. the never-delete-data
+  invariant, never-re-send-a-stage, grace-window override, renewal
+  reset; theme key scoping incl. two-users-two-keys and no-collision-
+  with-legacy). Suite total 82/82. Boot-script logic additionally
+  smoke-tested standalone (7 scenarios: fresh user light on dark OS
+  with another account's dark key present, own-theme dark, wizard
+  window light, stale flag ignored, logged-out light, system-dark).
+- VERIFIED: vitest 82/82; tsc -p convex CLEAN (deploy gate); root tsc
+  130 = pristine-main baseline exactly (zero new); vite build green;
+  browser smoke on dist (landing + /vega mount, 0 errors; live purge +
+  class behavior confirmed in-browser).
+- PUSH + DEPLOY: f8bbc3ca pushed to main. Tests GREEN (82/82 on CI);
+  Deploy to Staging GREEN; APK GREEN. Production promotion dispatched
+  (first attempt failed — the workflow's sha input needs the FULL
+  40-char SHA, a short 8-char ref fails checkout; re-dispatched with
+  the full SHA — note for future rounds). Production run 33901843220:
+  ALL GREEN (gate on the pinned commit → Convex prod deploy → Vercel
+  prod → live verify). INDEPENDENTLY PROBED (never trust CI alone):
+  prod version.json sha=f8bbc3ca… status=healthy; direct Convex
+  debug_env:checkEnv=success (PracticePro_Vega_Mailer key present —
+  dunning emails will send); the /paystack/webhook route answers with
+  its configured gate ('Paystack not configured' 503 — expected until
+  the user's keys); the live HTML serves the new user-scoped boot
+  script (practicepro_theme_u: + wizard-window logic present) and the
+  live bundle carries the fixed "What's included" component.
+
+Stage Summary:
+- R12 USER BUGS CLOSED: onboarding "What's included" now expands in-flow
+  (overlap impossible); themes are per-account at every layer (boot
+  script, React state, persistence) — one account's theme can never
+  appear in another account's view or in the post-verification
+  onboarding, which is always light.
+- R12 PLAN: subscription lifecycle half LIVE (dunning + grace + soft
+  downgrade + webhook coverage). BLOCKED ON USER: Paystack TEST/LIVE
+  keys + webhook URL registration for the live payment loop; tier
+  enforcement audit deferred (documented in plan).

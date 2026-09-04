@@ -91,21 +91,34 @@ deploys to staging only and never touches prod.
 Subscriptions run on manual payment-proof upload + admin approval —
 no checkout, no automatic tier enforcement, no failed-payment dunning.
 
+**Status (R12 session):** the subscription-LIFECYCLE half is built and
+live (dunning, grace, soft downgrade, webhook event coverage); the
+Paystack-live half remains blocked on the user's keys. Also shipped in
+this session (user-reported): the onboarding "What's included" text
+overlap and the cross-account/cross-tab theme leak (user-scoped themes).
+
 **Work:**
-- **User-side (blocking):** Paystack business account; provide TEST
+- **User-side (blocking, still open):** Paystack business account; TEST
   and LIVE secret/public keys; register the webhook URL in the
-  Paystack dashboard. Exact steps will be provided at round start.
-- Audit webhook event coverage: `charge.success` →
-  `activateFirmSubscription` (handler + HMAC-SHA512 signature check
-  already exist in `convex/paystack.ts` — verify event completeness:
-  subscription renewals, failures, refunds).
-- Dunning + grace: failed renewal → reminder emails via existing
-  Brevo integration → grace period → **soft** downgrade (read-only
-  mode — never data deletion).
+  Paystack dashboard. Exact steps at round start.
+- [DONE R12] Webhook event coverage: every signature-verified event is
+  now recorded (deduped) in a new `paystackEvents` audit table;
+  `charge.failed` notifies the firm admin, `refund.processed` notifies
+  admin + founders and flags the subscriptionRequest `refund_review`
+  (never auto-reverts a live plan); duplicate deliveries short-circuit.
+  `charge.success` path unchanged.
+- [DONE R12] Dunning + grace + soft downgrade: daily cron
+  `runSubscriptionDunning` (0:20 UTC) drives the full
+  `nextBillingDate` lifecycle — 7d/1d pre-renewal reminders, 14-day
+  past-due grace (adminStatus `past_due`) with day-7/day-13 warnings,
+  then a SOFT downgrade to Core (data NEVER deleted; confirmed payment
+  resets everything). In-app notifications + Brevo emails to the firm
+  admin. Pure decision logic in `convex/dunning.ts` (28 new unit
+  tests lock the stage machine).
 - Tier enforcement audit: feature gates vs `tiers.ts` canonical
-  pricing; make gates consistent.
+  pricing; make gates consistent. (Still open — deferred to R13 slot.)
 - End-to-end loop on staging with Paystack test cards BEFORE live
-  keys; then first live transaction verified.
+  keys; then first live transaction verified. (Blocked on keys.)
 
 **Done when:** staging payment loop green (pay → webhook → tier
 flip); live keys set; first real transaction verified; expiry path
