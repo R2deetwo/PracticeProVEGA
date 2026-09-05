@@ -101,6 +101,7 @@ export const getUnreadSalesInquiryCount = query({
 export const updateInquiryStatus = mutation({
     args: {
         inquiryId: v.id("sales_inquiries"),
+    sessionToken: v.optional(v.string()),
         status: v.union(
             v.literal("unread"),
             v.literal("contacted"),
@@ -113,7 +114,7 @@ export const updateInquiryStatus = mutation({
         userEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireFounderCaller(ctx, { userEmail: args.userEmail });
+        await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         await ctx.db.patch(args.inquiryId, {
             status: args.status,
             notes: args.notes,

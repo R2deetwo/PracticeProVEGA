@@ -99,7 +99,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     // Komplete firms: mode follows the note's contextType — a note attached
     // to a matter uses Vega mode, a note attached to a property uses Atrium.
     const { isProperty, isLegal, isUnified } = useProduct();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
 
     // Determine dictation mode based on product + note context
     const dictationMode: 'vega_dual' | 'atrium_single' | null = (() => {
@@ -263,7 +263,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             rawTranscript: rawToClean,
                             cleanedTranscript: cleaned || undefined,
                             dictationMode: 'vega_dual',
-                            userEmail: currentUser?.email,
+                            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                         });
                         addToast(
                             'AI cleaned your dictation. Raw transcript preserved — toggle to view it.',
@@ -279,7 +279,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                                 rawTranscript: rawToClean,
                                 cleanedTranscript: undefined,
                                 dictationMode: 'vega_dual',
-                                userEmail: currentUser?.email,
+                                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                             });
                         } catch {}
                         addToast(
@@ -304,7 +304,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             rawTranscript: rawTranscriptRef.current.trim(),
                             cleanedTranscript: undefined,
                             dictationMode: 'atrium_single',
-                            userEmail: currentUser?.email,
+                            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                         });
                     } catch (e) {
                         console.warn('[Dictation] Atrium save failed:', e);

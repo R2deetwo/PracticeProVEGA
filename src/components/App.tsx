@@ -158,7 +158,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const dataHandlers = useDataActions();
-    const { currentUser, appMode, updateCurrentUser, originalUser, revertToOriginalUser, isImpersonating } = useAuth();
+    const { currentUser, appMode, updateCurrentUser, originalUser, revertToOriginalUser, isImpersonating, bearerToken } = useAuth();
     const ui = useUI();
     const { view, selectedId, currentHistoryEntry, isSidebarRetracted, openModal, closeModal, navigateTo, theme, goBack } = ui;
     const { product } = useProduct();
@@ -568,7 +568,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 export const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout } = useAuth();
+    const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout, bearerToken } = useAuth();
     const convex = useConvex();
     const { theme, fontSize, openModal, modal, view, closeModal, navigateTo, showTermsBar, setShowTermsBar } = useUI();
     const { light } = useHapticFeedback();
@@ -693,7 +693,7 @@ export const App: React.FC = () => {
     // their role context. Returns the most recent acceptance record for THIS
     // role, or null if none exists for this role yet.
     const serverTermsRecord = useQuery(api.myFunctions.getTermsAcceptance,
-        currentUser?.email ? { userEmail: currentUser.email, roleContext } : "skip");
+        currentUser?.email ? { userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined), roleContext } : "skip");
 
     // VERSION-GATED: The user has accepted if EITHER:
     //   - localStorage has the current version (fast path), OR

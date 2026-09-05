@@ -314,7 +314,7 @@ const SnoozeButton: React.FC<{ bannerId: string }> = ({ bannerId }) => {
 };
 
 export const BroadcastBanner: React.FC = () => {
-    const { currentUser, isAuthenticated } = useAuth();
+    const { currentUser, isAuthenticated, bearerToken } = useAuth();
     const { coreState } = useCoreState();
     const { navigateTo } = useUI();
     const markAsRead = useMutation(api.myFunctions.markNotificationsAsRead);
@@ -710,7 +710,7 @@ export const BroadcastBanner: React.FC = () => {
 
         if (persistenceMode === 'permanent') {
             try {
-                await markAsRead({ ids: [notifId], userEmail: currentUser?.email });
+                await markAsRead({ ids: [notifId], userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             } catch (e) {
                 console.error('[BroadcastBanner] Failed to mark as read:', e);
             }

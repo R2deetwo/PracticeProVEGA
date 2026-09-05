@@ -34,6 +34,7 @@ const SeedBrainButton: React.FC<{
     addToast: (msg: string, opts?: any) => void;
     convex: any;
 }> = ({ firmId, scope, addToast, convex }) => {
+    const { bearerToken } = useAuth();
     // Round 8: identity for the server-side caller verification on seedFirm.
     const { currentUser } = useAuth() as any;
     const [status, setStatus] = React.useState<'idle' | 'running' | 'done' | 'error'>('idle');
@@ -52,7 +53,7 @@ const SeedBrainButton: React.FC<{
                 convexMutation: (name: any, args: any) => convex.mutation(name, args),
                 onProgress: (done, total) => setProgress({ done, total }),
                 userId: currentUser?.id,
-                userEmail: currentUser?.email || undefined
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined
             });
 
             addToast(`Indexing complete: ${result.indexed} items stored.`, { type: 'success' });

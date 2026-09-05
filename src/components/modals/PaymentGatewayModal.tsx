@@ -47,7 +47,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   const [reportError, setReportError] = useState<string | null>(null);
   const [transactionReference, setTransactionReference] = useState<string | null>(null);
   const { coreState } = useCoreState();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
 
   // CRO AUDIT Track A — mutation to create a subscription request (replaces
   // the broken flow where the client immediately flipped firm.subscriptionPlan).
@@ -105,7 +105,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           billingInterval: subscriptionContext.billingInterval,
           amount,
           transactionReference: ref,
-          userEmail: currentUser?.email,
+          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
         });
         setTransactionReference(ref);
         setStep('confirmed');
@@ -129,7 +129,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
         invoiceId: invoiceId || `manual-${Date.now()}`,
         amount,
         email,
-        userEmail: currentUser?.email,
+        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
         // CRO AUDIT Track B — pass subscription context so the webhook can
         // activate the firm subscription when payment is confirmed.
         ...(subscriptionContext ? {

@@ -32,6 +32,7 @@ import { resolveCaller, assertSameFirm } from "./callerAuth";
 export const registerPushToken = mutation({
   args: {
     userId: v.string(),
+    sessionToken: v.optional(v.string()),
     firmId: v.optional(v.string()),
     token: v.string(),
     deviceType: v.string(),
@@ -42,7 +43,7 @@ export const registerPushToken = mutation({
     // register push tokens against a victim's account. Resolve the caller
     // (ANY role — portal users on mobile also register push tokens) and,
     // when a firmId is supplied, require it to be the caller's own firm.
-    const caller = await resolveCaller(ctx, { userId: args.userId });
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userId: args.userId });
     if (args.firmId) assertSameFirm(caller, args.firmId);
     const now = Date.now();
 
@@ -82,13 +83,13 @@ export const registerPushToken = mutation({
 });
 
 export const unregisterPushToken = mutation({
-  args: { token: v.string(), userId: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), token: v.string(), userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: token-only unregistration let any caller
     // knock another user's device out of the notification loop (silent
     // DoS). When the token record exists, the caller must own it.
     if (args.userId) {
-      const caller = await resolveCaller(ctx, { userId: args.userId });
+      const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userId: args.userId });
       const owned = await ctx.db
         .query("user_push_tokens")
         .withIndex("by_token", (q: any) => q.eq("token", args.token))
@@ -147,6 +148,7 @@ export const markNotificationRead = mutation({
   args: {
     notificationId: v.id("app_notifications"),
     userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // B3 SHIP-BLOCKER FIX: Verify caller owns the notification before patching.
@@ -157,20 +159,13 @@ export const markNotificationRead = mutation({
       return { success: false, error: "Notification not found" };
     }
 
-    // SECURITY FIX: Fail CLOSED — require userEmail for marking notifications read.
-    // Previously allowed anonymous callers to mark any notification as read.
-    if (!args.userEmail) {
-      throw new Error("Unauthenticated: userEmail required. Anonymous notification updates are no longer permitted.");
-    }
-    // Look up the caller's user record via tokenIdentifier (email) index
-    const caller = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.userEmail!.toLowerCase()))
-      .first();
-
-    if (!caller) {
-      return { success: false, error: "Caller not found" };
-    }
+    // R16 strict: resolve the caller from the verified bearer session
+    // (the previous email lookup was spoofable — knowing an email let a
+    // caller mark that user's notifications as read).
+    const caller: any = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
 
     // The notification's userId field stores the user's _id (Convex id) or
     // a legacy string id. Check both for backward compatibility.
@@ -202,20 +197,14 @@ export const markAllNotificationsRead = mutation({
   args: {
     userId: v.string(),
     userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // SECURITY FIX: Fail CLOSED — require userEmail for marking all notifications read.
-    if (!args.userEmail) {
-      throw new Error("Unauthenticated: userEmail required. Anonymous notification updates are no longer permitted.");
-    }
-    const caller = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.userEmail!.toLowerCase()))
-      .first();
-
-    if (!caller) {
-      return { success: false, count: 0, error: "Caller not found" };
-    }
+    // R16 strict: resolve the caller from the verified bearer session.
+    const caller: any = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
 
     const callerId = caller._id;
     const callerLegacyId = (caller as any).id || (caller as any).userId || "";
@@ -435,8 +424,20 @@ export const sendTestPush = mutation({
 export const sendTestPushToUser = mutation({
   args: {
     userEmail: v.string(),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // R16 strict: resolve the caller from the verified bearer session; only
+    // self-tests allowed (the previous bare-email lookup let anyone probe
+    // any user's device tokens).
+    const caller: any = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
+    const callerEmail = String(caller.tokenIdentifier || caller.email || "").toLowerCase();
+    if (callerEmail !== args.userEmail.toLowerCase()) {
+      throw new Error("Unauthorized. You can only send test notifications to yourself.");
+    }
     // Find the user by email
     const user = await ctx.db
       .query("users")

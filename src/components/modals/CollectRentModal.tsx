@@ -60,7 +60,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   const { addToast, modalContext, navigateTo } = useUI();
   const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
   const { queueMutation, isOnline } = useOfflineQueue();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
 
   // Unit-specific overrides from context (if opened from a specific unit)
   const overrideUnitId = modalContext?.unitId;
@@ -202,7 +202,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
               description: `Rent collection for ${unitDisplayLabel}`,
               period: `${periodStart} to ${periodEnd}`,
               channel: transactionRef,
-              userEmail: currentUser?.email,
+              userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             },
             label: `Rent ledger — ${unitDisplayLabel}`,
           });
@@ -222,7 +222,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
                 period: `${periodStart} to ${periodEnd}`,
                 channel: transactionRef,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
               },
               label: `Management fee ledger — ${unitDisplayLabel}`,
             });
@@ -338,7 +338,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           description: `Rent collection for ${unitDisplayLabel}`,
           period: `${periodStart} to ${periodEnd}`,
           channel: transactionRef,
-          userEmail: currentUser?.email,
+          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
         });
 
         // If there's a management fee, record it as a separate payable entry
@@ -354,7 +354,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
             description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
             period: `${periodStart} to ${periodEnd}`,
             channel: transactionRef, // Linked to the same transaction
-            userEmail: currentUser?.email,
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
           });
         }
       }

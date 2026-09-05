@@ -58,7 +58,7 @@ function formatTs(ts: number) {
 // ── Main Component ────────────────────────────────────────────────────────
 const AutomationCenter: React.FC = () => {
   const terminology = useTerminology();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const convex = useConvex();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
@@ -69,7 +69,7 @@ const AutomationCenter: React.FC = () => {
   // bulk send. Switched to the real live query (sentry.getAutomationLogs).
   const liveLogs = useQuery(
     api.sentry.getAutomationLogs,
-    firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip'
+    firmId ? { firmId, limit: 100, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const logs = (liveLogs ?? (coreState as any).automationLogs ?? []) as any[];
   const logAuto = useMutation(api.sentry.logAutomation);
@@ -149,7 +149,7 @@ const AutomationCenter: React.FC = () => {
         });
         const status = result.success ? 'sent' : 'failed';
         if (result.success) sent++; else failed++;
-        await logAuto({ firmId, userEmail: currentUser?.email, unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, triggeredBy: currentUser?.id });
+        await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, triggeredBy: currentUser?.id });
       } catch (e: any) {
         failed++;
         console.error(`[BulkReminder] Failed for ${phone}:`, e.message);

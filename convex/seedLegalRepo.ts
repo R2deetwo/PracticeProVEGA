@@ -1,6 +1,11 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFounderCaller } from "./callerAuth";
+// R16 strict identity: this seed now requires the founder's BEARER SESSION
+// (email-only identity is rejected server-side). Invocation:
+//   1. Log in as the founder (verifyLogin) to obtain a session token.
+//   2. npx convex run seedLegalRepo:<function> '{"sessionToken":"<token>", ...}'
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SEED FUNCTION FOR LAW REPOSITORY
@@ -10,9 +15,9 @@ import { requireFounderCaller } from "./callerAuth";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const seed = mutation({
-    args: { founderEmail: v.optional(v.string()) },
+    args: { sessionToken: v.optional(v.string()), founderEmail: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        await requireFounderCaller(ctx, { userEmail: args.founderEmail });
+        await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.founderEmail });
         const modules = [
             {
                 moduleKey: "lagos_hc_civil_2019",

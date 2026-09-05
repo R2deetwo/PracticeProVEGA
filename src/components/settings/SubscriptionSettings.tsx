@@ -747,7 +747,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
     // the recurring bug where Komplete firms lose property features because
     // their product field is stale.
     const { product: activeProduct, isUnified } = useProduct();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const [isFixingProduct, setIsFixingProduct] = useState(false);
     const fixProductModeMutation = useMutation(api.myFunctions.fixProductMode);
     const needsProductFix = !isUnified && (
@@ -1026,7 +1026,7 @@ class AddOnsErrorBoundary extends React.Component<
 // (src/constants/addons.ts) is static and always renders.
 const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
     const { addToast } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const convex = useConvex();
     const [purchasingId, setPurchasingId] = useState<string | null>(null);
     const [activeAddons, setActiveAddons] = useState<any[] | null>(null);
@@ -1135,11 +1135,11 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                                 billingInterval: addon.billingInterval,
                                 amount: totalAmount,
                                 quantity: addon.category === 'seats' ? seatCount : 1,
-                                userEmail: currentUser?.email,
+                                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                             });
                             addToast('Payment confirmed. Your new seats/add-ons are being activated and will be ready momentarily.', { type: 'success', duration: 6000 });
                             try {
-                                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || '' });
                                 setPendingAddons(pending || []);
                             } catch {}
                         } catch (e: any) {
@@ -1159,11 +1159,11 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                     billingInterval: addon.billingInterval,
                     amount: totalAmount,
                     quantity: addon.category === 'seats' ? seatCount : 1,
-                    userEmail: currentUser?.email,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 });
                 addToast(`${addon.name} request submitted. The PracticePro team will be notified and activate it within 24 hours.`, { type: 'success', duration: 6000 });
                 try {
-                    const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                    const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || '' });
                     setPendingAddons(pending || []);
                 } catch {}
             }
@@ -1226,9 +1226,9 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                                 <button
                                     onClick={async () => {
                                         try {
-                                            await convex.mutation(api.myFunctions.cancelAddon, { addonRequestId: String(addon._id), userEmail: currentUser?.email });
+                                            await convex.mutation(api.myFunctions.cancelAddon, { addonRequestId: String(addon._id), userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                                             addToast('Request cancelled.', { type: 'success' });
-                                            const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email || '' });
+                                            const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || '' });
                                             setPendingAddons(pending || []);
                                         } catch (e: any) {
                                             addToast(e?.message || 'Failed to cancel request.', { type: 'error' });
@@ -1379,9 +1379,9 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 // status is 'trial' (within trial window) or 'active'.
 const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
     const { addToast } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const vmsStatus = useQuery(api.myFunctions.getVmsAddonStatus,
-        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email } : 'skip');
+        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
     const startTrial = useMutation(api.myFunctions.startVmsAddonTrial);
     const cancelVms = useMutation(api.myFunctions.cancelVmsAddon);
     const [busy, setBusy] = useState(false);
@@ -1399,7 +1399,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
         if (!ok) return;
         setBusy(true);
         try {
-            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email });
+            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
             addToast('VMS trial started! Residents can now generate visitor codes.', { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to start trial.', { type: 'error' });
@@ -1414,7 +1414,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
         if (!ok) return;
         setBusy(true);
         try {
-            await cancelVms({ firmId: firmDetails.id, userEmail: currentUser.email });
+            await cancelVms({ firmId: firmDetails.id, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
             addToast('VMS add-on cancelled.', { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to cancel add-on.', { type: 'error' });
@@ -1568,9 +1568,9 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 // free with Pro+. Below-Pro firms see trial/upgrade CTAs.
 const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
     const { addToast } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const ecStatus = useQuery(api.myFunctions.getEstateCommunityAddonStatus,
-        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email } : 'skip');
+        firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
     const startTrial = useMutation(api.myFunctions.startEstateCommunityTrial);
     const cancelEc = useMutation(api.myFunctions.cancelEstateCommunityAddon);
     const [busy, setBusy] = useState(false);
@@ -1590,7 +1590,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
         if (!ok) return;
         setBusy(true);
         try {
-            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email });
+            await startTrial({ firmId: firmDetails.id, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
             addToast('Estate Community trial started! Enable modules in Settings → Firm → Estate Community.', { type: 'success', duration: 6000 });
         } catch (e: any) {
             addToast(e?.message || 'Failed to start trial.', { type: 'error' });
@@ -1605,7 +1605,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
         if (!ok) return;
         setBusy(true);
         try {
-            await cancelEc({ firmId: firmDetails.id, userEmail: currentUser.email });
+            await cancelEc({ firmId: firmDetails.id, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
             addToast('Estate Community add-on cancelled.', { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to cancel add-on.', { type: 'error' });

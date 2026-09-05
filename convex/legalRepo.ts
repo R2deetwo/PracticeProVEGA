@@ -55,6 +55,7 @@ export const getStatuteById = query({
 export const searchStatutes = action({
     args: {
         query: v.array(v.number()),
+    sessionToken: v.optional(v.string()),
         moduleKey: v.optional(v.string()),
         limit: v.optional(v.number()),
     },
@@ -96,9 +97,9 @@ export const getLicensesForFirm = query({
  * the full cross-firm licensing table).
  */
 export const getAllLicenses = query({
-    args: { userEmail: v.optional(v.string()) },
+    args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         if (String(caller.role || "") === "Founder") {
             return await ctx.db.query("firm_licenses").take(500);
         }
@@ -117,12 +118,13 @@ export const getAllLicenses = query({
 export const grantLicense = mutation({
     args: {
         firmId: v.string(),
+    sessionToken: v.optional(v.string()),
         moduleKey: v.string(),
         plan: v.string(),
         userEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         const isFounder = String(caller.role || "") === "Founder";
         if (!isFounder) {
             const firmId = String(caller.firmId || "");
@@ -153,9 +155,9 @@ export const grantLicense = mutation({
 
 /** Revoke a module license — same Founder/staff-own-firm rule as grantLicense. */
 export const revokeLicense = mutation({
-    args: { firmId: v.string(), moduleKey: v.string(), userEmail: v.optional(v.string()) },
+    args: { sessionToken: v.optional(v.string()), firmId: v.string(), moduleKey: v.string(), userEmail: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         const isFounder = String(caller.role || "") === "Founder";
         if (!isFounder) {
             const firmId = String(caller.firmId || "");
@@ -187,11 +189,12 @@ export const revokeLicense = mutation({
 export const getUsageLogs = query({
     args: {
         userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
         firmId: v.optional(v.string()),
         moduleKey: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+        const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         const isFounder = String(caller.role || "") === "Founder";
         // Non-founders are pinned to their own firm regardless of args.
         const scopeFirmId = isFounder ? args.firmId : String(caller.firmId || "");

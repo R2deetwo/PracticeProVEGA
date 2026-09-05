@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
  * Hook for managing firm-level settings, users, and onboarding.
  */
 export const useFirm = (appState: AppState, actions: any) => {
-    const { currentUser, updateCurrentUser } = useAuth();
+    const { currentUser, updateCurrentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const convex = useConvex();
 
@@ -23,7 +23,7 @@ export const useFirm = (appState: AppState, actions: any) => {
      * Update current user profile.
      */
     const handleUpdateUser = useCallback(async (userId: string, data: any) => {
-        await updateItemMutation({ table: 'users', id: userId, data, userEmail: currentUser?.email || currentUser?.tokenIdentifier });
+        await updateItemMutation({ table: 'users', id: userId, data, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || currentUser?.tokenIdentifier });
         // Only update the local current user state if we're updating OURSELVES.
         // When an admin updates ANOTHER user (e.g. Grant Access), we must NOT
         // overwrite our own currentUser with the other user's data.
@@ -88,7 +88,7 @@ export const useFirm = (appState: AppState, actions: any) => {
                 table: 'firms',
                 id: firmId,
                 data: dataToSave,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             });
             if (opts?.successToast !== null) {
                 addToast(opts?.successToast ?? "Firm settings updated.", { type: 'success' });
@@ -164,7 +164,7 @@ export const useFirm = (appState: AppState, actions: any) => {
             inviteCode,
             tokenIdentifier: currentUser?.email || '',
             userName: currentUser?.name || '',
-            userEmail: currentUser?.email || ''
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || ''
         });
     }, [joinFirmMutation, currentUser]);
 

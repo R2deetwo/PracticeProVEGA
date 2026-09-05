@@ -45,7 +45,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     period, chargeType, unitName, tenantName, unitId, propertyId, onClose, onIssued,
 }) => {
     const { coreState } = useCoreState();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
     const logAutomation = useMutation(api.sentry.logAutomation);
@@ -147,7 +147,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             // Write immutable event log to Activity & Tracking timeline
             await logAutomation({
                 firmId,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 unitId,
                 messageType: 'receipt_issued',
                 channel: 'portal',

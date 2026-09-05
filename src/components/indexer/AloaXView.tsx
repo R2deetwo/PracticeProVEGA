@@ -533,7 +533,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
 
 // ── Main AloaXView ────────────────────────────────────────────────
 export const AloaXView: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { isProperty } = useProduct();
   const firmId = (currentUser as any)?.firmId as string | undefined;
 

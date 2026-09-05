@@ -32,7 +32,7 @@ import NairaSymbol from '../NairaSymbol';
 const EstateCommunitySettings: React.FC = () => {
   const { coreState } = useCoreState();
   const { addToast } = useUI();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const updateFirm = useMutation(api.myFunctions.updateFirmSettings);
 
   const {
@@ -62,7 +62,7 @@ const EstateCommunitySettings: React.FC = () => {
             [module]: enabled,
           },
         },
-        userEmail: currentUser?.email,
+        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
       } as any);
       addToast(`${module === 'amenityBooking' ? 'Amenity Booking' : module === 'bulletin' ? 'Estate Bulletin' : 'Service Provider Directory'} ${enabled ? 'enabled' : 'disabled'}.`, { type: 'success' });
     } catch (e: any) {

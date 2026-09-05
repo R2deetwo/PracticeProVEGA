@@ -90,12 +90,13 @@ export const getInsightCounts = query({
 export const dismissInsight = mutation({
   args: {
     insightId: v.id("proactive_insights"),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: dismissing was a bare id patch — any internet
     // caller could dismiss any firm's insights. Verify the caller owns it.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const insight = await ctx.db.get(args.insightId);
     if (!insight) throw new Error("Insight not found");
     assertSameFirm(caller, insight.firmId as any);

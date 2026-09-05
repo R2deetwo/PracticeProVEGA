@@ -14,7 +14,7 @@ const ArchiveView: React.FC = () => {
   const { coreState } = useCoreState();
   const { handleRestoreItem, handlePermanentDeleteFromArchive } = useDataActions();
   const { openModal, closeModal, addToast } = useUI();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const archive = coreState.archive;
   const firmId = (coreState.firmDetails as any)?.id || currentUser?.firmId || '';
 
@@ -25,12 +25,12 @@ const ArchiveView: React.FC = () => {
   // and wires the restore.
   const archivedContacts = useQuery(
     api.myFunctions.getArchivedContacts,
-    firmId ? { firmId, userEmail: currentUser?.email } : 'skip'
+    firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const restoreContactMutation = useMutation(api.myFunctions.restoreContact);
   const handleRestoreContact = async (contactId: string, contactName: string) => {
     try {
-      await restoreContactMutation({ contactId, userEmail: currentUser?.email });
+      await restoreContactMutation({ contactId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
       addToast(`${contactName} restored to your active contacts.`, { type: 'success' });
     } catch (e: any) {
       addToast(e?.message || 'Failed to restore contact.', { type: 'error' });

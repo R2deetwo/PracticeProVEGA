@@ -119,7 +119,7 @@ type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | '
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
-  const { currentUser, isImpersonating, revertToOriginalUser, logout } = useAuth();
+  const { currentUser, isImpersonating, revertToOriginalUser, logout, bearerToken } = useAuth();
   const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
 
@@ -819,7 +819,7 @@ const DashboardTab: React.FC<{
   walletFundAmount?: string; setWalletFundAmount?: (v: string) => void;
   isFunding?: boolean; setIsFunding?: (v: boolean) => void;
 }> = ({ tenantInfo, onNavigate, walletData, toggleAutoDeduct, initiateWalletFunding, userId, effectiveFirmId, email, walletFundAmount, setWalletFundAmount, isFunding, setIsFunding }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { addToast } = useUI();
   // Uses the canonical formatNaira from utils/formatting.ts.
   const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
@@ -1176,7 +1176,7 @@ const DashboardTab: React.FC<{
 
 // ─── Notice Board Tab ────────────────────────────────────────────────────────
 const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
 
   // Fetch active notices for this firm, scoped to the tenant's property/unit
@@ -1288,7 +1288,7 @@ const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ t
 
 // ─── Financial Ledger Tab ────────────────────────────────────────────────────
 const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
@@ -1624,7 +1624,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
 
 // ─── Receipts Tab ────────────────────────────────────────────────────────────
 const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
@@ -1773,7 +1773,7 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
 
 // ─── Maintenance Tab ─────────────────────────────────────────────────────────
 const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
@@ -2280,7 +2280,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
 
 // ─── Messages Tab ────────────────────────────────────────────────────────────
 const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalSettings: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, portalSettings, addToast }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const userId = currentUser?.id || '';
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const email = currentUser?.email || '';
@@ -2887,7 +2887,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
 
 // ─── Payments Tab (Upload Payment Proof) ─────────────────────────────────────
 const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
@@ -3436,7 +3436,7 @@ const ShieldCheckIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const email = currentUser?.email || '';

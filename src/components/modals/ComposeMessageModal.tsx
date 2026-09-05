@@ -54,7 +54,7 @@ const isValidEmail = (email?: string): boolean => {
 export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipient, onClose }) => {
     const convex = useConvex();
     const { coreState } = useCoreState();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
 
     const [activeChannel, setActiveChannel] = useState<Channel>(
@@ -174,7 +174,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                         relatedId: recipient.unitId,
                         channel: 'email',
                         message: finalMessage,
-                        userEmail: currentUser?.email || undefined,
+                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
                     });
                     if (result?.emailSimulated) {
                         addToast('Portal invite email was simulated — Brevo API key may not be configured on Convex.', { type: 'info' });
@@ -198,7 +198,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
             try {
                 await logAutomation({
                     firmId,
-                    userEmail: currentUser?.email,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                     unitId: recipient.unitId,
                     messageType: 'custom',
                     channel: activeChannel,

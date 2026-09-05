@@ -74,6 +74,10 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
  const [isLocked, setIsLocked] = React.useState(false);
  const [requiresMfa, setRequiresMfa] = React.useState(false);
+ // R16 TOFU close: first-login password claim — the account has no stored
+ // password yet, so an emailed code verifies the claim (same UI flow as MFA
+ // with friendlier copy; the password field holds the desired password).
+ const [requiresInitialPassword, setRequiresInitialPassword] = React.useState(false);
  const [mfaCode, setMCode] = React.useState('');
  const [debugCode, setDebugCode] = React.useState<string | null>(null);
  const [showResend, setShowResend] = React.useState(false);
@@ -133,7 +137,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
   setErrorMsg(null);
   setShowResend(false);
   try {
-   const result = await login(email, password, requiresMfa ? mfaCode : undefined, rememberMe);
+   const result = await login(email, password, (requiresMfa || requiresInitialPassword) ? mfaCode : undefined, rememberMe);
    if (result.success) {
     addToast("Welcome back!", { type: 'success' });
     setIsSessionLocked(false);
@@ -157,6 +161,10 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     setRequiresMfa(true);
     setIsLoading(false);
     addToast("Verification required. Check your email.", { type: 'info' });
+   } else if ((result as any).requiresInitialPassword) {
+    setRequiresInitialPassword(true);
+    setIsLoading(false);
+    addToast("Let's secure your account. We emailed you a verification code — enter it to set your password.", { type: 'info', duration: 7000 });
    } else {
     setIsLoading(false);
     const msg = result.message || "Invalid email or password.";
@@ -239,10 +247,10 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
    <div className="flex-grow space-y-6">
     <div className="text-center -mt-2 mb-6">
      <h3 className="text-lg font-medium text-slate-900 ">
-      {requiresMfa ? "Two-Factor Authentication" : isRecovering ? "Reset Security Key" : "Welcome Back"}
+      {(requiresMfa || requiresInitialPassword) ? "Two-Factor Authentication" : isRecovering ? "Reset Security Key" : "Welcome Back"}
      </h3>
      <p className="text-sm text-slate-500 mt-1">
-      {requiresMfa ? "Enhancing your account security." : isRecovering ? "Enter your new password below." : forClient ? "Access your secure client portal." : "Please enter your details to sign in."}
+      {(requiresMfa || requiresInitialPassword) ? (requiresInitialPassword ? "Enter the code we emailed you to finish setting your password." : "Enhancing your account security.") : isRecovering ? "Enter your new password below." : forClient ? "Access your secure client portal." : "Please enter your details to sign in."}
      </p>
     </div>
 
@@ -269,7 +277,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
       />
      </div>
 
-     {requiresMfa ? (
+     {(requiresMfa || requiresInitialPassword) ? (
       <div className="space-y-4 animate-fade-in">
        <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg text-sm">
         <p className="font-bold text-primary-900 flex items-center gap-2">

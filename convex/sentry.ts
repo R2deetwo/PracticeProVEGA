@@ -16,10 +16,18 @@ import { createUnitResolver, canonicalTenantId } from "./unitLookup";
  * Returns the verified auth context so writes use the session-derived
  * firmId, never raw client input.
  */
-async function requireSentryAuth(ctx: any, userEmail: string | undefined, firmId?: string) {
-  const auth = await requireFirmUser(ctx, userEmail);
+async function requireSentryAuth(
+  ctx: any,
+  userEmail: string | undefined,
+  firmId?: string,
+  sessionToken?: string | null
+) {
+  // R16 strict: pass the bearer token through — requireFirmUser resolves
+  // the caller from the verified session (email-only identity is rejected
+  // under STRICT_IDENTITY_MODE).
+  const auth = await requireFirmUser(ctx, userEmail, sessionToken);
   if (!auth.firmId || !auth.user) {
-    throw new Error("Unauthenticated: a verified user session (userEmail) is required for this operation.");
+    throw new Error("Unauthenticated: a verified user session is required for this operation.");
   }
   if (firmId !== undefined && auth.firmId !== firmId) {
     throw new Error("Not authorized: cannot access data belonging to a different firm.");
@@ -60,6 +68,7 @@ function makeTxHash(firmId: string, unitId: string, amount: number, timestamp: n
 export const addLedgerEntry = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     propertyId: v.optional(v.string()),
     unitId: v.string(),
     tenantId: v.optional(v.string()),
@@ -74,8 +83,8 @@ export const addLedgerEntry = mutation({
   },
   handler: async (ctx, args) => {
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
-    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
-    const { userEmail: _u, firmId: _f, ...data } = args;
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+    const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
     const timestamp = Date.now();
     const txHash = makeTxHash(auth.firmId, args.unitId, args.amount, timestamp, args.type);
     return await ctx.db.insert("ledger_entries", {
@@ -110,6 +119,7 @@ export const addLedgerEntry = mutation({
 export const settleUnitPeriods = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     unitId: v.string(),
     tenantId: v.optional(v.string()),
     chargeType: v.union(v.literal("SC"), v.literal("MV")),
@@ -123,7 +133,7 @@ export const settleUnitPeriods = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
 
     let created = 0;
     let skipped = 0;
@@ -178,9 +188,9 @@ export const settleUnitPeriods = mutation({
 });
 
 export const getLedgerByFirm = query({
-  args: { firmId: v.string(), limit: v.optional(v.number()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, limit, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), limit: v.optional(v.number()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, limit, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     const entries = await ctx.db
       .query("ledger_entries")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
@@ -191,10 +201,10 @@ export const getLedgerByFirm = query({
 });
 
 export const getLedgerByUnit = query({
-  args: { unitId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { unitId, userEmail }) => {
+  args: { sessionToken: v.optional(v.string()), unitId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { unitId, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns the property this unit/ledger belongs to
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     await requirePropertyAccess(ctx, auth, unitId);
     return await ctx.db
       .query("ledger_entries")
@@ -206,13 +216,14 @@ export const getLedgerByUnit = query({
 
 export const updateLedgerStatus = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     entryId: v.id("ledger_entries"),
     status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { entryId, status, userEmail }) => {
+  handler: async (ctx, { entryId, status, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns this ledger entry's firm
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     const entry = await ctx.db.get(entryId);
     if (!entry) throw new Error("Ledger entry not found");
     if (entry.firmId !== auth.firmId) {
@@ -224,9 +235,9 @@ export const updateLedgerStatus = mutation({
 });
 
 export const getCashFlowSummary = query({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     const entries = await ctx.db
       .query("ledger_entries")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
@@ -266,6 +277,7 @@ export const getCashFlowSummary = query({
 export const upsertServiceCharge = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     unitId: v.string(),
     tenantId: v.optional(v.string()),
     category: v.union(v.literal("Diesel"), v.literal("Security"), v.literal("Cleaning"), v.literal("Water"), v.literal("Other")),
@@ -277,8 +289,8 @@ export const upsertServiceCharge = mutation({
   },
   handler: async (ctx, args) => {
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
-    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
-    const { userEmail: _u, firmId: _f, ...data } = args;
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+    const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
 
     // ROUND 6: auto-populate tenantId from the unit's tenant record when the
     // caller didn't supply one (no caller ever does). Without it, the charge
@@ -325,11 +337,11 @@ export const upsertServiceCharge = mutation({
 });
 
 export const getServiceChargesByFirm = query({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, userEmail }) => {
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, userEmail , sessionToken }) => {
     // SECURITY: firm staff only. Portal tenants must use the tenant-scoped
     // portals.getTenantServiceCharges endpoint instead.
-    await requireSentryAuth(ctx, userEmail, firmId);
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     return await ctx.db
       .query("service_charges")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
@@ -338,9 +350,9 @@ export const getServiceChargesByFirm = query({
 });
 
 export const getDefaulters = query({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     return await ctx.db
       .query("service_charges")
       .withIndex("by_firm_defaulter", q => q.eq("firmId", firmId).eq("isDefaulter", true))
@@ -350,14 +362,15 @@ export const getDefaulters = query({
 
 export const applyLatePenalty = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     serviceChargeId: v.id("service_charges"),
     penaltyAmount: v.number(),
     triggeredBy: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, serviceChargeId, penaltyAmount, triggeredBy, userEmail }) => {
-    const auth = await requireSentryAuth(ctx, userEmail, firmId);
+  handler: async (ctx, { firmId, serviceChargeId, penaltyAmount, triggeredBy, userEmail , sessionToken }) => {
+    const auth = await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     const sc = await ctx.db.get(serviceChargeId);
     if (!sc) throw new Error("Service charge not found");
     if (sc.firmId !== auth.firmId) {
@@ -385,6 +398,7 @@ export const applyLatePenalty = mutation({
 
 export const markChargeAsPaid = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     serviceChargeId: v.id("service_charges"),
     paidAmount: v.number(),
     firmId: v.string(),
@@ -398,9 +412,9 @@ export const markChargeAsPaid = mutation({
     // behave exactly as before.
     idempotencyKey: v.optional(v.string()),
   },
-  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel, isPartialPayment, userEmail, idempotencyKey }) => {
+  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel, isPartialPayment, userEmail, idempotencyKey , sessionToken }) => {
     // SECURITY: verify caller + firm ownership; all writes use session firmId
-    const auth = await requireSentryAuth(ctx, userEmail, firmId);
+    const auth = await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
 
     // ── IDEMPOTENCY CHECK (Phase 3) ─────────────────────────────────────
     // Dedup on the client-supplied key BEFORE any write, so a network retry
@@ -589,6 +603,7 @@ export const flagOverdueCharges = internalMutation({
 export const addLeadToPipeline = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     unitId: v.string(),
     applicantName: v.string(),
     contactInfo: v.string(),
@@ -601,8 +616,8 @@ export const addLeadToPipeline = mutation({
   handler: async (ctx, args) => {
     // SECURITY: firm staff only. The PUBLIC application form must use
     // submitPublicLead (which derives firmId server-side from the property).
-    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
-    const { userEmail: _u, firmId: _f, ...data } = args;
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+    const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
     const now = Date.now();
     return await ctx.db.insert("leads_pipeline", {
       ...data,
@@ -668,15 +683,16 @@ export const submitPublicLead = mutation({
 
 export const advanceLeadStage = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     leadId: v.id("leads_pipeline"),
     stage: v.union(v.literal("Inquiry"), v.literal("Vetted"), v.literal("Lease_Generated"), v.literal("Closed")),
     vettingScore: v.optional(v.number()),
     notes: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { leadId, stage, vettingScore, notes, userEmail }) => {
+  handler: async (ctx, { leadId, stage, vettingScore, notes, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns this lead's firm
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     const lead = await ctx.db.get(leadId);
     if (!lead) throw new Error("Lead not found");
     if (lead.firmId !== auth.firmId) {
@@ -687,10 +703,10 @@ export const advanceLeadStage = mutation({
 });
 
 export const getPipelineByUnit = query({
-  args: { unitId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { unitId, userEmail }) => {
+  args: { sessionToken: v.optional(v.string()), unitId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { unitId, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns the property this pipeline belongs to
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     await requirePropertyAccess(ctx, auth, unitId);
     return await ctx.db
       .query("leads_pipeline")
@@ -700,9 +716,9 @@ export const getPipelineByUnit = query({
 });
 
 export const getPipelineByFirm = query({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     return await ctx.db
       .query("leads_pipeline")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
@@ -715,6 +731,7 @@ export const getPipelineByFirm = query({
 export const logAutomation = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     unitId: v.optional(v.string()),
     tenantId: v.optional(v.string()),
     messageType: v.union(
@@ -739,16 +756,16 @@ export const logAutomation = mutation({
   },
   handler: async (ctx, args) => {
     // SECURITY: verify caller + firm ownership; write with session firmId
-    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId);
-    const { userEmail: _u, firmId: _f, ...data } = args;
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+    const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
     return await ctx.db.insert("automation_logs", { ...data, firmId: auth.firmId, sentAt: Date.now() });
   },
 });
 
 export const getAutomationLogs = query({
-  args: { firmId: v.string(), limit: v.optional(v.number()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, limit, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), limit: v.optional(v.number()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, limit, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     return await ctx.db
       .query("automation_logs")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
@@ -779,6 +796,7 @@ export interface AuditTrailEntry {
 
 export const getAuditTrail = query({
   args: {
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     unitId: v.optional(v.string()),
     tenantId: v.optional(v.string()),
@@ -789,8 +807,8 @@ export const getAuditTrail = query({
     limit: v.optional(v.number()),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, unitId, tenantId, channel, messageType, startDate, endDate, limit, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  handler: async (ctx, { firmId, unitId, tenantId, channel, messageType, startDate, endDate, limit, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     const maxLimit = limit ?? 200;
 
     // Fetch outbound logs
@@ -858,13 +876,14 @@ export const getAuditTrail = query({
 /** Get all communications for printing — returns full detail for a specific tenant/unit */
 export const getCommunicationsForPrint = query({
   args: {
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     unitId: v.optional(v.string()),
     tenantContact: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, unitId, tenantContact, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  handler: async (ctx, { firmId, unitId, tenantContact, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     // Outbound messages
     let outboundLogs = await ctx.db
       .query("automation_logs")
@@ -918,14 +937,15 @@ export const getCommunicationsForPrint = query({
 /** Spam guard: check if a message of this type was already sent to this recipient within the last N hours */
 export const checkSpamGuard = query({
   args: {
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     recipient: v.string(),
     messageType: v.string(),
     withinHours: v.number(),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, recipient, messageType, withinHours, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  handler: async (ctx, { firmId, recipient, messageType, withinHours, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     const cutoff = Date.now() - withinHours * 3600000;
     const recent = await ctx.db
       .query("automation_logs")
@@ -1230,7 +1250,7 @@ export const sendServiceChargeReminders = internalMutation({
 // we split into: runDailyAutomation (internalMutation — scans DB, creates logs) →
 // calls sendWhatsAppForAutomation (internalAction — calls the real sendWhatsApp).
 export const runDailyAutomation = internalMutation({
-  args: {},
+  args: { sessionToken: v.optional(v.string()),},
   handler: async (ctx) => {
     const now = Date.now();
     const overdueCharges = await ctx.db
@@ -1302,9 +1322,9 @@ export const runDailyAutomation = internalMutation({
 });
 
 export const getInboundMessages = query({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { firmId, userEmail }) => {
-    await requireSentryAuth(ctx, userEmail, firmId);
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { firmId, userEmail , sessionToken }) => {
+    await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
     return await ctx.db
       .query("atrium_inbound_messages")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
@@ -1314,10 +1334,10 @@ export const getInboundMessages = query({
 });
 
 export const markMessageAsRead = mutation({
-  args: { messageId: v.id("atrium_inbound_messages"), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { messageId, userEmail }) => {
+  args: { sessionToken: v.optional(v.string()), messageId: v.id("atrium_inbound_messages"), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { messageId, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns this message's firm
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     const msg = await ctx.db.get(messageId);
     if (!msg) throw new Error("Message not found");
     if (msg.firmId !== auth.firmId) {
@@ -1328,10 +1348,10 @@ export const markMessageAsRead = mutation({
 });
 
 export const deleteInboundMessage = mutation({
-  args: { messageId: v.id("atrium_inbound_messages"), userEmail: v.optional(v.string()) },
-  handler: async (ctx, { messageId, userEmail }) => {
+  args: { sessionToken: v.optional(v.string()), messageId: v.id("atrium_inbound_messages"), userEmail: v.optional(v.string()) },
+  handler: async (ctx, { messageId, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns this message's firm
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     const msg = await ctx.db.get(messageId);
     if (!msg) throw new Error("Message not found");
     if (msg.firmId !== auth.firmId) {
@@ -1346,7 +1366,7 @@ export const deleteInboundMessage = mutation({
 // Called by cron job "monthlyServiceChargeReset" at 00:30 UTC on the 1st.
 // Handles both regular service charges and minimum vend charges.
 export const resetMonthlyServiceCharges = internalMutation({
-  args: {},
+  args: { sessionToken: v.optional(v.string()),},
   handler: async (ctx) => {
     const now = Date.now();
     let resetCount = 0;
@@ -1441,14 +1461,15 @@ export const resetMonthlyServiceCharges = internalMutation({
 /** Toggle property-level reminders on/off */
 export const setPropertyRemindersEnabled = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     propertyId: v.string(),
     remindersEnabled: v.boolean(),
     reminderCoolOffDays: v.optional(v.number()),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { propertyId, remindersEnabled, reminderCoolOffDays, userEmail }) => {
+  handler: async (ctx, { propertyId, remindersEnabled, reminderCoolOffDays, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns the property
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     // Find by custom id or Convex _id
     let doc = await ctx.db
       .query("properties")
@@ -1472,13 +1493,14 @@ export const setPropertyRemindersEnabled = mutation({
 /** Toggle per-unit reminder mute */
 export const setUnitRemindersMuted = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     serviceChargeId: v.id("service_charges"),
     remindersMuted: v.boolean(),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { serviceChargeId, remindersMuted, userEmail }) => {
+  handler: async (ctx, { serviceChargeId, remindersMuted, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns this charge's firm
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     const sc = await ctx.db.get(serviceChargeId);
     if (!sc) throw new Error("Service charge not found");
     if (sc.firmId !== auth.firmId) {
@@ -1492,12 +1514,13 @@ export const setUnitRemindersMuted = mutation({
 /** Unpause reminders for a unit (manual admin intervention after cool-off auto-pause) */
 export const unpauseReminders = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     serviceChargeId: v.id("service_charges"),
     userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { serviceChargeId, userEmail }) => {
+  handler: async (ctx, { serviceChargeId, userEmail , sessionToken }) => {
     // SECURITY: verify caller owns this charge's firm
-    const auth = await requireSentryAuth(ctx, userEmail);
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
     const sc = await ctx.db.get(serviceChargeId);
     if (!sc) throw new Error("Service charge not found");
     if (sc.firmId !== auth.firmId) {

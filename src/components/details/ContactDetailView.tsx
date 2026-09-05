@@ -281,7 +281,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   useHighlight(containerRef, 'contactDetail');
   const { navigateTo, addToast } = useUI();
   const { openWithContext } = useAloa();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { matterState } = useMatterState();
   const { coreState } = useCoreState();
   const { documentState } = useDocumentState();
@@ -597,7 +597,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                 try {
                                     await softDeleteContactMutation({
                                         contactId: contact.id,
-                                        userEmail: currentUser?.email,
+                                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                                     });
                                     addToast(`${contact.name} archived. Matters are unaffected.`, { type: 'success' });
                                     onGoBack();

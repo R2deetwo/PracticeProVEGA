@@ -130,6 +130,7 @@ const NavItemLink: React.FC<{
 // BottomNav has its own icon copy). ~45 LOC of unreachable code.
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) => {
+    const { bearerToken } = useAuth();
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
@@ -145,7 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
     // Fetch inbound resident messages for unified badge count
     const sidebarFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId, userEmail: currentUser?.email } : 'skip') || [];
+    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
     const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
 
     // Fetch portal messages for unified badge count

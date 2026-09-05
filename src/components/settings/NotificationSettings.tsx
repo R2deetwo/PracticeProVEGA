@@ -49,7 +49,7 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; colo
 };
 
 export const NotificationSettings: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { isProperty, isLegal, hasPropertyFeatures } = useProduct();
@@ -82,7 +82,7 @@ export const NotificationSettings: React.FC = () => {
     setSaving(prev => new Set(prev).add(typeKey));
 
     try {
-      await updatePrefs({ firmId, preferences: { [typeKey]: newEnabled }, userEmail: currentUser?.email || undefined });
+      await updatePrefs({ firmId, preferences: { [typeKey]: newEnabled }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
       addToast(`${typeKey.replace(/_/g, ' ')} emails ${newEnabled ? 'enabled' : 'disabled'}.`, { type: 'success' });
     } catch (err: any) {
       // Revert on error
@@ -350,7 +350,7 @@ export const NotificationSettings: React.FC = () => {
 // ─── Test Push Button (separate component for hook isolation) ──────────────
 const TestPushButton: React.FC = () => {
   const { addToast } = useUI();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const testPush = useMutation(api.pushNotifications.sendTestPushToUser);
   const [isSending, setIsSending] = useState(false);
 
@@ -358,7 +358,7 @@ const TestPushButton: React.FC = () => {
     if (!currentUser?.email) return;
     setIsSending(true);
     try {
-      const result = await testPush({ userEmail: currentUser.email });
+      const result = await testPush({ userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
       if (result?.sent > 0) {
         addToast(`Test push sent to ${result.sent} device(s). Check your notification shade.`, { type: 'success' });
       } else {

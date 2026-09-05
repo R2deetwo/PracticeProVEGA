@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const FeedbackForm: React.FC = () => {
     const { addToast, closeModal } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     
     // Form State
     const [ticketType, setTicketType] = useState('General Feedback');

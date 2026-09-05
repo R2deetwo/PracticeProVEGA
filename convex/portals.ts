@@ -19,6 +19,7 @@ function generatePortalAccessToken(): string {
 
 export const createMaintenanceTicket = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     propertyId: v.string(),
     unitId: v.optional(v.string()),
@@ -35,7 +36,7 @@ export const createMaintenanceTicket = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const { attachments, requestTypeKey, requestTypeLabel, ...rest } = args;
+    const { attachments, requestTypeKey, requestTypeLabel, sessionToken: _st, ...rest } = args;
 
     // 1. Insert the maintenance ticket
     const ticketId = await ctx.db.insert("maintenance_tickets", {
@@ -211,6 +212,7 @@ export const getServiceRequestById = query({
 export const updateMaintenanceTicketStatus = mutation({
   args: {
     ticketId: v.id("maintenance_tickets"),
+    sessionToken: v.optional(v.string()),
     status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
     resolution: v.optional(v.string()),
     assignedTo: v.optional(v.string()),
@@ -224,7 +226,7 @@ export const updateMaintenanceTicketStatus = mutation({
       throw new Error("Maintenance ticket not found.");
     }
     if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail);
+      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
       if (auth.firmId && ticket.firmId && auth.firmId !== ticket.firmId) {
         try {
           await ctx.db.insert("securityEvents", {
@@ -236,7 +238,7 @@ export const updateMaintenanceTicketStatus = mutation({
         throw new Error("Not authorized: ticket belongs to a different firm.");
       }
     }
-    const { ticketId, ...updates } = args;
+    const { ticketId, sessionToken: _st, ...updates } = args;
     await ctx.db.patch(ticketId, { ...updates, updatedAt: Date.now() });
 
     // If admin posted a resolution + the ticket has a linked conversation,
@@ -323,10 +325,11 @@ export const updateMaintenanceTicketStatus = mutation({
 export const completePortalTask = mutation({
   args: {
     taskId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const now = new Date().toISOString();
 
     // Fetch the task — use by_firm index + filter (tasks table has no by_custom_id index)
@@ -729,13 +732,14 @@ export const getAllServiceRequestTypes = query({
 export const seedDefaultServiceRequestTypes = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     portalType: v.union(v.literal("resident"), v.literal("client")),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: firmId was trusted — any caller could seed
     // rows into another firm's config.
-    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const existing = await ctx.db
       .query("service_request_types")
       .withIndex("by_firm_portal", (q) =>
@@ -835,6 +839,7 @@ export const createServiceRequestType = mutation({
 export const updateServiceRequestType = mutation({
   args: {
     typeId: v.id("service_request_types"),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
     label: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -846,11 +851,11 @@ export const updateServiceRequestType = mutation({
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id patch — verify caller owns the type.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const type = await ctx.db.get(args.typeId);
     if (!type) throw new Error("Service request type not found");
     assertSameFirm(caller, type.firmId as any);
-    const { typeId, ...updates } = args;
+    const { typeId, sessionToken: _st, ...updates } = args;
     // Strip undefined values so we don't accidentally overwrite with undefined
     const cleanUpdates: any = { updatedAt: Date.now() };
     for (const [k, v] of Object.entries(updates)) {
@@ -861,10 +866,10 @@ export const updateServiceRequestType = mutation({
 });
 
 export const deleteServiceRequestType = mutation({
-  args: { typeId: v.id("service_request_types"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), typeId: v.id("service_request_types"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id delete — verify caller owns the type.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const type = await ctx.db.get(args.typeId);
     if (!type) throw new Error("Service request type not found");
     assertSameFirm(caller, type.firmId as any);
@@ -1014,6 +1019,7 @@ export const getClientServiceRequestsByFirm = query({
 export const updateClientServiceRequestStatus = mutation({
   args: {
     requestId: v.id("client_service_requests"),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
     status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
     resolution: v.optional(v.string()),
@@ -1022,11 +1028,11 @@ export const updateClientServiceRequestStatus = mutation({
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id patch — verify caller owns the request.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const request = await ctx.db.get(args.requestId);
     if (!request) throw new Error("Service request not found");
     assertSameFirm(caller, request.firmId as any);
-    const { requestId, ...updates } = args;
+    const { requestId, sessionToken: _st, ...updates } = args;
     delete (updates as any).userEmail;
     await ctx.db.patch(requestId, { ...updates, updatedAt: Date.now() });
 
@@ -1227,6 +1233,7 @@ function generateToken(): string {
 export const createPortalInvite = action({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     inviterId: v.string(),
     inviteeEmail: v.optional(v.string()),
     inviteeName: v.optional(v.string()),
@@ -1240,7 +1247,7 @@ export const createPortalInvite = action({
   handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; emailError: string; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean; whatsappError: string }> => {
     // Round 8 auth retrofit: firmId/inviterId were trusted — any caller could
     // send invites (email/WhatsApp via the firm's sender) for any firm.
-    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const now = Date.now();
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days — security: shorter window reduces risk of wrong-recipient access
     const token = generateToken();
@@ -1780,6 +1787,7 @@ export const linkPortalUserToContact = internalMutation({
 export const resendPortalInvite = action({
   args: {
     inviteId: v.id("portal_invites"),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{
@@ -1793,7 +1801,7 @@ export const resendPortalInvite = action({
   }> => {
     // Round 8 auth retrofit: was a bare-id action that regenerated invite
     // tokens and re-sent email/WhatsApp — verify the caller owns the invite.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const existing: any = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
     if (!existing) throw new Error("Invitation not found");
     if (existing.status === "revoked") throw new Error("Cannot resend a revoked invitation");
@@ -1931,6 +1939,7 @@ export const resendPortalInvite = action({
 export const updateInviteRecord = internalMutation({
   args: {
     inviteId: v.id("portal_invites"),
+    sessionToken: v.optional(v.string()),
     updates: v.any(),
   },
   handler: async (ctx, args) => {
@@ -1964,10 +1973,10 @@ export const getPortalInvitesByFirm = query({
 
 
 export const revokePortalInvite = mutation({
-  args: { inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id patch — verify caller owns the invite.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const invite = await ctx.db.get(args.inviteId);
     if (!invite) throw new Error("Invite not found");
     assertSameFirm(caller, invite.firmId as any);
@@ -2028,10 +2037,10 @@ export const revokePortalInvite = mutation({
 
 /** Permanently delete a portal invite record (removes it from the list entirely) */
 export const deletePortalInvite = mutation({
-  args: { inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id delete — verify caller owns the invite.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const invite = await ctx.db.get(args.inviteId);
     if (!invite) throw new Error("Invite not found");
     assertSameFirm(caller, invite.firmId as any);
@@ -2072,6 +2081,7 @@ export const deletePortalInvite = mutation({
 export const deletePortalInviteAndCleanup = mutation({
   args: {
     inviteId: v.id("portal_invites"),
+    sessionToken: v.optional(v.string()),
     inviteeEmail: v.optional(v.string()),
     inviteePhone: v.optional(v.string()),
     userEmail: v.optional(v.string()),
@@ -2079,7 +2089,7 @@ export const deletePortalInviteAndCleanup = mutation({
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id delete + user-account reset — verify
     // the caller owns the invite.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const email = (args.inviteeEmail || "").toLowerCase().trim();
 
     // 0. Read the target invite first (we need its relatedId for user lookup later)
@@ -2653,6 +2663,7 @@ export const setupPortalPassword = action({
 export const selfHealClientContactLink = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userId: v.string(),
     email: v.optional(v.string()),
     name: v.optional(v.string()),
@@ -2661,7 +2672,7 @@ export const selfHealClientContactLink = mutation({
     // Round 8 auth retrofit: firmId/userId were trusted — any caller could
     // relink another firm's contact records. Verify the caller is the
     // portal user themselves and firm-scoped.
-    const caller = await requirePortalCaller(ctx, { userId: args.userId, userEmail: args.email });
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userId: args.userId, userEmail: args.email });
     assertSameFirm(caller, args.firmId);
     const email = (args.email || "").toLowerCase().trim();
     if (!email && !args.name) return { contactId: null, linked: false };
@@ -2701,11 +2712,11 @@ export const selfHealClientContactLink = mutation({
  * user. This is the "smart delivery" switch: push OR email, not both.
  */
 export const registerForPushNotifications = mutation({
-  args: { userId: v.string() },
+  args: { sessionToken: v.optional(v.string()), userId: v.string() },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: userId was trusted — any caller could flip
     // another user's smart-delivery switch. Resolve the real user first.
-    await resolveCaller(ctx, { userId: args.userId });
+    await resolveCaller(ctx, { sessionToken: args.sessionToken, userId: args.userId });
     const now = Date.now();
     try {
       await ctx.db.patch(args.userId as any, {
@@ -2736,8 +2747,22 @@ export const registerForPushNotifications = mutation({
  * Looks up the firm via invite records and user record, then patches the user.
  */
 export const repairPortalUserFirmId = mutation({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── R16 strict: SELF-REPAIR ONLY ─────────────────────────────────────
+    // This mutation patches user records (role restore, firmId relink) and
+    // previously accepted a bare caller-supplied email — anyone could patch
+    // any user. Now the caller must present a valid bearer session AND be
+    // the account owner (the email arg must match the session's user).
+    // Called from (a) the frontend "Repair My Account" flow with the
+    // resident's own bearer and (b) verifyLogin's auto-repair with the
+    // just-issued session token for the same user.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
+    const callerEmail = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
+    if (callerEmail !== args.email.toLowerCase().trim()) {
+      throw new Error("Unauthorized. You can only repair your own account.");
+    }
+
     const email = args.email.toLowerCase().trim();
 
     // 1. Find the user
@@ -2999,6 +3024,7 @@ export const getPendingScheduledMessages = query({
 export const createScheduledMessage = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     propertyId: v.optional(v.string()),
     unitId: v.optional(v.string()),
     tenantIds: v.optional(v.array(v.string())),
@@ -3013,10 +3039,11 @@ export const createScheduledMessage = mutation({
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: firmId was trusted — any caller could schedule
     // messages into another firm's pipeline.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
+    const { sessionToken: _st, ...record } = args;
     const now = Date.now();
     return await ctx.db.insert("scheduled_messages", {
-      ...args,
+      ...record,
       triggeredBy: args.triggeredBy || caller.email || undefined,
       status: "scheduled",
       createdAt: now,
@@ -3026,10 +3053,10 @@ export const createScheduledMessage = mutation({
 });
 
 export const cancelScheduledMessage = mutation({
-  args: { messageId: v.id("scheduled_messages"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), messageId: v.id("scheduled_messages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id patch — verify caller owns the message.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const message = await ctx.db.get(args.messageId);
     if (!message) throw new Error("Scheduled message not found");
     assertSameFirm(caller, message.firmId as any);
@@ -4594,6 +4621,7 @@ export const softDeletePortalMessage = mutation({
 export const adminDeletePortalMessage = mutation({
   args: {
     messageId: v.string(),
+    sessionToken: v.optional(v.string()),
     adminId: v.string(),
     firmId: v.string(),
   },
@@ -4712,12 +4740,12 @@ export const getPortalMessagesBySender = query({
  * markPortalMessageRead — Marks a portal message as read.
  */
 export const markPortalMessageRead = mutation({
-  args: { messageId: v.id("portal_messages"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), messageId: v.id("portal_messages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: bare-id patch — verify caller owns the message.
     // (portal_messages.firmId is nullable: unscoped rows are only mutable by
     // a caller whose firm matches, or by any staff caller when null.)
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const message = await ctx.db.get(args.messageId);
     if (!message) throw new Error("Message not found");
     if (message.firmId) assertSameFirm(caller, message.firmId as any);
@@ -4806,6 +4834,7 @@ export const getPortalMessageById = query({
 export const submitPaymentProof = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     tenantId: v.string(),
     tenantName: v.optional(v.string()),
     tenantEmail: v.optional(v.string()),
@@ -4830,7 +4859,7 @@ export const submitPaymentProof = mutation({
     // Round 8 auth retrofit: firmId/tenantId/tenantName were all caller-
     // supplied and trusted — anyone could forge payment proofs into any
     // firm's review queue. Verify the caller is the tenant portal user.
-    const caller = await requirePortalCaller(ctx, {
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken,
       userEmail: args.tenantEmail,
       userId: args.tenantId,
     });
@@ -4903,6 +4932,7 @@ export const getPaymentProofsByTenant = query({
 export const updatePaymentProofStatus = mutation({
   args: {
     proofId: v.id("payment_proofs"),
+    sessionToken: v.optional(v.string()),
     status: v.union(v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
     adminNote: v.optional(v.string()),
     userEmail: v.optional(v.string()),
@@ -4915,7 +4945,7 @@ export const updatePaymentProofStatus = mutation({
       throw new Error("Payment proof not found.");
     }
     if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail);
+      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
       // Verify the caller's firm matches the proof's firm
       if (auth.firmId && proof.firmId && auth.firmId !== proof.firmId) {
         try {
@@ -4928,7 +4958,7 @@ export const updatePaymentProofStatus = mutation({
         throw new Error("Not authorized: payment proof belongs to a different firm.");
       }
     }
-    const { proofId, ...updates } = args;
+    const { proofId, sessionToken: _st, ...updates } = args;
     await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
   },
 });
@@ -5209,6 +5239,7 @@ export const getFirmPortalSettings = query({
 export const updateFirmPortalSettings = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     tenantMessagingEnabled: v.optional(v.boolean()),
     clientMessagingEnabled: v.optional(v.boolean()),
     paymentProofUploadEnabled: v.optional(v.boolean()),
@@ -5223,7 +5254,7 @@ export const updateFirmPortalSettings = mutation({
   handler: async (ctx, args) => {
     // P6 SECURITY FIX: Verify caller belongs to the firm they're updating settings for.
     if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail);
+      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
       if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
         try {
           await ctx.db.insert("securityEvents", {
@@ -5235,7 +5266,7 @@ export const updateFirmPortalSettings = mutation({
         throw new Error("Not authorized: cannot update settings for a different firm.");
       }
     }
-    const { firmId, userEmail, ...updates } = args;
+    const { firmId, userEmail, sessionToken: _st, ...updates } = args;
     const existing = await ctx.db
       .query("portal_settings")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
@@ -5273,6 +5304,7 @@ export const updateFirmPortalSettings = mutation({
 export const createNotice = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     authorId: v.string(),
     authorName: v.optional(v.string()),
     title: v.string(),
@@ -5291,7 +5323,7 @@ export const createNotice = mutation({
     // All subsequent writes/logs/scheduler calls use auth.firmId, not args.firmId.
     let authFirmId = args.firmId;
     if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail);
+      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
       if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
         try {
           await ctx.db.insert("securityEvents", {
@@ -5362,6 +5394,7 @@ export const createNotice = mutation({
 /** Update an existing notice (admin only) */
 export const updateNotice = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     noticeId: v.id("portal_notices"),
     title: v.optional(v.string()),
     body: v.optional(v.string()),
@@ -5372,7 +5405,7 @@ export const updateNotice = mutation({
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { noticeId, ...updates } = args;
+    const { noticeId, sessionToken: _st, ...updates } = args;
     // Remove undefined fields so we don't overwrite with undefined
     const cleanUpdates: Record<string, any> = { updatedAt: Date.now() };
     for (const [key, value] of Object.entries(updates)) {
@@ -5766,13 +5799,14 @@ export const getNotificationPreferences = query({
 export const updateNotificationPreferences = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     preferences: v.any(), // { [typeKey: string]: boolean }
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: firmId was trusted — any caller could rewrite
     // another firm's notification preferences.
-    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const now = Date.now();
     const existing = await ctx.db
       .query("notification_preferences")

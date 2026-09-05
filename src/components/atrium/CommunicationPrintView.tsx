@@ -41,7 +41,7 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
   unitLabel,
   onClose,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +52,7 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
 
   const communications = useQuery(
     api.sentry.getCommunicationsForPrint,
-    firmId ? { firmId, unitId, tenantContact, userEmail: currentUser?.email } : 'skip'
+    firmId ? { firmId, unitId, tenantContact, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
 
   // Merge and sort all communications chronologically (oldest first for print)

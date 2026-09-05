@@ -115,7 +115,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const { appState } = useDataState();
     const { addItem, updateItem, deleteItem, onAddMatter } = useDataActions();
     const { addToast, openModal, navigateTo } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
     const settleUnitPeriods = useMutation(api.sentry.settleUnitPeriods);
     const { queueMutation, isOnline } = useOfflineQueue();
@@ -721,7 +721,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     status: 'cleared',
                                     description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
                                     channel: 'Internal Transfer',
-                                    userEmail: currentUser?.email,
+                                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                                 },
                                 label: `Caution deposit — ${unit.unitName || 'Unit'} (₦${(unit.cautionDeposit || 0).toLocaleString()})`,
                             });
@@ -734,7 +734,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 status: 'cleared',
                                 description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
                                 channel: 'Internal Transfer',
-                                userEmail: currentUser?.email,
+                                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                             });
                         }
                     } catch (e) {
@@ -770,7 +770,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             amount: Number(p.amount || 0),
                             paidDate: p.paidDate,
                         })),
-                        userEmail: currentUser?.email,
+                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                     };
                     if (!isOnline) {
                         queueMutation({

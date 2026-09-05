@@ -28,6 +28,7 @@
 
 import { mutation, query, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { resolveCaller } from "./callerAuth";
 import { api, internal } from "./_generated/api";
 import { paddedDigitCode } from "./secureRandom";
 
@@ -115,10 +116,26 @@ export const generateVisitorToken = mutation({
     visitDate: v.string(),           // YYYY-MM-DD
     expiryWindowHours: v.number(),   // 2, 6, 12, or 24
     deliveryMethod: v.union(v.literal("client_share"), v.literal("portal_api")),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    // ─── CALLER IDENTITY (R16 strict cutover) ───────────────────────────
+    // The previous gate (ctx.auth.getUserIdentity) could never pass under
+    // this app's custom auth — Convex Auth is not configured, so identity
+    // was always null and EVERY token generation threw "Not authenticated".
+    // (This is why Komplete firms still hit a wall despite the tier bypass
+    // below — the function was dead for everyone.) Resolve the caller from
+    // the bearer session and bind possession to the resident record.
+    const caller = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userId: args.residentId,
+    });
+    if (String(caller._id) !== String(args.residentId)) {
+      throw new Error("Not authorized: visitor codes can only be generated for the signed-in resident.");
+    }
+    if (caller.firmId && caller.firmId !== args.firmId) {
+      throw new Error("Not authorized: firm mismatch.");
+    }
 
     // ─── VMS ADD-ON BILLING GATE ──────────────────────────────────────
     // VMS is a paid add-on. Before generating a token, verify the firm has
@@ -483,10 +500,19 @@ export const revokeVisitorToken = mutation({
     tokenId: v.id("visitor_tokens"),
     reason: v.optional(v.string()),
     residentId: v.string(),  // for authorization check
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    // R16 strict: resolve the caller from the bearer session (the previous
+    // ctx.auth gate never passed under custom auth — dead check). The
+    // possession check below binds revocation to the creating resident.
+    const caller = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userId: args.residentId,
+    });
+    if (String(caller._id) !== String(args.residentId)) {
+      throw new Error("Not authorized: only the resident who created this code can revoke it.");
+    }
 
     const token: any = await ctx.db.get(args.tokenId);
     if (!token) throw new Error("Token not found");
@@ -516,34 +542,19 @@ export const getResidentTokens = query({
     residentId: v.string(),
     status: v.optional(v.string()), // filter by status, or all
     userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // SECURITY (RLS): previously ZERO verification — any caller could read
-    // any resident's visitor tokens by guessing residentId. Now the caller
-    // must be the resident themselves: the user resolved from userEmail
-    // (or Convex Auth session) must match residentId exactly.
-    // Note: portal roles (Tenant/Client) are EXPECTED here — this is the
-    // resident-facing portal endpoint — so we verify identity directly
-    // instead of using requireFirmUser (which blocks portal roles).
-    let sessionEmail: string | undefined;
-    try {
-      const identity = await ctx.auth.getUserIdentity();
-      if (identity) sessionEmail = (identity.email || identity.subject)?.toLowerCase();
-    } catch {}
-    const email = sessionEmail || args.userEmail?.toLowerCase();
-    if (!email) {
-      throw new Error("Unauthenticated: a verified session is required to view visitor tokens.");
-    }
-    let user: any = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email))
-      .first();
-    if (!user) {
-      user = await ctx.db
-        .query("users")
-        .filter((q: any) => q.eq(q.field("email"), email))
-        .first();
-    }
+    // SECURITY (R16 strict cutover): the caller must present a valid bearer
+    // session and may only view their OWN tokens. The previous email lookup
+    // accepted any caller-supplied email (spoofable); the Convex-Auth branch
+    // never fired under custom auth. Portal roles (Tenant/Client) are
+    // EXPECTED here — this is the resident-facing portal endpoint — so we
+    // resolve identity directly instead of using requireFirmUser.
+    const user: any = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userId: args.residentId,
+    });
     if (!user) {
       throw new Error("Unauthenticated: user account not found.");
     }

@@ -50,7 +50,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const FullScreenSearch: React.FC = () => {
     const { isMobileSearchOpen, setMobileSearchOpen, navigateTo, openModal } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const [query, setQuery] = useState('');
     const debouncedQuery = useDebounce(query, 250);
     const inputRef = useRef<HTMLInputElement>(null);

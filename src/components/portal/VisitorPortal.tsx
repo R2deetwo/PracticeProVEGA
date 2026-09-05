@@ -51,7 +51,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
 }) => {
     const { addToast } = useUI();
     const { confirm, ConfirmDialog } = useConfirm();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const residentId = currentUser?.id || '';
 
     // ─── Form state ─────────────────────────────────────────────────────
@@ -72,11 +72,11 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     // ─── Queries ────────────────────────────────────────────────────────
     const activeTokens = useQuery(
         api.visitorManagement.getResidentTokens,
-        firmId && residentId ? { firmId, residentId, status: 'active', userEmail: currentUser?.email } : 'skip'
+        firmId && residentId ? { firmId, residentId, status: 'active', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
     const pastTokens = useQuery(
         api.visitorManagement.getResidentTokens,
-        firmId && residentId ? { firmId, residentId, userEmail: currentUser?.email } : 'skip'
+        firmId && residentId ? { firmId, residentId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
 
     // ─── Handlers ───────────────────────────────────────────────────────
@@ -102,6 +102,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                 visitDate,
                 expiryWindowHours: expiryWindow,
                 deliveryMethod,
+                sessionToken: (bearerToken ?? undefined),
             });
 
             if (deliveryMethod === 'client_share' && result.message) {
@@ -137,7 +138,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
         });
         if (!ok) return;
         try {
-            await revokeToken({ tokenId: tokenId as any, reason: 'Revoked by resident', residentId });
+            await revokeToken({ tokenId: tokenId as any, reason: 'Revoked by resident', residentId, sessionToken: (bearerToken ?? undefined) });
             addToast('Code revoked.', { type: 'success' });
         } catch (err: any) {
             addToast(err.message || 'Failed to revoke.', { type: 'error' });

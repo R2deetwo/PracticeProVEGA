@@ -327,6 +327,7 @@ export const pauseForEdit = mutation({
 
 export const updateOutboxEntry = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     outboxId: v.string(),
     clientEmail: v.optional(v.string()),
     clientName: v.optional(v.string()),
@@ -348,7 +349,7 @@ export const updateOutboxEntry = mutation({
       throw new Error("Cannot edit an already-sent invoice.");
     }
 
-    const { outboxId, ...updates } = args;
+    const { outboxId, sessionToken: _st, ...updates } = args;
     const now = new Date().toISOString();
     const cleaned: Record<string, any> = {};
     for (const [k, val] of Object.entries(updates)) {

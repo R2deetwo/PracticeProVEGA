@@ -72,6 +72,7 @@ async function requireEstateCommunityAccess(ctx: any, firmId: string) {
 export const createAmenity = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     name: v.string(),
     description: v.optional(v.string()),
     location: v.optional(v.string()),
@@ -84,7 +85,7 @@ export const createAmenity = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
@@ -109,6 +110,7 @@ export const createAmenity = mutation({
 export const updateAmenity = mutation({
   args: {
     amenityId: v.id("estate_amenities"),
+    sessionToken: v.optional(v.string()),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     location: v.optional(v.string()),
@@ -122,12 +124,12 @@ export const updateAmenity = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity) throw new Error("Amenity not found");
     if (amenity.firmId !== auth.firmId) throw new Error("Not authorized");
-    const { amenityId, userEmail, ...updates } = args;
+    const { amenityId, userEmail, sessionToken: _st, ...updates } = args;
     const cleanUpdates: Record<string, any> = { updatedAt: Date.now() };
     for (const [k, v] of Object.entries(updates)) {
       if (v !== undefined) cleanUpdates[k] = v;
@@ -137,9 +139,9 @@ export const updateAmenity = mutation({
 });
 
 export const deleteAmenity = mutation({
-  args: { amenityId: v.id("estate_amenities"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), amenityId: v.id("estate_amenities"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity) throw new Error("Amenity not found");
@@ -156,6 +158,7 @@ export const deleteAmenity = mutation({
 export const createBooking = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     amenityId: v.id("estate_amenities"),
     bookingDate: v.string(),
     slotStart: v.number(),
@@ -164,7 +167,7 @@ export const createBooking = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, args.firmId);
     const firmId = auth.firmId || args.firmId;
 
@@ -231,12 +234,13 @@ export const createBooking = mutation({
 export const reviewBooking = mutation({
   args: {
     bookingId: v.id("estate_amenity_bookings"),
+    sessionToken: v.optional(v.string()),
     status: v.union(v.literal("approved"), v.literal("rejected")),
     adminNotes: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Booking not found");
@@ -258,10 +262,11 @@ export const reviewBooking = mutation({
 export const cancelBooking = mutation({
   args: {
     bookingId: v.id("estate_amenity_bookings"),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Booking not found");
     await requireEstateCommunityAccess(ctx, booking.firmId);
@@ -269,7 +274,7 @@ export const cancelBooking = mutation({
     if (booking.residentUserId !== auth.userId && booking.firmId !== auth.firmId) {
       // Check admin role for cross-resident cancels
       try {
-        await requireAdmin(ctx, args.userEmail);
+        await requireAdmin(ctx, args.userEmail, args.sessionToken);
       } catch {
         throw new Error("Not authorized to cancel this booking");
       }
@@ -285,6 +290,7 @@ export const cancelBooking = mutation({
 export const createBulletin = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     title: v.string(),
     body: v.string(),
     category: v.optional(v.string()),
@@ -296,7 +302,7 @@ export const createBulletin = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
@@ -322,6 +328,7 @@ export const createBulletin = mutation({
 export const updateBulletin = mutation({
   args: {
     bulletinId: v.id("estate_bulletins"),
+    sessionToken: v.optional(v.string()),
     title: v.optional(v.string()),
     body: v.optional(v.string()),
     category: v.optional(v.string()),
@@ -334,12 +341,12 @@ export const updateBulletin = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const bulletin = await ctx.db.get(args.bulletinId);
     if (!bulletin) throw new Error("Bulletin not found");
     if (bulletin.firmId !== auth.firmId) throw new Error("Not authorized");
-    const { bulletinId, userEmail, ...updates } = args;
+    const { bulletinId, userEmail, sessionToken: _st, ...updates } = args;
     const cleanUpdates: Record<string, any> = { updatedAt: Date.now() };
     for (const [k, v] of Object.entries(updates)) {
       if (v !== undefined) cleanUpdates[k] = v;
@@ -349,9 +356,9 @@ export const updateBulletin = mutation({
 });
 
 export const archiveBulletin = mutation({
-  args: { bulletinId: v.id("estate_bulletins"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), bulletinId: v.id("estate_bulletins"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const bulletin = await ctx.db.get(args.bulletinId);
     if (!bulletin) throw new Error("Bulletin not found");
@@ -367,6 +374,7 @@ export const archiveBulletin = mutation({
 export const createServiceProvider = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     name: v.string(),
     category: v.string(),
     specialty: v.optional(v.string()),
@@ -382,7 +390,7 @@ export const createServiceProvider = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
@@ -409,6 +417,7 @@ export const createServiceProvider = mutation({
 export const updateServiceProvider = mutation({
   args: {
     providerId: v.id("estate_service_providers"),
+    sessionToken: v.optional(v.string()),
     name: v.optional(v.string()),
     category: v.optional(v.string()),
     specialty: v.optional(v.string()),
@@ -424,12 +433,12 @@ export const updateServiceProvider = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const provider = await ctx.db.get(args.providerId);
     if (!provider) throw new Error("Service provider not found");
     if (provider.firmId !== auth.firmId) throw new Error("Not authorized");
-    const { providerId, userEmail, ...updates } = args;
+    const { providerId, userEmail, sessionToken: _st, ...updates } = args;
     const cleanUpdates: Record<string, any> = { updatedAt: Date.now() };
     for (const [k, v] of Object.entries(updates)) {
       if (v !== undefined) cleanUpdates[k] = v;
@@ -439,9 +448,9 @@ export const updateServiceProvider = mutation({
 });
 
 export const deleteServiceProvider = mutation({
-  args: { providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const provider = await ctx.db.get(args.providerId);
     if (!provider) throw new Error("Service provider not found");
@@ -457,9 +466,9 @@ export const deleteServiceProvider = mutation({
 
 // Get all amenities for a firm (resident view — only active)
 export const getAmenities = query({
-  args: { firmId: v.string(), includeInactive: v.optional(v.boolean()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), includeInactive: v.optional(v.boolean()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, args.firmId);
     let q = ctx.db
       .query("estate_amenities")
@@ -471,9 +480,9 @@ export const getAmenities = query({
 
 // Get bookings for a resident
 export const getBookingsForResident = query({
-  args: { firmId: v.string(), residentUserId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), residentUserId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, args.firmId);
     // Resident can only see their own bookings unless admin/founder
     const isAdmin = auth.user?.role === "Admin" || auth.user?.role === "Founder";
@@ -489,9 +498,9 @@ export const getBookingsForResident = query({
 
 // Get all bookings for a firm (admin view — for approval queue)
 export const getBookingsForFirm = query({
-  args: { firmId: v.string(), status: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), status: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId || args.firmId);
     let q = ctx.db
       .query("estate_amenity_bookings")
@@ -503,9 +512,9 @@ export const getBookingsForFirm = query({
 
 // Get active bulletins for a firm (resident view)
 export const getBulletins = query({
-  args: { firmId: v.string(), propertyId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), propertyId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, args.firmId);
     const all = await ctx.db
       .query("estate_bulletins")
@@ -522,9 +531,9 @@ export const getBulletins = query({
 
 // Get active service providers for a firm (resident view)
 export const getServiceProviders = query({
-  args: { firmId: v.string(), category: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), category: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, args.firmId);
     let q = ctx.db
       .query("estate_service_providers")
@@ -539,9 +548,9 @@ export const getServiceProviders = query({
 
 // Get a single service provider (resident view — strips internal notes)
 export const getServiceProvider = query({
-  args: { providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const provider = await ctx.db.get(args.providerId);
     if (!provider || !provider.isActive) return null;
     await requireEstateCommunityAccess(ctx, provider.firmId);

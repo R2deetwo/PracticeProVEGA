@@ -23,6 +23,7 @@ import { requireStaffCaller } from "./callerAuth";
 export const saveAloaDocument = mutation({
   args: {
     sessionId: v.string(),
+    sessionToken: v.optional(v.string()),
     firmId: v.optional(v.string()),
     userEmail: v.optional(v.string()),
     fileName: v.string(),
@@ -43,7 +44,7 @@ export const saveAloaDocument = mutation({
     // it must be the caller's own firm (the upsert below patches ANY row
     // matching the sessionId, so a spoofed firmId/sessionId could have
     // rewritten another firm's indexed document).
-    const caller = await requireStaffCaller(ctx, {
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken,
       userEmail: args.userEmail,
       firmId: args.firmId ?? undefined,
     });

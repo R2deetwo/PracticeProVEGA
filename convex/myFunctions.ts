@@ -6,7 +6,7 @@ import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
 import { numericCode, codeFromCharset } from "./secureRandom";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
-import { requireStaffCaller, requireFounderCaller, assertSameFirm } from "./callerAuth";
+import { requireStaffCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
 import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
 // R12: subscription dunning + grace + soft downgrade — pure decision logic
@@ -19,11 +19,11 @@ import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
 // --- PRESENCE ---
 
 export const sendHeartbeat = mutation({
-  args: { firmId: v.string(), userId: v.string(), userName: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userId: v.string(), userName: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Verify the caller belongs to the firm they're sending presence for.
     // Skip the firmId match check when auth.firmId is empty (legacy call without userEmail).
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. firmId does not match your session.");
     }
@@ -42,14 +42,14 @@ export const sendHeartbeat = mutation({
 });
 
 export const getActivePeers = query({
-  args: { firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY FIX: Fail CLOSED — require userEmail for peer queries.
     if (!args.userEmail) {
       throw new Error("Unauthenticated: userEmail required. Anonymous peer queries are no longer permitted.");
     }
     try {
-      const auth = await requireFirmUser(ctx, args.userEmail);
+      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
       if (!auth.firmId || auth.firmId !== args.firmId) return [];
     } catch { return []; }
     if (!args.firmId) return [];
@@ -99,24 +99,89 @@ export const getActivePeers = query({
 
 // --- DIAGNOSTICS & REPAIR ---
 
-export const diagnoseConnectivity = mutation({
-  args: { email: v.string(), userEmail: v.optional(v.string()) },
+/**
+ * startImpersonationSession — R16 strict-mode-safe impersonation.
+ *
+ * BEFORE strict mode, the client "impersonated" a portal user by swapping
+ * its legacy email identity to the target's email — every backend call
+ * then resolved the caller as the target with zero proof. Under strict
+ * identity that path is dead (correctly). Impersonation now mints a REAL
+ * session for the target user, server-verified:
+ *
+ *   1. The caller presents their OWN bearer session and must be an Admin
+ *      or Founder (requireStaffCaller — staff roles only).
+ *   2. The target must be a portal user (Tenant/Client) — impersonating
+ *      staff would be privilege escalation.
+ *   3. The target must belong to the caller's firm.
+ *   4. A session is created for the target (device: 'impersonation') and
+ *      its token returned ONCE to the impersonating admin.
+ *   5. An audit row lands in securityEvents (who impersonated whom, when).
+ *
+ * The client swaps its bearer to the returned token for the duration of
+ * the impersonation and restores its original bearer on exit (the
+ * original admin session is never revoked).
+ */
+export const startImpersonationSession = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    targetUserId: v.id("users"),
+  },
   handler: async (ctx, args) => {
-    // SECURITY: Only authenticated users can diagnose their own account
-    let authenticatedEmail: string | undefined;
+    const admin = await requireStaffCaller(ctx, { sessionToken: args.sessionToken });
+    if (String(admin.role || "") !== "Admin" && String(admin.role || "") !== "Founder") {
+      throw new Error("Impersonation is available to firm administrators only.");
+    }
+
+    const target: any = await ctx.db.get(args.targetUserId);
+    if (!target) throw new Error("Target user not found.");
+
+    // Portal-only targets (mirrors the long-standing client-side rule).
+    if (String(target.role || "") !== "Tenant" && String(target.role || "") !== "Client") {
+      throw new Error("Impersonation is limited to portal users (residents/clients).");
+    }
+
+    // Same-firm guard: an admin can only impersonate users of their own firm.
+    if (target.firmId && admin.firmId && String(target.firmId) !== String(admin.firmId)) {
+      throw new Error("Not authorized: target user belongs to a different firm.");
+    }
+
+    // Mint the impersonation session (the sessions table caps at 10 per
+    // user and prunes oldest — bounded).
+    const session: any = await (ctx as any).runMutation((internal as any).sessions.createSession, {
+      userId: target._id,
+      userEmail: target.email || target.tokenIdentifier,
+      device: "impersonation",
+    });
+
+    // Audit trail (server-side row, not just local state).
     try {
-      const identity = await ctx.auth.getUserIdentity();
-      if (identity) authenticatedEmail = identity.email || undefined;
+      await ctx.db.insert("securityEvents", {
+        eventType: "impersonation_started",
+        userId: String(admin._id),
+        email: admin.email || admin.tokenIdentifier,
+        details: `Admin ${admin.email || admin.tokenIdentifier} started impersonating portal user ${target.email || target.tokenIdentifier} (${target.role}).`,
+        timestamp: Date.now(),
+      });
     } catch {}
 
-    // If the caller is authenticated, they can only diagnose their own email
-    // (unless no auth context exists — legacy fallback for repair flows)
-    if (authenticatedEmail && args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail);
-      // Verify the email being diagnosed belongs to the authenticated user
-      if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
-        throw new Error("Unauthorized. You can only diagnose your own account.");
-      }
+    return { success: true, sessionToken: session?.token, targetEmail: target.email || target.tokenIdentifier };
+  },
+});
+
+export const diagnoseConnectivity = mutation({
+  args: { sessionToken: v.optional(v.string()), email: v.string(), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // SECURITY (R16 strict cutover): the caller must present a valid bearer
+    // session and may only diagnose their OWN account. The previous gate
+    // was conditional on ctx.auth (never configured → never fired), so any
+    // caller could diagnose any email — the exact spoofable-identity class
+    // this round closes. resolveCaller is used instead of requireFirmUser
+    // deliberately: repair flows exist for accounts whose firm link is
+    // BROKEN (no firmId), which requireFirmUser would reject.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const callerEmail = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
+    if (callerEmail !== args.email.toLowerCase().trim()) {
+      throw new Error("Unauthorized. You can only diagnose your own account.");
     }
 
     const emailInput = args.email.toLowerCase().trim();
@@ -183,29 +248,17 @@ export const diagnoseConnectivity = mutation({
 
 
 export const repairAccountConnection = mutation({
-  args: { email: v.string(), targetFirmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), email: v.string(), targetFirmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // SECURITY: Only the account owner can repair their own connection
-    let authenticatedEmail: string | undefined;
-    try {
-      const identity = await ctx.auth.getUserIdentity();
-      if (identity) authenticatedEmail = identity.email || undefined;
-    } catch {}
-
-    if (authenticatedEmail && args.userEmail) {
-      try {
-        const auth = await requireFirmUser(ctx, args.userEmail);
-        if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
-          throw new Error("Unauthorized. You can only repair your own account.");
-        }
-      } catch (e: any) {
-        if (e.message?.includes('Unauthorized')) throw e;
-        // If requireFirmUser fails (e.g. user has no firm yet), still allow self-repair
-        // but only if the authenticated email matches
-        if (authenticatedEmail.toLowerCase() !== args.email.toLowerCase().trim()) {
-          throw new Error("Unauthorized. You can only repair your own account.");
-        }
-      }
+    // SECURITY (R16 strict cutover): the caller must present a valid bearer
+    // session and may only repair their OWN account. The previous optional
+    // ctx.auth gate never fired under custom auth, leaving the repair fully
+    // spoofable. resolveCaller (not requireFirmUser): repair targets exactly
+    // the accounts whose firm link is broken.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const callerEmail = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
+    if (callerEmail !== args.email.toLowerCase().trim()) {
+      throw new Error("Unauthorized. You can only repair your own account.");
     }
 
     const emailInput = args.email.toLowerCase().trim();
@@ -246,12 +299,13 @@ export const repairAccountConnection = mutation({
 export const getFirmData = query({
   args: {
     firmId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string())
   },
   handler: async (ctx, args) => {
     // RLS: Require firm user authentication. This prevents portal users
     // and unauthenticated callers from reading the entire firm dataset.
-    const { firmId: authFirmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId: authFirmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     let targetFirmId = args.firmId || authFirmId;
     const userEmail = args.userEmail;
 
@@ -1422,6 +1476,7 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
 export const verifyLogin = action({
   args: {
     email: v.string(),
+    sessionToken: v.optional(v.string()),
     passwordHash: v.string(),
     rawPassword: v.optional(v.string()),
     mfaCode: v.optional(v.string()),
@@ -1536,7 +1591,38 @@ export const verifyLogin = action({
       isPasswordCorrect = result.valid;
       needsMigration = result.needsMigration;
     } else if (!user.password && rawPw && rawPw !== 'admin') {
-      // No password stored — trust on first use, migrate them
+      // ── R16: TRUST-ON-FIRST-USE CLOSED ────────────────────────────────
+      // Previously ANY password was accepted for accounts with no stored
+      // password — knowing an email was enough to take over the account
+      // (and the attacker's password became the account password). The
+      // first login must now CLAIM the account with an emailed verification
+      // code, reusing the MFA email plumbing: attempt #1 (no code) sends a
+      // 6-digit code and returns requiresInitialPassword; the client shows
+      // a code prompt (the password field already holds the desired
+      // password) and re-submits with mfaCode; the code is verified here
+      // BEFORE acceptance. The desired password is then hashed and stored
+      // via the needsMigration path below.
+      if (!args.mfaCode) {
+        const code = numericCode(6);
+        await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+          userId: user._id,
+          fields: { mfaCode: code },
+        });
+        try {
+          await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, {
+            email: args.email,
+            code,
+            product: user.product || 'legal',
+          });
+        } catch (e) {
+          console.error("Failed to send initial-password setup code", e);
+        }
+        return { success: false, requiresInitialPassword: true, mfaType: 'email' };
+      }
+      // A code was presented — verify it before accepting the password.
+      if (args.mfaCode !== user.mfaCode) {
+        return { success: false, message: "Incorrect verification code. Please check your email and try again." };
+      }
       isPasswordCorrect = true;
       needsMigration = true;
     }
@@ -1583,6 +1669,33 @@ export const verifyLogin = action({
         });
       }
 
+      // ─── R16: issue the bearer session BEFORE the portal auto-repair ──
+      // The repair mutation is session-guarded under strict mode (it used
+      // to accept a bare caller-supplied email — a spoofable patch surface
+      // on user records), so it needs the just-issued token. The login
+      // gateway remains the ONLY place a session may be born: password
+      // (+ MFA when enabled) has been verified at this point. The token is
+      // returned to the client exactly once; only its SHA-256 hash is
+      // stored (convex/sessions.ts).
+      // Non-blocking in Phase A: a session-store failure must not fail an
+      // otherwise successful login (the strict sweep makes this belt-and-
+      // braces; Phase B makes issuance blocking once proven live).
+      let sessionToken: string | undefined;
+      try {
+        // `as any` mirrors the repo's established pattern for cross-module
+        // scheduler/mutation references (e.g. sendVerificationEmail below) —
+        // a typed reference here creates a circular type inference through
+        // _generated/api → myFunctions (TS7022).
+        const session: any = await (ctx as any).runMutation((internal as any).sessions.createSession, {
+          userId: user._id,
+          userEmail: user.email || token,
+          device: "web",
+        });
+        sessionToken = session?.token;
+      } catch (e) {
+        console.warn("[verifyLogin] Session issuance failed (non-blocking in Phase A):", e);
+      }
+
       // AUTO-REPAIR: If a portal user (Client/Tenant) has no firmId, try to repair it
       // on login. This handles the case where a previous version of
       // deletePortalInviteAndCleanup cleared firmId and deleted invite records,
@@ -1592,6 +1705,7 @@ export const verifyLogin = action({
         try {
           const repairResult: any = await ctx.runMutation(api.portals.repairPortalUserFirmId, {
             email: token,
+            sessionToken,
           });
           if (repairResult.success) {
             // Update the user object we're about to return so the client
@@ -1608,31 +1722,6 @@ export const verifyLogin = action({
 
       // Strip sensitive fields before returning user to client
       const { password: _pw, mfaCode: _mfa, verificationCode: _vc, recoveryCode: _rc, ...safeUser } = user;
-
-      // ─── R13: issue a bearer session token ────────────────────────────
-      // The login gateway is the ONLY place a session may be born: password
-      // (+ MFA when enabled) has been verified at this point. The token is
-      // returned to the client exactly once; only its SHA-256 hash is
-      // stored (convex/sessions.ts). resolveCaller trusts these sessions;
-      // Round 15 flips strict mode and rejects the legacy email path.
-      // Non-blocking: a session-store failure must NEVER fail an otherwise
-      // successful login — the client degrades to the legacy email
-      // identity during the migration window.
-      let sessionToken: string | undefined;
-      try {
-        // `as any` mirrors the repo's established pattern for cross-module
-        // scheduler/mutation references (e.g. sendVerificationEmail below) —
-        // a typed reference here creates a circular type inference through
-        // _generated/api → myFunctions (TS7022).
-        const session: any = await (ctx as any).runMutation((internal as any).sessions.createSession, {
-          userId: user._id,
-          userEmail: user.email || token,
-          device: "web",
-        });
-        sessionToken = session?.token;
-      } catch (e) {
-        console.warn("[verifyLogin] Session issuance failed (non-blocking, legacy identity still valid):", e);
-      }
 
       return { success: true, user: safeUser, sessionToken };
     } else {
@@ -1656,10 +1745,10 @@ export const verifyLogin = action({
 });
 
 export const updateUserSecurity = mutation({
-  args: { userId: v.id("users"), isMfaEnabled: v.boolean(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userId: v.id("users"), isMfaEnabled: v.boolean(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // RLS: Require firm user — only authenticated firm members can update security
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     await ctx.db.patch(args.userId, { isMfaEnabled: args.isMfaEnabled });
     return { success: true };
   }
@@ -1680,11 +1769,12 @@ export const updateUserSecurity = mutation({
 export const deactivateTeamMember = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.optional(v.string()),
     deactivatedBy: v.string(),        // admin's email
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.deactivatedBy);
+    const auth = await requireFirmUser(ctx, args.deactivatedBy, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("Admin user not found");
 
@@ -1733,10 +1823,11 @@ export const deactivateTeamMember = mutation({
 export const reactivateTeamMember = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.optional(v.string()),
     reactivatedBy: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.reactivatedBy);
+    const auth = await requireFirmUser(ctx, args.reactivatedBy, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("Admin user not found");
 
@@ -1769,10 +1860,11 @@ export const reactivateTeamMember = mutation({
 export const getFirmMembersWithDeactivationStatus = query({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const users = await ctx.db
       .query("users")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -1985,6 +2077,7 @@ export const requestPortalPasswordReset = mutation({
 export const createFirm = mutation({
   args: { 
     name: v.string(), 
+    sessionToken: v.optional(v.string()),
     address: v.string(), 
     subscriptionPlan: v.string(), 
     user_email: v.string(), 
@@ -2314,10 +2407,16 @@ export const joinFirm = mutation({
 });
 
 export const removeUserFromFirm = mutation({
-  args: { userId: v.id("users"), firmId: v.string() },
+  args: { sessionToken: v.optional(v.string()), userId: v.id("users"), firmId: v.string() },
   handler: async (ctx, args) => {
-    // RLS: Require admin — only firm admins can remove users
-    await requireAdmin(ctx, undefined as any);
+    // RLS: Require admin — only firm admins can remove users.
+    // R16: the previous call passed NO identity (requireAdmin(ctx, undefined))
+    // which always threw under the anonymous fallback — this path was dead.
+    // Resolve the admin from the bearer session and scope to the firm.
+    const auth = await requireAdmin(ctx, undefined, args.sessionToken);
+    if (auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only remove users from your own firm.");
+    }
     const user = await ctx.db.get(args.userId) as any;
     if (!user) return;
 
@@ -2365,9 +2464,9 @@ export const removeUserFromFirm = mutation({
  */
 async function performFirmUserRemoval(
   ctx: any,
-  args: { userId: string; firmId: string; userEmail?: string }
+  args: { sessionToken?: string | null; userId: string; firmId: string; userEmail?: string }
 ) {
-  const auth = await requireFirmUser(ctx, args.userEmail);
+  const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
   const caller: any = auth.user;
   if (!caller || !auth.firmId) {
     throw new Error("Unauthenticated: a verified session is required to remove users.");
@@ -2482,6 +2581,7 @@ async function performFirmUserRemoval(
 export const removeFirmUserAndCleanup = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     userEmail: v.optional(v.string()),
   },
@@ -2491,10 +2591,10 @@ export const removeFirmUserAndCleanup = mutation({
 });
 
 export const updateFirmSettings = mutation({
-  args: { firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // RLS: Require admin — only firm admins can update firm settings
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     // ROOT FIX: Verify the caller owns the firm they're patching.
     if (auth.firmId !== args.firmId) {
       throw new Error("Not authorized: cannot update settings for a different firm.");
@@ -2515,16 +2615,17 @@ export const updateFirmSettings = mutation({
  * plan. It's called from the Settings UI when the user clicks "Fix Product Mode".
  */
 export const fixProductMode = mutation({
-  args: { firmId: v.string(), product: v.string() },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), product: v.string() },
   handler: async (ctx, args) => {
     // Verify the caller is a member of this firm
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-    const allUsers = await ctx.db.query("users").take(500);
-    const user = allUsers.find((u: any) => u.tokenIdentifier?.toLowerCase() === identity.email!.toLowerCase());
-    if (!user || user.firmId !== args.firmId) {
+    // R16 strict: the previous ctx.auth.getUserIdentity() gate never passed
+    // under custom auth (identity always null → "Not authenticated" for
+    // EVERY caller — the Settings button was dead on production). Resolve
+    // the caller from the bearer session and scope to their firm.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken,
+      firmId: args.firmId,
+    });
+    if (caller.firmId !== args.firmId) {
       throw new Error("Not authorized to modify this firm");
     }
 
@@ -2580,10 +2681,10 @@ export const getJoinedFirms = query({
  * Use with caution.
  */
 export const deleteAccount = mutation({
-  args: { email: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), email: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Only the account owner can delete their own account
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     if (auth.user?.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
       throw new Error("Unauthorized. You can only delete your own account.");
     }
@@ -2617,8 +2718,11 @@ export const deleteAccount = mutation({
     // 2. Delete firms and their data
     for (const fid of firmsToClean) {
       try {
-        // Purge all data associated with this firm
-        await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: fid! });
+        // Purge all data associated with this firm. R16: the session token
+        // is threaded through so purgeFirmData's admin guard can resolve
+        // the caller (the user record still exists at this point — deleted
+        // at step 3 — so the session is still valid).
+        await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: fid!, sessionToken: args.sessionToken });
         // Delete the firm record itself
         await ctx.db.delete(fid as any);
       } catch (e) {
@@ -2644,8 +2748,16 @@ export const deleteAccount = mutation({
  * Removes a specific firm from the user's list without deleting their account.
  */
 export const leaveFirm = mutation({
-  args: { email: v.string(), firmId: v.string() },
+  args: { sessionToken: v.optional(v.string()), email: v.string(), firmId: v.string() },
   handler: async (ctx, args) => {
+    // SECURITY (R16 strict): previously ANY caller could remove any email's
+    // firm membership by supplying the email — a spoofable patch surface.
+    // Resolve the caller from the bearer session; only self-leave allowed.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
+    const callerEmail = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
+    if (callerEmail !== args.email.toLowerCase().trim()) {
+      throw new Error("Unauthorized. You can only leave a firm on your own account.");
+    }
     const user = await ctx.db.query("users")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.email))
       .first();
@@ -2673,19 +2785,19 @@ export const leaveFirm = mutation({
  * Purges all data and deletes the firm record.
  */
 export const deleteFirm = mutation({
-  args: { firmId: v.string(), confirmed: v.boolean(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), confirmed: v.boolean(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     if (!args.confirmed) throw new Error("Deletion must be confirmed.");
     
     // SECURITY: Require admin auth and verify firm ownership
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete your own firm.");
     }
 
     // 1. Purge all operational data (Matters, Properties, etc.)
     try {
-      await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: args.firmId });
+      await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: args.firmId, sessionToken: args.sessionToken });
     } catch (e) {
       console.error(`[deleteFirm] Failed to purge firm data:`, e);
       throw new Error("Failed to purge firm data. Please contact support.");
@@ -2727,6 +2839,7 @@ export const deleteFirm = mutation({
 export const recordConsent = mutation({
   args: { 
     email: v.string(), 
+    sessionToken: v.optional(v.string()),
     consentType: v.string(),   // e.g. 'ai_processing', 'cookies_essential', 'cookies_analytics'
     granted: v.boolean(),
     ipHint: v.optional(v.string()),  // Optional: browser timezone/locale for geo context
@@ -2773,9 +2886,9 @@ export const recordConsent = mutation({
 });
 
 export const createItem = mutation({
-  args: { table: v.string(), data: v.any(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), table: v.string(), data: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { table, data } = args;
 
     // Strip Convex-managed internal fields that cannot be inserted
@@ -2871,6 +2984,7 @@ export const createItem = mutation({
 export const sendChatMessage = mutation({
   args: {
     conversationId: v.string(),
+    sessionToken: v.optional(v.string()),
     content: v.string(),
     authorId: v.optional(v.string()), // sender's _id (optional — derived from session if absent)
     authorName: v.optional(v.string()), // sender's display name (for notification text)
@@ -2889,7 +3003,7 @@ export const sendChatMessage = mutation({
   },
   handler: async (ctx, args) => {
     // 1. Authenticate the caller (verifies session OR userEmail fallback).
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
     const senderId = args.authorId || auth.userId;
     const senderName = args.authorName || auth.user?.name || "A colleague";
@@ -3046,6 +3160,7 @@ export const sendChatMessage = mutation({
 export const createTask = mutation({
   args: {
     title: v.string(),
+    sessionToken: v.optional(v.string()),
     description: v.optional(v.string()),
     status: v.optional(v.string()),
     dueDate: v.optional(v.string()),
@@ -3072,7 +3187,7 @@ export const createTask = mutation({
       }
     }
     // 1. Authenticate
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
     const creatorId = args.creatorId || auth.userId;
     const creatorName = args.creatorName || auth.user?.name || "A team member";
@@ -3269,6 +3384,7 @@ export const createTask = mutation({
 export const logActivity = internalMutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userId: v.optional(v.string()),
     userName: v.optional(v.string()),
     action: v.string(),
@@ -3408,7 +3524,7 @@ export async function resolveRecordForUpdate(
 }
 
 export const updateItem = mutation({
-  args: { table: v.string(), id: v.string(), data: v.any(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), table: v.string(), id: v.string(), data: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { table, id, data } = args;
 
@@ -3426,7 +3542,7 @@ export const updateItem = mutation({
 
     if (table === 'firms') {
       // Require Admin role (not just any firm member)
-      await requireAdmin(ctx, args.userEmail);
+      await requireAdmin(ctx, args.userEmail, args.sessionToken);
 
       // Strip protected fields from client-supplied patch
       const stripped: string[] = [];
@@ -3444,10 +3560,10 @@ export const updateItem = mutation({
       }
     } else {
       // Non-firms tables: require firm membership (existing behavior)
-      await requireFirmUser(ctx, args.userEmail);
+      await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     }
 
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { docId } = await resolveRecordForUpdate(ctx, table, id, firmId);
 
     // Strip Convex-managed internal fields that cannot be patched
@@ -3505,9 +3621,9 @@ export const updateItem = mutation({
  * header notification panel. Without it, the button did nothing.
  */
 export const markNotificationsAsRead = mutation({
-  args: { ids: v.array(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), ids: v.array(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const now = new Date().toISOString();
     let updated = 0;
 
@@ -3554,9 +3670,9 @@ export const markNotificationsAsRead = mutation({
  * Powers the "Clear all" button in the header notification panel.
  */
 export const clearAllNotifications = mutation({
-  args: { userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const userIdStr = String(user._id);
     const userLegacyId = String((user as any).id || '');
 
@@ -3638,11 +3754,12 @@ export const clearAllNotifications = mutation({
 export const updateTaskStatus = mutation({
   args: {
     taskId: v.string(),
+    sessionToken: v.optional(v.string()),
     status: v.string(),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     // Try to find the task by Convex _id first, then by custom id field
     let task: any = null;
@@ -3708,11 +3825,12 @@ export const updateTaskStatus = mutation({
 export const updateTask = mutation({
   args: {
     taskId: v.string(),
+    sessionToken: v.optional(v.string()),
     patch: v.any(), // Partial task fields to update
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     // Same 3-strategy lookup as updateTaskStatus
     let task: any = null;
@@ -3784,10 +3902,11 @@ export const updateTask = mutation({
 export const deleteTask = mutation({
   args: {
     taskId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     // Same 3-strategy lookup as updateTask
     let task: any = null;
@@ -3872,6 +3991,7 @@ export const deleteTask = mutation({
 export const recordTermsAcceptance = mutation({
   args: {
     termsVersion: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
     // ─── ROLE-BASED CONSENT ───────────────────────────────────────────
     // The user role accepting these terms. Different roles have different
@@ -3899,7 +4019,7 @@ export const recordTermsAcceptance = mutation({
     let userEmail: string | undefined = undefined;
 
     try {
-      const auth = await requireFirmUser(ctx, args.userEmail);
+      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
       firmId = auth.firmId;
       userId = auth.userId;
       userEmail = args.userEmail || auth.user?.email || undefined;
@@ -3952,6 +4072,7 @@ export const recordTermsAcceptance = mutation({
 export const getTermsAcceptance = query({
   args: {
     userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
     roleContext: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -3978,9 +4099,9 @@ export const getTermsAcceptance = query({
  * Strategy A → B → C cascade ensures deletion succeeds regardless of ID format.
  */
 export const deleteItem = mutation({
-  args: { table: v.string(), id: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), table: v.string(), id: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { table, id } = args;
 
     // ─── USERS ARE SPECIAL (Phase 3, data integrity) ───────────────────────
@@ -4164,10 +4285,11 @@ export const deleteItem = mutation({
 export const softDeleteContact = mutation({
   args: {
     contactId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     // Resolve the contact — try Convex _id first, then custom id index.
     let contact: any = null;
@@ -4205,9 +4327,9 @@ export const softDeleteContact = mutation({
 // and promises "restore anytime from the archive" — but nothing ever listed
 // those contacts. This query powers the ArchiveView's Contacts section.
 export const getArchivedContacts = query({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     if (!args.firmId) return [];
     const contacts = await ctx.db
       .query("contacts")
@@ -4231,10 +4353,11 @@ export const getArchivedContacts = query({
 export const restoreContact = mutation({
   args: {
     contactId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     let contact: any = null;
     try { contact = await ctx.db.get(args.contactId as any); } catch { /* not a Convex id */ }
@@ -4274,11 +4397,12 @@ export const restoreContact = mutation({
 export const reassignMattersFromContact = mutation({
   args: {
     sourceContactId: v.string(),
+    sessionToken: v.optional(v.string()),
     targetContactId: v.string(),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     // Verify both contacts exist and belong to the firm.
     for (const cid of [args.sourceContactId, args.targetContactId]) {
@@ -4347,10 +4471,10 @@ export const reassignMattersFromContact = mutation({
 
 
 export const generateUploadUrl = mutation({
-  args: { userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // RLS: Require firm user — only authenticated users can generate upload URLs
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     return await ctx.storage.generateUploadUrl();
   }
 });
@@ -4365,9 +4489,9 @@ export const getFileUrl = query({
  * AUTH: Admin role required. Caller's firmId must match the target firmId.
  */
 export const purgeFirmData = mutation({
-  args: { firmId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only purge data for your own firm.");
     }
@@ -4408,9 +4532,9 @@ export const purgeFirmData = mutation({
  * AUTH: Firm user required. Cross-firm deletes are blocked.
  */
 export const forceDeleteItem = mutation({
-  args: { id: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), id: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { id } = args;
 
     // SECURITY FIX: Fail CLOSED — throw on empty firmId (same fix as deleteItem).
@@ -4808,6 +4932,7 @@ export const sendPortalRecoveryEmail = internalAction({
 export const sendBreachNotification = internalAction({
   args: {
     affectedEmail: v.string(),
+    sessionToken: v.optional(v.string()),
     incidentTitle: v.string(),
     incidentDescription: v.string(),
     recommendedAction: v.string(),
@@ -4912,10 +5037,10 @@ export const getAloaMessages = query({
 });
 
 export const createAloaConversation = mutation({
-  args: { firmId: v.string(), userId: v.string(), title: v.string() },
+  args: { sessionToken: v.optional(v.string()), firmId: v.string(), userId: v.string(), title: v.string() },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: resolve the caller, verify firm scope.
-    await requireStaffCaller(ctx, { userId: args.userId, firmId: args.firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userId: args.userId, firmId: args.firmId });
     return await ctx.db.insert("aloaConversations", {
       firmId: args.firmId,
       userId: args.userId,
@@ -4929,6 +5054,7 @@ export const createAloaConversation = mutation({
 export const saveAloaMessage = mutation({
   args: {
     conversationId: v.string(),
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     userId: v.optional(v.string()),
     message: v.any(),
@@ -4955,10 +5081,10 @@ export const saveAloaMessage = mutation({
 });
 
 export const deleteAloaConversation = mutation({
-  args: { conversationId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), conversationId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: the caller must belong to the conversation's firm.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const conversation = await ctx.db
       .query("aloaConversations")
       .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
@@ -4983,10 +5109,10 @@ export const deleteAloaConversation = mutation({
 
 
 export const markAloaActionCompleted = mutation({
-  args: { messageId: v.id("aloaMessages"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), messageId: v.id("aloaMessages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: verify the message belongs to the caller's firm.
-    const caller = await requireStaffCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const msg = await ctx.db.get(args.messageId);
     if (!msg) throw new Error("Message not found");
     assertSameFirm(caller, msg.firmId as any);
@@ -5004,10 +5130,10 @@ export const markAloaActionCompleted = mutation({
  * are wiped in a single transaction to prevent orphaned "ghost" records.
  */
 export const deleteMatterCascade = mutation({
-  args: { matterId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), matterId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Require admin auth and verify firm ownership.
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete matters in your own firm.");
     }
@@ -5079,10 +5205,10 @@ export const deleteMatterCascade = mutation({
 
 
 export const deletePropertyCascade = mutation({
-  args: { propertyId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), propertyId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Require admin auth and verify firm ownership.
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete properties in your own firm.");
     }
@@ -5140,10 +5266,10 @@ export const deletePropertyCascade = mutation({
  * Removes all PII and associated operational data when a contact is removed.
  */
 export const deleteContactCascade = mutation({
-  args: { contactId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), contactId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Require admin auth and verify firm ownership.
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete contacts in your own firm.");
     }
@@ -5204,10 +5330,10 @@ export const deleteContactCascade = mutation({
 // ─── ADMIN ACCOUNT RECOVERY TOOL MUTATIONS ────────────────────────────────
 
 export const adminSearchUsersByEmail = query({
-  args: { email: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), email: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Require admin authentication
-    await requireAdmin(ctx, args.userEmail);
+    await requireAdmin(ctx, args.userEmail, args.sessionToken);
     const token = args.email.toLowerCase().trim();
     if (!token) return [];
     const allUsers = await ctx.db.query("users").take(500);
@@ -5219,10 +5345,10 @@ export const adminSearchUsersByEmail = query({
 });
 
 export const adminDeleteUser = mutation({
-  args: { userId: v.id("users"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userId: v.id("users"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Require admin authentication
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found.");
     // SECURITY: Admin can only delete users in their own firm
@@ -5235,10 +5361,10 @@ export const adminDeleteUser = mutation({
 });
 
 export const adminForceVerify = mutation({
-  args: { userId: v.id("users"), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userId: v.id("users"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // SECURITY: Require admin authentication
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found.");
     // SECURITY: Admin can only verify users in their own firm
@@ -5316,12 +5442,12 @@ export const resetWhatsAppQuotaMonthly = internalMutation({
  * that replaces the entire units array.
  */
 export const addUnitToProperty = mutation({
-  args: { propertyId: v.string(), firmId: v.string(), unitData: v.any(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), propertyId: v.string(), firmId: v.string(), unitData: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: firmId was caller-supplied and only checked
     // against the property (spoofable — pass the victim's firmId). Resolve
     // the caller and verify the firm is THEIRS.
-    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const { propertyId, firmId, unitData } = args;
     let property: any = null;
     try { property = await ctx.db.get(propertyId as any); } catch (e) {}
@@ -5348,10 +5474,10 @@ export const addUnitToProperty = mutation({
  * Dedicated mutation so we never accidentally overwrite sibling units.
  */
 export const removeUnitFromProperty = mutation({
-  args: { propertyId: v.string(), firmId: v.string(), unitId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), propertyId: v.string(), firmId: v.string(), unitId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: same spoofable-firmId fix as addUnitToProperty.
-    await requireStaffCaller(ctx, { userEmail: args.userEmail, firmId: args.firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const { propertyId, firmId, unitId } = args;
     let property: any = null;
     try { property = await ctx.db.get(propertyId as any); } catch (e) {}
@@ -5382,6 +5508,7 @@ export const removeUnitFromProperty = mutation({
 export const setMatterPrivacy = mutation({
   args: {
     matterId: v.string(),
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     isPrivate: v.boolean(),
     requestUserId: v.string(),
@@ -5393,7 +5520,7 @@ export const setMatterPrivacy = mutation({
     // supplied, so an attacker could pass a victim firm's id plus an
     // assigned user's id and satisfy every check. Resolve requestUserId to
     // a real user and verify the firm is theirs.
-    await requireStaffCaller(ctx, { userId: requestUserId, firmId });
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userId: requestUserId, firmId });
 
     let matter: any = null;
     try { matter = await ctx.db.get(matterId as any); } catch (e) { throw new Error("Matter not found"); }
@@ -5419,9 +5546,9 @@ export const setMatterPrivacy = mutation({
  * across all contact records in the firm.
  */
 export const fixCorporateName = mutation({
-  args: { userEmail: v.string() },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.string() },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
@@ -6082,6 +6209,7 @@ export const getPropertyById = query({
 export const createSubscriptionRequest = mutation({
   args: {
     requestedPlan: v.string(),
+    sessionToken: v.optional(v.string()),
     // REVENUE-LEAK FIX: target product for Komplete→single-product downgrades.
     // 'property' (Atrium) | 'legal' (Vega) | undefined (same-product requests).
     requestedProduct: v.optional(v.string()),
@@ -6105,7 +6233,7 @@ export const createSubscriptionRequest = mutation({
         return existing._id;
       }
     }
-    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     // Fetch current firm to record the currentPlan
     const firm: any = await ctx.db.get(firmId as any);
@@ -6174,9 +6302,9 @@ export const createSubscriptionRequest = mutation({
  * Returns all requests with status='pending_review', ordered newest first.
  */
 export const getPendingSubscriptionRequests = query({
-  args: { userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.userEmail);
+    await requireAdmin(ctx, args.userEmail, args.sessionToken);
     const requests = await ctx.db
       .query("subscriptionRequests")
       .withIndex("by_status", (q: any) => q.eq("status", "pending_review"))
@@ -6191,9 +6319,9 @@ export const getPendingSubscriptionRequests = query({
  * Returns the most recent pending request for the calling user's firm.
  */
 export const getMyPendingSubscriptionRequest = query({
-  args: { userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const request = await ctx.db
       .query("subscriptionRequests")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
@@ -6210,12 +6338,13 @@ export const getMyPendingSubscriptionRequest = query({
 export const approveSubscriptionRequest = mutation({
   args: {
     requestId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // NOTE: this is a FOUNDER-only action, not a firm-admin action.
     // requireAdmin checks firm admin role; we additionally check founder below.
-    const { user } = await requireAdmin(ctx, args.userEmail);
+    const { user } = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     // Allow either 'Founder' or 'Admin' for now — TODO: tighten to Founder only
     // once all founders have the Founder role assigned.
     if (user?.role !== 'Founder' && user?.role !== 'Admin') {
@@ -6313,11 +6442,12 @@ export const approveSubscriptionRequest = mutation({
 export const rejectSubscriptionRequest = mutation({
   args: {
     requestId: v.string(),
+    sessionToken: v.optional(v.string()),
     reason: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { user } = await requireAdmin(ctx, args.userEmail);
+    const { user } = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     if (user?.role !== 'Founder' && user?.role !== 'Admin') {
       throw new Error("Only founder admins can reject subscription requests.");
     }
@@ -6883,6 +7013,7 @@ export const expireTrials = internalMutation({
 export const createAddonRequest = mutation({
   args: {
     addonId: v.string(),
+    sessionToken: v.optional(v.string()),
     addonName: v.string(),
     billingInterval: v.string(),        // 'monthly' | 'annual' | 'one_time'
     amount: v.number(),
@@ -6891,7 +7022,7 @@ export const createAddonRequest = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     const now = new Date();
     const AUTO_REVERT_HOURS = 72;
@@ -6940,12 +7071,13 @@ export const createAddonRequest = mutation({
 export const purgeStalePendingAddons = mutation({
   args: {
     founderEmail: v.string(),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: the founderEmail allowlist was spoofable —
     // knowing founder@practicepro.ng was enough. Resolve the user and
     // require the Founder role (the Founder App admission rule).
-    await requireFounderCaller(ctx, { userEmail: args.founderEmail });
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.founderEmail });
 
     const CUTOFF_HOURS = 72;
     const cutoffTime = new Date(Date.now() - CUTOFF_HOURS * 60 * 60 * 1000).toISOString();
@@ -6979,9 +7111,9 @@ export const purgeStalePendingAddons = mutation({
  * purchased add-ons.
  */
 export const getActiveAddonsForFirm = query({
-  args: { userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const addons = await ctx.db
       .query("subscriptionAddons")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
@@ -6997,9 +7129,9 @@ export const getActiveAddonsForFirm = query({
  * badge in the main app.
  */
 export const getPendingAddonsForFirm = query({
-  args: { userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const addons = await ctx.db
       .query("subscriptionAddons")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
@@ -7030,10 +7162,11 @@ export const getPendingAddonsForFirm = query({
 export const cancelAddon = mutation({
   args: {
     addonRequestId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     const addon: any = await ctx.db.get(args.addonRequestId as any);
     if (!addon) throw new Error("Add-on request not found.");
@@ -7128,10 +7261,11 @@ export const cancelAddon = mutation({
 export const getVmsAddonStatus = query({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     // Look up firm by custom id field OR by Convex _id (try-as-Id fallback)
     let firm: any = await ctx.db
       .query("firms")
@@ -7168,10 +7302,11 @@ export const getVmsAddonStatus = query({
 export const startVmsAddonTrial = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
@@ -7273,10 +7408,11 @@ export const activateVmsAddon = mutation({
 export const cancelVmsAddon = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
@@ -7358,10 +7494,11 @@ export const cancelVmsAddon = mutation({
 export const getEstateCommunityAddonStatus = query({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     let firm: any = await ctx.db
       .query("firms")
       .filter((q: any) => q.eq(q.field("id"), args.firmId))
@@ -7389,10 +7526,11 @@ export const getEstateCommunityAddonStatus = query({
 export const startEstateCommunityTrial = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
@@ -7500,10 +7638,11 @@ export const activateEstateCommunityAddon = mutation({
 export const cancelEstateCommunityAddon = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
@@ -7593,6 +7732,7 @@ export const getOrgPayoutDetails = query({
 export const updateOrgPayoutDetails = mutation({
   args: {
     corporateName: v.string(),
+    sessionToken: v.optional(v.string()),
     bankName: v.string(),
     accountNumber: v.string(),
     accountName: v.string(),
@@ -7602,7 +7742,7 @@ export const updateOrgPayoutDetails = mutation({
     // Round 8 auth retrofit: the hardcoded FOUNDER_EMAILS allowlist only
     // proved the caller KNEW a founder address. Resolve the user and
     // require the Founder role (the Founder App admission rule).
-    await requireFounderCaller(ctx, { userEmail: args.founderEmail });
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.founderEmail });
 
     // Validate NUBAN: 10 digits
     if (!/^\d{10}$/.test(args.accountNumber)) {

@@ -220,11 +220,11 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     // 'system' mode, so the theme effect below re-evaluates immediately.
     const [themeSyncTick, setThemeSyncTick] = React.useState(0);
 
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const sendHeartbeatMutation = useMutation(api.myFunctions.sendHeartbeat);
-    const activePeersQuery = useQuery(api.myFunctions.getActivePeers, currentUser?.firmId ? { firmId: currentUser.firmId, userEmail: currentUser?.email } : "skip");
+    const activePeersQuery = useQuery(api.myFunctions.getActivePeers, currentUser?.firmId ? { firmId: currentUser.firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : "skip");
 
     const [fontSize, setFontSize] = React.useState<FontSize>(() => {
         const stored = localStorage.getItem('practicepro_fontSize');
@@ -346,7 +346,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 // fallback path if ctx.auth.getUserIdentity() is unavailable.
                 // Without this, the heartbeat can fail silently with
                 // "Unauthenticated" — and no presence data is stored.
-                userEmail: currentUser.email,
+                userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined),
             }).catch(() => { /* Heartbeat failure is non-critical; retry on next interval */ });
         };
 

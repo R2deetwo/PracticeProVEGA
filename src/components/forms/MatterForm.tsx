@@ -19,6 +19,7 @@ import { api } from '../../../convex/_generated/api';
 // import { MatterIntakeWizard } from './MatterIntakeWizard';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
 import { translateError } from '../../utils/errorTranslator';
+import { useAuth } from "../../contexts/AuthContext";
 
 const commonInputClass = inputModern;
 
@@ -157,6 +158,7 @@ interface MatterFormProps {
 }
 
 export const MatterForm: React.FC<MatterFormProps> = (props) => {
+    const { bearerToken } = useAuth();
     const { contacts, matters, workflows, onAddMatter, onUpdateMatter, onClose, currentUser, matterToEdit, appMode, initialContext, openModal, handleAddWorkflow, handleAddWorkflowSubCategory } = props;
     const { addToast } = useUI();
     const { executionState } = useExecutionState();
@@ -620,14 +622,14 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         table: 'matters',
                         data: { ...matterData, userEmail: currentUser?.email },
                         itemName: 'Matter',
-                        userEmail: currentUser?.email,
+                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                     });
                     if (clientToCreate) {
                         queueMutation({
                             table: 'contacts',
                             data: { ...clientToCreate.data, userEmail: currentUser?.email },
                             itemName: 'Contact',
-                            userEmail: currentUser?.email,
+                            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                         });
                     }
                     localStorage.removeItem(`draft_newMatter_${currentUser.id}`);
@@ -666,7 +668,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 // MARK ALOA ACTION COMPLETED
                 if (initialContext?.aloaMessageId) {
                     try {
-                        await markAloaActionCompleted({ messageId: initialContext.aloaMessageId, userEmail: currentUser?.email || undefined });
+                        await markAloaActionCompleted({ messageId: initialContext.aloaMessageId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
                     } catch (e) {
                         console.error("Failed to mark ALOA action completed:", e);
                     }

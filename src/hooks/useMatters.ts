@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
  * Handles CRUD operations with optimistic UI patterns.
  */
 export const useMatters = (appState: any, actions: any) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
 
     // Convex Mutations
@@ -93,7 +93,7 @@ export const useMatters = (appState: any, actions: any) => {
             const result = await reassignMattersFromContactMutation({
                 sourceContactId: sourceId,
                 targetContactId: targetId,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             });
             // 2. Now that the source has zero references, hard-delete it.
             await actions.deleteItem('contacts', sourceId, 'Merged Contact');
@@ -182,7 +182,7 @@ export const useMatters = (appState: any, actions: any) => {
      */
     const handleDeleteMatter = useCallback(async (id: string, name: string) => {
         try {
-            await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId as string, userEmail: currentUser?.email });
+            await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId as string, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             // Remove from local state
             await actions.deleteItem('matters', id, name);
             addToast(`Deleted matter ${name} and all related records.`, { type: 'success' });

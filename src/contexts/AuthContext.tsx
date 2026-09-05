@@ -269,6 +269,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const trackEventMutation = useMutation(api.analytics.trackEvent);
     const verifyLoginAction = useAction(api.myFunctions.verifyLogin);
     const revokeSessionMutation = useMutation(api.sessions.revokeSession);
+    const startImpersonationSessionMutation = useMutation(api.myFunctions.startImpersonationSession);
     const leaveFirmMutation = useMutation(api.myFunctions.leaveFirm);
     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
     const repairAccountConnectionMutation = useMutation(api.myFunctions.repairAccountConnection);
@@ -608,6 +609,12 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 if (verifyResult.requiresMfa) {
                     return { success: false, requiresMfa: true, mfaType: verifyResult.mfaType, debugCode: (verifyResult as any).debugCode };
                 }
+                // R16 TOFU close: account has no stored password — the first
+                // login must claim it with an emailed code (same UI flow as
+                // MFA; the password field already holds the desired password).
+                if ((verifyResult as any).requiresInitialPassword) {
+                    return { success: false, requiresInitialPassword: true, mfaType: (verifyResult as any).mfaType };
+                }
                 return { success: false, message: verifyResult.message };
             }
 
@@ -701,7 +708,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         try {
             // 2. Run the Repair Mutation explicitly
             // This attempts to find any firm linked to this email and reconnect it in the DB
-            const repairResult = await repairAccountMutation({ email: sessionToken });
+            const repairResult = await repairAccountMutation({ email: sessionToken, sessionToken: bearerToken ?? undefined });
 
             if (repairResult.success) {
                 // Repair Successful
@@ -849,7 +856,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 userId: currentUser.id,
                 event: 'User Logout',
                 properties: { email: currentUser.email },
-                userEmail: currentUser.email || undefined
+                userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) || undefined
             }).catch(e => console.warn("[Auth] Logout tracking failed:", e));
         }
 
@@ -954,7 +961,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const deleteAccount = async () => {
         if (!sessionToken) return { success: false };
         try {
-            await deleteAccountMutation({ email: sessionToken });
+            await deleteAccountMutation({ email: sessionToken, sessionToken: bearerToken ?? undefined });
             await logout();
             return { success: true };
         } catch (e: any) {
@@ -965,7 +972,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const leaveFirm = async (firmId: string) => {
         if (!sessionToken) return { success: false };
         try {
-            await leaveFirmMutation({ email: sessionToken, firmId });
+            await leaveFirmMutation({ email: sessionToken, firmId, sessionToken: bearerToken ?? undefined });
             return { success: true };
         } catch (e: any) {
             return { success: false, message: e.message };
@@ -974,7 +981,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const deleteFirm = async (firmId: string) => {
         try {
-            await deleteFirmMutation({ firmId, confirmed: true });
+            await deleteFirmMutation({ firmId, confirmed: true, userEmail: currentUser?.email ?? undefined, sessionToken: bearerToken ?? undefined });
             return { success: true };
         } catch (e: any) {
             return { success: false, message: e.message };
@@ -984,7 +991,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const switchFirm = async (firmId: string) => {
         if (!currentUser || !sessionToken) return;
         try {
-            await repairAccountConnectionMutation({ email: sessionToken, targetFirmId: firmId });
+            await repairAccountConnectionMutation({ email: sessionToken, targetFirmId: firmId, sessionToken: bearerToken ?? undefined });
             // The userData query will automatically refetch when the user's firmId changes
         } catch (e) {
             console.error("Failed to switch firm", e);
@@ -995,7 +1002,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // SECURITY: Impersonation is an Admin-only action and can only target
     // portal users (Client/Tenant). Non-admin callers are silently rejected,
     // and attempting to impersonate a non-portal user is also rejected.
-    const loginAsUser = (user: User) => {
+    const loginAsUser = async (user: User) => {
         // Only Admins can impersonate. If we somehow get here from a non-admin
         // session (e.g. a UI bug, an attacker calling the function), bail out.
         if (currentUser?.role !== UserRole.Admin) {
@@ -1013,6 +1020,25 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             console.warn('[Auth] Impersonation blocked: target is in a different firm.', user.email);
             return;
         }
+
+        // ── R16 STRICT MODE: mint a REAL session for the target user ────
+        // The legacy flow swapped the email identity string (dead under
+        // strict mode — every guarded call would reject it). The server
+        // mutation verifies: admin bearer session, portal-only target,
+        // same firm; then issues a session for the target (audited in
+        // securityEvents) and returns its token exactly once.
+        let impersonationToken: string | null = null;
+        try {
+            const result: any = await startImpersonationSessionMutation({
+                sessionToken: bearerToken ?? undefined,
+                targetUserId: (user as any)._id || (user as any).id,
+            });
+            impersonationToken = result?.sessionToken || null;
+        } catch (e: any) {
+            console.warn('[Auth] Impersonation session could not be minted:', e?.message);
+            return;
+        }
+
         if (!originalSessionToken) {
             setOriginalSessionToken(sessionToken); // Save current admin session
             // PERSIST: Store the original admin token in sessionStorage so that
@@ -1022,6 +1048,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             // impersonated user with no way to revert.
             try {
                 sessionStorage.setItem('practicepro_original_session', sessionToken || '');
+                // R16: also persist the original admin BEARER so guarded calls
+                // work again immediately after revert-on-refresh.
+                if (bearerToken) {
+                    sessionStorage.setItem('practicepro_original_bearer', bearerToken);
+                }
             } catch {
                 // sessionStorage might be unavailable (private mode) — non-critical
             }
@@ -1038,9 +1069,37 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
         setSessionToken(user.email.toLowerCase());
         sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: user.email.toLowerCase() }));
+        // Swap the bearer to the impersonation session (guarded calls now
+        // resolve as the target user — exactly the impersonation semantics).
+        if (impersonationToken) {
+            setBearerToken(impersonationToken);
+            try { sessionStorage.setItem(BEARER_KEY, impersonationToken); } catch {}
+        }
     };
 
     const revertToOriginalUser = () => {
+        // R16: revoke the impersonation session (it was minted for the target
+        // user — leaving it live would leave a usable bearer around).
+        if (bearerToken) {
+            revokeSessionMutation({ token: bearerToken }).catch(() => {});
+        }
+        // R16: restore the original admin BEARER (guarded calls work again
+        // as the admin immediately; falls back to the persisted copy when
+        // reverting after a refresh).
+        let originalBearer: string | null = null;
+        try {
+            originalBearer = sessionStorage.getItem('practicepro_original_bearer');
+        } catch {}
+        setBearerToken(originalBearer);
+        try {
+            if (originalBearer) {
+                sessionStorage.setItem(BEARER_KEY, originalBearer);
+                sessionStorage.removeItem('practicepro_original_bearer');
+            } else {
+                sessionStorage.removeItem(BEARER_KEY);
+            }
+        } catch {}
+
         if (originalSessionToken) {
             setSessionToken(originalSessionToken);
             sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: originalSessionToken }));

@@ -38,6 +38,7 @@ function generateTransactionReference(): string {
 export const getOrCreateWallet = internalMutation({
   args: {
     tenantId: v.string(),
+    sessionToken: v.optional(v.string()),
     firmId: v.string(),
     propertyId: v.string(),
   },
@@ -68,12 +69,12 @@ export const getOrCreateWallet = internalMutation({
 // ─── Public: resident gets their wallet + recent transactions ─────────────
 
 export const getMyWallet = query({
-  args: { tenantId: v.string(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), tenantId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: tenantId was the ONLY scoping — any caller
     // could read any resident's balance and transactions. Verify the
     // caller is the wallet's own portal user.
-    const caller = await requirePortalCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const wallet = await ctx.db
       .query("resident_wallets")
       .withIndex("by_tenant", (q: any) => q.eq("tenantId", args.tenantId))
@@ -99,11 +100,11 @@ export const getMyWallet = query({
 // ─── Public: toggle auto-deduct ───────────────────────────────────────────
 
 export const toggleAutoDeduct = mutation({
-  args: { tenantId: v.string(), enabled: v.boolean(), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), tenantId: v.string(), enabled: v.boolean(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: tenantId was caller-supplied — anyone could
     // toggle any resident's auto-deduct (stopping their charge coverage).
-    const caller = await requirePortalCaller(ctx, { userEmail: args.userEmail });
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const wallet = await ctx.db
       .query("resident_wallets")
       .withIndex("by_tenant", (q: any) => q.eq("tenantId", args.tenantId))

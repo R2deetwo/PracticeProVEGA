@@ -28,7 +28,7 @@ import { useOfflineQueue } from './useOfflineQueue';
  */
 export const useTasks = (appState: AppState, actions: any) => {
     const { addToast } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const createTaskMutation = useMutation(api.myFunctions.createTask);
     const updateTaskStatusMutation = useMutation(api.myFunctions.updateTaskStatus);
     const updateTaskMutation = useMutation(api.myFunctions.updateTask);
@@ -45,7 +45,7 @@ export const useTasks = (appState: AppState, actions: any) => {
                 args: {
                     taskId: id,
                     status,
-                    userEmail: currentUser?.email,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 },
                 label: `Task status → ${status}`,
             });
@@ -56,7 +56,7 @@ export const useTasks = (appState: AppState, actions: any) => {
             await updateTaskStatusMutation({
                 taskId: id,
                 status,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             });
         } catch (e: any) {
             console.error('[handleUpdateTaskStatus] Failed:', e);
@@ -73,7 +73,7 @@ export const useTasks = (appState: AppState, actions: any) => {
             await updateTaskMutation({
                 taskId: id,
                 patch: { priority },
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             });
         } catch (e: any) {
             console.error('[handleUpdateTaskPriority] Failed:', e);
@@ -95,7 +95,7 @@ export const useTasks = (appState: AppState, actions: any) => {
                 args: {
                     taskId,
                     patch,
-                    userEmail: currentUser?.email,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 },
                 label: `Task edit — ${task.title || taskId}`,
             });
@@ -109,7 +109,7 @@ export const useTasks = (appState: AppState, actions: any) => {
             await updateTaskMutation({
                 taskId,
                 patch,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             });
         } catch (e: any) {
             console.error('[handleUpdateTask] Failed:', e);
@@ -126,7 +126,7 @@ export const useTasks = (appState: AppState, actions: any) => {
         const promises = ids.map(id => updateTaskStatusMutation({
             taskId: id,
             status,
-            userEmail: currentUser?.email,
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
         }));
         try {
             await Promise.all(promises);
@@ -142,7 +142,7 @@ export const useTasks = (appState: AppState, actions: any) => {
     const handleBulkDeleteTasks = useCallback(async (ids: string[]) => {
         const promises = ids.map(id => deleteTaskMutation({
             taskId: id,
-            userEmail: currentUser?.email,
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
         }));
         try {
             await Promise.all(promises);

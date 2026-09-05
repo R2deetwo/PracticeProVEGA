@@ -22,11 +22,12 @@ const MIN_TERM_LENGTH = 2;
 export const searchAll = query({
   args: {
     userEmail: v.string(),
+    sessionToken: v.optional(v.string()),
     query: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
     const term = args.query.trim();
     const perTypeLimit = Math.min(Math.max(args.limit ?? 10, 1), 25);

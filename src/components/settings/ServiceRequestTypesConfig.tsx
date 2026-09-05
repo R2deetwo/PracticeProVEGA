@@ -418,7 +418,7 @@ const NewTypeForm: React.FC<{
 
 // ─── Main Export ────────────────────────────────────────────────────────────
 export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = ({ portalType }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { addToast } = useUI();
   const firmId = currentUser?.firmId || '';
 
@@ -444,7 +444,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
   const handleSeed = async () => {
     setIsSeeding(true);
     try {
-      await seedDefaults({ firmId, portalType, userEmail: currentUser?.email || undefined });
+      await seedDefaults({ firmId, portalType, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
       addToast(`Default ${portalType} request types seeded. You can now edit them.`, { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to seed defaults.', { type: 'error' });
@@ -455,7 +455,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
 
   const handleUpdate = async (typeId: string, updates: any) => {
     try {
-      await updateType({ typeId: typeId as any, ...updates, userEmail: currentUser?.email || undefined });
+      await updateType({ typeId: typeId as any, ...updates, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
       addToast('Updated.', { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to update.', { type: 'error' });
@@ -465,7 +465,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
 
   const handleDelete = async (typeId: string) => {
     try {
-      await deleteType({ typeId: typeId as any, userEmail: currentUser?.email || undefined });
+      await deleteType({ typeId: typeId as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
       addToast('Request type deleted. (Portal users will no longer see it.)', { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to delete.', { type: 'error' });

@@ -31,7 +31,7 @@ const getNotificationStyle = (type: string = 'info') => {
 
 const Header: React.FC = React.memo(() => {
     const { theme, setTheme, navigateTo, goBack, goForward, canGoBack, canGoForward, setMobileSearchOpen, openModal, toggleCommandPalette, toggleSidebarRetraction, activePeers, addToast, setIsSessionLocked } = useUI();
-    const { currentUser, logout, isImpersonating, revertToOriginalUser } = useAuth();
+    const { currentUser, logout, isImpersonating, revertToOriginalUser, bearerToken } = useAuth();
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
     const actions = useDataActions();
@@ -61,7 +61,7 @@ const Header: React.FC = React.memo(() => {
 
     const handleAppNotifClick = async (notif: any) => {
         if (!notif.isRead) {
-            try { await markAppNotifRead({ notificationId: notif._id, userEmail: currentUser?.email }); } catch {}
+            try { await markAppNotifRead({ notificationId: notif._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }); } catch {}
         }
         if (notif.actionType === 'apk_download' && notif.actionUrl) {
             if (Capacitor.isNativePlatform()) {
@@ -82,7 +82,7 @@ const Header: React.FC = React.memo(() => {
     // IMPORTANT: Use hasPropertyFeatures (not isProperty) so Komplete firms
     // also get resident messages. isProperty is only for the assistant name.
     const headerFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, hasPropertyFeatures && headerFirmId ? { firmId: headerFirmId, userEmail: currentUser?.email } : 'skip') || [];
+    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, hasPropertyFeatures && headerFirmId ? { firmId: headerFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
 
     const rawUserName = currentUser?.name || currentUser?.email?.split('@')[0] || 'User';
     const displayUserName = isProperty ? rawUserName.replace(/Lawyer/g, 'Manager').replace(/Attorney/g, 'Agent') : rawUserName;
@@ -455,7 +455,7 @@ const Header: React.FC = React.memo(() => {
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
                                     )}
                                     {notifTab === 'platform' && appUnread > 0 && (
-                                        <button onClick={() => markAllAppNotifsRead({ userId: currentUser.id, userEmail: currentUser?.email })} className="text-2xs font-bold text-emerald-600 hover:underline">Clear system alerts</button>
+                                        <button onClick={() => markAllAppNotifsRead({ userId: currentUser.id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) })} className="text-2xs font-bold text-emerald-600 hover:underline">Clear system alerts</button>
                                     )}
                                     {notifTab === 'firm' && aggregatedNotifications.filter(n => !(n as any)._isBroadcast).length > 0 && (
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>

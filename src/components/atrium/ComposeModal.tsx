@@ -216,7 +216,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
   const contacts = (matterState as any).contacts || (coreState as any).contacts || [];
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
   // Product-aware flags. Previously this modal had NO product awareness at all
   // — it always defaulted to the "Residents" tab and showed "Select All Tenanted"
@@ -517,7 +517,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   useEffect(() => {
     if (showUpcoming && firmId) {
       setUpcomingLoading(true);
-      convex.query(api.sentry.getAutomationLogs, { firmId, limit: 10, userEmail: currentUser?.email })
+      convex.query(api.sentry.getAutomationLogs, { firmId, limit: 10, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) })
         .then((logs: any[]) => {
           setUpcomingLogs(logs.filter((l: any) => l.status === 'simulated' || l.status === 'sent'));
           setUpcomingLoading(false);
@@ -745,7 +745,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           const status = sendResult.simulated ? 'simulated' : sendResult.success ? 'sent' : 'failed';
           await logAuto({ 
             firmId, 
-            userEmail: currentUser?.email,
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             unitId: r.id || undefined, 
             messageType: msgType as any, 
             channel, 

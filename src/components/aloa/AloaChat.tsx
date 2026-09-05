@@ -113,7 +113,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const { financeState } = useFinanceState();
     const { coreState, isDataLoaded } = useCoreState();
     const { deleteItem, handleAddResearchNotebook, handleAddResearchSource } = useDataActions();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { navigateTo, openModal, openEditor, currentHistoryEntry, isOnline, addToast } = useUI();
     const { isProperty, isAtrium } = useProduct();
     const convex = useConvex();
@@ -187,7 +187,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const dismissInsightMutation = useMutation(api.proactive.dismissInsight);
     const handleDismissInsight = async (insightId: string) => {
         try {
-            await dismissInsightMutation({ insightId: insightId as any, userEmail: currentUser?.email || undefined });
+            await dismissInsightMutation({ insightId: insightId as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
             addToast('Insight dismissed.', { type: 'info' });
         } catch (e) {
             console.warn('[Dismiss Insight] failed:', e);
@@ -889,16 +889,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         try {
                             if (action === 'update_status') {
                                 if (targetType === 'matters') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'matters', id: targetId, data: { status: value }, userEmail: currentUser?.email });
+                                    await convex.mutation(api.myFunctions.updateItem, { table: 'matters', id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                                 } else if (targetType === 'tasks') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { status: value }, userEmail: currentUser?.email });
+                                    await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                                 } else if (targetType === 'properties') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'properties', id: targetId, data: { status: value }, userEmail: currentUser?.email });
+                                    await convex.mutation(api.myFunctions.updateItem, { table: 'properties', id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                                 }
                             } else if (action === 'set_priority' && targetType === 'tasks') {
-                                await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { priority: value }, userEmail: currentUser?.email });
+                                await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { priority: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                             } else if (action === 'assign_user') {
-                                await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { assignedUserId: value }, userEmail: currentUser?.email });
+                                await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { assignedUserId: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                             } else if (action === 'delete_item') {
                                 await deleteItem(targetType as any, targetId, 'Item');
                             }
@@ -1416,7 +1416,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             scope: isProperty ? 'property' : 'legal',
                             convexQuery: (name: any, args: any) => convex.query(name, args),
                             userId: currentUser?.id,
-                            userEmail: currentUser?.email || undefined
+                            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined
                         });
                     };
                     capturedAiContext.isFirmSearchEnabled = true;
@@ -2622,7 +2622,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         setShowHistory(false);
                                     }}
                                     onDelete={async (id) => {
-                                        await deleteConversationMutation({ conversationId: id, userEmail: currentUser?.email || undefined });
+                                        await deleteConversationMutation({ conversationId: id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
                                         if (activeConversationId === id) {
                                             setActiveConversationId(null);
                                             setMessages([]);

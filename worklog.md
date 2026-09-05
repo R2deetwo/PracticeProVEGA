@@ -10815,3 +10815,62 @@ DEPLOY: 02c17952 → tests → staging → prod promotion (see next entry).
 Cloudflare mirror deploy still pending the user's fresh CF API token
 (the Round 14 restoration is wired; promotion fails fast at token
 verify with exact remediation until then).
+
+---
+
+## Round 16 (session) — plan-Round-15 identity cutover, Phase A complete
+
+**Context:** Claude's external review confirmed the session foundation (R13)
+worked for logins but the legacy spoofable email path was still live —
+"the old spoofable path is still live and still accepted." Plus the
+Komplete/VMS entitlement gap had been flagged three times.
+
+**Diagnosis (evidence-first, per the task protocol):**
+- callerAuth.resolveCaller accepted caller-supplied userEmail with only a
+  console.warn; require*Caller didn't even forward sessionToken.
+- 25 convex files + 61 client files referenced userEmail; 445 server refs.
+- verifyLogin TOFU: `!user.password && rawPw` → ANY password accepted.
+- SIX dead `ctx.auth.getUserIdentity()` gates (Convex Auth never configured —
+  identity always null): visitorManagement generate/revoke/getResidentTokens,
+  fixProductMode, removeUserFromFirm — these features threw "Not
+  authenticated" for EVERYONE on prod. The Komplete VMS wall was exactly
+  this: the tier bypass shipped in Aug 2026 but the function was dead
+  behind the broken gate.
+- VMS Priority-2 state: tier bypass + getVmsAddonStatus 'included' +
+  VmsAddonPanel "Included in Plan" ALREADY shipped (commits 37ecf068/
+  844fb13b) — the remaining gap was the dead identity gate + token wiring.
+- Impersonation swapped the email identity string — dead under strict mode
+  unless redesigned as session minting.
+
+**Phase A implementation (commit 3b2f46e6, 79 files, +1326/-760):**
+- STRICT_IDENTITY_MODE flag in callerAuth (rollback lever per plan).
+- 174 server functions accept + verify sessionToken; anonymous fallback
+  unreachable; token excluded from every rest-spread (never persisted).
+- 154 client identity sites send the bearer; offline queue re-injects the
+  current token at replay (queued tokens go stale).
+- TOFU closed via emailed claim code (MFA plumbing reuse).
+- startImpersonationSession: audited session minting, admin-guarded,
+  portal-only targets, same-firm; AuthContext swaps/restores bearer.
+- Login.tsx: fixed committed corruption `const faCode, setMCode]` — the
+  MFA re-entry step was broken on prod (latent runtime bug).
+- Gates: convex tsc 0; tests 134/134 (+7 strict-mode tests); build green
+  20.6s; dist boot smoke 0 console errors; login modal verified.
+
+**Live spoof probe (BEFORE, captured pre-deploy):**
+POST https://gregarious-malamute-537.convex.cloud/api/query
+{"path":"myFunctions:getVmsAddonStatus","args":{"firmId":"probe","userEmail":"founder@practicepro.ng"}}
+→ 200 with the LEGACY email path executing (requireFirmUser processed the
+spoofed email). This is the vulnerability, live. Post-deploy, the same
+call must return "Unauthenticated: a verified session is required."
+
+**BLOCKED (deploy + Phase B):** the embedded GitHub PAT
+(ghp_bW...68jb) returned 401 on 2026-09-05 — expired/revoked (the repo's
+remote-URL token). No SSH keys, no gh CLI, no stored credentials, no local
+Convex/Vercel deploy keys. Push → CI → production deploy → the three
+category spoof probes (staff/portal/admin) + invalid-token probe + Phase B
+(legacy-path deletion) all await a fresh GitHub PAT from the user.
+
+**Phase B (pending probes):** delete the legacy email/userId branches in
+resolveCaller + authHelpers (keeping the flag documented), make verifyLogin
+session issuance blocking, re-probe, then Round 16 proper (CI identity
+audit script) per the plan.

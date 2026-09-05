@@ -3,6 +3,22 @@ import { Doc } from "./_generated/dataModel";
 import { resolveUserBySessionToken } from "./sessions";
 
 /**
+ * R16 (plan Round 15) — STRICT IDENTITY MODE. The cutover.
+ * ─────────────────────────────────────────────────────────────────────
+ * When true, caller-supplied identity strings (email, userId) are
+ * REJECTED. Every public function requires a valid bearer session token
+ * issued by verifyLogin (password + MFA verified at the login gateway).
+ * This closes the spoofable-identity class: knowing a staff member's
+ * email no longer lets anyone call the API as them.
+ *
+ * ROLLBACK (instant, per the plan's design): flip to `false` and redeploy —
+ * the legacy branches below resume accepting caller-supplied identity.
+ * Phase B deletes the legacy branches entirely once the cutover is proven
+ * by live spoof probes on production.
+ */
+export const STRICT_IDENTITY_MODE = true;
+
+/**
  * STRICT caller verification — Round 8 auth retrofit.
  * ─────────────────────────────────────────────────────────────────────────
  * Background: this app uses CUSTOM auth (email/password verified against the
@@ -47,19 +63,19 @@ async function findUserByEmail(ctx: any, email: string): Promise<CallerUser | nu
 }
 
 /**
- * Resolve the caller to a real users-table row. No anonymous fallback:
- * throws unless a session token, a valid userId, or a known email
- * resolves to an existing user.
+ * Resolve the caller to a real users-table row.
  *
- * R13 — SESSION IDENTITY (Phase 3 foundation):
- *   1. Bearer session token (hash verified against the sessions table) is
- *      FULLY TRUSTED — possession of the token proves the caller passed
- *      password (+ MFA) at the login gateway.
- *   2. Caller-supplied userId remains (pre-R13 path).
- *   3. Caller-supplied email (the legacy identity convention) still works
- *      during the migration window but is LOGGED, because it is spoofable:
- *      anyone who knows an email can claim it. Round 15's strict mode
- *      rejects it; the logs + call-site sweep make that cutover safe.
+ * Resolution order:
+ *   1. Bearer session token (hash verified against the sessions table) —
+ *      FULLY TRUSTED: possession proves the caller passed password
+ *      (+ MFA) at the login gateway. An invalid/expired/revoked token
+ *      THROWS (never falls through to a spoofable email).
+ *   2. Convex Auth session (if ever configured).
+ *
+ * STRICT IDENTITY MODE (plan Round 15 cutover): with the flag on, paths
+ * 3 and 4 below are UNREACHABLE — email-only and userId-only identity
+ * are rejected outright. The code is retained solely as the rollback
+ * lever (flag flip); Phase B deletes it.
  */
 export async function resolveCaller(
   ctx: any,
@@ -90,6 +106,17 @@ export async function resolveCaller(
     }
   } catch {}
 
+  // ── STRICT MODE CUTOVER ────────────────────────────────────────────
+  // Caller-supplied identity strings are spoofable: anyone who knows a
+  // staff email (or a userId leaked in a record) can claim it. Reject.
+  if (STRICT_IDENTITY_MODE) {
+    throw new Error(
+      "Unauthenticated: a verified session is required. Please sign in again."
+    );
+  }
+
+  // ── LEGACY PATHS (rollback lever only — unreachable while strict) ──
+
   // 2. Caller-supplied userId (the logged-in user's Convex _id).
   if (opts.userId) {
     try {
@@ -99,11 +126,9 @@ export async function resolveCaller(
   }
 
   // 3. Caller-supplied email (the repo's legacy auth-token convention).
-  //    R13: still functional during the migration window, but logged —
-  //    this is the spoofable path Round 15's strict mode will reject.
   if (opts.userEmail) {
     console.warn(
-      "[resolveCaller] legacy email identity used (spoofable; Round 15 strict mode will require a session token):",
+      "[resolveCaller] legacy email identity used (spoofable; strict mode is ON — this branch is the rollback lever):",
       String(opts.userEmail).toLowerCase().trim()
     );
     const u = await findUserByEmail(ctx, opts.userEmail);
@@ -133,7 +158,7 @@ export function assertSameFirm(user: CallerUser, firmId: string | undefined | nu
  */
 export async function requireStaffCaller(
   ctx: any,
-  opts: { userEmail?: string | null; userId?: string | null; firmId?: string | null }
+  opts: { userEmail?: string | null; userId?: string | null; firmId?: string | null; sessionToken?: string | null }
 ): Promise<CallerUser> {
   const user = await resolveCaller(ctx, opts);
   if (PORTAL_ROLES.has(String(user.role || ""))) {
@@ -151,7 +176,7 @@ export async function requireStaffCaller(
  */
 export async function requirePortalCaller(
   ctx: any,
-  opts: { userEmail?: string | null; userId?: string | null }
+  opts: { userEmail?: string | null; userId?: string | null; sessionToken?: string | null }
 ): Promise<CallerUser> {
   const user = await resolveCaller(ctx, opts);
   if (!PORTAL_ROLES.has(String(user.role || ""))) {
@@ -163,7 +188,7 @@ export async function requirePortalCaller(
 /** Founder caller — matches the Founder App admission rule (role === 'Founder'). */
 export async function requireFounderCaller(
   ctx: any,
-  opts: { userEmail?: string | null; userId?: string | null }
+  opts: { userEmail?: string | null; userId?: string | null; sessionToken?: string | null }
 ): Promise<CallerUser> {
   const user = await resolveCaller(ctx, opts);
   if (String(user.role || "") !== "Founder") {

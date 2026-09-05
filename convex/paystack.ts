@@ -65,6 +65,7 @@ export const isPaystackActive = query({
 export const initiateClientPayment = action({
   args: {
     invoiceId: v.string(),
+    sessionToken: v.optional(v.string()),
     amount: v.number(),       // in Naira
     email: v.string(),        // customer email
     userEmail: v.optional(v.string()),
@@ -77,7 +78,7 @@ export const initiateClientPayment = action({
   },
   handler: async (ctx, args) => {
     // Authenticate the user
-    await requireFirmUser(ctx, args.userEmail);
+    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
 
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey || process.env.PAYSTACK_ENABLED !== 'true') {

@@ -36,6 +36,7 @@ interface IngestArgs {
     firmId: string;
     scope: 'legal' | 'property';
     userEmail?: string;
+    sessionToken?: string | null;
     convexMutation: (name: any, args: any) => Promise<any>;
     userId?: string;
 }
@@ -48,6 +49,7 @@ interface SearchArgs {
     limit?: number;
     userId?: string;
     userEmail?: string;
+    sessionToken?: string | null;
 }
 
 export const brain = {
@@ -55,7 +57,7 @@ export const brain = {
      * Chunk a document/note and embed each chunk using the user's API key.
      * Stores vectors in Convex. Done entirely on the client — no server key needed.
      */
-    async ingestSource({ text, sourceId, sourceType, title, firmId, scope, convexMutation, userId, userEmail }: IngestArgs): Promise<void> {
+    async ingestSource({ text, sourceId, sourceType, title, firmId, scope, convexMutation, userId, userEmail, sessionToken }: IngestArgs): Promise<void> {
         const chunks = chunkText(text);
         for (let i = 0; i < chunks.length; i++) {
             try {
@@ -68,6 +70,7 @@ export const brain = {
                     scope,
                     userId,
                     userEmail,
+                    sessionToken: sessionToken ?? undefined,
                 });
             } catch (e) {
                 console.error(`[Brain] Failed to index chunk ${i} of "${title}":`, e);
@@ -80,7 +83,7 @@ export const brain = {
      * Embeds the query client-side, then performs a vector similarity search.
      * Returns formatted context string ready to be injected into the system prompt.
      */
-    async search({ query, firmId, scope, convexQuery, limit = 8, userId, userEmail }: SearchArgs): Promise<string> {
+    async search({ query, firmId, scope, convexQuery, limit = 8, userId, userEmail, sessionToken }: SearchArgs): Promise<string> {
         try {
             const queryEmbedding = await generateEmbedding(query);
             const results: any[] = await convexQuery(api.embeddings.searchMemories, {
@@ -90,6 +93,7 @@ export const brain = {
                 limit,
                 userId,
                 userEmail,
+                sessionToken: sessionToken ?? undefined,
             });
 
             if (!results || results.length === 0) {
@@ -117,6 +121,7 @@ export const brain = {
         onProgress,
         userId,
         userEmail,
+        sessionToken,
     }: {
         firmId: string;
         scope: 'legal' | 'property';
@@ -125,6 +130,7 @@ export const brain = {
         onProgress?: (done: number, total: number) => void;
         userId?: string;
         userEmail?: string;
+        sessionToken?: string | null;
     }): Promise<{ indexed: number; errors: number }> {
         const chunks: any[] = await convexQuery(api.brainIngestion.getSourcesForIndexing, { firmId });
         let indexed = 0;
@@ -146,6 +152,7 @@ export const brain = {
                     scope,
                     userId,
                     userEmail,
+                    sessionToken: sessionToken ?? undefined,
                 });
                 indexed++;
             } catch (e) {
@@ -166,7 +173,8 @@ export const brain = {
         scope,
         convexMutation,
         userId,
-        userEmail
+        userEmail,
+        sessionToken
     }: {
         items: { text: string; sourceId: string; sourceType: 'document' | 'note'; title: string }[];
         firmId: string;
@@ -174,6 +182,7 @@ export const brain = {
         convexMutation: (name: any, args: any) => Promise<any>;
         userId?: string;
         userEmail?: string;
+        sessionToken?: string | null;
     }): Promise<void> {
         for (const item of items) {
             await this.ingestSource({
@@ -182,7 +191,8 @@ export const brain = {
                 scope,
                 convexMutation,
                 userId,
-                userEmail
+                userEmail,
+                sessionToken
             });
         }
     }

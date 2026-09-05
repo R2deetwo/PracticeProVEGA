@@ -28,7 +28,7 @@ const MatterContext = createContext<{ matterState: MatterState; matterActions: M
 export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
     const { appState } = useDataState();
     const actions = useDataActions();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const deleteMatterCascadeMutation = useMutation(api.myFunctions.deleteMatterCascade);
     
     const matterState: MatterState = useMemo(() => ({
@@ -43,7 +43,7 @@ export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ child
         deleteMatter: async (id, name) => {
             // Use cascade delete to remove all child records (tasks, documents, etc.)
             try {
-                await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId || '', userEmail: currentUser?.email });
+                await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId || '', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             } catch (e) {
                 console.error('[MatterContext] Cascade delete failed, falling back to simple delete:', e);
             }

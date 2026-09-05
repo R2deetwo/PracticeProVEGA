@@ -74,7 +74,7 @@ function ScoreBar({ score }: { score?: number }) {
 // ── Add Lead Modal ────────────────────────────────────────────────────────
 const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmId, onClose }) => {
   const addLead = useMutation(api.sentry.addLeadToPipeline);
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const [form, setForm] = useState({ unitId: '', applicantName: '', contactInfo: '', proposedRent: '', vettingScore: '', notes: '' });
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmI
     if (!form.unitId || !form.applicantName || !form.contactInfo) return;
     setLoading(true);
     try {
-      await addLead({ firmId, unitId: form.unitId, applicantName: form.applicantName, contactInfo: form.contactInfo, proposedRent: form.proposedRent ? parseFloat(form.proposedRent) : undefined, vettingScore: form.vettingScore ? parseFloat(form.vettingScore) : undefined, notes: form.notes, userEmail: currentUser?.email });
+      await addLead({ firmId, unitId: form.unitId, applicantName: form.applicantName, contactInfo: form.contactInfo, proposedRent: form.proposedRent ? parseFloat(form.proposedRent) : undefined, vettingScore: form.vettingScore ? parseFloat(form.vettingScore) : undefined, notes: form.notes, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
       onClose();
     } finally { setLoading(false); }
   };
@@ -184,7 +184,7 @@ const LeadCard: React.FC<{ lead: LeadPipelineEntry; unitLabel: string; onAdvance
 
 // ── Main Component ────────────────────────────────────────────────────────
 const VacancyPipeline: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
@@ -195,7 +195,7 @@ const VacancyPipeline: React.FC = () => {
   // (sentry.getPipelineByFirm) so the board renders and updates reactively.
   const liveLeads = useQuery(
     api.sentry.getPipelineByFirm,
-    firmId ? { firmId, userEmail: currentUser?.email } : 'skip'
+    firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const leads = (liveLeads ?? (coreState as any).leadsPipeline ?? []) as any[];
   const advanceStage = useMutation(api.sentry.advanceLeadStage);
@@ -242,11 +242,11 @@ const VacancyPipeline: React.FC = () => {
   const handleAdvance = async (lead: LeadPipelineEntry) => {
     const next = NEXT_STAGE[lead.stage];
     if (!next) return;
-    await advanceStage({ leadId: lead._id as any, stage: next, userEmail: currentUser?.email });
+    await advanceStage({ leadId: lead._id as any, stage: next, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
   };
 
   const handleScore = async (lead: LeadPipelineEntry, score: number) => {
-    await advanceStage({ leadId: lead._id as any, stage: lead.stage, vettingScore: score, userEmail: currentUser?.email });
+    await advanceStage({ leadId: lead._id as any, stage: lead.stage, vettingScore: score, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
   };
 
   return (

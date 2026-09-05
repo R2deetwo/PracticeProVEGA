@@ -22,7 +22,7 @@ interface TeamMessageModalProps {
 }
 
 const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { coreState } = useCoreState();
     const { addToast } = useUI();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -103,7 +103,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                     content: message.trim(),
                     authorId: myIdForStorage || undefined,
                     authorName: currentUser?.name || undefined,
-                    userEmail: currentUser?.email,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                     createConversationIfMissing,
                     conversationMembers,
                     conversationName: 'Direct Message',

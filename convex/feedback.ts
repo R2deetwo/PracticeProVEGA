@@ -2,6 +2,7 @@
 import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
+import { resolveCaller } from "./callerAuth";
 
 /**
  * mutation: submitFeedback
@@ -241,15 +242,29 @@ export const deleteFeedbackThread = mutation({
     feedbackId: v.id("user_feedback"),
     deletedBy: v.string(),  // user email OR 'admin'
     userEmail: v.optional(v.string()),  // for user-side auth
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback thread not found");
 
-    // AUTH CHECK — case-insensitive email comparison for robustness
+    // AUTH CHECK (R16 strict) — resolve the caller from the verified bearer
+    // session. The previous check trusted caller-supplied emails (spoofable
+    // — anyone could delete any thread by passing its owner's email).
     const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const callerEmailLower = args.userEmail?.toLowerCase().trim();
-    const isFounder = callerEmailLower && FOUNDER_EMAILS.includes(callerEmailLower);
+    let callerEmailLower: string | undefined;
+    let isFounder = false;
+    if (args.sessionToken) {
+      const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
+      callerEmailLower = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
+      isFounder = FOUNDER_EMAILS.includes(callerEmailLower);
+    } else if (args.userEmail) {
+      // Legacy fallback (rejected under strict mode inside resolveCaller,
+      // kept here only for the no-token error shape): resolve or fail.
+      const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
+      callerEmailLower = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
+      isFounder = FOUNDER_EMAILS.includes(callerEmailLower);
+    }
     if (!isFounder) {
       // Regular user — must own the thread (case-insensitive comparison)
       const feedbackEmailLower = feedback.userEmail?.toLowerCase().trim();
@@ -534,13 +549,21 @@ export const userReplyToFeedback = mutation({
     feedbackId: v.id("user_feedback"),
     message: v.string(),
     userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback thread not found");
 
-    // AUTH: verify the caller owns this thread
-    if (args.userEmail && feedback.userEmail !== args.userEmail) {
+    // AUTH (R16 strict): resolve the caller from the verified bearer session
+    // and verify they own the thread. The previous check trusted the
+    // caller-supplied email (spoofable — anyone could reply to any thread).
+    const caller = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
+    const callerEmail = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase();
+    if (feedback.userEmail && String(feedback.userEmail).toLowerCase() !== callerEmail) {
       throw new Error("Not authorized to reply to this thread");
     }
 

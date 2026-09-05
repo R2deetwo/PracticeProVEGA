@@ -151,7 +151,7 @@ function openLegalDocument(doc: 'terms' | 'privacy') {
 const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDeclined, onClose }) => {
     const [dismissed, setDismissed] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const recordAcceptance = useMutation(api.myFunctions.recordTermsAcceptance);
     const previousVersion = getPreviousVersion();
     const isUpdate = previousVersion !== null && previousVersion !== TERMS_VERSION;
@@ -172,7 +172,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
         try {
             await recordAcceptance({
                 termsVersion: TERMS_VERSION,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 roleContext,
                 roleTermsVersion,
             });

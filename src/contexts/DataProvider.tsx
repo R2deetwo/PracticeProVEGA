@@ -24,7 +24,7 @@ import { useCommunications } from '../hooks/useCommunications';
  * Composes domain-specific hooks and manages global sync.
  */
 export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-    const { currentUser, updateCurrentUser } = useAuth();
+    const { currentUser, updateCurrentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const convex = useConvex();
 
@@ -82,7 +82,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setAppState(prev => ({ ...prev, [table]: [...(prev[table as keyof AppState] as any[]), optimisticItem] }));
 
             try {
-                const rawId = await createItemMutation({ table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email });
+                const rawId = await createItemMutation({ table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                 const convexId = rawId?.toString() || rawId;
                 // CRITICAL: Keep the original client UUID as `id` (matching what was
                 // saved to the backend document) and store the Convex internal _id
@@ -146,7 +146,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 })
             }));
             try {
-                await updateItemMutation({ table, id: mutationId, data: item, userEmail: currentUser?.email });
+                await updateItemMutation({ table, id: mutationId, data: item, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             } catch (e: any) {
                 if (previousItem) {
                     setAppState(prev => ({
@@ -184,7 +184,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id)
             }));
             try {
-                await deleteItemMutation({ table, id, userEmail: currentUser?.email });
+                await deleteItemMutation({ table, id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             } catch (e: any) {
                 // If the Convex delete fails (e.g., item not found, already
                 // deleted, ID mismatch), DON'T restore the item to local state.
@@ -212,7 +212,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 })
             }));
             try {
-                await addUnitToPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitData: tempUnit, userEmail: currentUser?.email || undefined });
+                await addUnitToPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitData: tempUnit, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
                 return tempUnit;
             } catch (e) {
                 setAppState(prev => ({
@@ -238,7 +238,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 })
             }));
             try {
-                await removeUnitFromPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitId, userEmail: currentUser?.email || undefined });
+                await removeUnitFromPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
             } catch (e) {
                 if (removedUnit) {
                     setAppState(prev => ({
@@ -268,7 +268,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 timestamp: new Date().toISOString() 
             };
             setAppState(prev => ({ ...prev, firmActivity: [activity, ...(prev.firmActivity || [])].slice(0, 100) }));
-            createItemMutation({ table: 'firmActivity', data: activity, userEmail: currentUser?.email });
+            createItemMutation({ table: 'firmActivity', data: activity, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
         }
     }), [currentUser, createItemMutation, updateItemMutation, deleteItemMutation, addUnitToPropertyMutation, removeUnitFromPropertyMutation, addToast]);
 
@@ -316,7 +316,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }),
         }));
         try {
-            await markNotificationsMutation({ ids, userEmail: currentUser?.email });
+            await markNotificationsMutation({ ids, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
         } catch (err: any) {
             console.warn('[handleMarkNotificationsRead] Failed:', err?.message);
             // Revert on failure — set back to unread
@@ -340,7 +340,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             notifications: [],
         }));
         try {
-            await clearAllNotificationsMutation({ userEmail: currentUser?.email });
+            await clearAllNotificationsMutation({ userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             // After the mutation completes, notifications are DELETED from the DB.
             // The Convex subscription will push an empty array (or the remaining
             // notifications that couldn't be deleted due to userId mismatch).
@@ -409,7 +409,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const handlePurgeData = React.useCallback(async () => {
         if (!currentUser?.firmId) return;
         try {
-            await purgeFirmDataMutation({ firmId: currentUser.firmId, userEmail: currentUser.email });
+            await purgeFirmDataMutation({ firmId: currentUser.firmId, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
             addToast("All practice data has been purged.", { type: 'success' });
             setAppState(EMPTY_APP_STATE);
         } catch (e) {
@@ -685,7 +685,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const firmData = useQuery(
         api.myFunctions.getFirmData,
         shouldLoadFirmData && currentUser?.firmId && currentUser?.email
-            ? { firmId: currentUser.firmId, userEmail: currentUser.email }
+            ? { firmId: currentUser.firmId, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) }
             : 'skip'
     );
 

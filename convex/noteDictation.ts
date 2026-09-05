@@ -98,13 +98,14 @@ ${args.contextHint ? `CONTEXT: This is a ${args.contextHint}.` : ""}`;
 export const saveTranscripts = mutation({
   args: {
     noteId: v.id("notePages"),
+    sessionToken: v.optional(v.string()),
     rawTranscript: v.string(),
     cleanedTranscript: v.optional(v.string()),
     dictationMode: v.string(),  // 'vega_dual' | 'atrium_single'
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const note: any = await ctx.db.get(args.noteId);
     if (!note) throw new Error("Note not found");
     if (note.firmId !== auth.firmId) throw new Error("Not authorized");

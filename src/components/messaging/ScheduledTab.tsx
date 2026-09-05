@@ -36,6 +36,7 @@ interface ScheduledTabProps {
 }
 
 export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
+  const { bearerToken } = useAuth();
   const { addToast } = useUI();
   const { currentUser } = useAuth() as any;
 
@@ -68,7 +69,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
         messageType: scheduleForm.messageType,
         content: scheduleForm.content.trim(),
         scheduledFor: new Date(scheduleForm.scheduledFor).getTime(),
-        userEmail: currentUser?.email || undefined,
+        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
       });
       setScheduleForm({ channel: 'email', messageType: 'custom', content: '', scheduledFor: '' });
       setShowScheduleForm(false);
@@ -210,7 +211,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                     </div>
                     {msg.status === 'pending' && (
                       <button
-                        onClick={() => cancelScheduled({ messageId: msg._id, userEmail: currentUser?.email || undefined }).then(() => addToast('Scheduled message cancelled.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to cancel.', { type: 'error' }))}
+                        onClick={() => cancelScheduled({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined }).then(() => addToast('Scheduled message cancelled.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to cancel.', { type: 'error' }))}
                         className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex-shrink-0"
                         title="Cancel scheduled message"
                       >

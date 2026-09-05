@@ -155,7 +155,7 @@ export interface AddChargePrefill {
 
 const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: AddChargePrefill }> = ({ firmId, onClose, prefill }) => {
   const upsert = useMutation(api.sentry.upsertServiceCharge);
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const [form, setForm] = useState({
     unitId: prefill?.unitId || '',
@@ -176,7 +176,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
     setLoading(true);
     const nextDueDate = Date.now() + parseInt(form.nextDueDays) * 86400000;
     try {
-      await upsert({ firmId, unitId: form.unitId, category: form.category, amount: parseFloat(form.amount), cycle: form.cycle, nextDueDate, notes: form.notes, userEmail: currentUser?.email });
+      await upsert({ firmId, unitId: form.unitId, category: form.category, amount: parseFloat(form.amount), cycle: form.cycle, nextDueDate, notes: form.notes, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
       onClose();
     } finally { setLoading(false); }
   };
@@ -236,7 +236,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
 
 // ── Penalty Confirm Modal ─────────────────────────────────────────────────
 const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: () => void; onToast: (msg: string) => void }> = ({ charge, firmId, onClose, onToast }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const applyPenalty = useMutation(api.sentry.applyLatePenalty);
   const logAuto = useMutation(api.sentry.logAutomation);
   const penalty = charge.amount * PENALTY_RATE;
@@ -245,8 +245,8 @@ const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: (
   const handleApply = async () => {
     setLoading(true);
     try {
-      await applyPenalty({ firmId, serviceChargeId: charge._id as any, penaltyAmount: penalty, userEmail: currentUser?.email });
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'penalty_notice', channel: 'whatsapp', recipient: charge.tenantId || 'unknown', messagePreview: `Late payment penalty of ₦${penalty.toLocaleString()} applied for ${charge.category} charge.`, status: 'simulated', triggeredBy: 'agent' });
+      await applyPenalty({ firmId, serviceChargeId: charge._id as any, penaltyAmount: penalty, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+      await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'penalty_notice', channel: 'whatsapp', recipient: charge.tenantId || 'unknown', messagePreview: `Late payment penalty of ₦${penalty.toLocaleString()} applied for ${charge.category} charge.`, status: 'simulated', triggeredBy: 'agent' });
       onToast(`₦${penalty.toLocaleString()} penalty applied & logged`);
       onClose();
     } finally { setLoading(false); }
@@ -370,7 +370,7 @@ const ChargeRow: React.FC<{
 
 // ── Main Component ────────────────────────────────────────────────────────
 const ServiceChargeMonitor: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
@@ -493,7 +493,7 @@ const ServiceChargeMonitor: React.FC = () => {
           cycle: LEASE_CYCLE[l.frequency ?? ''] ?? 'Annually',
           nextDueDate: Date.now(),
           notes: `Lease service charge — bridged from unit ledger${l.frequency ? ` (lease frequency: ${l.frequency})` : ''}`,
-          userEmail: currentUser?.email,
+          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
         });
         ok++;
       } catch { failed++; }
@@ -527,7 +527,7 @@ const ServiceChargeMonitor: React.FC = () => {
           paidAmount: charge.amount,
           firmId,
           channel: 'Bank Transfer',
-          userEmail: currentUser?.email,
+          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
           idempotencyKey,
         },
         label: `${charge.category} charge marked paid — ${getUnitLabel(charge.unitId)}`,
@@ -535,7 +535,7 @@ const ServiceChargeMonitor: React.FC = () => {
       showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
       return;
     }
-    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, idempotencyKey });
+    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), idempotencyKey });
     showToast(`${charge.category} charge marked as fully paid`);
   };
 
@@ -555,7 +555,7 @@ const ServiceChargeMonitor: React.FC = () => {
           firmId,
           channel: 'Bank Transfer',
           isPartialPayment: true,
-          userEmail: currentUser?.email,
+          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
           idempotencyKey: uuidv4(),
         },
         label: `Partial payment ₦${amount.toLocaleString()} — ${getUnitLabel(partialPaymentCharge.unitId)}`,
@@ -566,7 +566,7 @@ const ServiceChargeMonitor: React.FC = () => {
       return;
     }
 
-    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, idempotencyKey: uuidv4() });
+    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), idempotencyKey: uuidv4() });
     showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
     setPartialPaymentCharge(null);
     setPartialAmount('');
@@ -594,7 +594,7 @@ const ServiceChargeMonitor: React.FC = () => {
     const preview = `Access restriction notice for ${getUnitLabel(charge.unitId)} — ${charge.category} overdue ${charge.daysOverdue} days.`;
     if (!phone) {
       const noTenant = !chargeHasTenant(charge);
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${preview} (NOT SENT — ${noTenant ? 'no tenant linked to this unit' : 'no phone number on tenant record'})`, status: 'failed', triggeredBy: currentUser?.id });
+      await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${preview} (NOT SENT — ${noTenant ? 'no tenant linked to this unit' : 'no phone number on tenant record'})`, status: 'failed', triggeredBy: currentUser?.id });
       showToast(noTenant
         ? 'No tenant linked to this unit — add the tenant on the property\u2019s Units tab first.'
         : 'Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
@@ -606,7 +606,7 @@ const ServiceChargeMonitor: React.FC = () => {
         messageText: preview,
         firmId,
       });
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: phone, messagePreview: preview, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
+      await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: phone, messagePreview: preview, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
       showToast(result?.simulated ? 'Logged (WhatsApp not configured for this firm yet)' : result?.success ? 'Access restriction notice sent via WhatsApp' : `Send failed: ${result?.error || 'provider error'}`);
     } catch (e: any) {
       showToast(e?.message || 'WhatsApp send failed.');
@@ -622,7 +622,7 @@ const ServiceChargeMonitor: React.FC = () => {
     const phone = resolveTenantPhone(charge.tenantId);
     if (!phone) {
       const noTenant = !chargeHasTenant(charge);
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${messageText} (NOT SENT — ${noTenant ? 'no tenant linked to this unit' : 'no phone number on tenant record'})`, status: 'failed', triggeredBy: currentUser?.id });
+      await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `${messageText} (NOT SENT — ${noTenant ? 'no tenant linked to this unit' : 'no phone number on tenant record'})`, status: 'failed', triggeredBy: currentUser?.id });
       showToast(noTenant
         ? 'No tenant linked to this unit — add the tenant on the property\u2019s Units tab first.'
         : 'Cannot send — no phone number on this tenant\u2019s record. Add one from Contacts.');
@@ -634,7 +634,7 @@ const ServiceChargeMonitor: React.FC = () => {
         messageText,
         firmId,
       });
-      await logAuto({ firmId, userEmail: currentUser?.email, unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: phone, messagePreview: messageText, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
+      await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: phone, messagePreview: messageText, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
       showToast(result?.simulated ? 'Logged (WhatsApp not configured for this firm yet)' : result?.success ? 'WhatsApp reminder sent' : `Send failed: ${result?.error || 'provider error'}`);
     } catch (e: any) {
       showToast(e?.message || 'WhatsApp send failed.');

@@ -35,7 +35,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
     const { coreState, isDataLoaded } = useCoreState();
     const { deleteItem, handleExportData, handleResetPracticeData, handleRestoreItem, handlePermanentDeleteFromArchive } = useDataActions();
     const { openModal, closeModal, addToast } = useUI();
-    const { deleteAccount, currentUser, login, switchFirm, leaveFirm, deleteFirm } = useAuth();
+    const { deleteAccount, currentUser, login, switchFirm, leaveFirm, deleteFirm, bearerToken } = useAuth();
     
     const joinedFirms = useQuery(api.myFunctions.getJoinedFirms, { 
         firmIds: Array.from(new Set([currentUser?.firmId, ...(currentUser?.joinedFirmIds || [])])).filter(Boolean) as string[] 
@@ -198,7 +198,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
             message: `You are about to PERMANENTLY remove this item from the database using an administrative override. This will bypass all standard business logic and checks.`,
             onConfirm: async () => {
                 try {
-                    const result = await forceDeleteItemMutation({ id, userEmail: currentUser?.email });
+                    const result = await forceDeleteItemMutation({ id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                     if (result.success) {
                         addToast(`Administrative Delete Successful (${result.method})`, { type: 'success' });
                     } else {
@@ -230,7 +230,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
             ),
             onConfirm: async () => {
                 try {
-                    const result = await forceDeleteItemMutation({ id: manualDeleteId.trim(), userEmail: currentUser?.email });
+                    const result = await forceDeleteItemMutation({ id: manualDeleteId.trim(), userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                     if (result.success) {
                         addToast("Item deleted from server.", { type: 'success' });
                         // Clear locally just in case it's in any state

@@ -39,7 +39,7 @@
  *     table: 'matters',
  *     data: matterData,
  *     itemName: 'Matter',
- *     userEmail: currentUser?.email,
+ *     userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
  *   });
  *
  * Queue is checked every 30s when online and on the 'online' event with a
@@ -52,6 +52,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
+import { useAuth } from "../contexts/AuthContext";
 
 const QUEUE_KEY = 'practicepro_offline_queue';
 
@@ -85,7 +86,7 @@ interface QueuedMutation {
 // Polymorphic input — new shape OR legacy shape (auto-detected at queue time).
 type QueueInput =
     | { mutationName: MutationName; args: Record<string, any>; label: string }
-    | { table: string; data: any; itemName: string; userEmail?: string };
+    | { table: string; data: any; itemName: string; userEmail?: string; sessionToken?: string | null };
 
 function readQueue(): QueuedMutation[] {
     try {
@@ -162,6 +163,11 @@ function makeId(): string {
 
 export function useOfflineQueue() {
     const { isOnline, addToast } = useUI();
+    // R16 strict identity: queued mutations may replay long after they were
+    // created — the queued args can hold a stale (or missing) session token.
+    // At replay time we overwrite it with the CURRENT bearer so identity is
+    // always freshly verified.
+    const { bearerToken } = useAuth();
 
     // Mutation registry — one useMutation per registered name.
     // These are stable refs from Convex (memoized), so the `mutations` object
@@ -227,7 +233,9 @@ export function useOfflineQueue() {
                 label: mutation.label,
             };
         } else {
-            // Legacy shape — map to createItem
+            // Legacy shape — map to createItem. The sessionToken is NOT stored
+            // in the queue (stale by replay); replayQueue injects the current
+            // bearer at send time.
             item = {
                 id: makeId(),
                 timestamp: Date.now(),
@@ -264,7 +272,9 @@ export function useOfflineQueue() {
                 continue;
             }
             try {
-                await mutationFn(item.args);
+                // R16: refresh the session token at replay time — the queued
+                // copy may be stale/expired (see useAuth note above).
+                await mutationFn({ ...item.args, sessionToken: bearerToken ?? undefined });
                 successCount++;
             } catch (e: any) {
                 if (isNetworkError(e)) {
@@ -301,7 +311,7 @@ export function useOfflineQueue() {
         }
 
         isReplaying.current = false;
-    }, [addToast]);
+    }, [addToast, bearerToken]);
 
     // Replay on 'online' event (with 2s grace period for Convex reconnect)
     useEffect(() => {

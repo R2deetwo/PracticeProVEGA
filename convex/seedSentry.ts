@@ -2,12 +2,16 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFounderCaller } from "./callerAuth";
 
-// Round 8 auth retrofit: Founder-only ops tool (pass founderEmail). Was a
+// R16 strict identity: this seed now requires the founder's BEARER SESSION
+// (email-only identity is rejected server-side). Invocation:
+//   1. Log in as the founder (verifyLogin) to obtain a session token.
+//   2. npx convex run seedSentry:seedDemo '{"sessionToken":"<token>"}'
+// Round 8 auth retrofit: Founder-only ops tool. Was a
 // fully unauthenticated no-args mutation that DELETED + re-inserted rows.
 export const seedDemo = mutation({
-  args: { founderEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), founderEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounderCaller(ctx, { userEmail: args.founderEmail });
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.founderEmail });
     const firmId = "atrium-demo-firm-id";
     
     // Clear existing to avoid duplicates if run multiple times

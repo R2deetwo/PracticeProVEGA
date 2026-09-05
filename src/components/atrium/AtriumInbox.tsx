@@ -61,14 +61,14 @@ const MSG_TYPE_LABELS: Record<string, string> = {
 type InboxTab = 'inbox' | 'proofs' | 'audit';
 
 export const AtriumInbox: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { coreState } = useCoreState();
     const { addToast } = useUI();
     const { confirm, ConfirmDialog } = useConfirm();
     const firmId = coreState.firmDetails?.id || currentUser?.firmId;
 
     // Use query for inbound messages
-    const messages = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email } : 'skip') || [];
+    const messages = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
     const deleteMessage = useMutation(api.sentry.deleteInboundMessage);
     const markAsRead = useMutation(api.sentry.markMessageAsRead);
     const logAutomation = useMutation(api.sentry.logAutomation);
@@ -88,7 +88,7 @@ export const AtriumInbox: React.FC = () => {
     // Audit trail query with filters
     const auditQueryArgs = useMemo(() => {
         if (!firmId) return 'skip';
-        const args: any = { firmId, userEmail: currentUser?.email };
+        const args: any = { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) };
         if (auditFilters.channel) args.channel = auditFilters.channel;
         if (auditFilters.messageType) args.messageType = auditFilters.messageType;
         if (auditFilters.startDate) args.startDate = new Date(auditFilters.startDate).getTime();
@@ -99,7 +99,7 @@ export const AtriumInbox: React.FC = () => {
     const auditTrail = useQuery(api.sentry.getAuditTrail, auditQueryArgs) || [];
 
     // Automation logs for quick counts
-    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip') || [];
+    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
 
     // Payment proof submissions (round-4: firm-side review). Badge counts
     // only the ones awaiting action so a reviewed pile doesn't shout.
@@ -137,7 +137,7 @@ export const AtriumInbox: React.FC = () => {
 
     const handleSelectThread = (id: string) => {
         setSelectedThreadId(id);
-        markAsRead({ messageId: id as any, userEmail: currentUser?.email });
+        markAsRead({ messageId: id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
     };
 
     const handleUseReply = (suggested: string) => {
@@ -155,7 +155,7 @@ export const AtriumInbox: React.FC = () => {
         });
         if (!ok) return;
         try {
-            await deleteMessage({ messageId: id as any, userEmail: currentUser?.email });
+            await deleteMessage({ messageId: id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             if (selectedThreadId === id) setSelectedThreadId(null);
             addToast("Message deleted", { type: "info" });
         } catch (e: any) {
@@ -183,7 +183,7 @@ export const AtriumInbox: React.FC = () => {
                 try {
                     await logAutomation({
                         firmId: firmId!,
-                        userEmail: currentUser?.email,
+                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                         unitId: selectedMessage.unitId || undefined,
                         tenantId: selectedMessage.tenantId || undefined,
                         messageType: 'custom' as any,

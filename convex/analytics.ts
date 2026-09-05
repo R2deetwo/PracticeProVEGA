@@ -21,13 +21,14 @@ import { requireStaffCaller } from "./callerAuth";
 export const trackEvent = mutation({
   args: {
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
     userId: v.string(),
     event: v.string(),
     properties: v.any(),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireStaffCaller(ctx, {
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken,
       userEmail: args.userEmail,
       userId: args.userId,
       firmId: args.firmId,

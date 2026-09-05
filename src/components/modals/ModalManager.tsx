@@ -91,7 +91,7 @@ import AIConsentModal from './AIConsentModal';
 // Wrapper that gives AIConsentModal access to React hooks (recordConsent mutation)
 const AIConsentModalWrapper: React.FC<{ modalContext: any; closeModal: () => void }> = ({ modalContext, closeModal }) => {
   const recordConsent = useMutation(api.myFunctions.recordConsent);
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
 
   const handleAccept = async () => {
     localStorage.setItem('practicepro_ai_consent', 'true');
@@ -141,7 +141,7 @@ const ModalManager: React.FC = () => {
   const { documentState } = useDocumentState();
   const { coreState, isDataLoaded } = useCoreState();
   const dataHandlers = useDataActions();
-  const { currentUser, appMode } = useAuth();
+  const { currentUser, appMode, bearerToken } = useAuth();
   const isProperty = useIsProperty();
   const terminology = useTerminology();
 
@@ -457,7 +457,7 @@ const ModalManager: React.FC = () => {
             // FIX (Aug 2026): Use dedicated deleteTask mutation instead of
             // generic deleteItem which fails silently for tasks without a
             // custom `id` field — same root cause as the drag-drop bug.
-            (dataHandlers as any).deleteTask?.({ taskId: task.id, userEmail: currentUser?.email })
+            (dataHandlers as any).deleteTask?.({ taskId: task.id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) })
               .then(() => { closeModal(); })
               .catch((e: any) => { addToast(e?.message || 'Failed to delete task.', { type: 'error' }); });
           }}

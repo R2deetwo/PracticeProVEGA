@@ -558,7 +558,7 @@ const SectionHeader: React.FC<{
 const MessagesView: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat, addItem: actionsAddItem } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast, activePeers } = useUI();
     const { isProperty, isLegal, isUnified, hasPropertyFeatures } = useProduct();
@@ -670,7 +670,7 @@ const MessagesView: React.FC = () => {
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
     // Atrium: inbound WhatsApp/Email messages from residents
-    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email } : 'skip');
+    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
     const atriumInbound = atriumInboundResult || [];
     // Atrium: portal conversations (conversation-based, replaces flat portal messages)
     const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId ? { firmId } : 'skip');
@@ -681,7 +681,7 @@ const MessagesView: React.FC = () => {
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];
     // Audit trail for outbound messages
-    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email } : 'skip') || [];
+    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
 
     // ── Loading state detection ──
     const isInboxLoading = atriumInboundResult === undefined || portalConversationsResult === undefined || portalMessagesResult === undefined;
@@ -719,7 +719,7 @@ const MessagesView: React.FC = () => {
             await userReplyToFeedback({
                 feedbackId: feedbackId as any,
                 message: feedbackReplyText.trim(),
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
             });
             addToast('Reply sent. The PracticePro team will be notified.', { type: 'success' });
             setFeedbackReplyText('');
@@ -1054,7 +1054,7 @@ const MessagesView: React.FC = () => {
                     requestId: ticketInfo.id as any,
                     status: newStatus,
                     resolution,
-                    userEmail: currentUser?.email || undefined,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
                 });
             }
             addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
@@ -1192,7 +1192,7 @@ const MessagesView: React.FC = () => {
             return;
         }
         for (const msg of unreadInbound) {
-            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email }).catch(() => {});
+            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }).catch(() => {});
         }
         addToast(`Marked ${unreadInbound.length} message${unreadInbound.length > 1 ? 's' : ''} as read.`, { type: 'success', duration: 2000 });
     };
@@ -1221,7 +1221,7 @@ const MessagesView: React.FC = () => {
         // Mark all unread atrium_inbound_messages as read
         const unreadInbound = (atriumInbound as any[] || []).filter((m: any) => !m.isRead);
         for (const msg of unreadInbound) {
-            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email }).catch(() => {});
+            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }).catch(() => {});
         }
 
         // TASK 19: Also mark all unread portal_messages as read.
@@ -1229,7 +1229,7 @@ const MessagesView: React.FC = () => {
         // Use the existing markPortalMessageRead mutation for each one.
         const unreadPortal = (portalMessages as any[] || []).filter((m: any) => m.status === 'unread' || !m.isRead);
         for (const msg of unreadPortal) {
-            markPortalRead({ messageId: msg._id, userEmail: currentUser?.email || undefined }).catch(() => {});
+            markPortalRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined }).catch(() => {});
         }
 
         // Also mark all conversations as read (unreadByAdmin → 0)
@@ -1296,7 +1296,7 @@ const MessagesView: React.FC = () => {
                 try {
                     await logAutomation({
                         firmId,
-                        userEmail: currentUser?.email,
+                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                         unitId: selectedInboundMsg.unitId || undefined,
                         tenantId: selectedInboundMsg.tenantId || undefined,
                         messageType: 'custom' as any,
@@ -1667,7 +1667,7 @@ const MessagesView: React.FC = () => {
                                                     {!collapsedSections.has('inbound') && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
                                                     key={msg._id}
-                                                    onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id, userEmail: currentUser?.email }); }}
+                                                    onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }); }}
                                                     className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
@@ -2217,7 +2217,7 @@ const MessagesView: React.FC = () => {
                                                                         content: `🎤 Voice note (${duration}s)`,
                                                                         authorId: currentUser?._id || currentUser?.id || '',
                                                                         authorName: currentUser?.name || '',
-                                                                        userEmail: currentUser?.email,
+                                                                        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                                                                         attachments: [storageId],
                                                                         attachmentNames: [`voice-note-${duration}s.webm`],
                                                                         idempotencyKey: uuidv4(),
@@ -2242,7 +2242,7 @@ const MessagesView: React.FC = () => {
                                                                 content: text || (attachments.length > 0 ? '(file attachment)' : ''),
                                                                 authorId: currentUser?._id || currentUser?.id || '',
                                                                 authorName: currentUser?.name || '',
-                                                                userEmail: currentUser?.email,
+                                                                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                                                                 // FIX: Pass attachment storage IDs and names so recipients
                                                                 // can see and download the files. Previously attachments were
                                                                 // uploaded to Convex storage but the storageId was discarded
@@ -2313,9 +2313,9 @@ const MessagesView: React.FC = () => {
                                                     });
                                                     if (!ok) return;
                                                     if (selectedInboundMsg._inboxType === 'portal') {
-                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email }).catch(() => {});
+                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }).catch(() => {});
                                                     } else {
-                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email });
+                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                                                     }
                                                     setSelectedInboxId(null);
                                                 }}
@@ -2761,7 +2761,7 @@ const MessagesView: React.FC = () => {
                                                                         await deleteFeedbackThread({
                                                                             feedbackId: fb._id,
                                                                             deletedBy: currentUser?.email || 'user',
-                                                                            userEmail: currentUser?.email,
+                                                                            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                                                                         });
                                                                         addToast('Thread deleted.', { type: 'success' });
                                                                     } catch (e: any) {

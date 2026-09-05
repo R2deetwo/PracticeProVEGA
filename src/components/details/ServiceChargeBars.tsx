@@ -699,7 +699,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
 
     // Convex mutations + context for zero-touch receipt automation
     const { coreState } = useCoreState();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
     const logAutomation = useMutation(api.sentry.logAutomation);
@@ -786,7 +786,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             // 2. Write immutable activity log
             await logAutomation({
                 firmId,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 unitId: unit.id,
                 messageType: 'receipt_issued',
                 channel: 'portal',

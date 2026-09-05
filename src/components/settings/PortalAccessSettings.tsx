@@ -165,6 +165,7 @@ const InviteForm: React.FC<{
   onSent: () => void;
   onCancel: () => void;
 }> = ({ firmId, inviterId, portalType, onSent, onCancel }) => {
+  const { bearerToken } = useAuth();
   const { addToast } = useUI();
   const convex = useConvex();
   const { currentUser } = useAuth() as any; // round 8: caller identity for createPortalInvite
@@ -282,7 +283,7 @@ const InviteForm: React.FC<{
         portalType,
         relatedId: relatedId || undefined,
         channel,
-        userEmail: currentUser?.email || undefined,
+        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -842,7 +843,7 @@ const PortalSection: React.FC<{
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export const PortalAccessSettings: React.FC = () => {
-  const { currentUser, loginAsUser } = useAuth();
+  const { currentUser, loginAsUser, bearerToken } = useAuth();
   const { addToast, navigateTo } = useUI();
   const convex = useConvex();
   const { isProperty, isLegal, isUnified, hasPropertyFeatures, hasLegalFeatures } = useProduct();
@@ -902,7 +903,7 @@ export const PortalAccessSettings: React.FC = () => {
 
   const handleRevoke = async (inviteId: string) => {
     try {
-      await revokeInvite({ inviteId: inviteId as any, userEmail: currentUser?.email || undefined });
+      await revokeInvite({ inviteId: inviteId as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
       // Check if the invite was revoked or restored by checking its current status
       // The backend toggles: revoked -> accepted (restore), active/pending -> revoked
       addToast('Portal access updated.', { type: 'success' });
@@ -937,7 +938,7 @@ export const PortalAccessSettings: React.FC = () => {
           inviteId: inviteId as any,
           inviteeEmail: inviteEmail || undefined,
           inviteePhone: invitePhone || undefined,
-          userEmail: currentUser?.email || undefined,
+          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
         });
       } catch (cleanupErr: any) {
         console.warn('[PortalAccessSettings] Cleanup mutation failed (continuing to hard-delete):', cleanupErr);
@@ -981,7 +982,7 @@ export const PortalAccessSettings: React.FC = () => {
       let hardDeletedCount = 0;
       for (const id of invitesToHardDelete) {
         try {
-          await hardDeleteInvite({ inviteId: id as any, userEmail: currentUser?.email || undefined });
+          await hardDeleteInvite({ inviteId: id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
           hardDeletedCount++;
         } catch (e: any) {
           // Already deleted by Step 1 (new backend), or already gone — non-fatal
@@ -1002,7 +1003,7 @@ export const PortalAccessSettings: React.FC = () => {
   const handleResend = async (invite: any) => {
     setResendingId(String(invite._id));
     try {
-      const result = await resendInvite({ inviteId: invite._id, userEmail: currentUser?.email || undefined });
+      const result = await resendInvite({ inviteId: invite._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
       const parts: string[] = [];
       if (result.emailSent) parts.push('email delivered');
       else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
@@ -1184,7 +1185,7 @@ export const PortalAccessSettings: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
                 </div>
                 <button
-                  onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+                  onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1199,7 +1200,7 @@ export const PortalAccessSettings: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
                 </div>
                 <button
-                  onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+                  onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1233,7 +1234,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Residents can generate 6-digit access codes for their visitors</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, vmsEnabled: !portalSettings?.vmsEnabled, userEmail: currentUser?.email })}
+                onClick={() => updateSettings({ firmId, vmsEnabled: !portalSettings?.vmsEnabled, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.vmsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1247,7 +1248,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send WhatsApp alert to gatekeeper when a visitor is verified</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, vmsGatekeeperNotifications: !portalSettings?.vmsGatekeeperNotifications })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), vmsGatekeeperNotifications: !portalSettings?.vmsGatekeeperNotifications })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsGatekeeperNotifications ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.vmsGatekeeperNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1261,7 +1262,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send WhatsApp to resident when their visitor checks in at the gate</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, vmsResidentNotifications: !portalSettings?.vmsResidentNotifications })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), vmsResidentNotifications: !portalSettings?.vmsResidentNotifications })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsResidentNotifications ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.vmsResidentNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1274,7 +1275,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Grace Period (minutes)</label>
                 <select
                   value={portalSettings?.vmsGracePeriodMinutes ?? 30}
-                  onChange={(e) => updateSettings({ firmId, userEmail: currentUser?.email, vmsGracePeriodMinutes: parseInt(e.target.value) })}
+                  onChange={(e) => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), vmsGracePeriodMinutes: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                   <option value={0}>No grace</option>
@@ -1287,7 +1288,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Default Validity</label>
                 <select
                   value={portalSettings?.vmsDefaultExpiryHours ?? 6}
-                  onChange={(e) => updateSettings({ firmId, userEmail: currentUser?.email, vmsDefaultExpiryHours: parseInt(e.target.value) })}
+                  onChange={(e) => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), vmsDefaultExpiryHours: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
                 >
                   <option value={2}>2 Hours</option>
@@ -1401,7 +1402,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1416,7 +1417,7 @@ export const PortalAccessSettings: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
               </div>
               <button
-                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+                onClick={() => updateSettings({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />

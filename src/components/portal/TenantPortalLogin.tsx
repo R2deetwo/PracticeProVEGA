@@ -150,6 +150,8 @@ const TenantPortalLogin: React.FC = () => {
                     setError('Your account has been locked. Please contact your property manager.');
                 } else if (result.requiresMfa) {
                     setError('Multi-factor authentication is required. Please sign in through the main app.');
+                } else if ((result as any).requiresInitialPassword) {
+                    setError("This account has no password yet — we just emailed you a verification code. Please use the main app login (or 'Forgot Password?' below) to set your password.");
                 } else {
                     setError(result.message || 'Invalid email or password.');
                 }

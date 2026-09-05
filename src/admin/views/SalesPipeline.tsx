@@ -16,6 +16,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
+import { useAuth } from "../../contexts/AuthContext";
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
@@ -35,6 +36,7 @@ const PRODUCT_BADGE: Record<string, string> = {
 };
 
 export const SalesPipeline: React.FC = () => {
+    const { bearerToken } = useAuth();
     const { currentUser } = useFounderAuth();
     const { addToast } = useFounderToast();
     const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -47,7 +49,7 @@ export const SalesPipeline: React.FC = () => {
 
     const handleStatusChange = async (inquiryId: string, newStatus: string) => {
         try {
-            await updateStatus({ inquiryId: inquiryId as any, status: newStatus as any, userEmail: currentUser?.email || undefined });
+            await updateStatus({ inquiryId: inquiryId as any, status: newStatus as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
             addToast(`Lead marked as ${newStatus}.`, { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to update lead status.', { type: 'error' });

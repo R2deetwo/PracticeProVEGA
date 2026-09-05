@@ -18,6 +18,7 @@ import { requireStaffCaller } from "./callerAuth";
 export const addMemory = mutation({
     args: {
         text: v.string(),
+    sessionToken: v.optional(v.string()),
         embedding: v.array(v.number()), // Client sends the pre-computed vector
         metadata: v.any(),
         firmId: v.string(),
@@ -26,7 +27,7 @@ export const addMemory = mutation({
         userEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireStaffCaller(ctx, {
+        await requireStaffCaller(ctx, { sessionToken: args.sessionToken,
             userId: args.userId,
             userEmail: args.userEmail,
             firmId: args.firmId,
@@ -66,6 +67,7 @@ export const addMemory = mutation({
 export const searchMemories = action({
     args: {
         queryEmbedding: v.array(v.number()),
+    sessionToken: v.optional(v.string()),
         firmId: v.string(),
         scope: v.optional(v.string()),
         limit: v.optional(v.number()),
@@ -73,7 +75,7 @@ export const searchMemories = action({
         userEmail: v.optional(v.string()),
     },
     handler: async (ctx, args): Promise<Doc<"memories">[]> => {
-        await requireStaffCaller(ctx, {
+        await requireStaffCaller(ctx, { sessionToken: args.sessionToken,
             userId: args.userId,
             userEmail: args.userEmail,
             firmId: args.firmId,

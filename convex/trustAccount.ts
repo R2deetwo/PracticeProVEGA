@@ -72,6 +72,7 @@ async function getClientBalance(ctx: any, firmId: string, clientName: string): P
 export const recordTrustTransaction = mutation({
   args: {
     firmId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
     matterId: v.optional(v.string()),
     clientName: v.optional(v.string()),
     type: v.union(v.literal("deposit"), v.literal("withdrawal"), v.literal("transfer")),
@@ -84,7 +85,7 @@ export const recordTrustTransaction = mutation({
   },
   handler: async (ctx, args) => {
     // Authenticate and get the real firmId from the session
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
     const recordedBy = args.recordedBy || auth.userId;
     const recordedByName = args.recordedByName || auth.user.name || 'Unknown';
@@ -192,11 +193,12 @@ export const recordTrustTransaction = mutation({
 export const getTrustTransactions = query({
   args: {
     firmId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
     matterId: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
 
     const transactions = await ctx.db
@@ -217,9 +219,9 @@ export const getTrustTransactions = query({
 // ─── Get Current Trust Balance (firm-wide total) ─────────────────────────
 
 export const getTrustBalance = query({
-  args: { firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
 
     const lastTx: any = await ctx.db
@@ -238,9 +240,9 @@ export const getTrustBalance = query({
 // be used for trust accounting compliance reports.
 
 export const getTrustBalancesByMatter = query({
-  args: { firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()), firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
 
     const allTxs: any[] = await ctx.db
@@ -286,11 +288,12 @@ export const getTrustBalancesByMatter = query({
 export const deleteTrustTransaction = mutation({
   args: {
     transactionId: v.id("trust_transactions"),
+    sessionToken: v.optional(v.string()),
     firmId: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail);
+    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
 
     // Verify the transaction belongs to this firm before deleting

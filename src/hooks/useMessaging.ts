@@ -21,7 +21,7 @@ import { AppState } from '../types';
  * server-side mutation called directly by the sender's client.
  */
 export const useMessaging = (appState: AppState, actions: any) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const sendChatMessageMutation = useMutation(api.myFunctions.sendChatMessage);
 
@@ -42,7 +42,7 @@ export const useMessaging = (appState: AppState, actions: any) => {
                 content,
                 authorId: senderId,
                 authorName: currentUser?.name || undefined,
-                userEmail: currentUser?.email,
+                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
                 idempotencyKey,
             });
         } catch (e: any) {

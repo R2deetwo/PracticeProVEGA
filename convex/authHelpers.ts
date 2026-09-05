@@ -1,31 +1,30 @@
 
 import { Doc } from "./_generated/dataModel";
+import { STRICT_IDENTITY_MODE } from "./callerAuth";
+import { resolveUserBySessionToken } from "./sessions";
 
 /**
  * Helper to ensure the user is logged in and associated with a firm.
  * This is used by queries and mutations to enforce data isolation.
  *
- * AUTHENTICATION MODEL:
- * This app uses CUSTOM auth (email/password verified against the `users`
- * table), NOT Convex Auth. The client passes `userEmail` as the auth
- * token. The server looks up the user by email and returns their firmId.
- *
- * SECURITY:
- * The userEmail is validated against the `users` table — if the email
- * doesn't match a real user record with a firmId, the request is rejected.
- * This means a caller cannot pass an arbitrary email to access another
- * firm's data — the email must correspond to a real user in the DB.
- *
- * If Convex Auth is configured (ctx.auth.getUserIdentity() returns a
- * valid identity), the session email takes precedence over the
- * client-supplied userEmail.
+ * AUTHENTICATION MODEL (R16 / plan Round 15 strict cutover):
+ * The caller presents the bearer `sessionToken` issued by verifyLogin;
+ * the server resolves the user by the token's SHA-256 hash (possession
+ * proof — password + MFA were verified at the login gateway). The
+ * legacy caller-supplied `userEmail` path is retained ONLY as the
+ * rollback lever (STRICT_IDENTITY_MODE = false) and is rejected while
+ * strict mode is on.
  */
-export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
+export async function requireFirmUser(
+  ctx: any,
+  userEmail?: string,
+  sessionToken?: string | null
+): Promise<{
   firmId: string;
   userId: string;
   user: Doc<"users">;
 }> {
-  // 1. Try Convex Auth session first (if configured)
+  // 1. Convex Auth session (if configured) — inert in this deployment.
   let sessionEmail: string | undefined;
   try {
     const identity = await ctx.auth.getUserIdentity();
@@ -34,26 +33,32 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
     }
   } catch {}
 
-  // 2. If no Convex Auth session, fall back to client-supplied userEmail.
+  // 2. Bearer session token — the R16 strict path. Possession of the
+  //    token proves the caller passed password (+ MFA) at login.
+  if (sessionToken) {
+    const user = await resolveUserBySessionToken(ctx, sessionToken);
+    if (!user) {
+      throw new Error(
+        "Unauthenticated: the session token is invalid, expired, or revoked. Please sign in again."
+      );
+    }
+    return await settleFirmUser(ctx, user as Doc<"users">);
+  }
+
+  // ── STRICT MODE CUTOVER ────────────────────────────────────────────
+  // No token presented: reject before touching any caller-supplied
+  // identity string. The legacy branches below are the rollback lever.
+  if (STRICT_IDENTITY_MODE) {
+    throw new Error(
+      "Unauthenticated: a verified session is required. Please sign in again."
+    );
+  }
+
+  // ── LEGACY PATHS (rollback lever only — unreachable while strict) ──
   const email = sessionEmail || userEmail?.toLowerCase();
 
-  // ── BACKWARD COMPATIBILITY ──────────────────────────────────────────
-  // Many legacy client calls (mutations, AloaChat, etc.) do NOT pass
-  // userEmail because they were written before the RLS enforcement was
-  // added. Throwing "Unauthenticated" here breaks the entire app.
-  //
-  // SECURITY TRADE-OFF:
-  // - When userEmail IS provided → full RLS enforcement (portal block,
-  //   firm verification, suspension check). This is the primary path.
-  // - When userEmail is NOT provided → we cannot identify the caller,
-  //   so we return a permissive anonymous context. This preserves
-  //   backward compatibility but does NOT enforce the portal block.
-  //   The verifyLogin() gateway already blocks portal users from
-  //   logging into the main app, so this is defense-in-depth, not the
-  //   primary gate.
-  //
-  // TODO: Migrate all client calls to pass userEmail so this fallback
-  // can be removed in a future release.
+  // ── BACKWARD COMPATIBILITY (legacy, rollback-lever only) ─────────────
+  // Reachable only with STRICT_IDENTITY_MODE = false.
   if (!email) {
     // Log for monitoring (best-effort, don't block on failure)
     try {
@@ -71,38 +76,40 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
     };
   }
 
-  // 3. Check if user's session is suspended
-  try {
-    const suspended = await ctx.db
-      .query("suspendedUsers")
-      .withIndex("by_user", (q: any) => null)
-      .collect();
-    // Note: we can't check by email here since we don't have the userId yet.
-    // Suspension is checked after user lookup below.
-  } catch {}
-
   // 4. Lookup user by email (tokenIdentifier field)
-  let user = await ctx.db
+  let legacyUser = await ctx.db
     .query("users")
     .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email!))
     .first();
 
   // 5. Fallback lookup by the `email` field directly
-  if (!user) {
+  if (!legacyUser) {
     // Phase 4 (perf): index seek via users.by_email (previously a full users
     // table scan on EVERY login fallback)
-    user = await ctx.db
+    legacyUser = await ctx.db
       .query("users")
       .withIndex("by_email", (q: any) => q.eq("email", email!))
       .first();
   }
 
+  return await settleFirmUser(ctx, legacyUser as Doc<"users">, email);
+}
+
+/**
+ * Shared tail of requireFirmUser: firm check, portal-role block, and
+ * suspension check — run identically no matter how the user resolved.
+ */
+async function settleFirmUser(
+  ctx: any,
+  user: Doc<"users"> | null,
+  legacyEmail?: string
+): Promise<{ firmId: string; userId: string; user: Doc<"users"> }> {
   if (!user || !user.firmId) {
     // ── RLS Audit: Log unauthorized access attempt ───────────────────
     try {
       await ctx.db.insert("securityEvents", {
         eventType: "unauthorized_access",
-        email: email,
+        email: legacyEmail,
         details: "requireFirmUser: no user or firmId found",
         timestamp: Date.now(),
       });
@@ -122,7 +129,7 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
       await ctx.db.insert("securityEvents", {
         eventType: "unauthorized_access",
         userId: String(user._id),
-        email: email,
+        email: user.email || legacyEmail,
         details: `requireFirmUser: portal role (${user.role}) attempted firm-level operation`,
         timestamp: Date.now(),
       });
@@ -176,8 +183,12 @@ export async function requireServiceAuth(ctx: any): Promise<{ isService: true }>
 /**
  * Helper to ensure the user has Admin privileges.
  */
-export async function requireAdmin(ctx: any, userEmail?: string) {
-  const auth = await requireFirmUser(ctx, userEmail);
+export async function requireAdmin(
+  ctx: any,
+  userEmail?: string,
+  sessionToken?: string | null
+) {
+  const auth = await requireFirmUser(ctx, userEmail, sessionToken);
   // SECURITY FIX: Explicit guard — don't rely on null.role TypeError to
   // block anonymous callers. This makes the protection intentional.
   if (!auth.firmId || !auth.user) {
