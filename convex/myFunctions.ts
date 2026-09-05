@@ -7,6 +7,8 @@ import { checkRateLimit } from "./securityHelpers";
 import { numericCode, codeFromCharset } from "./secureRandom";
 // Task 20: login-code verification rules (normalize, TTL, hint, copy)
 import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./codeVerification";
+// Task 21: shared user-record resolution + NDPA privacy projection
+import { pickUserRecord, stripAuthFields, userLookupArgs } from "./userResolution";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { requireStaffCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
 import { notifyFounders } from "./founderNotifications";
@@ -1075,91 +1077,92 @@ export const getResearchSourceContent = query({
 
 // --- CORE QUERIES ---
 
+/**
+ * Task 21: three-stage user lookup shared by getUser (public, projected)
+ * and getUserForAuth (internal, RAW). Both MUST resolve the same record,
+ * otherwise the auth flows would validate against a different account than
+ * the one the client sees.
+ */
+async function findUserMatches(ctx: any, token: string): Promise<any[]> {
+  // 1. Primary: indexed lookup — collect ALL matching records, not just the first,
+  //    so we can disambiguate when the same email exists as both an admin
+  //    record AND a portal record (the "residents see admin dashboard" bug).
+  //    Indexed lookups return rows in index order; .first() was returning
+  //    whichever came first — usually the older Admin record.
+  const directMatches = await ctx.db
+    .query("users")
+    .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+    .collect();
+
+  // 2. Case-insensitive indexed lookup
+  const lowerMatches = directMatches.length === 0
+    ? await ctx.db
+        .query("users")
+        .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token.toLowerCase()))
+        .collect()
+    : [];
+
+  // 3. Fallback: bounded scan — take only 500 to prevent timeout
+  if (directMatches.length > 0 || lowerMatches.length > 0) {
+    return [...directMatches, ...lowerMatches];
+  }
+  return (await ctx.db.query("users").take(500))
+    .filter((u: any) =>
+      u.tokenIdentifier &&
+      u.tokenIdentifier.toLowerCase() === token.toLowerCase()
+    );
+}
+
 export const getUser = query({
-  args: { tokenIdentifier: v.string(), preferPortalRole: v.optional(v.boolean()) },
+  args: userLookupArgs,
   handler: async (ctx, args) => {
     try {
-      const token = args.tokenIdentifier;
-      const preferPortalRole = args.preferPortalRole === true;
-
-      // 1. Primary: indexed lookup — collect ALL matching records, not just the first,
-      //    so we can disambiguate when the same email exists as both an admin
-      //    record AND a portal record (the "residents see admin dashboard" bug).
-      //    Indexed lookups return rows in index order; .first() was returning
-      //    whichever came first — usually the older Admin record.
-      const directMatches = await ctx.db
-        .query("users")
-        .withIndex("by_token", (q) => q.eq("tokenIdentifier", token))
-        .collect();
-
-      // 2. Case-insensitive indexed lookup
-      const lowerMatches = directMatches.length === 0
-        ? await ctx.db
-            .query("users")
-            .withIndex("by_token", (q) => q.eq("tokenIdentifier", token.toLowerCase()))
-            .collect()
-        : [];
-
-      // 3. Fallback: bounded scan — take only 500 to prevent timeout
-      const allMatches = directMatches.length > 0 || lowerMatches.length > 0
-        ? [...directMatches, ...lowerMatches]
-        : (await ctx.db.query("users").take(500))
-            .filter((u: any) =>
-              u.tokenIdentifier &&
-              u.tokenIdentifier.toLowerCase() === token.toLowerCase()
-            );
-
-      if (allMatches.length === 0) return null;
-
-      // Pick the right record when duplicates exist. The "residents see admin
-      // dashboard" bug occurred because the same email existed as BOTH an Admin
-      // user record AND a Tenant/Client record, and .first() was returning the
-      // Admin record when the user logged in via the portal.
-      //
-      // Resolution strategy:
-      //   - If preferPortalRole is true (login via /portal/* route) AND a
-      //     portal-role record exists, prefer it.
-      //   - Otherwise, prefer the first record (preserves existing behavior
-      //     for admin-side logins).
-      //   - We also filter out 'Pending' records — those are revoked accounts
-      //     that should never be the resolved user.
-      const PORTAL_ROLES = new Set(["Client", "Tenant"]);
-      const nonPending = allMatches.filter((u: any) => u.role !== "Pending");
-
-      // If everything is Pending, fall through and let the existing
-      // revoked-user handling in AuthContext take over.
-      const pool = nonPending.length > 0 ? nonPending : allMatches;
-
-      let user: any;
-      if (preferPortalRole) {
-        const portalRecord = pool.find((u: any) => PORTAL_ROLES.has(u.role));
-        user = portalRecord || pool[0];
-      } else {
-        user = pool[0];
-      }
+      const raw = pickUserRecord(
+        await findUserMatches(ctx, args.tokenIdentifier),
+        args.preferPortalRole === true
+      );
+      if (!raw) return null;
 
       // ============================================================
       // NDPA COMPLIANCE: Server-side privacy projection.
       // Strip ALL sensitive authentication fields before transmitting
       // to the frontend. These fields MUST NEVER leave the server.
+      // (Task 21: projection extracted to stripAuthFields so it is
+      // unit-tested and shared with getUserForAuth's contract tests.)
       // ============================================================
-      const { 
-        password, 
-        mfaCode, 
-        verificationCode, 
-        failedLoginAttempts, 
-        lockedUntil,
-        // @ts-ignore - destructure to exclude, even if not always present
-        passwordHash,
-        ...safeUser 
-      } = user as any;
-
-      return safeUser;
+      return stripAuthFields(raw);
     } catch (e) {
       // Never throw to the client — return null so AuthContext falls back gracefully
       console.error("[getUser] Query error:", e);
       return null;
     }
+  },
+});
+
+/**
+ * Task 21 — INTERNAL raw-record lookup for server-side auth flows.
+ *
+ * verifyLogin and resetPassword previously fetched their user through the
+ * PUBLIC getUser, which applies the NDPA privacy projection (stripAuthFields).
+ * They therefore received a record with password / mfaCode /
+ * verificationCode / failedLoginAttempts / lockedUntil REMOVED — so the code
+ * the user typed was compared against undefined ("" after normalize) and
+ * EVERY code was rejected no matter how fresh or correct. Production
+ * evidence (2026-09-05): fresh code issued 11:48:26, failedLoginAttempts=1,
+ * zero sessions ever, across all 14 users.
+ *
+ * This query returns the FULL record. It is `internalQuery`, so it can only
+ * be referenced by other server functions (ctx.runQuery) — never callable
+ * from the client. Resolution uses the same findUserMatches +
+ * pickUserRecord as getUser, so both agree on WHICH record is the user.
+ */
+export const getUserForAuth = internalQuery({
+  args: userLookupArgs,
+  handler: async (ctx, args) => {
+    return pickUserRecord(
+      await findUserMatches(ctx, args.tokenIdentifier),
+      args.preferPortalRole === true
+    );
   },
 });
 
@@ -1497,7 +1500,15 @@ export const verifyLogin = action({
     //    record (usually the older Admin record), the password check passes against
     //    the Admin record (whose password was overwritten by setupPortalPassword),
     //    and the user ends up logged in as Admin — seeing the admin dashboard.
-    const user: any = await ctx.runQuery(api.myFunctions.getUser, {
+    //
+    //    TASK 21 FIX: this MUST be the RAW record (getUserForAuth), NOT the
+    //    public getUser. getUser applies the NDPA privacy projection and
+    //    strips password / mfaCode / failedLoginAttempts / lockedUntil — the
+    //    pre-fix code compared the user's typed code against `undefined`, so
+    //    every login code was rejected no matter how fresh ("both codes
+    //    failed" / "every code rejected" incidents). getUserForAuth is an
+    //    internal query: same record resolution, full fields, server-only.
+    const user: any = await ctx.runQuery(internal.myFunctions.getUserForAuth, {
       tokenIdentifier: token,
       preferPortalRole: args.portalType !== undefined,
     });
@@ -2028,7 +2039,12 @@ export const resetPassword = action({
   handler: async (ctx, args) => {
     const token = args.email.toLowerCase().trim();
 
-    const user: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: token });
+    // TASK 21 FIX: read the RAW record. The public getUser strips
+    // verificationCode (the 6-digit OTP path here always failed — only the
+    // RCV- recovery code worked, by accident, because recoveryCode was not
+    // in the strip list). resetPassword is a server-side action: internal
+    // getUserForAuth gives it the full record and is not client-callable.
+    const user: any = await ctx.runQuery(internal.myFunctions.getUserForAuth, { tokenIdentifier: token });
 
     if (!user) return { success: false, message: "User account not found." };
 

@@ -2392,7 +2392,11 @@ export const setupPortalPassword = action({
     // valid token. (Bug 15 fix: more thorough reset detection)
     if (invite.status === "accepted") {
       const emailCheck = (invite.inviteeEmail || "").toLowerCase().trim();
-      const existingUserCheck: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: emailCheck });
+      // TASK 21 FIX: read the RAW record — the public getUser strips the
+      // password field, so `!existingUserCheck.password` was ALWAYS true and
+      // every accepted invite looked "reset" (the re-accept guard never
+      // fired). getUserForAuth is the internal full-field lookup.
+      const existingUserCheck: any = await ctx.runQuery(internal.myFunctions.getUserForAuth, { tokenIdentifier: emailCheck });
       const wasReset = existingUserCheck?.role === "Pending"
         || (existingUserCheck && !existingUserCheck.isVerified)
         || (existingUserCheck && !(existingUserCheck as any).password)
