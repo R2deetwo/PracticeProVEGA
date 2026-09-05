@@ -182,9 +182,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sleep 2
-          EXISTING=$(curl -s -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues?labels=watchdog&state=open" | jq -r '.[0].number // empty')
+          # The issue was created moments ago in the alert step. GitHub's
+          # label-filtered issue LIST is briefly eventually-consistent for
+          # brand-new issues — poll for it instead of a single 2s-shot query.
+          EXISTING=""
+          for ATTEMPT in 1 2 3 4 5 6 7 8 9 10; do
+            EXISTING=$(curl -s -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues?labels=watchdog&state=open" | jq -r '.[0].number // empty')
+            if [ -n "$EXISTING" ]; then break; fi
+            sleep 3
+          done
           if [ -n "$EXISTING" ]; then
             curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING/comments" \
@@ -192,8 +199,7 @@ jobs:
             curl -s -X PATCH -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING" \
               -d '{"state":"closed"}' > /dev/null
-            echo "DRILL PASS: alert issue was created and closed cleanly." | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "DRILL_PASS=true" >> "$GITHUB_ENV"
+            echo "DRILL PASS: alert issue #$EXISTING was created and closed cleanly." | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "::error::DRILL FAIL: no alert issue was created by the simulated failure."
             exit 1
