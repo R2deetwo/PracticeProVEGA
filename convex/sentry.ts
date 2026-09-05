@@ -2,6 +2,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
 import { createUnitResolver, canonicalTenantId } from "./unitLookup";
+import { withCronReporting } from "./observability";
 
 // ─── AUTH HELPER ────────────────────────────────────────────────────────────
 
@@ -571,7 +572,7 @@ export const markChargeAsPaid = mutation({
 // Internal mutation called by cron job
 export const flagOverdueCharges = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: withCronReporting("crons:flagOverdueServiceCharges", async (ctx) => {
     const now = Date.now();
     const allCharges = await ctx.db.query("service_charges").collect();
     let flagged = 0;
@@ -593,7 +594,7 @@ export const flagOverdueCharges = internalMutation({
       }
     }
     return { flagged };
-  },
+  },),
 });
 
 // ─── LEADS PIPELINE ─────────────────────────────────────────────────────────
@@ -1009,7 +1010,7 @@ export const processInboundMessage = internalMutation({
 // Dynamically includes outstanding balance for PARTIALLY_PAID tenants.
 export const sendServiceChargeReminders = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: withCronReporting("crons:serviceChargeWhatsAppReminder", async (ctx) => {
     const now = Date.now();
     let remindersSent = 0;
     let remindersSkipped = 0;
@@ -1023,15 +1024,15 @@ export const sendServiceChargeReminders = internalMutation({
     const [dueWindow, defaulterCharges, partialCharges] = await Promise.all([
       ctx.db
         .query("service_charges")
-        .withIndex("by_next_due", (q) => q.lte("nextDueDate", now + SEVEN_DAYS_MS))
+        .withIndex("by_next_due", (q: any) => q.lte("nextDueDate", now + SEVEN_DAYS_MS))
         .collect(),
       ctx.db
         .query("service_charges")
-        .withIndex("by_defaulter", (q) => q.eq("isDefaulter", true))
+        .withIndex("by_defaulter", (q: any) => q.eq("isDefaulter", true))
         .collect(),
       ctx.db
         .query("service_charges")
-        .withIndex("by_status", (q) => q.eq("serviceChargeStatus", "PARTIALLY_PAID"))
+        .withIndex("by_status", (q: any) => q.eq("serviceChargeStatus", "PARTIALLY_PAID"))
         .collect(),
     ]);
     const chargeSeen = new Set<string>();
@@ -1156,8 +1157,8 @@ export const sendServiceChargeReminders = internalMutation({
       const cutoff = now - 24 * 3600000;
       const recentAlert = await ctx.db
         .query("automation_logs")
-        .withIndex("by_firm", q => q.eq("firmId", charge.firmId))
-        .filter(q =>
+        .withIndex("by_firm", (q: any) => q.eq("firmId", charge.firmId))
+        .filter((q: any) =>
           q.and(
             q.eq(q.field("unitId"), charge.unitId),
             q.eq(q.field("messageType"), "service_charge_alert"),
@@ -1237,7 +1238,7 @@ export const sendServiceChargeReminders = internalMutation({
     }
 
     return { remindersSent, remindersSkipped, remindersPausedCount };
-  },
+  },),
 });
 
 // FIX: Wire runDailyAutomation to call the REAL sendWhatsApp action instead
@@ -1249,11 +1250,11 @@ export const sendServiceChargeReminders = internalMutation({
 // calls sendWhatsAppForAutomation (internalAction — calls the real sendWhatsApp).
 export const runDailyAutomation = internalMutation({
   args: { sessionToken: v.optional(v.string()),},
-  handler: async (ctx) => {
+  handler: withCronReporting("crons:sentryDailyAutomation", async (ctx) => {
     const now = Date.now();
     const overdueCharges = await ctx.db
       .query("service_charges")
-      .withIndex("by_defaulter", (q) => q.eq("isDefaulter", true))
+      .withIndex("by_defaulter", (q: any) => q.eq("isDefaulter", true))
       .collect();
 
     let sentCount = 0;
@@ -1316,7 +1317,7 @@ export const runDailyAutomation = internalMutation({
     }
     console.log(`[runDailyAutomation] sent=${sentCount}, skipped=${skippedCount}`);
     return { sentCount, skippedCount };
-  },
+  },),
 });
 
 export const getInboundMessages = query({

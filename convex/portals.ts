@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { requireStaffCaller, requirePortalCaller, resolveCaller, assertSameFirm } from "./callerAuth";
+import { withCronReporting } from "./observability";
 
 // ─── Portal Access Token Generator ──────────────────────────────────────────
 // Generates a UUID v4 token for portal URLs.
@@ -3081,7 +3082,7 @@ export const cancelScheduledMessage = mutation({
  */
 export const processScheduledMessages = internalAction({
   args: {},
-  handler: async (ctx, _args) => {
+  handler: withCronReporting("crons:processScheduledMessages", async (ctx, _args) => {
     const now = Date.now();
     // Query due messages via a helper query
     const dueMessages: any[] = await ctx.runQuery(internal.portals.getDueScheduledMessages, {});
@@ -3189,7 +3190,7 @@ export const processScheduledMessages = internalAction({
     }
 
     return { processed, sent, failed };
-  },
+  },),
 });
 
 /**

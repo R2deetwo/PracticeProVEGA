@@ -12,6 +12,7 @@ import { internal } from "./_generated/api";
 import { randomHex } from "./secureRandom";
 import { createUnitResolver } from "./unitLookup";
 import { requirePortalCaller } from "./callerAuth";
+import { withCronReporting } from "./observability";
 
 // Round 8 auth retrofit: fundWalletPublic (a PUBLIC mutation that credited
 // ANY wallet by an arbitrary amount with NO Paystack verification) was
@@ -228,7 +229,7 @@ export const verifyWalletFunding = action({
 
 export const processAutoDeductions = internalMutation({
   args: {},
-  handler: async (ctx): Promise<{ chargesScanned: number; deductionsMade: number; insufficientFunds: number; autoDeductDisabled: number }> => {
+  handler: withCronReporting("crons:walletAutoDeduct", async (ctx): Promise<{ chargesScanned: number; deductionsMade: number; insufficientFunds: number; autoDeductDisabled: number }> => {
     const now = Date.now();
     let chargesScanned = 0, deductionsMade = 0, insufficientFunds = 0, autoDeductDisabled = 0;
 
@@ -236,7 +237,7 @@ export const processAutoDeductions = internalMutation({
     // charges with nextDueDate <= now are read, instead of the whole table.
     const dueWindowCharges = await ctx.db
       .query("service_charges")
-      .withIndex("by_next_due", (q) => q.lte("nextDueDate", now))
+      .withIndex("by_next_due", (q: any) => q.lte("nextDueDate", now))
       .collect();
     const dueCharges = dueWindowCharges.filter((sc: any) =>
       sc.serviceChargeStatus !== "PAID_FULLY" && !sc.remindersMuted && !sc.remindersPaused
@@ -323,5 +324,5 @@ export const processAutoDeductions = internalMutation({
 
     console.log(`[wallets] Auto-deduct: ${chargesScanned} due, ${deductionsMade} deducted, ${insufficientFunds} insufficient, ${autoDeductDisabled} disabled`);
     return { chargesScanned, deductionsMade, insufficientFunds, autoDeductDisabled };
-  },
+  },),
 });

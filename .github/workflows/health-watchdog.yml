@@ -1,0 +1,164 @@
+name: Health Watchdog
+
+# R17 (SaaS hardening plan) — observability + alerting.
+#
+# WHAT: a zero-dependency uptime watchdog for the surfaces users actually
+# hit, running every 15 minutes on GitHub's scheduled runners:
+#   1. Production frontend  — https://practice-pro-vega.vercel.app (root + version.json healthy)
+#   2. Production backend   — Convex gregarious-malamute-537 (query round-trip)
+#   3. Cloudflare mirror    — checked but report-only (known frozen: expired token, see RUNBOOK)
+#
+# ALERTING: on any FAILURE the job fails (GitHub emails the repo owner
+# immediately — the zero-config channel) AND a deduplicated issue titled
+# "[WATCHDOG] ..." is opened so the incident has a thread. When the probe
+# recovers, the issue auto-closes with a comment.
+#
+# SIMULATED-FAILURE DRILL (the plan's R17 acceptance: "alert fires on a
+# simulated failure"): run this workflow manually with simulate=true —
+# it probes an intentionally-bogus URL, proves the alert issue gets
+# created, then closes it with a "DRILL" comment. Leave no noise behind.
+#
+# WHY NOT AN EXTERNAL UPTIME SERVICE: no accounts, no cost, no secrets to
+# leak — and the alert channel (email on failed run + issue) already
+# exists. When the product grows, swap this for a dedicated monitor and
+# keep this workflow as the backup.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      simulate:
+        description: "Simulate a failure to prove the alert path (opens + closes a drill issue)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: health-watchdog
+  cancel-in-progress: false
+
+env:
+  PROD_URL: https://practice-pro-vega.vercel.app
+  CONVEX_URL: https://gregarious-malamute-537.convex.cloud
+  CF_MIRROR_URL: https://practice-pro-vega.prototypechigo.workers.dev
+  WATCHDOG_LABEL: watchdog
+
+jobs:
+  watchdog:
+    name: Probe production surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Decide probe targets (simulate mode swaps in a bogus URL)
+        id: config
+        run: |
+          if [ "${{ github.event.inputs.simulate }}" = "true" ]; then
+            echo "Frontend target: BOGUS (simulated failure)"
+            echo "PROD_TARGET=https://watchdog-drill-bogus.invalid" >> "$GITHUB_ENV"
+            echo "DRILL=true" >> "$GITHUB_ENV"
+          else
+            echo "PROD_TARGET=${PROD_URL}" >> "$GITHUB_ENV"
+            echo "DRILL=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Probe production frontend (root + version.json)
+        id: frontend
+        run: |
+          set +e
+          ROOT_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "$PROD_TARGET" 2>/dev/null)
+          VERSION_JSON=$(curl -sS --max-time 20 "$PROD_TARGET/version.json" 2>/dev/null)
+          VERSION_STATUS=$(echo "$VERSION_JSON" | jq -r '.status // "missing"' 2>/dev/null)
+          VERSION_SHA=$(echo "$VERSION_JSON" | jq -r '.sha // "missing"' 2>/dev/null)
+          set -e
+          echo "root_http_code=$ROOT_CODE" >> "$GITHUB_OUTPUT"
+          echo "version_status=$VERSION_STATUS" >> "$GITHUB_OUTPUT"
+          echo "version_sha=$VERSION_SHA" >> "$GITHUB_OUTPUT"
+          echo "Frontend: HTTP $ROOT_CODE, version.json status=$VERSION_STATUS sha=$VERSION_SHA"
+          if [ "$ROOT_CODE" != "200" ] || [ "$VERSION_STATUS" != "healthy" ]; then
+            echo "frontend_ok=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "frontend_ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Probe production Convex backend (query round-trip)
+        id: backend
+        if: env.DRILL != 'true'
+        run: |
+          set +e
+          RESP=$(curl -sS --max-time 20 -X POST "$CONVEX_URL/api/query" \
+            -H 'Content-Type: application/json' \
+            -d '{"path":"myFunctions:getUser","args":{"tokenIdentifier":"watchdog-probe@invalid.example"}}' 2>/dev/null)
+          CODE=$?
+          set -e
+          echo "convex_exit=$CODE response=$(echo "$RESP" | head -c 120)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ $CODE -ne 0 ] || ! echo "$RESP" | jq -e . >/dev/null 2>&1; then
+            echo "backend_ok=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "backend_ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Probe Cloudflare mirror (report-only — known frozen, see RUNBOOK)
+        if: env.DRILL != 'true'
+        run: |
+          CF_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$CF_MIRROR_URL/version.json" 2>/dev/null || echo "000")
+          CF_SHA=$(curl -sS --max-time 15 "$CF_MIRROR_URL/version.json" 2>/dev/null | jq -r '.sha // "missing"' 2>/dev/null)
+          PROD_SHA="${{ steps.frontend.outputs.version_sha }}"
+          echo "Cloudflare mirror: HTTP $CF_CODE, sha=$CF_SHA (prod is $PROD_SHA)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$CF_SHA" != "$PROD_SHA" ]; then
+            echo "::warning::Cloudflare mirror is stale ($CF_SHA vs prod $PROD_SHA). Known open item: CLOUDFLARE_API_TOKEN expired — see RUNBOOK.md 'Cloudflare mirror'."
+          fi
+
+      - name: Open (or update) the alert issue on failure
+        if: failure()
+        run: |
+          TITLE="[WATCHDOG] Production health check failed — $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+          if [ "${{ env.DRILL }}" = "true" ]; then
+            TITLE="[WATCHDOG][DRILL] Simulated failure — alert path test"
+          fi
+          BODY=$(cat <<'EOF'
+          The health watchdog detected a problem.
+
+          | Surface | Result |
+          |---|---|
+          | Frontend root | ${{ steps.frontend.outputs.root_http_code }} (expect 200) |
+          | version.json | ${{ steps.frontend.outputs.version_status }} (expect healthy) |
+          | Convex backend | ${{ steps.backend.outputs.backend_ok || 'skipped (drill)' }} |
+
+          **Next steps:** follow RUNBOOK.md → "Incident: site down".
+          This issue closes automatically when the watchdog recovers.
+          EOF
+          )
+          # Deduplicate: reuse the open watchdog issue if one exists.
+          EXISTING=$(gh issue list --label "$WATCHDOG_LABEL" --state open --json number --jq '.[0].number' 2>/dev/null)
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh issue comment "$EXISTING" --body "Still failing: $TITLE"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --label "$WATCHDOG_LABEL"
+          fi
+
+      - name: Auto-close the alert issue on recovery
+        if: success() && github.event_name == 'schedule'
+        run: |
+          EXISTING=$(gh issue list --label "$WATCHDOG_LABEL" --state open --json number --jq '.[0].number' 2>/dev/null)
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh issue comment "$EXISTING" --body "✅ Recovered at $(date -u +%Y-%m-%dT%H:%M:%SZ) — all probes green. Auto-closing."
+            gh issue close "$EXISTING"
+          fi
+
+      - name: Drill cleanup (close the simulated-failure issue)
+        if: always() && env.DRILL == 'true'
+        run: |
+          sleep 2
+          EXISTING=$(gh issue list --label "$WATCHDOG_LABEL" --state open --json number --jq '.[0].number' 2>/dev/null)
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh issue comment "$EXISTING" --body "🧪 DRILL complete — the simulated failure produced this alert exactly as designed. Closing."
+            gh issue close "$EXISTING"
+            echo "DRILL PASS: alert issue was created and closed cleanly." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::DRILL FAIL: no alert issue was created by the simulated failure."
+            exit 1
+          fi

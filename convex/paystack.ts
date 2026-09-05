@@ -277,7 +277,10 @@ export const verifyPaystackPayment = internalAction({
 // This is the ONLY path that should set invoice status to 'Paid' for Paystack
 // transactions — NOT the client-side auto-flip.
 
-export const handlePaystackWebhook = httpAction(async (ctx, request) => {
+export async function handlePaystackWebhookImpl(
+  ctx: any,
+  request: Request
+): Promise<Response> {
     // Verify Paystack signature
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey) {
@@ -363,7 +366,9 @@ export const handlePaystackWebhook = httpAction(async (ctx, request) => {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  });
+}
+
+export const handlePaystackWebhook = httpAction(handlePaystackWebhookImpl);
 
 /**
  * R12 — recordPaystackEvent (internal): webhook event audit trail.

@@ -2013,6 +2013,21 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_firm", ["firmId"]),
 
+  // R17 — backend error visibility: every captured cron/webhook/action
+  // failure. Written ONLY by internal mutations (observability.ts);
+  // read by the founder dashboard. 30-day retention via cron.
+  error_events: defineTable({
+    scope: v.string(),         // 'cron' | 'webhook' | 'action' | 'http'
+    name: v.string(),          // e.g. 'crons:runSubscriptionDunning'
+    message: v.string(),
+    stack: nullableString,
+    context: nullableString,   // JSON string with extra detail
+    severity: v.string(),      // 'error' | 'warning'
+    timestamp: v.number(),
+  }).index("by_timestamp", ["timestamp"])
+    .index("by_scope", ["scope"])
+    .index("by_name", ["name"]),
+
   // Blocked IPs: admin can block IPs that show malicious behavior.
   blockedIps: defineTable({
     ip: v.string(),

@@ -15,6 +15,7 @@ import { computeDunningAction, DunningAction } from "./dunning";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
+import { withCronReporting } from "./observability";
 
 // --- PRESENCE ---
 
@@ -6639,7 +6640,7 @@ export interface DunningRunResult {
 
 export const runSubscriptionDunning = internalAction({
   args: {},
-  handler: async (ctx): Promise<{
+  handler: withCronReporting("crons:runSubscriptionDunning", async (ctx): Promise<{
     success: boolean;
     scanned: number;
     notified: number;
@@ -6670,7 +6671,7 @@ export const runSubscriptionDunning = internalAction({
       downgraded: result.downgraded,
       emailsAttempted: result.emails.length,
     };
-  },
+  },),
 });
 
 export const applySubscriptionDunning = internalMutation({

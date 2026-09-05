@@ -280,4 +280,15 @@ crons.daily(
   {}
 );
 
+// ─── R17: ERROR EVENT RETENTION ──────────────────────────────────────────
+// Daily at 3:10 UTC. error_events (backend observability table) keeps 30
+// days of captured cron/webhook/action failures; older rows are purged.
+// See convex/observability.ts.
+crons.daily(
+  "purgeOldErrorEvents",
+  { hourUTC: 3, minuteUTC: 10 },
+  internal.observability.purgeOldErrorEvents,
+  {}
+);
+
 export default crons;

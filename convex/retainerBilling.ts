@@ -40,6 +40,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
+import { withCronReporting } from "./observability";
 
 // ─── Frequency → day/month offsets ──────────────────────────────────────────
 
@@ -460,7 +461,7 @@ export const retryFailed = mutation({
 
 export const scanMattersForRetainerCycle = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: withCronReporting("crons:scanMattersForRetainerCycle", async (ctx) => {
     const now = Date.now();
     const nowISO = new Date(now).toISOString();
     let stagedCount = 0;
@@ -472,7 +473,7 @@ export const scanMattersForRetainerCycle = internalMutation({
     // cron previously read the ENTIRE matters table on every tick.
     const candidateMatters = await ctx.db
       .query("matters")
-      .withIndex("by_retainer", (q) => q.eq("retainerAutoBillingEnabled", true))
+      .withIndex("by_retainer", (q: any) => q.eq("retainerAutoBillingEnabled", true))
       .collect();
     const dueMatters = candidateMatters.filter((m: any) => {
       if (m.billingModel !== "Retainer") return false;
@@ -512,7 +513,7 @@ export const scanMattersForRetainerCycle = internalMutation({
       if (matter.clientId) {
         const client: any = await ctx.db
           .query("contacts")
-          .withIndex("by_custom_id", (q) => q.eq("id", matter.clientId))
+          .withIndex("by_custom_id", (q: any) => q.eq("id", matter.clientId))
           .first();
         if (client) {
           clientEmail = client.email || undefined;
@@ -577,7 +578,7 @@ export const scanMattersForRetainerCycle = internalMutation({
 
     console.log(`[retainerBilling.scanMattersForRetainerCycle] staged=${stagedCount} skipped=${skippedCount}`);
     return { stagedCount, skippedCount };
-  },
+  },),
 });
 
 // ─── Internal Mutation: advanceStagedOutbox ─────────────────────────────────
@@ -587,14 +588,14 @@ export const scanMattersForRetainerCycle = internalMutation({
 
 export const advanceStagedOutbox = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: withCronReporting("crons:advanceStagedRetainerOutbox", async (ctx) => {
     const now = Date.now();
     const nowISO = new Date(now).toISOString();
     let advancedCount = 0;
 
     const staged = await ctx.db
       .query("invoice_outbox")
-      .withIndex("by_state", (q) => q.eq("state", "Staged"))
+      .withIndex("by_state", (q: any) => q.eq("state", "Staged"))
       .collect();
 
     const due = staged.filter((e: any) => {
@@ -615,7 +616,7 @@ export const advanceStagedOutbox = internalMutation({
     }
 
     return { advancedCount };
-  },
+  },),
 });
 
 // ─── Internal Action: processOutboxEntry ────────────────────────────────────

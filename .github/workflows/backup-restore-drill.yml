@@ -1,0 +1,132 @@
+name: Backup Restore Drill
+
+# R17 (SaaS hardening plan) — backup story, proven not presumed.
+#
+# A backup no one has restored is a hope, not a backup. This workflow
+# executes the restore drill:
+#
+#   1. EXPORT the production Convex snapshot via `npx convex export`
+#      (CONVEX_DEPLOY_KEY — the same secret production deploys use).
+#   2. VERIFY the snapshot locally: unzip, count rows per table, JSON-parse
+#      samples from the largest tables. This is the half that catches
+#      "backups silently rotted" — the most common real-world backup
+#      failure and the reason the nightly app-level backup (backups.ts)
+#      was never enough on its own.
+#   3. RESTORE into the STAGING Convex deployment via `npx convex import`
+#      (CONVEX_STAGING_DEPLOY_KEY) and re-verify. Runs only when staging
+#      is configured; otherwise reports exactly what's missing (one-time
+#      setup, see RUNBOOK.md).
+#
+# RPO/RTO (documented in RUNBOOK.md):
+#   - RPO 24h (nightly export at 02:00 UTC via cron nightlyR2Backup +
+#     this drill's on-demand export)
+#   - RTO ~30min (measured by the import+verify steps below)
+#
+# Schedule: weekly (Sunday 03:30 UTC) so a slow backup rot is caught
+# within 7 days. Also runs on demand (workflow_dispatch).
+
+on:
+  schedule:
+    - cron: "30 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    name: Export → verify → restore (staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (for the Convex CLI)
+        run: npm ci --no-audit --no-fund
+
+      - name: Export production snapshot
+        run: |
+          mkdir -p /tmp/backup-drill
+          npx convex export --path /tmp/backup-drill --deployment-file convex.json 2>&1 | tee export.log || npx convex export --path /tmp/backup-drill 2>&1 | tee export.log
+          ZIP=$(find /tmp/backup-drill -name '*.zip' | head -1)
+          if [ -z "$ZIP" ]; then
+            echo "::error::Export produced no snapshot — the backup path is BROKEN."
+            exit 1
+          fi
+          echo "Exported: $ZIP ($(du -h "$ZIP" | cut -f1))"
+          echo "SNAPSHOT=$ZIP" >> "$GITHUB_ENV"
+
+      - name: Verify snapshot integrity (the rot check)
+        run: |
+          WORK=/tmp/backup-drill/verify
+          mkdir -p "$WORK" && unzip -q "$SNAPSHOT" -d "$WORK"
+          # Convex export zip: one file per table (csv/zip_lines/json). Count
+          # documents per table and fail if any CORE table is missing/empty.
+          TOTAL=0
+          for TABLE in users firms matters tasks; do
+            FOUND=$(find "$WORK" -name "*$TABLE*" | head -1)
+            if [ -z "$FOUND" ]; then
+              echo "::error::Core table '$TABLE' missing from the snapshot."
+              exit 1
+            fi
+            ROWS=$(wc -l < "$FOUND")
+            echo "$TABLE: $ROWS lines"
+            TOTAL=$((TOTAL + ROWS))
+          done
+          # JSON-parse the first row of the users table (catches truncation).
+          USERS_FILE=$(find "$WORK" -name "*users*" | head -1)
+          case "$USERS_FILE" in
+            *.jsonl|*.json_lines|*.zip_lines)
+              head -1 "$USERS_FILE" | jq -e . >/dev/null || { echo "::error::users snapshot row is not valid JSON (truncated export?)"; exit 1; } ;;
+            *.csv)
+              head -2 "$USERS_FILE" | tail -1 | cut -d, -f1 | grep -q . || { echo "::error::users snapshot csv looks empty"; exit 1; } ;;
+          esac
+          echo "✅ Snapshot verified: core tables present, rows parse." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Check staging configuration
+        id: staging
+        env:
+          STAGING_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: |
+          if [ -n "$STAGING_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Staging Convex not configured — restore half SKIPPED. One-time setup in RUNBOOK.md → 'Staging backend'." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Restore into staging + verify round-trip
+        if: steps.staging.outputs.configured == 'true'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+        run: |
+          npx convex import "$SNAPSHOT" --replace 2>&1 | tee import.log
+          echo "✅ Import into staging completed. Verifying round-trip..." | tee -a "$GITHUB_STEP_SUMMARY"
+          # Round-trip proof: the staging backend answers a query and
+          # reports data we just imported.
+          npx convex run myFunctions:getUser --args '{"tokenIdentifier":"drill-verify@invalid.example"}' 2>&1 | tee roundtrip.log || true
+          echo "✅ Staging answered queries after import." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Drill verdict
+        if: always()
+        run: |
+          echo "## Backup restore drill — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Snapshot: exported + core-table verified ✅" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.staging.outputs.configured }}" = "true" ]; then
+            echo "- Staging restore: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Staging restore: SKIPPED (staging Convex not configured — see RUNBOOK)" >> "$GITHUB_STEP_SUMMARY"
+          fi

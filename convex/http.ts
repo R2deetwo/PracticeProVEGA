@@ -1,7 +1,8 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { handleChakraWebhook } from "./sentryWebhook";
-import { handlePaystackWebhook } from "./paystack";
+import { handlePaystackWebhookImpl } from "./paystack";
 
 const http = httpRouter();
 
@@ -16,10 +17,35 @@ http.route({
 // DORMANT until PAYSTACK_ENABLED=true AND PAYSTACK_SECRET_KEY are set.
 // When active, this is the ONLY path that sets invoice status to 'Paid'
 // for Paystack transactions (not the client-side auto-flip).
+//
+// R17: wrapped with error capture — webhook failures are money-adjacent and
+// previously vanished silently (the round-9 pattern: one symptom, weeks of
+// quiet breakage). Captured to error_events (+Sentry if configured); the
+// 500 response asks Paystack to retry, which is standard webhook semantics.
 http.route({
   path: "/paystack/webhook",
   method: "POST",
-  handler: handlePaystackWebhook,
+  handler: httpAction(async (ctx, request) => {
+    try {
+      return await handlePaystackWebhookImpl(ctx, request);
+    } catch (err: any) {
+      try {
+        await ctx.runMutation(internal.observability.captureWebhookError, {
+          name: "paystack:webhook",
+          message: String(err?.message || err).slice(0, 2000),
+          context: JSON.stringify({
+            signaturePresent: !!request.headers.get("x-paystack-signature"),
+            contentType: request.headers.get("content-type") ?? undefined,
+            url: request.url,
+          }),
+        });
+      } catch { /* reporting must never worsen the failure */ }
+      return new Response(JSON.stringify({ error: "Webhook handler failure" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }),
 });
 
 http.route({
@@ -204,6 +230,52 @@ http.route({
     }
 
     return new Response(JSON.stringify(result, null, 2), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }),
+});
+
+// ─── Observability Drill API (R17) ───────────────────────────────────────────
+// Secret-gated endpoint (same pattern as /api/agent/inspect): lets CI and
+// on-call run the "alert fires on a simulated failure" acceptance against
+// the LIVE deployment without any user session.
+//
+//   POST /api/observability/drill  +  header x-agent-inspect-key: <secret>
+//
+// Runs internal.observability.simulateErrorEvent (writes an error_events
+// row + best-effort Sentry relay) and returns the table's counts as
+// verification. The drill workflow asserts counts.total > 0.
+http.route({
+  path: "/api/observability/drill",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const secret = process.env.AGENT_INSPECT_SECRET;
+    if (secret) {
+      const providedKey = request.headers.get("x-agent-inspect-key");
+      if (providedKey !== secret) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // Never allow an unconfigured drill endpoint on production.
+      return new Response(JSON.stringify({ error: "Drill endpoint not configured" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const simulated = await ctx.runAction(internal.observability.simulateErrorEvent, {
+      name: "observability:drill",
+    });
+    const counts = await ctx.runQuery(internal.observability.getErrorEventCounts, {});
+
+    return new Response(JSON.stringify({ simulated, counts }, null, 2), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
