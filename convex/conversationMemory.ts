@@ -1,6 +1,7 @@
 import { internalMutation, internalAction, internalQuery, query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { resolveCaller, assertSameFirm } from "./callerAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONVERSATION MEMORY — Phase 2
@@ -31,11 +32,16 @@ export const getSummaries = query({
     firmId: v.string(),
     userId: v.string(),
     limit: v.optional(v.number()),
+    sessionToken: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, userId, limit }) => {
+  handler: async (ctx, { firmId, userId, limit, sessionToken }) => {
+    // R16b: session-verified — the caller must belong to the firm and can
+    // only read their OWN memory rows (was: caller-supplied firmId+userId).
+    const caller = await resolveCaller(ctx, { sessionToken });
+    assertSameFirm(caller, firmId);
     return await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", userId))
+      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", String(caller._id)))
       .order("desc")
       .take(limit ?? 20);
   },
@@ -46,11 +52,15 @@ export const getRecentContextSummaries = query({
   args: {
     firmId: v.string(),
     userId: v.string(),
+    sessionToken: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, userId }) => {
+  handler: async (ctx, { firmId, userId, sessionToken }) => {
+    // R16b: session-verified own-data read (was caller-supplied ids).
+    const caller = await resolveCaller(ctx, { sessionToken });
+    assertSameFirm(caller, firmId);
     const summaries = await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", userId))
+      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", String(caller._id)))
       .order("desc")
       .take(5);
 
@@ -69,11 +79,15 @@ export const getInjectionContext = query({
   args: {
     firmId: v.string(),
     userId: v.string(),
+    sessionToken: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, userId }) => {
+  handler: async (ctx, { firmId, userId, sessionToken }) => {
+    // R16b: session-verified own-data read (was caller-supplied ids).
+    const caller = await resolveCaller(ctx, { sessionToken });
+    assertSameFirm(caller, firmId);
     const summaries = await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", userId))
+      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", String(caller._id)))
       .order("desc")
       .take(5);
 

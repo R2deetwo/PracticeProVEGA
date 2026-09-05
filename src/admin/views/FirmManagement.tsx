@@ -14,11 +14,11 @@ import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
 export const FirmManagement: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const { addToast } = useFounderToast();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,6 +53,7 @@ export const FirmManagement: React.FC = () => {
         try {
             await updateFirmSettings({
                 tokenIdentifier,
+                sessionToken: bearerToken ?? undefined,
                 firmId,
                 settings: {
                     subscriptionPlan: editPlan || undefined,
@@ -64,6 +65,7 @@ export const FirmManagement: React.FC = () => {
             try {
                 await logAdminAction({
                     tokenIdentifier,
+                    sessionToken: bearerToken ?? undefined,
                     action: 'ADMIN ACTION: Updated firm settings',
                     targetFirmId: firmId,
                     details: `Plan: ${editPlan || 'unchanged'}, Status: ${editStatus || 'unchanged'}, Notes: ${editNotes ? 'updated' : 'unchanged'}`,

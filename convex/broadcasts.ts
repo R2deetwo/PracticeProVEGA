@@ -19,6 +19,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
+import { resolveCaller, requireFounderCaller } from "./callerAuth";
 
 /**
  * getActiveBroadcasts
@@ -49,9 +50,12 @@ export const getActiveBroadcasts = query({
   args: {
     userId: v.string(),
     email: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (!args.userId && !args.email) return [];
+    // R16b: session-verified own-data read. The legacy caller-supplied
+    // userId/email let anyone read any user's broadcast notifications.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
 
     // HOTFIX 2026-08-31 (production outage): Convex 1.40.0's FilterBuilder
     // has NO startsWith method — the Phase-4 server-side pushdown below threw
@@ -64,8 +68,8 @@ export const getActiveBroadcasts = query({
       .query("notifications")
       .take(5000);
 
-    const targetUserId = String(args.userId || '');
-    const targetEmail = (args.email || '').toLowerCase().trim();
+    const targetUserId = String(caller._id || '');
+    const targetEmail = String((caller as any).email || (caller as any).tokenIdentifier || '').toLowerCase().trim();
 
     // CRO AUDIT FIX — BANNER RENDERING BUG:
     // Look up the user's firmId by email so we can match broadcasts that
@@ -203,9 +207,11 @@ export const getBroadcastHistory = query({
   args: {
     userId: v.string(),
     email: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (!args.userId && !args.email) return [];
+    // R16b: session-verified own-data read (was caller-supplied userId/email).
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
 
     // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
     // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
@@ -214,7 +220,7 @@ export const getBroadcastHistory = query({
       .query("notifications")
       .take(5000);
 
-    const targetUserId = String(args.userId || '');
+    const targetUserId = String(caller._id || '');
 
     const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
       const type = typeof n.type === 'string' ? n.type : '';
@@ -287,15 +293,10 @@ export const getBroadcastHistory = query({
  * SECURITY: Requires founder auth (tokenIdentifier).
  */
 export const getActiveBroadcastsForAdmin = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // Note: This is a public query — the founder auth check is done
-    // via a simple email match. If the caller's email matches a
-    // Founder-role user, they're authorized.
-    const users = await ctx.db.query("users").take(500);
-    const founder = users.find((u: any) =>
-      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
-    );
+    // R16b: session-verified founder gate (was caller-supplied email match).
+    const founder = await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
     if (!founder) return [];
 
     // Fetch ALL broadcast notifications (read + unread)
@@ -379,13 +380,12 @@ export const archiveBroadcast = mutation({
   args: {
     tokenIdentifier: v.string(),
     broadcastId: v.string(),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const users = await ctx.db.query("users").take(500);
-    const founder = users.find((u: any) =>
-      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
-    );
-    if (!founder) throw new Error("Unauthorized: founder access required");
+    // R16b: session-verified founder gate (was: caller-supplied email match
+    // — anyone who knew the founder's email could mass-delete broadcasts).
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
     // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
@@ -434,13 +434,11 @@ export const bulkArchiveBroadcasts = mutation({
   args: {
     tokenIdentifier: v.string(),
     broadcastIds: v.array(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const users = await ctx.db.query("users").take(500);
-    const founder = users.find((u: any) =>
-      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
-    );
-    if (!founder) throw new Error("Unauthorized: founder access required");
+    // R16b: session-verified founder gate (was: caller-supplied email match).
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
     // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
@@ -480,13 +478,10 @@ export const bulkArchiveBroadcasts = mutation({
  * SECURITY: Requires founder auth.
  */
 export const cleanupDuplicateBroadcasts = mutation({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const users = await ctx.db.query("users").take(500);
-    const founder = users.find((u: any) =>
-      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
-    );
-    if (!founder) throw new Error("Unauthorized: founder access required");
+    // R16b: session-verified founder gate (was caller-supplied email match).
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
     // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
@@ -535,13 +530,10 @@ export const cleanupDuplicateBroadcasts = mutation({
  * SECURITY: Requires founder auth.
  */
 export const purgeAllBroadcasts = mutation({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const users = await ctx.db.query("users").take(500);
-    const founder = users.find((u: any) =>
-      u.role === 'Founder' && u.email?.toLowerCase() === args.tokenIdentifier?.toLowerCase()
-    );
-    if (!founder) throw new Error("Unauthorized: founder access required");
+    // R16b: session-verified founder gate (was caller-supplied email match).
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
     // Convex 1.40.0's FilterBuilder has no startsWith (threw on every

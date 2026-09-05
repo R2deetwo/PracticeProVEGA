@@ -36,12 +36,13 @@ const TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
  */
 export const createImpersonationToken = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     targetEmail: v.string(),
     founderEmail: v.string(), // caller's email (tokenIdentifier)
   },
   handler: async (ctx, args) => {
     // 1. Verify caller is a Founder
-    const founder = await requireFounder(ctx, args.founderEmail);
+    const founder = await requireFounder(ctx, args.founderEmail, args.sessionToken);
 
     // 2. Verify target user exists
     const targetEmail = args.targetEmail.toLowerCase().trim();
@@ -140,10 +141,11 @@ export const verifyImpersonationToken = mutation({
  */
 export const getMyImpersonationHistory = query({
   args: {
+    sessionToken: v.optional(v.string()),
     founderEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.founderEmail);
+    await requireFounder(ctx, args.founderEmail, args.sessionToken);
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const tokens = await ctx.db

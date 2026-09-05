@@ -16,12 +16,17 @@ export interface FounderUser {
     name: string;
     role: string;
     tokenIdentifier: string;
+    /** R16b: the server-issued bearer session token. Empty for sessions
+     * logged in before the strict cutover — those users must re-login. */
+    sessionToken?: string | null;
 }
 
 export interface FounderAuthContextType {
     currentUser: FounderUser | null;
     isAuthenticated: boolean;
     isLoadingSession: boolean;
+    /** R16b: server-issued bearer — required by every founder-gated data call. */
+    bearerToken: string | null;
     login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
     logout: () => void;
 }
@@ -30,6 +35,7 @@ export const FounderAuthContext = createContext<FounderAuthContextType>({
     currentUser: null,
     isAuthenticated: false,
     isLoadingSession: true,
+    bearerToken: null,
     login: async () => ({ success: false }),
     logout: () => {},
 });

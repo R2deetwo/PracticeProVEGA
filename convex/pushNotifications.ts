@@ -25,7 +25,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { resolveCaller, assertSameFirm } from "./callerAuth";
+import { resolveCaller, assertSameFirm, requireFounderCaller } from "./callerAuth";
 
 // ─── Token Registration ──────────────────────────────────────────────────────
 
@@ -257,17 +257,11 @@ export const notifyAppUpdate = mutation({
     version: v.string(),
     apkUrl: v.string(),
     releaseNotes: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Verify founder
-    const founder = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier.toLowerCase()))
-      .first();
-
-    if (!founder || founder.role !== "Founder") {
-      throw new Error("Unauthorized. Only Founders can send app update notifications.");
-    }
+    // R16b: session-verified founder gate (was caller-supplied email match).
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     // Get ALL users (who have a firmId — skip demo/pending users)
     const allUsers = await ctx.db
@@ -351,17 +345,11 @@ export const sendTestPush = mutation({
     tokenIdentifier: v.string(),
     title: v.string(),
     body: v.string(),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Verify founder
-    const founder = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier.toLowerCase()))
-      .first();
-
-    if (!founder || founder.role !== "Founder") {
-      throw new Error("Unauthorized. Only Founders can send test pushes.");
-    }
+    // R16b: session-verified founder gate (was caller-supplied email match).
+    const founder: any = await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     // Get the founder's device tokens
     const tokens = await ctx.db

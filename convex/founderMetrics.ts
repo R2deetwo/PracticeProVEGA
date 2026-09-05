@@ -1,3 +1,4 @@
+import { resolveUserBySessionToken } from "./sessions";
 
 import { query, mutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
@@ -124,46 +125,24 @@ function calcMonthlySubscription(firm: any): number {
  *   2. Verifies their role is exactly 'Founder'.
  *   3. Throws an Authorization error if not.
  */
-export async function requireFounder(ctx: any, tokenIdentifier: string): Promise<any> {
-  if (!tokenIdentifier || typeof tokenIdentifier !== 'string') {
-    throw new Error("Unauthorized: authentication required.");
+export async function requireFounder(ctx: any, tokenIdentifier?: string, sessionToken?: string | null): Promise<any> {
+  // R16b (plan Round 16): founder identity is SESSION-VERIFIED. The legacy
+  // email-only form (caller-supplied tokenIdentifier) was spoofable — anyone
+  // who knew the founder's email could suspend users, block IPs, flip
+  // feature flags, and approve subscription requests. Burn-in style: no
+  // legacy acceptance path. The tokenIdentifier parameter is kept in the
+  // signature so call sites don't churn — it is IGNORED.
+  if (!sessionToken) {
+    throw new Error("Unauthenticated: a verified session is required. Please sign in again.");
   }
-
-  // Look up the user by tokenIdentifier (case-insensitive)
-  const token = tokenIdentifier.toLowerCase().trim();
-  const directMatches = await ctx.db
-    .query("users")
-    .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", tokenIdentifier))
-    .collect();
-
-  const lowerMatches = directMatches.length === 0
-    ? await ctx.db
-        .query("users")
-        .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
-        .collect()
-    : [];
-
-  const allMatches = directMatches.length > 0 || lowerMatches.length > 0
-    ? [...directMatches, ...lowerMatches]
-    : (await ctx.db.query("users").take(500))
-        .filter((u: any) =>
-          u.tokenIdentifier &&
-          u.tokenIdentifier.toLowerCase() === token
-        );
-
-  if (allMatches.length === 0) {
-    throw new Error("Unauthorized: user not found.");
+  const user: any = await resolveUserBySessionToken(ctx, sessionToken);
+  if (!user) {
+    throw new Error("Unauthenticated: the session token is invalid, expired, or revoked. Please sign in again.");
   }
-
-  // Pick the user record. Prefer a Founder record if duplicates exist.
-  const founderRecord = allMatches.find((u: any) => u.role === 'Founder');
-  const userRecord = founderRecord || allMatches[0];
-
-  if (userRecord.role !== 'Founder') {
-    throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'. Firm administrators must use the consumer app, not the Founder APK.`);
+  if (String(user.role || '') !== 'Founder') {
+    throw new Error(`Unauthorized: founder access required. Your role is '${user.role || 'unknown'}'. Firm administrators must use the consumer app, not the Founder APK.`);
   }
-
-  return userRecord;
+  return user;
 }
 
 /**
@@ -174,9 +153,9 @@ export async function requireFounder(ctx: any, tokenIdentifier: string): Promise
  * SECURITY: Requires admin authentication via tokenIdentifier.
  */
 export const getFounderMetrics = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     // 1. Fetch data
     // PRIVACY: We do NOT fetch the invoices table. Client invoices are
     // private firm data and must never be exposed to the platform founder.
@@ -346,9 +325,9 @@ export const getFounderMetrics = query({
  * Force-records a system refresh event.
  */
 export const triggerManualRefresh = mutation({
-    args: { tokenIdentifier: v.string() },
+    args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        await requireFounder(ctx, args.tokenIdentifier);
+        await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
         await ctx.db.insert("analytics_events", {
             firmId: "system",
             userId: "admin",
@@ -371,9 +350,9 @@ export const triggerManualRefresh = mutation({
  * firm and are never exposed to the platform founder.
  */
 export const getAllFirmsForAdmin = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     try {
       const fetchTable = async (table: string) => {
         try {
@@ -452,6 +431,7 @@ export const getAllFirmsForAdmin = query({
  */
 export const updateFirmAdminSettings = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     firmId: v.string(),
     settings: v.object({
@@ -464,7 +444,7 @@ export const updateFirmAdminSettings = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const cleanSettings: any = {};
     Object.entries(args.settings).forEach(([k, v]) => {
       if (v !== undefined) cleanSettings[k] = v;
@@ -552,9 +532,9 @@ export const updateFirmAdminSettings = mutation({
  * signal late than cry wolf.
  */
 export const getFounderAlerts = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
     const churnThreshold = now - (14 * DAY);
@@ -767,11 +747,12 @@ export const getFounderAlerts = query({
  */
 export const recordFounderSignalSeen = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     signalIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     await ctx.db.insert("analytics_events", {
       firmId: "system",
       userId: "founder",
@@ -812,6 +793,20 @@ export const createFounderAccount = action({
   },
   handler: async (ctx, args): Promise<{ success: boolean; message?: string }> => {
     const token = args.email.toLowerCase().trim();
+
+    // R16b: BOOTSTRAP-ONLY. This endpoint previously minted a Founder
+    // account for ANY caller with any unused email — combined with the
+    // email-only requireFounder guard, that was a full privilege-
+    // escalation chain (fresh founder → suspend users / block IPs / flip
+    // flags). It now refuses to run once ANY Founder exists. Platform
+    // founders are provisioned by the existing account + login flow.
+    const founders = await ctx.runQuery(internal.founderMetrics.countFounders, {});
+    if ((founders as any)?.count > 0) {
+      return {
+        success: false,
+        message: "Founder signup is closed. A founder account already exists on this platform. Please log in instead.",
+      };
+    }
 
     // 1. Check if a user with this email already exists
     const existing: any = await ctx.runQuery(api.myFunctions.getUser, {
@@ -875,6 +870,7 @@ export const createFounderAccount = action({
  */
 export const broadcastNotification = action({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     targetProduct: v.string(),
     channel: v.string(),
@@ -889,6 +885,7 @@ export const broadcastNotification = action({
     // Actions can't use ctx.db directly — use internal query for auth check
     await ctx.runQuery(internal.founderMetrics.checkFounderRole, {
       tokenIdentifier: args.tokenIdentifier,
+      sessionToken: args.sessionToken ?? "",
     });
     const rawUsers = await ctx.runQuery(internal.myFunctions.getAllUsersForBroadcast, {
       targetProduct: args.targetProduct,
@@ -987,9 +984,9 @@ export const broadcastNotification = action({
  * 'broadcast_'. Non-broadcast notifications are untouched.
  */
 export const cleanupDuplicateBroadcastNotifications = mutation({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     // Fetch all broadcast notifications
     // HOTFIX 2026-08-31 (production outage): removed the q.startsWith
@@ -1043,9 +1040,9 @@ export const cleanupDuplicateBroadcastNotifications = mutation({
  *   - usage percentages for "approaching limit" indicators
  */
 export const getFirmHealthDetails = query({
-  args: { tokenIdentifier: v.string(), firmId: v.string() },
+  args: { tokenIdentifier: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const [firm, users, matters, presence, events, properties] = await Promise.all([
       ctx.db.get(args.firmId as any),
@@ -1192,6 +1189,7 @@ export const getFirmHealthDetails = query({
  */
 export const logAdminAction = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     action: v.string(),
     targetFirmId: v.optional(v.string()),
@@ -1199,7 +1197,7 @@ export const logAdminAction = mutation({
     details: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     await ctx.db.insert("analytics_events", {
       firmId: "system",
@@ -1224,9 +1222,9 @@ export const logAdminAction = mutation({
  * Returns admin actions for the audit log — separate from user activity.
  */
 export const getAdminActionLog = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const events = await ctx.db
       .query("analytics_events")
@@ -1246,9 +1244,9 @@ export const getAdminActionLog = query({
  * Returns matching entities with type labels.
  */
 export const globalSearch = query({
-  args: { tokenIdentifier: v.string(), query: v.string() },
+  args: { tokenIdentifier: v.string(), query: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const q = args.query.toLowerCase().trim();
     if (!q || q.length < 2) return [];
@@ -1301,9 +1299,9 @@ export const globalSearch = query({
  * PDF generation failures, Convex errors.
  */
 export const getSystemErrors = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const events = await ctx.db
       .query("analytics_events")
@@ -1367,11 +1365,12 @@ export const getSystemErrors = query({
  */
 export const getExportData = query({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     exportType: v.union(v.literal("firms"), v.literal("mrr"), v.literal("churn")),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const [firms, users, matters] = await Promise.all([
       ctx.db.query("firms").collect(),
@@ -1438,13 +1437,14 @@ export const getExportData = query({
  */
 export const setFeatureFlag = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     firmId: v.string(),
     flagKey: v.string(),
     enabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     // Check if flag already exists
     const existing = await ctx.db
@@ -1486,13 +1486,30 @@ export const setFeatureFlag = mutation({
  * Returns all feature flags for a firm.
  */
 export const getFeatureFlags = query({
-  args: { tokenIdentifier: v.string(), firmId: v.string() },
+  args: { tokenIdentifier: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     return await ctx.db
       .query("feature_flags")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
       .collect();
+  },
+});
+
+/**
+ * internal query: countFounders
+ * R16b: used by createFounderAccount to enforce bootstrap-only founder
+ * signup (once any Founder exists, no more may be minted from the public
+ * endpoint).
+ */
+export const countFounders = internalQuery({
+  args: {},
+  handler: async (ctx, _args) => {
+    // Full scan, no index: this runs only on founder-signup attempts (a
+    // rare, bootstrap-era path) — not worth a schema index + type regen.
+    const allUsers = await ctx.db.query("users").collect();
+    const count = allUsers.filter((u: any) => u.role === "Founder").length;
+    return { count };
   },
 });
 
@@ -1502,35 +1519,17 @@ export const getFeatureFlags = query({
  * that the caller has Founder role. Returns the user record or throws.
  */
 export const checkFounderRole = internalQuery({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.optional(v.string()), sessionToken: v.string() },
   handler: async (ctx, args) => {
-    if (!args.tokenIdentifier) {
-      throw new Error("Unauthorized: authentication required.");
+    // R16b: session-verified (was caller-supplied email lookup — spoofable).
+    const user: any = await resolveUserBySessionToken(ctx, args.sessionToken);
+    if (!user) {
+      throw new Error("Unauthenticated: the session token is invalid, expired, or revoked. Please sign in again.");
     }
-    const token = args.tokenIdentifier.toLowerCase().trim();
-    const directMatches = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier))
-      .collect();
-    const lowerMatches = directMatches.length === 0
-      ? await ctx.db
-          .query("users")
-          .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
-          .collect()
-      : [];
-    const allMatches = directMatches.length > 0 || lowerMatches.length > 0
-      ? [...directMatches, ...lowerMatches]
-      : (await ctx.db.query("users").take(500))
-          .filter((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
-    if (allMatches.length === 0) {
-      throw new Error("Unauthorized: user not found.");
+    if (String(user.role || '') !== 'Founder') {
+      throw new Error("Unauthorized: founder access required.");
     }
-    const founderRecord = allMatches.find((u: any) => u.role === 'Founder');
-    const userRecord = founderRecord || allMatches[0];
-    if (userRecord.role !== 'Founder') {
-      throw new Error(`Unauthorized: founder access required. Your role is '${userRecord.role || 'unknown'}'.`);
-    }
-    return userRecord;
+    return user;
   },
 });
 
@@ -1550,11 +1549,12 @@ export const checkFounderRole = internalQuery({
  */
 export const getSubscriptionRequests = query({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     status: v.optional(v.string()),  // 'pending_review' | 'all' | 'approved' | etc.
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const status = args.status || 'pending_review';
 
     const requests = status === 'all'
@@ -1615,9 +1615,9 @@ export const getSubscriptionRequests = query({
  * Returns counts by status + total pending NGN volume.
  */
 export const getSubscriptionRequestStats = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const all = await ctx.db.query("subscriptionRequests").take(500);
     const now = Date.now();
@@ -1670,6 +1670,7 @@ export const getSubscriptionRequestStats = query({
  */
 export const approveSubscriptionRequestAsFounder = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     requestId: v.string(),
     adminNotes: v.optional(v.string()),
@@ -1678,7 +1679,7 @@ export const approveSubscriptionRequestAsFounder = mutation({
     discountReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const founder = await requireFounder(ctx, args.tokenIdentifier);
+    const founder = await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     // Fetch the request first so we can log the details
     const request: any = await ctx.db.get(args.requestId as any);
@@ -1773,12 +1774,13 @@ export const approveSubscriptionRequestAsFounder = mutation({
  */
 export const rejectSubscriptionRequestAsFounder = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     requestId: v.string(),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const founder = await requireFounder(ctx, args.tokenIdentifier);
+    const founder = await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const request: any = await ctx.db.get(args.requestId as any);
     if (!request) throw new Error("Subscription request not found.");
@@ -1854,9 +1856,9 @@ function computeNextBillingDate(interval: string, startIso: string): string {
  * ending today, and total trials started (lifetime).
  */
 export const getTrialMetrics = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
 
@@ -1910,11 +1912,12 @@ export const getTrialMetrics = query({
  */
 export const getAddonRequests = query({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const status = args.status || 'pending_review';
 
     const requests = status === 'all'
@@ -1966,6 +1969,7 @@ export const getAddonRequests = query({
  */
 export const approveAddonRequestAsFounder = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     requestId: v.string(),
     discountPercent: v.optional(v.number()),
@@ -1973,7 +1977,7 @@ export const approveAddonRequestAsFounder = mutation({
     adminNotes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const founder = await requireFounder(ctx, args.tokenIdentifier);
+    const founder = await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const request: any = await ctx.db.get(args.requestId as any);
     if (!request) throw new Error("Add-on request not found.");
@@ -2045,12 +2049,13 @@ export const approveAddonRequestAsFounder = mutation({
  */
 export const rejectAddonRequestAsFounder = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     requestId: v.string(),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const founder = await requireFounder(ctx, args.tokenIdentifier);
+    const founder = await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const request: any = await ctx.db.get(args.requestId as any);
     if (!request) throw new Error("Add-on request not found.");
@@ -2092,9 +2097,9 @@ export const rejectAddonRequestAsFounder = mutation({
 // admin dashboard. Each entry includes the user's name, email, firm name,
 // and how long ago their last heartbeat was.
 export const getAllPresenceForAdmin = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const ACTIVE_THRESHOLD = 90 * 1000; // 90 seconds — heartbeat fires every 20s
     const cutoff = Date.now() - ACTIVE_THRESHOLD;
@@ -2154,9 +2159,9 @@ export const getAllPresenceForAdmin = query({
 // ── Security Events Log ─────────────────────────────────────────────────
 // Returns recent security-relevant events for the admin Security Center.
 export const getSecurityEventsForAdmin = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     // Fetch recent security-relevant events from analytics_events
     const recentEvents = await ctx.db
@@ -2203,9 +2208,9 @@ export const getSecurityEventsForAdmin = query({
  * compromising privacy.
  */
 export const getAloaUsageStats = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
@@ -2399,9 +2404,9 @@ export const getAloaUsageStats = query({
  * originate from unauthenticated routes.
  */
 export const getVisitorAnalytics = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;

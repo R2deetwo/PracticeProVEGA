@@ -58,7 +58,7 @@ const FILTER_TABS: { id: FilterTab; label: string }[] = [
 const READ_KEY = 'founder_notifications_read';
 
 const FounderNotificationsCenter: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const convex = useConvex();
     const [items, setItems] = useState<FeedItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -84,7 +84,7 @@ const FounderNotificationsCenter: React.FC = () => {
 
             // 1. Founder Alerts (signups, churn, milestones)
             try {
-                const alerts = await convex.query(api.founderMetrics.getFounderAlerts, { tokenIdentifier: token });
+                const alerts = await convex.query(api.founderMetrics.getFounderAlerts, { tokenIdentifier: token, sessionToken: bearerToken ?? undefined });
                 if (alerts) {
                     // New users
                     (alerts.newUsers24h || []).forEach((u: any, i: number) => {
@@ -150,7 +150,7 @@ const FounderNotificationsCenter: React.FC = () => {
 
             // 2. Security Events
             try {
-                const events = await convex.query(api.founderMetrics.getSecurityEventsForAdmin, { tokenIdentifier: token });
+                const events = await convex.query(api.founderMetrics.getSecurityEventsForAdmin, { tokenIdentifier: token, sessionToken: bearerToken ?? undefined });
                 if (Array.isArray(events)) {
                     events.forEach((e: any) => {
                         feed.push({
@@ -170,7 +170,7 @@ const FounderNotificationsCenter: React.FC = () => {
 
             // 3. Subscription Requests
             try {
-                const requests = await convex.query(api.founderMetrics.getSubscriptionRequests, { tokenIdentifier: token });
+                const requests = await convex.query(api.founderMetrics.getSubscriptionRequests, { tokenIdentifier: token, sessionToken: bearerToken ?? undefined });
                 if (requests && Array.isArray(requests)) {
                     requests.filter((r: any) => r.status === 'pending').forEach((r: any, i: number) => {
                         feed.push({
@@ -190,7 +190,7 @@ const FounderNotificationsCenter: React.FC = () => {
 
             // 4. Online presence (system notification)
             try {
-                const presence = await convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier: token });
+                const presence = await convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier: token, sessionToken: bearerToken ?? undefined });
                 if (Array.isArray(presence) && presence.length > 0) {
                     feed.push({
                         id: `presence_${Date.now()}`,

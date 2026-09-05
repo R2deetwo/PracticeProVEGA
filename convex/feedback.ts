@@ -2,7 +2,7 @@
 import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { resolveCaller } from "./callerAuth";
+import { resolveCaller, requireFounderCaller } from "./callerAuth";
 
 /**
  * mutation: submitFeedback
@@ -258,12 +258,10 @@ export const deleteFeedbackThread = mutation({
       const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
       callerEmailLower = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
       isFounder = FOUNDER_EMAILS.includes(callerEmailLower);
-    } else if (args.userEmail) {
-      // Legacy fallback (rejected under strict mode inside resolveCaller,
-      // kept here only for the no-token error shape): resolve or fail.
-      const caller = await resolveCaller(ctx, { userEmail: args.userEmail });
-      callerEmailLower = String((caller as any).tokenIdentifier || (caller as any).email || "").toLowerCase().trim();
-      isFounder = FOUNDER_EMAILS.includes(callerEmailLower);
+    } else {
+      // R16b Phase B: the legacy email-only branch was deleted — no session
+      // token means no identity, full stop.
+      throw new Error("Unauthenticated: a verified session is required. Please sign in again.");
     }
     if (!isFounder) {
       // Regular user — must own the thread (case-insensitive comparison)
@@ -300,12 +298,13 @@ export const restoreFeedbackThread = mutation({
   args: {
     feedbackId: v.id("user_feedback"),
     userEmail: v.string(),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    if (!FOUNDER_EMAILS.includes(args.userEmail)) {
-      throw new Error("Only founder can restore deleted threads");
-    }
+    // R16b: the previous "gate" was a hardcoded founder-email list checked
+    // against the CALLER-SUPPLIED email — a pure spoof (know the email,
+    // pass the gate, undelete any thread). Session-verified founder only.
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback thread not found");
 
@@ -640,16 +639,11 @@ export const purgeLeakedAloaEchoes = mutation({
   args: {
     tokenIdentifier: v.string(),
     action: v.optional(v.string()), // "retag" | "delete", default "retag"
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Verify caller is a Founder
-    const founder = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier.toLowerCase()))
-      .first();
-    if (!founder || founder.role !== "Founder") {
-      throw new Error("Unauthorized. Only Founders can purge leaked data.");
-    }
+    // R16b: session-verified founder gate (was caller-supplied email match).
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
 
     const action = args.action === "delete" ? "delete" : "retag";
 
@@ -679,7 +673,7 @@ export const purgeLeakedAloaEchoes = mutation({
     try {
       await ctx.db.insert("securityEvents", {
         eventType: "data_purge",
-        userId: String(founder._id),
+        userId: args.tokenIdentifier,
         email: args.tokenIdentifier,
         details: `purgeLeakedAloaEchoes: ${action} ${processed} rows`,
         timestamp: Date.now(),

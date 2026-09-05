@@ -26,6 +26,7 @@ import React, { useState, useMemo, ReactNode } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useFeatures } from '../hooks/useFeatures';
 import { InvoiceOutboxState } from '../types';
 import { formatNaira } from '../utils/formatting';
@@ -199,16 +200,17 @@ const BillingMonitorNotDeployedFallback: React.FC = () => {
 // and shown as a friendly message instead of crashing the whole app.
 const BillingMonitorInner: React.FC = () => {
     const { openModal, navigateTo, addToast } = useUI();
+    const { bearerToken } = useAuth();
     const [activeTab, setActiveTab] = useState<FilterTab>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
     // useQuery returns `undefined` while loading and throws if the function
     // doesn't exist on the backend. The ErrorBoundary above catches the throw.
-    const outbox = useQuery(api.retainerBilling.getOutboxForFirm, {}) as
+    const outbox = useQuery(api.retainerBilling.getOutboxForFirm, bearerToken ? { sessionToken: bearerToken } : 'skip') as
         | OutboxEntry[]
         | undefined;
-    const stats = useQuery(api.retainerBilling.getOutboxStats, {});
+    const stats = useQuery(api.retainerBilling.getOutboxStats, bearerToken ? { sessionToken: bearerToken } : 'skip');
 
     const approveAndSendNow = useMutation(api.retainerBilling.approveAndSendNow);
     const pauseForEdit = useMutation(api.retainerBilling.pauseForEdit);
@@ -232,19 +234,19 @@ const BillingMonitorInner: React.FC = () => {
         try {
             switch (action) {
                 case 'approve':
-                    await approveAndSendNow({ outboxId });
+                    await approveAndSendNow({ outboxId , sessionToken: bearerToken ?? undefined });
                     addToast('Invoice approved & queued for immediate send.', { type: 'success' });
                     break;
                 case 'pause':
-                    await pauseForEdit({ outboxId });
+                    await pauseForEdit({ outboxId , sessionToken: bearerToken ?? undefined });
                     addToast('Invoice paused for editing.', { type: 'info' });
                     break;
                 case 'skip':
-                    await skipCycle({ outboxId, reason: 'Skipped from Billing Monitor' });
+                    await skipCycle({ outboxId, reason: 'Skipped from Billing Monitor', sessionToken: bearerToken ?? undefined });
                     addToast('Cycle skipped. Recurring schedule continues.', { type: 'info' });
                     break;
                 case 'retry':
-                    await retryFailed({ outboxId });
+                    await retryFailed({ outboxId , sessionToken: bearerToken ?? undefined });
                     addToast('Retrying send…', { type: 'info' });
                     break;
             }
@@ -369,6 +371,7 @@ const BillingMonitorInner: React.FC = () => {
                         try {
                             await updateOutboxEntry({
                                 outboxId: selectedEntry._id,
+                                sessionToken: bearerToken ?? undefined,
                                 ...updates,
                             });
                             addToast('Entry updated.', { type: 'success' });

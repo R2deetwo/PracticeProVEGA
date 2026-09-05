@@ -1903,14 +1903,13 @@ export const getFirmMembersWithDeactivationStatus = query({
  * refresh" bug.
  */
 export const saveUserApiKey = mutation({
-  args: { tokenIdentifier: v.string(), apiKey: v.string() },
+  args: { tokenIdentifier: v.string(), apiKey: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const token = args.tokenIdentifier.toLowerCase().trim();
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
-      .collect();
-    const user = users[0];
+    // R16b: session-verified caller — the legacy email-only lookup let
+    // anyone OVERWRITE any user's stored Gemini API key by knowing their
+    // email (key theft / AI-feature sabotage).
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
+    const user = await ctx.db.get(caller._id);
     if (!user) return { success: false, message: "User not found." };
     await ctx.db.patch(user._id, { geminiApiKey: args.apiKey });
     return { success: true };
@@ -1923,14 +1922,13 @@ export const saveUserApiKey = mutation({
  * Used on login to sync the key to localStorage.
  */
 export const getUserApiKey = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const token = args.tokenIdentifier.toLowerCase().trim();
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
-      .collect();
-    const user = users[0];
+    // R16b: session-verified caller — the legacy email-only lookup handed
+    // any caller the user's stored Gemini API key (credential theft).
+    // A user may only read their OWN key.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
+    const user = await ctx.db.get(caller._id);
     return user?.geminiApiKey || null;
   },
 });
@@ -2351,8 +2349,12 @@ export const regenerateInviteCode = mutation({
 });
 
 export const joinFirm = mutation({
-  args: { inviteCode: v.string(), tokenIdentifier: v.string(), userName: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  args: { inviteCode: v.string(), tokenIdentifier: v.string(), userName: v.optional(v.string()), userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // R16b: session-verified identity — the legacy caller-supplied
+    // tokenIdentifier let anyone attach THEMSELVES to any firm via an
+    // invite code under any email, or join as someone else entirely.
+    const sessionUser = await resolveCaller(ctx, { sessionToken: args.sessionToken });
     const providedCode = (args.inviteCode || "").trim().toUpperCase();
     
     // Exact match first
@@ -2367,15 +2369,8 @@ export const joinFirm = mutation({
 
     if (!firm) throw new Error("Invalid invite code.");
 
-    const token = args.tokenIdentifier;
-    let user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", token)).first();
-    if (!user) {
-      user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", token.toLowerCase())).first();
-    }
-    if (!user) {
-      const allUsers = await ctx.db.query("users").take(500);
-      user = allUsers.find(u => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token.toLowerCase()) || null;
-    }
+    // R16b: the joining user is the session caller — never a caller-supplied email.
+    const user = await ctx.db.get(sessionUser._id);
     if (!user) throw new Error("User not found.");
 
     const joinedIds = user.joinedFirmIds || [];

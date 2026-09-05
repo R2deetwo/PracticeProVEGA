@@ -604,6 +604,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 if (matterData.billingModel === BillingModel.Retainer && matterData.billingFrequency) {
                     try {
                         await upsertRetainerSchedule({
+                            sessionToken: bearerToken ?? undefined,
                             matterId: matterToEdit.id,
                             billingFrequency: matterData.billingFrequency,
                             autoBillingEnabled: matterData.retainerAutoBillingEnabled ?? false,
@@ -653,6 +654,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 if (newMatter && matterData.billingModel === BillingModel.Retainer && matterData.billingFrequency) {
                     try {
                         await upsertRetainerSchedule({
+                            sessionToken: bearerToken ?? undefined,
                             matterId: newMatter.id,
                             billingFrequency: matterData.billingFrequency,
                             autoBillingEnabled: matterData.retainerAutoBillingEnabled ?? false,

@@ -114,6 +114,7 @@ const AgentRow: React.FC<{ icon: React.ReactNode; name: string; desc: string; tr
 const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirmDetails, currentUser }) => {
     const { addToast } = useUI();
     const { isProperty } = useProduct();
+    const { bearerToken } = useAuth();
     const convex = useConvex();
     const saveApiKeyMutation = useMutation(api.myFunctions.saveUserApiKey);
     const [customKey, setCustomKey] = useState('');
@@ -160,7 +161,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
             if (currentUser?.email) {
                 try {
                     await saveApiKeyMutation({
-                        tokenIdentifier: currentUser.email,
+                        tokenIdentifier: currentUser.email, sessionToken: bearerToken ?? undefined,
                         apiKey: cleanKey,
                     });
                 } catch (serverErr) {
@@ -182,7 +183,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         // Also clear from server (save empty string)
         if (currentUser?.email) {
             saveApiKeyMutation({
-                tokenIdentifier: currentUser.email,
+                tokenIdentifier: currentUser.email, sessionToken: bearerToken ?? undefined,
                 apiKey: '',
             }).catch(() => {});
         }

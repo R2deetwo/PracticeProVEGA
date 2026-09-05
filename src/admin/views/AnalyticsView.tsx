@@ -44,15 +44,15 @@ const PRODUCT_COLORS: Record<string, string> = {
 };
 
 export const AnalyticsView: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('30d');
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
 
     const metrics = useQuery(api.founderMetrics.getFounderMetrics,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     const alerts = useQuery(api.founderMetrics.getFounderAlerts,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     if (metrics === undefined) {
         return (

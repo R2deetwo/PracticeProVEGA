@@ -71,12 +71,12 @@ function severityRank(s: Severity): number {
 
 export function useFounderSignals({ enabled }: { enabled: boolean }) {
     // Use the logged-in founder's email for server-side verification.
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     // useQuery gives us live updates from Convex. We don't need to poll
     // Convex itself — we poll for LOCAL NOTIFICATION dispatch only.
     const alerts = useQuery(api.founderMetrics.getFounderAlerts,
-        enabled && tokenIdentifier ? { tokenIdentifier } : "skip");
+        enabled && tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
     const lastNotifiedRef = useRef<number>(0);
 
     // Register for local notifications on mount (founder app only).

@@ -51,13 +51,13 @@ interface FounderDashboardProps {
 }
 
 export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals: _onNavigateToSignals, onNavigateToSubscriptions }) => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const [productFilter, setProductFilter] = useState<ProductFilter>('all');
     const [entityToggle, setEntityToggle] = useState<'properties' | 'matters'>('properties');
 
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const metrics = useQuery(api.founderMetrics.getFounderMetrics,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     // CRO AUDIT Track A — fetch pending subscription requests + trial metrics
     // for the actionable items banner at the top of the dashboard.
@@ -80,7 +80,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
         let cancelled = false;
         const fetchStats = async () => {
             try {
-                const stats = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier });
+                const stats = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 if (!cancelled) {
                     setPendingSubCount(stats?.pending || 0);
                     setPendingSubVolume(stats?.pendingAmountNaira || 0);
@@ -90,7 +90,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                 console.warn('[FounderDashboard] getSubscriptionRequestStats failed (backend may not be deployed yet):', e?.message || e);
             }
             try {
-                const trials = await convex.query(api.founderMetrics.getTrialMetrics, { tokenIdentifier });
+                const trials = await convex.query(api.founderMetrics.getTrialMetrics, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 if (!cancelled) {
                     setTrialMetricsData(trials);
                     setActiveTrials(trials?.activeTrials || 0);

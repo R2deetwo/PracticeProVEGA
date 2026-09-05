@@ -191,7 +191,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     // a Convex deploy to exist on the backend. Until then, useQuery would
     // throw synchronously and crash the entire founder app (black screen).
     // With this pattern, the badge stays at 0 until the backend is deployed.
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const convex = useConvex();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const [pendingCount, setPendingCount] = useState(0);
@@ -214,7 +214,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
         let cancelled = false;
         const fetchStats = async () => {
             try {
-                const stats = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier });
+                const stats = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 if (!cancelled) {
                     setPendingCount(stats?.pending || 0);
                     setExpiringSoon(stats?.expiringSoon || 0);
@@ -224,7 +224,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
             }
             // Also fetch new signup count (users registered in last 24h)
             try {
-                const alerts = await convex.query(api.founderMetrics.getFounderAlerts, { tokenIdentifier });
+                const alerts = await convex.query(api.founderMetrics.getFounderAlerts, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 if (!cancelled) {
                     setNewSignupCount(alerts?.newUsers24hCount || 0);
                 }

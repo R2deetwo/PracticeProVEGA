@@ -20,11 +20,12 @@ interface FieldMapping {
 
 export const generateRentDemand = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     propertyId: v.id("properties"),
     matterId: v.optional(v.id("matters")),
   },
   handler: async (ctx, args) => {
-    const { firmId, userId } = await requireFirmUser(ctx);
+    const { firmId, userId } = await requireFirmUser(ctx, undefined, args.sessionToken);
     
     // Fetch property
     const property = await ctx.db.get(args.propertyId);

@@ -39,7 +39,7 @@ function safeGetBool(key: string, fallback: boolean): boolean {
 }
 
 export const Settings: React.FC = () => {
-    const { currentUser, logout } = useFounderAuth();
+    const { currentUser, logout, bearerToken } = useFounderAuth();
     const { addToast } = useFounderToast();
     const { theme, setTheme } = useFounderTheme();
     const [tab, setTab] = useState<Tab>('account');
@@ -290,7 +290,7 @@ export const Settings: React.FC = () => {
                                 onClick={async () => {
                                     try {
                                         const result = await testPush({
-                                            tokenIdentifier: currentUser?.email || '',
+                                            tokenIdentifier: currentUser?.email || '', sessionToken: bearerToken ?? undefined,
                                             title: 'PracticePro Test Push',
                                             body: 'If you can see this, push notifications are working correctly!',
                                         });

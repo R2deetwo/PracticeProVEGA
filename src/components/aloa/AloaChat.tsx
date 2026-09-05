@@ -136,7 +136,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // Fetch cross-session conversation memory for context injection
     const conversationMemory = useQuery(
         api.conversationMemory.getInjectionContext,
-        firmId && userId ? { firmId, userId } : 'skip'
+        firmId && userId && bearerToken ? { firmId, userId, sessionToken: bearerToken ?? undefined } : 'skip'
     );
 
     // Fetch un-dismissed proactive insights (deadlines, anomalies, briefings)

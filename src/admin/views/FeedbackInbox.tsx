@@ -64,7 +64,7 @@ class FeedbackErrorBoundary extends Component<{ children: React.ReactNode }, { h
 
 const FeedbackInboxInner: React.FC = () => {
     const { addToast } = useFounderToast();
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
@@ -125,6 +125,7 @@ const FeedbackInboxInner: React.FC = () => {
             try {
                 await logAdminAction({
                     tokenIdentifier,
+                    sessionToken: bearerToken ?? undefined,
                     action: 'ADMIN ACTION: Replied to feedback',
                     targetFirmId: selected.firmId || undefined,
                     details: `Reply to "${selected.title || 'Untitled'}" from ${selected.userName || selected.userEmail || 'unknown'} (Email: ${sendEmail ? 'YES' : 'NO'})`,
@@ -154,7 +155,7 @@ const FeedbackInboxInner: React.FC = () => {
         if (!confirm('This will re-tag all leaked ALOA chat echoes in the feedback table as archived (data is preserved for audit but hidden from views). Continue?')) return;
         setIsPurging(true);
         try {
-            const result: any = await purgeLeaked({ tokenIdentifier, action: 'retag' });
+            const result: any = await purgeLeaked({ tokenIdentifier, sessionToken: bearerToken ?? undefined, action: 'retag' });
             addToast(result?.message || `Purged ${result?.purgedCount || 0} leaked rows.`, { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to purge leaked data.', { type: 'error' });

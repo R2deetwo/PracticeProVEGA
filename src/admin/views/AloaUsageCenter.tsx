@@ -21,7 +21,7 @@ import { useFounderAuth, useFounderToast } from '../FounderContexts';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
 const AloaUsageCenter: React.FC = () => {
-  const { currentUser } = useFounderAuth();
+  const { currentUser, bearerToken } = useFounderAuth();
   const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
   const [activeTab, setActiveTab] = useState<'overview' | 'firms' | 'tools'>('overview');
   const [queryError, setQueryError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ const AloaUsageCenter: React.FC = () => {
   // gracefully, we use a timeout to detect "stuck loading" and show
   // an error message instead of spinning forever.
   const stats = useQuery(api.founderMetrics.getAloaUsageStats,
-    tokenIdentifier ? { tokenIdentifier } : 'skip');
+    tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : 'skip');
 
   // Detect stuck loading — if stats is still undefined after 8 seconds,
   // the query likely threw an error on the backend (e.g. requireFounder

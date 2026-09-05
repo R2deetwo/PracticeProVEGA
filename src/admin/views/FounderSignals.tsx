@@ -38,10 +38,10 @@ const SEVERITY_STYLE: Record<string, string> = {
 
 export const FounderSignals: React.FC = () => {
     // Use the logged-in founder's email for server-side verification.
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const alerts = useQuery(api.founderMetrics.getFounderAlerts,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     if (!alerts) {
         return (

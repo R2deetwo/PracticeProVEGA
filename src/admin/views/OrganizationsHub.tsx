@@ -59,14 +59,14 @@ type TeamSizeFilter = 'all' | '1-5' | '6-20' | '20+';
 type HealthFilter = 'all' | 'active' | 'at-risk' | 'churned';
 
 export const OrganizationsHub: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const { addToast } = useFounderToast();
     const convex = useConvex();
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
 
     // Data
     const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
     const updateFirmSettings = useMutation(api.founderMetrics.updateFirmAdminSettings);
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
@@ -79,7 +79,7 @@ export const OrganizationsHub: React.FC = () => {
         let cancelled = false;
         const fetchPresence = async () => {
             try {
-                const presence = await convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier });
+                const presence = await convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 if (!cancelled && Array.isArray(presence)) {
                     setOnlineFirmIds(new Set(presence.map((p: any) => p.firmId).filter(Boolean)));
                 }
@@ -160,11 +160,11 @@ export const OrganizationsHub: React.FC = () => {
 
     // Fetch health details for the selected firm
     const health = useQuery(api.founderMetrics.getFirmHealthDetails,
-        tokenIdentifier && selectedId ? { tokenIdentifier, firmId: selectedId } : "skip");
+        tokenIdentifier && selectedId ? { tokenIdentifier, sessionToken: bearerToken ?? undefined, firmId: selectedId } : "skip");
 
     // Fetch broadcast history for this firm (communications log)
     const firmBroadcasts = useQuery(api.broadcasts.getActiveBroadcastsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     // Filter broadcasts to those targeting this firm's product or 'all'
     const firmCommunications = useMemo(() => {
@@ -185,6 +185,7 @@ export const OrganizationsHub: React.FC = () => {
         try {
             await updateFirmSettings({
                 tokenIdentifier,
+                sessionToken: bearerToken ?? undefined,
                 firmId,
                 settings: {
                     subscriptionPlan: editPlan || undefined,
@@ -194,6 +195,7 @@ export const OrganizationsHub: React.FC = () => {
             try {
                 await logAdminAction({
                     tokenIdentifier,
+                    sessionToken: bearerToken ?? undefined,
                     action: 'ADMIN ACTION: Updated firm settings',
                     targetFirmId: firmId,
                     details: `Plan: ${editPlan || 'unchanged'}, Status: ${editStatus || 'unchanged'}`,
@@ -215,6 +217,7 @@ export const OrganizationsHub: React.FC = () => {
                                   (selectedFirm.product || 'legal').toLowerCase() === 'property' ? 'property' : 'legal';
             const result = await convex.action(api.founderMetrics.broadcastNotification, {
                 tokenIdentifier,
+                sessionToken: bearerToken ?? undefined,
                 targetProduct,
                 channel: 'inapp',
                 theme: 'info',
@@ -225,6 +228,7 @@ export const OrganizationsHub: React.FC = () => {
             try {
                 await logAdminAction({
                     tokenIdentifier,
+                    sessionToken: bearerToken ?? undefined,
                     action: 'ADMIN ACTION: Direct message to organization',
                     targetFirmId: selectedFirm.id,
                     details: `Sent "${messageTitle.trim()}" to ${selectedFirm.firmName} (${result.recipientCount} recipients)`,
@@ -658,6 +662,7 @@ export const OrganizationsHub: React.FC = () => {
                                                 {
                                                     targetEmail: adminEmail.toLowerCase(),
                                                     founderEmail: tokenIdentifier,
+                                                    sessionToken: bearerToken ?? undefined,
                                                 }
                                             );
                                             const url = `https://practice-pro-vega.vercel.app/?impersonateToken=${encodeURIComponent(result.token)}`;

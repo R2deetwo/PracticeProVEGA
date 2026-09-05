@@ -10,11 +10,11 @@ import { useFounderAuth } from '../FounderContexts';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden';
 
 export const SystemStatus: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const tokenIdentifier = currentUser?.email || '';
     const [expandedId, setExpandedId] = React.useState<string | null>(null);
     const errors = useQuery(api.founderMetrics.getSystemErrors,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     const isLoading = errors === undefined;
     const safeErrors = (errors as any[]) || [];

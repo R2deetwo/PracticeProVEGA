@@ -83,7 +83,7 @@ function timeUntil(epochMs: number | null): string {
 }
 
 export const SubscriptionRequestsCenter: React.FC = () => {
-  const { currentUser } = useFounderAuth();
+  const { currentUser, bearerToken } = useFounderAuth();
   const { addToast } = useFounderToast();
   const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
 
@@ -113,14 +113,14 @@ export const SubscriptionRequestsCenter: React.FC = () => {
     let cancelled = false;
     const fetchData = async () => {
       try {
-        const s = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier });
+        const s = await convex.query(api.founderMetrics.getSubscriptionRequestStats, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
         if (!cancelled) setStats(s);
       } catch (e: any) {
         console.warn('[SubscriptionRequestsCenter] getSubscriptionRequestStats failed (backend may not be deployed yet):', e?.message || e);
         if (!cancelled) setStats(null);
       }
       try {
-        const r = await convex.query(api.founderMetrics.getSubscriptionRequests, { tokenIdentifier, status: statusFilter });
+        const r = await convex.query(api.founderMetrics.getSubscriptionRequests, { tokenIdentifier, sessionToken: bearerToken ?? undefined, status: statusFilter });
         if (!cancelled) setRequests(r || []);
       } catch (e: any) {
         console.warn('[SubscriptionRequestsCenter] getSubscriptionRequests failed (backend may not be deployed yet):', e?.message || e);
@@ -157,6 +157,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
     try {
       await approveMutation({
         tokenIdentifier,
+        sessionToken: bearerToken ?? undefined,
         requestId,
         adminNotes: adminNotes[requestId] || undefined,
         // CRO AUDIT — discounting system
@@ -186,6 +187,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
     try {
       await rejectMutation({
         tokenIdentifier,
+        sessionToken: bearerToken ?? undefined,
         requestId,
         reason: rejectReason[requestId] || undefined,
       });

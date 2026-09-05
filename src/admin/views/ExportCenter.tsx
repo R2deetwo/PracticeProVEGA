@@ -34,13 +34,13 @@ const EXPORT_OPTIONS: { type: ExportType; label: string; description: string }[]
 ];
 
 export const ExportCenter: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const { addToast } = useFounderToast();
     const tokenIdentifier = currentUser?.email || '';
     const [exportType, setExportType] = useState<ExportType | null>(null);
 
     const data = useQuery(api.founderMetrics.getExportData,
-        tokenIdentifier && exportType ? { tokenIdentifier, exportType } : "skip");
+        tokenIdentifier && exportType ? { tokenIdentifier, sessionToken: bearerToken ?? undefined, exportType } : "skip");
 
     const handleExport = (type: ExportType) => {
         setExportType(type);

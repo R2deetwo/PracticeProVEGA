@@ -86,12 +86,12 @@ function formatActor(event: any): { name: string; email: string; isSystem: boole
 }
 
 export const AuditLogs: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'high-value' | 'system'>('all');
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const metrics = useQuery(api.founderMetrics.getFounderMetrics,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     const filteredEvents = useMemo(() => {
         if (!metrics?.recentActivity) return [];

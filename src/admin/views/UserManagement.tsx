@@ -12,11 +12,11 @@ import { api } from '../../../convex/_generated/api';
 import { useFounderAuth } from '../FounderContexts';
 
 export const UserManagement: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const [search, setSearch] = useState('');
     const tokenIdentifier = currentUser?.email || currentUser?.tokenIdentifier || '';
     const firms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     if (firms === undefined) {
         return (

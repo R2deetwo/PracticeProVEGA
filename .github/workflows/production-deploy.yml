@@ -113,6 +113,12 @@ jobs:
             exit 1
           fi
 
+
+      - name: Identity audit (R16 — no public function may trust caller-supplied identity)
+        run: |
+          echo "Running: python3 scripts/audit-identity.py"
+          python3 scripts/audit-identity.py
+
       - name: Run unit test suite
         run: npx vitest run
 

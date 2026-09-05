@@ -340,7 +340,7 @@ export const BroadcastBanner: React.FC = () => {
 
     const broadcasts = useQuery(api.broadcasts.getActiveBroadcasts,
         isAuthenticated && (userIdStr || userEmail)
-            ? { userId: userIdStr, email: userEmail }
+            ? { userId: userIdStr, email: userEmail, sessionToken: bearerToken ?? undefined }
             : "skip");
 
     // CRO AUDIT FIX — use multi-signal product resolution.

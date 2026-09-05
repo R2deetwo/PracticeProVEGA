@@ -116,9 +116,9 @@ async function logSecurityEventInline(ctx: any, data: {
 // ── Admin Queries (founder-gated) ──────────────────────────────────────────
 
 export const getSecurityEvents = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     return await ctx.db
       .query("securityEvents")
       .order("desc")
@@ -127,17 +127,17 @@ export const getSecurityEvents = query({
 });
 
 export const getBlockedIps = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     return await ctx.db.query("blockedIps").collect();
   },
 });
 
 export const getSuspendedUsers = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     return await ctx.db.query("suspendedUsers").collect();
   },
 });
@@ -146,12 +146,13 @@ export const getSuspendedUsers = query({
 
 export const blockIp = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     ip: v.string(),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const founder = await requireFounder(ctx, args.tokenIdentifier);
+    const founder = await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     // Check if already blocked
     const existing = await ctx.db
       .query("blockedIps")
@@ -169,11 +170,12 @@ export const blockIp = mutation({
 
 export const unblockIp = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     ip: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const existing = await ctx.db
       .query("blockedIps")
       .withIndex("by_ip", (q: any) => q.eq("ip", args.ip))
@@ -184,12 +186,13 @@ export const unblockIp = mutation({
 
 export const suspendUser = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     userId: v.string(),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const founder = await requireFounder(ctx, args.tokenIdentifier);
+    const founder = await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const existing = await ctx.db
       .query("suspendedUsers")
       .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
@@ -206,11 +209,12 @@ export const suspendUser = mutation({
 
 export const unsuspendUser = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     tokenIdentifier: v.string(),
     userId: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier);
+    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     const existing = await ctx.db
       .query("suspendedUsers")
       .withIndex("by_user", (q: any) => q.eq("userId", args.userId))

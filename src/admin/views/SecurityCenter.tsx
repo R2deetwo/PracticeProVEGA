@@ -44,7 +44,7 @@ interface SecurityEvent {
 }
 
 const SecurityCenter: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const convex = useConvex();
     const [onlineUsers, setOnlineUsers] = useState<PresenceEntry[]>([]);
     const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
@@ -60,8 +60,8 @@ const SecurityCenter: React.FC = () => {
             setError(null);
             try {
                 const [presence, events] = await Promise.all([
-                    convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier: token }),
-                    convex.query(api.founderMetrics.getSecurityEventsForAdmin, { tokenIdentifier: token }),
+                    convex.query(api.founderMetrics.getAllPresenceForAdmin, { tokenIdentifier: token, sessionToken: bearerToken ?? undefined }),
+                    convex.query(api.founderMetrics.getSecurityEventsForAdmin, { tokenIdentifier: token, sessionToken: bearerToken ?? undefined }),
                 ]);
                 setOnlineUsers(presence || []);
                 setSecurityEvents(events || []);

@@ -134,12 +134,13 @@ export function isFirmPremiumRetainerEligible(
 
 export const upsertMatterRetainerSchedule = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     matterId: v.string(),
     billingFrequency: v.string(),
     autoBillingEnabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
 
     // Look up the matter by both _id and legacy id field
     let matter: any = await ctx.db
@@ -191,10 +192,11 @@ export const upsertMatterRetainerSchedule = mutation({
 
 export const getOutboxForFirm = query({
   args: {
+    sessionToken: v.optional(v.string()),
     state: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
 
     let entries: any[];
     if (args.state) {
@@ -222,9 +224,9 @@ export const getOutboxForFirm = query({
 // Returns counts by state for the dashboard's KPI cards.
 
 export const getOutboxStats = query({
-  args: {},
-  handler: async (ctx) => {
-    const auth = await requireFirmUser(ctx);
+  args: { sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const entries = await ctx.db
       .query("invoice_outbox")
       .withIndex("by_firm", (q) => q.eq("firmId", auth.firmId))
@@ -257,10 +259,11 @@ export const getOutboxStats = query({
 
 export const approveAndSendNow = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     outboxId: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const entry: any = await ctx.db.get(args.outboxId as any);
     if (!entry) throw new Error("Outbox entry not found.");
     if (entry.firmId !== auth.firmId) {
@@ -296,10 +299,11 @@ export const approveAndSendNow = mutation({
 
 export const pauseForEdit = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     outboxId: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const entry: any = await ctx.db.get(args.outboxId as any);
     if (!entry) throw new Error("Outbox entry not found.");
     if (entry.firmId !== auth.firmId) {
@@ -339,7 +343,7 @@ export const updateOutboxEntry = mutation({
     cycleLabel: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const entry: any = await ctx.db.get(args.outboxId as any);
     if (!entry) throw new Error("Outbox entry not found.");
     if (entry.firmId !== auth.firmId) {
@@ -370,11 +374,12 @@ export const updateOutboxEntry = mutation({
 
 export const skipCycle = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     outboxId: v.string(),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const entry: any = await ctx.db.get(args.outboxId as any);
     if (!entry) throw new Error("Outbox entry not found.");
     if (entry.firmId !== auth.firmId) {
@@ -417,10 +422,11 @@ export const skipCycle = mutation({
 
 export const retryFailed = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     outboxId: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const entry: any = await ctx.db.get(args.outboxId as any);
     if (!entry) throw new Error("Outbox entry not found.");
     if (entry.firmId !== auth.firmId) {
@@ -770,10 +776,11 @@ export const createInvoiceFromOutbox = internalMutation({
 
 export const stageRetainerInvoiceManually = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
     matterId: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     let matter: any = await ctx.db
       .query("matters")
       .withIndex("by_custom_id", (q) => q.eq("id", args.matterId))

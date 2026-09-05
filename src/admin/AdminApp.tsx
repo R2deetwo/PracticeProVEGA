@@ -197,6 +197,19 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch { return null; }
     });
 
+    // R16b: the server-issued bearer from verifyLogin. Stored alongside the
+    // legacy email session — every founder-gated data call now requires it
+    // (requireFounder is session-verified server-side). Sessions logged in
+    // before the cutover have no bearer: isAuthenticated stays false and the
+    // founder is asked to log in again.
+    const [bearerToken, setBearerToken] = useState<string | null>(() => {
+        try {
+            return localStorage.getItem('practicepro_founder_bearer')
+                || sessionStorage.getItem('practicepro_founder_bearer')
+                || null;
+        } catch { return null; }
+    });
+
     const userData = useQuery(api.myFunctions.getUser,
         sessionToken ? { tokenIdentifier: sessionToken } : "skip");
 
@@ -225,6 +238,20 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return { success: false, message: result?.message || 'Invalid email or password.' };
             }
 
+            // R16b: persist the server-issued bearer — founder data calls
+            // require it (requireFounder is session-verified).
+            if (result.sessionToken) {
+                try {
+                    localStorage.setItem('practicepro_founder_bearer', result.sessionToken);
+                    sessionStorage.setItem('practicepro_founder_bearer', result.sessionToken);
+                } catch {}
+                setBearerToken(result.sessionToken);
+            } else {
+                // No bearer = pre-cutover server or session issuance failed.
+                // Block the login rather than render a broken dashboard.
+                return { success: false, message: 'Login could not create a secure session. Please update your app and try again.' };
+            }
+
             // Set session
             const token = email.toLowerCase().trim();
             const sessionData = JSON.stringify({ token });
@@ -240,14 +267,18 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const logout = useCallback(() => {
         try { localStorage.removeItem('practicepro_user_session'); } catch {}
         try { sessionStorage.removeItem('practicepro_user_session'); } catch {}
+        try { localStorage.removeItem('practicepro_founder_bearer'); } catch {}
+        try { sessionStorage.removeItem('practicepro_founder_bearer'); } catch {}
         setSessionToken(null);
+        setBearerToken(null);
     }, []);
 
     return (
         <FounderAuthContext.Provider value={{
             currentUser,
-            isAuthenticated: !!currentUser,
+            isAuthenticated: !!currentUser && !!bearerToken,
             isLoadingSession: sessionToken && !userData ? true : false,
+            bearerToken,
             login,
             logout,
         }}>

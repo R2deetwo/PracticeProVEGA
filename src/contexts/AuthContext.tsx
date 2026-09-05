@@ -310,7 +310,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // the client (it's used directly in Gemini API calls), and is cleared
     // on logout.
     const serverApiKey = useQuery(api.myFunctions.getUserApiKey,
-        sessionToken ? { tokenIdentifier: sessionToken } : "skip");
+        bearerToken ? { tokenIdentifier: sessionToken ?? '', sessionToken: bearerToken ?? undefined } : "skip");
 
     React.useEffect(() => {
         if (serverApiKey && typeof serverApiKey === 'string' && serverApiKey.length > 0) {

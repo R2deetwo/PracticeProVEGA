@@ -53,7 +53,7 @@ const TARGET_LABELS: Record<Target, string> = {
 };
 
 export const BroadcastConsole: React.FC = () => {
-    const { currentUser } = useFounderAuth();
+    const { currentUser, bearerToken } = useFounderAuth();
     const { addToast } = useFounderToast();
     const convex = useConvex();
 
@@ -70,17 +70,17 @@ export const BroadcastConsole: React.FC = () => {
 
     // Get all users to know how many will receive the broadcast
     const allFirms = useQuery(api.founderMetrics.getAllFirmsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
     const recipientCount = (allFirms as any[])?.reduce((sum, f) => sum + (f.userCount || 0), 0) || 0;
     const logAdminAction = useMutation(api.founderMetrics.logAdminAction);
 
     // Fetch broadcast history (admin action log filtered to broadcasts)
     const broadcastHistory = useQuery(api.founderMetrics.getAdminActionLog,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     // Active Banners Control Center — fetch all active broadcasts
     const activeBanners = useQuery(api.broadcasts.getActiveBroadcastsForAdmin,
-        tokenIdentifier ? { tokenIdentifier } : "skip");
+        tokenIdentifier && bearerToken ? { tokenIdentifier, sessionToken: bearerToken ?? undefined } : "skip");
 
     // Archive a broadcast (kill all its notification rows)
     const archiveBroadcast = useMutation(api.broadcasts.archiveBroadcast);
@@ -101,7 +101,7 @@ export const BroadcastConsole: React.FC = () => {
     const handleArchive = (broadcastId: string) => {
         requestConfirm('Archive this banner? This will remove it from ALL users immediately.', async () => {
             try {
-                const result = await archiveBroadcast({ tokenIdentifier, broadcastId });
+                const result = await archiveBroadcast({ tokenIdentifier, sessionToken: bearerToken ?? undefined, broadcastId });
                 addToast(`Banner archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
             } catch (e: any) {
                 addToast(e?.message || 'Failed to archive banner.', { type: 'error' });
@@ -114,7 +114,7 @@ export const BroadcastConsole: React.FC = () => {
         const count = selectedIds.size;
         requestConfirm(`Archive ${count} banner(s)? This will remove ALL their notifications from ALL users.`, async () => {
             try {
-                const result = await bulkArchiveBroadcasts({ tokenIdentifier, broadcastIds: [...selectedIds] });
+                const result = await bulkArchiveBroadcasts({ tokenIdentifier, sessionToken: bearerToken ?? undefined, broadcastIds: [...selectedIds] });
                 addToast(`Bulk archived. Removed ${result.deleted} notification(s).`, { type: 'success' });
                 setSelectedIds(new Set());
             } catch (e: any) {
@@ -126,7 +126,7 @@ export const BroadcastConsole: React.FC = () => {
     const handleCleanupDuplicates = () => {
         requestConfirm('Remove all duplicate broadcast notifications? This keeps only the newest copy per user+title+message.', async () => {
             try {
-                const result = await cleanupDuplicateBroadcasts({ tokenIdentifier });
+                const result = await cleanupDuplicateBroadcasts({ tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 if (result.deleted > 0) {
                     addToast(`Cleaned up ${result.deleted} duplicate notification(s).`, { type: 'success' });
                 } else {
@@ -141,7 +141,7 @@ export const BroadcastConsole: React.FC = () => {
     const handlePurgeAll = () => {
         requestConfirm('PURGE ALL broadcast notifications? This deletes EVERY broadcast from ALL users permanently. This cannot be undone.', async () => {
             try {
-                const result = await purgeAllBroadcasts({ tokenIdentifier });
+                const result = await purgeAllBroadcasts({ tokenIdentifier, sessionToken: bearerToken ?? undefined });
                 addToast(`Purged all broadcasts. Removed ${result.deleted} notification(s).`, { type: 'success' });
                 setSelectedIds(new Set());
             } catch (e: any) {
@@ -179,6 +179,7 @@ export const BroadcastConsole: React.FC = () => {
             // We'll create a notification for each user matching the target product
             const result = await convex.action(api.founderMetrics.broadcastNotification, {
                 tokenIdentifier,
+                sessionToken: bearerToken ?? undefined,
                 targetProduct: target,
                 channel,
                 theme,
@@ -191,6 +192,7 @@ export const BroadcastConsole: React.FC = () => {
             try {
                 await logAdminAction({
                     tokenIdentifier,
+                    sessionToken: bearerToken ?? undefined,
                     action: 'Broadcast sent',
                     details: `Title: "${title.trim()}", Recipients: ${result.recipientCount}, Channel: ${channel}, Theme: ${theme}, Target: ${target}`,
                 });
