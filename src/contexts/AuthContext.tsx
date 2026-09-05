@@ -704,13 +704,16 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     return { success: false, message: verifyResult.message, isLocked: true };
                 }
                 if (verifyResult.requiresMfa) {
-                    return { success: false, requiresMfa: true, mfaType: verifyResult.mfaType, debugCode: (verifyResult as any).debugCode };
+                    // Task 20: codeHint (first 2 digits) lets the login UI show
+                    // "your code starts with 64" so the user can match the
+                    // prompt to the correct (newest) email.
+                    return { success: false, requiresMfa: true, mfaType: verifyResult.mfaType, debugCode: (verifyResult as any).debugCode, codeHint: (verifyResult as any).codeHint ?? null };
                 }
                 // R16 TOFU close: account has no stored password — the first
                 // login must claim it with an emailed code (same UI flow as
                 // MFA; the password field already holds the desired password).
                 if ((verifyResult as any).requiresInitialPassword) {
-                    return { success: false, requiresInitialPassword: true, mfaType: (verifyResult as any).mfaType };
+                    return { success: false, requiresInitialPassword: true, mfaType: (verifyResult as any).mfaType, codeHint: (verifyResult as any).codeHint ?? null };
                 }
                 return { success: false, message: verifyResult.message };
             }

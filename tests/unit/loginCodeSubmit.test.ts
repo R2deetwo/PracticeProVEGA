@@ -54,7 +54,7 @@ describe("Login code-entry states always expose a submit affordance", () => {
   });
 
   it("the code input advertises one-time-code autofill + numeric keypad", () => {
-    const inputBlock = LOGIN_SOURCE.match(/id="mfaCode"[\s\S]{0,300}?maxLength=\{6\}/);
+    const inputBlock = LOGIN_SOURCE.match(/id="mfaCode"[\s\S]{0,500}?maxLength=\{6\}/);
     expect(inputBlock).not.toBeNull();
     expect(inputBlock![0]).toContain('autoComplete="one-time-code"');
     expect(inputBlock![0]).toContain('inputMode="numeric"');
@@ -80,5 +80,36 @@ describe("Login code-entry states always expose a submit affordance", () => {
       ) ?? []).length;
     expect(total).toBeGreaterThan(0);
     expect(gated).toBe(total);
+  });
+});
+
+describe("Login code entry — task 20 (the 'both codes failed' incident)", () => {
+  it("the code input strips non-digits before they reach state", () => {
+    // Paste artifacts ("640-209", " 640209 ") must never reach the server.
+    expect(LOGIN_SOURCE).toMatch(
+      /setMCode\(e\.target\.value\.replace\(\/\\D\/g, ''\)\.slice\(0, 6\)\)/
+    );
+  });
+
+  it("renders a Resend code button in BOTH code-entry states", () => {
+    expect(LOGIN_SOURCE).toMatch(/handleResendCode/);
+    expect(LOGIN_SOURCE).toMatch(
+      /\(requiresMfa \|\| requiresInitialPassword\) && \(\s*<button[\s\S]{0,400}?Resend code/
+    );
+  });
+
+  it("resend re-submits the password WITHOUT a code (fresh mint, old codes die)", () => {
+    const resendFn = LOGIN_SOURCE.match(
+      /const handleResendCode = async \(\) => \{[\s\S]{0,1200}?\};/
+    );
+    expect(resendFn).not.toBeNull();
+    expect(resendFn![0]).toMatch(/await login\(email, password, undefined, rememberMe\)/);
+    // And it surfaces the new codeHint so the user can match the newest email.
+    expect(resendFn![0]).toMatch(/setCodeHint/);
+  });
+
+  it("shows the backend's codeHint under the code input", () => {
+    expect(LOGIN_SOURCE).toMatch(/Your new code starts with/);
+    expect(LOGIN_SOURCE).toMatch(/setCodeHint\(\(result as any\)\.codeHint/);
   });
 });

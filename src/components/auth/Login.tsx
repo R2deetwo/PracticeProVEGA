@@ -79,6 +79,10 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
  // with friendlier copy; the password field holds the desired password).
  const [requiresInitialPassword, setRequiresInitialPassword] = React.useState(false);
  const [mfaCode, setMCode] = React.useState('');
+ // Task 20: first 2 digits of the current code, returned by the backend
+ // after the password check — shown under the input so the user can
+ // match the prompt to the correct (newest) email.
+ const [codeHint, setCodeHint] = React.useState<string | null>(null);
  const [debugCode, setDebugCode] = React.useState<string | null>(null);
  const [showResend, setShowResend] = React.useState(false);
 
@@ -159,10 +163,12 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     }
    } else if (result.requiresMfa) {
     setRequiresMfa(true);
+    setCodeHint((result as any).codeHint ?? null);
     setIsLoading(false);
     addToast("Verification required. Check your email.", { type: 'info' });
    } else if ((result as any).requiresInitialPassword) {
     setRequiresInitialPassword(true);
+    setCodeHint((result as any).codeHint ?? null);
     setIsLoading(false);
     addToast("Let's secure your account. We emailed you a verification code — enter it to set your password.", { type: 'info', duration: 7000 });
    } else {
@@ -175,6 +181,34 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
   } catch (err: any) {
    setIsLoading(false);
    setErrorMsg("An unexpected error occurred. Please try again.");
+  }
+ };
+
+ // Task 20: explicit resend. Re-submits the password WITHOUT a code, so
+ // the backend mints a fresh code, emails it, and invalidates every
+ // earlier code — replacing the old failure mode where users silently
+ // re-triggered generations and then typed codes from stale emails.
+ const handleResendCode = async () => {
+  if (!email.trim() || !password) {
+   setErrorMsg("Please re-enter your email and password first.");
+   return;
+  }
+  setIsLoading(true);
+  setErrorMsg(null);
+  try {
+   const result = await login(email, password, undefined, rememberMe);
+   if (result.requiresMfa || (result as any).requiresInitialPassword) {
+    setCodeHint((result as any).codeHint ?? null);
+    setMCode('');
+    addToast("New code sent — earlier codes no longer work. Use the newest email.", { type: 'info', duration: 7000 });
+   } else {
+    // Password no longer accepted (or account state changed) — surface it.
+    setErrorMsg(result.message || "Could not resend the code. Please sign in again.");
+   }
+  } catch {
+   setErrorMsg("Could not resend the code. Please try again.");
+  } finally {
+   setIsLoading(false);
   }
  };
 
@@ -293,7 +327,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
          inputMode="numeric"
          autoComplete="one-time-code"
          value={mfaCode}
-         onChange={e => setMCode(e.target.value.toUpperCase())}
+         onChange={e => setMCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
          className={`${commonInputClass} text-center tracking-[0.5em] font-mono text-2xl uppercase`}
          placeholder="000000"
          maxLength={6}
@@ -301,6 +335,11 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
          autoFocus
          disabled={isLoading}
         />
+        {codeHint && (
+         <p className="text-xs text-slate-500 mt-1.5">
+          Your new code starts with <strong>{codeHint}</strong> — use the code from the <strong>newest</strong> email; earlier codes no longer work.
+         </p>
+        )}
        </div>
       </div>
      ) : isRecovering ? (
@@ -484,6 +523,21 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
       </button>
      )}
 
+     {/* Task 20: explicit resend — mints a fresh code (previous codes stop
+      working) and tells the user to read the newest email. Replaces the
+      silent regeneration that left users typing stale codes. */}
+     {(requiresMfa || requiresInitialPassword) && (
+      <button
+       type="button"
+       onClick={handleResendCode}
+       disabled={isLoading}
+       className="w-full px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+       <MailIcon className="w-4 h-4" />
+       Resend code
+      </button>
+     )}
+
      {showResend && (
       <button
        type="button"
@@ -510,7 +564,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     {(requiresMfa || requiresInitialPassword) && (
      <p className="text-center text-sm text-gray-500 mt-6">
       Need help?{' '}
-      <button type="button" onClick={() => { setRequiresMfa(false); setRequiresInitialPassword(false); setMCode(''); }} className="font-bold text-primary-600 hover:underline hover:text-primary-700 transition-colors">
+      <button type="button" onClick={() => { setRequiresMfa(false); setRequiresInitialPassword(false); setMCode(''); setCodeHint(null); }} className="font-bold text-primary-600 hover:underline hover:text-primary-700 transition-colors">
        Use a different account
       </button>
      </p>

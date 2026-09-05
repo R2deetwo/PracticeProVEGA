@@ -5,6 +5,8 @@ import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
 import { numericCode, codeFromCharset } from "./secureRandom";
+// Task 20: login-code verification rules (normalize, TTL, hint, copy)
+import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./codeVerification";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { requireStaffCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
 import { notifyFounders } from "./founderNotifications";
@@ -1607,22 +1609,46 @@ export const verifyLogin = action({
         const code = numericCode(6);
         await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
           userId: user._id,
-          fields: { mfaCode: code },
+          fields: { mfaCode: code, mfaCodeIssuedAt: now },
         });
         try {
           await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, {
             email: args.email,
             code,
             product: user.product || 'legal',
+            purpose: 'login',
           });
         } catch (e) {
           console.error("Failed to send initial-password setup code", e);
         }
-        return { success: false, requiresInitialPassword: true, mfaType: 'email' };
+        // codeHint lets the client show "your code starts with 64" — the
+        // user can then match the prompt to the correct (newest) email.
+        return { success: false, requiresInitialPassword: true, mfaType: 'email', codeHint: codeHint(code) };
       }
       // A code was presented — verify it before accepting the password.
-      if (args.mfaCode !== user.mfaCode) {
-        return { success: false, message: "Incorrect verification code. Please check your email and try again." };
+      // Task 20 hardening: normalize input (paste artifacts), enforce the
+      // 10-minute TTL the email promises (no timestamp = expired, which
+      // also retires legacy pre-fix codes), and count WRONG codes toward
+      // the same 5-attempt lockout as wrong passwords (R16 gap: code
+      // brute-force was previously unthrottled).
+      const suppliedCode = normalizeCode(args.mfaCode);
+      const expired = isCodeExpired(user.mfaCodeIssuedAt, now);
+      if (suppliedCode !== normalizeCode(user.mfaCode) || expired) {
+        if (!expired) {
+          const codeAttempts = (user.failedLoginAttempts || 0) + 1;
+          const codeUpdates: any = { failedLoginAttempts: codeAttempts };
+          if (codeAttempts >= MAX_ATTEMPTS) {
+            codeUpdates.lockedUntil = now + LOCKOUT_DURATION_MS;
+          }
+          await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+            userId: user._id,
+            fields: codeUpdates,
+          });
+          if (codeUpdates.lockedUntil) {
+            return { success: false, message: "Too many incorrect codes. Please try again in 15 minutes." };
+          }
+        }
+        return { success: false, message: wrongCodeMessage(expired) };
       }
       isPasswordCorrect = true;
       needsMigration = true;
@@ -1636,17 +1662,35 @@ export const verifyLogin = action({
           const code = numericCode(6);
           await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
             userId: user._id,
-            fields: { mfaCode: code },
+            fields: { mfaCode: code, mfaCodeIssuedAt: now },
           });
           try {
-            await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code, product: user.product || 'legal' });
+            await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code, product: user.product || 'legal', purpose: 'login' });
           } catch (e) {
             console.error("Failed to send MFA email", e);
           }
-          return { success: false, requiresMfa: true, mfaType: 'email' };
+          return { success: false, requiresMfa: true, mfaType: 'email', codeHint: codeHint(code) };
         } else {
-          if (user.mfaCode !== args.mfaCode) {
-            return { success: false, message: "Incorrect security code. Please try again." };
+          // Task 20 hardening (mirrors the TOFU branch): normalize + TTL +
+          // wrong-code attempts count toward the lockout.
+          const mfaSupplied = normalizeCode(args.mfaCode);
+          const mfaExpired = isCodeExpired(user.mfaCodeIssuedAt, now);
+          if (mfaSupplied !== normalizeCode(user.mfaCode) || mfaExpired) {
+            if (!mfaExpired) {
+              const mfaAttempts = (user.failedLoginAttempts || 0) + 1;
+              const mfaUpdates: any = { failedLoginAttempts: mfaAttempts };
+              if (mfaAttempts >= MAX_ATTEMPTS) {
+                mfaUpdates.lockedUntil = now + LOCKOUT_DURATION_MS;
+              }
+              await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+                userId: user._id,
+                fields: mfaUpdates,
+              });
+              if (mfaUpdates.lockedUntil) {
+                return { success: false, message: "Too many incorrect codes. Please try again in 15 minutes." };
+              }
+            }
+            return { success: false, message: wrongCodeMessage(mfaExpired) };
           }
         }
       }
@@ -1655,7 +1699,7 @@ export const verifyLogin = action({
       const updates: Record<string, any> = {};
       if (user.failedLoginAttempts > 0) updates.failedLoginAttempts = 0;
       if (user.lockedUntil) updates.lockedUntil = null;
-      if (user.mfaCode) updates.mfaCode = null;
+      if (user.mfaCode) { updates.mfaCode = null; updates.mfaCodeIssuedAt = null; }
 
       // Upgrade legacy hash to PBKDF2 on successful login
       if (needsMigration && rawPw) {
@@ -2000,7 +2044,21 @@ export const resetPassword = action({
 
     await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
       userId: user._id,
-      fields: { password: hashedPassword, verificationCode: null, recoveryCode: null },
+      // Task 20: a successful password reset PROVES account control —
+      // retire any pending login code (the 2026-09-05 incident left a
+      // stale one on the record: code set + password set + MFA off is a
+      // contradictory state that confused diagnosis) and clear the
+      // failed-attempt counter + lockout so the fresh password starts
+      // from a clean slate.
+      fields: {
+        password: hashedPassword,
+        verificationCode: null,
+        recoveryCode: null,
+        mfaCode: null,
+        mfaCodeIssuedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
     });
 
     return { success: true };
@@ -4714,21 +4772,47 @@ async function sendBrevoEmail(args: {
 }
 
 export const sendVerificationEmail = internalAction({
-  args: { email: v.string(), code: v.string(), product: v.optional(v.string()) },
+  // Task 20: `purpose` distinguishes the two senders of this template.
+  //   - "signup" (default): confirming email ownership during registration.
+  //   - "login": a sign-in / password-claim code. The 2026-09-05 incident:
+  //     both flows sent IDENTICAL emails, and the user typed a signup code
+  //     into the login prompt (or vice versa) — indistinguishable subjects
+  //     and bodies. Login codes now get a distinct subject + copy that
+  //     also names the 10-minute validity (enforced since task 20).
+  args: {
+    email: v.string(),
+    code: v.string(),
+    product: v.optional(v.string()),
+    purpose: v.optional(v.union(v.literal("signup"), v.literal("login"))),
+  },
   handler: async (ctx, args) => {
     const brand = getProductBranding(args.product);
+    const isLogin = args.purpose === "login";
 
-    const bodyHtml = `
-      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Verify Your Account</p>
+    const heading = isLogin
+      ? "Your Sign-In Code"
+      : "Verify Your Account";
+    const intro = isLogin
+      ? `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">${heading}</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 32px 0;">
+        Enter this code to finish signing in. It expires in 10 minutes, and it replaces any
+        earlier sign-in codes we sent you — if you requested several, use the code from THIS email.
+      </p>`
+      : `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">${heading}</p>
       <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 32px 0;">
         Use the verification code below to confirm your email address and activate your account. This code is valid for 10 minutes.
-      </p>
+      </p>`;
+
+    const bodyHtml = `
+      ${intro}
       <div style="background:${BRAND_GREEN_LIGHT};border:2px solid ${BRAND_GREEN};border-radius:12px;padding:28px;text-align:center;margin-bottom:32px;">
-        <p style="color:${BRAND_GREEN_DARK};font-size:12px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px 0;font-weight:700;">Your Verification Code</p>
+        <p style="color:${BRAND_GREEN_DARK};font-size:12px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px 0;font-weight:700;">${isLogin ? "Your Sign-In Code" : "Your Verification Code"}</p>
         <span style="display:inline-block;font-size:38px;font-weight:800;color:${BRAND_GREEN_DARK};letter-spacing:8px;">${args.code}</span>
       </div>
       <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
-        If you did not request this verification, please disregard this email. Your account will remain secure. Do not share this code with anyone — PracticePro staff will never ask for it.
+        If you did not request this ${isLogin ? "sign-in" : "verification"}, please disregard this email. Your account will remain secure. Do not share this code with anyone — PracticePro staff will never ask for it.
       </p>`;
 
     const html = brandedEmailWrapper({
@@ -4738,9 +4822,13 @@ export const sendVerificationEmail = internalAction({
       bodyHtml,
     });
 
+    const subject = isLogin
+      ? (brand.name ? `PracticePro ${brand.name} — Your Sign-In Code` : `PracticePro — Your Sign-In Code`)
+      : (brand.name ? `PracticePro ${brand.name} — Your Verification Code` : `PracticePro — Your Verification Code`);
+
     await sendBrevoEmail({
       to: args.email,
-      subject: brand.name ? `PracticePro ${brand.name} — Your Verification Code` : `PracticePro — Your Verification Code`,
+      subject,
       html,
       productName: brand.name,
     });

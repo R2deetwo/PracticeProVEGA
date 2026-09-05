@@ -116,6 +116,10 @@ export default defineSchema({
     lockedUntil: nullableNumber,
     failedLoginAttempts: nullableNumber,
     mfaCode: nullableString,
+    // Task 20: when the current mfaCode was issued (epoch ms). Absent on
+    // legacy records → treated as expired, forcing a fresh code on the
+    // next login attempt. Enforces the 10-minute TTL the email promises.
+    mfaCodeIssuedAt: nullableNumber,
     recoveryCode: nullableString,
     emailVerified: nullableBoolean,
     externalCounselId: nullableString,
