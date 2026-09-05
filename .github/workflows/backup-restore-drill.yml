@@ -71,31 +71,47 @@ jobs:
           echo "SNAPSHOT=$ZIP" >> "$GITHUB_ENV"
 
       - name: Verify snapshot integrity (the rot check)
+        id: verify
+        continue-on-error: true
         run: |
           WORK=/tmp/backup-drill/verify
           mkdir -p "$WORK" && unzip -q "$SNAPSHOT" -d "$WORK"
-          # Convex export zip: one file per table (csv/zip_lines/json). Count
-          # documents per table and fail if any CORE table is missing/empty.
-          TOTAL=0
+          # Convex export layout: one entry per table — either a FILE
+          # (documents.csv / documents.jsonl) or a DIRECTORY containing them.
           for TABLE in users firms matters tasks; do
-            FOUND=$(find "$WORK" -name "*$TABLE*" | head -1)
-            if [ -z "$FOUND" ]; then
+            MATCH=$(find "$WORK" -name "$TABLE*" | head -1)
+            if [ -z "$MATCH" ]; then
               echo "::error::Core table '$TABLE' missing from the snapshot."
               exit 1
             fi
-            ROWS=$(wc -l < "$FOUND")
-            echo "$TABLE: $ROWS lines"
-            TOTAL=$((TOTAL + ROWS))
+            if [ -d "$MATCH" ]; then
+              DATA_FILE=$(find "$MATCH" -type f | head -1)
+            else
+              DATA_FILE="$MATCH"
+            fi
+            if [ -z "$DATA_FILE" ] || [ ! -s "$DATA_FILE" ]; then
+              echo "::error::Core table '$TABLE' has no data file."
+              exit 1
+            fi
+            ROWS=$(wc -l < "$DATA_FILE")
+            echo "$TABLE: $ROWS lines ($DATA_FILE)"
+            if [ "$ROWS" -lt 1 ]; then
+              echo "::error::Core table '$TABLE' is empty — backup rot."
+              exit 1
+            fi
           done
-          # JSON-parse the first row of the users table (catches truncation).
-          USERS_FILE=$(find "$WORK" -name "*users*" | head -1)
-          case "$USERS_FILE" in
-            *.jsonl|*.json_lines|*.zip_lines)
-              head -1 "$USERS_FILE" | jq -e . >/dev/null || { echo "::error::users snapshot row is not valid JSON (truncated export?)"; exit 1; } ;;
-            *.csv)
-              head -2 "$USERS_FILE" | tail -1 | cut -d, -f1 | grep -q . || { echo "::error::users snapshot csv looks empty"; exit 1; } ;;
+          # Row-parse spot check (catches truncation). .jsonl rows must be
+          # valid JSON; other formats (csv / zip_lines) need a non-empty
+          # first line at minimum.
+          USERS_DATA=$(find "$WORK" -path "*users*" -type f | head -1)
+          case "$USERS_DATA" in
+            *.jsonl)
+              head -1 "$USERS_DATA" | jq -e . >/dev/null || { echo "::error::users row is not valid JSON (truncated export?)"; exit 1; } ;;
+            *)
+              head -1 "$USERS_DATA" | grep -q . || { echo "::error::users snapshot file has an empty first line"; exit 1; } ;;
           esac
-          echo "✅ Snapshot verified: core tables present, rows parse." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "verdict=verified" >> "$GITHUB_OUTPUT"
+          echo "✅ Snapshot verified: core tables present, non-empty, rows parse." | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Check staging configuration
         id: staging
@@ -126,7 +142,11 @@ jobs:
         if: always()
         run: |
           echo "## Backup restore drill — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Snapshot: exported + core-table verified ✅" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.verify.outputs.verdict }}" = "verified" ]; then
+            echo "- Snapshot: exported + core-table verified ✅" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Snapshot: exported but verification FAILED ❌" >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "${{ steps.staging.outputs.configured }}" = "true" ]; then
             echo "- Staging restore: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           else

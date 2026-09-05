@@ -149,9 +149,15 @@ jobs:
               "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING/comments" \
               -d "{\"body\":\"Still failing: $TITLE\"}" > /dev/null
           else
-            curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            ISSUE_CODE=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" -w "%{http_code}" -o /dev/null \
               "https://api.github.com/repos/${{ github.repository }}/issues" \
-              -d "$(jq -n --arg t "$TITLE" --arg b "$BODY" '{title:$t, body:$b, labels:[\"watchdog\"]}')" > /dev/null
+              -d "$(jq -n --arg t "$TITLE" --arg b "$BODY" '{title:$t, body:$b, labels:["watchdog"]}')")
+            if [ "$ISSUE_CODE" = "201" ] || [ "$ISSUE_CODE" = "200" ]; then
+              echo "alert issue created (HTTP $ISSUE_CODE)"
+            else
+              echo "::error::Alert issue creation failed (HTTP $ISSUE_CODE) — the alert path itself is broken!"
+              exit 1
+            fi
           fi
           echo "Alert issue handled: $TITLE"
 
