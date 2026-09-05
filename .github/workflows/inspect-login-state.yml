@@ -1,0 +1,96 @@
+name: Inspect Login State
+
+# Task 20 — one-off DIAGNOSTIC (read-only, no app changes): explain why
+# emailed login codes were rejected on production (2026-09-05, task 19
+# follow-up). Uses the R17 drill pattern: `npx convex run --prod
+# --inline-query` with CONVEX_DEPLOY_KEY. All output is masked
+# (email prefix truncated, codes shown as first/last 2 chars, passwords
+# as booleans only) — safe for CI logs.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Read login-relevant user state (production, read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Dump masked login state
+        run: |
+          npx convex run --prod --inline-query '
+            const users = await ctx.db.query("users").collect();
+            const mask = (e) => {
+              if (!e) return null;
+              const parts = String(e).split("@");
+              const d = parts.length > 1 ? parts[1] : "?";
+              return String(parts[0]).slice(0, 2) + "***@" + d;
+            };
+            const key = (u) => (u.email || u.tokenIdentifier || "").toLowerCase();
+            const cands = users.filter(u =>
+              (u.mfaCode !== null && u.mfaCode !== undefined) ||
+              (u.failedLoginAttempts || 0) > 0 ||
+              u.lockedUntil
+            );
+            cands.sort((a, b) => {
+              const am = a.mfaCode ? 1 : 0, bm = b.mfaCode ? 1 : 0;
+              if (am !== bm) return bm - am;
+              return (b.failedLoginAttempts || 0) - (a.failedLoginAttempts || 0);
+            });
+            const out = [];
+            for (const u of cands.slice(0, 20)) {
+              const em = key(u);
+              const dupes = em === "" ? [] : users.filter(x => key(x) === em);
+              out.push({
+                email: mask(em),
+                role: u.role,
+                product: u.product,
+                hasPassword: !!u.password,
+                passwordIsAdminSentinel: u.password === "admin",
+                isMfaEnabled: !!u.isMfaEnabled,
+                isVerified: !!u.isVerified,
+                mfaCodeMasked: u.mfaCode ? (String(u.mfaCode).slice(0, 2) + ".." + String(u.mfaCode).slice(-2) + " len=" + String(u.mfaCode).length) : null,
+                failedLoginAttempts: u.failedLoginAttempts || 0,
+                lockedUntil: u.lockedUntil || null,
+                recordsWithSameEmail: dupes.length,
+                dupeRoles: dupes.map(d => d.role),
+                deactivated: !!u.deactivatedAt,
+                createdAtMs: u._creationTime,
+              });
+            }
+            const mfaEnabled = users.filter(u => u.isMfaEnabled).map(u => mask(key(u)));
+            const sessions = await ctx.db.query("sessions").withIndex("by_expiresAt").order("desc").take(8);
+            const sessOut = sessions.map(s => ({
+              email: mask(s.userEmail),
+              device: s.device,
+              createdAtMs: s.createdAt,
+              expiresAtMs: s.expiresAt,
+              revokedAt: s.revokedAt || null,
+            }));
+            return { totalUsers: users.length, loginCandidates: out, mfaEnabledEmails: mfaEnabled, recentSessions: sessOut };
+          ' 2>&1 | tee inspect.log
+          echo "::notice::Login state dump written to inspect.log (artifact)"
+
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-state-inspect
+          path: inspect.log
+          retention-days: 7
