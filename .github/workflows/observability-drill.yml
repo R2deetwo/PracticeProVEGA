@@ -1,0 +1,58 @@
+name: Observability Drill
+
+# R17 acceptance (the plan's "alert fires on a simulated failure" — the
+# BACKEND half; the alerting half is health-watchdog.yml's simulate mode):
+#
+#   1. Fire internal.observability.simulateErrorEvent against PRODUCTION
+#      (admin-key authenticated via CONVEX_DEPLOY_KEY — the same secret the
+#      deploy pipeline uses). This writes a real error_events row and, when
+#      SENTRY_BACKEND_DSN is set, relays a real Sentry event.
+#   2. Read the newest error_events row back via an inline query and
+#      assert it's the drill row.
+#
+# The http drill route (/api/observability/drill) exists for on-call use
+# once AGENT_INSPECT_SECRET is set in the Convex dashboard; this workflow
+# needs no extra secret.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "40 3 * * 0"   # after the weekly backup drill
+
+permissions:
+  contents: read
+
+concurrency:
+  group: observability-drill
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    name: Simulate → capture → read back (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Fire the simulated backend failure
+        run: |
+          npx convex run internal.observability.simulateErrorEvent --prod 2>&1 | tee drill.log
+          grep -q '"simulated": *true\|"simulated":true' drill.log || { echo "::error::simulateErrorEvent did not confirm"; exit 1; }
+
+      - name: Read the newest error_events row back
+        run: |
+          npx convex run --prod --inline-query 'const row = await ctx.db.query("error_events").withIndex("by_timestamp").order("desc").first(); return row === null ? { found: false } : { found: true, scope: row.scope, name: row.name, message: (row.message || "").slice(0, 80) }' 2>&1 | tee readback.log
+          grep -q '"found": *true\|"found":true' readback.log || { echo "::error::error_events read-back failed — the observability pipeline is broken"; exit 1; }
+          echo "✅ Backend observability drill: failure → captured → readable." | tee -a "$GITHUB_STEP_SUMMARY"
