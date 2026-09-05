@@ -38,7 +38,7 @@ export interface AuthContextType {
     bearerToken: string | null;
     login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean, portalType?: 'tenant' | 'client') => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
     signup: (firmName: string, fullName: string, email: string, password?: string, mode?: AppMode, inviteCode?: string, plan?: SubscriptionPlan, product?: 'legal' | 'property' | 'unified') => Promise<{ success: boolean, message?: string, requiresConfirmation?: boolean, debugCode?: string, code?: string }>;
-    verifyEmail: (email: string, code: string) => Promise<{ success: boolean, message?: string }>;
+    verifyEmail: (email: string, code: string, password?: string) => Promise<{ success: boolean, message?: string }>;
     resendConfirmation: (email: string) => Promise<{ success: boolean, message?: string }>;
     logout: () => Promise<void>;
     updateCurrentUser: (data: Partial<User>) => void;
@@ -309,8 +309,105 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // never written to localStorage, never appears in network requests from
     // the client (it's used directly in Gemini API calls), and is cleared
     // on logout.
+    // (The serverApiKey query moved BELOW the session validity gate — see
+    // R17/P0 block. It must not fire with an unvalidated bearer: a dead
+    // token made it throw during render, the boundary replaced the
+    // provider tree, and the validation verdict could never land.)
+
+    // ─── R17/P0: session validity gate (death-loop fix, 2026-09-05) ──────
+    // Strict identity (R16) rejects every guarded call without a VALID
+    // bearer. Two client states used to render an authenticated shell with
+    // a dead identity, so every query threw and the error boundary retried
+    // forever (the splash ↔ "connection interrupted" death loop):
+    //   (a) legacy email-only sessions — logins from before the R13 session
+    //       system (no `practicepro_session_bearer` anywhere in storage);
+    //   (b) bearers that expired/were revoked server-side (30-day TTL,
+    //       10-session cap, revokeAllUserSessions).
+    // The gate retires both to the login screen BEFORE the shell renders,
+    // and stays live for the whole session: validateSessionToken is a
+    // reactive query — when revokeSession patches the row mid-session, the
+    // query re-runs, resolves null, and the effect signs the client out.
+    const isDemoSession = sessionToken === 'demo@practicepro.ng';
+    const shouldValidateSession = !!sessionToken && !!bearerToken && !isDemoSession && !impersonateTokenPending;
+    const sessionValidation = useQuery(
+        api.sessions.validateSessionToken,
+        shouldValidateSession ? { token: bearerToken as string } : "skip"
+    );
+
+    // Re-read the bearer straight from storage (NOT the boot-time state):
+    // another tab may have logged in since this tab booted, and clearing
+    // shared storage on a stale view would murder that tab's fresh session.
+    const readStoredBearer = (): string | null => {
+        try {
+            return sessionStorage.getItem(BEARER_KEY) || localStorage.getItem(BEARER_KEY);
+        } catch { return null; }
+    };
+
+    // (a) Legacy email-only session: no bearer exists, so strict-mode calls
+    // can never succeed. Retire on boot. (Online only — while offline, the
+    // read-only cached-user fallback keeps working; when connectivity
+    // returns, the error boundary's auth handling catches it and offers a
+    // clean sign-in.)
+    React.useEffect(() => {
+        if (!sessionToken || bearerToken || isDemoSession || impersonateTokenPending) return;
+        // Cross-tab guard: a fresh login elsewhere would have stored a new
+        // bearer — adopt it instead of retiring the session.
+        const storedBearer = readStoredBearer();
+        if (storedBearer) {
+            setBearerToken(storedBearer);
+            return;
+        }
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        console.warn('[Auth] Retiring legacy email-only session (no bearer token) — strict mode requires a verified session. Please sign in again.');
+        try {
+            sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+            localStorage.removeItem(PORTAL_SESSION_KEY);
+        } catch {}
+        setSessionToken(null);
+    }, [sessionToken, bearerToken, isDemoSession, impersonateTokenPending]);
+
+    // (b) Bearer rejected by the server (invalid / expired / revoked):
+    // undefined = still validating, object = valid — only a resolved null
+    // means dead. Covers boot AND mid-session revocation. Cross-tab guard:
+    // if storage now holds a DIFFERENT bearer, another tab re-logged-in —
+    // adopt it instead of clearing.
+    React.useEffect(() => {
+        if (!shouldValidateSession || sessionValidation !== null) return;
+        const storedBearer = readStoredBearer();
+        if (storedBearer && storedBearer !== bearerToken) {
+            setBearerToken(storedBearer);
+            return;
+        }
+        console.warn('[Auth] Session token rejected by the server — retiring to the login screen.');
+        try {
+            sessionStorage.removeItem(BEARER_KEY);
+            localStorage.removeItem(BEARER_KEY);
+            sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+            localStorage.removeItem(PORTAL_SESSION_KEY);
+        } catch {}
+        setBearerToken(null);
+        setSessionToken(null);
+    }, [sessionValidation, shouldValidateSession, bearerToken]);
+
+    // ─── API Key Sync (server → localStorage) ──────────────────────
+    // B2 SHIP-BLOCKER FIX: Server API key is NO LONGER synced to localStorage.
+    // Previously: localStorage.setItem('practicepro_custom_gemini_key', serverApiKey)
+    // — any XSS could exfiltrate the key and bill the firm.
+    // Now: the key stays in React state (in-memory only) and is exposed via
+    // a module-level setter that aiUtils.getGeminiApiKey() reads. The key is
+    // never written to localStorage, never appears in network requests from
+    // the client (it's used directly in Gemini API calls), and is cleared
+    // on logout.
+    //
+    // R17/P0: gated on a VALIDATED bearer (sessionValidation truthy) — with
+    // a dead token this must never fire, or it throws during render before
+    // the gate can retire the session (the scenario-B smoke failure).
     const serverApiKey = useQuery(api.myFunctions.getUserApiKey,
-        bearerToken ? { tokenIdentifier: sessionToken ?? '', sessionToken: bearerToken ?? undefined } : "skip");
+        (bearerToken && sessionValidation) ? { tokenIdentifier: sessionToken ?? '', sessionToken: bearerToken ?? undefined } : "skip");
 
     React.useEffect(() => {
         if (serverApiKey && typeof serverApiKey === 'string' && serverApiKey.length > 0) {
@@ -762,15 +859,31 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     };
 
-    const verifyEmail = async (email: string, code: string) => {
+    const verifyEmail = async (email: string, code: string, password?: string) => {
         try {
             const result = await verifyCodeMutation({ email, code });
             if (result.success) {
+                // R17/P0: mint a REAL session immediately. The old flow left
+                // a code-verified but BEARER-LESS email session — under strict
+                // identity every guarded query then threw and the app entered
+                // the death loop. When the signup form collected a password
+                // (it always does — validatePassword enforces it), run the
+                // login gateway right here so the fresh user lands in the app
+                // with a verified bearer. Fallback (no password / mint
+                // failure): the legacy email session, which the boot gate
+                // will retire to the login screen at the next load.
+                if (password) {
+                    try {
+                        const minted = await login(email, password);
+                        if (minted.success) return { success: true };
+                        console.warn('[Auth] Post-verification session mint failed, falling back to email session:', minted.message);
+                    } catch (e: any) {
+                        console.warn('[Auth] Post-verification session mint threw, falling back to email session:', e?.message);
+                    }
+                }
                 const token = email.toLowerCase().trim();
                 setSessionToken(token);
                 sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token }));
-                // R13: a signup-verified session has NO bearer (code-verified,
-                // not password-verified — the login gateway issues bearers).
                 // Clear any stale bearer from a previous user's login in this
                 // browser so it can never be misattributed to this session.
                 setBearerToken(null);
@@ -1132,7 +1245,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const [retryCount, setRetryCount] = React.useState(0);
     const [hasTimedOut, setHasTimedOut] = React.useState(false);
     React.useEffect(() => {
-        if (sessionToken && !userData && sessionToken !== 'demo@practicepro.ng') {
+        const validationPending = shouldValidateSession && sessionValidation === undefined;
+        if (sessionToken && sessionToken !== 'demo@practicepro.ng' && (!userData || validationPending)) {
             // Increase to 20s for first attempt; 15s for retries
             const timeoutMs = retryCount === 0 ? 20000 : 15000;
             const timer = setTimeout(() => {
@@ -1163,11 +1277,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 }
             }, timeoutMs);
             return () => clearTimeout(timer);
-        } else if (userData) {
+        } else if (userData && !(shouldValidateSession && sessionValidation === undefined)) {
             setHasTimedOut(false);
             setRetryCount(0);
         }
-    }, [sessionToken, userData, retryCount]);
+    }, [sessionToken, userData, retryCount, sessionValidation, shouldValidateSession]);
 
     // Calculate final loading state
     // We are loading if:
@@ -1184,7 +1298,15 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         } catch { return false; }
     })();
 
-    const isLoading = !isStorageLoaded || (!!sessionToken && userData === undefined && sessionToken !== 'demo@practicepro.ng' && !hasTimedOut && !hasOfflineCache);
+    // Hold the splash while the session validity gate is pending: the shell
+    // must never render with an unverified bearer (that flash is step one of
+    // the death loop). The 20s/15s safety timeout (extended below) breaks
+    // the wait if Convex never answers.
+    const isSessionValidationPending =
+        shouldValidateSession && sessionValidation === undefined && !hasTimedOut && !hasOfflineCache;
+    const isLoading = !isStorageLoaded
+        || (!!sessionToken && userData === undefined && sessionToken !== 'demo@practicepro.ng' && !hasTimedOut && !hasOfflineCache)
+        || isSessionValidationPending;
 
     // Detect if the user's account has been revoked (isVerified=false + role=Pending)
     // This happens when deletePortalInviteAndCleanup resets a portal user.

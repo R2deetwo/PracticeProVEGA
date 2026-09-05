@@ -4,69 +4,38 @@
  * DESIGN PHILOSOPHY:
  *   "When something breaks, the UI should feel calm, not alarming."
  *
- * Features:
- *   1. Full-screen dark canvas (#0a0a0a) with a subtle mouse-tracking
- *      radial gradient ("flashlight" effect) that follows the cursor.
- *   2. Friendly, plain-English error messages (no raw stack traces visible
- *      by default). Technical details hidden behind a collapsible accordion.
- *   3. Silent background retry loop — retries happen BEHIND the error UI
- *      without remounting the splash screen. A subtle amber pill shows
- *      "Reconnecting... (Attempt 2/3)" in the corner.
- *   4. Zero splash re-renders — the error boundary catches the fault,
- *      shows the dark state, retries silently, and transitions back
- *      smoothly when the retry succeeds.
+ * RECOVERY MODEL (rewritten 2026-09-05 after the "death loop" incident —
+ * see src/utils/errorRecovery.ts for the full story):
+ *   1. Errors are CLASSIFIED first (auth / permission / connection / data /
+ *      render / unknown). Classification order matters: auth is checked
+ *      before connection so the `[CONVEX Q(...)]` transport prefix can't
+ *      disguise a session rejection as a network blip.
+ *   2. Every category has a BOUNDED retry policy. The old boundary retried
+ *      every 3 seconds forever with a counter labeled "/3" — producing
+ *      "attempt 22 of 3" and an endless splash ↔ error remount cycle.
+ *      Now: auth gets 2 short retries (storage race only), connection
+ *      gets 5 with exponential backoff (3s→48s), everything else 0–2.
+ *      When a policy is exhausted we STOP and surface manual actions.
+ *   3. Auth errors resolve via a clean sign-in: the primary button wipes
+ *      ALL client auth state (sessionInvalidation.clearAllAuthStorage) and
+ *      routes to the correct login surface — no dead bearers left behind.
+ *   4. A 60s error-free window resets the retry burst, so a long-lived
+ *      healthy session never accumulates attempts across unrelated
+ *      transient hiccups.
+ *   5. Technical diagnostics stay available (collapsible) and — because
+ *      retries are capped and auth screens never auto-retry — the panel
+ *      no longer vanishes mid-inspection.
  */
 
 import React, { Component, ErrorInfo, ReactNode, useState, useEffect, useRef } from 'react';
-
-// ─── Error translation map ───────────────────────────────────────────────────
-
-function translateError(error: Error): { title: string; subtitle: string; category: string } {
-  const msg = error?.message || '';
-
-  // Network / Convex connection errors
-  if (msg.includes('CONVEX') || msg.includes('WebSocket') || msg.includes('convex.cloud') || msg.includes('network')) {
-    return {
-      title: 'Connection interrupted',
-      subtitle: 'Your data is safe. We\u2019re reconnecting to the server automatically \u2014 this usually resolves in a few seconds.',
-      category: 'connection',
-    };
-  }
-
-  // Authentication errors
-  if (msg.includes('Unauthenticated') || msg.includes('Unauthorized') || msg.includes('not logged in')) {
-    return {
-      title: 'Session needs refreshing',
-      subtitle: 'Your session may have expired. We\u2019re attempting to restore it automatically. If this persists, please sign in again.',
-      category: 'auth',
-    };
-  }
-
-  // Data not found
-  if (msg.includes('not found') || msg.includes('does not exist') || msg.includes('Record not found')) {
-    return {
-      title: 'Something went missing',
-      subtitle: 'The item you were looking for may have been moved or deleted. Try navigating back and refreshing.',
-      category: 'data',
-    };
-  }
-
-  // Render errors (TypeError, etc.)
-  if (msg.includes('TypeError') || msg.includes('is not a function') || msg.includes('is undefined') || msg.includes('is null')) {
-    return {
-      title: 'We\u2019ve hit a slight operational bump',
-      subtitle: 'Don\u2019t worry \u2014 your data is safe. Our system is attempting to recover automatically.',
-      category: 'render',
-    };
-  }
-
-  // Default
-  return {
-    title: 'We\u2019ve hit a slight operational bump',
-    subtitle: 'Your data is safe. Our system is attempting to recover automatically \u2014 this usually resolves in a moment.',
-    category: 'unknown',
-  };
-}
+import {
+  classifyConvexError,
+  RETRY_POLICIES,
+  retryDelayFor,
+  STABILITY_RESET_MS,
+  ErrorCategory,
+} from '../utils/errorRecovery';
+import { clearAllAuthStorage, authSignInUrl } from '../utils/sessionInvalidation';
 
 // ─── Flashlight Background Component ─────────────────────────────────────────
 
@@ -110,15 +79,28 @@ const FlashlightBackground: React.FC = () => {
 interface SleekErrorScreenProps {
   error: Error;
   componentStack?: string;
+  category: ErrorCategory;
   onRetry: () => void;
-  retryCount: number;
+  attemptCount: number;
+  maxAutoRetries: number;
   isRetrying: boolean;
+  /** True when the category's retry policy is exhausted — auto-retry has stopped. */
+  exhausted: boolean;
 }
 
-const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentStack, onRetry, retryCount, isRetrying }) => {
+const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({
+  error,
+  componentStack,
+  category,
+  onRetry,
+  attemptCount,
+  maxAutoRetries,
+  isRetrying,
+  exhausted,
+}) => {
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState(false);
-  const translated = translateError(error);
+  const translated = classifyConvexError(error.message);
 
   const handleCopy = () => {
     const text = [
@@ -144,14 +126,23 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
     window.location.reload();
   };
 
-  const handleBackToLogin = () => {
-    try { localStorage.removeItem('practicepro_user_session'); } catch {}
-    try { localStorage.removeItem('practicepro_portal_session'); } catch {}
-    try { localStorage.removeItem('practicepro_cached_user'); } catch {}
-    try { sessionStorage.removeItem('practicepro_user_session'); } catch {}
-    try { sessionStorage.removeItem('practicepro_portal_session'); } catch {}
-    window.location.href = '/';
+  // Clean sign-in: wipe ALL client auth state (email session, bearer,
+  // offline cache, impersonation leftovers) and land on the correct login
+  // surface. This is the ONLY sane resolution for an auth-category error —
+  // and it must not leave dead keys behind for the next boot to trip on.
+  const handleSignInAgain = () => {
+    clearAllAuthStorage();
+    window.location.href = authSignInUrl();
   };
+
+  // Non-auth escape hatch — also uses the shared invalidation so a dead
+  // bearer can't survive the click.
+  const handleBackToLogin = () => {
+    clearAllAuthStorage();
+    window.location.href = authSignInUrl();
+  };
+
+  const isAuth = category === 'auth';
 
   return (
     <div
@@ -167,8 +158,12 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-emerald-500/10 blur-2xl rounded-full scale-150 animate-pulse" style={{ animationDuration: '3s' }} />
           <div className="relative w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-            <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            <svg className={`w-7 h-7 ${isAuth ? 'text-sky-400' : 'text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              {isAuth ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              )}
             </svg>
           </div>
         </div>
@@ -179,42 +174,63 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
         </h1>
         <p className="text-sm leading-relaxed mb-8" style={{ color: '#94a3b8' }}>
           {translated.subtitle}
+          {exhausted && !isAuth && category === 'connection' && (
+            <span className="block mt-2" style={{ color: '#fbbf24' }}>
+              We couldn\u2019t reconnect automatically. Check your internet connection, then try again.
+            </span>
+          )}
         </p>
 
         {/* Action buttons */}
         <div className="flex flex-col gap-3 w-full max-w-xs">
-          <button
-            onClick={onRetry}
-            disabled={isRetrying}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isRetrying ? (
-              <>
-                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Recovering...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-                Try Again
-              </>
-            )}
-          </button>
+          {isAuth ? (
+            /* Auth: the primary resolution is a clean sign-in. Retrying a
+               dead session forever is what caused the incident. */
+            <button
+              onClick={handleSignInAgain}
+              className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white rounded-md text-sm font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+              Sign in again
+            </button>
+          ) : (
+            <button
+              onClick={onRetry}
+              disabled={isRetrying}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isRetrying ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Recovering...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  Try Again
+                </>
+              )}
+            </button>
+          )}
+
+          {isAuth && (
+            <button
+              onClick={handleHardReload}
+              className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-md text-sm font-bold border border-white/10 transition-colors"
+            >
+              Reload App
+            </button>
+          )}
 
           <button
-            onClick={handleHardReload}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-md text-sm font-bold border border-white/10 transition-colors"
-          >
-            Reload App
-          </button>
-
-          <button
-            onClick={handleBackToLogin}
+            onClick={isAuth ? handleHardReload : handleBackToLogin}
             className="text-xs text-slate-500 hover:text-slate-300 transition-colors mt-1"
           >
             Return to Home
@@ -254,12 +270,18 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({ error, componentSta
         </div>
       </div>
 
-      {/* Silent retry pill (bottom right corner) */}
-      {isRetrying && (
+      {/* Status pill (bottom right corner) — only while an automatic retry
+          is genuinely scheduled, and the label tells the TRUTH: the real
+          attempt number over the policy's real cap. The incident UI said
+          "Attempt 22/3" because the counter was uncapped and the label was
+          hardcoded. Never again. */}
+      {isRetrying && maxAutoRetries > 0 && (
         <div className="fixed bottom-6 right-6 z-20 flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
           <span className="text-xs font-bold text-amber-500">
-            Reconnecting... (Attempt {retryCount}/3)
+            {category === 'auth'
+              ? 'Restoring your session\u2026'
+              : `Reconnecting... (Attempt ${Math.min(attemptCount + 1, maxAutoRetries)}/${maxAutoRetries})`}
           </span>
         </div>
       )}
@@ -277,93 +299,128 @@ interface State {
   hasError: boolean;
   error: Error | null;
   componentStack: string | undefined;
-  retryCount: number;
+  category: ErrorCategory;
+  attemptCount: number;
   isRetrying: boolean;
+  exhausted: boolean;
 }
 
 class ConvexErrorBoundary extends Component<Props, State> {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
-  // Instance field — survives across errors (unlike state which gets reset)
-  private totalRetryCount = 0;
-  private copiedToClipboard = false;
+  private stabilityTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Automatic retries performed in the CURRENT burst (resets after
+      STABILITY_RESET_MS of error-free rendering — see armStabilityReset). */
+  private attempts = 0;
 
   public state: State = {
     hasError: false,
     error: null,
     componentStack: undefined,
-    retryCount: 0,
+    category: 'unknown',
+    attemptCount: 0,
     isRetrying: false,
+    exhausted: false,
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error,
-      isRetrying: false, // Reset retrying flag on new error
+      isRetrying: false,
     };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ConvexErrorBoundary] Caught error:', error.message, errorInfo?.componentStack);
-    this.setState({ componentStack: errorInfo?.componentStack });
 
-    // Start silent background retry
-    this.startSilentRetry();
+    const category = classifyConvexError(error.message).category;
+    const policy = RETRY_POLICIES[category];
+    const delay = retryDelayFor(policy, this.attempts);
+
+    this.cancelStabilityReset();
+    this.setState({
+      componentStack: errorInfo?.componentStack ?? undefined,
+      category,
+      exhausted: delay === null,
+    });
+
+    if (delay !== null) {
+      this.scheduleRetry(delay);
+    } else {
+      // Policy exhausted (or never had retries): STOP. No timer, no
+      // remount churn, no loop. The screen stays put with manual actions.
+      this.clearRetryTimer();
+      this.setState({ isRetrying: false });
+    }
   }
 
-  private startSilentRetry = () => {
-    if (this.retryTimer) clearTimeout(this.retryTimer);
-
+  private scheduleRetry(delayMs: number) {
+    this.clearRetryTimer();
     this.setState({ isRetrying: true });
-
-    // Retry after 3 seconds
     this.retryTimer = setTimeout(() => {
-      this.totalRetryCount++;
+      this.attempts++;
       this.setState({
         hasError: false,
         error: null,
         componentStack: undefined,
         isRetrying: false,
-        retryCount: this.totalRetryCount,
+        attemptCount: this.attempts,
       });
+      // Children remount now. If they render error-free for long enough,
+      // the burst is forgotten; if they throw again, componentDidCatch
+      // runs with the updated attempt count.
+      this.armStabilityReset();
+    }, delayMs);
+  }
 
-      // If the app crashes again, getDerivedStateFromError will fire
-      // and the error screen will reappear. No splash screen flash.
-    }, 3000);
+  /** Manual "Try Again" — resets the burst so the user gets a full policy. */
+  private handleManualRetry = () => {
+    this.attempts = 0;
+    this.setState({ exhausted: false, attemptCount: 0 });
+    this.scheduleRetry(500);
   };
+
+  private armStabilityReset() {
+    this.cancelStabilityReset();
+    this.stabilityTimer = setTimeout(() => {
+      this.attempts = 0;
+      this.setState({ attemptCount: 0, exhausted: false });
+    }, STABILITY_RESET_MS);
+  }
+
+  private clearRetryTimer() {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+  }
+
+  private cancelStabilityReset() {
+    if (this.stabilityTimer) {
+      clearTimeout(this.stabilityTimer);
+      this.stabilityTimer = null;
+    }
+  }
 
   public componentWillUnmount() {
-    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.clearRetryTimer();
+    this.cancelStabilityReset();
   }
 
-  private handleManualRetry = () => {
-    if (this.retryTimer) clearTimeout(this.retryTimer);
-
-    this.setState({ isRetrying: true });
-
-    this.retryTimer = setTimeout(() => {
-      this.totalRetryCount++;
-      this.setState({
-        hasError: false,
-        error: null,
-        componentStack: undefined,
-        isRetrying: false,
-        retryCount: this.totalRetryCount,
-      });
-    }, 500);
-  };
-
   public render() {
-    const { hasError, error, componentStack, retryCount, isRetrying } = this.state;
+    const { hasError, error, componentStack, category, attemptCount, isRetrying, exhausted } = this.state;
 
     if (hasError && error) {
       return (
         <SleekErrorScreen
           error={error}
           componentStack={componentStack}
+          category={category}
           onRetry={this.handleManualRetry}
-          retryCount={retryCount}
+          attemptCount={attemptCount}
+          maxAutoRetries={RETRY_POLICIES[category].maxAutoRetries}
           isRetrying={isRetrying}
+          exhausted={exhausted}
         />
       );
     }

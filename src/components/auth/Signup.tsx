@@ -188,7 +188,12 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
   setIsLoading(true);
   try {
-   const result = await verifyEmail(email, verificationCode);
+   // R17/P0: pass the signup password so verifyEmail can mint a verified
+   // BEARER session via the login gateway immediately after the code
+   // verifies. Without it the fresh user lands in a code-verified but
+   // bearer-less email session — every strict-mode query then throws and
+   // the app death-loops (see AuthContext session validity gate).
+   const result = await verifyEmail(email, verificationCode, password || undefined);
 
    if (result.success) {
     // Clean up migration flag regardless of path
