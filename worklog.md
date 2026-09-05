@@ -11107,3 +11107,81 @@ button fix). Diagnose from production data, fix, deploy.**
   honest expiry, resend, lockout on wrong codes.
 - Inspection workflow stays in the repo (workflow_dispatch, masked) for
   future login-state debugging.
+
+---
+
+## Task 21 — EVERY login code rejected: the REAL root cause (2026-09-05)
+
+**Context:** The user furiously disputed task 20's explanation ("codes from
+the wrong email" — they read it as "wrong email ADDRESS"). They were right
+to be angry: they received codes at the correct address and typed them
+within seconds. A second read-only production inspection (run 33964754717,
+12:59 wait 11:59 UTC) showed the decisive data: a FRESH code issued 11:48:26
+(mfaCode 49..05, mfaCodeIssuedAt 1788608906581), failedLoginAttempts=1,
+**ZERO sessions across all 14 users since launch**.
+
+**Real root cause:** `verifyLogin` and `resetPassword` fetched the user
+record through the PUBLIC `getUser` query, which applies the NDPA privacy
+projection (destructure-strip of password / mfaCode / verificationCode /
+failedLoginAttempts / lockedUntil — present since the initial commit). The
+auth actions therefore ran on the PROJECTED record:
+
+- `user.mfaCode` → undefined → the typed code was compared against
+  `normalizeCode(undefined) === ""` → **EVERY code rejected, no matter how
+  fresh or correctly typed.** (The code ISSUE path writes the raw record via
+  updateUserSecurityFields — that's why the stored code existed and emails
+  were correct: the system really did send working codes and then compare
+  them against nothing.)
+- `user.password` → undefined → the real-password branch never ran; every
+  account looked passwordless → the TOFU code prompt ALWAYS fired (explains
+  "I enter my email and password and it asks for a code").
+- `user.lockedUntil` / `failedLoginAttempts` → undefined → lockout dead.
+- `resetPassword`: `user.verificationCode` → undefined → the 6-digit OTP
+  path always failed; the RCV- recovery code worked only because
+  `recoveryCode` happened to not be in the strip list.
+
+**Why tasks 19/20 missed it:** their verification was deploy-sha + bundle
+strings + unit tests of pure helpers — no end-to-end login was ever
+executed. Task 20's "user typed codes from older emails" was a plausible
+but WRONG reconstruction of the same evidence.
+
+**Fix (caf4ae13):**
+
+- `convex/userResolution.ts` (new): `pickUserRecord` (duplicate
+  resolution: portal preference, Pending filtering) + `stripAuthFields`
+  (the projection) + shared arg validator — pure, unit-tested.
+- `getUserForAuth` **internalQuery** in myFunctions.ts: same resolution as
+  getUser (shared `findUserMatches`), returns the FULL record; internal
+  functions are not client-callable.
+- `verifyLogin`, `resetPassword`, and the portals invite re-accept guard
+  (portals.ts — its `!existingUserCheck.password` was always true with the
+  projected record, so the "already used" guard never fired) now read the
+  raw record via `internal.myFunctions.getUserForAuth`.
+- `getUser`: behavior IDENTICAL (public, projected) — clients still never
+  see auth fields.
+- `tests/unit/userResolution.test.ts`: 15 tests — resolution behavior
+  unchanged, projection strips exactly the auth fields ("a projected
+  record can never authenticate" is the incident in one line), and SOURCE
+  CONTRACT tests: verifyLogin/resetPassword must reference
+  `internal.myFunctions.getUserForAuth` and must NOT reference
+  `api.myFunctions.getUser`; getUserForAuth must stay `internalQuery`;
+  getUser must keep `stripAuthFields`.
+
+**Gates & deploy:** vitest 194/194 (+15), convex tsc 0, root tsc 129 (=
+baseline, 0 new), build OK. Promoted caf4ae13 (run 33965211928): tests +
+Vercel + Convex jobs green; CF mirror fast-failed on the expired token
+(known open item, non-blocking). Live verified: version.json sha caf4ae13,
+login UI strings present in the served bundle.
+
+**User's path forward (the account is untouched and waiting):** the record
+still has the password their own recovery set, MFA off, counter at 1/5,
+the 11:48 code is TTL-expired (inert) and auto-cleans on next successful
+login. They should: hard-refresh the login page, sign in with email +
+their password — NO code prompt should appear at all. If the password is
+forgotten: "Forgot password?" now works via BOTH the RCV- code and the
+6-digit OTP. Warned: 4 wrong attempts remain before a 15-minute lockout
+(auto-unlocks; the lockout itself now actually functions post-fix).
+
+**Carried forward:** CF mirror token (user action), Vercel auto-deploy hole
+fix (user dashboard action), staging Convex provisioning, AGENT_INSPECT_SECRET,
+Paystack LIVE keys — unchanged from task 20.
