@@ -10997,3 +10997,56 @@ gated, so no incident). Documented as a known hole in RUNBOOK §2.0 with the
 dashboard fix (dedicated release branch / disable auto-deploys). This is the
 same class round 11 closed on the Git side; the Vercel side needs the user's
 dashboard action.
+
+---
+
+**Task ID: 19**
+**Agent: main (Super Z)**
+**Task: User reported the login code-entry dead end — 2FA code arrives, is
+typed, but there is no button and Enter does nothing.**
+
+**Work Log:**
+
+- Synced the stale clone (25 commits behind; stashed leftover local build
+  artifacts, ff to af182963). Confirmed the death-loop fix (6ff301a1) and
+  Round 17 are deployed — user confirms the loop stopped.
+- Root-caused the dead end. The card title "Two-Factor Authentication"
+  covers TWO states: `requiresMfa` (R13 email MFA) and
+  `requiresInitialPassword` (R16 TOFU password claim for accounts with no
+  stored password, myFunctions.ts ~L1594). Login.tsx rendered the code
+  INPUT for both states but the submit BUTTON only for `requiresMfa` —
+  and HTML implicit submission (Enter) is disabled in a form with no
+  submit button and >1 submission-blocking field. The user's founder
+  account has no stored password → R16 put them in the TOFU state → dead
+  end (receive code, type code, no way to submit). Verified the portal
+  logins (tenant/client) handle both states by redirecting — bug was
+  isolated to Login.tsx.
+- Fix (client-only, no Convex change → Vercel-only deploy): render the
+  submit button for BOTH states ("Verify & Set Password" for TOFU vs
+  "Verify & Sign In" for MFA — Enter now submits natively via the button);
+  code input gets `inputMode=numeric` + `autoComplete=one-time-code`;
+  "Use a different account" resets both flags; sign-up + biometric blocks
+  hidden in both code-entry states.
+- Added tests/unit/loginCodeSubmit.test.ts (7 tests) pinning the
+  structural invariants (node-env source test, no DOM in the suite).
+- Gates: vitest 161/161 green, convex tsc 0 errors, production build OK
+  (fix string verified present in the local bundle).
+- Pushed b5b4da9e to main (gates passed; push auto-deploys to production
+  per RUNBOOK §2.0). CI "Deploy to Staging" green on b5b4da9e.
+- Live verification: version.json reports b5b4da9e healthy; live bundle
+  contains "Verify & Set Password" + "one-time-code"; GET / → 200.
+
+**Stage Summary:**
+
+- Production login TOFU dead end is FIXED and verified live on b5b4da9e.
+  The user can now: sign in → receive code → type code → click "Verify &
+  Set Password" (or press Enter) → password is claimed & stored, session
+  issued. This also explains "why 2FA now": R16 closed trust-on-first-use
+  for passwordless accounts — this account has no stored password, so the
+  emailed code is how the account claims one, once.
+- Noted follow-up (NOT bundled into the hotfix): wrong-code attempts in
+  the TOFU/MFA path do NOT increment failedLoginAttempts (L1624 returns
+  before the counter) — code brute-force is unthrottled. Worth counting
+  wrong codes toward the 5-attempt lockout in a future backend round.
+- Death loop: user reports stopped; errorRecovery.test.ts + session gate
+  remain as the regression net.
