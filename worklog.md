@@ -11050,3 +11050,60 @@ typed, but there is no button and Enter does nothing.**
   wrong codes toward the 5-attempt lockout in a future backend round.
 - Death loop: user reports stopped; errorRecovery.test.ts + session gate
   remain as the regression net.
+
+---
+
+**Task ID: 20**
+**Agent: main (Super Z)**
+**Task: User reported both emailed login codes were rejected (post task-19
+button fix). Diagnose from production data, fix, deploy.**
+
+**Work Log:**
+
+- Built `.github/workflows/inspect-login-state.yml` on the R17 drill
+  pattern (`npx convex run --prod --inline-query`, masked output) and ran
+  it against production (run 33961786588). Found: the user record has
+  password SET, isMfaEnabled FALSE, a stale 6-digit mfaCode still stored
+  ("64..09"), failedLoginAttempts 0, and ZERO rows in sessions — login has
+  never succeeded server-side since strict mode landed.
+- Root cause (state + code, cross-checked): the login code email and the
+  SIGNUP verification email were the identical template; codes had no
+  enforced expiry (the email promised 10 minutes); every password attempt
+  silently regenerated the code; wrong codes never counted toward the
+  lockout; resetPassword left stale mfaCode on the record. The user typed
+  codes from older/indistinguishable emails and was rejected every time.
+  The password on their record came from their own "Forgot password?"
+  recovery (the only path that sets a password without clearing mfaCode).
+- Fix package (convex/codeVerification.ts + myFunctions.ts + schema.ts +
+  AuthContext.tsx + Login.tsx): mfaCodeIssuedAt with enforced 10-min TTL
+  (legacy codes without a timestamp are expired — retires the founder's
+  stale code with zero migration); wrong codes now count toward the
+  5-attempt lockout; codeHint (first 2 digits) returned after the password
+  check and shown under the input ("Your new code starts with 64 — use the
+  newest email"); explicit "Resend code" button (fresh mint, old codes
+  die); input normalization both sides (trim + non-digit strip);
+  resetPassword now clears mfaCode/issuedAt/failedAttempts/lockout;
+  sendVerificationEmail gains purpose=login with a distinct "Your Sign-In
+  Code" subject/copy naming the TTL and supersession.
+- Gates: vitest 179/179 (16 new codeVerification + 4 new loginCodeSubmit),
+  convex tsc 0, root tsc 129 < 131 baseline, identity audit green, build
+  OK.
+- Promoted ea19332c via production-deploy.yml (run 33962144524): quality
+  gate green, Convex prod deployed ("Deployed Convex functions to
+  gregarious-malamute-537"), Vercel prod healthy on ea19332c, live probes
+  passed. Cloudflare mirror failed fast on the expired token as documented
+  (§9) — non-blocking, still awaiting the user's fresh CF token.
+- Direct verification (standing protocol): version.json sha ea19332c,
+  live bundle contains "Resend code".
+
+**Stage Summary:**
+
+- The user's unblock: their account now HAS a password (set by their own
+  recovery flow) — log in with email + that password, NO code will be
+  asked (password present + MFA off bypasses both code branches). If the
+  password is unknown, use "Forgot password?" — the reset now clears all
+  stale code/counter state.
+- Login code UX is now self-explanatory: distinct email, hint prefix,
+  honest expiry, resend, lockout on wrong codes.
+- Inspection workflow stays in the repo (workflow_dispatch, masked) for
+  future login-state debugging.
