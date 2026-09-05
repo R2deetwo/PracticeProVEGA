@@ -290,6 +290,8 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
         <input
          type="text"
          id="mfaCode"
+         inputMode="numeric"
+         autoComplete="one-time-code"
          value={mfaCode}
          onChange={e => setMCode(e.target.value.toUpperCase())}
          className={`${commonInputClass} text-center tracking-[0.5em] font-mono text-2xl uppercase`}
@@ -430,7 +432,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
        {/* Biometric Unlock — shown when the user has
         previously registered for biometric auth on
         this device. Lets them skip typing password. */}
-       {showBiometric && !requiresMfa && (
+       {showBiometric && !requiresMfa && !requiresInitialPassword && (
         <button
          type="button"
          onClick={handleBiometricUnlock}
@@ -446,7 +448,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
        )}
 
        {/* Divider between biometric and password */}
-       {showBiometric && !requiresMfa && (
+       {showBiometric && !requiresMfa && !requiresInitialPassword && (
         <div className="flex items-center gap-2 text-xs text-slate-400">
          <div className="flex-1 h-px bg-slate-200 " />
          or sign in with password
@@ -465,14 +467,20 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
       </>
      )}
 
-     {requiresMfa && (
+     {/* R17 hotfix: the code INPUT renders for requiresInitialPassword (R16
+      TOFU first-login password claim) but this submit BUTTON rendered only
+      for requiresMfa — a dead end: no button, and Enter does nothing (HTML
+      implicit submission is disabled when a form has no submit button and
+      more than one submission-blocking field). Render it for BOTH states;
+      with a submit button present, Enter submits natively. */}
+     {(requiresMfa || requiresInitialPassword) && (
       <button
        type="submit"
        disabled={isLoading}
        className="w-full mt-4 px-4 py-2.5 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-slate-400"
       >
        {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-       {isLoading ? 'Verifying Code...' : 'Verify & Sign In'}
+       {isLoading ? 'Verifying Code...' : (requiresInitialPassword ? 'Verify & Set Password' : 'Verify & Sign In')}
       </button>
      )}
 
@@ -490,7 +498,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     </form>
 
     {/* #5 — Sign Up link */}
-    {!forClient && !isLoading && !requiresMfa && !isRecovering && (
+    {!forClient && !isLoading && !requiresMfa && !requiresInitialPassword && !isRecovering && (
      <p className="text-center text-sm text-gray-600 ">
       Don't have an account?{' '}
       <button onClick={onSwitchToSignup} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
@@ -499,10 +507,10 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
      </p>
     )}
 
-    {requiresMfa && (
+    {(requiresMfa || requiresInitialPassword) && (
      <p className="text-center text-sm text-gray-500 mt-6">
       Need help?{' '}
-      <button type="button" onClick={() => { setRequiresMfa(false); setMCode(''); }} className="font-bold text-primary-600 hover:underline hover:text-primary-700 transition-colors">
+      <button type="button" onClick={() => { setRequiresMfa(false); setRequiresInitialPassword(false); setMCode(''); }} className="font-bold text-primary-600 hover:underline hover:text-primary-700 transition-colors">
        Use a different account
       </button>
      </p>
