@@ -10988,3 +10988,12 @@ Convex env vars; Paystack LIVE keys + webhook registration; the
 URL-impersonation flow (verifyImpersonationToken) should mint a session
 instead of seeding an email-only identity (strict mode retired it — noted in
 R16).
+
+**Post-closeout finding (R17 addendum):** production version.json moved to
+`fe58506b` minutes after its push with NO promotion dispatched — Vercel's
+Git integration auto-deploys `main` to production, bypassing the promotion
+gate (app code identical to the promoted ab1735cc, all pushes were locally
+gated, so no incident). Documented as a known hole in RUNBOOK §2.0 with the
+dashboard fix (dedicated release branch / disable auto-deploys). This is the
+same class round 11 closed on the Git side; the Vercel side needs the user's
+dashboard action.

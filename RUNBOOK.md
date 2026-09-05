@@ -39,6 +39,19 @@ Play/Android signing keystore for APK builds.
 
 ## 2. Deploy procedure
 
+### 2.0 ⚠️ KNOWN HOLE (2026-09-05): Vercel auto-deploys main to production
+
+Evidence: version.json showed sha `fe58506b` (a docs/workflows-only commit
+nobody promoted) built 2026-09-05T08:41Z minutes after its push. Vercel's
+Git integration auto-deploys every `main` push to production, which bypasses
+the promotion gate's live-probe step. Today this is survivable because every
+push to main is locally gated (vitest + convex tsc + build) before pushing —
+but it is NOT the intended model. **Close it (one-time, dashboard):**
+Vercel → Project → Settings → Git → set "Production Branch" to a dedicated
+`release` branch (or disable auto-deploys), so only the promotion workflow's
+`vercel deploy --prod` touches production. Until then, treat every `git
+push origin main` as a production deploy and gate accordingly.
+
 ### 2.1 Everyday change (goes to staging gate, NOT to users)
 
 ```bash
