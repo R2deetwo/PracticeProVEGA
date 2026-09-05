@@ -59,10 +59,11 @@ jobs:
 
       - name: Export production snapshot
         run: |
+          set -o pipefail
           mkdir -p /tmp/backup-drill
-          npx convex export --path /tmp/backup-drill --deployment-file convex.json 2>&1 | tee export.log || npx convex export --path /tmp/backup-drill 2>&1 | tee export.log
-          ZIP=$(find /tmp/backup-drill -name '*.zip' | head -1)
-          if [ -z "$ZIP" ]; then
+          npx convex export --prod --path /tmp/backup-drill/snapshot.zip 2>&1 | tee export.log
+          ZIP=/tmp/backup-drill/snapshot.zip
+          if [ ! -s "$ZIP" ]; then
             echo "::error::Export produced no snapshot — the backup path is BROKEN."
             exit 1
           fi
@@ -113,6 +114,7 @@ jobs:
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
         run: |
+          set -o pipefail
           npx convex import "$SNAPSHOT" --replace 2>&1 | tee import.log
           echo "✅ Import into staging completed. Verifying round-trip..." | tee -a "$GITHUB_STEP_SUMMARY"
           # Round-trip proof: the staging backend answers a query and

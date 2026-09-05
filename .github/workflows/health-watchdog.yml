@@ -67,6 +67,9 @@ jobs:
 
       - name: Probe production frontend (root + version.json)
         id: frontend
+        # In drill mode the probe fails BY DESIGN — keep the job green so the
+        # drill's own verdict (issue created + closed cleanly) is the signal.
+        continue-on-error: ${{ github.event.inputs.simulate == 'true' }}
         run: |
           set +e
           ROOT_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "$PROD_TARGET" 2>/dev/null)
@@ -113,7 +116,9 @@ jobs:
           fi
 
       - name: Open (or update) the alert issue on failure
-        if: failure()
+        if: failure() || env.DRILL == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           TITLE="[WATCHDOG] Production health check failed — $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
           if [ "${{ env.DRILL }}" = "true" ]; then
@@ -132,32 +137,57 @@ jobs:
           This issue closes automatically when the watchdog recovers.
           EOF
           )
-          # Deduplicate: reuse the open watchdog issue if one exists.
-          EXISTING=$(gh issue list --label "$WATCHDOG_LABEL" --state open --json number --jq '.[0].number' 2>/dev/null)
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh issue comment "$EXISTING" --body "Still failing: $TITLE"
+          # Ensure the label exists (idempotent; 422 = already exists is fine).
+          curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/labels" \
+            -d '{"name":"watchdog","color":"d93f0b","description":"Automated health watchdog alerts"}' | grep -q '"id"' || true
+          # Deduplicate: reuse the open watchdog issue if one exists (REST, no gh quirks).
+          EXISTING=$(curl -s -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?labels=watchdog&state=open" | jq -r '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING/comments" \
+              -d "{\"body\":\"Still failing: $TITLE\"}" > /dev/null
           else
-            gh issue create --title "$TITLE" --body "$BODY" --label "$WATCHDOG_LABEL"
+            curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues" \
+              -d "$(jq -n --arg t "$TITLE" --arg b "$BODY" '{title:$t, body:$b, labels:[\"watchdog\"]}')" > /dev/null
           fi
+          echo "Alert issue handled: $TITLE"
 
       - name: Auto-close the alert issue on recovery
         if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          EXISTING=$(gh issue list --label "$WATCHDOG_LABEL" --state open --json number --jq '.[0].number' 2>/dev/null)
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh issue comment "$EXISTING" --body "✅ Recovered at $(date -u +%Y-%m-%dT%H:%M:%SZ) — all probes green. Auto-closing."
-            gh issue close "$EXISTING"
+          EXISTING=$(curl -s -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?labels=watchdog&state=open" | jq -r '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING/comments" \
+              -d '{"body":"✅ Recovered at '"$(date -u +%Y-%m-%dT%H:%M:%SZ)"' — all probes green. Auto-closing."}' > /dev/null
+            curl -s -X PATCH -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING" \
+              -d '{"state":"closed"}' > /dev/null
           fi
 
       - name: Drill cleanup (close the simulated-failure issue)
         if: always() && env.DRILL == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           sleep 2
-          EXISTING=$(gh issue list --label "$WATCHDOG_LABEL" --state open --json number --jq '.[0].number' 2>/dev/null)
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh issue comment "$EXISTING" --body "🧪 DRILL complete — the simulated failure produced this alert exactly as designed. Closing."
-            gh issue close "$EXISTING"
+          EXISTING=$(curl -s -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?labels=watchdog&state=open" | jq -r '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            curl -s -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING/comments" \
+              -d '{"body":"🧪 DRILL complete — the simulated failure produced this alert exactly as designed. Closing."}' > /dev/null
+            curl -s -X PATCH -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$EXISTING" \
+              -d '{"state":"closed"}' > /dev/null
             echo "DRILL PASS: alert issue was created and closed cleanly." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "DRILL_PASS=true" >> "$GITHUB_ENV"
           else
             echo "::error::DRILL FAIL: no alert issue was created by the simulated failure."
             exit 1
