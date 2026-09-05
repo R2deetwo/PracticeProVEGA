@@ -10874,3 +10874,117 @@ category spoof probes (staff/portal/admin) + invalid-token probe + Phase B
 resolveCaller + authHelpers (keeping the flag documented), make verifyLogin
 session issuance blocking, re-probe, then Round 16 proper (CI identity
 audit script) per the plan.
+
+---
+
+## Round 17 (session) — the death-loop P0 + plan Round 17 (observability, runbook, backup)
+
+**Context:** minutes after the plan-R15/R16 cutover shipped, the user hit the
+"death loop" on production: the app cycled splash ↔ "connection interrupted /
+we're recovering / reconnecting attempt 22 of 3", diagnostics vanished before
+they could be opened, and the console showed
+`Unauthenticated: a verified session is required` from sentry:getInboundMessages.
+
+### P0 — the death loop (root cause, verbatim chain)
+
+1. The user's browser held a LEGACY email-only session (a login from before
+   the R13 session system) — `practicepro_user_session` with the email, NO
+   `practicepro_session_bearer` in storage.
+2. `getUser` (the email-bootstrap lookup) still resolved the user → the app
+   shell rendered "signed in".
+3. Every strict-mode query sent `sessionToken: undefined` → the server
+   correctly threw `Unauthenticated: a verified session is required.`
+4. `ConvexErrorBoundary.translateError` classified it as CONNECTION — the
+   `[CONVEX Q(...)]` transport prefix matched the connection heuristic BEFORE
+   the auth check — so the UI said "your data is safe, we're recovering".
+5. The boundary's silent retry timer fired every 3s FOREVER: the counter was
+   an instance field that only grew, the pill label hardcoded "/3"
+   ("attempt 22 of 3"), and every retry unmounted + remounted the ENTIRE
+   provider tree — splash → crash → splash. The diagnostics accordion closed
+   itself every cycle (that's why it "quickly disappears").
+
+Two adjacent holes found while fixing: `getUserApiKey` fired at boot with the
+UNVALIDATED bearer (threw during render and prevented the session-validation
+verdict from ever landing — the scenario-B smoke caught it), and fresh
+signups landed in a code-verified but BEARER-LESS session after verifyEmail.
+
+### P0 — the fix (commit 6ff301a1)
+
+- `src/utils/errorRecovery.ts` (new, pure): AUTH checked before the transport
+  prefix; bounded policies per category — auth 2×1.5s (storage race only),
+  connection 5×exp 3s→48s, permission 0, data 1, render 2; 60s stability
+  reset forgets the burst. The label tells the truth: real attempt over the
+  REAL cap, and retries STOP.
+- `src/utils/sessionInvalidation.ts` (new): the single wipe-all-auth-storage
+  implementation (10 keys, both storages) + portal-aware sign-in URL.
+- `ConvexErrorBoundary` rewritten on that core: auth errors resolve via a
+  clean "Sign in again" (full wipe — the old "Return to Home" left a dead
+  bearer behind, re-entering the loop on next boot).
+- `AuthContext` session validity gate: legacy email-only sessions retired at
+  boot (offline read-only cache exempt); bearers validated server-side via
+  the reactive `validateSessionToken` query (boot AND mid-session
+  revocation); cross-tab re-login adoption guard; splash held while
+  validation is pending; `getUserApiKey` gated on a VALIDATED bearer.
+- `verifyEmail` now mints a real bearer session via the login gateway
+  (Signup passes its password) — fresh signups skip the broken window.
+
+**Evidence:** vitest 154/154 (+20 new — the incident message VERBATIM must
+classify as auth; auth outranks `[CONVEX]`; firm-mismatch ≠ auth; every
+policy bounded; wipe is total); convex tsc 0; root tsc 129 < 130 baseline;
+build green. `scripts/smoke-session-gate.mjs` scenario A = the user's exact
+storage state → retired cleanly, 0 console errors, 0 boundary catches, no
+retry pill; scenario B (dead bearer) same. DEPLOYED: promotion run 33954004735
+(green except the known CF-token fast-fail); prod version.json = 6ff301a1
+healthy; the live smoke + the three spoof probes re-run against PRODUCTION
+all pass (strict identity holds).
+
+### Round 17 (plan) — observability, runbook, backup (commit ab1735cc)
+
+- `convex/observability.ts`: `error_events` table (schema), capture paths for
+  mutations (ctx.db) AND actions (runMutation + optional Sentry envelope via
+  `SENTRY_BACKEND_DSN`), founder-only reader, 30-day purge cron 03:10 UTC,
+  hard cap 1000 rows/scope. Wrapped the 8 money-path crons
+  (wallets, retainerBilling ×2, scheduled messages, dunning, sentry daily
+  automation, WhatsApp reminders, overdue flags) via the idempotent
+  `scripts/wire_cron_reporting.py`. Paystack webhook route wrapped with
+  capture + 500-retry semantics.
+- `health-watchdog.yml` (*/15): prod frontend + version.json + Convex query
+  round-trip; failure = failed run (GitHub emails the owner) + deduplicated
+  `[WATCHDOG]` issue with auto-close on recovery; CF mirror report-only.
+- `backup-restore-drill.yml` (weekly): `convex export --prod` → integrity
+  verification (core tables, non-empty, parse) → staging import when
+  configured. RPO 24h / RTO ~30min documented.
+- `observability-drill.yml` + `/api/observability/drill` (secret-gated,
+  fail-closed — verified live): simulated backend failure → captured →
+  readable.
+- `RUNBOOK.md` + `ARCHITECTURE.md` (bus-factor fix): deploy/rollback/
+  incident procedures (the death loop as the worked example), full env-var
+  + secret inventory with rotation note, staging setup, CF mirror fix,
+  Paystack go-live checklist.
+
+**Drill evidence (the plan's "done when" criteria):**
+- watchdog simulate=true → `[WATCHDOG][DRILL]` issue #1 created (HTTP 201),
+  closed cleanly, run GREEN (needed 3 fix rounds: label bootstrap, jq
+  quoting, and a poll loop for GitHub's briefly eventual-consistent
+  label-filtered issue list — each caught BY the drill, which is the point).
+- backup drill run 33955535472: SUCCESS — real 764K production snapshot
+  exported + verified (users/firms/matters/tasks present, non-empty, parse).
+  Staging import half SKIPPED honestly: staging Convex isn't provisioned yet
+  (secrets missing; one-time setup documented in RUNBOOK §8).
+- observability drill run 33955891662: SUCCESS — simulateErrorEvent fired on
+  production, error_events row written, read back via inline query.
+
+**Deploy state:** production = ab1735cc (healthy; promotion green except the
+known CF fast-fail). The drill-fix commits (dc1f4a86, 05093d34, eb018453,
+fe58506b) are workflows/docs only — they act on main directly and don't need
+a promotion. Production Convex env is missing `AGENT_INSPECT_SECRET` (the
+http drill route correctly fails closed with 404 JSON until it's set —
+dashboard action, RUNBOOK §6).
+
+**Open items carried forward:** CF mirror (needs fresh token — user action);
+staging Convex provisioning (user action, unlocks the restore-import half +
+staging deploys); `AGENT_INSPECT_SECRET` + optional `SENTRY_BACKEND_DSN`
+Convex env vars; Paystack LIVE keys + webhook registration; the
+URL-impersonation flow (verifyImpersonationToken) should mint a session
+instead of seeding an email-only identity (strict mode retired it — noted in
+R16).

@@ -191,7 +191,7 @@ WebView cookie risk. Delivered:
 - Impersonation feature reworked: founder-only, fully audited
   (audit log rows, not just local state).
 
-### Round 15: Cutover
+### Round 15: Cutover ✅ (closed 2026-09-05 — strict mode burned in, Phase A+B, spoof probes fail live; see worklog Round 16)
 - Sweep all ~165 `userEmail` call sites across ~60 files to session
   identity.
 - **Strict mode on:** server rejects email-only identity — verified
@@ -209,7 +209,7 @@ legacy fallback path.
 
 ## Phase 4 — Defense closeout
 
-### Round 16: remaining round-8 flagged gaps
+### Round 16: remaining round-8 flagged gaps ✅ (closed 2026-09-05 — founder identity, dead-guard revival, CI identity audit; see worklog Round 16)
 - Feedback module admin functions: retrofit `callerAuth` guards.
 - Firm-scoped READS that trust caller-supplied firmId
   (`getLicensesForFirm`, `brainIngestion.getSourcesForIndexing` + full
@@ -231,7 +231,7 @@ retrofit.
 
 ## Phase 5 — Ops maturity
 
-### Round 17: observability, runbook, backup
+### Round 17: observability, runbook, backup ✅ (closed 2026-09-05 — error_events + watchdog + drills + RUNBOOK/ARCHITECTURE; staging restore half pending staging Convex setup; see worklog Round 17)
 **Problem:** backend is silent (Sentry covers frontend only — the
 round-9 bug produced one symptom for weeks); no runbook; bus factor
 1; no documented backup/restore.
