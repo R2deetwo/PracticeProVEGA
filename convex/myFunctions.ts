@@ -1677,9 +1677,10 @@ export const verifyLogin = action({
       // (+ MFA when enabled) has been verified at this point. The token is
       // returned to the client exactly once; only its SHA-256 hash is
       // stored (convex/sessions.ts).
-      // Non-blocking in Phase A: a session-store failure must not fail an
-      // otherwise successful login (the strict sweep makes this belt-and-
-      // braces; Phase B makes issuance blocking once proven live).
+      // Phase B: issuance is BLOCKING. A login without a live session is
+      // useless under strict mode (every data call would be rejected), so
+      // failing the login outright with a clear message beats returning a
+      // user who is locked out of their own data.
       let sessionToken: string | undefined;
       try {
         // `as any` mirrors the repo's established pattern for cross-module
@@ -1693,7 +1694,18 @@ export const verifyLogin = action({
         });
         sessionToken = session?.token;
       } catch (e) {
-        console.warn("[verifyLogin] Session issuance failed (non-blocking in Phase A):", e);
+        console.error("[verifyLogin] Session issuance FAILED — blocking login (Phase B):", e);
+        return {
+          success: false,
+          message: "We could not start a secure session. Please try logging in again.",
+        };
+      }
+      if (!sessionToken) {
+        console.error("[verifyLogin] Session issuance returned no token — blocking login (Phase B).");
+        return {
+          success: false,
+          message: "We could not start a secure session. Please try logging in again.",
+        };
       }
 
       // AUTO-REPAIR: If a portal user (Client/Tenant) has no firmId, try to repair it

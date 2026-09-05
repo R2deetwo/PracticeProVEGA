@@ -89,22 +89,22 @@ const getInitialToken = () => {
                 return null;
             }
 
-            // LEGACY FALLBACK: ?impersonate=email (DEPRECATED — will be removed
-            // after all Founder APK builds are updated to use impersonateToken).
-            // This is kept temporarily for backward compatibility during the
-            // migration window. It logs to console.warn to surface legacy usage.
+            // R16 Phase B: the legacy ?impersonate=email URL param was REMOVED.
+            // It seeded the client session with a caller-chosen email — a
+            // client-side identity spoof (post-cutover it could no longer read
+            // any data without a bearer, but the app shell still rendered as
+            // the victim and old audit links depended on it). Impersonation now
+            // goes exclusively through the server-verified impersonateToken
+            // flow above (admin-guarded, audited, session-minting).
             const legacyImpersonateEmail = urlParams.get('impersonate');
             if (legacyImpersonateEmail) {
-                console.warn('[Auth] DEPRECATED: ?impersonate=email URL param is insecure and will be removed. Use ?impersonateToken=xxx via createImpersonationToken mutation.');
-                const token = legacyImpersonateEmail.toLowerCase().trim();
-                const sessionData = JSON.stringify({ token });
-                try { sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
-                try { localStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData); } catch {}
-                // Clean the URL immediately
+                console.warn('[Auth] REJECTED: the ?impersonate=email URL param no longer logs anyone in. Use ?impersonateToken=xxx (issued via createImpersonationToken).');
+                // Clean the inert param from the URL so stale deep links
+                // don't leave confusing state behind.
                 urlParams.delete('impersonate');
                 const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
                 window.history.replaceState({}, '', newUrl);
-                return token;
+                // Fall through to the normal session check — no identity is seeded.
             }
         } catch { /* URL parsing failed — fall through to normal session check */ }
 

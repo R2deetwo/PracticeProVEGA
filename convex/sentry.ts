@@ -22,9 +22,7 @@ async function requireSentryAuth(
   firmId?: string,
   sessionToken?: string | null
 ) {
-  // R16 strict: pass the bearer token through — requireFirmUser resolves
-  // the caller from the verified session (email-only identity is rejected
-  // under STRICT_IDENTITY_MODE).
+  // R16 strict (Phase B, burned in): pass the bearer token through —
   const auth = await requireFirmUser(ctx, userEmail, sessionToken);
   if (!auth.firmId || !auth.user) {
     throw new Error("Unauthenticated: a verified user session is required for this operation.");

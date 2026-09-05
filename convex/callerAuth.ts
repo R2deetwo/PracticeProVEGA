@@ -3,20 +3,22 @@ import { Doc } from "./_generated/dataModel";
 import { resolveUserBySessionToken } from "./sessions";
 
 /**
- * R16 (plan Round 15) — STRICT IDENTITY MODE. The cutover.
+ * R16 (plan Round 15) — STRICT IDENTITY MODE. Phase B: BURNED IN.
  * ─────────────────────────────────────────────────────────────────────
- * When true, caller-supplied identity strings (email, userId) are
- * REJECTED. Every public function requires a valid bearer session token
- * issued by verifyLogin (password + MFA verified at the login gateway).
- * This closes the spoofable-identity class: knowing a staff member's
- * email no longer lets anyone call the API as them.
+ * Caller-supplied identity strings (email, userId) are REJECTED,
+ * unconditionally. Every public function requires a valid bearer session
+ * token issued by verifyLogin (password + MFA verified at the login
+ * gateway). This closes the spoofable-identity class: knowing a staff
+ * member's email no longer lets anyone call the API as them.
  *
- * ROLLBACK (instant, per the plan's design): flip to `false` and redeploy —
- * the legacy branches below resume accepting caller-supplied identity.
- * Phase B deletes the legacy branches entirely once the cutover is proven
- * by live spoof probes on production.
+ * Phase A shipped this behind the STRICT_IDENTITY_MODE flag with the legacy
+ * branches retained as an instant rollback lever. The cutover was then
+ * proven live on production (all spoof probes rejected: staff, portal,
+ * admin, invalid-token control — receipts in the R16 worklog). Phase B
+ * deletes the legacy branches entirely; the flag is gone with them.
+ *
+ * ROLLBACK: git revert the Phase B commit (no runtime lever exists).
  */
-export const STRICT_IDENTITY_MODE = true;
 
 /**
  * STRICT caller verification — Round 8 auth retrofit.
@@ -72,10 +74,9 @@ async function findUserByEmail(ctx: any, email: string): Promise<CallerUser | nu
  *      THROWS (never falls through to a spoofable email).
  *   2. Convex Auth session (if ever configured).
  *
- * STRICT IDENTITY MODE (plan Round 15 cutover): with the flag on, paths
- * 3 and 4 below are UNREACHABLE — email-only and userId-only identity
- * are rejected outright. The code is retained solely as the rollback
- * lever (flag flip); Phase B deletes it.
+ * STRICT IDENTITY MODE (plan Round 15, Phase B): caller-supplied email and
+ * userId are REJECTED unconditionally — the legacy acceptance branches
+ * were deleted after the cutover was proven by live production probes.
  */
 export async function resolveCaller(
   ctx: any,
@@ -106,37 +107,13 @@ export async function resolveCaller(
     }
   } catch {}
 
-  // ── STRICT MODE CUTOVER ────────────────────────────────────────────
+  // ── STRICT MODE (Phase B: unconditional — legacy branches deleted) ──
   // Caller-supplied identity strings are spoofable: anyone who knows a
-  // staff email (or a userId leaked in a record) can claim it. Reject.
-  if (STRICT_IDENTITY_MODE) {
-    throw new Error(
-      "Unauthenticated: a verified session is required. Please sign in again."
-    );
-  }
-
-  // ── LEGACY PATHS (rollback lever only — unreachable while strict) ──
-
-  // 2. Caller-supplied userId (the logged-in user's Convex _id).
-  if (opts.userId) {
-    try {
-      const u = await ctx.db.get(opts.userId as any);
-      if (u) return u as CallerUser;
-    } catch {}
-  }
-
-  // 3. Caller-supplied email (the repo's legacy auth-token convention).
-  if (opts.userEmail) {
-    console.warn(
-      "[resolveCaller] legacy email identity used (spoofable; strict mode is ON — this branch is the rollback lever):",
-      String(opts.userEmail).toLowerCase().trim()
-    );
-    const u = await findUserByEmail(ctx, opts.userEmail);
-    if (u) return u;
-  }
-
+  // staff email (or a userId leaked in a record) can claim it. There is no
+  // legacy acceptance path anymore — only a bearer session (above) or a
+  // server-managed Convex Auth identity (also above) resolve a caller.
   throw new Error(
-    "Unauthenticated: a verified user session is required for this operation."
+    "Unauthenticated: a verified session is required. Please sign in again."
   );
 }
 

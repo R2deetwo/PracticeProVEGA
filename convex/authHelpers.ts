@@ -1,19 +1,18 @@
 
 import { Doc } from "./_generated/dataModel";
-import { STRICT_IDENTITY_MODE } from "./callerAuth";
 import { resolveUserBySessionToken } from "./sessions";
 
 /**
  * Helper to ensure the user is logged in and associated with a firm.
  * This is used by queries and mutations to enforce data isolation.
  *
- * AUTHENTICATION MODEL (R16 / plan Round 15 strict cutover):
+ * AUTHENTICATION MODEL (R16 / plan Round 15 — Phase B, burned in):
  * The caller presents the bearer `sessionToken` issued by verifyLogin;
  * the server resolves the user by the token's SHA-256 hash (possession
- * proof — password + MFA were verified at the login gateway). The
- * legacy caller-supplied `userEmail` path is retained ONLY as the
- * rollback lever (STRICT_IDENTITY_MODE = false) and is rejected while
- * strict mode is on.
+ * proof — password + MFA were verified at the login gateway). There is
+ * no other acceptance path: the legacy caller-supplied `userEmail`
+ * branches (and the permissive anonymous fallback) were deleted after
+ * the live cutover was proven by production spoof probes.
  */
 export async function requireFirmUser(
   ctx: any,
@@ -24,17 +23,8 @@ export async function requireFirmUser(
   userId: string;
   user: Doc<"users">;
 }> {
-  // 1. Convex Auth session (if configured) — inert in this deployment.
-  let sessionEmail: string | undefined;
-  try {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity) {
-      sessionEmail = (identity.email || identity.subject)?.toLowerCase();
-    }
-  } catch {}
-
-  // 2. Bearer session token — the R16 strict path. Possession of the
-  //    token proves the caller passed password (+ MFA) at login.
+  // Bearer session token — the only accepted proof. Possession of the
+  // token proves the caller passed password (+ MFA) at login.
   if (sessionToken) {
     const user = await resolveUserBySessionToken(ctx, sessionToken);
     if (!user) {
@@ -45,54 +35,12 @@ export async function requireFirmUser(
     return await settleFirmUser(ctx, user as Doc<"users">);
   }
 
-  // ── STRICT MODE CUTOVER ────────────────────────────────────────────
   // No token presented: reject before touching any caller-supplied
-  // identity string. The legacy branches below are the rollback lever.
-  if (STRICT_IDENTITY_MODE) {
-    throw new Error(
-      "Unauthenticated: a verified session is required. Please sign in again."
-    );
-  }
-
-  // ── LEGACY PATHS (rollback lever only — unreachable while strict) ──
-  const email = sessionEmail || userEmail?.toLowerCase();
-
-  // ── BACKWARD COMPATIBILITY (legacy, rollback-lever only) ─────────────
-  // Reachable only with STRICT_IDENTITY_MODE = false.
-  if (!email) {
-    // Log for monitoring (best-effort, don't block on failure)
-    try {
-      await ctx.db.insert("securityEvents", {
-        eventType: "anonymous_legacy_call",
-        details: "requireFirmUser: no userEmail provided (legacy call path)",
-        timestamp: Date.now(),
-      });
-    } catch {}
-    // Return permissive anonymous context — caller must supply firmId
-    return {
-      firmId: "",
-      userId: "",
-      user: null as any,
-    };
-  }
-
-  // 4. Lookup user by email (tokenIdentifier field)
-  let legacyUser = await ctx.db
-    .query("users")
-    .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email!))
-    .first();
-
-  // 5. Fallback lookup by the `email` field directly
-  if (!legacyUser) {
-    // Phase 4 (perf): index seek via users.by_email (previously a full users
-    // table scan on EVERY login fallback)
-    legacyUser = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q: any) => q.eq("email", email!))
-      .first();
-  }
-
-  return await settleFirmUser(ctx, legacyUser as Doc<"users">, email);
+  // identity string. (The `userEmail` parameter is kept in the signature
+  // so call sites don't churn — it is IGNORED.)
+  throw new Error(
+    "Unauthenticated: a verified session is required. Please sign in again."
+  );
 }
 
 /**
@@ -101,15 +49,14 @@ export async function requireFirmUser(
  */
 async function settleFirmUser(
   ctx: any,
-  user: Doc<"users"> | null,
-  legacyEmail?: string
+  user: Doc<"users"> | null
 ): Promise<{ firmId: string; userId: string; user: Doc<"users"> }> {
   if (!user || !user.firmId) {
     // ── RLS Audit: Log unauthorized access attempt ───────────────────
     try {
       await ctx.db.insert("securityEvents", {
         eventType: "unauthorized_access",
-        email: legacyEmail,
+        email: user?.email || undefined,
         details: "requireFirmUser: no user or firmId found",
         timestamp: Date.now(),
       });
@@ -129,7 +76,7 @@ async function settleFirmUser(
       await ctx.db.insert("securityEvents", {
         eventType: "unauthorized_access",
         userId: String(user._id),
-        email: user.email || legacyEmail,
+        email: user.email,
         details: `requireFirmUser: portal role (${user.role}) attempted firm-level operation`,
         timestamp: Date.now(),
       });
