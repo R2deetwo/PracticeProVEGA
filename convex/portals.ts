@@ -3083,6 +3083,16 @@ export const cancelScheduledMessage = mutation({
  * (ctx.runAction). That's why messages were only marked as "sent" without
  * actually being delivered. Now it's an internalAction which CAN call
  * ctx.runAction to actually send via Brevo/Chakra.
+ *
+ * MESSAGES DELIVERY FIX (the false-"sent" bug): this dispatcher previously
+ * (a) ignored the sendEmail/sendWhatsApp RESULT — provider failures return
+ * { success: false } without throwing, so failed sends were marked "sent";
+ * (b) resolved recipients via getUser(tokenIdentifier=tenantId), which
+ * doesn't match how tenantIds are stored, so dispatch silently no-op'd;
+ * (c) never corrected the linked automation_logs row. Now it verifies the
+ * provider result, uses the contact embedded on the scheduled_message
+ * (falling back to the user lookup), and writes the REAL outcome back to
+ * both the scheduled_message and its automation_logs row.
  */
 export const processScheduledMessages = internalAction({
   args: {},
@@ -3098,55 +3108,96 @@ export const processScheduledMessages = internalAction({
       try {
         let sendSuccess = false;
         let sendError = '';
+        let providerMessageId: string | undefined;
 
         // ── Actually send the message via the appropriate channel ──
-        if (msg.channel === "email" && msg.tenantIds && msg.tenantIds.length > 0) {
-          // Send email to each recipient via Brevo
-          for (const tenantId of msg.tenantIds) {
+        if (msg.channel === "email") {
+          // Recipient emails: the contact embedded at scheduling time
+          // (preferred), else fall back to resolving each tenantId.
+          const emails: { email: string; name?: string }[] = [];
+          if (msg.recipientEmail) {
+            emails.push({ email: msg.recipientEmail, name: msg.recipientName });
+          } else if (msg.tenantIds && msg.tenantIds.length > 0) {
+            for (const tenantId of msg.tenantIds) {
+              try {
+                const tenant: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: tenantId });
+                if (tenant?.email) emails.push({ email: tenant.email, name: tenant.name });
+              } catch (lookupErr: any) {
+                sendError = `Tenant lookup failed for ${tenantId}: ${lookupErr?.message || lookupErr}`;
+                console.warn(`[processScheduledMessages] Tenant lookup failed for ${tenantId}:`, sendError);
+              }
+            }
+          }
+          if (emails.length === 0) {
+            sendError = sendError || "No email address could be resolved for this message";
+          }
+          for (const rcpt of emails) {
             try {
-              // Look up the tenant's email address
-              const tenant: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: tenantId });
-              if (tenant?.email) {
-                await ctx.runAction(api.communications.sendEmail, {
-                  firmId: msg.firmId,
-                  to: tenant.email,
-                  toName: tenant.name || tenant.email,
-                  subject: msg.messageType ? `${msg.messageType.replace(/_/g, ' ')}` : 'Message from your Property Manager',
-                  htmlContent: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><p style="white-space:pre-line;">${msg.content}</p></div>`,
-                });
+              // VERIFY the provider result — a returned failure is NOT an
+              // exception, it must be checked explicitly.
+              const result: any = await ctx.runAction(api.communications.sendEmail, {
+                firmId: msg.firmId,
+                to: rcpt.email,
+                toName: rcpt.name || rcpt.email,
+                subject: msg.messageType ? `${msg.messageType.replace(/_/g, ' ')}` : 'Message from your Property Manager',
+                htmlContent: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><p style="white-space:pre-line;">${msg.content}</p></div>`,
+              });
+              if (result?.success && !result?.simulated) {
                 sendSuccess = true;
+                providerMessageId = result?.messageId || providerMessageId;
+              } else {
+                sendError = result?.error || 'Email send failed';
+                console.warn(`[processScheduledMessages] Email failed for ${rcpt.email}:`, sendError);
               }
             } catch (emailErr: any) {
               sendError = emailErr?.message || 'Email send failed';
-              console.warn(`[processScheduledMessages] Email failed for ${tenantId}:`, sendError);
+              console.warn(`[processScheduledMessages] Email failed for ${rcpt.email}:`, sendError);
             }
           }
-        } else if (msg.channel === "whatsapp" && msg.tenantIds && msg.tenantIds.length > 0) {
-          // Send WhatsApp to each recipient via Chakra
-          for (const tenantId of msg.tenantIds) {
+        } else if (msg.channel === "whatsapp") {
+          // Recipient phones: embedded contact first, else tenantId lookup.
+          const phones: string[] = [];
+          if (msg.recipientPhone) {
+            phones.push(msg.recipientPhone);
+          } else if (msg.tenantIds && msg.tenantIds.length > 0) {
+            for (const tenantId of msg.tenantIds) {
+              try {
+                const tenant: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: tenantId });
+                const tenantPhone = tenant?.phone || tenant?.phoneNumber;
+                if (tenantPhone) phones.push(tenantPhone);
+              } catch (lookupErr: any) {
+                sendError = `Tenant lookup failed for ${tenantId}: ${lookupErr?.message || lookupErr}`;
+                console.warn(`[processScheduledMessages] Tenant lookup failed for ${tenantId}:`, sendError);
+              }
+            }
+          }
+          if (phones.length === 0) {
+            sendError = sendError || "No phone number could be resolved for this message";
+          }
+          for (const phone of phones) {
             try {
-              // Look up the tenant's phone number from their user record
-              const tenant: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: tenantId });
-              // The tenant's phone might be on their user record or their property/unit record
-              // For now we try the user record's phone field, or skip if not found
-              const tenantPhone = tenant?.phone || tenant?.phoneNumber;
-              if (tenantPhone) {
-                await ctx.runAction(api.communications.sendWhatsApp, {
-                  firmId: msg.firmId,
-                  to: tenantPhone,
-                  messageText: msg.content,
-                });
+              // VERIFY the provider result — see email branch.
+              const result: any = await ctx.runAction(api.communications.sendWhatsApp, {
+                firmId: msg.firmId,
+                to: phone,
+                messageText: msg.content,
+              });
+              if (result?.success && !result?.simulated) {
                 sendSuccess = true;
+                providerMessageId = result?.messageId || providerMessageId;
               } else {
-                sendError = `No phone number found for tenant ${tenantId}`;
+                sendError = result?.error || 'WhatsApp send failed';
+                console.warn(`[processScheduledMessages] WhatsApp failed for ${phone}:`, sendError);
               }
             } catch (waErr: any) {
               sendError = waErr?.message || 'WhatsApp send failed';
-              console.warn(`[processScheduledMessages] WhatsApp failed for ${tenantId}:`, sendError);
+              console.warn(`[processScheduledMessages] WhatsApp failed for ${phone}:`, sendError);
             }
           }
         } else if (msg.channel === "sms") {
           sendError = "SMS provider not configured";
+        } else {
+          sendError = "Unknown channel";
         }
 
         // ── Update the scheduled message status ──
@@ -3164,6 +3215,22 @@ export const processScheduledMessages = internalAction({
             failureReason: sendError || "No recipients or unknown channel",
           });
           failed++;
+        }
+
+        // ── Correct the linked automation_log to the REAL outcome ──
+        // Without this, the Messages screen keeps showing the optimistic
+        // pre-dispatch status forever, even when delivery failed.
+        if (msg.automationLogId) {
+          try {
+            await ctx.runMutation(internal.sentry.updateAutomationLogStatus, {
+              logId: msg.automationLogId,
+              status: sendSuccess ? "sent" : "failed",
+              errorMessage: sendSuccess ? undefined : (sendError || "Delivery failed"),
+              messageId: providerMessageId,
+            });
+          } catch (logPatchErr: any) {
+            console.warn(`[processScheduledMessages] automation_log status update failed:`, logPatchErr?.message);
+          }
         }
 
         // ── Wire sent message into All Conversations ──
@@ -3188,6 +3255,13 @@ export const processScheduledMessages = internalAction({
             status: "failed",
             failureReason: e.message || "Unknown error",
           });
+          if (msg.automationLogId) {
+            await ctx.runMutation(internal.sentry.updateAutomationLogStatus, {
+              logId: msg.automationLogId,
+              status: "failed",
+              errorMessage: e.message || "Unknown error",
+            });
+          }
         } catch {}
         failed++;
       }

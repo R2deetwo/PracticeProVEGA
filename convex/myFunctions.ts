@@ -5173,6 +5173,23 @@ export const saveAloaMessage = mutation({
   },
   handler: async (ctx, args) => {
     const { conversationId, firmId, message } = args;
+    // Round 8 auth retrofit: this writer previously had NO caller
+    // verification — anyone could write messages into any firm's
+    // conversations. Resolve the caller and verify firm scope.
+    const caller = await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userId: args.userId,
+      firmId,
+    });
+    // Verify the conversation belongs to the caller's firm before writing.
+    const conversation = await ctx.db
+      .query("aloaConversations")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
+      .collect()
+      .then((rows: any[]) => rows.find((r: any) => String(r._id) === String(conversationId)));
+    if (!conversation) {
+      throw new Error("Conversation not found in your firm.");
+    }
     const msgId = await ctx.db.insert("aloaMessages", {
       ...message,
       conversationId,
@@ -5812,10 +5829,16 @@ async function sendTaskReminder(ctx: any, task: any, type: 'halfway' | 'final') 
         if (user) {
           const email = user.email || user.tokenIdentifier;
           if (email) {
+            // FIX: sendEmail's contract is { to, subject, htmlContent, firmId } —
+            // this call previously passed `html` and omitted `firmId`, so the
+            // scheduler rejected it at validation on every run (silently —
+            // swallowed by the .catch) and external task reminder emails
+            // NEVER went out.
             await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
               to: email,
               subject: `${type === 'halfway' ? 'Task Reminder' : 'Final Reminder'}: ${task.title}`,
-              html: `<p>Hi ${user.name || 'there'},</p><p>${messageText}</p><p>Please log in to your portal to complete this task.</p>`,
+              htmlContent: `<p>Hi ${user.name || 'there'},</p><p>${messageText}</p><p>Please log in to your portal to complete this task.</p>`,
+              firmId: task.firmId,
             }).catch(() => {});
           }
           const phone = user.phone || user.whatsappNumber;

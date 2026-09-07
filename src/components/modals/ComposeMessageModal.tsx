@@ -111,6 +111,13 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
         setIsSending(true);
         setSendResult(null);
 
+        // Track the REAL delivery outcome in a local variable. The previous
+        // code read the `sendResult` React state inside this async function —
+        // always the stale pre-send value — so the activity log's status was
+        // written from a closure that never saw the send result.
+        let outcome: 'sent' | 'failed' | 'simulated' = 'failed';
+        let outcomeError: string | undefined;
+
         try {
             if (activeChannel === 'whatsapp' && hasPhone) {
                 const to = normalizePhone(recipient.phone!);
@@ -120,17 +127,28 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                         messageText: finalMessage,
                         firmId,
                     });
-                    if (result?.success) {
+                    if (result?.success && !result?.simulated) {
+                        outcome = 'sent';
                         setSendResult({ success: true, channel: 'whatsapp' });
                         addToast('WhatsApp message sent via WhatsApp Business API.', { type: 'success' });
+                    } else if (result?.simulated) {
+                        // Provider not configured — this is NOT a delivery.
+                        outcome = 'simulated';
+                        outcomeError = result?.error;
+                        const fallbackUrl = `https://wa.me/${to}?text=${encodeURIComponent(finalMessage)}`;
+                        setSendResult({ success: false, channel: 'whatsapp', fallbackUrl });
+                        addToast(result?.error || 'WhatsApp is not configured — use the WhatsApp Web fallback below.', { type: 'info' });
                     } else {
+                        outcome = 'failed';
+                        outcomeError = result?.error;
                         // API returned failure — offer fallback
                         const fallbackUrl = `https://wa.me/${to}?text=${encodeURIComponent(finalMessage)}`;
                         setSendResult({ success: false, channel: 'whatsapp', fallbackUrl });
-                        addToast('WhatsApp Business API unavailable. Use the WhatsApp Web fallback below.', { type: 'info' });
+                        addToast(result?.error || 'WhatsApp Business API send failed. Use the WhatsApp Web fallback below.', { type: 'info' });
                     }
                 } catch (err: any) {
                     // API threw — offer fallback
+                    outcome = 'failed';
                     const fallbackUrl = `https://wa.me/${to}?text=${encodeURIComponent(finalMessage)}`;
                     setSendResult({ success: false, channel: 'whatsapp', fallbackUrl });
                     addToast('WhatsApp Business API error. WhatsApp Web fallback available.', { type: 'info' });
@@ -143,14 +161,24 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                         htmlContent: `<div style="font-family:sans-serif;line-height:1.6;color:#1e293b;"><p>${finalMessage.replace(/\n/g, '<br/>')}</p><p style="color:#64748b;font-size:12px;margin-top:16px;">— ${senderName}</p></div>`,
                         firmId,
                     });
-                    if (result?.success) {
+                    if (result?.success && !result?.simulated) {
+                        outcome = 'sent';
                         setSendResult({ success: true, channel: 'email' });
                         addToast('Email sent successfully.', { type: 'success' });
-                    } else {
+                    } else if (result?.simulated) {
+                        // Unconfigured provider — never claim delivery.
+                        outcome = 'simulated';
+                        outcomeError = result?.error;
                         setSendResult({ success: false, channel: 'email' });
-                        addToast('Email delivery failed. Please try again.', { type: 'error' });
+                        addToast(result?.error || 'Email delivery was simulated — the email provider is not configured. The email was NOT delivered.', { type: 'warning' });
+                    } else {
+                        outcome = 'failed';
+                        outcomeError = result?.error;
+                        setSendResult({ success: false, channel: 'email' });
+                        addToast(result?.error || 'Email delivery failed. Please try again.', { type: 'error' });
                     }
                 } catch (err: any) {
+                    outcome = 'failed';
                     setSendResult({ success: false, channel: 'email' });
                     addToast(err.message || 'Email delivery failed.', { type: 'error' });
                 }
@@ -177,18 +205,23 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                         userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
                     });
                     if (result?.emailSimulated) {
+                        outcome = 'simulated';
                         addToast('Portal invite email was simulated — Brevo API key may not be configured on Convex.', { type: 'info' });
                     } else if (result?.emailSent) {
+                        outcome = 'sent';
                         setSendResult({ success: true, channel: 'portal' });
                         addToast(`Portal invite email sent to ${recipient.email}.`, { type: 'success' });
                     } else if (result?.emailError) {
+                        outcome = 'failed';
                         setSendResult({ success: false, channel: 'portal' });
                         addToast(`Portal invite failed: ${result.emailError}`, { type: 'error' });
                     } else {
+                        outcome = 'sent';
                         setSendResult({ success: true, channel: 'portal' });
                         addToast('Portal invite processed.', { type: 'success' });
                     }
                 } catch (err: any) {
+                    outcome = 'failed';
                     setSendResult({ success: false, channel: 'portal' });
                     addToast(err.message || 'Failed to send portal invite.', { type: 'error' });
                 }
@@ -207,7 +240,9 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({ recipi
                     messageContent: finalMessage,
                     direction: 'outbound',
                     senderName,
-                    status: sendResult?.success ? 'sent' : 'failed',
+                    // The REAL outcome from this send — not stale state.
+                    status: outcome,
+                    errorMessage: outcomeError,
                     triggeredBy: currentUser?.id,
                 } as any);
             } catch (logErr) {

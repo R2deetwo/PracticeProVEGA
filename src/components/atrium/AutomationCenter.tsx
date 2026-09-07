@@ -49,7 +49,7 @@ const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileT
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', portal: 'text-emerald-400 bg-emerald-900/30',
 };
-const STATUS_COLORS = { sent: 'text-emerald-400', failed: 'text-rose-400', simulated: 'text-amber-400' };
+const STATUS_COLORS: Record<string, string> = { sent: 'text-emerald-400', failed: 'text-rose-400', simulated: 'text-amber-400', sending: 'text-sky-400' };
 
 function formatTs(ts: number) {
   return new Date(ts).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -147,9 +147,12 @@ const AutomationCenter: React.FC = () => {
           templateVars: [tenantName, rentAmount, address],
           firmId,
         });
-        const status = result.success ? 'sent' : 'failed';
-        if (result.success) sent++; else failed++;
-        await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, triggeredBy: currentUser?.id });
+        // MESSAGES FIX: an honest status — a simulated result means the
+        // provider is not configured and NOTHING was delivered; "sent" is
+        // only claimed when the gateway accepted the message.
+        const status = result.success && !result.simulated ? 'sent' : result.simulated ? 'simulated' : 'failed';
+        if (status === 'sent') sent++; else failed++;
+        await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : result.error, triggeredBy: currentUser?.id });
       } catch (e: any) {
         failed++;
         console.error(`[BulkReminder] Failed for ${phone}:`, e.message);
@@ -301,6 +304,12 @@ const AutomationCenter: React.FC = () => {
                 </div>
                 <p className="text-2xs text-slate-500 truncate">{log.messagePreview}</p>
                 <p className="text-2xs text-slate-700 mt-0.5">To: {log.recipient}</p>
+                {log.status === 'failed' && log.errorMessage ? (
+                  <p className="text-2xs text-rose-500/90 mt-0.5 truncate" title={log.errorMessage}>↳ {log.errorMessage}</p>
+                ) : null}
+                {log.status === 'simulated' ? (
+                  <p className="text-2xs text-amber-500/90 mt-0.5">↳ Channel not configured — nothing was delivered</p>
+                ) : null}
               </div>
               <div className="flex items-center gap-1 text-2xs text-slate-600 flex-shrink-0">
                 <ClockIcon className="w-3 h-3" />

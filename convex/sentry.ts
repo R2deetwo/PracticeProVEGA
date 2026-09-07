@@ -529,8 +529,12 @@ export const markChargeAsPaid = mutation({
 
           if (recipient) {
             const confirmMessage = `Dear ${tenantName}, we confirm receipt of your ${chargeLabel} service charge payment of ₦${totalAmount.toLocaleString()} for ${unitName}. Your account is now fully settled. Thank you for your prompt payment.`;
-            // Log the automation
-            await ctx.db.insert("automation_logs", {
+            // MESSAGES FIX: log as "sending" (not "sent") and schedule the
+            // REAL dispatch for BOTH channels — previously only WhatsApp was
+            // scheduled; email-channel receipts were logged "sent" but never
+            // dispatched. processScheduledMessages corrects the log status
+            // from the provider outcome.
+            const automationLogId = await ctx.db.insert("automation_logs", {
               firmId: auth.firmId,
               unitId: sc.unitId,
               tenantId: sc.tenantId,
@@ -538,27 +542,29 @@ export const markChargeAsPaid = mutation({
               channel: tenantPhone ? "whatsapp" : "email",
               recipient,
               messagePreview: confirmMessage,
+              messageContent: confirmMessage,
               sentAt: Date.now(),
-              status: "sent",
+              status: "sending",
               triggeredBy: "admin_mark_paid",
             });
-            // FIX: Create a scheduled_message for real WhatsApp dispatch via processScheduledMessages
-            if (tenantPhone) {
-              await ctx.db.insert("scheduled_messages", {
-                firmId: auth.firmId,
-                content: confirmMessage,
-                channel: "whatsapp",
-                scheduledFor: Date.now(), // Send immediately
-                status: "scheduled",
-                messageType: "payment_receipt",
-                tenantIds: [sc.tenantId || ''],
-                // SCHEMA FIX: `createdBy` isn't a schema field — the schema's
-                // equivalent is `triggeredBy`; `updatedAt` is required.
-                triggeredBy: "system_automation",
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-              } as any);
-            }
+            await ctx.db.insert("scheduled_messages", {
+              firmId: auth.firmId,
+              content: confirmMessage,
+              channel: tenantPhone ? "whatsapp" : "email",
+              scheduledFor: Date.now(), // Send immediately
+              status: "scheduled",
+              messageType: "payment_receipt",
+              tenantIds: [sc.tenantId || ''],
+              recipientPhone: tenantPhone || undefined,
+              recipientEmail: tenantEmail || undefined,
+              recipientName: tenantName || undefined,
+              automationLogId,
+              // SCHEMA FIX: `createdBy` isn't a schema field — the schema's
+              // equivalent is `triggeredBy`; `updatedAt` is required.
+              triggeredBy: "system_automation",
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            } as any);
           }
         }
       } catch (e) {
@@ -770,6 +776,31 @@ export const getAutomationLogs = query({
       .withIndex("by_firm", q => q.eq("firmId", firmId))
       .order("desc")
       .take(limit ?? 50);
+  },
+});
+
+// ─── MESSAGES DELIVERY FIX ──────────────────────────────────────────────────
+// The automation crons previously wrote status:"sent" into automation_logs at
+// scheduling time and never corrected it — so the Messages screen claimed
+// "email sent" / "whatsapp message sent" for messages that were never
+// dispatched (or that the provider rejected). Now: crons write status
+// "sending" + link the log to the scheduled_message; processScheduledMessages
+// calls this internal mutation with the REAL provider outcome.
+export const updateAutomationLogStatus = internalMutation({
+  args: {
+    logId: v.id("automation_logs"),
+    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
+    errorMessage: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const log = await ctx.db.get(args.logId);
+    if (!log) return; // log row was deleted — nothing to correct
+    await ctx.db.patch(args.logId, {
+      status: args.status,
+      errorMessage: args.errorMessage,
+      messageId: args.messageId,
+    });
   },
 });
 
@@ -1196,9 +1227,16 @@ export const sendServiceChargeReminders = internalMutation({
       const recipient = tenantPhone || tenantEmail;
 
       // 6. Log the automation and create a scheduled_message for the real
-      // sendWhatsApp dispatch. The processScheduledMessages cron (internalAction)
-      // will pick this up and call sendWhatsApp via ChakraHQ.
-      await ctx.db.insert("automation_logs", {
+      // dispatch. The processScheduledMessages cron (internalAction) will
+      // pick it up and send via Brevo/Chakra, then correct this log's
+      // status to the REAL provider outcome via updateAutomationLogStatus.
+      // MESSAGES FIX: (a) the log starts as "sending" — NOT "sent" — so it
+      // can never claim delivery before dispatch; (b) an email-channel
+      // scheduled_message is now created too (previously email-channel
+      // reminders were logged "sent" but NEVER scheduled — nothing was
+      // dispatched at all); (c) the recipient contact is embedded so
+      // dispatch doesn't depend on a tenantId → users lookup.
+      const automationLogId = await ctx.db.insert("automation_logs", {
         firmId: charge.firmId,
         unitId: charge.unitId,
         tenantId: charge.tenantId,
@@ -1206,27 +1244,30 @@ export const sendServiceChargeReminders = internalMutation({
         channel,
         recipient,
         messagePreview,
+        messageContent: messagePreview,
         sentAt: now,
-        status: "sent",
+        status: "sending",
         triggeredBy: "cron_service_charge_reminder",
       });
 
-      // Create a scheduled_message for real WhatsApp dispatch
-      if (channel === "whatsapp" && tenantPhone) {
-        await ctx.db.insert("scheduled_messages", {
-          firmId: charge.firmId,
-          content: messagePreview,
-          channel: "whatsapp",
-          scheduledFor: now, // Send immediately
-          status: "scheduled",
-          messageType: "service_charge_reminder",
-          tenantIds: [charge.tenantId || ''],
-          // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
-          triggeredBy: "system_cron",
-          createdAt: now,
-          updatedAt: now,
-        } as any);
-      }
+      // Create a scheduled_message for the REAL dispatch (both channels)
+      await ctx.db.insert("scheduled_messages", {
+        firmId: charge.firmId,
+        content: messagePreview,
+        channel: channel === "whatsapp" ? "whatsapp" : "email",
+        scheduledFor: now, // Send immediately
+        status: "scheduled",
+        messageType: "service_charge_reminder",
+        tenantIds: [charge.tenantId || ''],
+        recipientPhone: tenantPhone || undefined,
+        recipientEmail: tenantEmail || undefined,
+        recipientName: tenantName || undefined,
+        automationLogId,
+        // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
+        triggeredBy: "system_cron",
+        createdAt: now,
+        updatedAt: now,
+      } as any);
 
       // 7. Increment consecutive reminder counter + record last reminder timestamp
       await ctx.db.patch(charge._id, {
@@ -1269,14 +1310,15 @@ export const runDailyAutomation = internalMutation({
 
       const rd = property.rentalDetails || {};
       const tenantPhone = rd.tenantPhone || '';
+      const tenantEmail = rd.tenantEmail || (property as any).tenantEmail || '';
       const tenantName = rd.tenantName || 'Resident';
       const unitName = rd.unitName || property.description || 'Unit';
 
-      if (!tenantPhone) {
+      if (!tenantPhone && !tenantEmail) {
         await ctx.db.insert("automation_logs", {
           firmId: charge.firmId, unitId: charge.unitId, tenantId: charge.tenantId,
-          messageType: "late_notice", channel: "whatsapp", recipient: "no_phone_on_file",
-          messagePreview: `Late notice for ${tenantName} — no phone number on file.`,
+          messageType: "late_notice", channel: "whatsapp", recipient: "no_contact_on_file",
+          messagePreview: `Late notice for ${tenantName} — no phone number or email on file.`,
           sentAt: now, status: "failed", triggeredBy: "system",
         });
         skippedCount++; continue;
@@ -1284,24 +1326,32 @@ export const runDailyAutomation = internalMutation({
 
       const chargeLabel = charge.isMinimumVend ? "Electricity / Minimum Vend" : "Service Charge";
       const messageText = `Dear ${tenantName}, your ${chargeLabel} for ${unitName} is now 1 day overdue. Kindly make payment to avoid penalties. — PracticePro`;
-
-      // Log the automation
-      await ctx.db.insert("automation_logs", {
+      // MESSAGES FIX: log as "sending" (not "sent"); schedule the REAL
+      // dispatch on whichever channel has a contact (previously email-only
+      // tenants got a "no_phone" failure and nothing was ever sent);
+      // processScheduledMessages corrects the status from the provider
+      // outcome via updateAutomationLogStatus.
+      const lateChannel = tenantPhone ? "whatsapp" as const : "email" as const;
+      const automationLogId = await ctx.db.insert("automation_logs", {
         firmId: charge.firmId, unitId: charge.unitId, tenantId: charge.tenantId,
-        messageType: "late_notice", channel: "whatsapp", recipient: tenantPhone,
-        messagePreview: messageText.substring(0, 100), sentAt: now, status: "sent",
-        triggeredBy: "system",
+        messageType: "late_notice", channel: lateChannel, recipient: tenantPhone || tenantEmail,
+        messagePreview: messageText.substring(0, 100), messageContent: messageText,
+        sentAt: now, status: "sending", triggeredBy: "system",
       });
 
-      // Create a scheduled_message for real WhatsApp dispatch via processScheduledMessages
+      // Create a scheduled_message for the real dispatch via processScheduledMessages
       await ctx.db.insert("scheduled_messages", {
         firmId: charge.firmId,
         content: messageText,
-        channel: "whatsapp",
+        channel: lateChannel,
         scheduledFor: now, // Send immediately
         status: "scheduled",
         messageType: "late_notice",
         tenantIds: [charge.tenantId || ''],
+        recipientPhone: tenantPhone || undefined,
+        recipientEmail: tenantEmail || undefined,
+        recipientName: tenantName || undefined,
+        automationLogId,
         // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
         triggeredBy: "system_cron",
         createdAt: now,

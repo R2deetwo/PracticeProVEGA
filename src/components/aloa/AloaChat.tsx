@@ -1015,6 +1015,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             const convexMsgId = await saveMessageMutation({
                                 conversationId: activeConversationId!,
                                 firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
+                                userId: currentUser?.id,
+                                sessionToken: (bearerToken ?? undefined) || undefined,
                                 message: modelMsg
                             });
                             if (actionData && actionData.context) {
@@ -1382,7 +1384,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             currentConvId = await createConversationMutation({
                                 firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 userId: currentUser?.id || '',
-                                title: title
+                                title: title,
+                                // R16 strict identity: mutations require the bearer
+                                // session token — omitting it throws "Unauthenticated".
+                                sessionToken: (bearerToken ?? undefined) || undefined
                             });
                             setActiveConversationId(currentConvId);
                             // Persist the new conversation ID immediately so
@@ -1399,6 +1404,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             conversationId: currentConvId!,
                             firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                             userId: currentUser?.id,
+                            sessionToken: (bearerToken ?? undefined) || undefined,
                             message: newUserMsg
                         });
                     }
@@ -1661,6 +1667,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         conversationId: currentConvId,
                                         firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                         userId: currentUser?.id,
+                                        sessionToken: (bearerToken ?? undefined) || undefined,
                                         message: modelMsg
                                     });
                                 }
@@ -1834,6 +1841,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 conversationId: currentConvId,
                                 firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 userId: currentUser?.id,
+                                sessionToken: (bearerToken ?? undefined) || undefined,
                                 message: modelMsg
                             });
                         }

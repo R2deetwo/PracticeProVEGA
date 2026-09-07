@@ -35,8 +35,20 @@ export const sendEmail = action({
     const BREVO_API_KEY = process.env.PracticePro_Vega_Mailer || process.env.BREVO_API_KEY;
 
     if (!BREVO_API_KEY) {
-      console.warn("[Brevo] No API key set (PracticePro_Vega_Mailer / BREVO_API_KEY) — simulating email send.");
-      return { success: true, simulated: true };
+      // HONESTY FIX (Messages false-"sent" bug): previously returned
+      // { success: true, simulated: true } here, so every caller that only
+      // checked result.success marked the message "sent" while NOTHING was
+      // delivered. An unconfigured provider is a FAILURE, not a success.
+      console.warn("[Brevo] No API key set (PracticePro_Vega_Mailer / BREVO_API_KEY) — email NOT delivered.");
+      return {
+        success: false,
+        simulated: true,
+        error: "Email is not configured on this deployment (Brevo API key missing) — the email was NOT delivered. Set PracticePro_Vega_Mailer or BREVO_API_KEY in the Convex dashboard.",
+      };
+    }
+
+    if (!args.to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(args.to).trim())) {
+      return { success: false, simulated: false, error: `Invalid recipient email address: "${args.to}"` };
     }
 
     try {
@@ -49,7 +61,7 @@ export const sendEmail = action({
         },
         body: JSON.stringify({
           sender: { name: "PracticePro Systems", email: process.env.BREVO_SENDER_EMAIL || "practiceprosystems@gmail.com" },
-          to: [{ email: args.to, name: args.toName || args.to }],
+          to: [{ email: String(args.to).trim(), name: args.toName || args.to }],
           subject: args.subject,
           htmlContent: args.htmlContent,
         }),
@@ -58,10 +70,13 @@ export const sendEmail = action({
       if (!response.ok) {
         const err = await response.text();
         console.error("[Brevo] API Error:", err);
-        return { success: false, simulated: false, error: err };
+        return { success: false, simulated: false, error: `Brevo API error (${response.status}): ${err}` };
       }
 
-      return { success: true, simulated: false };
+      const data = await response.json().catch(() => ({}));
+      // Brevo returns { messageId: "<...>" } on success — surface it so the
+      // audit trail can correlate with the provider.
+      return { success: true, simulated: false, messageId: data?.messageId };
     } catch (error: any) {
       console.error("[Brevo] Send failed:", error);
       return { success: false, simulated: false, error: error.message };
@@ -112,8 +127,17 @@ export const sendWhatsApp = action({
       return { success: false, simulated: true, error: `WhatsApp not configured. Missing: ${missing}.` };
     }
 
-    // Normalise phone: must be E.164 without "+" for Meta's API
-    const normalised = args.to.replace(/\D/g, "");
+    // Normalise phone to E.164 digits (no "+") for Meta's API.
+    // Handles the shapes actually stored in the DB: "+234801...", "234801...",
+    // "0801234..." (local NG), and "801234..." (local NG without leading 0).
+    const normalised = normalisePhoneForMeta(args.to);
+    if (!normalised) {
+      return {
+        success: false,
+        simulated: false,
+        error: `Invalid WhatsApp recipient phone number: "${args.to}" — must be a valid phone in international format.`,
+      };
+    }
 
     // Build payload — use template if provided, otherwise plain text
     const payload = args.templateName
@@ -155,13 +179,64 @@ export const sendWhatsApp = action({
 
       if (!response.ok) {
         console.error("[WhatsApp] Chakra API Error:", JSON.stringify(data));
-        return { success: false, simulated: false, error: data?.error?.message || "Unknown error" };
+        return { success: false, simulated: false, error: extractWaError(data) || `Chakra API error (HTTP ${response.status})` };
       }
 
-      return { success: true, simulated: false, messageId: data?.messages?.[0]?.id };
+      // STRICT success verification (Messages false-"sent" bug): a 200 from
+      // Chakra is NOT proof of delivery. Meta's contract returns
+      // messages[0].id for every accepted send. Anything else (empty
+      // messages array, an error object in the body, or a different shape)
+      // must be treated as a failure so logs never claim a send that never
+      // happened.
+      const metaMessageId = data?.messages?.[0]?.id;
+      if (!metaMessageId) {
+        const errText = extractWaError(data);
+        console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", JSON.stringify(data));
+        return {
+          success: false,
+          simulated: false,
+          error: errText || "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
+        };
+      }
+
+      return { success: true, simulated: false, messageId: metaMessageId };
     } catch (error: any) {
       console.error("[WhatsApp] Send failed:", error);
       return { success: false, simulated: false, error: error.message };
     }
   },
 });
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Normalise a phone number to E.164 digits without "+" (Meta Cloud API form).
+ * Nigeria-first: local numbers (leading 0, 10-11 digits) get the 234 country
+ * code prefixed. Already-international numbers pass through unchanged.
+ * Returns null when the input can't be a valid phone number.
+ */
+export function normalisePhoneForMeta(raw: string): string | null {
+  if (!raw) return null;
+  let digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  // Local Nigerian format: strip leading zeros ("08012345678" → "8012345678")
+  digits = digits.replace(/^0+/, "");
+  if (!digits) return null;
+  // Already carries a country code we recognise as plausible:
+  //   "2348012345678" (NG), or any 12+ digit international form (e.g. 44…, 1…)
+  if (digits.startsWith("234") && digits.length >= 12) return digits;
+  if (digits.length >= 12) return digits;
+  // Local NG number without country code ("8012345678") — 10 digits
+  if (digits.length >= 10 && digits.length <= 11) return `234${digits}`;
+  // Anything else is not a number Meta will accept
+  return null;
+}
+
+/** Extract a human-readable error from a Chakra/Meta error body (multiple shapes). */
+function extractWaError(data: any): string | null {
+  if (!data) return null;
+  if (typeof data.error === "string") return data.error;
+  if (data.error?.message) return data.error.message;
+  if (data.message) return String(data.message);
+  return null;
+}

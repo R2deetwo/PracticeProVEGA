@@ -1465,6 +1465,16 @@ export default defineSchema({
     automationRuleId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),    // userId if manually triggered
     skipConversation: v.optional(v.boolean()), // true = don't create portal conversation (for non-portal messages like court reminders)
+    // Messages delivery fix: the resolvable recipient contact is embedded at
+    // scheduling time (the crons already know it) so dispatch never depends
+    // on a fragile tenantId → users lookup. automationLogId links the
+    // scheduled send back to its automation_logs row so the log's status can
+    // be corrected to the REAL provider outcome (sent/failed/simulated)
+    // instead of the optimistic "sent" written before dispatch.
+    recipientPhone: v.optional(v.string()),
+    recipientEmail: v.optional(v.string()),
+    recipientName: v.optional(v.string()),
+    automationLogId: v.optional(v.id("automation_logs")),
     createdAt: v.number(),
     updatedAt: v.number(),
 })
