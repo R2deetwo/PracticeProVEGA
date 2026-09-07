@@ -47,7 +47,7 @@ const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
 const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
-  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', portal: 'text-emerald-400 bg-emerald-900/30',
+  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', portal: 'text-emerald-400 bg-emerald-900/30', 'in-app': 'text-indigo-400 bg-indigo-900/30',
 };
 const STATUS_COLORS: Record<string, string> = { sent: 'text-emerald-400', failed: 'text-rose-400', simulated: 'text-amber-400', sending: 'text-sky-400' };
 
@@ -152,14 +152,22 @@ const AutomationCenter: React.FC = () => {
         // only claimed when the gateway accepted the message.
         const status = result.success && !result.simulated ? 'sent' : result.simulated ? 'simulated' : 'failed';
         if (status === 'sent') sent++; else failed++;
-        await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : result.error, triggeredBy: currentUser?.id });
+        // The send RESULT drives the counters; the log write is isolated so
+        // a logging failure can never flip a delivered message to "failed"
+        // (previously the errorMessage arg was rejected by Convex validation
+        // and this catch counted real sends as failures).
+        try {
+          await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : result.error, triggeredBy: currentUser?.id });
+        } catch (logErr) {
+          console.error('[BulkReminder] automation log write failed (send already completed):', logErr);
+        }
       } catch (e: any) {
         failed++;
         console.error(`[BulkReminder] Failed for ${phone}:`, e.message);
       }
     }
     if (sent > 0) addToast(`${sent} WhatsApp reminder(s) delivered`, { type: 'success' });
-    if (failed > 0) addToast(`${failed} failed — check phone numbers are in international format`, { type: 'error' });
+    if (failed > 0) addToast(`${failed} reminder(s) failed — see the reason per recipient in Messages → Outbox.`, { type: 'error' });
   };
 
   return (

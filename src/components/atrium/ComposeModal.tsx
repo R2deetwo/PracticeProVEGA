@@ -12,7 +12,10 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
 import { getGeminiApiKey } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
-import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2 } from 'lucide-react';
+import { resolveFinancials, parseMoneyInput, hasAutoFilledFigures } from '../../utils/messageFinancials';
+import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError } from '../../utils/deliveryErrors';
+import { buildEmailHtml } from '../../utils/emailTemplate';
+import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const SendIcon = ({ className = "w-4 h-4" }) => (
@@ -196,6 +199,17 @@ export interface ComposeModalPrefill {
 // ── Selectable Recipient type ────────────────────────────────────────────
 type RecipientType = 'tenant' | 'client' | 'team' | 'external';
 
+/** Per-recipient send outcome shown in the result panel. */
+interface SendResultRow {
+  id: string;
+  name: string;
+  contact: string;            // phone / email / portal target
+  channel: AutomationChannel;
+  status: 'sent' | 'simulated' | 'failed';
+  error?: string;
+  usedTemplate?: boolean;
+}
+
 interface SelectableRecipient {
   id: string;
   label: string;
@@ -242,6 +256,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     return [];
   });
   const [showFinancials, setShowFinancials] = useState(false);
+  // AUTO-FILL HINT (user feedback 2026-09-08): tracks whether the financial
+  // fields were populated from the selected resident's record, so the UI
+  // can tell the user where the figures came from and that they can edit.
+  const [autoFilledFrom, setAutoFilledFrom] = useState<string | null>(null);
   // AI Drafting Assistant state
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [aiDraftPrompt, setAiDraftPrompt] = useState('');
@@ -255,8 +273,16 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const [agencyFee, setAgencyFee] = useState('');
   const [cautionDeposit, setCautionDeposit] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [step, setStep] = useState<'compose' | 'preview'>('compose');
+  const [step, setStep] = useState<'compose' | 'preview' | 'result'>('compose');
   const [loading, setLoading] = useState(false);
+  // ── Send results (per-recipient) for the result panel ───────────────
+  // Previously the send loop only counted successes/failures and the
+  // provider's error text was DISCARDED — the user saw "0 sent, 1 failed"
+  // with no reason anywhere. Each recipient's outcome + reason is now
+  // kept so the result panel can show exactly what happened and offer a
+  // targeted retry of only the failures.
+  const [sendResults, setSendResults] = useState<SendResultRow[]>([]);
+  const [retrying, setRetrying] = useState(false);
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [recipientTab, setRecipientTab] = useState<RecipientType>(() => {
@@ -399,17 +425,50 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     ? 'All Residents' 
     : (primaryRecipient?.label || primaryRecipient?.propertyAddress || prefill?.unitName || 'General');
 
-  // ── Auto-fill financials when a single recipient is selected ─────────
+  // ── Auto-fill financials from the selected resident's record ─────────
+  // USER FEEDBACK (2026-09-08): "when I selected late service charge for a
+  // resident it still required me to fill in the information — the whole
+  // idea is that it should use the correct info for the correct client
+  // and fill it in." The auto-fill now ALSO pulls the resident's TRACKED
+  // service charge (outstanding balance + due date from the Service
+  // Charge monitor rows — handles composite unit ids), OPENS the
+  // Financial Details section so the figures are actually visible, and
+  // labels where the numbers came from so the user knows they can edit.
+  const findTrackedCharge = (unitId: string, propId?: string): any =>
+    (coreState.serviceCharges || []).find((c: any) => {
+      const cu = String(c.unitId ?? '');
+      return cu === unitId || (propId && cu === propId) || unitId.endsWith(`_${cu}`) || cu.endsWith(`_${unitId}`);
+    });
+
   useEffect(() => {
-    if (selectedRecipients.length === 1) {
-      const r = selectedRecipients[0];
-      if (r.rentAmount) setAmount(r.rentAmount.toString());
-      if (r.serviceCharge) setServiceCharge(r.serviceCharge.toString());
-      if (r.legalFee) setLegalFee(r.legalFee.toString());
-      if (r.agencyFee) setAgencyFee(r.agencyFee.toString());
-      if (r.cautionDeposit) setCautionDeposit(r.cautionDeposit.toString());
+    if (selectedRecipients.length !== 1) {
+      setAutoFilledFrom(null);
+      return;
     }
-  }, [selectedRecipientIds]);
+    const r = selectedRecipients[0] as SelectableRecipient & { recipientType?: RecipientType };
+    if ((r as any).recipientType !== 'tenant') {
+      setAutoFilledFrom(null);
+      return;
+    }
+    const tracked = findTrackedCharge(r.id, (r as any).propertyId);
+    const sc = tracked?.outstandingBalance ?? tracked?.amount ?? r.serviceCharge ?? 0;
+    const filled =
+      (r.rentAmount ?? 0) > 0 || sc > 0 || (r.cautionDeposit ?? 0) > 0 || (r.legalFee ?? 0) > 0 || (r.agencyFee ?? 0) > 0;
+    if (r.rentAmount) setAmount(String(r.rentAmount));
+    if (sc > 0) setServiceCharge(String(sc));
+    if (r.legalFee) setLegalFee(String(r.legalFee));
+    if (r.agencyFee) setAgencyFee(String(r.agencyFee));
+    if (r.cautionDeposit) setCautionDeposit(String(r.cautionDeposit));
+    if (tracked?.nextDueDate) {
+      setDueDate(new Date(tracked.nextDueDate).toISOString().slice(0, 10));
+    }
+    if (filled) {
+      setShowFinancials(true);
+      setAutoFilledFrom(r.tenantName || r.label);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecipientIds, coreState.serviceCharges]);
+
 
   // ── Auto-generate message template ───────────────────────────────────
   useEffect(() => {
@@ -519,7 +578,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       setUpcomingLoading(true);
       convex.query(api.sentry.getAutomationLogs, { firmId, limit: 10, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) })
         .then((logs: any[]) => {
-          setUpcomingLogs(logs.filter((l: any) => l.status === 'simulated' || l.status === 'sent'));
+          // Includes FAILED rows (the old filter hid failures — the user could
+          // never see what went wrong). All statuses shown with their reason.
+          setUpcomingLogs(logs);
           setUpcomingLoading(false);
         })
         .catch(() => setUpcomingLoading(false));
@@ -574,23 +635,34 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   }), [tenantRecipients, clientRecipients, teamRecipients]);
 
   // ── Build per-recipient messages for preview ─────────────────────────
+  // FINANCIAL FALLBACK (user feedback 2026-09-08): when the user didn't
+  // type a figure, the RECIPIENT'S OWN unit data fills it — each resident
+  // in a bulk send gets their own numbers instead of one shared set.
   const previewMessages = useMemo(() => {
     if (selectedRecipients.length === 0) return [];
+    const manual = {
+      amount: parseMoneyInput(amount),
+      serviceCharge: parseMoneyInput(serviceCharge),
+      legalFee: parseMoneyInput(legalFee),
+      agencyFee: parseMoneyInput(agencyFee),
+      cautionDeposit: parseMoneyInput(cautionDeposit),
+    };
     return selectedRecipients.map(r => {
       const name = r.tenantName || 'Resident';
       const label = r.label || r.propertyAddress || 'General';
+      const fin = resolveFinancials(manual, r as any);
       const msg = buildMessage(
         msgType,
         label,
         name,
-        parseFloat(amount) || 0,
+        fin.amount,
         undefined,
         coreState.firmDetails?.automationSettings?.automationTemplates,
         {
-          serviceCharge: parseFloat(serviceCharge) || 0,
-          legalFee: parseFloat(legalFee) || 0,
-          agencyFee: parseFloat(agencyFee) || 0,
-          cautionDeposit: parseFloat(cautionDeposit) || 0,
+          serviceCharge: fin.serviceCharge,
+          legalFee: fin.legalFee,
+          agencyFee: fin.agencyFee,
+          cautionDeposit: fin.cautionDeposit,
           dueDate,
           firmName: coreState.firmDetails?.name || 'Management'
         }
@@ -600,7 +672,20 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   }, [selectedRecipients, msgType, amount, serviceCharge, legalFee, agencyFee, cautionDeposit, dueDate, coreState.firmDetails?.automationSettings?.automationTemplates]);
 
   // ── Send handler ─────────────────────────────────────────────────────
-  const handleSend = async () => {
+  // REWORKED (2026-09-08) — "email service behaviour" per user feedback:
+  //   • the provider's error text is CAPTURED per recipient (previously
+  //     discarded — "0 sent, 1 failed" with no reason anywhere);
+  //   • ALL-success → success toast + close (as before);
+  //   • ANY failure → a result panel inside the modal lists every
+  //     recipient's outcome + reason with a targeted "Retry failed"
+  //     button — the modal no longer closes over silent failures, and
+  //     the user can no longer blindly re-send to everyone;
+  //   • email sends now carry the FIRM's name as the sender display name
+  //     and the staff member's address as reply-to;
+  //   • WhatsApp free-form sends that hit Meta's 24-hour customer-service
+  //     window restriction auto-retry with the registered rent-reminder
+  //     template when the message type has one.
+  const handleSend = async (retryOnlyFailed = false) => {
     if (selectedRecipients.length === 0) return;
     if (channel === 'whatsapp' && !isGrowthOrAbove && !isKompleteFirm) {
       onToast('WhatsApp requires Growth plan or above. Upgrade to unlock this channel.');
@@ -608,30 +693,51 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     }
     setLoading(true);
 
-    try {
-      let successCount = 0;
-      let failCount = 0;
-      let simulatedCount = 0;
+    const targets = retryOnlyFailed
+      ? selectedRecipients.filter(r => sendResults.find(sr => sr.id === r.id && sr.status === 'failed'))
+      : selectedRecipients;
+    if (targets.length === 0) { setLoading(false); return; }
 
-      for (const r of selectedRecipients) {
+    try {
+      const results: SendResultRow[] = [];
+      const firmName = coreState.firmDetails?.name || 'PracticePro';
+      const manual = {
+        amount: parseMoneyInput(amount),
+        serviceCharge: parseMoneyInput(serviceCharge),
+        legalFee: parseMoneyInput(legalFee),
+        agencyFee: parseMoneyInput(agencyFee),
+        cautionDeposit: parseMoneyInput(cautionDeposit),
+      };
+
+      for (const r of targets) {
+        const resultRow: SendResultRow = {
+          id: r.id,
+          name: r.tenantName || r.label || 'Recipient',
+          contact: '',
+          channel,
+          status: 'failed',
+        };
+
         if (channel === 'in-app' || channel === 'portal') {
           // In-app and Portal don't need phone/email, just a valid recipient ID
           if (!r.id) {
-            failCount++;
+            resultRow.error = 'Missing recipient id';
+            results.push(resultRow);
             continue;
           }
+          resultRow.contact = r.id;
         } else {
           const recipient = channel === 'email'
             ? (r.tenantEmail || r.email || '')
             : (r.tenantPhone || r.phone || '');
 
           if (!recipient) {
-            // FIX: Show a toast for empty recipient instead of silently skipping.
-            // Previously, the send silently failed with no user feedback.
-            onToast(`No ${channel === 'email' ? 'email' : 'phone number'} for ${r.tenantName || r.name || 'recipient'}. Skipped.`);
-            failCount++;
+            resultRow.contact = '—';
+            resultRow.error = `No ${channel === 'email' ? 'email address' : 'phone number'} saved for this recipient — update the contact record first.`;
+            results.push(resultRow);
             continue;
           }
+          resultRow.contact = recipient;
         }
 
         const finalRecipient = channel === 'in-app'
@@ -642,27 +748,30 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               ? (r.tenantEmail || r.email || '')
               : `${countryCode}${(r.tenantPhone || r.phone || '').replace(/^0+/, '')}`;
 
-        // Build personalized message for this recipient
+        // Build personalized message for this recipient — with the
+        // per-recipient financial fallback (their own unit figures when
+        // the user didn't type an override).
         const name = r.tenantName || 'Resident';
         const label = r.label || r.propertyAddress || 'General';
+        const fin = resolveFinancials(manual, r as any);
         const personalizedMessage = buildMessage(
           msgType,
           label,
           name,
-          parseFloat(amount) || 0,
+          fin.amount,
           undefined,
           coreState.firmDetails?.automationSettings?.automationTemplates,
           {
-            serviceCharge: parseFloat(serviceCharge) || 0,
-            legalFee: parseFloat(legalFee) || 0,
-            agencyFee: parseFloat(agencyFee) || 0,
-            cautionDeposit: parseFloat(cautionDeposit) || 0,
+            serviceCharge: fin.serviceCharge,
+            legalFee: fin.legalFee,
+            agencyFee: fin.agencyFee,
+            cautionDeposit: fin.cautionDeposit,
             dueDate,
             firmName: coreState.firmDetails?.name || 'Management'
           }
         );
 
-        let sendResult: { success: boolean; simulated?: boolean; error?: string } = { success: true, simulated: true };
+        let sendResult: { success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean } = { success: false, error: 'No channel handler' };
 
         try {
           if (channel === 'in-app') {
@@ -728,69 +837,109 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               sendResult = { success: false, error: portalErr.message };
             }
           } else if (channel === 'whatsapp') {
-            sendResult = await convex.action(api.communications.sendWhatsApp, {
-              to: finalRecipient,
-              messageText: personalizedMessage,
-              firmId,
-            });
+            // Free-form send with an automatic TEMPLATE fallback: Meta
+            // only delivers free-form messages within 24h of the
+            // resident's last reply; business-initiated reminders need
+            // an approved template. When the free-form attempt fails
+            // with a window-class error and the message type has a
+            // registered template, we retry with it automatically.
+            sendResult = await sendWhatsAppWithTemplateFallback(
+              (tplArgs) => convex.action(api.communications.sendWhatsApp, {
+                to: finalRecipient,
+                messageText: personalizedMessage,
+                firmId,
+                ...(tplArgs.templateName ? { templateName: tplArgs.templateName } : {}),
+                ...(tplArgs.templateVars ? { templateVars: tplArgs.templateVars } : {}),
+              }),
+              {
+                messageType: msgType,
+                recipient: { tenantName: name, amount: fin.amount, address: r.propertyAddress || label },
+              }
+            );
           } else if (channel === 'email') {
             sendResult = await convex.action(api.communications.sendEmail, {
               to: finalRecipient,
-              subject: `${getMsgTypeLabel(msgType)} — ${coreState.firmDetails?.name || 'Atrium OS'}`,
-              htmlContent: `<p style="font-family:sans-serif;line-height:1.6">${personalizedMessage.replace(/\n/g, '<br/>')}</p>`,
+              toName: name,
+              senderName: firmName,
+              replyTo: currentUser?.email || undefined,
+              subject: `${getMsgTypeLabel(msgType)} — ${firmName}`,
+              htmlContent: buildEmailHtml({
+                firmName,
+                body: personalizedMessage,
+                footerNote: 'This is an official notification from your property manager.',
+              }),
               firmId,
             });
           }
+        } catch (e: any) {
+          sendResult = { success: false, error: e?.message || 'Send failed' };
+        }
 
-          const status = sendResult.simulated ? 'simulated' : sendResult.success ? 'sent' : 'failed';
-          await logAuto({ 
-            firmId, 
+        const status: 'sent' | 'simulated' | 'failed' = sendResult.simulated ? 'simulated' : sendResult.success ? 'sent' : 'failed';
+        resultRow.status = status;
+        resultRow.error = status === 'failed' ? sendResult.error : undefined;
+        resultRow.usedTemplate = sendResult.usedTemplate;
+        results.push(resultRow);
+
+        // LOG the send. Logging failures are isolated from the send
+        // outcome — a logging error must never flip a delivered message
+        // to "failed" (the pre-rework code did exactly that: an in-app
+        // send succeeded, the log write threw, the toast said failed).
+        try {
+          await logAuto({
+            firmId,
             userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
-            unitId: r.id || undefined, 
-            messageType: msgType as any, 
-            channel, 
-            recipient: finalRecipient, 
-            messagePreview: personalizedMessage.substring(0, 200), 
+            unitId: r.id || undefined,
+            messageType: msgType as any,
+            channel,
+            recipient: finalRecipient,
+            messagePreview: personalizedMessage.substring(0, 200),
             messageContent: personalizedMessage,
             direction: 'outbound' as const,
             senderName: currentUser?.name || 'Property Manager',
-            status, 
-            triggeredBy: currentUser?.id 
+            status,
+            errorMessage: status === 'failed' ? sendResult.error : undefined,
+            messageId: sendResult.messageId,
+            triggeredBy: currentUser?.id
           });
-
-          if (sendResult.success) {
-            if (sendResult.simulated) {
-              simulatedCount++;
-            } else {
-              successCount++;
-            }
-          } else {
-            failCount++;
-          }
-        } catch {
-          failCount++;
+        } catch (logErr) {
+          console.error('[ComposeModal] automation log write failed (send already completed):', logErr);
         }
       }
 
-      // Summary toast
+      // Merge retry results with the previous round (retries replace their rows)
+      const merged = retryOnlyFailed
+        ? [...sendResults.filter(sr => !results.find(nr => nr.id === sr.id)), ...results]
+        : results;
+      setSendResults(merged);
+
+      const successCount = merged.filter(r => r.status === 'sent').length;
+      const simulatedCount = merged.filter(r => r.status === 'simulated').length;
+      const failCount = merged.filter(r => r.status === 'failed').length;
       const totalSent = successCount + simulatedCount;
+
       if (failCount === 0) {
         if (simulatedCount > 0) {
           onToast(`${totalSent} message(s) logged (channel not configured). ${simulatedCount} simulated.`);
         } else {
-          onToast(`${successCount} message(s) delivered successfully!`);
+          onToast(`${successCount} message(s) delivered successfully — recorded in Messages → Outbox.`);
         }
+        onClose();
       } else {
-        onToast(`${totalSent} sent, ${failCount} failed. Check logs for details.`);
+        // Failures stay ON SCREEN with the reasons — no more silent closes.
+        const firstError = merged.find(r => r.status === 'failed')?.error;
+        onToast(`${totalSent} sent, ${failCount} failed — ${summarizeError(firstError, 90)}`);
+        setStep('result');
       }
-      onClose();
     } catch (e: any) {
       console.error("Error during send:", e);
       onToast(translateError(e, "send message"));
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleRetryFailed = () => handleSend(true);
 
   // ── Recipient chip component ─────────────────────────────────────────
   const RecipientChip: React.FC<{ recipient: SelectableRecipient }> = ({ recipient }) => (
@@ -1160,7 +1309,16 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 {showFinancials ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
               {showFinancials && (
-                <div className="px-4 pb-3 grid grid-cols-2 gap-3">
+                <div className="px-4 pb-3">
+                  {/* Auto-fill provenance — tells the user the figures came
+                      from the resident's own record (and can be edited). */}
+                  {autoFilledFrom && (
+                    <p className="text-2xs text-primary-600 dark:text-primary-400 mb-2 flex items-center gap-1">
+                      <Receipt className="w-3 h-3" />
+                      Auto-filled from {autoFilledFrom}'s record — edit any figure to override. Empty fields fall back to each resident's own numbers.
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Rent Amount (₦)</label>
                     <input type="text" value={formatNumberWithCommas(amount)} onChange={e => setAmount(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
@@ -1184,6 +1342,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Due Date</label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                  </div>
                   </div>
                 </div>
               )}
@@ -1257,7 +1416,11 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               </button>
             </div>
 
-            {/* ── Upcoming Messages Panel ─────────────────────────────── */}
+            {/* ── Recently Sent Panel ─────────────────────────────── */}
+            {/* Renamed + includes FAILED rows (user feedback 2026-09-08:
+                "where do I see the record of mails sent?" — the old panel
+                was labelled "Upcoming Messages" AND filtered out failed
+                rows, hiding the exact history the user needed). */}
             <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
               <button
                 onClick={() => setShowUpcoming(!showUpcoming)}
@@ -1265,7 +1428,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               >
                 <span className="flex items-center gap-1.5 uppercase tracking-wider font-medium">
                   <Clock className="w-3.5 h-3.5" />
-                  Upcoming Messages
+                  Recently Sent
                 </span>
                 {showUpcoming ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
@@ -1273,16 +1436,16 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 <div className="px-4 pb-3">
                   <div className="flex items-center gap-1 mb-2">
                     <Clock className="w-3 h-3 text-amber-500" />
-                    <span className="text-2xs text-amber-600 dark:text-amber-400">Recent automated messages</span>
+                    <span className="text-2xs text-amber-600 dark:text-amber-400">Last 10 messages — full history in Messages → Outbox</span>
                   </div>
                   {upcomingLoading ? (
                     <div className="text-xs text-slate-400 dark:text-zinc-500 py-2 text-center">Loading…</div>
                   ) : upcomingLogs.length === 0 ? (
-                    <div className="text-xs text-slate-400 dark:text-zinc-600 py-2 text-center">No recent messages found</div>
+                    <div className="text-xs text-slate-400 dark:text-zinc-600 py-2 text-center">No messages sent yet</div>
                   ) : (
                     <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar">
                       {upcomingLogs.map((log: any) => (
-                        <div key={log._id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/50">
+                        <div key={log._id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/50" title={log.errorMessage || undefined}>
                           <span className="text-slate-400 dark:text-zinc-500">{getMsgTypeIcon(log.messageType)}</span>
                           <span className={`text-2xs font-bold px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel as AutomationChannel]}`}>
                             {log.channel?.toUpperCase()}
@@ -1307,7 +1470,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               )}
             </div>
           </div>
-        ) : (
+        ) : step === 'preview' ? (
           /* ── Preview Step ────────────────────────────────────────────── */
           <div className="p-4 sm:p-5 overflow-y-auto flex-1">
             {/* Recipients summary for multi-send */}
@@ -1365,12 +1528,89 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             </p>
             <div className="flex gap-3">
               <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">← Edit</button>
-              <button onClick={handleSend} disabled={loading} className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+              <button onClick={() => handleSend()} disabled={loading} className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                 <SendIcon /> {loading ? 'Sending…' : `Confirm & Send${isMultiRecipient ? ` (${selectedRecipients.length})` : ''}`}
               </button>
             </div>
           </div>
-        )}
+        ) : step === 'result' ? (
+          /* ── Result Step — what ACTUALLY happened, per recipient ───── */
+          <div className="p-4 sm:p-5 overflow-y-auto flex-1">
+            <div className="mb-4">
+              <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                {sendResults.every(r => r.status !== 'failed') ? (
+                  <><CheckCircle2 className="w-5 h-5 text-emerald-500" /> Delivery complete</>
+                ) : (
+                  <><XCircle className="w-5 h-5 text-rose-500" /> Some messages failed</>
+                )}
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Every send is recorded in Messages → Outbox with its status and reason.
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              {sendResults.map(r => (
+                <div key={r.id} className={`rounded-lg border p-3 flex items-start gap-3 ${
+                  r.status === 'sent'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40'
+                    : r.status === 'simulated'
+                      ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40'
+                      : 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/40'
+                }`}>
+                  <span className="flex-shrink-0 mt-0.5">
+                    {r.status === 'sent' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      : r.status === 'simulated' ? <Clock className="w-4 h-4 text-amber-500" />
+                      : <XCircle className="w-4 h-4 text-rose-500" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">{r.name}</span>
+                      <span className={`text-2xs font-bold px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[r.channel]}`}>{r.channel.toUpperCase()}</span>
+                      <span className="text-2xs text-slate-400 dark:text-zinc-500 truncate">→ {r.contact}</span>
+                    </div>
+                    <p className={`text-2xs font-bold uppercase tracking-wider mt-1 ${
+                      r.status === 'sent' ? 'text-emerald-600 dark:text-emerald-400'
+                        : r.status === 'simulated' ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }}`}>
+                      {r.status === 'sent'
+                        ? `Delivered${r.usedTemplate ? ' (via template)' : ''}`
+                        : r.status === 'simulated' ? 'Logged — channel not configured' : 'Failed'}
+                    </p>
+                    {r.status === 'failed' && r.error && (
+                      <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed mt-1">{r.error}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* WhatsApp guidance — only when a WA send failed with the window error */}
+            {channel === 'whatsapp' && sendResults.some(r => r.status === 'failed' && isWhatsAppWindowError(r.error)) && (
+              <div className="mb-4 p-3 rounded-lg bg-sky-50 dark:bg-sky-900/10 border border-sky-200 dark:border-sky-800/40 text-xs text-sky-800 dark:text-sky-300 leading-relaxed">
+                <span className="font-bold">Why this happens:</span> WhatsApp only delivers free-form messages within
+                24 hours of the resident's last reply to your business number. For business-initiated reminders, Meta
+                requires an <span className="font-bold">approved message template</span>. Your Rent Reminder template
+                is used automatically when available; if it isn't registered yet, register it in your WhatsApp
+                Business Manager (Message templates) and try again.
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              {sendResults.some(r => r.status === 'failed') && (
+                <button
+                  onClick={handleRetryFailed}
+                  disabled={loading}
+                  className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Retrying…' : `Retry Failed (${sendResults.filter(r => r.status === 'failed').length})`}
+                </button>
+              )}
+              <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Done</button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

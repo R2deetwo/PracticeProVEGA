@@ -749,13 +749,22 @@ export const logAutomation = mutation({
       v.literal("penalty_notice"),
       v.literal("lease_renewal"),
     ),
-    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
+    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal"), v.literal("in-app")),
     recipient: v.string(),
     messagePreview: v.optional(v.string()),
     messageContent: v.optional(v.string()),
     direction: v.optional(v.union(v.literal("outbound"), v.literal("inbound"))),
     senderName: v.optional(v.string()),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
+    // WHY IT FAILED / PROOF OF DELIVERY (2026-09-08): previously callers
+    // could not store the provider's error text or the gateway message id,
+    // so a failed WhatsApp/email showed as "failed" with NO reason — the
+    // user had no way to learn that e.g. Meta rejected a free-form message
+    // outside the 24-hour window. AutomationCenter already passed
+    // errorMessage (which Convex REJECTED as an unknown field — the log
+    // row silently never persisted); it is now a declared arg.
+    errorMessage: v.optional(v.string()),
+    messageId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },

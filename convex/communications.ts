@@ -27,6 +27,14 @@ export const sendEmail = action({
     subject: v.string(),
     htmlContent: v.string(),
     firmId: v.string(),
+    // SENDER IDENTITY (user feedback 2026-09-08: "the email name did not
+    // show the name of the firm"). The display name shown in the
+    // recipient's inbox now defaults to the SENDING FIRM's name — the
+    // sender email stays the verified Brevo address, but the name the
+    // customer sees is the firm they know. replyTo routes answers to the
+    // staff member who sent it (normal email-service behaviour).
+    senderName: v.optional(v.string()),
+    replyTo: v.optional(v.string()),
     recordLog: v.optional(v.boolean()),
   },
   handler: async (_ctx, args) => {
@@ -52,6 +60,9 @@ export const sendEmail = action({
     }
 
     try {
+      const replyTo = args.replyTo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(args.replyTo).trim())
+        ? [{ email: String(args.replyTo).trim() }]
+        : undefined;
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
@@ -60,8 +71,12 @@ export const sendEmail = action({
           "api-key": BREVO_API_KEY,
         },
         body: JSON.stringify({
-          sender: { name: "PracticePro Systems", email: process.env.BREVO_SENDER_EMAIL || "practiceprosystems@gmail.com" },
-          to: [{ email: String(args.to).trim(), name: args.toName || args.to }],
+          sender: {
+            name: (args.senderName || "PracticePro").toString().slice(0, 90),
+            email: process.env.BREVO_SENDER_EMAIL || "practiceprosystems@gmail.com",
+          },
+          to: [{ email: String(args.to).trim(), name: (args.toName || args.to).toString().slice(0, 90) }],
+          ...(replyTo ? { replyTo } : {}),
           subject: args.subject,
           htmlContent: args.htmlContent,
         }),
@@ -179,7 +194,7 @@ export const sendWhatsApp = action({
 
       if (!response.ok) {
         console.error("[WhatsApp] Chakra API Error:", JSON.stringify(data));
-        return { success: false, simulated: false, error: extractWaError(data) || `Chakra API error (HTTP ${response.status})` };
+        return { success: false, simulated: false, error: explainWhatsAppError(extractWaError(data)) || `Chakra API error (HTTP ${response.status})` };
       }
 
       // STRICT success verification (Messages false-"sent" bug): a 200 from
@@ -195,7 +210,7 @@ export const sendWhatsApp = action({
         return {
           success: false,
           simulated: false,
-          error: errText || "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
+          error: explainWhatsAppError(errText) || "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
         };
       }
 
@@ -236,7 +251,49 @@ export function normalisePhoneForMeta(raw: string): string | null {
 function extractWaError(data: any): string | null {
   if (!data) return null;
   if (typeof data.error === "string") return data.error;
-  if (data.error?.message) return data.error.message;
+  if (data.error?.message) {
+    const code = data.error?.code ? ` (code ${data.error.code})` : "";
+    return `${data.error.message}${code}`;
+  }
   if (data.message) return String(data.message);
   return null;
+}
+
+/**
+ * Detect the WhatsApp 24-hour customer-service-window error class — the
+ * #1 reason business-initiated free-form sends fail (Meta error 131047
+ * "Re-engagement message" / "more than 24 hours have passed"). When the
+ * resident hasn't replied within 24h, Meta only accepts messages sent via
+ * an APPROVED TEMPLATE. Surfacing this distinction turns a cryptic
+ * provider error into an actionable instruction.
+ */
+export function isWhatsAppWindowError(error: string | null | undefined): boolean {
+  if (!error) return false;
+  const e = error.toLowerCase();
+  return (
+    e.includes("131047") ||
+    e.includes("re-engagement") ||
+    e.includes("reengagement") ||
+    e.includes("more than 24 hours") ||
+    e.includes("24 hours have passed") ||
+    e.includes("outside the 24") ||
+    e.includes("support window") ||
+    e.includes("customer service window") ||
+    (e.includes("template") && (e.includes("required") || e.includes("only allowed")))
+  );
+}
+
+/**
+ * Append an actionable hint to window-class WhatsApp errors so users see
+ * WHY the send failed and what to do, not just the provider's raw text.
+ */
+export function explainWhatsAppError(error: string | null | undefined): string {
+  if (!error) return "Unknown WhatsApp gateway error.";
+  if (isWhatsAppWindowError(error)) {
+    return `${error} — WhatsApp only delivers free-form messages within 24 hours of the resident's last reply. Business-initiated messages need an approved template (e.g. your Rent Reminder template). The resident can also message you first to open the 24-hour window.`;
+  }
+  if (/template.*not.*(exist|found)|does not exist/i.test(error)) {
+    return `${error} — this WhatsApp template isn't registered/approved on your account yet. Register it in your WhatsApp Business Manager, or send as a normal reply within 24 hours of the resident's last message.`;
+  }
+  return error;
 }

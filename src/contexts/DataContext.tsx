@@ -60,7 +60,7 @@ export interface ExtendedDataActions extends DataActionsContextType {
     handleDeleteAnalysisResult: (id: string) => void;
     handleToggleBookmarkCase: (id: string) => void;
     archiveItem: (type: string, id: string, name: string, data: any) => void;
-    handleSendEmail: (data: any) => void;
+    handleSendEmail: (data: any) => Promise<{ success: boolean; sentCount: number; failedCount: number; firstError?: string }>;
     handleRequestFinancialDocument: (matterId: string, type: string) => void;
     handleAddLead: (lead: any, isClientRequest?: boolean) => void;
     handleSendIntakeLink: (leadId: string) => void;

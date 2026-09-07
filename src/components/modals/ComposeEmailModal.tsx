@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useMatterState } from '../../contexts/MatterContext';
+import { useCoreState } from '../../contexts/CoreContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { DocumentIcon, UploadIcon, DismissIcon, PaperClipIcon } from '../../constants';
@@ -15,6 +16,7 @@ interface ComposeEmailModalProps {
 const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialContext }) => {
   const { handleSendEmail } = useDataActions();
   const { matterState } = useMatterState();
+  const { coreState } = useCoreState();
   const { documentState } = useDocumentState();
   const { addToast } = useUI();
 
@@ -28,6 +30,15 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
   const [attachments, setAttachments] = useState<Document[]>([]);
   const [isAttaching, setIsAttaching] = useState(false);
   const [confirmNoSubject, setConfirmNoSubject] = useState(false);
+  // SEND STATE (user feedback 2026-09-08: "let the modal behave how a
+  // normal email service behaves"): the send is AWAITED — the modal
+  // stays open with a spinner and the provider's error until it resolves,
+  // closes only on success, and shows the failure reason inline instead
+  // of a vanishing toast. Previously handleSendEmail was fire-and-forget:
+  // the modal closed instantly and a failed send left nothing but a
+  // transient toast and no record.
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const hasAutoFilled = useRef(false);
 
@@ -48,7 +59,8 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
     }
   }, [matter, client, to, subject]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (isSending) return;
     if (!to.trim()) {
       addToast('Please add at least one recipient.', { type: 'info' });
       return;
@@ -65,15 +77,28 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
     }
 
     const recipients = [...to.split(','), ...cc.split(','), ...bcc.split(',')].map(s => s.trim()).filter(Boolean);
-    handleSendEmail({
-      matterId: matterId || '',
-      from: 'admin@practicepro.ng',
-      to: recipients,
-      subject: subject || '(No Subject)',
-      body,
-      attachments: attachments.map(d => d.file!).filter(Boolean)
-    });
-    onClose();
+    setIsSending(true);
+    setSendError(null);
+    try {
+      const result = await handleSendEmail({
+        matterId: matterId || '',
+        to: recipients,
+        toName: client?.name || undefined,
+        firmName: (coreState as any).firmDetails?.name,
+        subject: subject || '(No Subject)',
+        body,
+        attachments: attachments.map(d => d.file!).filter(Boolean)
+      });
+      // Close only when the mail actually went out — failures stay on
+      // screen with the reason so the user can fix and retry.
+      if (result?.success) {
+        onClose();
+      } else {
+        setSendError(result?.firstError || 'The email could not be delivered. Check the recipient address and try again.');
+      }
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const toggleAttachment = (doc: Document) => {
@@ -87,6 +112,25 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
 
   return (
     <div className="flex flex-col -m-1 sm:-m-2 h-[75vh] sm:h-auto sm:max-h-[80vh]">
+      {/* Delivery failure banner — the provider's reason, on screen, with
+          the message intact so the user can fix and retry. */}
+      {sendError && (
+        <div className="mx-1 mt-1 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-lg flex items-start justify-between gap-3 animate-fade-in">
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-rose-700 dark:text-rose-300">Email not sent</p>
+            <p className="text-xs text-rose-600 dark:text-rose-400 leading-relaxed mt-0.5">{sendError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSendError(null)}
+            className="text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 flex-shrink-0 p-0.5"
+            aria-label="Dismiss"
+          >
+            <DismissIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Inline warning for missing subject — replaces the confusing deleteConfirmation overload */}
       {confirmNoSubject && (
         <div className="mx-1 mt-1 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg flex items-center justify-between gap-3 animate-fade-in">
@@ -236,9 +280,20 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
           <button
             type="button"
             onClick={handleSend}
-            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold shadow-md text-xs transition-all active:scale-95"
+            disabled={isSending}
+            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold shadow-md text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center gap-2"
           >
-            Send Email
+            {isSending ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Sending…
+              </>
+            ) : (
+              'Send Email'
+            )}
           </button>
         </div>
       </div>

@@ -18,7 +18,7 @@ import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
 import TeamMessageModal from './modals/TeamMessageModal';
 // SIMPLIFY FIX: dead AtriumInbox import removed — the WhatsApp & Email tab
 // was merged into Conversations (inbox) in a prior session.
-import { NoticeBoardTab, ScheduledTab } from './messaging';
+import { NoticeBoardTab, ScheduledTab, OutboxTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
 import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
@@ -53,12 +53,15 @@ const PdfIcon = ({ className }: { className?: string }) => (
 // 'inbox'     = Conversations (portal chat with clients/residents + team DMs)
 // 'notices'   = Notice Board (property only)
 // 'scheduled' = Scheduled messages (queued for future send)
+// 'outbox'   = Sent-messages history — every email/WhatsApp/portal/in-app
+//              send with delivery status + failure reason (the "Sent"
+//              folder users expect from an email service)
 // SIMPLIFY FIX: 'communications' removed — inbound WhatsApp/Email threads now
 // render inside Conversations.
 // SIMPLIFY FIX: 'team' removed — the standalone Team tab duplicated the
 // inbox's "Team DMs" section + thread 1:1; team chat lives inside
 // Conversations ("New team message" button on that section).
-type MessagingTab = 'inbox' | 'notices' | 'scheduled';
+type MessagingTab = 'inbox' | 'notices' | 'scheduled' | 'outbox';
 
 // ── Channel label helpers (shared with AtriumInbox) ────────────────────
 const CHANNEL_COLORS: Record<string, string> = {
@@ -612,13 +615,14 @@ const MessagesView: React.FC = () => {
         if (hint === 'inbox') return 'inbox';
         if (hint === 'notices') return 'notices';
         if (hint === 'scheduled') return 'scheduled';
+        if (hint === 'outbox') return 'outbox';
         return 'inbox';
     });
 
     // Also switch tabs when navigating from notifications while already on messaging view
     useEffect(() => {
         const hint = currentHistoryEntry.context?.initialTab;
-        if (hint === 'inbox' || hint === 'notices' || hint === 'scheduled') {
+        if (hint === 'inbox' || hint === 'notices' || hint === 'scheduled' || hint === 'outbox') {
             setActiveTab(hint as MessagingTab);
         }
         // If navigating to inbox with a specific inbound message ID, select it
@@ -894,6 +898,9 @@ const MessagesView: React.FC = () => {
     // ── Scheduled — count for tab badge (content rendered by ScheduledTab) ──
     const scheduledMessagesCount = useQuery(api.portals.getScheduledMessagesByFirm, firmId ? { firmId } : 'skip') || [];
     const pendingScheduled = useMemo(() => (scheduledMessagesCount as any[]).filter((m: any) => m.status === 'scheduled').length, [scheduledMessagesCount]);
+    // Failed sends badge on the Outbox tab — draws attention to delivery
+    // problems the moment they exist (was invisible before this round).
+    const failedSendsCount = useMemo(() => (automationLogs as any[]).filter((l: any) => l.status === 'failed' && l.direction !== 'inbound').length, [automationLogs]);
 
     // ── Inbox: compute unread counts ──
     const inboundUnreadCount = atriumInbound.filter((m: any) => !m.isRead).length;
@@ -1405,6 +1412,28 @@ const MessagesView: React.FC = () => {
                         {pendingScheduled > 0 && (
                             <span className="min-w-[18px] h-[18px] bg-amber-500 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm">
                                 {pendingScheduled > 9 ? '9+' : pendingScheduled}
+                            </span>
+                        )}
+                    </button>
+
+                    {/* Outbox Tab — the sent-messages history ("Sent" folder).
+                        User feedback 2026-09-08: "where do I see the record
+                        of mails sent?" — every send is logged with status +
+                        failure reason; this tab surfaces it right next to
+                        the Compose button that creates the records. */}
+                    <button
+                        onClick={() => setActiveTab('outbox')}
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                            activeTab === 'outbox'
+                                ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        }`}
+                    >
+                        <SendIcon className="w-4 h-4" />
+                        <span className="hidden sm:inline">Outbox</span>
+                        {failedSendsCount > 0 && (
+                            <span className="min-w-[18px] h-[18px] bg-rose-600 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm">
+                                {failedSendsCount > 9 ? '9+' : failedSendsCount}
                             </span>
                         )}
                     </button>
@@ -2928,6 +2957,11 @@ const MessagesView: React.FC = () => {
                 {/* ═══ SCHEDULED TAB ═══ */}
                 {activeTab === 'scheduled' && (
                     <ScheduledTab firmId={firmId} />
+                )}
+
+                {/* ═══ OUTBOX TAB ═══ — sent-messages history */}
+                {activeTab === 'outbox' && (
+                    <OutboxTab firmId={firmId} />
                 )}
 
                 {/* ═══ COMMUNICATIONS TAB ═══ */}

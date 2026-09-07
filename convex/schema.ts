@@ -1226,7 +1226,10 @@ export default defineSchema({
       v.literal("general_announcement"),
       v.literal("maintenance_update")
     ),
-    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
+    // 'in-app' added 2026-09-08: ComposeModal's in-app channel previously
+    // failed logAutomation validation (the union rejected it), so in-app
+    // sends were counted as failures even though they WERE delivered.
+    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal"), v.literal("in-app")),
     recipient: v.string(), 
     messagePreview: v.optional(v.string()),
     messageContent: v.optional(v.string()),

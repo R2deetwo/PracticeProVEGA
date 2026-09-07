@@ -616,7 +616,7 @@ export interface DataActionsContextType {
     handleUpdateClientActionItem: (matterId: string, itemId: string, completed: boolean) => void;
     handleSendClientMessage: (matterId: string, content: string) => void;
     handleSaveEmailAsDocument: (email: Email) => void;
-    handleSendEmail: (emailData: any) => void;
+    handleSendEmail: (emailData: any) => Promise<{ success: boolean; sentCount: number; failedCount: number; firstError?: string }>;
     handleRequestFinancialDocument: (matterId: string, type: string) => void;
     handleLinkContactToMatter: (matterId: string, contactIds: string[]) => void;
     onUpdateContactProperties: (contactId: string, properties: Property[]) => void;
