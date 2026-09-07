@@ -11421,3 +11421,90 @@ write-capable PAT in chat this round.
   Firebase info), Chakra webhook live test, WhatsApp template
   registration docx (3 details pending), 2FA code-rejection if it
   recurs, and the user should rotate the PAT pasted this round.
+
+## Task 25 — MESSAGES OVERHAUL: one inbox, one composer, one send-history (2026-09-08)
+
+**Context:** User: "the messages page is just so confusing … we overhaul
+the messages pages and system so we do not have this convoluted system.
+I'm making this product to make things EASIER for facilities/property
+managers, not harder." (Also: responses must be ENGLISH ONLY — the user
+saw Chinese; and the PAT was pasted a second time — rotation reminder
+repeated.)
+
+**Environment note:** the sandbox reset to a Sep-2 snapshot between
+sessions (local repo lost tasks 18-24 commits, node_modules empty).
+Recovered by fetching origin (old read PAT still fetches) + reset to
+origin/main 96e5b03f — nothing was lost, GitHub + production held
+everything. npm install re-run; vitest/tsc/vite all green after.
+
+**Audit findings (Explore agent, full inventory in session):**
+- TWO inboxes showing the same sentry.getInboundMessages data:
+  Messages → Conversations AND Financials → Inbox (AtriumInbox).
+- FOUR send-history surfaces reading sentry.getAutomationLogs: Outbox
+  tab, AtriumInbox Audit Trail tab, AutomationCenter Message Logs feed,
+  ComposeModal "Recently Sent".
+- THREE compose modals (atrium ComposeModal, modals/ComposeMessageModal
+  — weaker duplicate with no templates/logging/results, opened from the
+  property unit Message button — and ComposeEmailModal) + TeamMessageModal.
+- Jargon: "Direct Message", T:/R:/A: prefixes, Outbox vs Audit Trail vs
+  Message Logs, stale "Inbox → Compose" copy pointing at renamed tabs,
+  message-type label maps duplicated 5× with drifting labels.
+
+**Fix (commit a6c761d2):**
+
+- ONE inbox: AtriumInbox.tsx + CommunicationPrintView.tsx DELETED
+  (git rm). Financials tab "Inbox" → "Payment Proofs", rendering the new
+  atrium/PaymentProofsScreen.tsx: single-purpose approve/reject screen
+  with pending count + a where-did-it-go strip linking to Messages →
+  Conversations / Sent.
+- ONE send-history: Outbox tab renamed "Sent" (Gmail mental model);
+  AtriumInbox Audit Trail and AutomationCenter Message Logs removed and
+  replaced with routing links to Messages → Sent; all cross-refs
+  (ComposeModal toast + Recently Sent, AutomationCenter toast, HelpView)
+  updated.
+- ONE composer: ComposeMessageModal.tsx DELETED. PropertyDetailView's
+  unit "Message" button now opens the unified ComposeModal with
+  {unitId, unitName, tenantName, phone, email, rentAmount, address}
+  prefill; ServiceChargeMonitor's per-charge "Send WhatsApp" button
+  delegates to BillingView-hosted ComposeModal via new onComposeCharge
+  prop — prefill gains messageType so it opens on the Service Charge
+  Alert template with figures auto-filled from the resident's tracked
+  records (the exact flow the user complained about).
+- Composer UX: To-field FIRST (was Message Type/Channel first — Gmail
+  mental model: who → what → how), modal title "New Message" (was
+  "Direct Message"), plain subtitle; every "Compose" button app-wide
+  renamed "New Message".
+- Consistency: new src/utils/messageTypes.ts single source for
+  message-type labels (5 duplicate maps removed: ComposeModal,
+  AutomationCenter, AtriumInbox [deleted], ScheduledTab, OutboxTab);
+  NoticeBoardTab stale copy "use Inbox → Compose" → "Messages → New
+  Message"; HelpView documents the Sent tab.
+
+**Gates:** convex tsc 0 errors; root tsc 128 errors (baseline 131 —
+under; all hits pre-existing, zero in changed files); vitest 229/229;
+vite build green 21.6s (markers "New Message" / "Payment Proofs" /
+"Sent messages & delivery history" / "awaiting review" in dist);
+dist browser smoke (agent-browser + vite preview) mounts with 0 console
+errors.
+
+**Deploy evidence:** pushed 96e5b03f..a6c761d2 via one-shot GIT_ASKPASS
+(token never persisted); production-deploy.yml dispatched → run
+34169017242: quality-gate success, deploy-production (Vercel + Convex)
+SUCCESS, deploy-cloudflare FAILURE (the standing expired
+CLOUDFLARE_API_TOKEN — 3 deploys running). Live probes: version.json
+sha=a6c761d2 healthy (built 23:11Z); entry bundle contains "Payment
+Proofs" / "Sent messages & delivery history" / "awaiting review" /
+"New Message"; module-atrium-DF0tY7wc.js contains "New Message".
+("Direct Message" hits in the live bundle are the separate
+legal-side NewDirectMessageForm/useMessaging quick-DM feature — out of
+scope, noted.)
+
+**Stage summary:**
+
+- The Messages system is now ONE mental model: Messages → Conversations
+  (talk) / Sent (history) / Scheduled (later) / Notices (announce), one
+  New Message composer everywhere, Payment Proofs as its own Financials
+  screen. Three duplicate surfaces deleted (~1,700 lines).
+- Standing queue unchanged: Cloudflare mirror token, Firebase push info,
+  Chakra webhook test, WhatsApp template registration docx (3 details),
+  2FA if it recurs, PAT rotation.
