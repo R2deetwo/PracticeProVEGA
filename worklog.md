@@ -11185,3 +11185,71 @@ forgotten: "Forgot password?" now works via BOTH the RCV- code and the
 **Carried forward:** CF mirror token (user action), Vercel auto-deploy hole
 fix (user dashboard action), staging Convex provisioning, AGENT_INSPECT_SECRET,
 Paystack LIVE keys — unchanged from task 20.
+
+---
+
+## Task 22 — Aloa "Unauthenticated" + Messages false-"sent" (2026-09-07)
+
+**User-visible symptoms:**
+1. Aloa chat: `[CONVEX myFunctions:createAloaConversation] Unauthenticated: a
+   verified session is required. Please sign in again.` — chat dead on arrival.
+2. Messages screen: rows say "email sent" / "whatsapp message sent" (status
+   pill green, KPIs count them) but NOTHING is delivered to residents.
+3. Prior session claimed fixes that never landed — local repo was 32 commits
+   behind origin and the 714 "modified" files were permission-bit-only noise;
+   the old remote PAT was dead, so nothing had ever been pushed.
+
+**Root causes (five, all real, all fixed):**
+1. **Aloa (auth):** `AloaChat.tsx` never passed `sessionToken` to
+   `createAloaConversation` / `saveAloaMessage` — R16 strict identity rejects
+   tokenless callers. Also `saveAloaMessage` had NO caller verification at all
+   (anyone could write into any firm's conversations) — now requires staff
+   caller + firm scope + conversation ownership.
+2. **Email honesty:** `communications.sendEmail` returned
+   `{success:true, simulated:true}` when the Brevo key was missing — every
+   `result.success` caller marked undelivered mail as "sent". Now returns an
+   honest failure with remediation text.
+3. **WhatsApp honesty + format:** `sendWhatsApp` treated any Chakra 200 as
+   success; Meta's contract requires `messages[0].id`. Added E.164
+   normalisation (`normalisePhoneForMeta`, exported + unit-tested) — DB-stored
+   local shapes ("0801…", "801…") previously reached Meta invalid.
+4. **The dispatcher:** `processScheduledMessages` ignored provider results
+   (failures are return values, not exceptions) AND resolved recipients via
+   `getUser(tokenIdentifier=tenantId)` which never matched how tenantIds are
+   stored — dispatch silently no-op'd while writing status "sent". Now:
+   verifies results, uses the contact embedded on the scheduled_message
+   (schema: new optional `recipientPhone/recipientEmail/recipientName/
+   automationLogId`), falls back to the old lookup, and corrects the linked
+   automation_logs row (new internal `sentry.updateAutomationLogStatus`).
+5. **The crons:** all three automation sites (service-charge reminder, payment
+   receipt, late notice) wrote `status:"sent"` BEFORE dispatch and only
+   scheduled the WhatsApp channel — email-channel reminders/receipts were
+   logged "sent" with NOTHING ever dispatched. Now logs start "sending",
+   both channels are scheduled with embedded contacts + log link. Late
+   notices also gained an email fallback for email-only tenants.
+   Plus: task-reminder email scheduler passed `html` instead of `htmlContent`
+   and omitted `firmId` → Convex validation rejected it silently on every
+   run (never sent); fixed. Frontend: `ComposeMessageModal` logged status
+   from stale React state (closure bug); `AutomationCenter` bulk reminders
+   counted simulated sends as delivered — both now derive status honestly
+   (`sent` only when `success && !simulated`).
+
+**Gates & deploy:** vitest 204/204 (+10 new in
+`tests/unit/messagesDelivery.test.ts`: E.164 normalisation + honest-status
+contract), convex tsc 0, build green. Pushed 5c62d0c9 to main; promotion run
+34132803938: tests + Vercel + Convex jobs ALL green, backend probed live.
+Only the CF mirror fast-failed (expired token — known §9 item, non-blocking).
+Because today's Convex deploy ships ALL of main, the task-21 login fix is
+confirmed on the production backend as of this deploy as well.
+
+**User's path forward:** hard-refresh the app (new frontend is live). Aloa:
+works after normal sign-in (session token now flows). Messages: statuses are
+now truthful — email actually delivers (Brevo is configured; login codes
+already proved it), WhatsApp will show "simulated" + the exact missing env
+vars if CHAKRA_* isn't set in the Convex dashboard, and "failed" rows now
+carry the provider's error text inline. Old "sent" rows are historical
+records of the old code's lies — they won't retroactively change.
+
+**Carried forward:** CF mirror token, Vercel auto-deploy hole, staging
+provisioning, Paystack LIVE keys — unchanged. Firebase push still blocked on
+the user's Firebase service-account JSON (reminder sent to user).
