@@ -440,15 +440,28 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       return cu === unitId || (propId && cu === propId) || unitId.endsWith(`_${cu}`) || cu.endsWith(`_${unitId}`);
     });
 
+  // Guards the auto-fill against stomping: when the tracked-charge data
+  // refetches mid-compose (Convex reactivity), a re-run must not overwrite
+  // figures the user has typed or that were already filled for this
+  // recipient. Switching to a DIFFERENT recipient always re-fills.
+  const lastAutoFillForRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (selectedRecipients.length !== 1) {
+      lastAutoFillForRef.current = null;
       setAutoFilledFrom(null);
       return;
     }
     const r = selectedRecipients[0] as SelectableRecipient & { recipientType?: RecipientType };
     if ((r as any).recipientType !== 'tenant') {
+      lastAutoFillForRef.current = null;
       setAutoFilledFrom(null);
       return;
+    }
+    const recipientChanged = lastAutoFillForRef.current !== r.id;
+    lastAutoFillForRef.current = r.id;
+    if (!recipientChanged && (amount || serviceCharge || legalFee || agencyFee || cautionDeposit)) {
+      return; // fields already hold data (typed or previously filled) — never stomp
     }
     const tracked = findTrackedCharge(r.id, (r as any).propertyId);
     const sc = tracked?.outstandingBalance ?? tracked?.amount ?? r.serviceCharge ?? 0;
