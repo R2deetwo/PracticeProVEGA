@@ -11253,3 +11253,117 @@ records of the old code's lies — they won't retroactively change.
 **Carried forward:** CF mirror token, Vercel auto-deploy hole, staging
 provisioning, Paystack LIVE keys — unchanged. Firebase push still blocked on
 the user's Firebase service-account JSON (reminder sent to user).
+
+---
+
+## Task 23 — Messaging UX round: firm-name email identity, honest send results, resident auto-fill, the Outbox (2026-09-08)
+
+**Context:** After task 22 made delivery honest, the user reported the
+next layer of messaging problems: (1) delivered emails showed
+"PracticePro Systems" instead of the firm's name; (2) the compose modal
+"does not leave that screen and I can keep sending messages — let it
+behave like a normal email service"; (3) "where do I see the record of
+mails sent?"; (4) selecting "late service charge" for a resident still
+required manually filling in the service-charge figures; (5) a WhatsApp
+send failed "0 sent 1 failed" with no reason anywhere.
+
+**Root causes (verified in code, prod env probed):**
+
+- Email sender name was HARDCODED in communications.sendEmail
+  ("PracticePro Systems"); no senderName/replyTo args existed at all.
+- The legal ComposeEmailModal fired handleSendEmail WITHOUT awaiting it
+  and closed instantly; useCommunications.handleSendEmail wrote NO
+  automation_logs row (the `recordLog: true` arg was accepted and
+  silently ignored) — sent mail had no record anywhere reachable from
+  the Messages screen (the audit trail lived only under Financials →
+  AtriumInbox).
+- ComposeModal's failure path discarded the provider's error text (it
+  counted failCount and showed "0 sent, 1 failed. Check logs for
+  details." — but the logs couldn't contain the reason:
+  logAutomation had no errorMessage/messageId args, and AutomationCenter
+  ALREADY passed errorMessage, which Convex rejected as an unknown field
+  → its log rows silently never persisted).
+- automation_logs' channel union rejected 'in-app': in-app sends
+  succeeded, the log write threw, and the catch counted the send as
+  failed.
+- Financial figures were manual-only; the resident's unit data AND the
+  tracked ServiceChargeMonitor rows (outstanding balance, nextDueDate)
+  were never consulted; bulk sends applied ONE shared manual set to
+  every recipient.
+- WhatsApp: debug_env probe on production confirmed CHAKRA_*
+  (token/plugin/phone) are ALL configured — the failure is Meta's
+  24-hour customer-service-window rule: free-form business-initiated
+  messages REQUIRE an approved template; the compose modal sent
+  free-form only. (The exact provider error was unverifiable without a
+  session — but after this round it is surfaced in the toast, the
+  result panel, and the Outbox, so the user will see the live reason.)
+
+**Fix (commits 987ce259 + f4499913):**
+
+- convex/communications.ts: sendEmail gains senderName/replyTo (firm
+  display name + staff reply-to, validated); sendWhatsApp error returns
+  run through explainWhatsAppError — window-class errors get an
+  actionable explanation; isWhatsAppWindowError/explainWhatsAppError
+  exported (unit-tested).
+- convex/sentry.ts + schema.ts: logAutomation accepts errorMessage +
+  messageId; channel union gains 'in-app'.
+- ComposeModal: send loop reworked — per-recipient result rows
+  (status + error + template flag), logging isolated from send outcome,
+  all-success → toast + close, any failure → in-modal RESULT step with
+  per-recipient reasons, WhatsApp-window guidance, and a targeted
+  "Retry failed" button; email sends carry firm sender name, staff
+  reply-to, toName, and the branded buildEmailHtml shell; WhatsApp
+  free-form sends auto-retry with the registered rent-reminder template
+  (sendWhatsAppWithTemplateFallback — same template + var order the
+  AutomationCenter already uses) on window-class errors; financial
+  auto-fill from the resident's unit record + tracked charge row
+  (outstanding balance preferred, nextDueDate filled), section
+  auto-opened, provenance labelled ("Auto-filled from X's record"),
+  manual edits override, per-recipient fallback in buildMessage (each
+  bulk recipient gets THEIR OWN figures), stomping guard via
+  lastAutoFillForRef; "Upcoming Messages" → "Recently Sent" with
+  failed rows included.
+- MessagesView: new Outbox tab (messaging/OutboxTab.tsx) — full
+  sent-history with channel filters, status badges, failure reasons,
+  provider ids, expandable content, failed-send badge; tab-hint wiring
+  for navigation.
+- useCommunications.handleSendEmail: firm identity + branded shell +
+  per-attempt automation_logs row (status, error, messageId) + returns
+  {success, sentCount, failedCount, firstError}; ComposeEmailModal
+  awaits it (spinner, disabled button), closes only on success, inline
+  failure banner; the fake `from: 'admin@practicepro.ng'` removed.
+- AutomationCenter: log write isolated from send counters (a logging
+  failure can no longer flip a delivered message to "failed"); failure
+  toast points at the Outbox for per-recipient reasons.
+- New pure utils (all unit-tested): src/utils/deliveryErrors.ts,
+  emailTemplate.ts, messageFinancials.ts.
+
+**Gates:** vitest 229/229 (+25 in tests/unit/messagingUx.test.ts); convex
+tsc 0 errors (deploy gate); root tsc 126 errors = pre-existing set,
+ZERO in changed files; vite build green (20.7s, all new strings verified
+in the module-atrium + index bundles); dist browser smoke mounts with 0
+console errors.
+
+**BLOCKED — push:** commits 987ce259 + f4499913 are local; the embedded
+remote-URL PAT is read-capable (ls-remote works) but push-rejected
+("Invalid username or token") and API-rejected (401 Bad credentials) —
+fine-grained read-only or revoked-for-write. Deploy (Vercel + Convex via
+CI) waits on a fresh GitHub PAT from the user, same as every prior
+round. All fixes verified locally; production keeps serving d8fa91b7
+until the push lands.
+
+**Stage Summary:**
+
+- The messaging experience now behaves like a real email service end to
+  end: firm-branded sender identity, awaited sends, in-modal delivery
+  results with reasons and targeted retry, and a Sent-folder (Outbox)
+  on the Messages screen for every outbound message across channels.
+- The WhatsApp "0 sent 1 failed" class is explained and auto-mitigated:
+  free-form first, approved-template retry on window errors, honest
+  actionable reasons everywhere. Residents' financials auto-fill from
+  their own records (unit + tracked charge rows).
+- Next session: push with a fresh PAT, verify prod deploy (probe
+  version.json + live bundle strings "Outbox"/"Auto-filled from"), then
+  the standing queue — Firebase push (needs the user's Firebase info),
+  Chakra webhook test, WhatsApp template registration docx (3 details
+  pending).
