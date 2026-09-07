@@ -24,7 +24,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
 import { ServiceChargeBars } from './ServiceChargeBars';
-import { ComposeMessageModal, ComposeRecipient } from '../modals/ComposeMessageModal';
+// MESSAGES OVERHAUL: the property-side compose entry points now use the
+// ONE unified composer (atrium/ComposeModal) — templates, resident
+// financials auto-fill, honest per-recipient delivery results, retry. The
+// weaker duplicate ComposeMessageModal (no templates, no logging, no
+// results) was removed with this change.
+import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
@@ -130,9 +135,10 @@ const PropertyDetailViewContent: React.FC = () => {
     const [showAddUnitForm, setShowAddUnitForm] = useState(false);
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
-    // ComposeMessageModal recipient — when set, the unified compose modal opens.
-    // Set by clicking [Message] on any unit card.
-    const [composeModalRecipient, setComposeModalRecipient] = useState<ComposeRecipient | null>(null);
+    // Unified compose prefill — when set, the ONE ComposeModal opens with the
+    // resident (and their contact info + financials) pre-selected. Set by
+    // clicking [Message] on any unit card.
+    const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     // SIMPLIFY FIX: showUnitMessaging / showCompose / composePrefill removed —
     // none could ever become true, and the UI they gated never rendered.
     const [showFullUnitDetail, setShowFullUnitDetail] = useState(false);
@@ -1669,27 +1675,32 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         type="button"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            // Open the unified ComposeMessageModal with the tenant's info.
-                                                                            // The modal handles channel gating (WhatsApp needs phone, Email
-                                                                            // and Portal Invite need email) with disabled tabs + tooltips.
-                                                                            setComposeModalRecipient({
-                                                                                name: d.tenantName || 'Resident',
-                                                                                phone: tenantPhone,
-                                                                                email: tenantEmail,
+                                                                            // MESSAGES OVERHAUL: opens the ONE unified composer
+                                                                            // (same modal as Messages → New Message) with this
+                                                                            // resident pre-selected — templates, auto-filled
+                                                                            // financials, delivery results, retry all included.
+                                                                            setComposePrefill({
                                                                                 unitId: unit.id,
                                                                                 unitName: d.name,
+                                                                                tenantName: d.tenantName || 'Resident',
+                                                                                tenantPhone: tenantPhone || undefined,
+                                                                                tenantEmail: tenantEmail || undefined,
+                                                                                rentAmount: d.rentAmount || undefined,
+                                                                                propertyAddress: property.address,
                                                                             });
                                                                             setShowFullUnitDetail(false);
                                                                         }}
                                                                         onTouchEnd={(e) => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
-                                                                            setComposeModalRecipient({
-                                                                                name: d.tenantName || 'Resident',
-                                                                                phone: tenantPhone,
-                                                                                email: tenantEmail,
+                                                                            setComposePrefill({
                                                                                 unitId: unit.id,
                                                                                 unitName: d.name,
+                                                                                tenantName: d.tenantName || 'Resident',
+                                                                                tenantPhone: tenantPhone || undefined,
+                                                                                tenantEmail: tenantEmail || undefined,
+                                                                                rentAmount: d.rentAmount || undefined,
+                                                                                propertyAddress: property.address,
                                                                             });
                                                                             setShowFullUnitDetail(false);
                                                                         }}
@@ -2390,13 +2401,15 @@ const PropertyDetailViewContent: React.FC = () => {
                 </div>
             </div>
 
-            {/* Unified ComposeMessageModal — opened by [Message] button on unit cards.
-                Handles WhatsApp (WhatsApp API + Web fallback), Email, and Portal Invite
-                with email gating + tooltip. */}
-            {composeModalRecipient && (
-                <ComposeMessageModal
-                    recipient={composeModalRecipient}
-                    onClose={() => setComposeModalRecipient(null)}
+            {/* MESSAGES OVERHAUL: the ONE unified composer — same modal as
+                Messages → New Message. Templates, resident financials
+                auto-fill, per-recipient delivery results with retry. */}
+            {composePrefill && (
+                <ComposeModal
+                    firmId={coreState.firmDetails?.id || currentUser?.firmId || ''}
+                    prefill={composePrefill}
+                    onClose={() => setComposePrefill(undefined)}
+                    onToast={(msg) => addToast(msg, { type: /error|failed/i.test(msg) ? 'error' : 'success' })}
                 />
             )}
         </div>

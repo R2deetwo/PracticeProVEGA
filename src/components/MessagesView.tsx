@@ -1343,7 +1343,7 @@ const MessagesView: React.FC = () => {
                             onClick={() => setShowCompose(true)}
                             className="p-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold min-h-[40px]"
                         >
-                            <PlusIcon className="w-4 h-4" /> Compose
+                            <PlusIcon className="w-4 h-4" /> New Message
                         </button>
                     </div>
                 </div>
@@ -1416,11 +1416,11 @@ const MessagesView: React.FC = () => {
                         )}
                     </button>
 
-                    {/* Outbox Tab — the sent-messages history ("Sent" folder).
-                        User feedback 2026-09-08: "where do I see the record
-                        of mails sent?" — every send is logged with status +
-                        failure reason; this tab surfaces it right next to
-                        the Compose button that creates the records. */}
+                    {/* Sent Tab (was "Outbox") — the send history for every
+                        channel. MESSAGES OVERHAUL: renamed to "Sent" (the
+                        Gmail/Outlook mental model) and made the ONE send-
+                        history surface in the app — the Financials audit-trail
+                        and Message Logs feeds were removed and point here. */}
                     <button
                         onClick={() => setActiveTab('outbox')}
                         className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
@@ -1430,7 +1430,7 @@ const MessagesView: React.FC = () => {
                         }`}
                     >
                         <SendIcon className="w-4 h-4" />
-                        <span className="hidden sm:inline">Outbox</span>
+                        <span className="hidden sm:inline">Sent</span>
                         {failedSendsCount > 0 && (
                             <span className="min-w-[18px] h-[18px] bg-rose-600 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm">
                                 {failedSendsCount > 9 ? '9+' : failedSendsCount}

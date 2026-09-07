@@ -509,14 +509,15 @@ const HelpView: React.FC = () => {
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Conversations:</strong> Two-way chat threads with {hasLegalFeatures ? 'clients' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'residents' : ''} via the portal</li>
                                         {hasPropertyFeatures && <li><strong>WhatsApp & Email Inbox:</strong> Inbound messages from residents via WhatsApp and email appear here for response</li>}
+                                        <li><strong>Sent:</strong> The record of every message your firm has sent — email, WhatsApp, portal and in-app — with delivery status and the reason for any failure</li>
                                         <li><strong>Notices:</strong> Post announcements visible to {hasPropertyFeatures ? 'residents' : 'clients'} on their portal</li>
                                         <li><strong>Scheduled:</strong> View and manage scheduled/automated messages</li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Compose Modal (Bulk Messaging)</h4>
-                                    <p className="text-sm mb-2">The Compose button opens a powerful messaging composer that adapts to your product:</p>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">New Message (Bulk Messaging)</h4>
+                                    <p className="text-sm mb-2">The New Message button opens one composer for every message you send:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         {hasLegalFeatures && <li><strong>Clients tab:</strong> Send to legal clients (hidden for pure property firms)</li>}
                                         {hasPropertyFeatures && <li><strong>Residents tab:</strong> Send to residents/tenants (hidden for pure legal firms)</li>}

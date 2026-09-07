@@ -33,6 +33,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { ComposeModalPrefill } from './ComposeModal';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
@@ -369,7 +370,13 @@ const ChargeRow: React.FC<{
 };
 
 // ── Main Component ────────────────────────────────────────────────────────
-const ServiceChargeMonitor: React.FC = () => {
+const ServiceChargeMonitor: React.FC<{
+  // MESSAGES OVERHAUL: when the host provides this, the per-charge WhatsApp
+  // button opens the ONE unified composer (prefilled with this charge's
+  // resident + the Service Charge Alert template) instead of blind-firing
+  // a hard-coded free-form message. BillingView wires this to ComposeModal.
+  onComposeCharge?: (prefill: ComposeModalPrefill) => void;
+}> = ({ onComposeCharge }) => {
   const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
@@ -614,6 +621,21 @@ const ServiceChargeMonitor: React.FC = () => {
   };
 
   const handleWhatsApp = async (charge: ServiceCharge) => {
+    // MESSAGES OVERHAUL: with a host-provided composer, open it pre-filled —
+    // the resident is preselected, the Service Charge Alert template is
+    // chosen, and the figures auto-fill from the resident's tracked records.
+    // The user reviews and hits send (with honest delivery results), instead
+    // of a hard-coded message leaving silently.
+    if (onComposeCharge) {
+      onComposeCharge({
+        unitId: charge.unitId,
+        unitName: getUnitLabel(charge.unitId),
+        tenantPhone: resolveTenantPhone(charge.tenantId) ?? undefined,
+        channel: 'whatsapp',
+        messageType: 'service_charge_alert',
+      });
+      return;
+    }
     const isPartial = charge.serviceChargeStatus === 'PARTIALLY_PAID';
     const outstanding = charge.outstandingBalance ?? 0;
     const messageText = isPartial

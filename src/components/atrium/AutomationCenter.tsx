@@ -4,9 +4,10 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
-import { AutomationLog, AutomationMessageType, AutomationChannel } from '../../types';
+import { AutomationMessageType } from '../../types';
 import { useTerminology } from '../../contexts/ProductContext';
 import { ComposeModal, buildMessage } from './ComposeModal';
+import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText } from 'lucide-react';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -20,40 +21,19 @@ const SendIcon = ({ className = "w-4 h-4" }) => (
     <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
   </svg>
 );
-const ClockIcon = ({ className = "w-4 h-4" }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
-);
 const ZapIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
   </svg>
 );
 
-// ── Types & Labels ────────────────────────────────────────────────────────
-const MSG_TYPE_LABELS: Record<AutomationMessageType, string> = {
-  custom: 'Custom Message', rent_reminder: 'Rent Reminder', late_notice: 'Late Notice', payment_receipt: 'Payment Receipt',
-  service_charge_alert: 'Service Charge Alert', access_restriction: 'Access Restriction',
-  penalty_notice: 'Penalty Notice', lease_renewal: 'Lease Renewal',
-  welcome_note: 'Welcome Note', promotion: 'Promotion/Offer', vendor_update: 'New Vendor Alert',
-  general_announcement: 'General Announcement', maintenance_update: 'Maintenance Update'
-};
+// ── Icons (labels live in utils/messageTypes — single source of truth) ───
 const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
   custom: <PenLine className="w-3.5 h-3.5" />, rent_reminder: <Calendar className="w-3.5 h-3.5" />, late_notice: <AlertTriangle className="w-3.5 h-3.5" />, payment_receipt: <Receipt className="w-3.5 h-3.5" />,
   service_charge_alert: <Zap className="w-3.5 h-3.5" />, access_restriction: <Lock className="w-3.5 h-3.5" />, penalty_notice: <Wallet className="w-3.5 h-3.5" />, lease_renewal: <ClipboardList className="w-3.5 h-3.5" />,
   welcome_note: <Users className="w-3.5 h-3.5" />, promotion: <Gift className="w-3.5 h-3.5" />, vendor_update: <Wrench className="w-3.5 h-3.5" />, general_announcement: <Megaphone className="w-3.5 h-3.5" />, maintenance_update: <Wrench className="w-3.5 h-3.5" />
 };
-const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
-const CHANNEL_COLORS: Record<AutomationChannel, string> = {
-  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', portal: 'text-emerald-400 bg-emerald-900/30', 'in-app': 'text-indigo-400 bg-indigo-900/30',
-};
-const STATUS_COLORS: Record<string, string> = { sent: 'text-emerald-400', failed: 'text-rose-400', simulated: 'text-amber-400', sending: 'text-sky-400' };
-
-function formatTs(ts: number) {
-  return new Date(ts).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
 
 // ── Main Component ────────────────────────────────────────────────────────
 const AutomationCenter: React.FC = () => {
@@ -73,10 +53,9 @@ const AutomationCenter: React.FC = () => {
   );
   const logs = (liveLogs ?? (coreState as any).automationLogs ?? []) as any[];
   const logAuto = useMutation(api.sentry.logAutomation);
-  const { addToast } = useUI();
+  const { addToast, navigateTo } = useUI();
 
   const [showCompose, setShowCompose] = useState(false);
-  const [filter, setFilter] = useState<AutomationMessageType | 'all'>('all');
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<Record<string, string>>(coreState.firmDetails?.automationSettings?.automationTemplates || {});
@@ -113,11 +92,6 @@ const AutomationCenter: React.FC = () => {
       addToast(`Failed to save templates: ${e.message}`, { type: 'error' });
     }
   };
-
-  const filtered = useMemo(() => {
-    if (filter === 'all') return logs;
-    return logs.filter(l => l.messageType === filter);
-  }, [logs, filter]);
 
   const stats = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -167,7 +141,7 @@ const AutomationCenter: React.FC = () => {
       }
     }
     if (sent > 0) addToast(`${sent} WhatsApp reminder(s) delivered`, { type: 'success' });
-    if (failed > 0) addToast(`${failed} reminder(s) failed — see the reason per recipient in Messages → Outbox.`, { type: 'error' });
+    if (failed > 0) addToast(`${failed} reminder(s) failed — see the reason per recipient in Messages → Sent.`, { type: 'error' });
   };
 
   return (
@@ -186,7 +160,7 @@ const AutomationCenter: React.FC = () => {
             <WhatsAppIcon /> Bulk
           </button>
           <button onClick={() => setShowCompose(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap">
-            <SendIcon /> Compose
+            <SendIcon /> New Message
           </button>
         </div>
       </div>
@@ -276,56 +250,25 @@ const AutomationCenter: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Header */}
-      <div className="flex-shrink-0 px-6 pb-2 pt-2 border-t border-slate-800 mt-2 flex items-center justify-between">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Message Logs</h3>
-        <select 
-          value={filter} 
-          onChange={e => setFilter(e.target.value as AutomationMessageType | 'all')}
-          className="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-lg px-2 py-1 outline-none focus:border-emerald-500"
+      {/* MESSAGES OVERHAUL: the Message Logs feed was removed — it
+          duplicated Messages → Sent one navigation away. This card routes
+          users to the single send-history instead. */}
+      <div className="flex-shrink-0 px-6 pb-6 pt-2 mt-2 border-t border-slate-800">
+        <button
+          onClick={() => navigateTo('messaging', undefined, { initialTab: 'outbox' })}
+          className="w-full bg-slate-900 border border-slate-800 hover:border-emerald-600/50 rounded-lg px-4 py-4 flex items-center justify-between transition-colors group"
         >
-          <option value="all">All Messages</option>
-          {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Log Feed */}
-      <div className="flex-1 sm:overflow-y-auto px-4 sm:px-6 pb-44 sm:pb-6 space-y-1.5">
-        {!logs ? (
-          [...Array(6)].map((_, i) => <div key={i} className="h-14 bg-slate-900 rounded-lg animate-pulse" />)
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-slate-600">
-            <SendIcon className="w-8 h-8 mb-2" />
-            <p className="text-sm">No messages sent yet</p>
-          </div>
-        ) : (
-          filtered.map((log: any) => (
-            <div key={log._id} className="flex items-start gap-3 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3 transition-colors">
-              <span className="text-lg flex-shrink-0 mt-0.5">{(MSG_TYPE_ICONS as any)[log.messageType]}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-white">{(MSG_TYPE_LABELS as any)[log.messageType]}</span>
-                  <span className={`text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full ${(CHANNEL_COLORS as any)[log.channel]}`}>{log.channel}</span>
-                  <span className={`text-3xs font-bold uppercase ${(STATUS_COLORS as any)[log.status]}`}>{log.status}</span>
-                </div>
-                <p className="text-2xs text-slate-500 truncate">{log.messagePreview}</p>
-                <p className="text-2xs text-slate-700 mt-0.5">To: {log.recipient}</p>
-                {log.status === 'failed' && log.errorMessage ? (
-                  <p className="text-2xs text-rose-500/90 mt-0.5 truncate" title={log.errorMessage}>↳ {log.errorMessage}</p>
-                ) : null}
-                {log.status === 'simulated' ? (
-                  <p className="text-2xs text-amber-500/90 mt-0.5">↳ Channel not configured — nothing was delivered</p>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1 text-2xs text-slate-600 flex-shrink-0">
-                <ClockIcon className="w-3 h-3" />
-                {formatTs(log.sentAt)}
-              </div>
+          <div className="flex items-center gap-3 text-left">
+            <SendIcon />
+            <div>
+              <p className="text-sm font-bold text-white">Sent messages & delivery history</p>
+              <p className="text-2xs text-slate-500 mt-0.5">
+                Every message this firm has sent — per-recipient status and failure reasons — lives in Messages → Sent.
+              </p>
             </div>
-          ))
-        )}
+          </div>
+          <span className="text-slate-500 group-hover:text-emerald-400 text-lg">→</span>
+        </button>
       </div>
 
       {showCompose && <ComposeModal firmId={firmId} onClose={() => setShowCompose(false)} onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') ? 'error' : 'success' })} />}

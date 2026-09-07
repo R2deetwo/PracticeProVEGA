@@ -1,14 +1,11 @@
 /**
- * OutboxTab — the sent-messages history ("Sent" folder).
+ * OutboxTab — the sent-messages history (the "Sent" tab).
  *
- * WHY THIS EXISTS (user feedback 2026-09-08): "where do I see the record
- * of mails sent?" — there was NO answer anywhere in the app. The
- * automation log (every email / WhatsApp / portal / in-app send, with
- * status and failure reason) was only reachable via Financials → Inbox
- * on the Atrium side, invisible from the Messages screen where users
- * actually compose. This tab puts the full delivery history — success,
- * failure, and the reason for every failure — one click away from the
- * Compose button that creates it.
+ * MESSAGES OVERHAUL: this is now the ONE send-history for the whole firm
+ * (the duplicate Audit Trail tab in Financials → Inbox and the Message
+ * Logs feed in Reminder Rules were removed and point here). Every
+ * email / WhatsApp / portal / in-app send lands here with its delivery
+ * status, the reason for every failure, and the provider's message id.
  */
 import React, { useMemo, useState } from 'react';
 import { useQuery } from 'convex/react';
@@ -16,22 +13,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { ChevronDownIcon, MailIcon } from '../../constants';
 import { summarizeError } from '../../utils/deliveryErrors';
-
-const MSG_TYPE_LABELS: Record<string, string> = {
-  custom: 'Custom Message',
-  rent_reminder: 'Rent Reminder',
-  late_notice: 'Late Notice',
-  payment_receipt: 'Payment Receipt',
-  service_charge_alert: 'Service Charge',
-  access_restriction: 'Access Restriction',
-  penalty_notice: 'Penalty Notice',
-  lease_renewal: 'Lease Renewal',
-  welcome_note: 'Welcome Note',
-  promotion: 'Promotion',
-  vendor_update: 'Vendor Update',
-  general_announcement: 'Announcement',
-  maintenance_update: 'Maintenance',
-};
+import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
 
 const CHANNEL_STYLES: Record<string, string> = {
   whatsapp: 'text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
@@ -112,9 +94,9 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Outbox</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Sent</h2>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Every message this firm has sent — email, WhatsApp, portal and in-app — with its delivery status.
+                Every message your firm has sent — email, WhatsApp, portal and in-app — with its delivery status and the reason for any failure.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -159,7 +141,7 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                 {channelFilter === 'all' ? 'No messages sent yet' : `No ${channelFilter === 'in-app' ? 'in-app' : channelFilter} messages sent yet`}
               </p>
               <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">
-                Compose a message with the Compose button — every send appears here with its delivery status.
+                Send a message with the New Message button — every send appears here with its delivery status.
               </p>
             </div>
           ) : (

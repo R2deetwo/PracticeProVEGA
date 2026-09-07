@@ -9,6 +9,7 @@ import { formatNaira } from '../utils/formatting';
 import NairaSymbol from './NairaSymbol';
 import { useHighlight } from '../hooks/useHighlight';
 import { useUI } from '../contexts/UIContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useFinanceState } from '../contexts/FinanceContext';
@@ -22,10 +23,16 @@ import ServiceChargeMonitor from './atrium/ServiceChargeMonitor';
 import LedgerManager from './atrium/LedgerManager';
 import VacancyPipeline from './atrium/VacancyPipeline';
 import AutomationCenter from './atrium/AutomationCenter';
+// MESSAGES OVERHAUL: the unified composer is hosted here so the Service
+// Charges tab's per-charge WhatsApp button opens it (prefilled) — one
+// compose experience across the whole app.
+import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
 // SIMPLIFY FIX: AtriumInbox moved here from the deleted 'atriumEngine' view
 // (RevenueMonitor) — it was the only one of that view's 5 tabs that didn't
 // already exist as a Financials tab.
-import { AtriumInbox } from './atrium/AtriumInbox';
+// MESSAGES OVERHAUL: replaced by PaymentProofsScreen — the duplicate inbox
+// and audit trail now live ONLY in Messages (Conversations / Sent).
+import { PaymentProofsScreen } from './atrium/PaymentProofsScreen';
 
 const getStatusBadgeClass = (status: InvoiceStatus) => {
     switch (status) {
@@ -235,7 +242,8 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
 
 export const BillingView: React.FC = () => {
     const { financeState } = useFinanceState();
-    const { openModal, navigateTo, closeModal, currentHistoryEntry } = useUI();
+    const { currentUser } = useAuth();
+    const { openModal, navigateTo, closeModal, addToast, currentHistoryEntry } = useUI();
     const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment } = useDataActions();
     const features = useFeatures();
     const { isProperty, isUnified, product } = useProduct();
@@ -250,6 +258,9 @@ export const BillingView: React.FC = () => {
         const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
         return t || 'invoices';
     });
+    // Unified composer state — opened by ServiceChargeMonitor's per-charge
+    // WhatsApp button (MESSAGES OVERHAUL: one compose experience app-wide).
+    const [scComposePrefill, setScComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     // SIMPLIFY FIX: deep links can select a specific Financials tab directly
     // (e.g. the dashboard "Outstanding Rent" card opens Service Charges).
     useEffect(() => {
@@ -266,7 +277,7 @@ export const BillingView: React.FC = () => {
             { id: 'payments', label: 'Payments & Receipts', productTag: 'Property' },
             { id: 'vacancies', label: 'Vacancies', productTag: 'Property' },
             { id: 'automations', label: 'Reminder Rules', productTag: 'Property' },
-            { id: 'inbox', label: 'Inbox', productTag: 'Property' },
+            { id: 'inbox', label: 'Payment Proofs', productTag: 'Property' },
         );
     }
     if (features.canUseRetainerAutoBilling) {
@@ -457,7 +468,7 @@ export const BillingView: React.FC = () => {
 
                 {activeTab === 'revenue' && (isProperty || isUnified) && productScope !== 'legal' && (
                     <div className="min-h-[500px]">
-                        <ServiceChargeMonitor />
+                        <ServiceChargeMonitor onComposeCharge={(p) => setScComposePrefill(p)} />
                     </div>
                 )}
 
@@ -481,11 +492,22 @@ export const BillingView: React.FC = () => {
 
                 {activeTab === 'inbox' && (isProperty || isUnified) && productScope !== 'legal' && (
                     <div className="min-h-[500px]">
-                        <AtriumInbox />
+                        <PaymentProofsScreen />
                     </div>
                 )}
 
                 {activeTab === 'monitor' && productScope !== 'property' && <BillingMonitorView />}
+
+                {/* MESSAGES OVERHAUL: the ONE unified composer, hosted here for
+                    the Service Charges tab's per-charge WhatsApp button. */}
+                {scComposePrefill && (
+                    <ComposeModal
+                        firmId={coreState.firmDetails?.id || currentUser?.firmId || ''}
+                        prefill={scComposePrefill}
+                        onClose={() => setScComposePrefill(undefined)}
+                        onToast={(msg) => addToast(msg, { type: /error|failed/i.test(msg) ? 'error' : 'success' })}
+                    />
+                )}
 
                 {activeTab === 'trust' && coreState.firmDetails?.trustAccountingEnabled && productScope !== 'property' && (
                     <div className="max-w-3xl mx-auto">

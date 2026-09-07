@@ -133,7 +133,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
           {showNoticeForm && (
             <div className="mt-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
               <p className="text-2xs text-slate-500 dark:text-zinc-400 -mb-1">
-                Announcement to all {audienceNoun} — posted to the portal notice board and emailed to everyone. To message specific tenants instead, use Inbox → Compose.
+                Announcement to all {audienceNoun} — posted to the portal notice board and emailed to everyone. To message specific people instead, use Messages → New Message.
               </p>
               <input
                 type="text"

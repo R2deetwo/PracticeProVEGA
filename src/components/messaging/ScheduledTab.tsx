@@ -8,22 +8,7 @@ import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon, ClockIcon, TrashIcon } from '../../constants';
-
-const MSG_TYPE_LABELS: Record<string, string> = {
-  custom: 'Custom',
-  rent_reminder: 'Rent Reminder',
-  late_notice: 'Late Notice',
-  payment_receipt: 'Payment Receipt',
-  service_charge_alert: 'Service Charge',
-  access_restriction: 'Access Restriction',
-  penalty_notice: 'Penalty Notice',
-  lease_renewal: 'Lease Renewal',
-  welcome_note: 'Welcome Note',
-  promotion: 'Promotion',
-  vendor_update: 'Vendor Update',
-  general_announcement: 'Announcement',
-  maintenance_update: 'Maintenance',
-};
+import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
 
 const CHANNEL_STYLES: Record<string, string> = {
   whatsapp: 'text-green-500 bg-green-100 dark:text-green-400 dark:bg-green-900/30',

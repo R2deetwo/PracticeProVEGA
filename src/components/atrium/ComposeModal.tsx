@@ -15,6 +15,7 @@ import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { resolveFinancials, parseMoneyInput, hasAutoFilledFigures } from '../../utils/messageFinancials';
 import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError } from '../../utils/deliveryErrors';
 import { buildEmailHtml } from '../../utils/emailTemplate';
+import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -35,19 +36,11 @@ const ZapIcon = ({ className = "w-4 h-4" }) => (
 );
 
 // ── Types & Labels ────────────────────────────────────────────────────────
-const MSG_TYPE_LABELS: Record<AutomationMessageType, string> = {
-  custom: 'Custom Message', rent_reminder: 'Rent Reminder', late_notice: 'Late Notice', payment_receipt: 'Payment Receipt',
-  service_charge_alert: 'Service Charge Alert', access_restriction: 'Access Restriction',
-  penalty_notice: 'Penalty Notice', lease_renewal: 'Lease Renewal',
-  welcome_note: 'Welcome Note', promotion: 'Promotion/Offer', vendor_update: 'New Vendor Alert',
-  general_announcement: 'General Announcement', maintenance_update: 'Maintenance Update'
-};
 const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
   custom: <PenLine className="w-3.5 h-3.5" />, rent_reminder: <Calendar className="w-3.5 h-3.5" />, late_notice: <AlertTriangle className="w-3.5 h-3.5" />, payment_receipt: <Receipt className="w-3.5 h-3.5" />,
   service_charge_alert: <Zap className="w-3.5 h-3.5" />, access_restriction: <Lock className="w-3.5 h-3.5" />, penalty_notice: <Wallet className="w-3.5 h-3.5" />, lease_renewal: <ClipboardList className="w-3.5 h-3.5" />,
   welcome_note: <Users className="w-3.5 h-3.5" />, promotion: <Gift className="w-3.5 h-3.5" />, vendor_update: <Wrench className="w-3.5 h-3.5" />, general_announcement: <Megaphone className="w-3.5 h-3.5" />, maintenance_update: <Wrench className="w-3.5 h-3.5" />
 };
-const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30',
@@ -188,6 +181,11 @@ export interface ComposeModalPrefill {
   rentAmount?: number;
   propertyAddress?: string;
   channel?: AutomationChannel;
+  // MESSAGES OVERHAUL: callers that already KNOW why they're messaging
+  // (e.g. ServiceChargeMonitor's per-charge WhatsApp button) can preselect
+  // the message type so the user lands on a ready-to-review template
+  // instead of starting from "Custom Message".
+  messageType?: AutomationMessageType;
   // Contact-initiated messaging — when a user clicks "Message" on a
   // contact in ContactDetailView, these fields are set so the compose
   // modal opens with the contact pre-selected.
@@ -241,7 +239,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const logAuto = useMutation(api.sentry.logAutomation);
 
   // ── State ────────────────────────────────────────────────────────────
-  const [msgType, setMsgType] = useState<AutomationMessageType>('custom');
+  const [msgType, setMsgType] = useState<AutomationMessageType>(() => prefill?.messageType || 'custom');
   const [channel, setChannel] = useState<AutomationChannel>(() => {
     // Default to 'in-app' when the prefill recipient is a team member
     if (prefill?.recipientType === 'team') return 'in-app';
@@ -935,7 +933,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
         if (simulatedCount > 0) {
           onToast(`${totalSent} message(s) logged (channel not configured). ${simulatedCount} simulated.`);
         } else {
-          onToast(`${successCount} message(s) delivered successfully — recorded in Messages → Outbox.`);
+          onToast(`${successCount} message(s) delivered successfully — recorded in Messages → Sent.`);
         }
         onClose();
       } else {
@@ -983,91 +981,19 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
           <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">Direct Message</h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400">Send to specific tenants via WhatsApp or Email — every send is logged. For announcements to all residents, use the Notice Board.</p>
+            <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">New Message</h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Send via WhatsApp, email, or in-app — every send is recorded in Messages → Sent. To reach everyone at once, post a Notice instead.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none p-1" aria-label="Close">×</button>
         </div>
 
         {step === 'compose' ? (
           <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
-            {/* ── Row 1: Message Type + Channel ──────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Message Type</label>
-                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400">
-                  <optgroup label="Standard" className="bg-white dark:bg-zinc-900">
-                    {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </optgroup>
-                  {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).length > 0 && (
-                    <optgroup label="Custom Templates" className="bg-white dark:bg-zinc-900">
-                      {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).map(k => (
-                        <option key={k} value={k}>{getMsgTypeLabel(k)}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Channel</label>
-                <div className="flex gap-1.5">
-                  {(['in-app', 'whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => {
-                    // 'in-app' is only for team recipients
-                    if (ch === 'in-app' && recipientTab !== 'team') return null;
-                    // 'portal' is only for client/tenant recipients, not team
-                    if (ch === 'portal' && recipientTab === 'team') return null;
-                    const waAllowed = ch !== 'whatsapp' || (isGrowthOrAbove || isKompleteFirm);
-
-                    // CHANNEL AVAILABILITY — gray out WhatsApp/Email when the
-                    // recipient doesn't have a phone number / email saved.
-                    // User feedback: "if you don't have the person's phone
-                    // number, let WhatsApp be grayed out. If you don't have
-                    // the email, let the email be grayed out. When the user
-                    // hovers over it, say 'no email saved, edit contact to
-                    // add an email to send an email'."
-                    const r = selectedRecipients[0] as any;
-                    const hasPhone = !!(r?.tenantPhone || r?.phone);
-                    const hasEmail = !!(r?.tenantEmail || r?.email);
-                    let channelDisabled = !waAllowed;
-                    let disabledReason = '';
-                    if (ch === 'whatsapp' && !hasPhone && recipientTab !== 'team') {
-                      channelDisabled = true;
-                      disabledReason = 'No phone number saved. Edit the contact to add a phone number to send a WhatsApp message.';
-                    } else if (ch === 'email' && !hasEmail && recipientTab !== 'team') {
-                      channelDisabled = true;
-                      disabledReason = 'No email saved. Edit the contact to add an email to send an email message.';
-                    } else if (!waAllowed) {
-                      disabledReason = 'WhatsApp requires Growth plan or above';
-                    }
-
-                    return (
-                      <button
-                        key={ch}
-                        onClick={() => !channelDisabled && setChannel(ch)}
-                        disabled={channelDisabled}
-                        title={disabledReason || undefined}
-                        className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                          channelDisabled
-                            ? 'bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
-                            : channel === ch
-                              ? 'bg-primary-600 text-white shadow-sm'
-                              : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                        }`}
-                      >
-                        {ch === 'in-app' ? 'In-App' : ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : 'Portal'}
-                        {channelDisabled && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
             {/* ── Recipients (multi-select chip input) ────────────────── */}
             <div ref={dropdownRef} className="relative">
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">
-                  Recipients {selectedRecipients.length > 0 && <span className="text-primary-600 dark:text-primary-400">({selectedRecipients.length})</span>}
+                  To {selectedRecipients.length > 0 && <span className="text-primary-600 dark:text-primary-400">({selectedRecipients.length})</span>}
                 </label>
                 {allRecipients.length > 1 && (
                   <button
@@ -1309,6 +1235,78 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               )}
             </div>
 
+            {/* ── Message Type + Channel (after the To field) ──────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Message Type</label>
+                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400">
+                  <optgroup label="Standard" className="bg-white dark:bg-zinc-900">
+                    {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </optgroup>
+                  {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).length > 0 && (
+                    <optgroup label="Custom Templates" className="bg-white dark:bg-zinc-900">
+                      {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).map(k => (
+                        <option key={k} value={k}>{getMsgTypeLabel(k)}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Channel</label>
+                <div className="flex gap-1.5">
+                  {(['in-app', 'whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => {
+                    // 'in-app' is only for team recipients
+                    if (ch === 'in-app' && recipientTab !== 'team') return null;
+                    // 'portal' is only for client/tenant recipients, not team
+                    if (ch === 'portal' && recipientTab === 'team') return null;
+                    const waAllowed = ch !== 'whatsapp' || (isGrowthOrAbove || isKompleteFirm);
+
+                    // CHANNEL AVAILABILITY — gray out WhatsApp/Email when the
+                    // recipient doesn't have a phone number / email saved.
+                    // User feedback: "if you don't have the person's phone
+                    // number, let WhatsApp be grayed out. If you don't have
+                    // the email, let the email be grayed out. When the user
+                    // hovers over it, say 'no email saved, edit contact to
+                    // add an email to send an email'."
+                    const r = selectedRecipients[0] as any;
+                    const hasPhone = !!(r?.tenantPhone || r?.phone);
+                    const hasEmail = !!(r?.tenantEmail || r?.email);
+                    let channelDisabled = !waAllowed;
+                    let disabledReason = '';
+                    if (ch === 'whatsapp' && !hasPhone && recipientTab !== 'team') {
+                      channelDisabled = true;
+                      disabledReason = 'No phone number saved. Edit the contact to add a phone number to send a WhatsApp message.';
+                    } else if (ch === 'email' && !hasEmail && recipientTab !== 'team') {
+                      channelDisabled = true;
+                      disabledReason = 'No email saved. Edit the contact to add an email to send an email message.';
+                    } else if (!waAllowed) {
+                      disabledReason = 'WhatsApp requires Growth plan or above';
+                    }
+
+                    return (
+                      <button
+                        key={ch}
+                        onClick={() => !channelDisabled && setChannel(ch)}
+                        disabled={channelDisabled}
+                        title={disabledReason || undefined}
+                        className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                          channelDisabled
+                            ? 'bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
+                            : channel === ch
+                              ? 'bg-primary-600 text-white shadow-sm'
+                              : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        {ch === 'in-app' ? 'In-App' : ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : 'Portal'}
+                        {channelDisabled && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* ── Financial Details (collapsible) ────────────────────── */}
             <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
               <button
@@ -1449,7 +1447,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 <div className="px-4 pb-3">
                   <div className="flex items-center gap-1 mb-2">
                     <Clock className="w-3 h-3 text-amber-500" />
-                    <span className="text-2xs text-amber-600 dark:text-amber-400">Last 10 messages — full history in Messages → Outbox</span>
+                    <span className="text-2xs text-amber-600 dark:text-amber-400">Last 10 messages — full history in Messages → Sent</span>
                   </div>
                   {upcomingLoading ? (
                     <div className="text-xs text-slate-400 dark:text-zinc-500 py-2 text-center">Loading…</div>
@@ -1558,7 +1556,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 )}
               </h4>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Every send is recorded in Messages → Outbox with its status and reason.
+                Every send is recorded in Messages → Sent with its status and reason.
               </p>
             </div>
 
