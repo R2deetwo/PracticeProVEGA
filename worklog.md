@@ -11367,3 +11367,57 @@ until the push lands.
   the standing queue — Firebase push (needs the user's Firebase info),
   Chakra webhook test, WhatsApp template registration docx (3 details
   pending).
+
+## Task 24 — Messaging-UX release pushed & promoted to production (2026-09-08)
+
+**Context:** Task 23 landed all five messaging fixes locally
+(987ce259 + f4499913 + worklog d83c0827) but the push was blocked —
+the embedded remote-URL PAT was read-only. The user supplied a fresh
+write-capable PAT in chat this round.
+
+**Work log:**
+
+- One-shot push via GIT_ASKPASS (token never written to .git/config,
+  remote URL, or any persistent file; askpass script deleted right
+  after): `d8fa91b7..d83c0827 HEAD -> main`, remote head verified ==
+  local head (d83c082739c6bd...).
+- Push auto-ran staging-deploy (run 34164620716): completed/success.
+- Production is promote-only by design — dispatched
+  production-deploy.yml via the GitHub API (HTTP 204) → run
+  34164669861 on d83c0827. Jobs: quality-gate success (Convex tsc 0
+  errors, root tsc under the 131 baseline, identity audit, vitest
+  229/229), deploy-production (Vercel + Convex) success,
+  deploy-cloudflare FAILURE — CLOUDFLARE_API_TOKEN expired/inactive
+  again (fail-fast step, same as the previous run) — mirror pending a
+  fresh token, non-blocking for practice-pro-vega.vercel.app.
+- Independent live verification (scripts/verify_prod_deploy.sh,
+  per the standing "never trust the deploy step" protocol):
+  - BEFORE: version.json sha d8fa91b7, and Outbox / "Auto-filled
+    from" / "Recently Sent" all MISSING from the live
+    module-atrium-DGjj66lS.js chunk.
+  - AFTER: version.json sha d83c0827, status healthy (built
+    2026-09-07T21:55Z); live module-atrium-C6GMbYC7.js contains ALL
+    three release strings; Convex prod backend answered a live
+    debug_env:checkEnv query with the Chakra WhatsApp env fully
+    configured (token/plugin/phone all true) and the Brevo mailer key
+    present.
+- Security: the user's PAT was pasted in chat — used only for the
+  push, the workflow dispatch, and run polling; every on-disk artifact
+  (askpass script, gh.token) deleted after use; the user was told to
+  ROTATE the token (github.com/settings/tokens) since chat exposure
+  counts as a leak. The stale read-only PAT still embedded in the
+  remote URL was left untouched this round (fetch/ls-remote only).
+
+**Stage summary:**
+
+- Production (https://practice-pro-vega.vercel.app + Convex
+  gregarious-malamute-537) is LIVE on d83c0827 with the full task-23
+  messaging release: firm-name sender identity, awaited sends with
+  in-modal delivery results and retry, the Outbox sent-history tab,
+  resident financial auto-fill, and honest WhatsApp errors with
+  approved-template auto-retry on 24-hour-window failures.
+- Standing queue for next rounds: fresh CLOUDFLARE_API_TOKEN (mirror
+  has failed 2 deploys running), Firebase push (needs the user's
+  Firebase info), Chakra webhook live test, WhatsApp template
+  registration docx (3 details pending), 2FA code-rejection if it
+  recurs, and the user should rotate the PAT pasted this round.
