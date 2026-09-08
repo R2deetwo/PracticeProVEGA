@@ -11642,3 +11642,22 @@ Stage Summary:
 - APK v1.0.566 content: epoch-ms notifications (sort/display now consistent), touch-visible message deletion on 6 surfaces + client-portal own-message delete, Vercel manifest APK-field preservation, modal batch 1 (task/property modals via ModalShell), EmptyState gaps closed.
 - OPEN ITEMS for user: (1) re-paste Cloudflare cfat_ token to update repo secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID — mirror deploys stay red until then; (2) rotate the GitHub PAT when convenient (pasted in chat twice now); (3) staging alias still broken (pre-existing).
 - PAT location note: local git remote + ~/.git-credentials only; never committed.
+
+---
+Task ID: 34
+Agent: main (Super Z)
+Task: User feedback: "haven't seen the messages improvements (expected delete for sent messages); make messages page + features better; are modals done?" — respond with evidence + ship the next round.
+
+Work Log:
+- ROOT CAUSE of "no delete visible": the user's installed APK is v1.0.563 (Aug 13); message deletion shipped in v1.0.565/566 TODAY. Additionally the affordance itself was weak: a 20px unlabeled X at the bubble corner — discoverable only if you already knew it existed.
+- MESSAGES ACTIONS v2 (MessageThread.tsx): new shared system — per-message menu with Copy text (built-in, WebView-fallback clipboard + inline "Copied!" feedback) + Delete (opt-in via canDeleteMessage/onDeleteMessage) + extensible extraMessageActions. Opens via (1) touch-visible ⋮ trigger next to the sender label, (2) Android long-press / desktop right-click (onContextMenu — Android WebView fires contextmenu on long-press), (3) portal-rendered, viewport-clamped, Esc/outside-close. Exported MessageActionsMenu so bespoke renderers reuse the identical UX.
+- ADOPTED on all 3 portal surfaces, replacing the tiny-X buttons: MessagesView portal thread (admin delete-any, adminDeletePortalMessage), TenantPortal (own-message soft delete + confirm), ClientDashboard (own-message soft delete + confirm). Delete semantics, confirm dialogs, toasts unchanged — only the affordance changed. Copy now works on EVERY message on every surface (was team-thread-only).
+- MODAL BATCH 2 (Matters & Contacts cluster): newMatter, editMatter, closeMatter, archiveMatter, newContact, editContact, mergeContact migrated from ModalManager to ModalLayer + ModalShell (prop wiring copied 1:1, including closeMatter's unbilled time/expense computation and the contact returnTo->newProperty flow). Enterprise newMatter override now wired with REAL props (was a placeholder stub — would have rendered a dead wizard). ModalManager: 7 cases + 7 dead imports removed. 13 of 80 modal cases now migrated.
+- VALIDATION: vitest 265/265; vite build green; convex tsc green; boot-smoke PASS 6/6 (audit-results/batch2-boot.png, 0 console errors; new scripts/smoke-batch2.mjs reads dist/assets directly — network-capture misses lazy chunks, and esbuild normalizes quotes to double).
+- SHIPPED: b6ab1bc7 pushed (auto-triggered build #948 — head commit deliberately NOT [skip ci] this time) -> PracticePro-v1.0.567.apk released (10567), bot commits b7c4a817 + 65b54dd7 landed; production-deploy run 34194205009: Vercel + Convex SUCCESS, Cloudflare mirror failed at token-verify (standing expired secret — cfat token still lost, needs user re-paste). Live https://practice-pro-vega.vercel.app/version.json: sha 65b54dd7, apkVersion 1.0.567/10567, healthy, APK URL verified 200.
+
+Stage Summary:
+- v1.0.567 LIVE end-to-end: discoverable message actions (⋮/long-press/copy/delete) on every portal message surface + modal batch 2.
+- User must UPDATE the app to see any of this: v1.0.563 -> 1.0.567 (open app, accept the prompt; the 10-min poll will offer it).
+- Remaining modal migration: 67 of 80 cases (batches 3+: documents, events, invoices, users, workflows, templates, finance, research...).
+- Standing items: Cloudflare cfat re-paste for repo secrets; staging alias; PAT rotation eventually.
