@@ -1,0 +1,53 @@
+# Runs one-off data-fix mutations on the Convex production deployment.
+#
+# Created for Task 32 (2026-09-08): the notifications table now stores
+# epoch-ms numbers (36 writer sites normalized), but rows written before
+# the switch may still hold ISO strings or null timestamps. This workflow
+# runs the idempotent backfill migration using the repo's CONVEX_DEPLOY_KEY
+# secret, so nobody needs local convex login to repair production data.
+#
+# Safe to re-run: the mutation only patches non-numeric values and fills
+# missing `timestamp` from `_creationTime`; rows already canonical are
+# left untouched.
+
+name: Convex Backfill Mutation
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (report what would change, write nothing)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: convex-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run backfillNotificationTimestamps mutation
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "Running backfill (dryRun=${DRY_RUN}) against production deployment gregarious-malamute-537"
+          npx convex run migrations:backfillNotificationTimestamps "{\"dryRun\":${DRY_RUN}}"
