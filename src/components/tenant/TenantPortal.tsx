@@ -2530,7 +2530,23 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
           )}
         </div>
 
-        {/* Messages area */}
+        {/* Messages area
+            ── WHY this doesn't render through the shared MessageThread (yet) ──
+            The staff app's Team/Client&Tenant/AI threads all render through
+            src/components/messaging/MessageThread.tsx + the canonical
+            src/messaging/model.ts. The portals deliberately keep their own
+            thread renderer for now:
+            1. IDENTITY PERSPECTIVE: here the PARTICIPANT is "me" — the firm's
+               replies are "them". The model now supports this via
+               normalizePortalMessage(msg, undefined, { perspective: 'participant' }),
+               but the render adoption is staged separately to keep this
+               release surgical.
+            2. SIGNED ATTACHMENT URLS: portal attachments resolve through the
+               fileUrls map (portal-token access) — the shared AttachmentGrid
+               builds public staff-side storage URLs, which would 404 here.
+            3. PORTAL DESIGN LANGUAGE: emerald accent + participant-side delete
+               semantics (soft-delete visible only to the participant).
+            Revisit once MessageThread grows a URL-resolver prop. */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-slate-50 dark:bg-zinc-900 custom-scrollbar">
           {conversationMessages === undefined ? (
             <div className="flex justify-center py-8">

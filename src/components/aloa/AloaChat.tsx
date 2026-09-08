@@ -4,6 +4,8 @@ import { useAloa } from '../../contexts/AloaProvider';
 import { useConvex, useMutation, useAction, useQuery } from 'convex/react';
 import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } from '../../types';
 import { AutoExpandingChatInput } from '../toolkit/AutoExpandingChatInput';
+import { MessageThread } from '../messaging/MessageThread';
+import { normalizeAloaMessage } from '../../messaging/model';
 import { GoogleGenAI } from '@google/genai';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -2826,21 +2828,50 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         </div>
                     )}
 
-                    {messages.map((msg, idx) => (
-                        <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} group animate-in zoom-in-95 duration-300`}>
-                            {/* PII Shield Badge — shows above user messages when PII was stripped */}
-                            {msg.role === 'user' && (msg as any).piiResult && (
-                                <PIIShieldBadge result={(msg as any).piiResult} />
-                            )}
-                            <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
-                            <div className={`max-w-[88%] ${msg.role === 'user' ? '' : 'w-full relative'}`}>
-                                <div className={`px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all
-                                ${msg.role === 'user'
-                                        ? 'bg-primary-600 text-white rounded-tr-none shadow-lg shadow-primary-500/10'
-                                        : msg.isError
-                                            ? 'bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30'
-                                            : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl text-slate-800 dark:text-zinc-200 border border-slate-200/40 dark:border-zinc-800/60 shadow-xl group-hover:border-primary-400/50 dark:group-hover:border-primary-500/50'
-                                    }`}>
+                    {/* Message loop — shared MessageThread (variant 'ai', EMBEDDED
+                        mode: AloaChat keeps its own scroll architecture —
+                        scroll-to-top, jump-to-bottom, distance tracking —
+                        while alignment, day dividers and the bubble frame
+                        come from the shared component. All specialized AI
+                        content (markdown, streaming cursor, interactive
+                        forms, jurisdiction cards, action cards, per-message
+                        actions) rides the renderBubbleContent slot; the PII
+                        shield rides renderAboveBubble. This is what makes
+                        ALOA and Research feel like ONE assistant product:
+                        same thread surface, two intelligence modes. */}
+                    {(() => {
+                        // Attachments render inside the slot content below
+                        // (AloaChat's exact grid), so they are stripped from
+                        // the unified payload to avoid double rendering.
+                        const unifiedAloa = messages.map(m => {
+                            const u = normalizeAloaMessage(m);
+                            u.attachments = [];
+                            return u;
+                        });
+                        return (
+                            <MessageThread
+                                embedded
+                                variant="ai"
+                                threadKey={activeConversationId || '__new__'}
+                                messages={unifiedAloa}
+                                innerClassName="w-full"
+                                showAvatars={false}
+                                emptyState={null}
+                                bubbleClassName={(m) => {
+                                    const msg = m.raw;
+                                    if (msg.role === 'user') return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-primary-600 text-white rounded-tr-none shadow-lg shadow-primary-500/10';
+                                    if (msg.isError) return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
+                                    return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl text-slate-800 dark:text-zinc-200 border border-slate-200/40 dark:border-zinc-800/60 shadow-xl group-hover:border-primary-400/50 dark:group-hover:border-primary-500/50';
+                                }}
+                                renderAboveBubble={(m) => (m.isMe && (m.raw as any).piiResult) ? (
+                                    <PIIShieldBadge result={(m.raw as any).piiResult} />
+                                ) : null}
+                                renderBubbleContent={(m) => {
+                                    const msg = m.raw;
+                                    const idx = messages.findIndex(x => x.id === msg.id);
+                                    return (
+                                        <>
+
                                     {msg.content && (
                                         <div
                                             className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2"
@@ -3038,11 +3069,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             </button>
                                         )}
                                     </div>
-                                </div>
-                            </div>
-                            </div>
-                        </div>
-                    ))}
+                                        </>
+                                    );
+                                }}
+                            />
+                        );
+                    })()}
 
                     {/* ─── Web Fetch Results Panel (like expandable search panels) ──
                         Shows the URLs ALOA has fetched and read, with titles

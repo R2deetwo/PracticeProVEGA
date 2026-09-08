@@ -19,6 +19,17 @@ import TeamMessageModal from './modals/TeamMessageModal';
 // SIMPLIFY FIX: dead AtriumInbox import removed — the WhatsApp & Email tab
 // was merged into Conversations (inbox) in a prior session.
 import { NoticeBoardTab, ScheduledTab, OutboxTab } from './messaging';
+import { MessageThread } from './messaging/MessageThread';
+import {
+    InboxSection,
+    ClientThreadTag,
+    mapLegacyInboxType,
+    deriveClientThreadTag,
+    CLIENT_THREAD_TAG_STYLES,
+    normalizeChatMessage,
+    normalizePortalMessage,
+    sortUnifiedMessages,
+} from '../messaging/model';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
 import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
@@ -78,90 +89,16 @@ const CHANNEL_LABELS: Record<string, string> = {
     portal: 'Portal',
 };
 
-// ── Conversation type detection ───────────────────────────────────────────
-// Inspects a conversation's lastMessagePreview (or any message preview) to
-// determine what KIND of conversation this is. Used for color-coded badges
-// in the inbox list so practitioners can scan and prioritise at a glance.
-//
-// The prefix emojis are set by the backend when a ticket/request is created:
-//   T: = maintenance ticket (Atrium resident portal)
-//   R: = service request (Vega client portal)
-//   A: = admin resolution/update reply
-// Falls back to "portal" (regular 2-way chat) for everything else.
-// 'team' = internal direct message between team members (not a portal convo)
-type ConversationType = 'maintenance' | 'service_request' | 'portal' | 'admin_reply' | 'team';
+// ── Conversation tagging (collapsed union) ────────────────────────────────
+// The old ConversationType union ('maintenance' | 'service_request' | 'portal'
+// | 'admin_reply' | 'team') was DERIVED BY SNIFFING MESSAGE-PREVIEW PREFIXES
+// (T:/R:/A: prefixes) — the "type" changed whenever the last message changed
+// and rows were mislabelled. It is replaced by deriveClientThreadTag() from
+// src/messaging/model.ts, which reads STORED FIELDS (linkedTicketId /
+// linkedRequestId / lastMessageBy) with the shared CLIENT_THREAD_TAG_STYLES.
+// 'team' was never a client-thread tag — team rows live in their own inbox
+// section and are visually identified by their own styling.
 
-const CONVERSATION_TYPE_STYLES: Record<ConversationType, { badge: string; dot: string; label: string }> = {
-    maintenance: {
-        // Amber — matches the maintenance ticket theme used in the portal
-        badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-        dot: 'bg-amber-500',
-        label: 'Ticket',
-    },
-    service_request: {
-        // Red — high-priority signal that a client needs something
-        badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-        dot: 'bg-rose-500',
-        label: 'Request',
-    },
-    admin_reply: {
-        // Blue — admin's outgoing reply
-        badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-        dot: 'bg-blue-500',
-        label: 'Replied',
-    },
-    portal: {
-        // Emerald — default portal message
-        badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-        dot: 'bg-emerald-500',
-        label: 'Portal',
-    },
-    team: {
-        // Indigo — internal team direct message
-        badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-        dot: 'bg-indigo-500',
-        label: 'Team',
-    },
-};
-
-function detectConversationType(conv: any): ConversationType {
-    const preview: string = conv?.lastMessagePreview || '';
-    // A conversation's type is determined by its ORIGIN, not just the
-    // latest message. If the conversation EVER had a ticket or request
-    // (detected by the preview prefix at any point), it stays that type
-    // even after the admin replies. The admin reply prefix (A:) indicates
-    // the latest message is from admin, but the conversation's nature
-    // doesn't change.
-    //
-    // Priority: ticket/request origin > admin reply > plain portal
-    if (preview.startsWith('T:')) return 'maintenance';
-    if (preview.startsWith('R:')) return 'service_request';
-    // A: prefix means admin replied — but we need to check if this
-    // conversation ORIGINATED as a ticket/request. We can't know that
-    // from just the preview, so we treat A: as 'admin_reply' ONLY if
-    // it's not a known ticket/request conversation. In practice, the
-    // admin reply message includes the ticket type in its content, so
-    // we also check for ticket/request keywords in the preview.
-    if (preview.startsWith('A:')) {
-        // Check if the reply mentions a ticket/request context
-        const lowerPreview = preview.toLowerCase();
-        if (lowerPreview.includes('maintenance') || lowerPreview.includes('ticket')) return 'maintenance';
-        if (lowerPreview.includes('service request') || lowerPreview.includes('request')) return 'service_request';
-        return 'admin_reply';
-    }
-    // 🚫 prefix = cancelled ticket
-    if (preview.startsWith('🚫')) {
-        const lowerPreview = preview.toLowerCase();
-        if (lowerPreview.includes('ticket')) return 'maintenance';
-        return 'service_request';
-    }
-    return 'portal';
-}
-
-// Determine the role label to show next to a conversation — helps the
-// practitioner tell at a glance whether they're talking to a resident or
-// a client. Particularly important for unified (Komplete) firms that
-// serve both audiences from one inbox.
 function getRoleLabel(conv: any): string {
     const role: string = conv?.participantRole || '';
     if (role === 'Client') return 'Client';
@@ -173,230 +110,11 @@ function getRoleLabel(conv: any): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ChatWindow — Internal team chat conversation view (unchanged core logic)
+// ChatWindow — DELETED (was dead code: defined here but never rendered;
+// the inbox renders its own team thread below). The team thread now uses
+// the shared MessageThread component like every other conversation kind.
 // ══════════════════════════════════════════════════════════════════════════
-const ChatWindow: React.FC<{
-    conversation: ChatConversation;
-    messages: ChatMessage[];
-    currentUser: User;
-    users: User[];
-    onSend: (text: string) => void;
-    onBack: () => void;
-    onDeleteMessage: (id: string, forEveryone: boolean, userId: string) => void | Promise<void>;
-    onDeleteChat: (id: string, forEveryone: boolean, userId: string) => void | Promise<void>;
-    onRetry: (id: string) => void;
-}> = ({ conversation, messages, currentUser, users, onSend, onBack, onDeleteMessage, onDeleteChat, onRetry }) => {
-    const [newMessage, setNewMessage] = useState('');
-    const [showMenu, setShowMenu] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const teamMessagesEndRef = useRef<HTMLDivElement>(null);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const { addToast, openModal, closeModal } = useUI();
-    const { matterState } = useMatterState();
-    const { coreState, isDataLoaded } = useCoreState();
-    const [isAtBottom, setIsAtBottom] = useState(true);
 
-    const handleScroll = () => {
-        if (scrollContainerRef.current) {
-            const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-            const isBottom = scrollHeight - scrollTop - clientHeight < 100;
-            setIsAtBottom(isBottom);
-        }
-    };
-
-    useEffect(() => {
-        const lastMessage = messages[messages.length - 1];
-        const isMyMessage = lastMessage?.authorId === currentUser.id;
-        if (isAtBottom || isMyMessage) {
-            const timer = setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-            return () => clearTimeout(timer);
-        }
-    }, [messages, currentUser.id, isAtBottom]);
-
-    useEffect(() => {
-        if (messages.length > 0) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-            const timer = setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [conversation.id]);
-
-    const handleTaskClick = (e: React.MouseEvent) => {
-        const target = e.target as HTMLElement;
-        const taskEl = target.closest('.aloa-interactive-task');
-        if (taskEl) {
-            const taskTitle = taskEl.getAttribute('data-task-title');
-            if (taskTitle) openModal('newTask', undefined, { defaultTitle: taskTitle });
-        }
-    };
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) setShowMenu(false);
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleSend = () => {
-        if (!newMessage.trim()) return;
-        onSend(newMessage.trim());
-        setNewMessage('');
-        if (inputRef.current) inputRef.current.focus();
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
-    };
-
-    const otherMember = conversation.type === 'direct'
-        ? users.find(u => u.id === conversation.memberIds?.find(id => id !== currentUser.id))
-        : null;
-
-    const displayName = conversation.type === 'channel'
-        ? `#${conversation.name}`
-        : otherMember?.name || 'Unknown';
-
-    return (
-        <div className="flex flex-col h-full relative">
-            {/* Header */}
-            <div className="flex-shrink-0 h-16 px-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between bg-white dark:bg-zinc-800 z-20 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full">
-                        <ChevronRightIcon className="w-5 h-5 rotate-180" />
-                    </button>
-                    <div className="flex items-center gap-3">
-                        {conversation.type === 'channel' ? (
-                            <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-600 dark:text-primary-300">
-                                <span className="font-bold text-lg">#</span>
-                            </div>
-                        ) : (
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${getUserColor(displayName)}`}>
-                                {getInitials(displayName)}
-                            </div>
-                        )}
-                        <div>
-                            <h3 className="font-bold text-slate-900 dark:text-white text-base">{displayName}</h3>
-                            {conversation.type === 'channel' && (
-                                <p className="text-xs text-slate-500 dark:text-zinc-400">{conversation.memberIds?.length || 0} members</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                <div className="relative" ref={menuRef}>
-                    <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg">
-                        <DotsVerticalIcon />
-                    </button>
-                    {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg z-50 py-1">
-                            <button onClick={() => { onDeleteChat(conversation.id, false, currentUser.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
-                                Delete Conversation
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Messages */}
-            <div ref={scrollContainerRef} onScroll={handleScroll} onClick={handleTaskClick} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth bg-slate-50 dark:bg-zinc-900">
-                <div className="max-w-3xl mx-auto w-full pb-4">
-                    {messages.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            </div>
-                            <p className="text-sm text-slate-400 dark:text-zinc-500">No messages yet. Start the conversation!</p>
-                        </div>
-                    )}
-                    {messages.map((msg, idx) => {
-                        const isMe = msg.authorId === currentUser.id;
-                        const author = users.find(u => u.id === msg.authorId);
-                        const showAvatar = idx === 0 || messages[idx - 1]?.authorId !== msg.authorId;
-                        const isFailed = (msg as any).status === 'failed';
-
-                        if (msg.isDeleted) {
-                            return (
-                                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} my-1`}>
-                                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                                        isMe
-                                            ? 'bg-primary-600/20 text-primary-300/60 dark:text-primary-400/40 rounded-tr-none italic'
-                                            : 'bg-white dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-500 border border-slate-200/50 dark:border-zinc-700/50 rounded-tl-none italic'
-                                    }`}>
-                                        <p className="text-xs">This message was deleted</p>
-                                    </div>
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative ${showAvatar ? 'mt-4' : 'mt-1'}`}>
-                                {!isMe && showAvatar && (
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mr-2.5 mt-0.5 ${getUserColor(author?.name || 'U')}`}>
-                                        {getInitials(author?.name || 'U')}
-                                    </div>
-                                )}
-                                {!isMe && !showAvatar && <div className="w-8 mr-2.5 flex-shrink-0" />}
-                                <div className="flex flex-col max-w-[85%] relative">
-                                    {/* Sender label + timestamp — shown for both sides */}
-                                    <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
-                                            {isMe ? 'You' : (author?.name || 'Unknown')}
-                                        </span>
-                                        <span className="text-2xs text-slate-300 dark:text-zinc-600">
-                                            {msg.timestamp ? timeAgo(msg.timestamp) : ''}
-                                        </span>
-                                    </div>
-                                    {/* Bubble */}
-                                    <div className={`group relative rounded-2xl px-4 py-2.5 shadow-sm ${
-                                        isMe
-                                            ? 'bg-primary-600 text-white rounded-tr-none'
-                                            : 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-tl-none'
-                                    } ${isFailed ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : ''}`}>
-                                        {msg.content?.startsWith('[FILE:') ? (
-                                            <div className="flex items-center gap-2">
-                                                <DocumentIcon className="w-4 h-4" />
-                                                <span>File attachment</span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</span>
-                                        )}
-                                        {isFailed && (
-                                            <button onClick={() => onRetry(msg.id)} className="text-2xs text-red-400 hover:text-red-300 font-bold ml-2">
-                                                Retry
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                    <div ref={messagesEndRef} />
-                </div>
-            </div>
-
-            {/* Input — uses .chat-input-dock for correct bottom-nav spacing */}
-            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 chat-input-dock">
-                <div className="max-w-3xl mx-auto">
-                    <AutoExpandingChatInput
-                        value={newMessage}
-                        onChange={setNewMessage}
-                        onSend={handleSend}
-                        placeholder="Type a message..."
-                        sendDisabled={!newMessage.trim()}
-                        sendIcon={<SendIcon />}
-                        sendAriaLabel="Send message"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-};
 
 // ─── MessageContent — progressive disclosure for long message text ──────
 // Truncates after 4 lines / 280 chars, shows "See More" to expand inline.
@@ -628,10 +346,13 @@ const MessagesView: React.FC = () => {
         // If navigating to inbox with a specific inbound message ID, select it
         if (hint === 'inbox' && currentHistoryEntry.context?.selectedInboxId) {
             setSelectedInboxId(currentHistoryEntry.context.selectedInboxId);
-            // Also set the inbox type if provided (e.g. 'team' for team chat notifications)
-            const inboxType = currentHistoryEntry.context?.selectedInboxType;
-            if (inboxType === 'team' || inboxType === 'conversation' || inboxType === 'inbound' || inboxType === 'portal') {
-                setSelectedInboxType(inboxType);
+            // Also set the inbox section if provided (e.g. 'team' for team chat
+            // notifications). Legacy contexts carry the OLD inbox-type strings;
+            // mapLegacyInboxType() converts them to the collapsed taxonomy.
+            const legacyType = currentHistoryEntry.context?.selectedInboxType;
+            const section = mapLegacyInboxType(legacyType);
+            if (section) {
+                setSelectedSection(section);
             }
         }
         // ─── System Inbox auto-open ───────────────────────────────────
@@ -641,7 +362,7 @@ const MessagesView: React.FC = () => {
         // instead of landing on a generic inbox with no thread visible.
         if (currentHistoryEntry.context?.systemInbox === true) {
             setSelectedInboxId('system-inbox');
-            setSelectedInboxType('system' as any);
+            setSelectedSection('system');
             setActiveTab('inbox');
         }
         // ─── Contact-initiated messaging ────────────────────────────────
@@ -669,7 +390,6 @@ const MessagesView: React.FC = () => {
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
     // ── Team DM state (team chat renders inside the Conversations inbox) ──
-    const teamChatEndRef = useRef<HTMLDivElement>(null);
     const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
@@ -752,10 +472,14 @@ const MessagesView: React.FC = () => {
         if (ctx?.initialTab === 'inbox' && ctx?.selectedInboxId) return ctx.selectedInboxId;
         return null;
     });
-    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | 'team' | 'system' | null>(() => {
+    // ONE selection union (collapsed from the old selectedInboxType string
+    // union + ConversationType overlap). 'client_tenant' = threaded portal
+    // conversations; 'flat' = legacy single rows (inbound WhatsApp/Email or
+    // pre-conversation portal messages); 'team'/'system' as before.
+    const [selectedSection, setSelectedSection] = useState<InboxSection | null>(() => {
         const ctx = currentHistoryEntry.context;
         if (ctx?.initialTab === 'inbox' && ctx?.selectedInboxId) {
-            return (ctx?.selectedInboxType as 'team' | 'conversation' | 'inbound' | 'portal') || null;
+            return mapLegacyInboxType(ctx?.selectedInboxType as string);
         }
         return null;
     });
@@ -799,14 +523,39 @@ const MessagesView: React.FC = () => {
     // Search query for filtering by name/subject
     const [conversationSearch, setConversationSearch] = useState('');
 
+    // ── Data-derived conversation tags (replaces preview-prefix sniffing) ──
+    // One pass over the firm's portal_messages (already loaded) records, per
+    // conversation, whether a ticket/request ORIGINATED there. Rows keep
+    // their tag even after admin replies — derived from STORED fields
+    // (linkedTicketId/linkedRequestId), never from lastMessagePreview text.
+    const conversationTagMap = useMemo(() => {
+        const hasTicket = new Set<string>();
+        const hasRequest = new Set<string>();
+        for (const m of (portalMessages as any[])) {
+            const cid = m?.conversationId ? String(m.conversationId) : null;
+            if (!cid) continue;
+            if (m.linkedTicketId) hasTicket.add(cid);
+            if (m.linkedRequestId) hasRequest.add(cid);
+        }
+        const map = new Map<string, ClientThreadTag>();
+        for (const conv of (portalConversations as any[])) {
+            const id = String(conv._id);
+            map.set(id, hasTicket.has(id) ? 'ticket'
+                : hasRequest.has(id) ? 'request'
+                    : deriveClientThreadTag(conv, []));
+        }
+        return map;
+    }, [portalConversations, portalMessages]);
+
     const filteredPortalConversations = useMemo(() => {
         return (portalConversations as any[]).filter((conv: any) => {
-            // Type filter
-            const convType = detectConversationType(conv);
-            if (convType === 'service_request' && !typeFilters.request) return false;
-            if (convType === 'maintenance' && !typeFilters.ticket) return false;
-            if (convType === 'admin_reply' && !typeFilters.replied) return false;
-            if (convType === 'portal' && !typeFilters.portal) return false;
+            // Type filter — data-derived tag (see conversationTagMap above).
+            // 'general' is the "Portal" filter chip (plain 2-way chat rows).
+            const convTag = conversationTagMap.get(String(conv._id)) || 'general';
+            if (convTag === 'request' && !typeFilters.request) return false;
+            if (convTag === 'ticket' && !typeFilters.ticket) return false;
+            if (convTag === 'replied' && !typeFilters.replied) return false;
+            if (convTag === 'general' && !typeFilters.portal) return false;
             // Search filter
             if (conversationSearch.trim()) {
                 const q = conversationSearch.toLowerCase();
@@ -816,7 +565,7 @@ const MessagesView: React.FC = () => {
             }
             return true;
         });
-    }, [portalConversations, typeFilters, conversationSearch]);
+    }, [portalConversations, typeFilters, conversationSearch, conversationTagMap]);
 
     // Split portal conversations by role for separate accordions.
     // For unified (Komplete) firms: show both "Clients" and "Residents" sections.
@@ -883,7 +632,7 @@ const MessagesView: React.FC = () => {
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
         api.portals.getConversationMessages,
-        (selectedInboxType === 'conversation' && selectedInboxId) ? { conversationId: selectedInboxId } : 'skip'
+        (selectedSection === 'client_tenant' && selectedInboxId) ? { conversationId: selectedInboxId } : 'skip'
     );
 
     // ── Admin file upload for replies ──
@@ -911,8 +660,8 @@ const MessagesView: React.FC = () => {
 
     // ── Inbox: find selected conversation/message ──
     const selectedInboundMsg = useMemo(() => {
-        // Conversation-based portal message
-        if (selectedInboxType === 'conversation') {
+        // Threaded client/tenant conversation
+        if (selectedSection === 'client_tenant') {
             const conv = (portalConversations as any[]).find((c: any) => String(c._id) === selectedInboxId);
             if (conv) return {
                 _id: conv._id,
@@ -931,14 +680,13 @@ const MessagesView: React.FC = () => {
                 matterId: conv.matterId,
             };
         }
-        // Legacy inbound (WhatsApp/Email)
-        if (selectedInboxType === 'inbound') {
-            const inbound = atriumInbound.find((m: any) => m._id === selectedInboxId);
+        // Flat rows — legacy inbound WhatsApp/Email OR pre-conversation portal
+        // messages. Both render through the same detail pane, so they share ONE
+        // section; the source order resolves which table the id belongs to.
+        if (selectedSection === 'flat') {
+            const inbound = atriumInbound.find((m: any) => String(m._id) === String(selectedInboxId));
             if (inbound) return { ...inbound, _inboxType: 'inbound' as const };
-        }
-        // Legacy portal message (backward compat)
-        if (selectedInboxType === 'portal') {
-            const portal = (portalMessages as any[]).find((m: any) => m._id === selectedInboxId);
+            const portal = (portalMessages as any[]).find((m: any) => String(m._id) === String(selectedInboxId));
             if (portal) return {
                 ...portal,
                 _inboxType: 'portal' as const,
@@ -951,7 +699,7 @@ const MessagesView: React.FC = () => {
             };
         }
         return undefined;
-    }, [atriumInbound, portalConversations, portalMessages, selectedInboxId, selectedInboxType]);
+    }, [atriumInbound, portalConversations, portalMessages, selectedInboxId, selectedSection]);
 
     // ── Inbox: portal message reply mutations ──
     const replyToPortal = useMutation(api.portals.replyToPortalMessage);
@@ -978,7 +726,7 @@ const MessagesView: React.FC = () => {
     // ticket/request. We collect them all so we can show a status bar for EACH
     // one individually — the user explicitly asked for per-ticket control.
     const linkedTickets = useMemo(() => {
-        if (selectedInboxType !== 'conversation' || !selectedInboxId) return [];
+        if (selectedSection !== 'client_tenant' || !selectedInboxId) return [];
         const msgs = (conversationMessages as any[]) || [];
         const seen = new Set<string>();
         const tickets: { kind: 'maintenance' | 'client_service'; id: string; requestTypeLabel?: string; requestTypeKey?: string }[] = [];
@@ -995,7 +743,7 @@ const MessagesView: React.FC = () => {
             }
         }
         return tickets;
-    }, [selectedInboxType, selectedInboxId, conversationMessages]);
+    }, [selectedSection, selectedInboxId, conversationMessages]);
 
     // Fetch ALL linked tickets/requests to get their current statuses.
     // We fetch each one individually via the convex client and store them
@@ -1098,15 +846,8 @@ const MessagesView: React.FC = () => {
         }
     };
 
-    // Auto-scroll the selected team-DM thread (inside Conversations) to the bottom
-    useEffect(() => {
-        if (selectedInboxType === 'team' && selectedInboxId) {
-            const timer = setTimeout(() => {
-                teamChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [selectedInboxType, selectedInboxId, messages]);
+    // (Auto-scroll for the team-DM thread is now owned by MessageThread —
+    // the old teamChatEndRef effect was removed with it.)
 
     const renderSidebarPreview = (msg: ChatMessage | undefined) => {
         if (!msg) return 'No messages yet';
@@ -1183,7 +924,7 @@ const MessagesView: React.FC = () => {
             addToast(`Deleted ${selectedConvIds.size} conversation${selectedConvIds.size > 1 ? 's' : ''}.`, { type: 'success' });
             setSelectedConvIds(new Set());
             setSelectedInboxId(null);
-            setSelectedInboxType(null);
+            setSelectedSection(null);
         } catch (err: any) {
             addToast(err.message || 'Failed to delete conversations.', { type: 'error' });
         } finally {
@@ -1628,7 +1369,7 @@ const MessagesView: React.FC = () => {
                                                 <div
                                                     onClick={() => {
                                                         setSelectedInboxId('system-inbox');
-                                                        setSelectedInboxType('system' as any);
+                                                        setSelectedSection('system');
                                                         // Mark feedback reply notifications as read
                                                         const systemNotifs = (coreState.notifications || []).filter(n =>
                                                             n && n.userId === currentUser.id &&
@@ -1696,7 +1437,7 @@ const MessagesView: React.FC = () => {
                                                     {!collapsedSections.has('inbound') && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
                                                     key={msg._id}
-                                                    onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }); }}
+                                                    onClick={() => { setSelectedInboxId(msg._id); setSelectedSection('flat'); markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }); }}
                                                     className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
@@ -1746,15 +1487,16 @@ const MessagesView: React.FC = () => {
                                                         </button>
                                                         {teamConversationsForInbox.map((tc: any) => {
                                                 const convId = String(tc.conversationId);
-                                                const isThisSelected = selectedInboxId === convId && selectedInboxType === 'team';
-                                                const typeStyle = CONVERSATION_TYPE_STYLES.team;
+                                                const isThisSelected = selectedInboxId === convId && selectedSection === 'team';
+                                                // Team rows carry their own indigo identity — not a client-thread tag
+                                                const typeStyle = { badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400', dot: 'bg-indigo-500', label: 'Team' };
                                                 const activeTint = 'bg-indigo-50 dark:bg-indigo-900/20 border-l-indigo-500';
                                                 return (
                                                     <div
                                                         key={convId}
                                                         onClick={() => {
                                                             setSelectedInboxId(convId);
-                                                            setSelectedInboxType('team');
+                                                            setSelectedSection('team');
                                                             // Clear unread notifications for this conversation
                                                             const notifIds = (coreState.notifications || [])
                                                                 .filter((n: any) => !n.isRead && n.userId === (currentUser?.id || currentUser?._id) &&
@@ -1817,7 +1559,7 @@ const MessagesView: React.FC = () => {
                                                                         Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
                                                                     ));
                                                                     await handleDeleteChat(tc.conversationId, true, currentUser?.id || currentUser?._id || '');
-                                                                    if (selectedInboxId === convId) { setSelectedInboxId(null); setSelectedInboxType(null); }
+                                                                    if (selectedInboxId === convId) { setSelectedInboxId(null); setSelectedSection(null); }
                                                                     addToast('Conversation deleted.', { type: 'success', duration: 2500 });
                                                                 } catch (err: any) {
                                                                     addToast(err?.message || 'Failed to delete conversation.', { type: 'error' });
@@ -1855,14 +1597,14 @@ const MessagesView: React.FC = () => {
                                                         clientPortalConversations.length > 0 ? clientPortalConversations.map((conv: any) => {
                                                 const convId = String(conv._id);
                                                 const isSelected = selectedConvIds.has(convId);
-                                                const convType = detectConversationType(conv);
-                                                const typeStyle = CONVERSATION_TYPE_STYLES[convType];
-                                                const isThisSelected = selectedInboxId === convId && selectedInboxType === 'conversation';
-                                                const activeTint = convType === 'service_request'
+                                                const convTag = conversationTagMap.get(String(conv._id)) || 'general';
+                                                const typeStyle = CLIENT_THREAD_TAG_STYLES[convTag];
+                                                const isThisSelected = selectedInboxId === convId && selectedSection === 'client_tenant';
+                                                const activeTint = convTag === 'request'
                                                     ? 'bg-rose-50 dark:bg-rose-900/20 border-l-rose-500'
-                                                    : convType === 'maintenance'
+                                                    : convTag === 'ticket'
                                                     ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
-                                                    : convType === 'admin_reply'
+                                                    : convTag === 'replied'
                                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
                                                     : 'bg-violet-50 dark:bg-violet-900/20 border-l-violet-500';
                                                 return (
@@ -1870,7 +1612,7 @@ const MessagesView: React.FC = () => {
                                                         key={conv._id}
                                                         onClick={() => {
                                                             setSelectedInboxId(convId);
-                                                            setSelectedInboxType('conversation');
+                                                            setSelectedSection('client_tenant');
                                                             if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
                                                         }}
                                                         className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
@@ -1938,14 +1680,14 @@ const MessagesView: React.FC = () => {
                                                         residentPortalConversations.length > 0 ? residentPortalConversations.map((conv: any) => {
                                                 const convId = String(conv._id);
                                                 const isSelected = selectedConvIds.has(convId);
-                                                const convType = detectConversationType(conv);
-                                                const typeStyle = CONVERSATION_TYPE_STYLES[convType];
-                                                const isThisSelected = selectedInboxId === convId && selectedInboxType === 'conversation';
-                                                const activeTint = convType === 'service_request'
+                                                const convTag = conversationTagMap.get(String(conv._id)) || 'general';
+                                                const typeStyle = CLIENT_THREAD_TAG_STYLES[convTag];
+                                                const isThisSelected = selectedInboxId === convId && selectedSection === 'client_tenant';
+                                                const activeTint = convTag === 'request'
                                                     ? 'bg-rose-50 dark:bg-rose-900/20 border-l-rose-500'
-                                                    : convType === 'maintenance'
+                                                    : convTag === 'ticket'
                                                     ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
-                                                    : convType === 'admin_reply'
+                                                    : convTag === 'replied'
                                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
                                                     : 'bg-sky-50 dark:bg-sky-900/20 border-l-sky-500';
                                                 return (
@@ -1953,7 +1695,7 @@ const MessagesView: React.FC = () => {
                                                         key={conv._id}
                                                         onClick={() => {
                                                             setSelectedInboxId(convId);
-                                                            setSelectedInboxType('conversation');
+                                                            setSelectedSection('client_tenant');
                                                             if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
                                                         }}
                                                         className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
@@ -2043,7 +1785,7 @@ const MessagesView: React.FC = () => {
                         {/* Inbox Thread Detail — bounded to viewport, no spillover */}
                         <div className={`${selectedInboxId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-slate-50 dark:bg-zinc-950`}>
                             {/* ── TEAM CHAT THREAD (rendered when a team conversation is selected from the unified inbox) ── */}
-                            {selectedInboxType === 'team' && selectedInboxId && (() => {
+                            {selectedSection === 'team' && selectedInboxId && (() => {
                                 const tc = teamConversationsForInbox.find((t: any) => String(t.conversationId) === String(selectedInboxId));
                                 if (!tc) {
                                     // Check if team conversations are still loading.
@@ -2069,18 +1811,19 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     );
                                 }
-                                const convMessages = (messages as any[]).filter(
-                                    (m: any) => (String(m.conversationId) === String(selectedInboxId) || String(m.conversationId) === String(tc._id)) && !m.isDeleted
-                                ).sort((a: any, b: any) => {
-                                    const aTime = new Date(a.timestamp || a.createdAt || 0).getTime();
-                                    const bTime = new Date(b.timestamp || b.createdAt || 0).getTime();
-                                    return aTime - bTime; // ascending = oldest first, newest at bottom
-                                });
+                                // Unified model: chatMessages rows → UnifiedMessage (epoch-ms
+                                // sentAt, resolved isMe) — sorted through the shared helper so
+                                // string/number timestamp divergence is handled at ONE boundary.
+                                const convMessages = sortUnifiedMessages(
+                                    (messages as any[])
+                                        .filter((m: any) => (String(m.conversationId) === String(selectedInboxId) || String(m.conversationId) === String(tc._id)) && !m.isDeleted)
+                                        .map((m: any) => normalizeChatMessage(m, currentUser))
+                                );
                                 return (
                                     <>
                                         {/* Team chat header — with online status + clear-all */}
                                         <div className="flex-shrink-0 px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-3 bg-white dark:bg-zinc-900">
-                                            <button onClick={() => { setSelectedInboxId(null); setSelectedInboxType(null); }} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0">
+                                            <button onClick={() => { setSelectedInboxId(null); setSelectedSection(null); }} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0">
                                                 <ChevronRightIcon className="w-5 h-5 rotate-180" />
                                             </button>
                                             <div className="flex-shrink-0">
@@ -2142,53 +1885,54 @@ const MessagesView: React.FC = () => {
                                                 </button>
                                             )}
                                         </div>
-                                        {/* Messages */}
-                                        <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 custom-scrollbar">
-                                            {convMessages.length === 0 ? (
-                                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>
-                                            ) : convMessages.map((msg: any) => {
-                                                const isMe = msg.authorId === currentUser?.id || msg.authorId === currentUser?._id;
-                                                const msgId = msg.id || msg._id;
-                                                return (
-                                                    <ChatMessageBubble
-                                                        key={msgId}
-                                                        content={msg.content}
-                                                        timestamp={msg.timestamp || msg.createdAt}
-                                                        isMe={isMe}
-                                                        isEdited={msg.isEdited}
-                                                        isEditing={editingMessageId === msgId}
-                                                        onCancelEdit={() => setEditingMessageId(null)}
-                                                        onStartEdit={() => setEditingMessageId(msgId)}
-                                                        onEdit={async (newContent) => {
-                                                            try {
-                                                                await handleEditMessage(msgId, newContent);
-                                                                setEditingMessageId(null);
-                                                                addToast('Message updated.', { type: 'success', duration: 2500 });
-                                                            } catch (err: any) {
-                                                                addToast(err?.message || 'Failed to edit message.', { type: 'error' });
-                                                            }
-                                                        }}
-                                                        onDelete={async () => {
-                                                            const ok = await confirm({
-                                                                title: 'Delete this message?',
-                                                                message: 'This message will be permanently removed from the conversation.',
-                                                                confirmLabel: 'Delete',
-                                                                cancelLabel: 'Cancel',
-                                                                danger: true,
-                                                            });
-                                                            if (!ok) return;
-                                                            try {
-                                                                await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
-                                                                addToast('Message deleted.', { type: 'success', duration: 2500 });
-                                                            } catch (err: any) {
-                                                                addToast(err?.message || 'Failed to delete message.', { type: 'error' });
-                                                            }
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-                                            <div ref={teamChatEndRef} />
-                                        </div>
+                                        {/* Messages — shared MessageThread (variant 'team').
+                                            Day dividers, sender grouping, auto-scroll and the
+                                            jump-to-bottom affordance come from MessageThread; the
+                                            interactive bubble (copy/edit/delete menu) stays
+                                            ChatMessageBubble via the renderBubble slot. */}
+                                        <MessageThread
+                                            className="ticket-body-scroll bg-white dark:bg-zinc-900"
+                                            variant="team"
+                                            threadKey={String(selectedInboxId)}
+                                            messages={convMessages}
+                                            emptyState={<div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>}
+                                            renderBubble={(m) => (
+                                                <ChatMessageBubble
+                                                    content={m.content}
+                                                    timestamp={m.sentAt}
+                                                    isMe={m.isMe}
+                                                    isEdited={m.isEdited}
+                                                    isEditing={editingMessageId === m.id}
+                                                    onCancelEdit={() => setEditingMessageId(null)}
+                                                    onStartEdit={() => setEditingMessageId(m.id)}
+                                                    onEdit={async (newContent) => {
+                                                        try {
+                                                            await handleEditMessage(m.id, newContent);
+                                                            setEditingMessageId(null);
+                                                            addToast('Message updated.', { type: 'success', duration: 2500 });
+                                                        } catch (err: any) {
+                                                            addToast(err?.message || 'Failed to edit message.', { type: 'error' });
+                                                        }
+                                                    }}
+                                                    onDelete={async () => {
+                                                        const ok = await confirm({
+                                                            title: 'Delete this message?',
+                                                            message: 'This message will be permanently removed from the conversation.',
+                                                            confirmLabel: 'Delete',
+                                                            cancelLabel: 'Cancel',
+                                                            danger: true,
+                                                        });
+                                                        if (!ok) return;
+                                                        try {
+                                                            await handleDeleteMessage(m.id, true, currentUser?.id || currentUser?._id || '');
+                                                            addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                        } catch (err: any) {
+                                                            addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        />
                                         {/* Reply input — uses .chat-input-dock for correct bottom-nav spacing */}
                                         <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 chat-input-dock">
                                             {/* Hidden file input for attachments */}
@@ -2293,7 +2037,7 @@ const MessagesView: React.FC = () => {
                                 );
                             })()}
                             {/* ── PORTAL / INBOUND THREAD (original inbox detail) ── */}
-                            {selectedInboxType !== 'team' && selectedInboundMsg ? (
+                            {selectedSection !== 'team' && selectedInboundMsg ? (
                                 <>
                                     {/* Thread Header — adaptive flex, no hardcoded heights */}
                                     <div className="flex-shrink-0 min-h-[3.5rem] py-2 px-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between gap-2 bg-white dark:bg-zinc-800 z-20">
@@ -2310,11 +2054,11 @@ const MessagesView: React.FC = () => {
                                                     <span className={`px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ${CHANNEL_COLORS[selectedInboundMsg.channel]}`}>
                                                         {CHANNEL_LABELS[selectedInboundMsg.channel] || selectedInboundMsg.channel}
                                                     </span>
-                                                    {selectedInboxType === 'conversation' && (() => {
+                                                    {selectedSection === 'client_tenant' && (() => {
                                                         const conv = (portalConversations as any[]).find((c: any) => String(c._id) === selectedInboxId);
                                                         if (!conv) return null;
-                                                        const convType = detectConversationType(conv);
-                                                        const typeStyle = CONVERSATION_TYPE_STYLES[convType];
+                                                        const convTag = conversationTagMap.get(String(selectedInboxId)) || 'general';
+                                                        const typeStyle = CLIENT_THREAD_TAG_STYLES[convTag];
                                                         return (
                                                             <span className={`px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ${typeStyle.badge}`}>
                                                                 {typeStyle.label}
@@ -2361,168 +2105,37 @@ const MessagesView: React.FC = () => {
                                         the scroll container to viewport height. */}
                                     <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                                         <div className="max-w-2xl mx-auto w-full box-border">
-                                            {/* Conversation-based thread view */}
+                                            {/* Conversation-based thread view — shared
+                                                MessageThread (variant 'client_tenant'). Messages are
+                                                normalised to UnifiedMessage first (epoch-ms sentAt,
+                                                resolved isMe, attachments). Ticket badges ride the
+                                                renderAboveBubble slot; ticket controls, threaded
+                                                replies and the inline ticket composer ride
+                                                renderBelowBubble; progressive-disclosure content
+                                                rides renderBubbleContent. */}
                                             {selectedInboundMsg._inboxType === 'conversation' ? (
-                                                conversationMessages && conversationMessages.length > 0 ? (
+                                                (() => {
                                                     // BUG FIX (Task 12): Filter out isDeleted messages — the
                                                     // adminDeletePortalMessage mutation marks them as isDeleted:true
                                                     // but getConversationMessages still returns them. Without
                                                     // this filter, deleted messages would stay visible forever.
-                                                    conversationMessages.filter((msg: any) => !msg.isDeleted).map((msg: any) => {
-                                                        const isAdmin = msg.senderRole === 'Admin';
-                                                        // Find the linked ticket record for this message (if any)
-                                                        const msgTicketId = msg.linkedTicketId || msg.linkedRequestId;
-                                                        const msgTicketInfo = msgTicketId ? linkedTickets.find(t => t.id === String(msgTicketId)) : null;
-                                                        const msgTicketRecord = msgTicketId ? linkedTicketRecords[String(msgTicketId)] : null;
-                                                        const isReplyingToThis = msgTicketId && activeThreadTicketId === String(msgTicketId);
-                                                        return (
-                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-3 w-full`}>
-                                                                <div
-                                                                    data-ticket-id={msgTicketId ? String(msgTicketId) : undefined}
-                                                                    className={`relative max-w-[85%] sm:max-w-[70%] transition-all rounded-2xl px-3.5 py-2.5 min-w-0 box-border ${isAdmin
-                                                                    ? 'bg-primary-600 text-white rounded-tr-sm shadow-sm'
-                                                                    : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-tl-sm shadow-sm'
-                                                                }`}>
-                                                                    {/* Ticket badge — only show if this message originated a ticket */}
-                                                                    {(msg.linkedTicketId || msg.linkedRequestId) && (
-                                                                        <div className="mb-1.5">
-                                                                            <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-2xs font-bold ${msg.linkedTicketId ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
-                                                                                {msg.linkedTicketId ? 'T:' : 'R:'} {msg.requestTypeLabel || (msg.linkedTicketId ? 'Ticket' : 'Request')}
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Message content */}
-                                                                    <MessageContent content={msg.content || ''} isAdmin={isAdmin} />
-
-                                                                    {/* Attachments */}
-                                                                    {msg.attachments && msg.attachments.length > 0 && (
-                                                                        <div className="mt-2 grid grid-cols-2 gap-1.5">
-                                                                            {msg.attachments.map((storageId: string, idx: number) => {
-                                                                                const fileName = msg.attachmentNames?.[idx] || `File ${idx + 1}`;
-                                                                                const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
-                                                                                const convexFileUrl = `${import.meta.env.VITE_CONVEX_URL || ''}/api/storage/${storageId}`;
-                                                                                if (isImage) {
-                                                                                    return (
-                                                                                        <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
-                                                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-24 object-cover" />
-                                                                                        </a>
-                                                                                    );
-                                                                                }
-                                                                                return (
-                                                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-2 px-2.5 py-1.5 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80 transition-opacity`}>
-                                                                                        <DocumentIcon className={`w-4 h-4 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
-                                                                                        <span className={`text-xs truncate flex-1 ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
-                                                                                    </a>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Ticket controls — simplified to a single dropdown + assign */}
-                                                                    {msgTicketInfo && msgTicketRecord && (
-                                                                        <div className={`mt-2.5 pt-2 border-t ${isAdmin ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'}`}>
-                                                                            {msgTicketRecord.status !== 'cancelled' ? (
-                                                                                <div className="flex items-center gap-2 flex-wrap">
-                                                                                    {/* Status dropdown — one clean control instead of 4 pills */}
-                                                                                    <select
-                                                                                        value={msgTicketRecord.status}
-                                                                                        onChange={(e) => handleAdvanceTicket(msgTicketInfo, e.target.value as any)}
-                                                                                        className={`text-2xs font-bold px-2 py-1 rounded-lg border cursor-pointer ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
-                                                                                    >
-                                                                                        <option value="open">🟡 Received</option>
-                                                                                        <option value="in_progress">🔵 In Progress</option>
-                                                                                        <option value="resolved">🟢 Addressed</option>
-                                                                                        <option value="closed">⚪ Closed</option>
-                                                                                    </select>
-                                                                                    {/* Assign dropdown */}
-                                                                                    <select
-                                                                                        value={msgTicketRecord.assignedTo || ''}
-                                                                                        onChange={(e) => {
-                                                                                            const user = coreState.users?.find((u: any) => u.id === e.target.value);
-                                                                                            if (user) handleAssignTicket(msgTicketInfo, user.id, user.name || 'Team Member');
-                                                                                        }}
-                                                                                        className={`text-2xs font-bold px-2 py-1 rounded-lg border cursor-pointer ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
-                                                                                    >
-                                                                                        <option value="">{msgTicketRecord.assignedTo ? '↻ Reassign' : '👤 Assign…'}</option>
-                                                                                        {coreState.users
-                                                                                            ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
-                                                                                            .map((u: any) => (
-                                                                                                <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                                                                                            ))
-                                                                                        }
-                                                                                    </select>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
-                                                                                    ✕ Cancelled
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Threaded replies — cleaner, more readable */}
-                                                                    {msgTicketId && conversationMessages && (() => {
-                                                                        const threadReplies = (conversationMessages as any[]).filter(
-                                                                            (m: any) => !m.isDeleted && m.threadTicketId === String(msgTicketId) && String(m._id) !== String(msg._id)
-                                                                        );
-                                                                        if (threadReplies.length === 0) return null;
-                                                                        return (
-                                                                            <div className={`mt-2 ml-1 pl-2.5 border-l-2 ${isAdmin ? 'border-primary-300/50' : 'border-slate-300 dark:border-zinc-600'} space-y-1`}>
-                                                                                {threadReplies.map((reply: any) => {
-                                                                                    const replyIsAdmin = reply.senderRole === 'Admin';
-                                                                                    return (
-                                                                                        <div key={String(reply._id)} className={`text-2xs leading-relaxed ${replyIsAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-400'}`}>
-                                                                                            <span className="font-bold">{replyIsAdmin ? 'You' : (reply.senderName || 'User')}:</span> {reply.content?.substring(0, 280)}
-                                                                                            {reply.content && reply.content.length > 280 && '...'}
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        );
-                                                                    })()}
-
-                                                                    {/* INLINE REPLY COMPOSER — appears when "Reply to this ticket" is clicked */}
-                                                                    {isReplyingToThis && msgTicketRecord && msgTicketRecord.status !== 'cancelled' && selectedInboxId && (
-                                                                        <InlineTicketReply
-                                                                            ticketId={String(msgTicketId)}
-                                                                            conversationId={selectedInboxId}
-                                                                            firmId={firmId}
-                                                                            adminId={currentUser?.id || ''}
-                                                                            adminName={currentUser?.name || 'Admin'}
-                                                                            sendAdminReply={sendAdminReply}
-                                                                            addToast={addToast}
-                                                                            onSent={() => {}}
-                                                                            onCancel={() => setActiveThreadTicketId(null)}
-                                                                        />
-                                                                    )}
-
-                                                                    {/* Reply button + timestamp — bottom row */}
-                                                                    <div className="flex items-center justify-between gap-2 mt-1.5">
-                                                                        {msgTicketInfo && msgTicketRecord && msgTicketRecord.status !== 'cancelled' ? (
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    const ticketId = String(msgTicketId);
-                                                                                    setActiveThreadTicketId(prev => prev === ticketId ? null : ticketId);
-                                                                                }}
-                                                                                className={`text-2xs font-bold px-2 py-0.5 rounded-full transition-colors ${
-                                                                                    isReplyingToThis
-                                                                                        ? 'bg-emerald-500 text-white'
-                                                                                        : isAdmin
-                                                                                        ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
-                                                                                        : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600'
-                                                                                }`}
-                                                                            >
-                                                                                {isReplyingToThis ? '✕ Cancel' : '↩ Reply'}
-                                                                            </button>
-                                                                        ) : <span />}
-                                                                        <span className={`text-3xs flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
-                                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                                                            {isAdmin && (msg.isRead ? ' · ✓✓' : ' · ✓')}
-                                                                        </span>
-                                                                    </div>
-
-                                                                    {/* Delete button — hover only */}
+                                                    const threadMsgs = sortUnifiedMessages(
+                                                        ((conversationMessages as any[]) || [])
+                                                            .filter((msg: any) => !msg.isDeleted)
+                                                            .map((msg: any) => normalizePortalMessage(msg, currentUser))
+                                                    );
+                                                    return (
+                                                        <MessageThread
+                                                            className="ticket-body-scroll"
+                                                            innerClassName="max-w-2xl mx-auto w-full box-border"
+                                                            variant="client_tenant"
+                                                            threadKey={String(selectedInboxId)}
+                                                            messages={threadMsgs}
+                                                            emptyState={<div className="flex flex-col items-center justify-center py-16 text-center"><p className="text-sm text-slate-400">No messages in this conversation yet.</p></div>}
+                                                            renderBubbleContent={(m) => (
+                                                                <div className="relative group/delete">
+                                                                    <MessageContent content={m.content} isAdmin={m.isMe} />
+                                                                    {/* Delete button — hover only (soft-delete for compliance) */}
                                                                     <button
                                                                         onClick={async () => {
                                                                             const ok = await confirm({
@@ -2535,7 +2148,7 @@ const MessagesView: React.FC = () => {
                                                                             if (!ok) return;
                                                                             try {
                                                                                 await adminDeletePortalMsg({
-                                                                                    messageId: String(msg._id),
+                                                                                    messageId: String(m.id),
                                                                                     adminId: currentUser.id,
                                                                                     firmId: currentUser.firmId || '',
                                                                                 });
@@ -2544,7 +2157,7 @@ const MessagesView: React.FC = () => {
                                                                                 addToast(err.message || 'Failed to delete message.', { type: 'error' });
                                                                             }
                                                                         }}
-                                                                        className={`absolute -top-1.5 ${isAdmin ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100`}
+                                                                        className={`absolute -top-1.5 ${m.isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover/delete:opacity-100`}
                                                                         title="Delete message"
                                                                     >
                                                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -2552,14 +2165,126 @@ const MessagesView: React.FC = () => {
                                                                         </svg>
                                                                     </button>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                                                        <p className="text-sm text-slate-400">No messages in this conversation yet.</p>
-                                                    </div>
-                                                )
+                                                            )}
+                                                            renderAboveBubble={(m) => (
+                                                                (m.linkedTicketId || m.linkedRequestId) ? (
+                                                                    <div className="mb-1.5">
+                                                                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-2xs font-bold ${m.linkedTicketId ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
+                                                                            {m.linkedTicketId ? 'T:' : 'R:'} {m.requestTypeLabel || (m.linkedTicketId ? 'Ticket' : 'Request')}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : null
+                                                            )}
+                                                            renderBelowBubble={(m) => {
+                                                                const msgTicketId = m.linkedTicketId || m.linkedRequestId;
+                                                                if (!msgTicketId) return null;
+                                                                const msgTicketInfo = linkedTickets.find(t => t.id === String(msgTicketId));
+                                                                const msgTicketRecord = linkedTicketRecords[String(msgTicketId)];
+                                                                const isReplyingToThis = activeThreadTicketId === String(msgTicketId);
+                                                                return (
+                                                                    <div className="w-full">
+                                                                        {/* Ticket controls — status dropdown + assign */}
+                                                                        {msgTicketInfo && msgTicketRecord && (
+                                                                            <div className={`mt-2.5 pt-2 border-t ${m.isMe ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'}`}>
+                                                                                {msgTicketRecord.status !== 'cancelled' ? (
+                                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                                        <select
+                                                                                            value={msgTicketRecord.status}
+                                                                                            onChange={(e) => handleAdvanceTicket(msgTicketInfo, e.target.value as any)}
+                                                                                            className={`text-2xs font-bold px-2 py-1 rounded-lg border cursor-pointer ${m.isMe ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
+                                                                                        >
+                                                                                            <option value="open">🟡 Received</option>
+                                                                                            <option value="in_progress">🔵 In Progress</option>
+                                                                                            <option value="resolved">🟢 Addressed</option>
+                                                                                            <option value="closed">⚪ Closed</option>
+                                                                                        </select>
+                                                                                        <select
+                                                                                            value={msgTicketRecord.assignedTo || ''}
+                                                                                            onChange={(e) => {
+                                                                                                const user = coreState.users?.find((u: any) => u.id === e.target.value);
+                                                                                                if (user) handleAssignTicket(msgTicketInfo, user.id, user.name || 'Team Member');
+                                                                                            }}
+                                                                                            className={`text-2xs font-bold px-2 py-1 rounded-lg border cursor-pointer ${m.isMe ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
+                                                                                        >
+                                                                                            <option value="">{msgTicketRecord.assignedTo ? '↻ Reassign' : '👤 Assign…'}</option>
+                                                                                            {coreState.users
+                                                                                                ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
+                                                                                                .map((u: any) => (
+                                                                                                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                                                                                                ))}
+                                                                                        </select>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                        ✕ Cancelled
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        {/* Threaded replies under this ticket */}
+                                                                        {conversationMessages && (() => {
+                                                                            const threadReplies = (conversationMessages as any[]).filter(
+                                                                                (r: any) => !r.isDeleted && r.threadTicketId === String(msgTicketId) && String(r._id) !== String(m.id)
+                                                                            );
+                                                                            if (threadReplies.length === 0) return null;
+                                                                            return (
+                                                                                <div className={`mt-2 ml-1 pl-2.5 border-l-2 space-y-1 ${m.isMe ? 'border-primary-300/50' : 'border-slate-300 dark:border-zinc-600'}`}>
+                                                                                    {threadReplies.map((reply: any) => {
+                                                                                        const replyIsAdmin = reply.senderRole === 'Admin';
+                                                                                        return (
+                                                                                            <div key={String(reply._id)} className={`text-2xs leading-relaxed ${replyIsAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-400'}`}>
+                                                                                                <span className="font-bold">{replyIsAdmin ? 'You' : (reply.senderName || 'User')}:</span> {reply.content?.substring(0, 280)}
+                                                                                                {reply.content && reply.content.length > 280 && '...'}
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            );
+                                                                        })()}
+                                                                        {/* INLINE REPLY COMPOSER — appears when "Reply to this ticket" is clicked */}
+                                                                        {isReplyingToThis && msgTicketRecord && msgTicketRecord.status !== 'cancelled' && selectedInboxId && (
+                                                                            <InlineTicketReply
+                                                                                ticketId={String(msgTicketId)}
+                                                                                conversationId={selectedInboxId}
+                                                                                firmId={firmId}
+                                                                                adminId={currentUser?.id || ''}
+                                                                                adminName={currentUser?.name || 'Admin'}
+                                                                                sendAdminReply={sendAdminReply}
+                                                                                addToast={addToast}
+                                                                                onSent={() => {}}
+                                                                                onCancel={() => setActiveThreadTicketId(null)}
+                                                                            />
+                                                                        )}
+                                                                        {/* Reply button + timestamp — bottom row */}
+                                                                        <div className="flex items-center justify-between gap-2 mt-1.5">
+                                                                            {msgTicketInfo && msgTicketRecord && msgTicketRecord.status !== 'cancelled' ? (
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        const ticketId = String(msgTicketId);
+                                                                                        setActiveThreadTicketId(prev => prev === ticketId ? null : ticketId);
+                                                                                    }}
+                                                                                    className={`text-2xs font-bold px-2 py-0.5 rounded-full transition-colors ${
+                                                                                        isReplyingToThis
+                                                                                            ? 'bg-emerald-500 text-white'
+                                                                                            : m.isMe
+                                                                                            ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
+                                                                                            : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                                                                                    }`}
+                                                                                >
+                                                                                    {isReplyingToThis ? '✕ Cancel' : '↩ Reply'}
+                                                                                </button>
+                                                                            ) : <span />}
+                                                                            <span className={`text-3xs flex-shrink-0 ${m.isMe ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                                {m.sentAt ? new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                                                {m.isMe && (m.read === 'read' || m.read === 'replied' ? ' · ✓✓' : ' · ✓')}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            }}
+                                                        />
+                                                    );
+                                                })()
                                             ) : (
                                                 <>
                                                     {/* Legacy single-message view (inbound WhatsApp/Email or legacy portal message) */}
@@ -2709,7 +2434,7 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     </div>
                                 </>
-                            ) : selectedInboxType !== 'team' && !selectedInboundMsg && !selectedInboxId ? (
+                            ) : selectedSection !== 'team' && !selectedInboundMsg && !selectedInboxId ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 p-8 text-center">
                                     <div className="w-20 h-20 bg-slate-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -2742,7 +2467,7 @@ const MessagesView: React.FC = () => {
                                         {/* Back to Inbox — visible on mobile/tablet only.
                                             Clears selectedInboxId so the conversation list reappears. */}
                                         <button
-                                            onClick={() => { setSelectedInboxId(null); setSelectedInboxType(null); }}
+                                            onClick={() => { setSelectedInboxId(null); setSelectedSection(null); }}
                                             className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0 flex items-center gap-1"
                                             aria-label="Back to inbox"
                                         >
@@ -2921,7 +2646,7 @@ const MessagesView: React.FC = () => {
                                         </p>
                                     </div>
                                 </div>
-                            ) : selectedInboxType !== 'team' && !selectedInboundMsg && selectedInboxId ? (
+                            ) : selectedSection !== 'team' && !selectedInboundMsg && selectedInboxId ? (
                                 /* ─── LOADING STATE ──────────────────────────────────────
                                    When a conversation is selected (selectedInboxId is set)
                                    but the message data hasn't arrived yet (selectedInboundMsg

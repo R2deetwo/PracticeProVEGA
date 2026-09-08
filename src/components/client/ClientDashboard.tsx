@@ -1154,6 +1154,17 @@ const ClientDashboard: React.FC = () => {
     };
 
     // ── Render: Messages Tab ─────────────────────────────────────────────
+    // NOTE — shared MessageThread: the staff app's Team/Client&Tenant/AI
+    // threads render through src/components/messaging/MessageThread.tsx +
+    // the canonical src/messaging/model.ts. This portal tab keeps its own
+    // card-style renderer for now: (1) the identity perspective is inverted
+    // here (the CLIENT is "me"; the model supports this via
+    // normalizePortalMessage(..., { perspective: 'participant' }) but render
+    // adoption is staged), (2) this email-like card layout is the deliberate
+    // client-portal reading experience, distinct from the staff bubble
+    // metaphor, and (3) portal attachment access resolves differently.
+    // Revisit when MessageThread grows a URL-resolver + perspective-aware
+    // styling variants.
     const renderMessages = () => {
         const isLoading = clientMessagesLoading;
         // SPLIT-BRAIN FIX: the send path writes to the conversation system
