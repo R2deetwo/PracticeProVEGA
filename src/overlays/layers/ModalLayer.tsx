@@ -23,6 +23,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useTerminology } from '../../contexts/ProductContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useMatterState } from '../../contexts/MatterContext';
+import { useFinanceState } from '../../contexts/FinanceContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -31,10 +32,15 @@ import { SubscriptionPlan } from '../../types';
 import { MODAL_REGISTRY } from '../registry/modalRegistry';
 import { ModalShell } from '../primitives/ModalShell';
 import { SmartMatterModal } from '../../components/forms/SmartMatterModal';
+import { MatterForm } from '../../components/forms/MatterForm';
 import TaskForm from '../../components/forms/TaskForm';
 import { TaskDetailModal } from '../../components/modals/TaskDetailModal';
 import PropertyForm from '../../components/forms/PropertyForm';
 import { PropertyOwnerPicker } from '../../components/modals/PropertyOwnerPicker';
+import ContactForm from '../../components/forms/ContactForm';
+import MergeContactModal from '../../components/modals/MergeContactModal';
+import CloseMatterModal from '../../components/modals/CloseMatterModal';
+import ArchiveMatterModal from '../../components/modals/ArchiveMatterModal';
 
 // Loading skeleton shown while lazy-loaded modal components fetch
 const ModalSkeleton: React.FC = () => (
@@ -48,6 +54,7 @@ export const ModalLayer: React.FC = () => {
   const terminology = useTerminology();
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
+  const { financeState } = useFinanceState();
   const { executionState, executionActions } = useExecutionState();
   const { documentState } = useDocumentState();
   const dataHandlers = useDataActions();
@@ -74,12 +81,23 @@ export const ModalLayer: React.FC = () => {
   // viewTask) + property creation/edit (newProperty, editProperty) — the
   // highest-traffic modals. Prop wiring is copied 1:1 from ModalManager's
   // former cases so behavior is unchanged; only the chrome is now ModalShell.
+  //
+  // BATCH 2 (2026-09-08): the Matters & Contacts cluster — newMatter,
+  // editMatter, closeMatter, archiveMatter, newContact, editContact,
+  // mergeContact. Same 1:1 prop-copy discipline.
   const MIGRATED_MODALS = new Set<string>([
     'newTask',
     'editTask',
     'viewTask',
     'newProperty',
     'editProperty',
+    'newMatter',
+    'editMatter',
+    'closeMatter',
+    'archiveMatter',
+    'newContact',
+    'editContact',
+    'mergeContact',
   ]);
   if (!MIGRATED_MODALS.has(modal)) {
     return null;
@@ -224,6 +242,68 @@ export const ModalLayer: React.FC = () => {
           />
         );
       }
+      // ─── BATCH 2: Matters & Contacts ────────────────────────────────
+      case 'newMatter':
+      case 'editMatter': {
+        // Prop wiring copied 1:1 from ModalManager's former cases. For
+        // newMatter the Enterprise branch is intercepted earlier (see the
+        // Enterprise override below) — only non-Enterprise reaches here.
+        const matterToEdit = modal === 'editMatter' ? matterState.matters.find(m => m.id === editingId) : undefined;
+        return (
+          <MatterForm
+            matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
+            onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
+            onClose={closeModal} matterToEdit={matterToEdit} currentUser={currentUser!} appMode={appMode}
+            handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
+            onNavigate={navigateTo} initialContext={modalContext}
+            openModal={openModal}
+            isCompact={false}
+          />
+        );
+      }
+      case 'closeMatter': {
+        const matter = matterState.matters.find(m => m.id === editingId);
+        if (!matter) return null;
+        const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
+        const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
+        return (
+          <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={async (id, note) => {
+            dataHandlers.handleUpdateMatterStage(id, 'Closed');
+            // Persist the closing note so it's not silently discarded
+            if (note && note.trim()) {
+              try {
+                await dataHandlers.handleAddMatterNote(id, 'Closing Summary', note.trim(), 'user');
+              } catch (e) { /* non-fatal — matter is already closed */ }
+            }
+            // Also update the matter status to Closed
+            await dataHandlers.handleUpdateMatter({ id, status: 'Closed' } as any);
+            closeModal();
+          }} onClose={closeModal} />
+        );
+      }
+      case 'archiveMatter': {
+        const matter = matterState.matters.find(m => m.id === editingId);
+        if (!matter) return null;
+        return <ArchiveMatterModal matter={matter} onConfirm={(id) => { dataHandlers.archiveItem('Matter', id, matter.title, matter); closeModal(); }} onClose={closeModal} />;
+      }
+      case 'newContact':
+      case 'editContact': {
+        const contact = matterState.contacts.find(c => c.id === editingId);
+        const handleAddContact = async (contactData: any, createPortal: boolean) => {
+          const newContact = await dataHandlers.handleAddContact(contactData, createPortal);
+          if (newContact && modalContext?.returnTo === 'newProperty') {
+            openModal('newProperty', newContact.id);
+          } else {
+            closeModal();
+          }
+        };
+        return <ContactForm onAddContact={handleAddContact} onUpdateContact={dataHandlers.handleUpdateContact} onClose={closeModal} contactToEdit={contact} contactCategories={coreState.contactCategories} initialContext={modalContext} />;
+      }
+      case 'mergeContact': {
+        const contact = matterState.contacts.find(c => c.id === editingId);
+        if (!contact) return null;
+        return <MergeContactModal sourceContact={contact} allContacts={matterState.contacts} onConfirm={dataHandlers.handleMergeContacts} onClose={closeModal} />;
+      }
       default:
         return undefined;
     }
@@ -233,9 +313,8 @@ export const ModalLayer: React.FC = () => {
 
   // ─── Enterprise override for newMatter ────────────────────────────────
   // Enterprise firms get the SmartMatterModal (full-screen intake wizard)
-  // instead of the standard MatterForm. This mirrors the existing logic
-  // in ModalManager.tsx — once fully migrated, this conditional stays
-  // here and the ModalManager case is deleted.
+  // instead of the standard MatterForm. Prop wiring copied 1:1 from
+  // ModalManager's former case (BATCH 2 — now real, previously a stub).
   if (modal === 'newMatter') {
     const isEnterprise = coreState.firmDetails?.subscriptionPlan === SubscriptionPlan.Enterprise;
     if (isEnterprise) {
@@ -245,9 +324,15 @@ export const ModalLayer: React.FC = () => {
         <Suspense fallback={<ModalSkeleton />}>
           <SmartMatterModal
             users={coreState.users || []}
-            contacts={[]}
-            currentUser={null as any}
-            onAddMatter={async () => null}
+            contacts={matterState.contacts || []}
+            currentUser={currentUser!}
+            onAddMatter={async (matter, client) => {
+              const res = await dataHandlers.onAddMatter(matter, client);
+              if (res) {
+                navigateTo('matterDetail', res, { initialTab: 'intake' });
+              }
+              return res;
+            }}
             onClose={closeModal}
             onNavigate={navigateTo}
             openModal={openModal}

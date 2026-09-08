@@ -2133,39 +2133,31 @@ const MessagesView: React.FC = () => {
                                                             messages={threadMsgs}
                                                             emptyState={<div className="flex flex-col items-center justify-center py-16 text-center"><p className="text-sm text-slate-400">No messages in this conversation yet.</p></div>}
                                                             renderBubbleContent={(m) => (
-                                                                <div className="relative group/delete">
-                                                                    <MessageContent content={m.content} isAdmin={m.isMe} />
-                                                                    {/* Delete button — hover only (soft-delete for compliance) */}
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            const ok = await confirm({
-                                                                                title: 'Delete this message?',
-                                                                                message: 'The message will be removed from this conversation. A record will be retained for compliance.',
-                                                                                confirmLabel: 'Delete',
-                                                                                cancelLabel: 'Cancel',
-                                                                                danger: true,
-                                                                            });
-                                                                            if (!ok) return;
-                                                                            try {
-                                                                                await adminDeletePortalMsg({
-                                                                                    messageId: String(m.id),
-                                                                                    adminId: currentUser.id,
-                                                                                    firmId: currentUser.firmId || '',
-                                                                                });
-                                                                                addToast('Message deleted.', { type: 'success', duration: 2500 });
-                                                                            } catch (err: any) {
-                                                                                addToast(err.message || 'Failed to delete message.', { type: 'error' });
-                                                                            }
-                                                                        }}
-                                                                        className={`absolute -top-1.5 ${m.isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover/delete:opacity-100 [@media(hover:none)]:opacity-100`}
-                                                                        title="Delete message"
-                                                                    >
-                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                                        </svg>
-                                                                    </button>
-                                                                </div>
+                                                                <MessageContent content={m.content} isAdmin={m.isMe} />
                                                             )}
+                                                            canDeleteMessage={() => true}
+                                                            onDeleteMessage={async (m) => {
+                                                                // Soft-delete for compliance; admin may delete any
+                                                                // message in a portal conversation (cross-firm guarded).
+                                                                const ok = await confirm({
+                                                                    title: 'Delete this message?',
+                                                                    message: 'The message will be removed from this conversation. A record will be retained for compliance.',
+                                                                    confirmLabel: 'Delete',
+                                                                    cancelLabel: 'Cancel',
+                                                                    danger: true,
+                                                                });
+                                                                if (!ok) return;
+                                                                try {
+                                                                    await adminDeletePortalMsg({
+                                                                        messageId: String(m.id),
+                                                                        adminId: currentUser.id,
+                                                                        firmId: currentUser.firmId || '',
+                                                                    });
+                                                                    addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                                } catch (err: any) {
+                                                                    addToast(err.message || 'Failed to delete message.', { type: 'error' });
+                                                                }
+                                                            }}
                                                             renderAboveBubble={(m) => (
                                                                 (m.linkedTicketId || m.linkedRequestId) ? (
                                                                     <div className="mb-1.5">

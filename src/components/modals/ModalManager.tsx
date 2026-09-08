@@ -18,11 +18,7 @@ import Login from '../auth/Login';
 import Signup from '../auth/Signup';
 
 // Forms
-import { MatterForm } from '../forms/MatterForm';
-import { SmartMatterModal } from '../forms/SmartMatterModal';
-import { SubscriptionPlan } from '../../types';
 import { DocumentForm } from '../forms/DocumentForm';
-import ContactForm from '../forms/ContactForm';
 import { EventForm } from '../forms/EventForm';
 import { InvoiceForm } from '../forms/InvoiceForm';
 import { InvoiceGeneratorForm } from '../forms/InvoiceGeneratorForm';
@@ -47,7 +43,6 @@ import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
 import { StageChecklistForm } from '../forms/StageChecklistForm';
 import NewResearchNotebookForm from '../forms/NewResearchNotebookForm';
 import CollectRentModal from './CollectRentModal';
-import MergeContactModal from './MergeContactModal';
 import NotebookForm from '../forms/NotebookForm';
 import { SaveToNoteForm } from '../forms/SaveToNoteForm';
 import { LinkMatterToContactForm } from '../forms/LinkMatterToContactForm';
@@ -59,8 +54,6 @@ import { BulkEditPropertyModal } from './BulkEditPropertyModal';
 
 // Modals
 import DemoUpsellModal from './DemoUpsellModal';
-import ArchiveMatterModal from './ArchiveMatterModal';
-import CloseMatterModal from './CloseMatterModal';
 import ConfirmationModal from './DeleteConfirmationModal';
 import { ShareDocumentModal } from './ShareDocumentModal';
 import { SignDocumentModal } from './SignDocumentModal';
@@ -167,6 +160,16 @@ const ModalManager: React.FC = () => {
     'viewTask',
     'newProperty',
     'editProperty',
+    // BATCH 2 (2026-09-08): Matters & Contacts cluster — newMatter,
+    // editMatter, closeMatter, archiveMatter, newContact, editContact,
+    // mergeContact now render through ModalLayer + ModalShell.
+    'newMatter',
+    'editMatter',
+    'closeMatter',
+    'archiveMatter',
+    'newContact',
+    'editContact',
+    'mergeContact',
   ]);
 
   if (MODAL_LAYER_HANDLED.has(modal)) {
@@ -182,105 +185,6 @@ const ModalManager: React.FC = () => {
     case 'signup':
       content = <Signup onSwitchToLogin={() => { closeModal(); setTimeout(() => openModal('login'), 10); }} />;
       break;
-    case 'newMatter': {
-      // Enterprise firms: render the intake wizard as its own full-screen overlay
-      // (outside the Modal wrapper to avoid overflow clipping)
-      const isEnterprise = coreState.firmDetails?.subscriptionPlan === SubscriptionPlan.Enterprise;
-      if (isEnterprise) {
-        return (
-          <SmartMatterModal
-            users={coreState.users || []}
-            contacts={matterState.contacts || []}
-            currentUser={currentUser!}
-            onClose={closeModal}
-            onAddMatter={async (matter, client) => {
-              const res = await dataHandlers.onAddMatter(matter, client);
-              if (res) {
-                navigateTo('matterDetail', res, { initialTab: 'intake' });
-              }
-              return res;
-            }}
-            onNavigate={navigateTo}
-            openModal={openModal}
-            initialContext={modalContext}
-          />
-        );
-      }
-      // Non-Enterprise: fall through to standard MatterForm in modal
-      content = (
-        <MatterForm
-          matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
-          onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
-          onClose={closeModal} currentUser={currentUser!} appMode={appMode}
-          handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
-          onNavigate={navigateTo} initialContext={modalContext}
-          openModal={openModal}
-          isCompact={false}
-        />
-      );
-      break;
-    }
-    case 'editMatter': {
-      const matter = matterState.matters.find(m => m.id === editingId);
-      content = (
-        <MatterForm
-          matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
-          onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
-          onClose={closeModal} matterToEdit={matter} currentUser={currentUser!} appMode={appMode}
-          handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
-          onNavigate={navigateTo} initialContext={modalContext}
-          openModal={openModal}
-          isCompact={false}
-        />
-      );
-      break;
-    }
-    case 'closeMatter': {
-      const matter = matterState.matters.find(m => m.id === editingId);
-      if (matter) {
-        const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
-        const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
-        content = <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={async (id, note) => {
-          dataHandlers.handleUpdateMatterStage(id, 'Closed');
-          // Persist the closing note so it's not silently discarded
-          if (note && note.trim()) {
-            try {
-              await dataHandlers.handleAddMatterNote(id, 'Closing Summary', note.trim(), 'user');
-            } catch (e) { /* non-fatal — matter is already closed */ }
-          }
-          // Also update the matter status to Closed
-          await dataHandlers.handleUpdateMatter({ id, status: 'Closed' } as any);
-          closeModal();
-        }} onClose={closeModal} />;
-      }
-      break;
-    }
-    case 'archiveMatter': {
-      const matter = matterState.matters.find(m => m.id === editingId);
-      if (matter) content = <ArchiveMatterModal matter={matter} onConfirm={(id) => { dataHandlers.archiveItem('Matter', id, matter.title, matter); closeModal(); }} onClose={closeModal} />;
-      break;
-    }
-    case 'newContact':
-    case 'editContact': {
-      const contact = matterState.contacts.find(c => c.id === editingId);
-      const handleAddContact = async (contactData: any, createPortal: boolean) => {
-        const newContact = await dataHandlers.handleAddContact(contactData, createPortal);
-        if (newContact && modalContext?.returnTo === 'newProperty') {
-          openModal('newProperty', newContact.id);
-        } else {
-          closeModal();
-        }
-      };
-      content = <ContactForm onAddContact={handleAddContact} onUpdateContact={dataHandlers.handleUpdateContact} onClose={closeModal} contactToEdit={contact} contactCategories={coreState.contactCategories} initialContext={modalContext} />;
-      break;
-    }
-    case 'mergeContact': {
-      const contact = matterState.contacts.find(c => c.id === editingId);
-      if (contact) {
-        content = <MergeContactModal sourceContact={contact} allContacts={matterState.contacts} onConfirm={dataHandlers.handleMergeContacts} onClose={closeModal} />;
-      }
-      break;
-    }
     case 'collectRent': {
       const propertyId = editingId;
       const property = coreState.properties.find(p => p.id === propertyId) || 

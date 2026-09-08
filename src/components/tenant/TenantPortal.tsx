@@ -35,6 +35,7 @@ import {
 import { Receipt as ReceiptIcon, Home as HomeIcon, Zap as ZapIcon, Wifi as WifiIcon, PlugZap as BoltIcon, Shield as ShieldIcon } from 'lucide-react';
 import { VisitorPortal } from '../portal/VisitorPortal';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { MessageActionsMenu, type MessageActionItem } from '../messaging/MessageThread';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
 // VersionRefreshBanner is now globally mounted in App.tsx via ToastRefreshNotification
@@ -2321,6 +2322,9 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  // v2 message actions: the open actions menu (⋮ tap, long-press, or
+  // right-click). One at a time; holds the message id + anchor position.
+  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<{ file: File; name: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -2586,7 +2590,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
 
               return (
                 <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] ${isMe ? 'order-2' : 'order-1'}`}>
+                  <div className={`max-w-[85%] group ${isMe ? 'order-2' : 'order-1'}`}>
                     {/* Sender label */}
                     <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
@@ -2595,54 +2599,42 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                       <span className="text-2xs text-slate-300 dark:text-zinc-600">
                         {formatTime(msg.createdAt)}
                       </span>
+                      {/* ⋮ actions — Copy for every message, Delete for own */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setActionMenu({ id: String(msg._id), top: rect.bottom + 4, left: isMe ? rect.right - 170 : rect.left });
+                        }}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 hover:bg-slate-200/70 dark:hover:bg-zinc-700/70 focus:opacity-100 focus:outline-none opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
+                        aria-label="Message actions"
+                        title="Message actions (or long-press the message)"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="12" cy="5" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="12" cy="19" r="1.9" />
+                        </svg>
+                      </button>
                     </div>
                     {/* Bubble */}
-                    <div className={`group relative rounded-2xl px-4 py-2.5 shadow-sm ${
-                      isMe
-                        ? 'bg-emerald-600 text-white rounded-tr-none'
-                        : 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-tl-none'
-                    }`}>
+                    <div
+                      className={`group relative rounded-2xl px-4 py-2.5 shadow-sm ${
+                        isMe
+                          ? 'bg-emerald-600 text-white rounded-tr-none'
+                          : 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-tl-none'
+                      }`}
+                      onContextMenu={(e) => {
+                        // Long-press (Android) / right-click (desktop) → same menu
+                        e.preventDefault();
+                        setActionMenu({ id: String(msg._id), top: e.clientY + 6, left: e.clientX });
+                      }}
+                    >
                       <p className="text-sm break-words whitespace-pre-wrap">{msg.content}</p>
 
-                      {/* Delete button — only shown for own messages on hover */}
-                      {isMe && (
-                        <button
-                          onClick={async () => {
-                            if (deletingMessageId === String(msg._id)) return;
-                            // IN-APP confirmation (replaces browser confirm)
-                            // — the user explicitly requested no more browser
-                            // messages. The ConfirmDialog is rendered at the
-                            // bottom of the MessagesTab return statement.
-                            const ok = await confirm({
-                              title: 'Delete this message?',
-                              message: 'The message will be removed from this conversation for you. The property manager will still have a record for their files.',
-                              confirmLabel: 'Delete',
-                              cancelLabel: 'Cancel',
-                              danger: true,
-                            });
-                            if (!ok) return;
-                            setDeletingMessageId(String(msg._id));
-                            try {
-                              await deleteMessage({ messageId: String(msg._id), requesterId: userId });
-                              addToast('Message deleted.', { type: 'success', duration: 2500 });
-                            } catch (err: any) {
-                              addToast(err.message || 'Failed to delete message.', { type: 'error' });
-                            } finally {
-                              setDeletingMessageId(null);
-                            }
-                          }}
-                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all"
-                          title="Delete message"
-                        >
-                          {deletingMessageId === String(msg._id) ? (
-                            <span className="w-3 h-3 border border-slate-400 border-t-slate-600 rounded-full animate-spin" />
-                          ) : (
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          )}
-                        </button>
-                      )}
+                      {/* (Delete affordance moved to the ⋮ / long-press actions
+                          menu — see MessageActionsMenu render near ConfirmDialog.
+                          Copy is available for every message; Delete only for
+                          own messages, with the same in-app confirmation.) */}
 
                       {/* Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (
@@ -2895,6 +2887,49 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
           </p>
         </div>
       )}
+      {/* v2 message actions menu (⋮ / long-press / right-click) — Copy for
+          every message, Delete only for own messages (in-app confirmation
+          via the ConfirmDialog below, same flow as before). */}
+      {actionMenu && (() => {
+        // `as any` — conversationMessages rows are dynamically shaped
+        // (legacy inbound + conversation rows merged); typed access would
+        // reject the fields the bespoke renderer relies on.
+        const target = (conversationMessages || []).find((m: any) => String(m._id) === actionMenu.id) as any;
+        if (!target) return null;
+        const ownMessage = target.senderId === userId;
+        const items: MessageActionItem[] = ownMessage ? [{
+          label: 'Delete message',
+          danger: true,
+          onSelect: async () => {
+            const ok = await confirm({
+              title: 'Delete this message?',
+              message: 'The message will be removed from this conversation for you. The property manager will still have a record for their files.',
+              confirmLabel: 'Delete',
+              cancelLabel: 'Cancel',
+              danger: true,
+            });
+            if (!ok) return;
+            setDeletingMessageId(String(target._id));
+            try {
+              await deleteMessage({ messageId: String(target._id), requesterId: userId });
+              addToast('Message deleted.', { type: 'success', duration: 2500 });
+            } catch (err: any) {
+              addToast(err.message || 'Failed to delete message.', { type: 'error' });
+            } finally {
+              setDeletingMessageId(null);
+            }
+          },
+        }] : [];
+        return (
+          <MessageActionsMenu
+            top={actionMenu.top}
+            left={actionMenu.left}
+            onClose={() => setActionMenu(null)}
+            copyText={target.content}
+            items={items}
+          />
+        );
+      })()}
       {/* In-app confirmation dialog — replaces browser window.confirm() */}
       {ConfirmDialog}
     </div>
