@@ -11565,3 +11565,23 @@ Stage Summary:
 - Push: confirmed landed. Production: confirmed live with messaging unification since 01:27 UTC. The user's invisible update is the month-old Android APK (most likely) or browser cache (if web).
 - To refresh the Android app: run build-apk.yml from the GitHub Actions UI, or provide a fresh PAT (old one confirmed dead — 401) for dispatch + verification from here.
 - Local repo re-synced to production; snapshot WIP preserved (backup branch + stash); dead credential purged from config. This worklog entry is committed locally; push pending a valid token.
+
+---
+Task ID: 30
+Agent: main (Super Z)
+Task: Use the user's fresh PAT to ship the Android update end-to-end (dispatch, watch, verify).
+
+Work Log:
+- Pushed task-29 worklog commit (f029e1d1) via one-shot token URL — triggered build-944 (PracticePro-v1.0.2.apk). Release existed but the update could never reach phones: three stacked pipeline failures diagnosed from the job logs:
+  1. Both bot pushes (patch bump + version.json) died on "error: cannot pull with rebase: You have unstaged changes" — npm install dirties the tracked package-lock.json before the race-safe pull. Retried 3x, failed 3x, every build since build-938.
+  2. The version.json update step never wrote apkVersion/apkVersionCode — the in-app updater (src/hooks/useApkVersionCheck.ts GATE 3) hard-requires apkVersionCode, so even a successful push would never prompt.
+  3. version.properties PATCH had restarted at 1 when the repo line was rebuilt — v1.0.2 = versionCode 10002 is BELOW the installed v1.0.563 = 10563; Android rejects downgrades (GATE 4 also blocks).
+- Fixed all three (commit f6ba08f6): `git pull --rebase --autostash` on both push sites; version.json step now writes apkVersion + apkVersionCode (MAJOR*10000+MINOR*100+PATCH); PATCH realigned to 563 so the next CI bump produces v1.0.564 (10564). Verified: YAML parses; node script dry-run emits 10564; main is unprotected so GITHUB_TOKEN pushes work. One transient "Repository not found" on push (token verified fine, retry succeeded).
+- build-945 ran green: quality gate passed, PracticePro-v1.0.564.apk released, and for the FIRST time the bot commits landed on main (561addaa bump [skip ci], 39b8f204 version.json).
+- Dispatched production-deploy.yml (run 34184706609, blank sha = promote latest main): quality gate pass, Vercel prod + Convex SUCCESS, Cloudflare mirror FAILED (standing expired token — known, non-fatal, primary target healthy).
+- Live verification: https://practice-pro-vega.vercel.app/version.json now serves sha 39b8f204, status healthy, apkVersion "1.0.564", apkVersionCode 10564, apkUrl -> build-945, apkBuildStatus healthy. APK download URL verified reachable.
+
+Stage Summary:
+- Android update pipeline fully repaired AND exercised end-to-end: push -> build -> release -> version.json -> production promote -> live verification. Future pushes will self-maintain version.json (bot commits now land).
+- User's installed v1.0.563 app will prompt "update available" within 10 minutes of opening/foregrounding (10-min poll + appStateChange listener) and install v1.0.564 = the unified Messages page + composer total-fix.
+- Pending user items: ROTATE the PAT used today (pasted in chat, 5th reminder); Cloudflare mirror token still expired; staging alias still broken.
