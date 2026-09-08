@@ -11508,3 +11508,22 @@ scope, noted.)
 - Standing queue unchanged: Cloudflare mirror token, Firebase push info,
   Chakra webhook test, WhatsApp template registration docx (3 details),
   2FA if it recurs, PAT rotation.
+
+---
+Task ID: 27
+Agent: main (Super Z)
+Task: Fix "message adds up figures it ought not to have added" (service-charge alert showing ₦1,920,000 total) + simplify the composer.
+
+Work Log:
+- Analyzed user screenshot (VLM): composing a Service Charge Alert about ₦40,000 ended with "Total Payable: ₦1,920,000" (rent 1.4M + SC 40k + caution 200k + legal 140k + agency 140k).
+- Root cause: buildMessage computed totalPayable = rent + SC + caution + legal + agency for EVERY message type.
+- messageTypes.ts: added MSG_TYPE_FINANCE — per type: which fields the composer shows, which figures the total may sum, and a plain-language note. SC alert totals SC only; payment_receipt states the amount received only; formal demands (rent_reminder/late_notice/penalty/access_restriction) keep the full breakdown; free-form types carry no figures.
+- Extracted buildMessage to src/utils/messageTemplates.ts (pure, node-testable; re-exported from ComposeModal for compat; AutomationCenter imports from utils). Total now computed from the type's declared scope; unknown firm-template keys keep legacy full-sum.
+- ComposeModal: type-driven form (SC alert shows Service Charge + Due Date only; payment_receipt relabels amount → "Amount Received (₦)"; free-form types hide the financial section entirely), type-aware stomp-safe auto-fill (fills only relevant empty fields the user has not touched — userTouchedRef; old coarse "bail if anything non-empty" guard removed since blank-only fills are idempotent), and a live "Total in this message" preview with the note so the user sees exactly what gets summed.
+- tests/unit/messageTotals.test.ts: 11 regression tests (the reported bug, receipt semantics, formal-demand totals, no-placeholder-leak, config invariants: every total field is visible+editable, full type coverage).
+- Gates: tsc 128 (baseline 128, zero new); vitest 240/240; vite build green (20s).
+- Committed 54fe747d locally. Push FAILED: no credential (old PAT purged/rotated; remote URL holds [REDACTED:github_token] placeholder).
+
+Stage Summary:
+- Fix complete + gated + committed (54fe747d) in tmp/pprepo, currently [ahead 1] of origin/main.
+- BLOCKED on push: needs a freshly rotated PAT from the user (old one must be revoked). After push: staging auto-deploys; production needs manual production-deploy.yml dispatch (API or GitHub UI).
