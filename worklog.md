@@ -11585,3 +11585,21 @@ Stage Summary:
 - Android update pipeline fully repaired AND exercised end-to-end: push -> build -> release -> version.json -> production promote -> live verification. Future pushes will self-maintain version.json (bot commits now land).
 - User's installed v1.0.563 app will prompt "update available" within 10 minutes of opening/foregrounding (10-min poll + appStateChange listener) and install v1.0.564 = the unified Messages page + composer total-fix.
 - Pending user items: ROTATE the PAT used today (pasted in chat, 5th reminder); Cloudflare mirror token still expired; staging alias still broken.
+
+---
+Task ID: 31
+Agent: main (Super Z)
+Task: Fix the signing regression discovered after the v1.0.564 delivery; ship v1.0.565 end-to-end with a stable signature.
+
+Work Log:
+- Post-delivery audit found a 4th stacked failure: build.gradle signs debug builds with android/app/debug.keystore, but 12b84db2 (2026-08-23, "fix: release signing key") had REMOVED the committed keystore and gitignored *.keystore — so every CI run since regenerated a RANDOM key ("Generate debug.keystore if missing") and every APK carried a different signature. Android rejects such updates over the installed base (INSTALL_FAILED_UPDATE_INCOMPATIBLE) even when the updater prompts — v1.0.564/build-945 would have failed to install.
+- Traced the installed v1.0.563 (build-671, Aug 13) key: debug.keystore was stable from 4d30188d (2026-06-20) until 12b84db2 (2026-08-23), so build-671 was signed with keystore@4d30188d.
+- Restored that exact keystore (extracted from 4d30188d; keytool-verified PKCS12 androiddebugkey PrivateKeyEntry, SHA-256 C3:16:40:FD:48:30:E1:30:D8:30:FD:BD:7E:38:96:93:DC:B4:B4:EE:76:15:60:3C:3F:D3:AE:B8:EC:5A:13:C8). .gitignore: deliberate negation (!android/app/debug.keystore) with rationale comment; release.keystore stays ignored. Commit b8a0bc26, pushed.
+- build-946 (run 34185100400) green; job log confirms "debug.keystore already exists" — the committed key was used, no regeneration. PracticePro-v1.0.565.apk released; bot commits landed (7fc16516 bump, 400e2f93 version.json).
+- Dispatched production-deploy (run 34185292510): gate pass, Vercel + Convex SUCCESS, Cloudflare mirror FAILED (standing expired token, non-fatal).
+- Live verification: https://practice-pro-vega.vercel.app/version.json serves sha 400e2f93, status healthy, apkVersion "1.0.565", apkVersionCode 10565, apkUrl -> build-946, apkBuildStatus healthy. APK download verified reachable.
+
+Stage Summary:
+- Android update pipeline fully functional end-to-end (4/4 failures fixed): push -> APK with STABLE signature -> release -> auto-committed version.json -> production promote -> live probe.
+- User's installed v1.0.563 phone will prompt within 10 min of app open / foreground and install v1.0.565 cleanly (same signing key, higher versionCode). Content = unified Messages page + composer total-fix + everything since Aug 13.
+- Pending user items: ROTATE today's PAT (pasted in chat and used for pushes/dispatches); Cloudflare mirror token expired; staging alias broken.
