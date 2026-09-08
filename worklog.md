@@ -11547,3 +11547,21 @@ Work Log:
 Stage Summary:
 - Production code path: 4 conversation kinds (team / client_tenant / ai_assistant / automated) now render through ONE canonical model + ONE thread component. Old unions and preview-prefix sniffing gone. Path A remains blocked pending explicit user go-ahead (see docs/MESSAGING_UNIFICATION.md for the plan).
 - Pending user items: rotate the pasted PAT (third reminder); staging alias still broken; APK still stale (build-671). Deploy to production via production-deploy.yml if desired — push already landed on main.
+
+---
+Task ID: 29
+Agent: main (Super Z)
+Task: Diagnose "have you pushed? why have I not seen the update?" + clarify the portal/shared-thread wording for the user.
+
+Work Log:
+- Clarified scope wording: "portal thread in shared component" = the client/tenant conversation view INSIDE the Messages page renders via MessageThread; TenantPortal/ClientDashboard pages deliberately untouched.
+- Verified push state with a fresh `git fetch`: origin/main = 6565d220 (includes c4763ba3 unification + 54fe747d composer fix). Tags build-943 / build-904 / admin-build-89 pulled.
+- Verified production IS LIVE with the new code: https://practice-pro-vega.vercel.app/version.json shows sha 6565d220, builtAt 2026-09-08T01:27:12Z, healthy. Live bundle index-BOeA3Bnf.js contains the `client_tenant` marker from model.ts. Vercel deploy auto-ran on push — no manual dispatch was needed.
+- Root cause of "invisible update" for the user: (1) Android APK still build-671 / v1.0.563 from 2026-08-13 (version.json apkVersion: null — no APK built since); (2) browser cache needs hard refresh; (3) staging alias broken.
+- Sandbox hard-reset AGAIN mid-session: local repo regressed to an older snapshot (HEAD 555d73cb hardening plan, dirty tree, stale origin ref 6cdc13a5); /home/z/my-project/worklog.md wiped. Preserved snapshot on branch backup/hardening-snapshot-20260908 + stash, reset main to origin/main (6565d220). Local == production again.
+- The token embedded in remote.origin.url tested dead (GitHub API HTTP 401). Removed from the git remote URL. Repo fetch works unauthenticated. Cannot dispatch workflows (build-apk.yml etc.) without a fresh PAT.
+
+Stage Summary:
+- Push: confirmed landed. Production: confirmed live with messaging unification since 01:27 UTC. The user's invisible update is the month-old Android APK (most likely) or browser cache (if web).
+- To refresh the Android app: run build-apk.yml from the GitHub Actions UI, or provide a fresh PAT (old one confirmed dead — 401) for dispatch + verification from here.
+- Local repo re-synced to production; snapshot WIP preserved (backup branch + stash); dead credential purged from config. This worklog entry is committed locally; push pending a valid token.
