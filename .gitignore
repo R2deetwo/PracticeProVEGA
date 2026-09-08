@@ -9,14 +9,19 @@ upload/
 tool-results/
 
 # ─── Android signing keys ──────────────────────────────────────────────────
-# These must NEVER be committed. The debug.keystore was previously committed
-# to a public repo — treat those credentials as compromised. The new
-# release.keystore is generated locally and stored securely outside the repo.
-# Passwords are passed via env vars (RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD,
-# RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD) — never hardcoded in source.
-android/app/debug.keystore
+# release.keystore must NEVER be committed (Play Store signing, secrets-based,
+# passwords via env vars — never hardcoded in source).
+#
+# debug.keystore IS deliberately committed (restored 2026-09-08 from commit
+# 4d30188d): the actual distribution channel is sideloaded debug-signed APKs
+# with an in-app updater, and that channel REQUIRES a stable signature —
+# since it was removed on 2026-08-23, CI regenerated a random key every run,
+# so Android rejected every update over installed builds (signature
+# conflict). Play Store submission (if ever pursued) should use the release
+# path instead.
 android/app/release.keystore
 *.keystore
 *.jks
+!android/app/debug.keystore
 dist-admin/
 dist/
