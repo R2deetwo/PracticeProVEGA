@@ -6,7 +6,8 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { AutomationMessageType } from '../../types';
 import { useTerminology } from '../../contexts/ProductContext';
-import { ComposeModal, buildMessage } from './ComposeModal';
+import { ComposeModal } from './ComposeModal';
+import { buildMessage } from '../../utils/messageTemplates';
 import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText } from 'lucide-react';
 

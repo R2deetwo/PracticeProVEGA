@@ -12,10 +12,14 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
 import { getGeminiApiKey } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
-import { resolveFinancials, parseMoneyInput, hasAutoFilledFigures } from '../../utils/messageFinancials';
+import { resolveFinancials, parseMoneyInput } from '../../utils/messageFinancials';
 import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError } from '../../utils/deliveryErrors';
 import { buildEmailHtml } from '../../utils/emailTemplate';
-import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
+import { MSG_TYPE_LABELS, getMsgTypeLabel, MSG_TYPE_FINANCE, getTypeFinance } from '../../utils/messageTypes';
+import type { FinanceField } from '../../utils/messageTypes';
+import { buildMessage } from '../../utils/messageTemplates';
+// Re-export for existing callers (AutomationCenter imports buildMessage from here).
+export { buildMessage } from '../../utils/messageTemplates';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -55,122 +59,6 @@ const formatNumberWithCommas = (val: string | number) => {
     return num.toLocaleString('en-US');
 };
 const parseFormattedNumber = (val: string) => val.replace(/,/g, '').replace(/[^\d.-]/g, '');
-
-export function buildMessage(
-  type: AutomationMessageType, 
-  unitLabel: string, 
-  tenantName?: string, 
-  amount?: number, 
-  customText?: string, 
-  customTemplates?: Record<string, string>,
-  extraData?: {
-    serviceCharge?: number;
-    legalFee?: number;
-    agencyFee?: number;
-    cautionDeposit?: number;
-    dueDate?: string;
-    firmName?: string;
-  }
-): string {
-  if (customText) return customText;
-
-  const name = tenantName || 'Resident';
-  const addr = unitLabel;
-  const baseRent = amount || 0;
-  
-  const sc = extraData?.serviceCharge || 0;
-  const lf = extraData?.legalFee || 0;
-  const af = extraData?.agencyFee || 0;
-  const cd = extraData?.cautionDeposit || 0;
-  const totalPayable = baseRent + sc + lf + af + cd;
-  
-  const amtStr = `₦${baseRent.toLocaleString('en-NG')}`;
-  const totalStr = `₦${totalPayable.toLocaleString('en-NG')}`;
-
-  let message = customTemplates?.[type];
-  
-  if (!message) {
-    switch (type) {
-      case 'rent_reminder': 
-        message = `OFFICIAL DEMAND NOTICE\n\nDear {{TENANT_NAME}},\n\nThis is a formal reminder that your payment for {{PROPERTY_ADDRESS}} is due on or before {{DUE_DATE}}.\n\nFinancial Breakdown:\n- Rent: {{AMOUNT}}\n{{SERVICE_CHARGE_LINE}}{{CAUTION_DEPOSIT_LINE}}{{FEES_LINE}}\nTotal Payable: {{TOTAL_PAYABLE}}\n\nPlease ensure payment is made promptly. Thank you.\n\n— {{FIRM_NAME}}`; 
-        break;
-      case 'late_notice': 
-        message = `URGENT: OVERDUE PAYMENT\n\nDear {{TENANT_NAME}},\n\nYour payment of {{TOTAL_PAYABLE}} for {{PROPERTY_ADDRESS}} is now OVERDUE.\n\nPlease make payment immediately to avoid late penalties or access restrictions. Contact management at {{FIRM_NAME}} to confirm your payment.\n\n— {{FIRM_NAME}}`; 
-        break;
-      case 'payment_receipt':
-        message = `PAYMENT RECEIPT\n\nDear {{TENANT_NAME}},\n\nWe confirm receipt of {{TOTAL_PAYABLE}} for {{PROPERTY_ADDRESS}}.\n\nThank you for your prompt payment.\n\n— {{FIRM_NAME}}`;
-        break;
-      case 'service_charge_alert': 
-        message = `SERVICE CHARGE ALERT\n\nDear {{TENANT_NAME}},\n\nYour service charge of ₦${sc.toLocaleString('en-NG')} for {{PROPERTY_ADDRESS}} is outstanding. Please settle this at your earliest convenience to avoid access restrictions.\n\nTotal Payable: {{TOTAL_PAYABLE}}`; 
-        break;
-      case 'access_restriction': 
-        message = `NOTICE OF ACCESS RESTRICTION\n\nAccess to {{PROPERTY_ADDRESS}} has been restricted due to non-payment of outstanding charges totaling {{TOTAL_PAYABLE}}. Please contact {{FIRM_NAME}} immediately to resolve.`; 
-        break;
-      case 'penalty_notice': 
-        message = `PENALTY NOTICE\n\nDear {{TENANT_NAME}},\n\nA late payment penalty has been applied to your account for {{PROPERTY_ADDRESS}}.\n\nRevised Total Payable: {{TOTAL_PAYABLE}}\n\nPlease settle the outstanding balance urgently. — {{FIRM_NAME}}`; 
-        break;
-      case 'lease_renewal': 
-        message = `LEASE RENEWAL\n\nDear {{TENANT_NAME}},\n\nYour lease for {{PROPERTY_ADDRESS}} is expiring soon. We invite you to renew your tenancy agreement. Please contact {{FIRM_NAME}} to discuss renewal terms.`; 
-        break;
-      case 'welcome_note': 
-        message = `Welcome to your new home at {{PROPERTY_ADDRESS}}, {{TENANT_NAME}}! We are excited to have you. Please find the resident handbook in your portal. — {{FIRM_NAME}}`; 
-        break;
-      case 'promotion': 
-        message = `Hello {{TENANT_NAME}}, we have a special offer for our residents! Get 10% off professional cleaning services this month. Use code: CLEAN10. — {{FIRM_NAME}}`; 
-        break;
-      case 'vendor_update': 
-        message = `Dear {{TENANT_NAME}}, we have partnered with new verified maintenance vendors to serve you better. You can now request plumbing and electrical repairs directly from the app. — {{FIRM_NAME}}`; 
-        break;
-      case 'general_announcement': 
-        message = `Attention residents of {{PROPERTY_ADDRESS}}: Routine maintenance will be carried out on the central generators this Saturday. Expect intermittent power supply between 10am and 2pm. — {{FIRM_NAME}}`; 
-        break;
-      case 'maintenance_update': 
-        message = `Update on your maintenance request for {{PROPERTY_ADDRESS}}: The vendor has confirmed your appointment for tomorrow. Please ensure someone is available to grant access. — {{FIRM_NAME}}`; 
-        break;
-      default: 
-        message = ''; 
-        break;
-    }
-  }
-
-  if (!message) return '';
-
-  const scLine = sc > 0 ? `- Service Charge: ₦${sc.toLocaleString('en-NG')}\n` : '';
-  const cdLine = cd > 0 ? `- Caution Deposit: ₦${cd.toLocaleString('en-NG')}\n` : '';
-  const feesLine = (lf + af) > 0 ? `- Legal/Agency Fees: ₦${(lf + af).toLocaleString('en-NG')}\n` : '';
-
-  let result = message
-    .replace(/\{\{TENANT_NAME\}\}/g, name)
-    .replace(/\{\{AMOUNT\}\}/g, amtStr)
-    .replace(/\{\{TOTAL_PAYABLE\}\}/g, totalStr)
-    .replace(/\{\{SERVICE_CHARGE_LINE\}\}/g, scLine)
-    .replace(/\{\{CAUTION_DEPOSIT_LINE\}\}/g, cdLine)
-    .replace(/\{\{FEES_LINE\}\}/g, feesLine)
-    .replace(/\{\{FIRM_NAME\}\}/g, extraData?.firmName || 'Management');
-
-  // Handle Unit Context smartly
-  if (addr === 'General' || addr === 'All Residents') {
-      result = result.replace(/ for \{\{PROPERTY_ADDRESS\}\}/g, '');
-      result = result.replace(/ at \{\{PROPERTY_ADDRESS\}\}/g, '');
-      result = result.replace(/\{\{PROPERTY_ADDRESS\}\}/g, 'your unit');
-  } else {
-      result = result.replace(/\{\{PROPERTY_ADDRESS\}\}/g, addr);
-  }
-  
-  // PLACEHOLDER BUG FIX: these replacements were previously gated behind
-  // `if (extraData)` — but callers like AutomationCenter's bulk rent reminder
-  // invoke buildMessage WITHOUT extraData, so tenants received messages with
-  // a literal {{DUE_DATE}} (and fee placeholders) in the text. All placeholders
-  // are now replaced unconditionally; sc/lf/af/cd already default to 0 and
-  // DUE_DATE falls back to a natural-language phrase.
-  result = result.replace(/\{\{SERVICE_CHARGE\}\}/g, `₦${sc.toLocaleString('en-NG')}`);
-  result = result.replace(/\{\{LEGAL_FEE\}\}/g, `₦${lf.toLocaleString('en-NG')}`);
-  result = result.replace(/\{\{AGENCY_FEE\}\}/g, `₦${af.toLocaleString('en-NG')}`);
-  result = result.replace(/\{\{CAUTION_DEPOSIT\}\}/g, `₦${cd.toLocaleString('en-NG')}`);
-  result = result.replace(/\{\{DUE_DATE\}\}/g, extraData?.dueDate || 'the due date');
-
-  return result;
-}
 
 export interface ComposeModalPrefill {
   unitId?: string;
@@ -423,62 +311,124 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     ? 'All Residents' 
     : (primaryRecipient?.label || primaryRecipient?.propertyAddress || prefill?.unitName || 'General');
 
+  // ── Type-driven financials ───────────────────────────────────────────
+  // USER FEEDBACK (2026-09-08): "I'm talking about the service charge but
+  // it adds up figures it ought not to have added... there should be a
+  // better and more simplified system so as to reduce confusion."
+  // The selected message type now drives BOTH which financial fields are
+  // shown (a Service Charge Alert shows Service Charge + Due Date only;
+  // free-form types hide the section entirely) and which figures the
+  // message's "Total Payable" may sum (see MSG_TYPE_FINANCE).
+  const typeFinance = getTypeFinance(msgType);
+  const showFinanceField = (f: FinanceField) => typeFinance.fields.includes(f);
+
+  const fieldValue = (f: FinanceField): string =>
+    f === 'amount' ? amount
+    : f === 'serviceCharge' ? serviceCharge
+    : f === 'cautionDeposit' ? cautionDeposit
+    : f === 'legalFee' ? legalFee
+    : f === 'agencyFee' ? agencyFee
+    : dueDate;
+
+  const setFieldByFinance = (f: FinanceField, v: string) => {
+    if (f === 'amount') setAmount(v);
+    else if (f === 'serviceCharge') setServiceCharge(v);
+    else if (f === 'cautionDeposit') setCautionDeposit(v);
+    else if (f === 'legalFee') setLegalFee(v);
+    else if (f === 'agencyFee') setAgencyFee(v);
+    else setDueDate(v);
+  };
+
+  // Fields the user has typed (or cleared) are theirs — auto-fill never
+  // touches them again, for any type switch or data refetch.
+  const userTouchedRef = useRef<Set<string>>(new Set());
+
+  // Live preview of the total that will appear in the message. Uses the
+  // SAME resolution order as the send path (manual override → the primary
+  // recipient's own record) so what you see is what gets sent.
+  const previewFigures = useMemo(() => {
+    const manual = {
+      amount: parseMoneyInput(amount),
+      serviceCharge: parseMoneyInput(serviceCharge),
+      legalFee: parseMoneyInput(legalFee),
+      agencyFee: parseMoneyInput(agencyFee),
+      cautionDeposit: parseMoneyInput(cautionDeposit),
+    };
+    return primaryRecipient
+      ? resolveFinancials(manual, primaryRecipient as any)
+      : {
+          amount: manual.amount ?? 0,
+          serviceCharge: manual.serviceCharge ?? 0,
+          legalFee: manual.legalFee ?? 0,
+          agencyFee: manual.agencyFee ?? 0,
+          cautionDeposit: manual.cautionDeposit ?? 0,
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, serviceCharge, legalFee, agencyFee, cautionDeposit, primaryRecipient?.id]);
+  const totalPreview = typeFinance.total.reduce(
+    (sum, f) => sum + ((previewFigures as Record<string, number>)[f] ?? 0), 0
+  );
+
   // ── Auto-fill financials from the selected resident's record ─────────
   // USER FEEDBACK (2026-09-08): "when I selected late service charge for a
   // resident it still required me to fill in the information — the whole
   // idea is that it should use the correct info for the correct client
-  // and fill it in." The auto-fill now ALSO pulls the resident's TRACKED
-  // service charge (outstanding balance + due date from the Service
-  // Charge monitor rows — handles composite unit ids), OPENS the
-  // Financial Details section so the figures are actually visible, and
-  // labels where the numbers came from so the user knows they can edit.
+  // and fill it in." The auto-fill pulls the resident's TRACKED service
+  // charge (outstanding balance + due date from the Service Charge
+  // monitor rows — handles composite unit ids), OPENS the Financial
+  // Details section so the figures are actually visible, and labels
+  // where the numbers came from so the user knows they can edit.
   const findTrackedCharge = (unitId: string, propId?: string): any =>
     (coreState.serviceCharges || []).find((c: any) => {
       const cu = String(c.unitId ?? '');
       return cu === unitId || (propId && cu === propId) || unitId.endsWith(`_${cu}`) || cu.endsWith(`_${unitId}`);
     });
 
-  // Guards the auto-fill against stomping: when the tracked-charge data
-  // refetches mid-compose (Convex reactivity), a re-run must not overwrite
-  // figures the user has typed or that were already filled for this
-  // recipient. Switching to a DIFFERENT recipient always re-fills.
-  const lastAutoFillForRef = useRef<string | null>(null);
-
+  // TYPE-AWARE + STOMP-SAFE: only fills the fields RELEVANT to the current
+  // message type, only when they are EMPTY, and never ones the user has
+  // touched. Because it only ever fills blanks, re-runs (Convex refetch,
+  // type switch) are idempotent — they can't overwrite anything, so the
+  // old coarse "bail if anything is non-empty" guard (which also blocked
+  // legitimate fills after a type switch) is gone.
   useEffect(() => {
     if (selectedRecipients.length !== 1) {
-      lastAutoFillForRef.current = null;
       setAutoFilledFrom(null);
       return;
     }
     const r = selectedRecipients[0] as SelectableRecipient & { recipientType?: RecipientType };
     if ((r as any).recipientType !== 'tenant') {
-      lastAutoFillForRef.current = null;
       setAutoFilledFrom(null);
       return;
     }
-    const recipientChanged = lastAutoFillForRef.current !== r.id;
-    lastAutoFillForRef.current = r.id;
-    if (!recipientChanged && (amount || serviceCharge || legalFee || agencyFee || cautionDeposit)) {
-      return; // fields already hold data (typed or previously filled) — never stomp
-    }
+    const fields = getTypeFinance(msgType).fields;
+    if (fields.length === 0) return; // free-form type — no figures to fill
+
     const tracked = findTrackedCharge(r.id, (r as any).propertyId);
-    const sc = tracked?.outstandingBalance ?? tracked?.amount ?? r.serviceCharge ?? 0;
-    const filled =
-      (r.rentAmount ?? 0) > 0 || sc > 0 || (r.cautionDeposit ?? 0) > 0 || (r.legalFee ?? 0) > 0 || (r.agencyFee ?? 0) > 0;
-    if (r.rentAmount) setAmount(String(r.rentAmount));
-    if (sc > 0) setServiceCharge(String(sc));
-    if (r.legalFee) setLegalFee(String(r.legalFee));
-    if (r.agencyFee) setAgencyFee(String(r.agencyFee));
-    if (r.cautionDeposit) setCautionDeposit(String(r.cautionDeposit));
-    if (tracked?.nextDueDate) {
-      setDueDate(new Date(tracked.nextDueDate).toISOString().slice(0, 10));
+    const scTracked = tracked?.outstandingBalance ?? tracked?.amount ?? r.serviceCharge ?? 0;
+
+    let filledAny = false;
+    for (const f of fields) {
+      if (userTouchedRef.current.has(f)) continue; // user owns this field
+      if (fieldValue(f)) continue;                  // already holds a figure
+      if (f === 'dueDate') {
+        if (tracked?.nextDueDate) {
+          setDueDate(new Date(tracked.nextDueDate).toISOString().slice(0, 10));
+          filledAny = true;
+        }
+        continue;
+      }
+      const v = f === 'amount' ? (r as any).rentAmount : f === 'serviceCharge' ? scTracked : (r as any)[f];
+      if (typeof v === 'number' && v > 0) {
+        setFieldByFinance(f, String(v));
+        filledAny = true;
+      }
     }
-    if (filled) {
+    if (filledAny) {
       setShowFinancials(true);
       setAutoFilledFrom(r.tenantName || r.label);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRecipientIds, coreState.serviceCharges]);
+  }, [selectedRecipientIds, msgType, coreState.serviceCharges]);
 
 
   // ── Auto-generate message template ───────────────────────────────────
@@ -1307,7 +1257,13 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               </div>
             </div>
 
-            {/* ── Financial Details (collapsible) ────────────────────── */}
+            {/* ── Financial Details (type-driven) ──────────────────────
+                Only the fields relevant to the selected message type are
+                shown — a Service Charge Alert shows Service Charge + Due
+                Date only; free-form types hide the section entirely.
+                The live total preview states exactly what the message's
+                "Total Payable" will sum, so no surprise figures. */}
+            {typeFinance.fields.length > 0 && (
             <div className="border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
               <button
                 onClick={() => setShowFinancials(!showFinancials)}
@@ -1315,7 +1271,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               >
                 <span className="flex items-center gap-1.5 uppercase tracking-wider font-medium">
                   <Receipt className="w-3.5 h-3.5" />
-                  {showFinancials ? 'Hide' : 'Show'} Financial Details
+                  {showFinancials ? 'Hide' : 'Show'} {msgType === 'payment_receipt' ? 'Payment' : 'Financial'} Details
                 </span>
                 {showFinancials ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
@@ -1330,34 +1286,67 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                     </p>
                   )}
                   <div className="grid grid-cols-2 gap-3">
+                  {showFinanceField('amount') && (
                   <div>
-                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Rent Amount (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(amount)} onChange={e => setAmount(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">
+                      {msgType === 'payment_receipt' ? 'Amount Received (₦)' : 'Rent Amount (₦)'}
+                    </label>
+                    <input type="text" value={formatNumberWithCommas(amount)} onChange={e => { userTouchedRef.current.add('amount'); setAmount(parseFormattedNumber(e.target.value)); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
+                  )}
+                  {showFinanceField('serviceCharge') && (
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Service Charge (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(serviceCharge)} onChange={e => setServiceCharge(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
+                    <input type="text" value={formatNumberWithCommas(serviceCharge)} onChange={e => { userTouchedRef.current.add('serviceCharge'); setServiceCharge(parseFormattedNumber(e.target.value)); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
+                  )}
+                  {showFinanceField('cautionDeposit') && (
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Caution Deposit (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(cautionDeposit)} onChange={e => setCautionDeposit(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
+                    <input type="text" value={formatNumberWithCommas(cautionDeposit)} onChange={e => { userTouchedRef.current.add('cautionDeposit'); setCautionDeposit(parseFormattedNumber(e.target.value)); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
+                  )}
+                  {showFinanceField('legalFee') && (
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Legal Fee (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(legalFee)} onChange={e => setLegalFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
+                    <input type="text" value={formatNumberWithCommas(legalFee)} onChange={e => { userTouchedRef.current.add('legalFee'); setLegalFee(parseFormattedNumber(e.target.value)); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
+                  )}
+                  {showFinanceField('agencyFee') && (
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Agency Fee (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(agencyFee)} onChange={e => setAgencyFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
+                    <input type="text" value={formatNumberWithCommas(agencyFee)} onChange={e => { userTouchedRef.current.add('agencyFee'); setAgencyFee(parseFormattedNumber(e.target.value)); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
+                  )}
+                  {showFinanceField('dueDate') && (
                   <div>
                     <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Due Date</label>
-                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                    <input type="date" value={dueDate} onChange={e => { userTouchedRef.current.add('dueDate'); setDueDate(e.target.value); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
                   </div>
+                  )}
                   </div>
+
+                  {/* Live total preview — exactly what the message will say.
+                      This is the transparency fix: the user SEES which
+                      figures are summed (and which are excluded) before
+                      sending, instead of discovering a wrong total in the
+                      generated text. */}
+                  {typeFinance.total.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-zinc-700">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-2xs uppercase tracking-wider font-bold text-slate-500 dark:text-zinc-400">Total in this message</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">₦{formatNumberWithCommas(String(Math.round(totalPreview)))}</span>
+                      </div>
+                      <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 flex items-center gap-1 justify-end">
+                        <Receipt className="w-2.5 h-2.5 shrink-0" />
+                        {typeFinance.note}{isMultiRecipient ? ' — empty fields use each recipient\u2019s own figures' : ''}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+            )}
 
             {/* ── Message Content ────────────────────────────────────── */}
             <div className="pt-2 border-t border-slate-200 dark:border-zinc-700">
