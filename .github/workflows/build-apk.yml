@@ -193,7 +193,7 @@ jobs:
           # network errors.
           for attempt in 1 2 3; do
             echo "[bump-push] Attempt $attempt: pulling --rebase..."
-            if git pull --rebase origin main; then
+            if git pull --rebase --autostash origin main; then
               echo "[bump-push] Rebase succeeded. Pushing..."
               if git push origin HEAD:main; then
                 echo "[bump-push] Push succeeded."
@@ -341,10 +341,13 @@ jobs:
             const path = './public/version.json';
             const v = JSON.parse(fs.readFileSync(path, 'utf8'));
             v.apkUrl = process.env.APK_URL;
+            v.apkVersion = process.env.APK_VERSION;
+            const [maj, min, pat] = process.env.APK_VERSION.split('.').map(Number);
+            v.apkVersionCode = maj * 10000 + min * 100 + pat;
             v.apkBuildStatus = 'healthy';
             v.apkBuiltAt = new Date().toISOString();
             fs.writeFileSync(path, JSON.stringify(v, null, 2) + '\n');
-            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkBuildStatus: v.apkBuildStatus }));
+            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkVersion: v.apkVersion, apkVersionCode: v.apkVersionCode, apkBuildStatus: v.apkBuildStatus }));
           "
         env:
           APK_URL: https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/PracticePro-v${{ env.APK_VERSION }}.apk
@@ -357,7 +360,7 @@ jobs:
           git commit -m "chore: update version.json with APK release info [build-${{ github.run_number }}]" || echo "No changes to commit"
           # Race-safe push (same pattern as the bump step)
           for attempt in 1 2 3; do
-            if git pull --rebase origin main; then
+            if git pull --rebase --autostash origin main; then
               if git push origin HEAD:main; then
                 echo "[version-push] Push succeeded."
                 break
