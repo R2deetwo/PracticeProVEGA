@@ -399,14 +399,21 @@ export default defineSchema({
     type: nullableString,
     link: v.optional(v.any()),
     actionLink: nullableString,
-    timestamp: nullableString,
+    // NOTIFICATION TIMESTAMP NORMALIZATION (2026-09-08): all three time
+    // fields are now canonical epoch-ms NUMBERS, matching app_notifications
+    // (createdAt: number), user_push_tokens, and the unified messaging model
+    // (src/messaging/model.ts toEpochMs). Previously this table mixed ISO
+    // strings (34 writers) and one number writer hidden behind an `as any`
+    // cast (proactive.ts). All 35 writers now emit Date.now(); legacy string
+    // rows are converted by migrations.backfillNotificationTimestamps.
+    // Historical note: pushNotifications.markNotificationRead once patched
+    // `readAt` onto notification rows — the field existed in app_notifications
+    // but was missing here (would throw under schemaValidation=true).
+    timestamp: nullableNumber,
     isRead: nullableBoolean,
-    // SCHEMA FIX: pushNotifications.markNotificationRead patches `readAt`
-    // onto notification rows — the field existed in app_notifications but
-    // was missing here (would throw under schemaValidation=true).
     readAt: nullableNumber,
-    createdAt: nullableString,
-    updatedAt: nullableString,
+    createdAt: nullableNumber,
+    updatedAt: nullableNumber,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
     expiresAt: v.optional(v.number()), // Auto-expiry timestamp (null = never expires)

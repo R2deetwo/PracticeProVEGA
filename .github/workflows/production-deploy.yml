@@ -264,17 +264,32 @@ jobs:
       # Round 11 retired this target because the token EXPIRED and red-X'd
       # every push. Fail fast with the exact fix instead of letting a 401
       # surface from deep inside wrangler after a full build.
+      # Round 15 (2026-09-08): account-scoped tokens (the "Edit Cloudflare
+      # Workers" template WITHOUT user API-token read permission) return
+      # "Invalid API Token" from /user/tokens/verify even though they can
+      # deploy. Fall back to probing the target account directly — if the
+      # token can list the account, it is active and usable for wrangler.
       - name: Verify the Cloudflare API token is active (fail fast)
         run: |
           VERIFY=$(curl -s --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             https://api.cloudflare.com/client/v4/user/tokens/verify)
           TOKEN_STATUS=$(echo "$VERIFY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('result',{}).get('status',''))" 2>/dev/null || echo "parse-error")
           echo "Token verify response (truncated): $(echo "$VERIFY" | head -c 300)"
-          if [ "$TOKEN_STATUS" != "active" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN is not active (status='$TOKEN_STATUS'). This is the exact failure that retired the mirror in Round 11 — the fix is a fresh token, NOT deleting the site. Fix: dash.cloudflare.com → My Profile → API Tokens → Create Token (template: Edit Cloudflare Workers, scoped to this account) → GitHub repo Settings → Secrets and variables → Actions → update CLOUDFLARE_API_TOKEN → re-run this workflow with the same sha."
-            exit 1
+          if [ "$TOKEN_STATUS" = "active" ]; then
+            echo "✓ Cloudflare API token is active (user-scope verify)"
+            exit 0
           fi
-          echo "✓ Cloudflare API token is active"
+          echo "::warning::user/tokens/verify did not report active (status='$TOKEN_STATUS') — probing account access for an account-scoped token..."
+          ACCOUNT_PROBE=$(curl -s --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID")
+          ACCOUNT_OK=$(echo "$ACCOUNT_PROBE" | python3 -c "import json,sys; print(str(json.load(sys.stdin).get('success','')).lower())" 2>/dev/null || echo "parse-error")
+          echo "Account probe (truncated): $(echo "$ACCOUNT_PROBE" | head -c 300)"
+          if [ "$ACCOUNT_OK" = "true" ]; then
+            echo "✓ Cloudflare API token is active (account-scoped; account $CLOUDFLARE_ACCOUNT_ID accessible)"
+            exit 0
+          fi
+          echo "::error::CLOUDFLARE_API_TOKEN is not usable (user verify='$TOKEN_STATUS', account probe failed). Fix: dash.cloudflare.com → My Profile → API Tokens → Create Token (template: Edit Cloudflare Workers, scoped to account $CLOUDFLARE_ACCOUNT_ID) → GitHub repo Settings → Secrets and variables → Actions → update CLOUDFLARE_API_TOKEN → re-run this workflow with the same sha."
+          exit 1
 
       - name: Checkout the exact gated commit
         uses: actions/checkout@v4

@@ -374,9 +374,9 @@ export const completePortalTask = mutation({
         type: "task_pending_verification",
         isRead: false,
         link: { view: "tasks", id: args.taskId, context: { taskId: args.taskId } },
-        timestamp: now,
-        createdAt: now,
-        updatedAt: now,
+        timestamp: Date.now(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -5758,10 +5758,10 @@ async function notifyFirmAdmins(
         type: args.type,
         link: args.link,
         actionLink: args.actionLink,
-        timestamp: now,
+        timestamp: Date.now(),
         isRead: false,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     } catch (e) {
       console.warn("[notifyFirmAdmins] Failed to create notification for admin:", (e as any)?.message);

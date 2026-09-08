@@ -66,7 +66,7 @@ export async function notifyFounders(
       message: payload.message,
       type: payload.type,
       link: payload.link || { view: "notifications", id: null, context: {} },
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       isRead: false,
     } as any);
     notified++;

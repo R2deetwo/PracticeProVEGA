@@ -1565,7 +1565,7 @@ const MessagesView: React.FC = () => {
                                                                     addToast(err?.message || 'Failed to delete conversation.', { type: 'error' });
                                                                 }
                                                             }}
-                                                            className="absolute top-1/2 right-1.5 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                            className="absolute top-1/2 right-1.5 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
                                                             title="Delete conversation"
                                                             aria-label="Delete conversation"
                                                         >
@@ -2157,7 +2157,7 @@ const MessagesView: React.FC = () => {
                                                                                 addToast(err.message || 'Failed to delete message.', { type: 'error' });
                                                                             }
                                                                         }}
-                                                                        className={`absolute -top-1.5 ${m.isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover/delete:opacity-100`}
+                                                                        className={`absolute -top-1.5 ${m.isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover/delete:opacity-100 [@media(hover:none)]:opacity-100`}
                                                                         title="Delete message"
                                                                     >
                                                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

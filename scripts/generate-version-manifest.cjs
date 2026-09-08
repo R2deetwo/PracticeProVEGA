@@ -85,6 +85,34 @@ const isoTimestamp = run('git log -1 --format=%cI', timestamp);
 // (apkUrl, apkBuildStatus, apkBuiltAt) instead of overwriting them.
 // This ensures the APK update info survives Vercel's build process.
 
+// Preserve APK fields from existing version.json if present.
+// PARSED FIRST because it is also the FALLBACK SOURCE for apkVersion /
+// apkVersionCode: .vercelignore excludes `android/` from Vercel builds,
+// so on Vercel version.properties does not exist and the fresh derivation
+// below yields null. Without this fallback, every Vercel auto-deploy
+// (i.e. every push to main) nulls the APK update fields and hard-breaks
+// the in-app updater's apkVersionCode gate (GATE 3) — the phone stops
+// seeing APK updates until the next workflow-written version.json wins
+// the deploy race. Discovered 2026-09-08 after the v1.0.565 release.
+let existingApkUrl = null;
+let existingApkBuildStatus = 'building';
+let existingApkBuiltAt = null;
+let existingApkVersion = null;
+let existingApkVersionCode = null;
+if (fs.existsSync(OUT)) {
+  try {
+    const existing = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+    existingApkUrl = existing.apkUrl || null;
+    existingApkBuildStatus = existing.apkBuildStatus || 'building';
+    existingApkBuiltAt = existing.apkBuiltAt || null;
+    existingApkVersion = existing.apkVersion || null;
+    existingApkVersionCode = existing.apkVersionCode ?? null;
+    console.log(`[version] Preserving APK fields from existing version.json: apkUrl=${existingApkUrl ? 'set' : 'null'}, apkVersion=${existingApkVersion || 'null'}, apkBuildStatus=${existingApkBuildStatus}`);
+  } catch {
+    // File exists but is invalid JSON — ignore and generate fresh
+  }
+}
+
 const versionPropsPath = path.join(ROOT, 'android', 'app', 'version.properties');
 let apkVersion = null;
 let apkVersionCode = null;
@@ -96,21 +124,13 @@ if (fs.existsSync(versionPropsPath)) {
   apkVersion = `${major}.${minor}.${patch}`;
   apkVersionCode = major * 10000 + minor * 100 + patch;
 }
-
-// Preserve APK fields from existing version.json if present
-let existingApkUrl = null;
-let existingApkBuildStatus = 'building';
-let existingApkBuiltAt = null;
-if (fs.existsSync(OUT)) {
-  try {
-    const existing = JSON.parse(fs.readFileSync(OUT, 'utf8'));
-    existingApkUrl = existing.apkUrl || null;
-    existingApkBuildStatus = existing.apkBuildStatus || 'building';
-    existingApkBuiltAt = existing.apkBuiltAt || null;
-    console.log(`[version] Preserving APK fields from existing version.json: apkUrl=${existingApkUrl ? 'set' : 'null'}, apkBuildStatus=${existingApkBuildStatus}`);
-  } catch {
-    // File exists but is invalid JSON — ignore and generate fresh
-  }
+if (apkVersion == null) {
+  // No version.properties in this build context (Vercel excludes android/).
+  // Fall back to the APK workflow-committed values so Vercel auto-deploys
+  // never wipe them. GH Actions builds always have version.properties, so
+  // the fresh (just-bumped) values remain authoritative there.
+  apkVersion = existingApkVersion;
+  apkVersionCode = existingApkVersionCode;
 }
 
 const manifest = {

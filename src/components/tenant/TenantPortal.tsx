@@ -2631,7 +2631,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                               setDeletingMessageId(null);
                             }
                           }}
-                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all"
+                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all"
                           title="Delete message"
                         >
                           {deletingMessageId === String(msg._id) ? (

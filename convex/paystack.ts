@@ -435,7 +435,7 @@ export const recordPaystackEvent = internalMutation({
             message: `A card payment attempt${args.reference ? ` (${args.reference})` : ''} did not go through. No money moved and your plan is unchanged — you can retry the payment from Billing & Plans.`,
             type: 'payment_failed',
             link: { view: 'settings', id: 'subscription-management', context: {} },
-            timestamp: nowIso,
+            timestamp: Date.now(),
             isRead: false,
           } as any);
         }
@@ -456,7 +456,7 @@ export const recordPaystackEvent = internalMutation({
             message: `A refund${args.reference ? ` for ${args.reference}` : ''}${args.amount ? ` of ₦${args.amount.toLocaleString('en-NG')}` : ''} was processed. Our team will follow up on any impact to your subscription.`,
             type: 'payment_refund',
             link: { view: 'settings', id: 'subscription-management', context: {} },
-            timestamp: nowIso,
+            timestamp: Date.now(),
             isRead: false,
           } as any);
         }

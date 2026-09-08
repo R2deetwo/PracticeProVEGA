@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getInitials, getUserColor, formatDueDate, getDueDateColor } from '../utils/colorUtils';
 import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
+import EmptyState from './EmptyState';
 import { MattersSkeleton } from './toolkit/Skeleton';
 import MatterBoardView from './MatterBoardView';
 
@@ -484,23 +485,13 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                             />
                         ))
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
-                                <MattersIcon className="w-8 h-8 text-slate-400 dark:text-zinc-500" />
-                            </div>
-                            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1">No Matters Found</h3>
-                            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4 max-w-[200px]">
-                                {searchTerm ? 'No matches found. Try a different search.' : 'Create your first matter to get started.'}
-                            </p>
-                            {!searchTerm && (
-                                <button
-                                    onClick={() => openModal('newMatter')}
-                                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-xs font-bold"
-                                >
-                                    <PlusIcon className="w-4 h-4" /> New Matter
-                                </button>
-                            )}
-                        </div>
+                        <EmptyState
+                            title={searchTerm ? 'No Matters Found' : 'No Matters Yet'}
+                            description={searchTerm ? 'No matters match your search. Try a different term or clear the search.' : 'Create your first matter to start tracking cases, deadlines and billing.'}
+                            icon={<MattersIcon className="text-slate-300 dark:text-zinc-600" />}
+                            actionLabel={searchTerm ? undefined : 'New Matter'}
+                            onAction={searchTerm ? undefined : () => openModal('newMatter')}
+                        />
                     )}
                 </div>
                 </>

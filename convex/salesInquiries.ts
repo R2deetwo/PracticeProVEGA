@@ -132,7 +132,7 @@ export const updateInquiryStatus = mutation({
                 .collect();
             for (const n of notifs) {
                 if (n.link?.context?.inquiryId === String(args.inquiryId) && !n.isRead) {
-                    await ctx.db.patch(n._id, { isRead: true, updatedAt: new Date().toISOString() } as any);
+                    await ctx.db.patch(n._id, { isRead: true, updatedAt: Date.now() } as any);
                 }
             }
         }

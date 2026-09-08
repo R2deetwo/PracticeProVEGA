@@ -102,7 +102,7 @@ export const submitFeedback = mutation({
           selectedInboxId: 'system-inbox',
         },
       },
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       isRead: false,
     } as any);
 
@@ -449,7 +449,7 @@ export const adminReplyToFeedback = mutation({
           selectedFeedbackId: args.feedbackId.toString(),
         },
       },
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       isRead: false,
     } as any);
 
@@ -603,7 +603,7 @@ export const userReplyToFeedback = mutation({
             feedbackId: args.feedbackId.toString(),
           },
         },
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         isRead: false,
       } as any);
     }

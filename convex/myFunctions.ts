@@ -2479,7 +2479,7 @@ export const joinFirm = mutation({
         userId: admin._id,
         message: `New user ${args.userName || args.userEmail || "joined"} requested to join the workspace. Please review in Settings > Firm > Team.`,
         link: { view: "settings", id: null, context: { settingsTargetId: "user-management" } },
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         isRead: false
       } as any);
     }
@@ -3201,9 +3201,9 @@ export const sendChatMessage = mutation({
               selectedInboxType: "team",
             },
           },
-          timestamp: now,
-          createdAt: now,
-          updatedAt: now,
+          timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         });
       });
       await Promise.all(notificationPromises);
@@ -3336,9 +3336,9 @@ export const createTask = mutation({
           type: "task_assignment",
           isRead: false,
           link,
-          timestamp: now,
-          createdAt: now,
-          updatedAt: now,
+          timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         });
 
         // For external assignees, schedule email + WhatsApp dispatch
@@ -5781,9 +5781,9 @@ export const scanTaskHalfwayReminders = internalMutation({
               type: "task_overdue",
               isRead: false,
               link: { view: "tasks", id: task.id || task._id.toString(), context: { taskId: task.id } },
-              timestamp: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              timestamp: Date.now(),
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
             });
           }
           await ctx.db.patch(task._id, { overdueNotificationSent: true } as any);
@@ -5817,9 +5817,9 @@ async function sendTaskReminder(ctx: any, task: any, type: 'halfway' | 'final') 
       type: "task_reminder",
       isRead: false,
       link: { view: "tasks", id: task.id || task._id.toString(), context: { taskId: task.id, reminderType: type } },
-      timestamp: now,
-      createdAt: now,
-      updatedAt: now,
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
 
     // External: dispatch email + WhatsApp
@@ -6080,7 +6080,7 @@ export const createBroadcastNotification = internalMutation({
           broadcastId: args.broadcastId,
         }
       },
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       isRead: false,
       expiresAt: args.expiresAt,
     } as any);
@@ -6240,7 +6240,7 @@ export const scanLeaseExpiries = internalMutation({
               message: `${property.name || property.address || 'Property'} — Tenant: ${rentalDetails.tenantName || 'Unknown'}. Lease ends ${new Date(leaseEnd).toLocaleDateString('en-GB')}.`,
               type: 'lease_expiry',
               link: { view: 'propertyDetail', id: property._id, context: { tab: 'units', targetUnit: property._id, highlight: property._id } },
-              timestamp: new Date().toISOString(),
+              timestamp: Date.now(),
               isRead: false,
             } as any);
           }
@@ -6287,7 +6287,7 @@ export const scanLeaseExpiries = internalMutation({
             message: `${property.name || property.address || 'Property'} — Tenant: ${rentalDetails.tenantName || 'Unknown'}. Lease expired ${Math.abs(daysRemaining)} day(s) ago. Action required.`,
             type: 'lease_expired',
             link: { view: 'propertyDetail', id: property._id, context: { tab: 'units', targetUnit: property._id, highlight: property._id } },
-            timestamp: new Date().toISOString(),
+            timestamp: Date.now(),
             isRead: false,
           } as any);
         }
@@ -6418,7 +6418,7 @@ export const createSubscriptionRequest = mutation({
         message: `${user?.email || 'A user'} requested upgrade to ${args.requestedPlan} (₦${args.amount.toLocaleString()}). Reference: ${args.transactionReference}`,
         type: 'subscription_request',
         link: { view: 'organizationsHub', id: requestId, context: {} },
-        timestamp: now.toISOString(),
+        timestamp: Date.now(),
         isRead: false,
       } as any);
     }
@@ -6561,7 +6561,7 @@ export const approveSubscriptionRequest = mutation({
         message: `Your account has been updated to the ${request.requestedPlan} plan! All associated features, higher limits, and modules are now active.`,
         type: 'subscription_activated',
         link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
-        timestamp: now,
+        timestamp: Date.now(),
         isRead: false,
       } as any);
     }
@@ -6609,7 +6609,7 @@ export const rejectSubscriptionRequest = mutation({
         title: 'Subscription Request Update',
         message: `Your upgrade request could not be verified. Reason: ${args.reason || 'Payment not confirmed. Please contact support.'}`,
         type: 'subscription_rejected',
-        timestamp: now,
+        timestamp: Date.now(),
         isRead: false,
       } as any);
     }
@@ -6686,7 +6686,7 @@ export const activateFirmSubscription = internalMutation({
         message: `Your account has been updated to the ${args.plan} plan! All associated features, higher limits, and modules are now active.`,
         type: 'subscription_activated',
         link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
-        timestamp: now,
+        timestamp: Date.now(),
         isRead: false,
       } as any);
     }
@@ -6859,7 +6859,7 @@ export const applySubscriptionDunning = internalMutation({
             message: `Your ${planName} plan's billing period ended without a confirmed renewal, so the workspace is now on Core. Your data is safe and fully intact — nothing was deleted. Renew to restore ${planName} features.`,
             type: 'subscription_downgraded',
             link: { view: 'settings', id: 'subscription-management', context: {} },
-            timestamp: nowIso,
+            timestamp: Date.now(),
             isRead: false,
           } as any);
           emails.push({
@@ -6939,7 +6939,7 @@ export const applySubscriptionDunning = internalMutation({
           message: copy.message,
           type: 'subscription_dunning',
           link: { view: 'settings', id: 'subscription-management', context: {} },
-          timestamp: nowIso,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
         const brand = getProductBranding(firm.product || undefined);
@@ -7044,7 +7044,7 @@ export const expireTrials = internalMutation({
           message: `Your 30-day trial has ended. You're now on the Core plan. Upgrade to restore your trial features.`,
           type: 'trial_ended',
           link: { view: 'settings', id: 'subscription-management', context: {} },
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       }
@@ -7094,7 +7094,7 @@ export const expireTrials = internalMutation({
           message: `Your ${firm.trialPlan} trial ends in 7 days. Upgrade now to keep your features.`,
           type: 'trial_ending_soon',
           link: { view: 'settings', id: 'subscription-management', context: {} },
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       }
@@ -7115,7 +7115,7 @@ export const expireTrials = internalMutation({
           message: `Your ${firm.trialPlan} trial ends tomorrow. Set up bank transfer now to avoid losing features.`,
           type: 'trial_ending_tomorrow',
           link: { view: 'settings', id: 'subscription-management', context: {} },
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       }
@@ -7335,7 +7335,7 @@ export const cancelAddon = mutation({
           title: 'Add-On Request Withdrawn',
           message: `${user?.email || 'A user'} withdrew their request for ${addon.addonName}.`,
           type: 'addon_cancelled',
-          timestamp: now,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       }
@@ -7360,7 +7360,7 @@ export const cancelAddon = mutation({
         title: 'Add-On Cancelled',
         message: `${user?.email || 'A user'} cancelled ${addon.addonName}.`,
         type: 'addon_cancelled',
-        timestamp: now,
+        timestamp: Date.now(),
         isRead: false,
       } as any);
     }
@@ -7976,8 +7976,8 @@ export const sendCommunicationSetupReminders = internalMutation({
         firmId: firm._id,
         userId: admin._id,
         isRead: false,
-        createdAt: new Date().toISOString(),
-        timestamp: new Date().toISOString(),
+        createdAt: Date.now(),
+        timestamp: Date.now(),
         type: 'communication_setup_reminder',
         link: { view: 'settings', id: 'integrations', context: {} },
       };

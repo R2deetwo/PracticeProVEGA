@@ -501,7 +501,7 @@ export const updateFirmAdminSettings = mutation({
           message,
           type: planChangeType === 'upgrade' ? 'subscription_activated' : 'subscription_changed',
           link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
-          timestamp: now,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       }
@@ -1737,7 +1737,7 @@ export const approveSubscriptionRequestAsFounder = mutation({
           // their subscription was confirmed by the PracticePro team.
           message: `Your upgrade to ${request.requestedPlan} has been confirmed by the PracticePro Team. Enjoy the new features!${discountMsg}`,
           type: 'subscription_activated',
-          timestamp: now,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       } catch (e) {
@@ -1806,7 +1806,7 @@ export const rejectSubscriptionRequestAsFounder = mutation({
           title: 'Subscription Request Update',
           message: `Your upgrade request could not be verified. Reason: ${args.reason || 'Payment not confirmed. Please contact support.'}`,
           type: 'subscription_rejected',
-          timestamp: now,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       } catch (e) {
@@ -2013,7 +2013,7 @@ export const approveAddonRequestAsFounder = mutation({
           title: 'Add-On Activated',
           message: `Your ${request.addonName} add-on has been activated.${discountMsg}`,
           type: 'addon_activated',
-          timestamp: now,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       } catch (e) {
@@ -2080,7 +2080,7 @@ export const rejectAddonRequestAsFounder = mutation({
           title: 'Add-On Request Update',
           message: `Your ${request.addonName} add-on request could not be verified. Reason: ${args.reason || 'Please contact support.'}`,
           type: 'addon_rejected',
-          timestamp: now,
+          timestamp: Date.now(),
           isRead: false,
         } as any);
       } catch (e) {

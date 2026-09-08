@@ -184,7 +184,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                             else openMenu();
                         }}
                         onDoubleClick={(e) => e.stopPropagation()}
-                        className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all self-end opacity-60 hover:opacity-100`}
+                        className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all self-end opacity-60 hover:opacity-100 [@media(hover:none)]:opacity-100`}
                         aria-label="Message actions"
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">

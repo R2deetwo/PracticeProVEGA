@@ -2671,7 +2671,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                     if (!ok) return;
                                                     deleteItem('notePages', note.id, note.title);
                                                 }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all z-20"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 text-slate-400 hover:text-red-500 transition-all z-20"
                                                 title="Delete Note"
                                             >
                                                 <TrashIcon className="w-3.5 h-3.5" />
@@ -2975,7 +2975,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         "Draft in DraftPro" appears when the AI's response contains a
                                         formal document/letter — letting the user send it to DraftPro
                                         for proper editing with formatting preserved. */}
-                                    <div className={`flex gap-0.5 mt-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`flex gap-0.5 mt-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-200 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         {!msg.toolAction && (
                                             <button
                                                 onClick={() => handleCopyMessage(msg.id, msg.content || '')}

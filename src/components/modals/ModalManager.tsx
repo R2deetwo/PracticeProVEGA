@@ -22,7 +22,6 @@ import { MatterForm } from '../forms/MatterForm';
 import { SmartMatterModal } from '../forms/SmartMatterModal';
 import { SubscriptionPlan } from '../../types';
 import { DocumentForm } from '../forms/DocumentForm';
-import TaskForm from '../forms/TaskForm';
 import ContactForm from '../forms/ContactForm';
 import { EventForm } from '../forms/EventForm';
 import { InvoiceForm } from '../forms/InvoiceForm';
@@ -47,8 +46,6 @@ import AssignUsersForm from '../forms/AssignUsersForm';
 import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
 import { StageChecklistForm } from '../forms/StageChecklistForm';
 import NewResearchNotebookForm from '../forms/NewResearchNotebookForm';
-import PropertyForm from '../forms/PropertyForm';
-import { PropertyOwnerPicker } from './PropertyOwnerPicker';
 import CollectRentModal from './CollectRentModal';
 import MergeContactModal from './MergeContactModal';
 import NotebookForm from '../forms/NotebookForm';
@@ -79,7 +76,6 @@ import KeyboardShortcutsModal from './KeyboardShortcutsModal';
 import QuickLookModal from './QuickLookModal';
 import PaymentGatewayModal from './PaymentGatewayModal';
 import UpgradeModal from './UpgradeModal';
-import TaskDetailModal from './TaskDetailModal';
 import { EventDetailModal } from '../details/EventDetailModal';
 import LeadCaptureModal from './LeadCaptureModal';
 import WorkspaceSetupModal from './WorkspaceSetupModal';
@@ -160,7 +156,18 @@ const ModalManager: React.FC = () => {
   //      generic prop pass-through (closeModal, editingId, modalContext, etc.)
   //
   // Currently NO modals are migrated — ModalManager handles all of them.
-  const MODAL_LAYER_HANDLED = new Set<string>([]);
+  // BATCH 1 MIGRATED (2026-09-08): task create/edit/detail + property
+  // create/edit now render through ModalLayer + ModalShell (the shared
+  // overlay system). Their switch cases were REMOVED below — do not
+  // re-add them; update MIGRATED_CONTENT_BUILDERS in ModalLayer.tsx
+  // if their prop wiring needs to change.
+  const MODAL_LAYER_HANDLED = new Set<string>([
+    'newTask',
+    'editTask',
+    'viewTask',
+    'newProperty',
+    'editProperty',
+  ]);
 
   if (MODAL_LAYER_HANDLED.has(modal)) {
     return null;
@@ -316,56 +323,6 @@ const ModalManager: React.FC = () => {
       );
       break;
     }
-    case 'newProperty':
-    case 'editProperty': {
-      const propertyId = modal === 'editProperty' ? (editingId as string) : undefined;
-      let contactId = modal === 'editProperty' ? modalContext?.contactId : (editingId || modalContext?.contactId);
-
-      // FIX: if no contactId was passed, try to find the property's owner
-      // from the property record itself. Properties store a `contactId` field
-      // that links to the owner. Without this, the modal shows "Select Owner"
-      // instead of the PropertyForm when owner?.id is undefined.
-      if (!contactId && propertyId) {
-        const prop = coreState.properties.find(p => p.id === propertyId);
-        contactId = prop?.contactId || (prop as any)?._id || undefined;
-      }
-
-      let contact = matterState.contacts.find(c => c.id === contactId || (c as any)._id === contactId);
-      const propertyToEdit = coreState.properties.find(p => p.id === propertyId) ||
-                 (contact?.properties || []).find(p => p.id === propertyId);
-
-      // FIX: if still no contact but we have a property to edit, create a
-      // minimal fallback contact object so the PropertyForm can render.
-      // This handles the case where a property exists without a linked owner
-      // (e.g. standalone multi-unit properties).
-      if (!contact && propertyToEdit) {
-        contact = {
-          id: propertyToEdit.contactId || 'standalone',
-          name: 'Property Owner',
-          email: '',
-          phone: '',
-          category: 'Client',
-          contactType: 'Individual' as any,
-          firmId: propertyToEdit.firmId || '',
-          properties: [],
-        } as any;
-      }
-
-      if (contact) {
-        content = <PropertyForm contact={contact} propertyToEdit={propertyToEdit} activeUnitId={modalContext?.activeUnitId} autoExpandRental={modalContext?.autoExpandRental} autoAddUnit={modalContext?.autoAddUnit} onSave={dataHandlers.onUpdateContactProperties} onClose={closeModal} />;
-      } else {
-        // Shared owner selector (round-4 dedupe with DockedModal).
-        content = (
-          <PropertyOwnerPicker
-            contacts={matterState.contacts}
-            onSelect={(contactId) => openModal('newProperty', contactId)}
-            onCreateNew={() => openModal('newContact', null, { returnTo: 'newProperty' })}
-          />
-        );
-      }
-      break;
-    }
-
     case 'newDocument':
     case 'editDocument':
     case 'newDraft': {
@@ -417,71 +374,6 @@ const ModalManager: React.FC = () => {
             closeModal();
           }}
           onClose={closeModal}
-        />;
-      }
-      break;
-    }
-    case 'editTask':
-    case 'newTask': {
-      const taskToEdit = editingId ? executionState.tasks.find(t => t.id === editingId) : undefined;
-      content = <TaskForm
-        matters={matterState.matters}
-        tasks={executionState.tasks}
-        users={coreState.users}
-        documents={documentState.documents}
-        checklistTemplates={coreState.checklistTemplates}
-        onAddTask={dataHandlers.handleAddTask}
-        onUpdateTask={(t) => executionActions.updateTask(t)}
-        onClose={closeModal}
-        initialContext={modalContext}
-        currentUser={currentUser!}
-        appMode={appMode}
-        taskToEdit={taskToEdit}
-        openModal={openModal}
-        onNavigate={navigateTo}
-      />;
-      break;
-    }
-    case 'viewTask': {
-      const task = executionState.tasks.find(t => t.id === editingId);
-      if (task && currentUser) {
-        content = <TaskDetailModal
-          task={task}
-          users={coreState.users}
-          matters={matterState.matters}
-          documents={documentState.documents}
-          onEdit={() => {
-            openModal('newTask', task.id);
-          }}
-          onDelete={() => {
-            // FIX (Aug 2026): Use dedicated deleteTask mutation instead of
-            // generic deleteItem which fails silently for tasks without a
-            // custom `id` field — same root cause as the drag-drop bug.
-            (dataHandlers as any).deleteTask?.({ taskId: task.id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) })
-              .then(() => { closeModal(); })
-              .catch((e: any) => { addToast(e?.message || 'Failed to delete task.', { type: 'error' }); });
-          }}
-          onUpdateTask={(t) => executionActions.updateTask(t)}
-          onViewInTasks={(id, color) => {
-            closeModal();
-            setTimeout(() => {
-              updateCurrentHistoryEntry({ taskUserFilter: '__all__' });
-              navigateTo('tasks');
-              setTimeout(() => {
-                setHighlightTarget({ view: 'tasks', filter: { id }, color: color || 'blue' });
-              }, 300);
-            }, 50);
-          }}
-          currentUser={currentUser}
-          onNavigateToMatter={(mId, taskId) => {
-            closeModal();
-            setTimeout(() => {
-              setHighlightTarget({ view: 'matterDetail', filter: { id: taskId }, color: 'blue' });
-              navigateTo('matterDetail', mId, { initialTab: 'schedule_tasks' });
-            }, 50);
-          }}
-          onNavigateToCalendar={modalContext?.openedFrom !== 'calendar' ? (date) => { closeModal(); navigateTo('calendar', null, { date }); } : undefined}
-          openedFrom={modalContext?.openedFrom}
         />;
       }
       break;

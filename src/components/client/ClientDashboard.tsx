@@ -19,6 +19,7 @@ import {
 } from '../../constants';
 import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
+import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
 // VersionRefreshBanner is now globally mounted in App.tsx via ToastRefreshNotification
@@ -181,6 +182,11 @@ const ClientDashboard: React.FC = () => {
     // Repair mutation for fixing missing firmId on portal user records
     const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
     const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
+    // Own-message delete (parity with TenantPortal's soft delete — the firm
+    // retains a compliance record, the message disappears for the client).
+    const softDeleteOwnMessage = useMutation(api.portals.softDeletePortalMessage);
+    const { confirm: confirmDialog, ConfirmDialog } = useConfirm();
+    const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
     const [isRepairing, setIsRepairing] = useState(false);
 
     const [activeTab, setActiveTab] = useState<PortalTab>(() => {
@@ -1173,7 +1179,10 @@ const ClientDashboard: React.FC = () => {
         // or the firm's replies. Now we render the active conversation's
         // real thread first, and keep legacy messages below as history.
         const activeConversation = ((portalConversations || []) as any[]).find((c: any) => String(c._id || c.id) === String(activeConversationId));
-        const threadMsgs = (conversationMessages || []).map((m: any) => ({
+        // Filter out soft-deleted messages — softDeletePortalMessage marks
+        // isDeleted:true but the query still returns them (ghost-message fix,
+        // mirrors TenantPortal).
+        const threadMsgs = ((conversationMessages || []) as any[]).filter((m: any) => !m.isDeleted).map((m: any) => ({
             _id: m._id,
             authorId: m.senderId,
             authorName: m.senderName,
@@ -1182,6 +1191,7 @@ const ClientDashboard: React.FC = () => {
             isRead: m.isRead ?? true,
             timestamp: m.createdAt,
             attachments: m.attachments,
+            _fromThread: true, // portal_messages row — supports own-message delete
         }));
         const messages = threadMsgs.length > 0 ? threadMsgs : (clientMessages || []);
 
@@ -1319,14 +1329,53 @@ const ClientDashboard: React.FC = () => {
                             const authorName = isCurrentUser
                                 ? currentUser.name
                                 : getUserName(msg.authorId, msg.authorName);
+                            // Own-thread-message delete: only for portal_messages rows
+                            // sent by this client (soft delete; the firm keeps a record).
+                            const canDeleteOwn = isCurrentUser && msg._fromThread && msg._id;
 
                             return (
                                 <div
                                     key={String(msg._id)}
-                                    className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 ${
-                                        !msg.isRead && !isCurrentUser ? 'border-l-4 border-l-emerald-400' : ''
-                                    }`}
+                                    className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 relative ${!msg.isRead && !isCurrentUser ? 'border-l-4 border-l-emerald-400' : ''}`}
                                 >
+                                    {canDeleteOwn && (
+                                        <button
+                                            onClick={async () => {
+                                                if (deletingMessageId === String(msg._id)) return;
+                                                const ok = await confirmDialog({
+                                                    title: 'Delete this message?',
+                                                    message: 'The message will be removed from the conversation for you. Your legal team will still have a record for their files.',
+                                                    confirmLabel: 'Delete',
+                                                    cancelLabel: 'Cancel',
+                                                    danger: true,
+                                                });
+                                                if (!ok) return;
+                                                setDeletingMessageId(String(msg._id));
+                                                try {
+                                                    await softDeleteOwnMessage({
+                                                        messageId: String(msg._id),
+                                                        requesterId: currentUser.id,
+                                                    });
+                                                    addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                } catch (err: any) {
+                                                    addToast(err.message || 'Failed to delete message.', { type: 'error' });
+                                                } finally {
+                                                    setDeletingMessageId(null);
+                                                }
+                                            }}
+                                            className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-full transition-colors"
+                                            title="Delete message"
+                                            aria-label="Delete message"
+                                        >
+                                            {deletingMessageId === String(msg._id) ? (
+                                                <span className="w-3 h-3 border border-slate-400 border-t-slate-600 rounded-full animate-spin" />
+                                            ) : (
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    )}
                                     <div className="flex items-start gap-3">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
                                             isCurrentUser
@@ -1362,6 +1411,8 @@ const ClientDashboard: React.FC = () => {
                         })}
                     </div>
                 )}
+                {/* Confirm dialog for own-message delete */}
+                {ConfirmDialog}
             </div>
         );
     };

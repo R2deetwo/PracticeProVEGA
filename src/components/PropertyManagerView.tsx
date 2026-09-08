@@ -492,7 +492,15 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                                 />
                             ))
                         ) : (
-                            <p className="text-center text-xs text-slate-500 py-8">No properties found.</p>
+                            <EmptyState
+                                title={searchTerm || preset !== 'all' ? 'No Properties Found' : 'No Properties Yet'}
+                                description={searchTerm || preset !== 'all'
+                                    ? 'No properties match your current filters. Try clearing the search or filters.'
+                                    : 'Add your first property to start tracking tenants, rent and service charges.'}
+                                icon={<OfficeBuildingIcon className="text-slate-300 dark:text-zinc-600" />}
+                                actionLabel={searchTerm || preset !== 'all' ? undefined : 'New Property'}
+                                onAction={searchTerm || preset !== 'all' ? undefined : () => openModal('newProperty')}
+                            />
                         )}
                     </div>
                 </div>

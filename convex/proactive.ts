@@ -198,7 +198,7 @@ export const scanDeadlines = internalMutation({
               message: body,
               type: "deadline_reminder",
               isRead: false,
-              createdAt: now as any,
+              createdAt: Date.now(),
             });
 
             created++;
