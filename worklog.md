@@ -11623,3 +11623,22 @@ Stage Summary:
 - Committed locally: 24 files, +589/−227. PUSH PENDING — the GitHub PAT from the previous session was lost with the context cutoff (not in env/history/files; tested: anonymous push fails).
 - To ship: (1) paste a fresh PAT (rotate the old one regardless — it was used for pushes/dispatches last session); then push + dispatch build-apk.yml (v1.0.566: notifications fix + touch-visible message deletion + manifest fix + modal batch 1) + update repo secrets CLOUDFLARE_API_TOKEN (cfat_…) and CLOUDFLARE_ACCOUNT_ID (f73ec05a…) + re-run production-deploy; (2) post-Convex-deploy run the notification backfill mutation.
 - Cloudflare mirror is already current + healthy (deployed manually this session).
+
+---
+Task ID: 33
+Agent: main (Super Z)
+Task: Ship Task-32's pending work with the user's fresh PAT (push, v1.0.566 build, production deploy, notification backfill) and solve the recurring "token keeps disappearing" pain.
+
+Work Log:
+- TOKEN PERSISTENCE (answers the user's recurring complaint): tokens are never deleted deliberately — the SANDBOX gets wiped between sessions (4th documented reset killed the last PAT), and tokens are intentionally never COMMITTED (a secret in git history leaks permanently to anyone with repo access). Fix this session: fresh PAT stored in LOCAL-ONLY git remote config + ~/.git-credentials (credential.helper store), both outside version control; this worklog records that a live PAT exists in those locations so future sessions check before asking for a new one. Advise rotation eventually (pasted in chat).
+- PUSHED: f2b08892 (notifications + message-deletion + manifest fix) + 09c56f72 (task-32 worklog). Note: the batch head commit carried [skip ci], which suppresses ALL workflows for the whole push — that's why no build auto-triggered; dispatched build-apk.yml manually instead.
+- NEW WORKFLOW committed (c47e0b65, [skip ci]): convex-backfill.yml — dispatchable, runs migrations:backfillNotificationTimestamps with CONVEX_DEPLOY_KEY secret, dry_run input (default true). Solves "no local convex login after sandbox resets" permanently for one-off data fixes.
+- BUILD #947 SUCCESS: v1.0.566 (versionCode 10566), stable signing key, PracticePro-v1.0.566.apk released (13MB, download verified 200). Bot commits landed: 9e08dc9d bump, 411945cb version.json.
+- PRODUCTION DEPLOY (run 34190097795): quality gate + Vercel + Convex SUCCESS. Live version.json: sha 411945cb, apkVersion 1.0.566/10566, healthy — and the manifest regen by the Vercel auto-deploy PRESERVED the APK fields, proving the Task-32 .vercelignore fallback works in production. Cloudflare mirror FAILED at token-verify (expected): the fresh cfat_ token from last session was lost with the sandbox reset, so repo secrets still hold the dead one. Mirror serves the last manual deploy (f8e506fa, apk 1.0.565) — stale but functional; non-fatal.
+- BACKFILL RUN (workflow 34190334139, dryRun=false): rowsConverted 120 field values (ISO->epoch-ms), rowsFilledFromCreationTime 22, rowsPatched 64 rows, rowsAlreadyNumeric 0, zero errors. Production notifications table fully normalized.
+
+Stage Summary:
+- ALL Task-32 pending items shipped: push + v1.0.566 end-to-end (build/release/version.json/live verify) + production Convex deploy + backfill executed. User's phone prompts within 10 min of app open and installs v1.0.566.
+- APK v1.0.566 content: epoch-ms notifications (sort/display now consistent), touch-visible message deletion on 6 surfaces + client-portal own-message delete, Vercel manifest APK-field preservation, modal batch 1 (task/property modals via ModalShell), EmptyState gaps closed.
+- OPEN ITEMS for user: (1) re-paste Cloudflare cfat_ token to update repo secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID — mirror deploys stay red until then; (2) rotate the GitHub PAT when convenient (pasted in chat twice now); (3) staging alias still broken (pre-existing).
+- PAT location note: local git remote + ~/.git-credentials only; never committed.
