@@ -106,10 +106,14 @@ interface SelectableRecipient {
   tenantEmail?: string;
   rentAmount?: number;
   propertyAddress?: string;
+  propertyId?: string;
   serviceCharge?: number;
   legalFee?: number;
   agencyFee?: number;
   cautionDeposit?: number;
+  /** Existing resident (tenancy commenced) — move-in fees excluded from
+   *  demands unless typed manually. Set from UnitOption.isExistingTenant. */
+  isExistingTenant?: boolean;
 }
 
 export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void; prefill?: ComposeModalPrefill }> = ({ firmId, onClose, onToast, prefill }) => {
@@ -211,6 +215,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       legalFee: u.legalFee,
       agencyFee: u.agencyFee,
       cautionDeposit: u.cautionDeposit,
+      isExistingTenant: u.isExistingTenant,
     })),
     [flatUnits]
   );
@@ -408,9 +413,18 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     const scTracked = tracked?.outstandingBalance ?? tracked?.amount ?? r.serviceCharge ?? 0;
 
     let filledAny = false;
+    // MOVE-IN FEES FOR EXISTING RESIDENTS (user feedback 2026-09-11):
+    // "an existing tenant with rent due only has to pay the rent. these
+    // other fees are for new tenants only." Caution deposit and legal/
+    // agency fees are one-time move-in charges — never auto-filled for a
+    // resident whose tenancy has commenced, so their demands carry rent
+    // (and service charge) only. A manager can still TYPE a figure to
+    // deliberately demand an unpaid move-in fee.
+    const isExisting = (r as any).isExistingTenant === true;
     for (const f of fields) {
       if (userTouchedRef.current.has(f)) continue; // user owns this field
       if (fieldValue(f)) continue;                  // already holds a figure
+      if (isExisting && (f === 'cautionDeposit' || f === 'legalFee' || f === 'agencyFee')) continue;
       if (f === 'dueDate') {
         if (tracked?.nextDueDate) {
           setDueDate(new Date(tracked.nextDueDate).toISOString().slice(0, 10));
@@ -812,6 +826,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 firmId,
                 ...(tplArgs.templateName ? { templateName: tplArgs.templateName } : {}),
                 ...(tplArgs.templateVars ? { templateVars: tplArgs.templateVars } : {}),
+                ...(tplArgs.templateLanguage ? { templateLanguage: tplArgs.templateLanguage } : {}),
               }),
               {
                 messageType: msgType,
@@ -1287,6 +1302,20 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               </button>
               {showFinancials && (
                 <div className="px-4 pb-3">
+                  {/* Existing-resident note — explains why move-in fee fields
+                      stay empty for a resident whose tenancy has commenced
+                      (feedback 2026-09-11: existing tenants owe RENT only). */}
+                  {selectedRecipients.length === 1
+                    && (selectedRecipients[0] as any).recipientType === 'tenant'
+                    && (selectedRecipients[0] as any).isExistingTenant === true
+                    && (showFinanceField('cautionDeposit') || showFinanceField('legalFee') || showFinanceField('agencyFee')) && (
+                    <p className="text-2xs text-emerald-700 dark:text-emerald-400 mb-2 leading-relaxed">
+                      <span className="font-bold">Existing resident:</span> caution deposit &amp; legal/agency fees are
+                      move-in charges and are <span className="font-bold">not included</span> — {effectiveTenantName || 'this resident'}&apos;s
+                      tenancy has commenced. The demand totals rent{showFinanceField('serviceCharge') ? ' + service charge' : ''} only.
+                      Type a figure above only if you are deliberately demanding an unpaid move-in fee.
+                    </p>
+                  )}
                   {/* Auto-fill provenance — tells the user the figures came
                       from the resident's own record (and can be edited). */}
                   {autoFilledFrom && (
@@ -1602,8 +1631,12 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 <span className="font-bold">Why this happens:</span> WhatsApp only delivers free-form messages within
                 24 hours of the resident's last reply to your business number. For business-initiated reminders, Meta
                 requires an <span className="font-bold">approved message template</span>. Your Rent Reminder template
-                is used automatically when available; if it isn't registered yet, register it in your WhatsApp
-                Business Manager (Message templates) and try again.
+                is used automatically — including retries under the common template languages (en, en_US, en_GB), since
+                Meta matches a template by name <span className="font-bold">and language</span> exactly. If all three
+                failed, check in your WhatsApp Business Manager that a template named
+                <span className="font-bold"> atrium_rent_reminder</span> is <span className="font-bold">approved</span> for
+                the SAME phone number connected here, and note its language. If it is registered under a different name,
+                rename it or ask support to align the app's template name.
               </div>
             )}
 

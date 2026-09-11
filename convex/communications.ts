@@ -13,6 +13,7 @@ export const sendWhatsAppInternal = internalAction({
     firmId: v.string(),
     templateName: v.optional(v.string()),
     templateVars: v.optional(v.array(v.string())),
+    templateLanguage: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
     return await ctx.runAction(api.communications.sendWhatsApp, args);
@@ -114,6 +115,12 @@ export const sendWhatsApp = action({
     // For template messages (required for business-initiated outside 24h window):
     templateName: v.optional(v.string()),
     templateVars: v.optional(v.array(v.string())),
+    // Template LOCALE — Meta matches name + language exactly; a template
+    // registered under "en_US" is invisible to a send requesting "en"
+    // (and vice versa). Callers may pass the locale; default "en". The
+    // client fallback chain (deliveryErrors.ts) retries en_US/en_GB when
+    // the name+language pair isn't found.
+    templateLanguage: v.optional(v.string()),
     firmId: v.string(),
   },
   handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
@@ -162,7 +169,7 @@ export const sendWhatsApp = action({
           type: "template",
           template: {
             name: args.templateName,
-            language: { code: "en" },
+            language: { code: args.templateLanguage || "en" },
             components: args.templateVars?.length
               ? [{
                   type: "body",

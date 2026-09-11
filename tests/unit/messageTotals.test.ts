@@ -19,6 +19,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { buildMessage } from '../../src/utils/messageTemplates';
+import { resolveFinancials } from '../../src/utils/messageFinancials';
 import {
   MSG_TYPE_FINANCE,
   getTypeFinance,
@@ -120,6 +121,62 @@ describe('buildMessage — TOTAL SCOPE (the "wrong figures added" fix)', () => {
       );
       expect(msg).not.toMatch(/\{\{[A-Z_]+\}\}/);
     }
+  });
+});
+
+describe('buildMessage × resolveFinancials — EXISTING vs NEW residents (move-in fee scope)', () => {
+  // The exact resident from the 2026-09-11 report: existing tenant, rent
+  // ₦1.4M, whose demand notice wrongly listed Caution ₦200k +
+  // Legal/Agency ₦280k (Total ₦1.88M) — move-in fees belong to NEW
+  // tenants only. resolveFinancials() zeroes them for existing residents.
+  const unitRecord = {
+    amount: 1400000,
+    serviceCharge: 0,
+    legalFee: 140000,
+    agencyFee: 140000,
+    cautionDeposit: 200000,
+  };
+
+  it('EXISTING resident: demand notice lists Rent only — no caution/legal/agency lines, total = rent', () => {
+    // resolveFinancials is what the send path feeds buildMessage with:
+    const fin = resolveFinancials({}, { ...unitRecord, isExistingTenant: true });
+    const msg = buildMessage(
+      'rent_reminder', 'Unit 1 — Mr. Chigozie Ubah', 'Mr. Chigozie Ubah',
+      fin.amount, undefined, undefined,
+      { ...fin, dueDate: '2026-10-10', firmName: 'Giovani et. Vargas' }
+    );
+    expect(msg).toContain(`- Rent: ${naira(1400000)}`);
+    expect(msg).not.toContain('Caution Deposit');
+    expect(msg).not.toContain('Legal/Agency Fees');
+    expect(msg).not.toContain('Service Charge');
+    expect(msg).toContain(`Total Payable: ${naira(1400000)}`);
+  });
+
+  it('NEW resident: first demand lists the full move-in breakdown with the grand total', () => {
+    const fin = resolveFinancials({}, { ...unitRecord, isExistingTenant: false });
+    const msg = buildMessage(
+      'rent_reminder', 'Unit 1 — Mr. Chigozie Ubah', 'Mr. Chigozie Ubah',
+      fin.amount, undefined, undefined,
+      { ...fin, dueDate: '2026-10-10', firmName: 'Giovani et. Vargas' }
+    );
+    expect(msg).toContain(`- Rent: ${naira(1400000)}`);
+    expect(msg).toContain(`- Caution Deposit: ${naira(200000)}`);
+    expect(msg).toContain(`- Legal/Agency Fees: ${naira(280000)}`);
+    expect(msg).toContain(`Total Payable: ${naira(1880000)}`);
+  });
+
+  it('EXISTING resident with outstanding service charge: rent + service charge, still no move-in fees', () => {
+    const fin = resolveFinancials({}, { ...unitRecord, serviceCharge: 40000, isExistingTenant: true });
+    const msg = buildMessage(
+      'rent_reminder', 'Unit 1 — Mr. Chigozie Ubah', 'Mr. Chigozie Ubah',
+      fin.amount, undefined, undefined,
+      { ...fin, dueDate: '2026-10-10', firmName: 'Giovani et. Vargas' }
+    );
+    expect(msg).toContain(`- Rent: ${naira(1400000)}`);
+    expect(msg).toContain(`- Service Charge: ${naira(40000)}`);
+    expect(msg).not.toContain('Caution Deposit');
+    expect(msg).not.toContain('Legal/Agency Fees');
+    expect(msg).toContain(`Total Payable: ${naira(1440000)}`);
   });
 });
 

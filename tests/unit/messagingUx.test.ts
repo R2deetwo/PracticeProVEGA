@@ -143,6 +143,46 @@ describe('sendWhatsAppWithTemplateFallback — free-form first, template retry o
     expect(result.error).toContain('does not exist');
   });
 
+  it('retries the template under en_US / en_GB when the en locale pair is not found', async () => {
+    const calls: any[] = [];
+    const result = await sendWhatsAppWithTemplateFallback(
+      async (args) => {
+        calls.push(args);
+        if (!args.templateName) {
+          return { success: false, error: 'Re-engagement message (code 131047)' };
+        }
+        // en and en_US both miss (template registered as en_GB)
+        if (args.templateLanguage !== 'en_GB') {
+          return { success: false, error: 'Language code does not match any template registered (132000)' };
+        }
+        return { success: true, messageId: 'wamid.3' };
+      },
+      { messageType: 'rent_reminder', recipient }
+    );
+    // 1 free-form + 3 template locale attempts (en, en_US, en_GB)
+    expect(calls).toHaveLength(4);
+    expect(calls.map(c => c.templateLanguage)).toEqual([undefined, 'en', 'en_US', 'en_GB']);
+    expect(result.success).toBe(true);
+    expect(result.usedTemplate).toBe(true);
+  });
+
+  it('stops the locale chain when the template failure is NOT a name/language lookup miss', async () => {
+    const calls: any[] = [];
+    const result = await sendWhatsAppWithTemplateFallback(
+      async (args) => {
+        calls.push(args);
+        if (!args.templateName) {
+          return { success: false, error: 'Re-engagement message (code 131047)' };
+        }
+        return { success: false, error: 'Monthly WhatsApp limit reached' };
+      },
+      { messageType: 'rent_reminder', recipient }
+    );
+    // 1 free-form + exactly 1 template attempt — locale retries can't help a quota error
+    expect(calls).toHaveLength(2);
+    expect(result.error).toContain('limit');
+  });
+
   it('the template registry maps rent_reminder with ordered vars', () => {
     const t = WHATSAPP_TEMPLATES.rent_reminder!;
     expect(t.name).toBe('atrium_rent_reminder');
@@ -236,6 +276,58 @@ describe('resolveFinancials — per-recipient financial auto-fill', () => {
     expect(hasAutoFilledFigures({}, resident)).toBe(true);
     expect(hasAutoFilledFigures({}, {})).toBe(false);
     expect(hasAutoFilledFigures({ serviceCharge: 9999 }, resident)).toBe(true); // other fields still auto
+  });
+});
+
+describe('resolveFinancials — EXISTING residents owe rent only (move-in fees settled)', () => {
+  const existingResident = {
+    tenantName: 'Mr. Chigozie Ubah',
+    amount: 1400000,
+    serviceCharge: 0,
+    legalFee: 140000,
+    agencyFee: 140000,
+    cautionDeposit: 200000,
+    isExistingTenant: true, // tenancy commenced — fees settled at move-in
+  };
+
+  it('an existing resident resolves move-in fees to 0 — the reported bug (caution + legal/agency in a rent reminder)', () => {
+    const fin = resolveFinancials({}, existingResident);
+    expect(fin).toEqual({
+      amount: 1400000,      // rent unchanged
+      serviceCharge: 0,     // recurring charge unchanged
+      legalFee: 0,          // move-in fee — settled
+      agencyFee: 0,         // move-in fee — settled
+      cautionDeposit: 0,    // move-in fee — settled
+    });
+  });
+
+  it('a manually typed move-in fee still wins for an existing resident (deliberate recovery demand)', () => {
+    const fin = resolveFinancials({ cautionDeposit: 200000 }, existingResident);
+    expect(fin.cautionDeposit).toBe(200000);
+    expect(fin.legalFee).toBe(0);
+    expect(fin.agencyFee).toBe(0);
+    expect(fin.amount).toBe(1400000);
+  });
+
+  it('a NEW resident (isExistingTenant falsy) keeps the full move-in breakdown', () => {
+    const fin = resolveFinancials({}, { ...existingResident, isExistingTenant: false });
+    expect(fin).toEqual({
+      amount: 1400000,
+      serviceCharge: 0,
+      legalFee: 140000,
+      agencyFee: 140000,
+      cautionDeposit: 200000,
+    });
+    // Absent flag (older callers / non-tenant recipients) behaves as NEW — legacy behavior
+    const legacy = resolveFinancials({}, { ...existingResident, isExistingTenant: undefined });
+    expect(legacy.cautionDeposit).toBe(200000);
+  });
+
+  it('rent and service charge resolution is unaffected by tenant status', () => {
+    const withSC = { ...existingResident, serviceCharge: 40000 };
+    expect(resolveFinancials({}, withSC).serviceCharge).toBe(40000);
+    expect(resolveFinancials({}, withSC).amount).toBe(1400000);
+    expect(resolveFinancials({ amount: 999999 }, withSC).amount).toBe(999999);
   });
 });
 

@@ -24,6 +24,15 @@ export interface UnitOption {
   legalFee?: number;
   agencyFee?: number;
   cautionDeposit?: number;
+  /** Lease commencement date (rentalDetails.leaseStart), if recorded. */
+  leaseStart?: string;
+  /** True when this unit's tenant has COMMENCED tenancy — either has a
+   *  paid rent payment on record or the lease start date has already
+   *  passed. Move-in fees (caution deposit / legal / agency) are treated
+   *  as settled for these residents, so rent reminders exclude them.
+   *  NEW residents (lease starting today/future, no payments yet) still
+   *  get the full move-in breakdown. See resolveFinancials(). */
+  isExistingTenant?: boolean;
   /** Original property record for any extra data */
   _raw?: Property;
 }
@@ -45,6 +54,39 @@ export interface PropertyGroup {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * NEW vs EXISTING resident detection (user feedback 2026-09-11: "an
+ * existing tenant with rent due only has to pay the rent. these other
+ * fees are for new tenants only").
+ *
+ * A resident is EXISTING when their tenancy has commenced — evidenced by
+ * EITHER rent payment history on the unit's record OR a lease start date
+ * on or before today. Caution deposit and legal/agency fees are one-time
+ * move-in charges settled at commencement, so reminders for existing
+ * residents carry rent (and recurring service charge) only.
+ *
+ * A resident with a lease starting today/future and no payment schedule
+ * is NEW — their first demand correctly lists the full move-in breakdown.
+ *
+ * @param rentPaymentHistory  payment records on the unit/property
+ * @param leaseStart          lease commencement date (ISO string)
+ */
+const hasCommencedTenancy = (
+  rentPaymentHistory: any[] | undefined,
+  leaseStart: string | undefined
+): boolean => {
+  if (Array.isArray(rentPaymentHistory) && rentPaymentHistory.length > 0) {
+    // A payment schedule on record means the tenancy is live — a resident
+    // with generated (even partially-paid) rent periods has moved in.
+    return true;
+  }
+  if (leaseStart) {
+    const t = new Date(leaseStart).getTime();
+    if (Number.isFinite(t) && t <= Date.now()) return true;
+  }
+  return false;
+};
 
 const normalizeAddr = (addr: string) => (addr || '').trim().toLowerCase();
 
@@ -113,6 +155,14 @@ export function usePropertyGroups(properties: Property[]): {
           const tenantName = unit.tenantName || (p as any).rentalDetails?.tenantName || '';
           const unitName = unit.unitName || unit.id || '';
           const label = unitName + (tenantName ? ` — ${tenantName}` : '');
+          const leaseStart = unit.leaseStart || (p as any).rentalDetails?.leaseStart;
+          // Per-unit history when present; a property-level history is only
+          // unambiguous for the tenanted unit when exactly one embedded unit
+          // is tenanted — otherwise rely on the unit's own records.
+          const history = unit.rentPaymentHistory
+            ?? ((p as any).units.filter((u: any) => u.tenantName).length === 1
+              ? (p as any).rentPaymentHistory
+              : undefined);
           const option: UnitOption = {
             id: `${p.id}_${unit.id || unit.unitName}`,
             label,
@@ -128,6 +178,8 @@ export function usePropertyGroups(properties: Property[]): {
             legalFee: unit.legalFee || (p as any).rentalDetails?.legalFee,
             agencyFee: unit.agencyFee || (p as any).rentalDetails?.agencyFee,
             cautionDeposit: unit.cautionDeposit || (p as any).rentalDetails?.cautionDeposit,
+            leaseStart,
+            isExistingTenant: hasCommencedTenancy(history, leaseStart),
           };
           flatUnits.push(option);
           unitById.set(option.id, option);
@@ -152,6 +204,8 @@ export function usePropertyGroups(properties: Property[]): {
           legalFee: rental.legalFee,
           agencyFee: rental.agencyFee,
           cautionDeposit: rental.cautionDeposit,
+          leaseStart: rental.leaseStart,
+          isExistingTenant: hasCommencedTenancy((p as any).rentPaymentHistory, rental.leaseStart),
           _raw: p,
         };
         flatUnits.push(option);

@@ -42,6 +42,27 @@ export function summarizeError(error: string | null | undefined, max = 140): str
 }
 
 /**
+ * Does this provider error mean "the name+language template pair wasn't
+ * found on the WhatsApp Business account"? Meta looks up templates by
+ * NAME + LOCALE — a template registered under "en_US" (or "en_GB") is
+ * invisible to a send that requests "en", and (confusingly) Meta often
+ * reports that as "template ... does not exist" / error 132000-class.
+ * Locale mismatch is the #1 cause of "my template is approved but the
+ * send fails" reports.
+ */
+export function isTemplateNotFoundError(error: string | null | undefined): boolean {
+  if (!error) return false;
+  const e = error.toLowerCase();
+  return (
+    e.includes('132000') ||
+    e.includes('132001') ||
+    e.includes('132002') ||
+    (/template/.test(e) && /does not exist|not found|not exist|unavailable|no template/.test(e)) ||
+    (/language/.test(e) && /does not match|not match|mismatch/.test(e))
+  );
+}
+
+/**
  * Per-recipient data available when composing a WhatsApp template retry.
  * Mirrors the fields ComposeModal already resolves for each recipient.
  */
@@ -79,9 +100,20 @@ export const WHATSAPP_TEMPLATES: Partial<Record<AutomationMessageType, {
  * registered for the message type. Returns the LAST provider result —
  * either the free-form success, the template retry's result, or the
  * original failure (with its reason) when no retry was possible.
+ *
+ * TEMPLATE LOCALE CHAIN (2026-09-11, "my template is approved but the
+ * message failed"): Meta matches templates by name + language. The
+ * first template attempt uses the default "en" locale; when Meta
+ * reports the name+language pair as not found (registered under
+ * en_US/en_GB instead), we retry the SAME template under the other
+ * common English locales before giving up. This covers the most common
+ * approval/send mismatch without the firm needing to know the exact
+ * locale their template was registered under.
  */
+const TEMPLATE_LANGUAGE_CHAIN = ['en', 'en_US', 'en_GB'] as const;
+
 export async function sendWhatsAppWithTemplateFallback(
-  send: (args: { templateName?: string; templateVars?: string[] }) => Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }>,
+  send: (args: { templateName?: string; templateVars?: string[]; templateLanguage?: string }) => Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }>,
   opts: {
     messageType: AutomationMessageType;
     recipient: TemplateRecipientData;
@@ -92,11 +124,25 @@ export async function sendWhatsAppWithTemplateFallback(
 
   const template = WHATSAPP_TEMPLATES[opts.messageType];
   if (template && isWhatsAppWindowError(first.error)) {
-    const retry = await send({ templateName: template.name, templateVars: template.buildVars(opts.recipient) });
-    if (retry.success) return { ...retry, usedTemplate: true };
-    // Template retry also failed — report the retry error (usually
-    // "template not registered"), it is the more actionable one.
-    return { ...retry, usedTemplate: true };
+    // Try the template under each common English locale in order. Most
+    // sends succeed on the first ("en"); the retries only fire when Meta
+    // says the name+locale pair wasn't found (locale mismatch).
+    let last: { success: boolean; simulated?: boolean; error?: string; messageId?: string } | null = null;
+    for (const locale of TEMPLATE_LANGUAGE_CHAIN) {
+      const attempt = await send({
+        templateName: template.name,
+        templateVars: template.buildVars(opts.recipient),
+        templateLanguage: locale,
+      });
+      if (attempt.success) return { ...attempt, usedTemplate: true };
+      last = attempt;
+      // Only a name+language lookup miss justifies trying another locale —
+      // any other error (quota, auth, network) won't improve with retries.
+      if (!isTemplateNotFoundError(attempt.error)) break;
+    }
+    // Template send failed — report the last error (usually the more
+    // actionable template-locale/registration one).
+    return { ...(last ?? first), usedTemplate: true };
   }
   return first;
 }
