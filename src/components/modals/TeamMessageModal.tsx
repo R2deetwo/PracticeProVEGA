@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -130,7 +131,10 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
         }
     };
 
-    return (
+    // Portal to document.body — same fixed-position containment fix as
+    // ComposeModal (ancestors with retained transforms must not capture
+    // this `fixed inset-0` overlay).
+    return createPortal(
         <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
@@ -233,7 +237,8 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 

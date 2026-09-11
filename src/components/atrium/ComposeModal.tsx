@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -925,7 +926,16 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   }, [onClose]);
 
   // ── Render ───────────────────────────────────────────────────────────
-  return (
+  // Render through a React portal to document.body.
+  // REASON: this modal uses `fixed inset-0`, but any ancestor with a
+  // retained CSS transform (e.g. `.animate-fade-in` with fill-mode
+  // `forwards`, or DockedModal's `translate-x-0` panel) becomes the
+  // containing block for fixed descendants — which clipped/offset this
+  // modal and left the page un-dimmed behind it ("not rendering properly"
+  // bug). Escaping to document.body guarantees viewport-true positioning
+  // regardless of where the modal is mounted in the tree. Same pattern
+  // as ComposeMessageModal.
+  return createPortal(
     <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4" onClick={onClose}>
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92dvh] text-slate-900 dark:text-white" onClick={(e) => e.stopPropagation()}>
         {/* ── Header ─────────────────────────────────────────────────── */}
@@ -1612,6 +1622,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
