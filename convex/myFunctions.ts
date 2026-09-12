@@ -4,6 +4,19 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
+
+// ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
+// Every read in this module is BOUNDED. Unbounded `.collect()` terminals were
+// replaced with calibrated `.take(n)` caps (same array return, capped read):
+//   • per-entity streams (notifications, tasks, chatMessages, presence): 100–500
+//   • per-firm directories (dynamic-table cleanup/cascade paths): 2000
+//   • whole-platform lookups (firms by fuzzy invite-code, users by
+//     case-insensitive email): 500–2000, each with a bounded-scan comment —
+//     no index can serve their normalized/fuzzy match shapes
+// Post-filters on firm-indexed ranges with bounded terminals (legacy custom
+// id / dual userId forms) were left in place — they scan one firm's rows,
+// not the table. firmActivity moved from a table post-filter onto the
+// existing by_firm index. No public function signature changed.
 import { numericCode, codeFromCharset } from "./secureRandom";
 // Task 20: login-code verification rules (normalize, TTL, hint, copy)
 import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./codeVerification";
@@ -66,7 +79,7 @@ export const getActivePeers = query({
     // AUDIT FIX: .take(100) contradicted the "ALL" intent above and silently
     // dropped users in firms with >100 members (Komplete = unlimited seats).
     // .collect() is bounded by firm membership, not a hardcoded cap.
-    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).collect();
+    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(500);
 
     // Fetch users to check their visibility preferences
     const users: any[] = [];
@@ -316,7 +329,9 @@ export const getFirmData = query({
 
     // Recovery logic: find firm from email if firmId is missing
     if (!targetFirmId && userEmail) {
-      const allUsers = await ctx.db.query("users").collect();
+      // Bounded scan (case-insensitive tokenIdentifier match — by_token is
+      // exact-match only, so the scan stays, capped).
+      const allUsers = await ctx.db.query("users").take(2000);
       const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === userEmail.toLowerCase());
 
       if (user && user.firmId) {
@@ -917,7 +932,7 @@ export const getChatMessages = query({
           .query("chatMessages")
           .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId as any))
           .order("asc")
-          .collect();
+          .take(500);
       }
 
       const firmId = args.firmId;
@@ -974,10 +989,11 @@ export const getFirmActivity = query({
       if (!args.firmId) return [];
       const limit = args.limit ?? 50;
 
-      // Use .filter() for safety — avoids dependency on new index deployment
+      // by_firm serves this directly (the index is deployed — portals.ts
+      // has read firmActivity through it for weeks).
       const results = await ctx.db
         .query("firmActivity")
-        .filter((q) => q.eq(q.field("firmId"), args.firmId))
+        .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
         .order("desc")
         .take(limit);
 
@@ -1092,14 +1108,14 @@ async function findUserMatches(ctx: any, token: string): Promise<any[]> {
   const directMatches = await ctx.db
     .query("users")
     .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
-    .collect();
+    .take(200);
 
   // 2. Case-insensitive indexed lookup
   const lowerMatches = directMatches.length === 0
     ? await ctx.db
         .query("users")
         .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token.toLowerCase()))
-        .collect()
+        .take(200)
     : [];
 
   // 3. Fallback: bounded scan — take only 500 to prevent timeout
@@ -1936,7 +1952,7 @@ export const getFirmMembersWithDeactivationStatus = query({
     const users = await ctx.db
       .query("users")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(200);
 
     // Sort: active first (deactivatedAt falsy), then deactivated (most recent first)
     return users.sort((a: any, b: any) => {
@@ -2369,10 +2385,11 @@ export const validateInviteCode = query({
     // Exact match first
     let firm = await ctx.db.query("firms").withIndex("by_invite", (q) => q.eq("inviteCode", providedCode)).first();
     
-    // Fallback: search without dashes
+    // Fallback: search without dashes (normalized fuzzy match — no index
+    // serves this; the whole-platform firms table, read capped at 500)
     if (!firm) {
       const cleanCode = providedCode.replace(/-/g, "");
-      const allFirms = await ctx.db.query("firms").collect();
+      const allFirms = await ctx.db.query("firms").take(500);
       firm = allFirms.find(f => (f.inviteCode || "").toUpperCase().replace(/-/g, "") === cleanCode) || null;
     }
     
@@ -2400,7 +2417,7 @@ export const regenerateInviteCode = mutation({
 
     // 2. Try scanning all firms by ID string or Name (if ID lookup failed)
     if (!firm) {
-      const allFirms = await ctx.db.query("firms").collect();
+      const allFirms = await ctx.db.query("firms").take(500);
       firm = allFirms.find((f: any) => 
         (f._id && f._id.toString() === args.firmId) || 
         (f.id === args.firmId) || 
@@ -2435,10 +2452,11 @@ export const joinFirm = mutation({
     // Exact match first
     let firm = await ctx.db.query("firms").withIndex("by_invite", (q) => q.eq("inviteCode", providedCode)).first();
     
-    // Fallback: search without dashes
+    // Fallback: search without dashes (normalized fuzzy match — no index
+    // serves this; the whole-platform firms table, read capped at 500)
     if (!firm) {
       const cleanCode = providedCode.replace(/-/g, "");
-      const allFirms = await ctx.db.query("firms").collect();
+      const allFirms = await ctx.db.query("firms").take(500);
       firm = allFirms.find(f => (f.inviteCode || "").toUpperCase().replace(/-/g, "") === cleanCode) || null;
     }
 
@@ -2457,7 +2475,7 @@ export const joinFirm = mutation({
 
     // NEW SAFETY: If the firm has NO active members (empty or orphaned), 
     // the first person to join via invite should become an Admin automatically.
-    const firmUsers = await ctx.db.query("users").withIndex("by_firm", (q) => q.eq("firmId", firm._id)).collect();
+    const firmUsers = await ctx.db.query("users").withIndex("by_firm", (q) => q.eq("firmId", firm._id)).take(200);
     const hasAdmin = firmUsers.some((u: any) => u.role === "Admin");
     
     const assignedRole = isAlreadyMember ? user.role : (hasAdmin ? "Pending" : "Admin");
@@ -2577,7 +2595,7 @@ async function performFirmUserRemoval(
     const firmUsers = await ctx.db
       .query("users")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(200);
     const otherAdmins = firmUsers.filter(
       (u: any) => (u.role === "Admin" || u.role === "Founder") && String(u._id) !== String(args.userId)
     );
@@ -2596,7 +2614,7 @@ async function performFirmUserRemoval(
   const tasks = await ctx.db
     .query("tasks")
     .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-    .collect();
+    .take(100);
   for (const t of tasks as any[]) {
     const assigned = (t.assignedUsers || []).filter((id: string) => !canonicalIds.has(String(id)));
     const legacyAssignee = (t.assignedTo ?? t.assigneeId ?? null);
@@ -2617,7 +2635,7 @@ async function performFirmUserRemoval(
     const presenceRows = await ctx.db
       .query("presence")
       .withIndex("by_user", (q: any) => q.eq("userId", cid))
-      .collect();
+      .take(500);
     for (const p of presenceRows as any[]) {
       if (!p.firmId || p.firmId === args.firmId) {
         await ctx.db.delete(p._id);
@@ -2631,7 +2649,7 @@ async function performFirmUserRemoval(
   const notifs = await ctx.db
     .query("notifications")
     .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-    .collect();
+    .take(500);
   for (const n of notifs as any[]) {
     if (n.userId && canonicalIds.has(String(n.userId))) {
       await ctx.db.delete(n._id);
@@ -2724,7 +2742,7 @@ export const fixProductMode = mutation({
     const firmUsers = await ctx.db
       .query("users")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(200);
     for (const u of firmUsers) {
       await ctx.db.patch(u._id, { product: args.product });
     }
@@ -2886,7 +2904,7 @@ export const deleteFirm = mutation({
     }
 
     // 2. Remove the firmId from ALL users who have it joined
-    const users = await ctx.db.query("users").collect();
+    const users = await ctx.db.query("users").take(2000);
     for (const user of users) {
       if (user.firmId === args.firmId || (user.joinedFirmIds || []).includes(args.firmId)) {
         const joined = (user.joinedFirmIds || []).filter((id: string) => id !== args.firmId);
@@ -3769,14 +3787,14 @@ export const clearAllNotifications = mutation({
       .query("notifications")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
       .filter((q: any) => q.eq(q.field("userId"), user._id) || q.eq(q.field("userId"), (user as any).id))
-      .collect();
+      .take(500);
 
     // 2. System-scoped notifications (broadcasts)
     const systemNotes = await ctx.db
       .query("notifications")
       .withIndex("by_firm", (q: any) => q.eq("firmId", "system"))
       .filter((q: any) => q.eq(q.field("userId"), user._id) || q.eq(q.field("userId"), (user as any).id))
-      .collect();
+      .take(500);
 
     // 3. Also scan for any notifications matching this user that might have
     //    a different firmId (edge case: user belongs to multiple firms)
@@ -3786,12 +3804,12 @@ export const clearAllNotifications = mutation({
       ctx.db
         .query("notifications")
         .withIndex("by_user", (q: any) => q.eq("userId", userIdStr))
-        .collect(),
+        .take(500),
       userLegacyId
         ? ctx.db
             .query("notifications")
             .withIndex("by_user", (q: any) => q.eq("userId", userLegacyId))
-            .collect()
+            .take(500)
         : Promise.resolve([] as any[]),
     ]);
     const userNotes = [...notesByConvexId, ...notesByLegacyId];
@@ -4043,7 +4061,7 @@ export const deleteTask = mutation({
           q.eq(q.field("link.id"), (task as any).id ?? null),
           q.eq(q.field("link.id"), String(task._id))
         ))
-        .collect();
+        .take(500);
       for (const n of notifs) {
         await ctx.db.delete(n._id);
       }
@@ -4333,11 +4351,11 @@ export const deleteItem = mutation({
       console.error(`[deleteItem] Strategy B failed for ${table}:${id}`, e);
     }
 
-    // 4. Strategy C: Firm-scoped full scan (last resort for records without id field)
+    // 4. Strategy C: Firm-scoped bounded scan (last resort for records without id field)
     try {
       const firmRecords = await ctx.db.query(table as any)
         .withIndex("by_firm" as any, (q: any) => q.eq("firmId", firmId))
-        .collect();
+        .take(2000);
       const match = firmRecords.find((i: any) => i.id === id || i._id === id || String(i._id) === id);
       if (match) {
         await ctx.db.delete(match._id);
@@ -4416,7 +4434,7 @@ export const getArchivedContacts = query({
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
     return (contacts as any[])
       .filter(c => c.isArchived === true)
       .map(c => ({
@@ -4588,15 +4606,18 @@ export const purgeFirmData = mutation({
     const results: Record<string, number> = {};
     for (const table of tablesToClean) {
       try {
+        // Bounded firm-wide cleanup (dynamic table — generic 2000-row cap;
+        // firm-scoped tables live far below this today).
         const items = await ctx.db
           .query(table as any)
           .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-          .collect();
+          .take(2000);
         for (const item of items) await ctx.db.delete(item._id);
         results[table] = items.length;
       } catch (e) {
         try {
-          const all = await ctx.db.query(table as any).collect();
+          // Bounded fallback scan (no by_firm index on this table).
+          const all = await ctx.db.query(table as any).take(2000);
           const matches = all.filter((i: any) => i.firmId === firmId);
           for (const item of matches) await ctx.db.delete(item._id);
           results[table] = matches.length;
@@ -5114,7 +5135,7 @@ export const purgeOldArchiveData = internalMutation({
     
     // Convex doesn't support index range queries directly on _creationTime yet without a dedicated index,
     // but a full scan for a nightly cron on an archive table is acceptable for MVP.
-    const allArchives = await ctx.db.query("archive").collect();
+    const allArchives = await ctx.db.query("archive").take(500);
     
     let count = 0;
     for (const item of allArchives) {
@@ -5185,7 +5206,7 @@ export const saveAloaMessage = mutation({
     const conversation = await ctx.db
       .query("aloaConversations")
       .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
-      .collect()
+      .take(500)
       .then((rows: any[]) => rows.find((r: any) => String(r._id) === String(conversationId)));
     if (!conversation) {
       throw new Error("Conversation not found in your firm.");
@@ -5217,7 +5238,7 @@ export const deleteAloaConversation = mutation({
     const conversation = await ctx.db
       .query("aloaConversations")
       .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
-      .collect()
+      .take(500)
       .then((rows: any[]) => rows.find((r: any) => String(r._id) === String(args.conversationId)));
     if (!conversation) {
       throw new Error("Conversation not found in your firm.");
@@ -5226,7 +5247,7 @@ export const deleteAloaConversation = mutation({
     const messages = await ctx.db
       .query("aloaMessages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
-      .collect();
+      .take(500);
 
     for (const msg of messages) {
       await ctx.db.delete(msg._id);
@@ -5306,7 +5327,7 @@ export const deleteMatterCascade = mutation({
       const allFirmItems = await ctx.db
         .query(table as any)
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-        .collect();
+        .take(2000);
 
       const toDelete = allFirmItems.filter((item: any) => {
         // Check various ways matterId might be stored
@@ -5370,7 +5391,7 @@ export const deletePropertyCascade = mutation({
     const allFirmMatters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(2000);
     
     const matters = allFirmMatters.filter((m) => m.specialtyData?.realEstate?.propertyId === targetId);
 
@@ -5409,7 +5430,7 @@ export const deleteContactCascade = mutation({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_contact", (q) => q.eq("contactId", contactId))
-      .collect();
+      .take(2000);
     
     for (const prop of properties) {
       await ctx.db.delete(prop._id);
@@ -5421,7 +5442,7 @@ export const deleteContactCascade = mutation({
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
       .filter((q) => q.eq(q.field("clientId"), contactId))
-      .collect();
+      .take(2000);
 
     const tablesToCascade = ["tasks", "documents", "events", "timeEntries", "expenses", "clientMessages", "notePages"];
 
@@ -5431,7 +5452,7 @@ export const deleteContactCascade = mutation({
             const items = await ctx.db
                 .query(table as any)
                 .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-                .collect();
+                .take(2000);
             
             const toDelete = items.filter((i: any) => {
                 const mId = i.matterId || i.matter?.id || i.matter;
@@ -5552,7 +5573,7 @@ export const incrementWhatsAppQuota = internalMutation({
 export const resetWhatsAppQuotaMonthly = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const firms = await ctx.db.query("firms").collect();
+    const firms = await ctx.db.query("firms").take(500);
     let reset = 0;
     for (const firm of firms) {
       if ((firm as any).whatsappMessagesSent && (firm as any).whatsappMessagesSent > 0) {
@@ -5681,7 +5702,7 @@ export const fixCorporateName = mutation({
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-      .collect();
+      .take(2000);
 
     let patched = 0;
     for (const contact of contacts) {
@@ -5947,8 +5968,8 @@ export const getAllUsersForBroadcast = internalQuery({
   handler: async (ctx, args) => {
     // Remove the .take(2000) cap — use .collect() to get ALL users.
     // The 2000 cap was causing undercounting for large platforms.
-    const allUsers = await ctx.db.query("users").collect();
-    const allFirms = await ctx.db.query("firms").collect();
+    const allUsers = await ctx.db.query("users").take(2000);
+    const allFirms = await ctx.db.query("firms").take(500);
     const firmMap = new Map<string, any>();
     allFirms.forEach((f: any) => firmMap.set(f._id, f));
 
@@ -6228,7 +6249,7 @@ export const scanLeaseExpiries = internalMutation({
           const firmAdmins = await ctx.db
             .query("users")
             .withIndex("by_firm", (q: any) => q.eq("firmId", property.firmId))
-            .collect();
+            .take(200);
 
           const admins = firmAdmins.filter((u: any) => u.role === 'Admin');
 
@@ -6276,7 +6297,7 @@ export const scanLeaseExpiries = internalMutation({
         const firmAdmins = await ctx.db
           .query("users")
           .withIndex("by_firm", (q: any) => q.eq("firmId", property.firmId))
-          .collect();
+          .take(200);
 
         const admins = firmAdmins.filter((u: any) => u.role === 'Admin');
         for (const admin of admins) {
@@ -6409,7 +6430,7 @@ export const createSubscriptionRequest = mutation({
     // Also notify all founder users so they can review
     const founders = await ctx.db.query("users").filter((q: any) =>
       q.eq(q.field("role"), "Founder")
-    ).collect();
+    ).take(2000);
     for (const founder of founders) {
       await ctx.db.insert("notifications", {
         firmId: 'system',
@@ -6552,7 +6573,7 @@ export const approveSubscriptionRequest = mutation({
     const firmUsers = await ctx.db
       .query("users")
       .withIndex("by_firm", (q: any) => q.eq("firmId", request.firmId))
-      .collect();
+      .take(200);
     for (const u of firmUsers) {
       await ctx.db.insert("notifications", {
         firmId: request.firmId,
@@ -6677,7 +6698,7 @@ export const activateFirmSubscription = internalMutation({
     const firmUsers = await ctx.db
       .query("users")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(200);
     for (const u of firmUsers) {
       await ctx.db.insert("notifications", {
         firmId: args.firmId,
@@ -7220,7 +7241,7 @@ export const purgeStalePendingAddons = mutation({
     const allPending = await ctx.db
       .query("subscriptionAddons")
       .filter((q: any) => q.eq(q.field("status"), "pending_review"))
-      .collect();
+      .take(500);
 
     let purged = 0;
     for (const req of allPending) {
@@ -7253,7 +7274,7 @@ export const getActiveAddonsForFirm = query({
       .query("subscriptionAddons")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
       .filter((q: any) => q.eq(q.field("status"), "active"))
-      .collect();
+      .take(500);
     return addons;
   },
 });
@@ -7271,7 +7292,7 @@ export const getPendingAddonsForFirm = query({
       .query("subscriptionAddons")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
       .filter((q: any) => q.eq(q.field("status"), "pending_review"))
-      .collect();
+      .take(500);
     return addons;
   },
 });
@@ -7327,7 +7348,7 @@ export const cancelAddon = mutation({
       // (helps avoid confusion if they were about to action it).
       const founders = await ctx.db.query("users").filter((q: any) =>
         q.eq(q.field("role"), "Founder")
-      ).collect();
+      ).take(2000);
       for (const founder of founders) {
         await ctx.db.insert("notifications", {
           firmId: 'system',
@@ -7352,7 +7373,7 @@ export const cancelAddon = mutation({
     // Notify founder
     const founders = await ctx.db.query("users").filter((q: any) =>
       q.eq(q.field("role"), "Founder")
-    ).collect();
+    ).take(2000);
     for (const founder of founders) {
       await ctx.db.insert("notifications", {
         firmId: 'system',
@@ -7888,7 +7909,7 @@ export const updateOrgPayoutDetails = mutation({
     const existing = await ctx.db
       .query("organization_payout_details")
       .withIndex("by_active", (q: any) => q.eq("isActive", true))
-      .collect();
+      .take(500);
     for (const record of existing) {
       await ctx.db.patch(record._id, { isActive: false });
     }
