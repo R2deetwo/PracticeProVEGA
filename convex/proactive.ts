@@ -3,6 +3,13 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireStaffCaller, assertSameFirm } from "./callerAuth";
 
+// ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
+// Every read in this module is BOUNDED — all 15 former .collect() terminals
+// were index-scoped (by_firm / by_status) and now carry calibrated .take(n)
+// caps (tasks 100, insights/messages/events 500, service_charges 1000,
+// matters/properties 2000). No public function signature changed.
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PROACTIVE INTELLIGENCE ENGINE — Phase 2
 //
@@ -72,7 +79,7 @@ export const getInsightCounts = query({
     const all = await ctx.db
       .query("proactive_insights")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(500);
 
     const undismissed = all.filter((i) => !i.dismissed);
     return {
@@ -137,7 +144,7 @@ export const scanDeadlines = internalMutation({
       const tasks = await ctx.db
         .query("tasks")
         .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-        .collect();
+        .take(100);
 
       const pendingTasks = tasks.filter(
         (t) => t.status !== "Done" && t.status !== "done" && t.dueDate
@@ -210,7 +217,7 @@ export const scanDeadlines = internalMutation({
       const events = await ctx.db
         .query("events")
         .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-        .collect();
+        .take(500);
 
       const futureEvents = events.filter((e) => e.date);
 
@@ -267,7 +274,7 @@ export const scanDeadlines = internalMutation({
       const overdueCharges = await ctx.db
         .query("service_charges")
         .withIndex("by_firm_defaulter", (q) => q.eq("firmId", firmId).eq("isDefaulter", true))
-        .collect();
+        .take(1000);
 
       for (const charge of overdueCharges) {
         if ((charge.daysOverdue ?? 0) >= 14) {
@@ -332,7 +339,7 @@ export const detectAnomalies = internalMutation({
         .query("proactive_insights")
         .withIndex("by_firm", (q) => q.eq("firmId", firmId))
         .filter((q) => q.eq(q.field("dismissed"), false))
-        .collect();
+        .take(500);
       const existingDedupKeys = new Set(allFirmInsights.map((i) => i.dedupKey));
       const existingEntities = new Set(allFirmInsights.map((i) => `${i.entityType}:${i.entityId}`));
 
@@ -342,7 +349,7 @@ export const detectAnomalies = internalMutation({
       const activeMatters = await ctx.db
         .query("matters")
         .withIndex("by_status", (q) => q.eq("firmId", firmId).eq("status", "Active"))
-        .collect();
+        .take(2000);
 
       for (const matter of activeMatters) {
         const lastUpdate = matter.updatedAt
@@ -452,7 +459,7 @@ export const detectAnomalies = internalMutation({
       const allCharges = await ctx.db
         .query("service_charges")
         .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-        .collect();
+        .take(1000);
 
       if (allCharges.length >= 3) {
         const defaulters = allCharges.filter((c) => c.isDefaulter).length;
@@ -487,7 +494,7 @@ export const detectAnomalies = internalMutation({
       const unreadInbound = await ctx.db
         .query("atrium_inbound_messages")
         .withIndex("by_firm_read", (q) => q.eq("firmId", firmId).eq("isRead", false))
-        .collect();
+        .take(500);
 
       const oldUnread = unreadInbound.filter((m) => now - m.receivedAt > FORTY_EIGHT_H);
 
@@ -630,7 +637,7 @@ export const getBriefingData = internalQuery({
     const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(100);
 
     const overdueTasks = tasks.filter(
       (t) =>
@@ -652,7 +659,7 @@ export const getBriefingData = internalQuery({
     const events = await ctx.db
       .query("events")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(500);
 
     const upcomingEvents = events
       .filter((e) => {
@@ -666,7 +673,7 @@ export const getBriefingData = internalQuery({
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(2000);
 
     const activeMatters = matters.filter((m) => m.status === "Active");
     const stalledMatters = activeMatters.filter((m) => {
@@ -680,7 +687,7 @@ export const getBriefingData = internalQuery({
     const serviceCharges = await ctx.db
       .query("service_charges")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(1000);
 
     const defaulters = serviceCharges.filter((c) => c.isDefaulter);
     const totalRevenueAtRisk = defaulters.reduce((sum, c) => sum + c.amount, 0);
@@ -689,7 +696,7 @@ export const getBriefingData = internalQuery({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .collect();
+      .take(2000);
 
     // Recent insights (anomalies already detected)
     const recentAnomaliesRaw = await ctx.db
@@ -882,7 +889,7 @@ export const sendCourtReminders = internalMutation({
         .withIndex("by_firm", (q) => q.eq("firmId", firmId))
         .filter((q) => q.neq(q.field("nextAdjournedDate"), undefined))
         .filter((q) => q.neq(q.field("nextAdjournedDate"), ""))
-        .collect();
+        .take(2000);
 
       for (const matter of matters) {
         if (!matter.nextAdjournedDate) continue;
@@ -903,7 +910,7 @@ export const sendCourtReminders = internalMutation({
             .withIndex("by_firm", (q) => q.eq("firmId", firmId))
             .filter((q) => q.eq(q.field("messageType"), "court_reminder"))
             .filter((q) => q.eq(q.field("status"), "scheduled"))
-            .collect();
+            .take(500);
 
           // Check if any existing message references this matter + milestone
           const dedupKey = `matter:${matter._id}:milestone:${milestone.days}`;
