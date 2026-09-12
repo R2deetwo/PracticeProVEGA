@@ -34,7 +34,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { useMutation } from 'convex/react';
+import { useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Property } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
@@ -55,6 +55,7 @@ import {
 } from '../../utils/leaseTimeline';
 import ReceiptModal from '../modals/ReceiptModal';
 import { buildReceiptLogArgs, buildReceiptContent, upsertReceiptNumber } from '../../utils/receiptDelivery';
+import { buildReceiptEmailHtml, buildReceiptEmailSubject } from '../../utils/emailDelivery';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -646,6 +647,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
     const { addToast } = useUI();
     const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
     const logAutomation = useMutation(api.sentry.logAutomation);
+    const sendEmail = useAction(api.communications.sendEmail);
 
     const rental = (unit.rentalDetails || unit) as Property['rentalDetails'];
     const leaseStart = rental?.leaseStart || '';
@@ -772,11 +774,45 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         }
         onUpdate({ ...baseRental!, [periodsKey]: updatedPeriods } as Property['rentalDetails']);
 
+        // 2b. Email the receipt — BEST-EFFORT, secondary to the portal.
+        //     While WhatsApp is paused this is the resident's inbox channel
+        //     (Brevo, via communications.sendEmail). A failure here never
+        //     touches the receipt status.
+        let emailedTo: string | null = null;
+        const tenantEmail = (rental?.tenantEmail || '').trim();
+        if (tenantEmail) {
+            try {
+                const emailResult = await sendEmail({
+                    to: tenantEmail,
+                    toName: tenantName,
+                    subject: buildReceiptEmailSubject({ receiptNumber, chargeTypeLabel, billingPeriod }),
+                    htmlContent: buildReceiptEmailHtml({
+                        firmName: coreState?.firmDetails?.name || 'PracticePro',
+                        receiptNumber,
+                        tenantName,
+                        unitName,
+                        chargeTypeLabel,
+                        billingPeriod,
+                        amountPaid: period.amount,
+                        paymentDate,
+                        settlementMethod,
+                        coverageNote: coverage?.label,
+                    }),
+                    firmId,
+                    senderName: coreState?.firmDetails?.name || 'PracticePro',
+                } as any);
+                if (emailResult?.success && !emailResult?.simulated) emailedTo = tenantEmail;
+                else console.warn('Receipt email not delivered:', emailResult?.error);
+            } catch (emailErr: any) {
+                console.warn('Receipt email send failed (receipt was delivered to portal):', emailErr);
+            }
+        }
+
         // 3. Activity log — BEST-EFFORT: a log failure must never orphan a
         //    delivered receipt again (the 2026-09-12 failure was exactly
         //    this: portal delivered, log rejected, UI said it failed).
         try {
-            await logAutomation(buildReceiptLogArgs({
+            const logArgs = buildReceiptLogArgs({
                 receiptNumber,
                 chargeTypeLabel,
                 billingPeriod,
@@ -789,15 +825,19 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                 senderId: currentUser?.id,
                 userEmail: currentUser?.email,
                 sessionToken: (bearerToken ?? undefined),
-            }) as any);
+            });
+            if (emailedTo) {
+                logArgs.messageContent = `${logArgs.messageContent} Also emailed to ${emailedTo}.`;
+            }
+            await logAutomation(logArgs as any);
         } catch (logErr: any) {
             console.warn('Receipt activity-log write failed (receipt was delivered):', logErr);
             addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal — the activity log could not be written.`, { type: 'success', duration: 6000 });
             return;
         }
 
-        addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal.`, { type: 'success' });
-    }, [coreState, currentUser, rental, unit, sendPortalMessage, logAutomation, onUpdate, addToast, bearerToken]);
+        addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal${emailedTo ? ` + emailed to ${emailedTo}` : ''}.`, { type: 'success' });
+    }, [coreState, currentUser, rental, unit, sendPortalMessage, sendEmail, logAutomation, onUpdate, addToast, bearerToken]);
 
     const handleStatusChange = useCallback((newStatus: 'paid' | 'late' | 'outstanding' | 'advance_paid') => {
         if (!selectedPeriod) return;
@@ -1066,6 +1106,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                     chargeType={selectedChargeType}
                     unitName={rental?.unitName || unit.description || 'Unit'}
                     tenantName={rental?.tenantName || 'Resident'}
+                    tenantEmail={rental?.tenantEmail}
                     unitId={unit.id}
                     coverageNote={(selectedPeriod as any).coverageNote}
                     onClose={() => setReceiptModalOpen(false)}

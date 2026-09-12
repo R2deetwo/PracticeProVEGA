@@ -164,7 +164,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     // Default to 'in-app' when the prefill recipient is a team member
     if (prefill?.recipientType === 'team') return 'in-app';
     const waAllowed = isGrowthOrAbove || isKompleteFirm;
-    const preferred = prefill?.channel || (prefill?.tenantPhone ? 'whatsapp' : prefill?.tenantEmail ? 'email' : 'whatsapp');
+    // EMAIL-FIRST while WhatsApp is paused (Chakra billing gate): new
+    // composes open on email when the recipient has an address on file;
+    // WhatsApp only when no email exists. An explicit prefill still wins.
+    const preferred = prefill?.channel || (prefill?.tenantEmail ? 'email' : prefill?.tenantPhone ? 'whatsapp' : 'whatsapp');
     return (preferred === 'whatsapp' && !waAllowed) ? 'email' : preferred;
   });
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(() => {

@@ -21,7 +21,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useMutation } from 'convex/react';
+import { useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
@@ -29,6 +29,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { XIcon, DownloadIcon, CheckCircleIcon, SendIcon } from '../../constants';
 import { formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { buildReceiptLogArgs, buildReceiptContent } from '../../utils/receiptDelivery';
+import { buildReceiptEmailHtml, buildReceiptEmailSubject } from '../../utils/emailDelivery';
 import { ServiceChargePeriod } from '../../types';
 
 interface ReceiptModalProps {
@@ -40,18 +41,21 @@ interface ReceiptModalProps {
     propertyId?: string;
     /** Advance receipts: what the payment covers, e.g. "Sep 2026 – Feb 2027 (6 months)". */
     coverageNote?: string;
+    /** Resident's email — the receipt is emailed here (best-effort). */
+    tenantEmail?: string;
     onClose: () => void;
     onIssued?: (receiptNumber: string) => void;
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({
-    period, chargeType, unitName, tenantName, unitId, propertyId, coverageNote, onClose, onIssued,
+    period, chargeType, unitName, tenantName, unitId, propertyId, coverageNote, tenantEmail, onClose, onIssued,
 }) => {
     const { coreState } = useCoreState();
     const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
     const logAutomation = useMutation(api.sentry.logAutomation);
+    const sendEmail = useAction(api.communications.sendEmail);
 
     const [isIssuing, setIsIssuing] = useState(false);
     const [hasIssued, setHasIssued] = useState(false);
@@ -159,14 +163,48 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             //    delivery, BEFORE the log write (a log failure must never
             //    orphan a delivered receipt — the 2026-09-12 failure).
             setHasIssued(true);
-            addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal.`, { type: 'success' });
             onIssued?.(receiptNumber);
+
+            // 2b. Email the receipt — BEST-EFFORT, secondary to the portal
+            //     (the WhatsApp-pause inbox channel; Brevo).
+            let emailedTo: string | null = null;
+            const to = (tenantEmail || '').trim();
+            if (to) {
+                try {
+                    const emailResult = await sendEmail({
+                        to,
+                        toName: tenantName,
+                        subject: buildReceiptEmailSubject({ receiptNumber, chargeTypeLabel, billingPeriod: coverageNote || billingPeriod }),
+                        htmlContent: buildReceiptEmailHtml({
+                            firmName,
+                            receiptNumber,
+                            tenantName,
+                            unitName,
+                            chargeTypeLabel,
+                            billingPeriod,
+                            amountPaid,
+                            paymentDate,
+                            settlementMethod,
+                            coverageNote,
+                        }),
+                        firmId,
+                        senderName: firmName,
+                        replyTo: currentUser?.email || undefined,
+                    } as any);
+                    if (emailResult?.success && !emailResult?.simulated) emailedTo = to;
+                    else console.warn('Receipt email not delivered:', emailResult?.error);
+                } catch (emailErr: any) {
+                    console.warn('Receipt email send failed (receipt was delivered to portal):', emailErr);
+                }
+            }
+
+            addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal${emailedTo ? ` + emailed to ${emailedTo}` : ''}.`, { type: 'success' });
 
             // 3. Activity log — BEST-EFFORT. messageType is built by the
             //    shared helper with the literal the validator actually
             //    accepts ('receipt_issued' used to be rejected here).
             try {
-                await logAutomation(buildReceiptLogArgs({
+                const logArgs = buildReceiptLogArgs({
                     receiptNumber,
                     chargeTypeLabel,
                     billingPeriod,
@@ -179,7 +217,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                     senderId: currentUser?.id,
                     userEmail: currentUser?.email,
                     sessionToken: (bearerToken ?? undefined),
-                }) as any);
+                });
+                if (emailedTo) {
+                    logArgs.messageContent = `${logArgs.messageContent} Also emailed to ${emailedTo}.`;
+                }
+                await logAutomation(logArgs as any);
             } catch (logErr: any) {
                 console.warn('Receipt activity-log write failed (receipt was delivered):', logErr);
             }

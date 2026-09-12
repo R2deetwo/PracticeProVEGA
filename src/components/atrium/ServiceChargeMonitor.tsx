@@ -600,6 +600,14 @@ const ServiceChargeMonitor: React.FC<{
     const phone = (contact as any)?.phone;
     return phone && phone.trim() ? phone.trim() : null;
   };
+  // EMAIL-FIRST (WhatsApp paused): the alert compose prefill opens on the
+  // resident's inbox when an email exists — WhatsApp only as fallback.
+  const resolveTenantEmail = (tenantId?: string): string | null => {
+    if (!tenantId) return null;
+    const contact = ((matterStateCtx as any)?.matterState?.contacts || []).find((c: any) => c.id === tenantId);
+    const email = (contact as any)?.email;
+    return email && email.trim() ? email.trim() : null;
+  };
 
   const handleRestrict = async (charge: ServiceCharge) => {
     const phone = resolveTenantPhone(charge.tenantId);
@@ -632,11 +640,13 @@ const ServiceChargeMonitor: React.FC<{
     // The user reviews and hits send (with honest delivery results), instead
     // of a hard-coded message leaving silently.
     if (onComposeCharge) {
+      const tenantEmail = resolveTenantEmail(charge.tenantId);
       onComposeCharge({
         unitId: charge.unitId,
         unitName: getUnitLabel(charge.unitId),
         tenantPhone: resolveTenantPhone(charge.tenantId) ?? undefined,
-        channel: 'whatsapp',
+        tenantEmail: tenantEmail ?? undefined,
+        channel: tenantEmail ? 'email' : 'whatsapp',
         messageType: 'service_charge_alert',
       });
       return;

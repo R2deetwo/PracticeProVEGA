@@ -9,8 +9,9 @@ import { useTerminology } from '../../contexts/ProductContext';
 import { ComposeModal } from './ComposeModal';
 import { buildMessage } from '../../utils/messageTemplates';
 import { resolveTemplateFor, buildVarsForOrder, FirmTemplateMapping } from '../../utils/deliveryErrors';
+import { buildEmailHtml } from '../../utils/emailTemplate';
 import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
-import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText } from 'lucide-react';
+import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, Mail } from 'lucide-react';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const WhatsAppIcon = ({ className = "w-4 h-4" }) => (
@@ -171,6 +172,62 @@ const AutomationCenter: React.FC = () => {
     if (failed > 0) addToast(`${failed} reminder(s) failed — see the reason per recipient in Messages → Sent.`, { type: 'error' });
   };
 
+  // ── BULK EMAIL RENT REMINDERS ──────────────────────────────────────
+  // The WhatsApp-free reminder channel while Chakra is billing-gated:
+  // same message builder, same honest status logging — delivered by Brevo
+  // to every occupied property with a tenant email on file.
+  const handleBulkEmailReminder = async () => {
+    const props = (coreState.properties || []).filter(p => (p.rentalDetails?.tenantEmail || '').trim());
+    if (props.length === 0) {
+      addToast(`No occupied ${terminology.matter.toLowerCase() === 'property' ? 'properties' : terminology.matter.toLowerCase() + 's'} with tenant emails found — add tenant emails on the Units tab.`, { type: 'error' });
+      return;
+    }
+    const firmName = coreState.firmDetails?.name || 'PracticePro';
+    addToast(`Emailing ${Math.min(props.length, 50)} rent reminder(s)…`, { type: 'info' });
+    let sent = 0, failed = 0;
+    for (const p of props.slice(0, 50)) {
+      const to = (p.rentalDetails!.tenantEmail || '').trim();
+      const tenantName = p.rentalDetails?.tenantName || 'Resident';
+      const rentAmount = p.rentalDetails?.rentAmount || 0;
+      const address = p.address;
+      const plainMsg = buildMessage('rent_reminder', address, tenantName, rentAmount, undefined, coreState.firmDetails?.automationSettings?.automationTemplates);
+      try {
+        const result = await convex.action(api.communications.sendEmail, {
+          to,
+          toName: tenantName,
+          senderName: firmName,
+          replyTo: currentUser?.email || undefined,
+          subject: `Rent reminder — ${tenantName} (${address || 'your unit'})`,
+          htmlContent: buildEmailHtml({
+            firmName,
+            body: plainMsg,
+            footerNote: 'This is an official rent reminder from your property manager.',
+          }),
+          firmId,
+        });
+        const status = result?.success && !result?.simulated ? 'sent' : result?.simulated ? 'simulated' : 'failed';
+        if (status === 'sent') sent++; else failed++;
+        try {
+          await logAuto({
+            firmId,
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
+            unitId: p.id, messageType: 'rent_reminder', channel: 'email',
+            recipient: to, messagePreview: plainMsg, status,
+            errorMessage: status === 'sent' ? undefined : (result as any)?.error,
+            triggeredBy: currentUser?.id,
+          });
+        } catch (logErr) {
+          console.error('[BulkEmailReminder] automation log write failed (send already completed):', logErr);
+        }
+      } catch (e: any) {
+        failed++;
+        console.error(`[BulkEmailReminder] Failed for ${to}:`, e.message);
+      }
+    }
+    if (sent > 0) addToast(`${sent} email reminder(s) delivered`, { type: 'success' });
+    if (failed > 0) addToast(`${failed} reminder(s) failed — see the reason per recipient in Messages → Sent.`, { type: 'error' });
+  };
+
   return (
     <div className="min-h-full flex flex-col bg-slate-950 text-white sm:overflow-hidden">
       {/* Header */}
@@ -185,6 +242,9 @@ const AutomationCenter: React.FC = () => {
           </button>
           <button onClick={handleBulkRentReminder} className="flex items-center gap-2 px-3 py-2 bg-green-900/30 hover:bg-green-900/50 text-green-400 text-xs font-bold rounded-lg border border-green-800 transition-colors whitespace-nowrap">
             <WhatsAppIcon /> Bulk
+          </button>
+          <button onClick={handleBulkEmailReminder} className="flex items-center gap-2 px-3 py-2 bg-sky-900/30 hover:bg-sky-900/50 text-sky-400 text-xs font-bold rounded-lg border border-sky-800 transition-colors whitespace-nowrap" title="Email rent reminders to every occupied property with a tenant email — the WhatsApp-free channel while Chakra is billing-gated.">
+            <Mail className="w-3.5 h-3.5" /> Email Bulk
           </button>
           <button onClick={() => setShowCompose(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap">
             <SendIcon /> New Message
