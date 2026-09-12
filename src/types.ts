@@ -507,7 +507,7 @@ export interface HistoryEntry { view: View; selectedId: SelectedId; context?: an
 export interface Toast { id: number; message: React.ReactNode; type: 'success' | 'error' | 'info' | 'warning'; link?: { text: string; onClick: () => void; }; /** Auto-dismiss delay in ms — owned by the Toast component (hover-holds past it). */ duration?: number; }
 export interface AloaArtifact { id: string; type: 'form' | 'draft' | 'confirmation' | 'note'; data: any; }
 export interface AloaConfirmationData { question: string; originalForm: any; match: { id: string; }; }
-export interface AloaMessage { id: string; role: 'user' | 'model' | 'tool'; content?: string; toolCalls?: any[]; toolResult?: any; modelUsed?: string; toolAction?: any; isError?: boolean; errorDetails?: string; completedResult?: { id: string; title: string; type: string; }; interactiveForm?: InteractiveFormSchema; attachments?: string[]; attachmentNames?: string[]; }
+export interface AloaMessage { id: string; role: 'user' | 'model' | 'tool'; content?: string; toolCalls?: any[]; toolResult?: any; modelUsed?: string; toolAction?: any; isError?: boolean; errorDetails?: string; completedResult?: { id: string; title: string; type: string; }; interactiveForm?: InteractiveFormSchema; attachments?: string[]; attachmentNames?: string[]; citations?: { citations: Array<{ number: number; text: string; type?: string; url?: string; jurisdiction?: string; }> }; aiConfidence?: { level: 'high' | 'moderate' | 'low'; score: number; indicators: string[] }; unverifiedCitations?: number[]; }
 
 // ─── Deep Context Injection ───────────────────────────────────────────────────
 /** Carries the full hydrated entity payload into an ARIA/ALOA chat session. */

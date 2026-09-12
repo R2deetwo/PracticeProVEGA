@@ -25,6 +25,14 @@ import { formatNairaInText } from '../../utils/formatting';
 import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
 import { CitationRegistry } from '../../utils/citationRegistry';
 import { parseAIResponseForCitations } from '../../utils/citationParser';
+import {
+    assessConfidence,
+    findCitationMarkers,
+    findUnverifiedCitationNumbers,
+    markUnverifiedCitationsInHtml,
+    buildAiAuditPayload,
+} from '../../utils/aiTrust';
+import { ReviewRequiredHeader, ConfidenceChip, AiDisclaimerBanner, UnverifiedCitationLegend } from './TrustSignals';
 import { draftSessionKey, loadDraftSession, saveDraftSession } from '../../utils/draftSession';
 import { setPendingDraft } from '../../utils/draftContentStore';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
@@ -123,6 +131,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     // Convex Hooks
     const saveMessageMutation = useMutation(api.myFunctions.saveAloaMessage);
+    // ── AI OUTPUT AUDIT (Item 3) — every finalized AI response is logged to
+    // the firm-scoped ai_output_logs table: assistant, model, confidence,
+    // citation coverage, bounded preview. Fire-and-forget: auditing must
+    // NEVER block or break the chat response.
+    const logAiOutputMutation = useMutation(api.aiAudit.logAiOutput);
     const createConversationMutation = useMutation(api.myFunctions.createAloaConversation);
     const deleteConversationMutation = useMutation(api.myFunctions.deleteAloaConversation);
     const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
@@ -250,6 +263,60 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // and a "## Sources" block. When the user sends the content to DraftPro,
     // the citations travel with it so they appear in the draft.
     const citationRegistryRef = useRef<CitationRegistry>(new CitationRegistry());
+
+    // ─── AI TRUST SIGNALS (Item 3) ───────────────────────────────────────
+    // Every finalized AI output is (a) assessed for confidence, (b) scanned
+    // for unverified [n] citation markers, and (c) written to the firm's
+    // ai_output_logs audit trail. The assessment is ALSO recomputed lazily
+    // at render time for messages that predate these fields — trust signals
+    // must appear on historical AI output too, not just new responses.
+    const auditAiOutput = useCallback((
+        text: string,
+        opts: {
+            model?: string; conversationId?: string; messageKind?: string;
+            confidence?: { level: 'high' | 'moderate' | 'low'; score: number; indicators: string[] };
+            citationCount?: number; unverifiedCitationCount?: number;
+        },
+    ) => {
+        try {
+            const payload = buildAiAuditPayload({
+                assistant: getAssistantName(isProperty),
+                text,
+                model: opts.model,
+                conversationId: opts.conversationId,
+                messageKind: opts.messageKind,
+                confidence: opts.confidence,
+                citationCount: opts.citationCount,
+                unverifiedCitationCount: opts.unverifiedCitationCount,
+            });
+            void logAiOutputMutation({
+                firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
+                userEmail: currentUser?.email,
+                sessionToken: (bearerToken ?? undefined) || undefined,
+                userId: currentUser?.id,
+                ...payload,
+            } as any).catch((e: any) => console.warn('[aiAudit] log failed (chat continues):', e?.message || e));
+        } catch {
+            // audit must never break the chat
+        }
+    }, [logAiOutputMutation, isProperty, currentUser, coreState.firmDetails, bearerToken]);
+
+    /** Trust bundle for a rendered model message — persisted fields first,
+     *  lazy recompute for legacy messages. Pure + cheap (text heuristics). */
+    const trustForMessage = useCallback((msg: any) => {
+        const content = typeof msg?.content === 'string' ? msg.content : '';
+        const citationNumbers: number[] = Array.isArray(msg?.citations?.citations)
+            ? msg.citations.citations.map((c: any) => Number(c?.number)).filter((n: number) => Number.isFinite(n))
+            : [];
+        const markers = findCitationMarkers(content);
+        const confidence = msg?.aiConfidence ?? assessConfidence(content, {
+            citationMarkers: markers,
+            verifiedCitationNumbers: citationNumbers,
+            hasSourcesBlock: citationNumbers.length > 0,
+        });
+        const unverified = msg?.unverifiedCitations ?? findUnverifiedCitationNumbers(content, citationNumbers);
+        return { confidence, unverified, verified: citationNumbers };
+    }, []);
 
     const [pendingQueueCount, setPendingQueueCount] = useState(0);
 
@@ -1655,15 +1722,36 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             );
                             if (streamed.text?.trim()) {
                                 const validatedText = validateAIResponse(streamed.text, isProperty);
+                                // ── AI TRUST SIGNALS (Item 3) ── confidence +
+                                // unverified-citation scan + audit log on every
+                                // finalized AI output (this is the streaming path).
+                                const trustMarkers = findCitationMarkers(validatedText);
+                                const trustVerified = citationRegistryRef.current.getAll().map((c: any) => Number(c.number)).filter((n: number) => Number.isFinite(n));
+                                const trustConfidence = assessConfidence(validatedText, {
+                                    citationMarkers: trustMarkers,
+                                    verifiedCitationNumbers: trustVerified,
+                                    hasSourcesBlock: trustVerified.length > 0,
+                                });
+                                const trustUnverified = findUnverifiedCitationNumbers(validatedText, trustVerified);
                                 const parsedForm = tryParseInteractiveForm(validatedText);
                                 const modelMsg: AloaMessage = {
                                     id: streamMsgId,
                                     role: 'model',
                                     content: parsedForm ? '' : validatedText,
                                     interactiveForm: parsedForm ?? undefined,
-                                    modelUsed: streamed.modelUsed
+                                    modelUsed: streamed.modelUsed,
+                                    aiConfidence: trustConfidence,
+                                    unverifiedCitations: trustUnverified,
                                 };
                                 setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
+                                auditAiOutput(validatedText, {
+                                    model: streamed.modelUsed,
+                                    conversationId: currentConvId || undefined,
+                                    messageKind: 'chat',
+                                    confidence: trustConfidence,
+                                    citationCount: trustMarkers.length,
+                                    unverifiedCitationCount: trustUnverified.length,
+                                });
                                 if (!isDemo && currentConvId) {
                                     void saveMessageMutation({
                                         conversationId: currentConvId,
@@ -1793,6 +1881,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
 
                         const parsedForm = tryParseInteractiveForm(displayText);
+                        // ── AI TRUST SIGNALS (Item 3) — tool/research path:
+                        // confidence + unverified [n] scan + audit log.
+                        const trustMarkers = findCitationMarkers(displayText);
+                        const trustVerified = messageCitations?.citations
+                            ? (messageCitations.citations as any[]).map((c: any) => Number(c?.number)).filter((n: number) => Number.isFinite(n))
+                            : [];
+                        const trustConfidence = assessConfidence(displayText, {
+                            citationMarkers: trustMarkers,
+                            verifiedCitationNumbers: trustVerified,
+                            hasSourcesBlock: !!messageCitations,
+                        });
+                        const trustUnverified = findUnverifiedCitationNumbers(displayText, trustVerified);
                         const modelMsg: AloaMessage = {
                             id: streamMsgId,
                             role: 'model',
@@ -1802,8 +1902,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             // Attach citations to the message so they can be
                             // rendered in the chat and passed to DraftPro
                             ...(messageCitations ? { citations: messageCitations } : {}),
+                            aiConfidence: trustConfidence,
+                            unverifiedCitations: trustUnverified,
                         } as any;
                         setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
+                        auditAiOutput(displayText, {
+                            model: currentResponse.modelUsed,
+                            conversationId: currentConvId || undefined,
+                            messageKind: effectiveModel === 'research' ? 'research' : 'chat',
+                            confidence: trustConfidence,
+                            citationCount: trustMarkers.length,
+                            unverifiedCitationCount: trustUnverified.length,
+                        });
 
                         // ─── Armed draft tab cleanup ─────────────────────────
                         // Previously we pre-opened a blank "Preparing DraftPro…"
@@ -2849,6 +2959,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             return u;
                         });
                         return (
+                            <>
+                            {/* ── AI TRUST SIGNALS (Item 3) ── per-session disclaimer banner.
+                                Shows once per browser session (sessionStorage), then stays
+                                quiet — the non-dismissible Review Required header on every
+                                AI bubble carries the standing warning from then on. */}
+                            <AiDisclaimerBanner assistantName={getAssistantName(isProperty)} />
                             <MessageThread
                                 embedded
                                 variant="ai"
@@ -2863,19 +2979,46 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     if (msg.isError) return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
                                     return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl text-slate-800 dark:text-zinc-200 border border-slate-200/40 dark:border-zinc-800/60 shadow-xl group-hover:border-primary-400/50 dark:group-hover:border-primary-500/50';
                                 }}
-                                renderAboveBubble={(m) => (m.isMe && (m.raw as any).piiResult) ? (
-                                    <PIIShieldBadge result={(m.raw as any).piiResult} />
-                                ) : null}
+                                renderAboveBubble={(m) => {
+                                    // ── AI TRUST SIGNALS (Item 3) ──
+                                    // Model bubbles carry a NON-DISMISSIBLE red
+                                    // "Review Required" header + a confidence
+                                    // chip. User messages keep the PII shield.
+                                    const raw = m.raw as any;
+                                    if (!m.isMe && raw?.role === 'model' && (raw?.content || raw?.interactiveForm)) {
+                                        const { confidence } = trustForMessage(raw);
+                                        return (
+                                            <div className="flex flex-col gap-1 mb-1.5 max-w-full">
+                                                <ReviewRequiredHeader />
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <ConfidenceChip assessment={confidence} />
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return (m.isMe && (m.raw as any).piiResult) ? (
+                                        <PIIShieldBadge result={(m.raw as any).piiResult} />
+                                    ) : null;
+                                }}
                                 renderBubbleContent={(m) => {
                                     const msg = m.raw;
                                     const idx = messages.findIndex(x => x.id === msg.id);
                                     return (
                                         <>
 
-                                    {msg.content && (
-                                        <div
+                                    {msg.content && (() => {
+                                        // ── Unverified citation markers (Item 3) ──
+                                        // [n] markers with no source entry get a warning sup in the rendered HTML.
+                                        const { unverified } = trustForMessage(msg);
+                                        const baseHtml = parseAloaMarkdown(formatNairaInText(msg.content));
+                                        const html = msg.role === 'model'
+                                            ? markUnverifiedCitationsInHtml(baseHtml, unverified)
+                                            : baseHtml;
+                                        return (
+                                            <>
+                                            <div
                                             className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2"
-                                            dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(formatNairaInText(msg.content)) }}
+                                            dangerouslySetInnerHTML={{ __html: html }}
                                             onCopy={handleCleanCopy}
                                             onClick={(e) => {
                                                 // ─── Inline Action Pill Handler ──────────────
@@ -2896,7 +3039,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 }
                                             }}
                                         />
-                                    )}
+                                            {msg.role === 'model' && (
+                                                <UnverifiedCitationLegend count={unverified.length} />
+                                            )}
+                                            </>
+                                        );
+                                    })()}
                                     {/* Attachment thumbnails/files */}
                                     {msg.attachments && msg.attachments.length > 0 && (
                                         <div className="grid grid-cols-2 gap-2 mt-2">
@@ -3073,6 +3221,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     );
                                 }}
                             />
+                            </>
                         );
                     })()}
 

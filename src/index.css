@@ -2350,3 +2350,16 @@ nav,
   z-index: 10;
   border-radius: inherit;
 }
+
+/* ─── AI TRUST SIGNALS (Item 3) ─────────────────────────────────────────── */
+/* Warning marker injected next to [n] citation markers that have no parsed
+   source entry (see src/utils/aiTrust.ts — markUnverifiedCitationsInHtml). */
+.ai-unverified-cite {
+  color: #d97706; /* amber-600 */
+  font-weight: 900;
+  font-size: 0.7em;
+  margin-left: 1px;
+  cursor: help;
+  text-decoration: none dotted;
+}
+.dark .ai-unverified-cite { color: #fbbf24; /* amber-400 */ }

@@ -2392,6 +2392,29 @@ export default defineSchema({
     .index("by_firm_active", ["firmId", "isActive"])
     .index("by_firm_category", ["firmId", "category"]),
 
+  // ─── AI OUTPUT AUDIT (Item 3 — trust signals) ──────────────────────────
+  // Every FINALIZED ALOA/ARIA response is logged here: which assistant,
+  // which model, the confidence assessment, citation coverage, and a
+  // bounded preview (400 chars, PII-trimmed). Append-only for clients;
+  // 30-day purge candidate (same retention policy as error_events).
+  ai_output_logs: defineTable({
+    firmId: v.string(),
+    userId: v.optional(v.string()),
+    assistant: v.string(),                        // 'ARIA' | 'ALOA' | 'ALDIA' | ...
+    conversationId: v.optional(v.string()),       // chat conversation id
+    messageKind: v.string(),                     // 'chat' | 'research' | 'draft'
+    model: v.optional(v.string()),
+    confidenceLevel: v.string(),                 // 'high' | 'moderate' | 'low' | 'unassessed'
+    confidenceScore: v.optional(v.number()),     // 0..100 heuristic (-1 = unassessed)
+    citationCount: v.optional(v.number()),
+    unverifiedCitationCount: v.optional(v.number()),
+    charCount: v.optional(v.number()),
+    preview: v.optional(v.string()),              // first 400 chars, whitespace-collapsed
+    loggedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_logged", ["firmId", "loggedAt"]),
+
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert
 // data that doesn't conform to the strict schema validators (missing
