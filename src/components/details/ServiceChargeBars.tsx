@@ -126,7 +126,7 @@ const getStatusMeta = (period: TimelinePeriod): StatusMeta => {
             name: 'Paid Late',
             description: period.paidDate
                 ? `Settled ${formatDateShort(period.paidDate)} (after due date)`
-                : 'Past due date — unpaid',
+                : 'Settled after its billing window (payment date not recorded)',
         };
     }
     if (period.status === 'advance_paid') {

@@ -329,7 +329,11 @@ export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Dat
         currentPeriod: null, nextDueDate: null, settledThrough: null,
     };
 
-    const unsettled = real.filter(p => p.status === 'due' || p.status === 'overdue' || p.status === 'outstanding' || p.status === 'late');
+    // 'late' is SETTLED (paid after its window) — it is NOT owed anymore.
+    // Counting it as unsettled produced "SC 3 MO OVERDUE" chips + inflated
+    // outstanding totals on units where every cycle was paid (late) —
+    // "it cannot be due if they have paid; late or otherwise".
+    const unsettled = real.filter(p => p.status === 'due' || p.status === 'overdue' || p.status === 'outstanding');
     const duePeriods = unsettled.filter(p => p.status === 'due');
     const overduePeriods = unsettled.filter(p => p.status !== 'due');
     const outstandingTotal = unsettled.reduce((sum, p) => sum + Math.max(0, p.amount - p.paidAmount), 0);
@@ -339,7 +343,8 @@ export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Dat
 
     let settledThrough: string | null = null;
     for (let i = real.length - 1; i >= 0; i--) {
-        if (real[i].status === 'paid' || real[i].status === 'advance_paid') {
+        // 'late' is settled too — a late payment extends settled-through.
+        if (real[i].status === 'paid' || real[i].status === 'advance_paid' || real[i].status === 'late') {
             settledThrough = monthLabel(real[i].dueDate);
             break;
         }

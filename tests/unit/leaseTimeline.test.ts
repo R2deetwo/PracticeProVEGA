@@ -358,6 +358,93 @@ describe('summarizeTimeline — states the chips say out loud', () => {
     });
 });
 
+describe('summarizeTimeline — late is SETTLED, never "due" (the 3-late-payments report)', () => {
+    // User report 2026-09-12: "why does it say that there are three cycles
+    // due when it shows that they are all paid up and there are three late
+    // payments. it cannot be due if they have paid; late or otherwise."
+    // 'late' means PAID after its window — counting it as unsettled drew a
+    // red "SC 3 MO OVERDUE" chip and inflated the outstanding balance on a
+    // fully-paid unit.
+
+    const threeLateMarks = [
+        { index: 1, dueDate: '2025-12-01', status: 'late', paidDate: '2025-12-20', paidOnTime: false },
+        { index: 2, dueDate: '2026-01-01', status: 'late', paidDate: '2026-01-18', paidOnTime: false },
+        { index: 3, dueDate: '2026-02-01', status: 'late', paidDate: '2026-02-25', paidOnTime: false },
+    ];
+
+    it('ALL periods paid late → state clear, nothing outstanding', () => {
+        const periods = buildTimeline({
+            leaseStart: '2025-12-01', cadence: monthly(10000),
+            stored: threeLateMarks,
+            now: new Date('2026-02-28'), // Dec, Jan, Feb elapsed — all settled
+        });
+        const s = summarizeTimeline(periods, new Date('2026-02-28'));
+        expect(s.state).toBe('clear');
+        expect(s.dueCount).toBe(0);
+        expect(s.overdueCount).toBe(0);
+        expect(s.outstandingTotal).toBe(0);
+        expect(s.currentPeriod).toBeNull();
+    });
+
+    it('settledThrough extends over late-settled periods', () => {
+        const periods = buildTimeline({
+            leaseStart: '2025-12-01', cadence: monthly(10000),
+            stored: threeLateMarks,
+            now: new Date('2026-02-28'),
+        });
+        const s = summarizeTimeline(periods, new Date('2026-02-28'));
+        expect(s.settledThrough).toBe('Feb 2026');
+    });
+
+    it('mixed: one genuinely overdue + one new + two paid late → exact split', () => {
+        const periods = buildTimeline({
+            leaseStart: '2025-11-01', cadence: monthly(10000),
+            stored: [
+                { index: 1, dueDate: '2025-11-01', status: 'late', paidDate: '2025-11-30', paidOnTime: false },
+                { index: 2, dueDate: '2025-12-01', status: 'late', paidDate: '2025-12-28', paidOnTime: false },
+                // Jan left unpaid — window closed → genuinely overdue
+                // Feb just landed → genuinely due
+            ],
+            now: new Date('2026-02-05'),
+        });
+        const s = summarizeTimeline(periods, new Date('2026-02-05'));
+        expect(s.state).toBe('overdue');
+        expect(s.overdueCount).toBe(1); // Jan only — the two LATE marks don't count
+        expect(s.dueCount).toBe(1);     // Feb (new cycle, genuinely due)
+        expect(s.outstandingTotal).toBe(20000); // Jan + Feb — NOT 4 cycles / 40000
+        expect(s.currentPeriod?.dueDate).toBe('2026-01-01'); // oldest owed
+    });
+
+    it('payment-matched LATE settlement also reads settled (explicit period fields)', () => {
+        // Nov charge settled Dec 5 — the Collect-Rent row carries
+        // periodStart/periodEnd, so it attributes to Nov (paid late).
+        const periods = buildTimeline({
+            leaseStart: '2025-11-01', cadence: monthly(10000),
+            payments: [{ amount: 10000, paidDate: '2025-12-05', periodStart: '2025-11-01', periodEnd: '2025-11-30', status: 'paid' }],
+            now: new Date('2025-12-10'),
+        });
+        const s = summarizeTimeline(periods, new Date('2025-12-10'));
+        // Nov is settled (late) — only Dec is owed.
+        expect(s.state).toBe('due');           // NOT overdue: Nov is settled
+        expect(s.overdueCount).toBe(0);
+        expect(s.outstandingTotal).toBe(10000); // Dec only
+        expect(s.settledThrough).toBe('Nov 2025');
+        expect(periods[0].status).toBe('paid');
+        expect(periods[0].paidOnTime).toBe(false); // amber "Paid Late" pill
+    });
+
+    it('chip math: 3 late periods yield NO overdue chip text (regression guard)', () => {
+        const periods = buildTimeline({
+            leaseStart: '2025-12-01', cadence: monthly(10000),
+            stored: threeLateMarks,
+            now: new Date('2026-02-28'),
+        });
+        const s = summarizeTimeline(periods, new Date('2026-02-28'));
+        const chipCount = s.overdueCount + s.dueCount;
+        expect(chipCount).toBe(0); // "SC 3 MO OVERDUE" can no longer render
+    });
+});
+
 // ─── High-level convenience ─────────────────────────────────────────────────
 describe('serviceChargeTimeline — one call, whole picture', () => {
     it('production shape: annual rent, monthly rate defined → monthly pills at the rate', () => {
