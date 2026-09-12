@@ -90,7 +90,12 @@ const TenantPortalLogin: React.FC = () => {
             setForgotEmail(rcEmail);
             setEmail(rcEmail);
             setViewMode('reset');
+            return;
         }
+        // Email-prefill from an emailed portal link (receipts, reminders) —
+        // "a link that takes them to THEIR portal". Lowercased because
+        // portal logins are case-insensitive by identifier.
+        if (rcEmail) setEmail(rcEmail.trim().toLowerCase());
     }, []);
 
     // Look up invite by token

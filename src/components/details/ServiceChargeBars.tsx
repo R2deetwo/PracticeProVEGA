@@ -55,7 +55,7 @@ import {
 } from '../../utils/leaseTimeline';
 import ReceiptModal from '../modals/ReceiptModal';
 import { buildReceiptLogArgs, buildReceiptContent, upsertReceiptNumber } from '../../utils/receiptDelivery';
-import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName } from '../../utils/emailDelivery';
+import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName, buildTenantPortalLoginUrl } from '../../utils/emailDelivery';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -822,6 +822,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                         settlementMethod,
                         coverageNote: coverage?.label,
                         pdfAttached: !!attachment,
+                        portalUrl: buildTenantPortalLoginUrl(tenantEmail),
                     }),
                     firmId,
                     senderName: coreState?.firmDetails?.name || 'PracticePro',

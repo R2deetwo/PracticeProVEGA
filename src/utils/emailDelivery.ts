@@ -46,6 +46,37 @@ export function escapeHtml(text: string): string {
         .replace(/'/g, '&#39;');
 }
 
+// ─── Portal link — "bring people to the portal" ─────────────────────────────
+/**
+ * The resident's OWN portal entry point, for emails (user feedback
+ * 2026-09-12: "now could we have the person be able to see a link that
+ * takes them to their portal.... THEIR portal. this way we can bring
+ * people to the portal to look at other things that may concern them").
+ *
+ * Routes through the resident login with the email PREFILLED — after
+ * sign-in the app lands them on their own token-keyed portal dashboard
+ * (/portal/tenant/<their-token>). The login page is a public path (no
+ * auth-gate bounce), so the link works from any inbox on any device even
+ * when no session exists yet.
+ */
+export function buildTenantPortalLoginUrl(email: string, origin?: string): string {
+    const base = (origin ?? (typeof window !== 'undefined' ? window.location.origin : ''))
+        .replace(/\/+$/, '');
+    const enc = encodeURIComponent((email || '').trim().toLowerCase());
+    return `${base}/portal/tenant/login${enc ? `?email=${enc}` : ''}`;
+}
+
+/** A prominent, email-client-safe portal button block. */
+export function buildPortalButtonHtml(url: string, label = 'Open your resident portal'): string {
+    const safe = escapeHtml(url);
+    return [
+        `<a href="${safe}" style="display:block;margin:20px 0 8px 0;padding:14px 18px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:800;font-size:14px;text-align:center;letter-spacing:0.2px;">`,
+        `${escapeHtml(label)}`,
+        `</a>`,
+        `<p style="margin:0 0 8px 0;font-size:12px;color:#64748b;line-height:1.6;">Your payment history, receipts, notices and service requests — everything about your tenancy in one place.</p>`,
+    ].join('');
+}
+
 // ─── Receipt email ──────────────────────────────────────────────────────────
 export interface ReceiptEmailInput {
     firmName: string;
@@ -60,6 +91,8 @@ export interface ReceiptEmailInput {
     coverageNote?: string;      // "Sep 2026 – Feb 2027 (6 months)"
     /** True when the email carries the receipt as a PDF attachment. */
     pdfAttached?: boolean;
+    /** The resident's portal entry link (button under the amount). */
+    portalUrl?: string;
 }
 
 const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
@@ -98,6 +131,7 @@ export function buildReceiptEmailHtml(input: ReceiptEmailInput): string {
         '<div style="font-size:12px;color:#10b981;font-weight:700;text-transform:uppercase;">Amount Paid</div>',
         `<div style="font-size:24px;font-weight:800;color:#10b981;">${naira(input.amountPaid)}</div>`,
         '</div>',
+        input.portalUrl ? buildPortalButtonHtml(input.portalUrl) : '',
         '</div>',
     ].join('\n');
 

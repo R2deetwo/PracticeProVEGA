@@ -29,7 +29,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { XIcon, DownloadIcon, CheckCircleIcon, SendIcon } from '../../constants';
 import { formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { buildReceiptLogArgs, buildReceiptContent } from '../../utils/receiptDelivery';
-import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName } from '../../utils/emailDelivery';
+import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName, buildTenantPortalLoginUrl } from '../../utils/emailDelivery';
 import { ServiceChargePeriod } from '../../types';
 
 interface ReceiptModalProps {
@@ -209,6 +209,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                             settlementMethod,
                             coverageNote,
                             pdfAttached: !!attachment,
+                            portalUrl: buildTenantPortalLoginUrl(to),
                         }),
                         firmId,
                         senderName: firmName,

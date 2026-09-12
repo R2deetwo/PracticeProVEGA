@@ -10,6 +10,7 @@ import { ComposeModal } from './ComposeModal';
 import { buildMessage } from '../../utils/messageTemplates';
 import { resolveTemplateFor, buildVarsForOrder, FirmTemplateMapping } from '../../utils/deliveryErrors';
 import { buildEmailHtml } from '../../utils/emailTemplate';
+import { buildPortalButtonHtml, buildTenantPortalLoginUrl } from '../../utils/emailDelivery';
 import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, Mail } from 'lucide-react';
 
@@ -200,7 +201,7 @@ const AutomationCenter: React.FC = () => {
           subject: `Rent reminder — ${tenantName} (${address || 'your unit'})`,
           htmlContent: buildEmailHtml({
             firmName,
-            body: plainMsg,
+            body: plainMsg + buildPortalButtonHtml(buildTenantPortalLoginUrl(to)),
             footerNote: 'This is an official rent reminder from your property manager.',
           }),
           firmId,

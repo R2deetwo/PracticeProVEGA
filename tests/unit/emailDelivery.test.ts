@@ -14,6 +14,8 @@ import {
     buildReceiptEmailSubject,
     buildReceiptPdfBase64,
     receiptPdfFileName,
+    buildTenantPortalLoginUrl,
+    buildPortalButtonHtml,
     escapeHtml,
 } from '../../src/utils/emailDelivery';
 
@@ -78,6 +80,18 @@ describe('buildReceiptEmailHtml — the receipt in the resident\u2019s inbox', (
         const html = buildReceiptEmailHtml({ ...input, pdfAttached: false });
         expect(html).toContain('a copy is also available in your resident portal');
         expect(html).not.toContain('attached as a PDF');
+    });
+
+    it('renders the portal button when a portalUrl is provided', () => {
+        const html = buildReceiptEmailHtml({ ...input, portalUrl: 'https://app.example/portal/tenant/login?email=ada%40ex.ng' });
+        expect(html).toContain('Open your resident portal');
+        expect(html).toContain('https://app.example/portal/tenant/login?email=ada%40ex.ng');
+        expect(html).toContain('everything about your tenancy in one place');
+    });
+
+    it('omits the portal button when no portalUrl is provided', () => {
+        const html = buildReceiptEmailHtml(input);
+        expect(html).not.toContain('Open your resident portal');
     });
 
     it('escapes HTML in tenant-provided fields', () => {
@@ -150,5 +164,36 @@ describe('receiptPdfFileName', () => {
         expect(receiptPdfFileName('RC-123456-3')).toBe('Receipt-RC-123456-3.pdf');
         expect(receiptPdfFileName('RC 12/34:56')).toBe('Receipt-RC-12-34-56.pdf');
         expect(receiptPdfFileName('')).toBe('Receipt-receipt.pdf');
+    });
+});
+
+describe('buildTenantPortalLoginUrl — the emailed portal link', () => {
+    it('builds the login link with the email prefilled and encoded', () => {
+        const url = buildTenantPortalLoginUrl('Ada.Obi@Example.ng', 'https://app.example');
+        expect(url).toBe('https://app.example/portal/tenant/login?email=ada.obi%40example.ng');
+    });
+
+    it('trims trailing slashes off the origin', () => {
+        const url = buildTenantPortalLoginUrl('ada@ex.ng', 'https://app.example/');
+        expect(url).toBe('https://app.example/portal/tenant/login?email=ada%40ex.ng');
+    });
+
+    it('omits the query string entirely for an empty email', () => {
+        expect(buildTenantPortalLoginUrl('', 'https://app.example'))
+            .toBe('https://app.example/portal/tenant/login');
+    });
+});
+
+describe('buildPortalButtonHtml', () => {
+    it('renders a styled anchor with a safe href', () => {
+        const html = buildPortalButtonHtml('https://app.example/portal/tenant/login?email=a%40b.ng');
+        expect(html).toContain('<a href="https://app.example/portal/tenant/login?email=a%40b.ng"');
+        expect(html).toContain('Open your resident portal');
+    });
+
+    it('escapes a malicious URL', () => {
+        const html = buildPortalButtonHtml('" onmouseover="alert(1)');
+        expect(html).not.toContain('" onmouseover=');
+        expect(html).toContain('&quot;');
     });
 });

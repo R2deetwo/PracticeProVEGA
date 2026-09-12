@@ -814,6 +814,23 @@ export const App: React.FC = () => {
             // If user has a remembered portal but no currentUser, they might be in a
             // loading state — don't redirect them away from their portal
             if (hasRememberedPortal) return;
+            // EMAILED/PASTED PORTAL LINKS: a token-keyed portal route
+            // (/portal/tenant/<token>) is not in publicPaths, so this effect
+            // used to bounce unauthenticated visitors to the marketing
+            // landing page — the render path separately redirects to the
+            // login, and the race between the two produced the landing-page
+            // bounce. Portal subpaths now land on their LOGIN page, matching
+            // the render-path behaviour (email-prefilled when ?email= rides
+            // along), so an emailed portal link always ends at sign-in, never
+            // at the marketing site.
+            if (location.pathname.startsWith('/portal/tenant')) {
+                navigate('/portal/tenant/login' + window.location.search, { replace: true });
+                return;
+            }
+            if (location.pathname.startsWith('/portal/client')) {
+                navigate('/portal/client/login' + window.location.search, { replace: true });
+                return;
+            }
             navigate('/', { replace: true });
         }
     }, [isLoadingSession, currentUser, location.pathname, navigate]);
