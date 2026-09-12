@@ -156,6 +156,22 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // - Don't overwhelm users — 3-5 bullets is the sweet spot
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        id: 'v1.21.0',
+        version: '1.21.0',
+        date: '2026-09-12',
+        title: 'Billing That Tracks Itself, Advance Payments & Email Receipts',
+        description: 'The unit billing timeline is now a live ledger — rent, service charge and minimum vend track every cycle, advance payments issue one receipt for the whole range, and receipts reach residents by email while WhatsApp is paused. AI answers now carry visible trust signals.',
+        features: [
+            { icon: 'calendar', label: 'A Billing Timeline That Moves', text: 'Every unit shows a month-by-month strip for rent, service charge and minimum vend. Each cycle is a clickable pill with its own status, payment history and receipt — and the pills advance on their own as months pass instead of freezing after setup. Billing can be monthly, quarterly, twice a year or yearly.', productScope: 'atrium' },
+            { icon: 'shield', label: 'Paid Is Paid — Late or Not', text: 'A cycle settled after its due date no longer inflates "due" and "overdue" counts. Late payments keep their amber flag in the history so you still see exactly who paid late, but a fully-paid unit reads CLEAR with zero outstanding.', productScope: 'atrium' },
+            { icon: 'bolt', label: 'Advance Payments, One Receipt', text: 'When a resident pays months ahead, log it right from the payment drawer: pick how many cycles the payment covers and ONE receipt is issued for the whole range — marked "paid in advance" with the exact months it covers, not six separate receipts. A fully advance-paid unit reads CLEAR.', productScope: 'atrium' },
+            { icon: 'document', label: 'Receipts That Never Fail Mid-Flight', text: 'Receipt issuance was re-ordered so delivery comes first: once a receipt reaches the resident\'s portal, a logging hiccup can no longer report it as failed or drop its receipt number. Manual retry is one click away in the payment drawer.', productScope: 'atrium' },
+            { icon: 'chat', label: 'Receipts by Email', text: 'While the WhatsApp gateway is paused, receipts, service-charge alerts and rent reminders are emailed to residents automatically — best-effort alongside the portal copy, with the sending firm\'s name on the envelope so it always looks official.', productScope: 'atrium' },
+            { icon: 'brain', label: 'AI Answers Carry Trust Signals', text: 'Every ALOA/ARIA answer now shows a non-dismissible Review Required banner, a confidence score with the evidence behind it, and inline warnings on citations the model could not verify — all written to a firm-scoped audit trail you can inspect later.' },
+            { icon: 'portal', label: 'Email Bulk Rent Reminders', text: 'The Automation Center can email rent reminders to every tracked unit\'s resident in one pass, with honest per-recipient status so you know exactly who was reached and who needs a follow-up.', productScope: 'atrium' },
+        ],
+    },
+    {
         id: 'v1.20.0',
         version: '1.20.0',
         date: '2026-08-14',
