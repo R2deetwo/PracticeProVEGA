@@ -23,6 +23,7 @@ import {
 import { useConfirm } from '../ui/ConfirmDialog';
 import { OnboardUnitLedgerModal } from '../modals/OnboardUnitLedgerModal';
 import { ServiceChargePeriod } from '../../types';
+import { matchResidentContact, planContactSync } from '../../utils/residentContactSync';
 
 // ─── AccordionSection (MODULE-LEVEL — outside PropertyForm) ──────────
 // CRITICAL: This component MUST be defined outside the PropertyForm render
@@ -827,6 +828,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             if (saveToContacts) {
             let contactsCreated = 0;
             let contactsLinked = 0;
+            let contactsUpdated = 0;
             let syncErrors = 0;
             await Promise.all(currentUnits.map(async (unit) => {
                 const tenantName = composeTenantName(unit).trim();
@@ -842,31 +844,53 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     // the latest tenantEmail, rentAmount, etc. that were just entered.
                     const freshPd = buildPropertyRecord(unit, propertyData, unitId);
 
-                    // Bug #3 fix: Only match contacts with property-related categories
-                    // (avoids false-positive matching against the landlord or legal clients)
-                    const propertyCategories = ['Tenant', 'Resident', 'Landlord', 'Vendor', 'Facility Manager', 'Estate Agent', 'Contractor'];
-                    const existingByPhone = tenantPhone
-                        ? (appState.contacts || []).find(c =>
-                            c.phone && c.phone.replace(/\D/g, '') === tenantPhone.replace(/\D/g, '') &&
-                            propertyCategories.includes(c.category || ''))
-                        : null;
-                    const existingByEmail = tenantEmail
-                        ? (appState.contacts || []).find(c =>
-                            c.email && c.email.toLowerCase().trim() === tenantEmail.toLowerCase().trim() &&
-                            propertyCategories.includes(c.category || ''))
-                        : null;
-                    const existingContact = existingByPhone || existingByEmail;
+                    // Matching policy lives in residentContactSync (phone-first,
+                    // property-side categories only — the Bug #3 lineage) and is
+                    // unit-tested there.
+                    const existingContact = matchResidentContact({
+                        contacts: appState.contacts || [],
+                        tenantPhone,
+                        tenantEmail,
+                    });
 
                     if (existingContact) {
-                        contactsLinked++;
-                        // Link existing contact to this unit
-                        await updateItem('properties', {
-                            ...freshPd,
-                            rentalDetails: {
-                                ...freshPd.rentalDetails,
-                                tenantContactId: existingContact.id,
-                            } as any,
-                        }, 'Property');
+                        // Already-linked re-saves are silent now: the old flow
+                        // counted EVERY matching unit as a fresh "link" on
+                        // every save — the "three residents linked to the
+                        // existing contact" message that fired on unchanged
+                        // saves.
+                        const alreadyLinked = (unit as any).tenantContactId === existingContact.id;
+
+                        // Push the resident's just-saved details onto an
+                        // ALREADY-LINKED contact — the directory used to keep
+                        // a resident's old email forever after an edit (portal
+                        // invites read that record).
+                        const sync = planContactSync({
+                            contact: existingContact,
+                            alreadyLinked,
+                            tenantName,
+                            tenantPhone,
+                            tenantEmail,
+                        });
+                        if (sync.needsUpdate) {
+                            contactsUpdated++;
+                            await updateItem('contacts', {
+                                ...existingContact,
+                                ...sync.patch,
+                            } as any, 'Contact');
+                        }
+
+                        if (!alreadyLinked) {
+                            contactsLinked++;
+                            // Link existing contact to this unit
+                            await updateItem('properties', {
+                                ...freshPd,
+                                rentalDetails: {
+                                    ...freshPd.rentalDetails,
+                                    tenantContactId: existingContact.id,
+                                } as any,
+                            }, 'Property');
+                        }
                         return;
                     }
 
@@ -905,15 +929,20 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     console.warn(`Resident auto-sync failed for unit ${unit.unitName}:`, syncErr);
                 }
             }));
-            // Bug #1 fix: only show success if contacts were actually created/linked
-            if (contactsCreated > 0) {
-                addToast(`${contactsCreated} resident(s) synced to Contacts directory.`, { type: 'success' });
-            } else if (contactsLinked > 0) {
-                addToast(`${contactsLinked} resident(s) linked to existing contacts.`, { type: 'success' });
-            } else if (syncErrors > 0) {
+            // Bug #1 fix lineage + 2026-09-12: the toast only reports ACTUAL
+            // changes (new / newly linked / updated). An unchanged re-save is
+            // silent — the old "N resident(s) linked to existing contacts"
+            // fired on every save of a property whose residents were already
+            // synced, reporting stable state as if something happened.
+            if (syncErrors > 0) {
                 addToast(`${syncErrors} resident contact(s) failed to sync. Check console for details.`, { type: 'error' });
-            } else {
-                addToast('No resident details to sync (name, phone, or email required).', { type: 'info' });
+            } else if (contactsCreated > 0 || contactsLinked > 0 || contactsUpdated > 0) {
+                const parts = [
+                    contactsCreated > 0 ? `${contactsCreated} added` : '',
+                    contactsLinked > 0 ? `${contactsLinked} linked` : '',
+                    contactsUpdated > 0 ? `${contactsUpdated} updated` : '',
+                ].filter(Boolean);
+                addToast(`Resident directory synced — ${parts.join(', ')}.`, { type: 'success' });
             }
             } // end if (saveToContacts)
 
