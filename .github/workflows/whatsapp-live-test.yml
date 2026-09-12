@@ -1,0 +1,111 @@
+name: WhatsApp Live Test
+
+# Task 37 — live verification of the WhatsApp send pipeline, per the user's
+# directive (2026-09-12):
+#   "WhatsApp is NOT closed. Do a live test send from production to a real
+#    phone. Log the raw Chakra request/response. Also check: env (sandbox vs
+#    prod), token validity, sender approval, sandbox list, templates, daily
+#    limit. Paste raw output. If the test fails, reopen — original issue was
+#    messages not sending, not templates."
+#
+# Runs the INTERNAL diagnostics action (client-inaccessible) with the
+# production deploy key. Raw request/response bodies are printed verbatim —
+# they contain no credentials (the Authorization value is redacted by the
+# action itself; token presence is reported as length only).
+#
+# Usage (GitHub UI → Actions → WhatsApp Live Test → Run workflow):
+#   - test_phone:   a real phone in international format, e.g. 2348012345678
+#   - send_test:    true = actually send; false = read-only gateway checks
+#   - template_*:   optional overrides; otherwise the firm's mapped
+#                   rent_reminder template (or first APPROVED template) is used
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_phone:
+        description: 'Real phone to receive the live test (international format, e.g. 2348012345678)'
+        required: true
+        default: ''
+      send_test:
+        description: 'Send the actual WhatsApp message (true) or read-only checks (false)'
+        required: false
+        default: 'true'
+      template_name:
+        description: 'Optional: exact Meta template name to test with'
+        required: false
+        default: ''
+      template_language:
+        description: 'Optional: template language code (default: en)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whatsapp-live-test
+  cancel-in-progress: false
+
+jobs:
+  live-test:
+    name: Live WhatsApp diagnostics (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify the diagnostics module is deployed (fail fast with guidance)
+        run: |
+          echo "Probing production for the diagnostics module…"
+          npx convex run internal.whatsappDiagnostics.dumpWhatsAppState --prod '{}' 2>&1 | tee probe.log || {
+            echo "::error::internal.whatsappDiagnostics is not deployed to production yet. Run the production-deploy workflow for latest main first, then re-run this workflow."
+            exit 1
+          }
+
+      - name: Run live diagnostics (env / token / sender / sandbox / templates / limits / test send)
+        run: |
+          ARGS=$(jq -n --arg phone "${{ inputs.test_phone }}" '{testPhone: $phone}')
+          if [ "${{ inputs.send_test }}" = "true" ]; then
+            ARGS=$(echo "$ARGS" | jq '. + {sendTest: true}')
+          fi
+          if [ -n "${{ inputs.template_name }}" ]; then
+            ARGS=$(echo "$ARGS" | jq --arg n "${{ inputs.template_name }}" '. + {templateName: $n}')
+          fi
+          if [ -n "${{ inputs.template_language }}" ]; then
+            ARGS=$(echo "$ARGS" | jq --arg l "${{ inputs.template_language }}" '. + {templateLanguage: $l}')
+          fi
+          echo "Invoking internal.whatsappDiagnostics.liveSendDiagnostic with:"
+          echo "$ARGS"
+          npx convex run internal.whatsappDiagnostics.liveSendDiagnostic --prod "$ARGS" 2>&1 | tee wa-diagnostic.log
+
+      - name: Verdict (send result must be visible in the job summary)
+        if: ${{ inputs.send_test == 'true' }}
+        run: |
+          {
+            echo "## WhatsApp Live Test — verdict"
+            echo '```'
+            grep -A2 '"success"' wa-diagnostic.log | head -5 || echo "success field not found in output"
+            echo '```'
+            echo "Full raw output: see the job log / wa-diagnostic.log artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@v4
+        with:
+          name: whatsapp-live-diagnostic
+          path: |
+            wa-diagnostic.log
+            probe.log
+          retention-days: 30

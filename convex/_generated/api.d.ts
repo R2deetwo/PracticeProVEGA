@@ -59,6 +59,7 @@ import type * as trustAccount from "../trustAccount.js";
 import type * as unitLookup from "../unitLookup.js";
 import type * as visitorManagement from "../visitorManagement.js";
 import type * as wallets from "../wallets.js";
+import type * as whatsappDiagnostics from "../whatsappDiagnostics.js";
 import type * as whatsappTemplates from "../whatsappTemplates.js";
 import type * as webFetch from "../webFetch.js";
 
@@ -120,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   unitLookup: typeof unitLookup;
   visitorManagement: typeof visitorManagement;
   wallets: typeof wallets;
+  whatsappDiagnostics: typeof whatsappDiagnostics;
   whatsappTemplates: typeof whatsappTemplates;
   webFetch: typeof webFetch;
 }>;
