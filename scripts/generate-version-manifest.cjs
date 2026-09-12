@@ -54,10 +54,18 @@ function run(cmd, fallback = '') {
 // automatically when deploying from a Git integration. For CLI deploys without
 // Git integration, we also accept an explicit COMMIT_SHA env var (passed via
 // `vercel --prod --env COMMIT_SHA=...` or set in the project env vars).
+//
+// PROMOTE FIX (2026-09-12) — COMMIT_SHA now has TOP priority: on a
+// workflow_dispatch promote, GITHUB_SHA is the sha of the ref at DISPATCH
+// time (main HEAD — which the APK bot may have bumped AFTER the pinned
+// commit), NOT the pinned commit the job checked out. An explicitly passed
+// COMMIT_SHA is always the deliberate choice, so it wins. Discovered when a
+// promote of a pinned sha served the bot's metadata-bump sha in version.json
+// and the Cloudflare mirror verify failed on the mismatch.
 const sha =
+  process.env.COMMIT_SHA ||
   process.env.GITHUB_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
-  process.env.COMMIT_SHA ||
   run('git rev-parse HEAD', '') ||
   `build-${Date.now()}`;  // Fallback: unique per-build timestamp so version check always works
 const branch =

@@ -362,7 +362,14 @@ jobs:
       # prebuild (generate-version-manifest.cjs) bakes the pinned commit's
       # git sha + branch into version.json, so the mirror reports exactly
       # the promoted release — the same file Vercel serves.
+      # PROMOTE FIX (2026-09-12): pass COMMIT_SHA explicitly. GITHUB_SHA on a
+      # workflow_dispatch is main HEAD at dispatch time (possibly the APK
+      # bot's metadata bump pushed AFTER the pinned commit), NOT the pinned
+      # commit this job checked out — without this, the mirror serves a
+      # version.json whose sha fails the verify step below.
       - name: Build web app
+        env:
+          COMMIT_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
         run: npm run build
 
       - name: Deploy to Cloudflare Workers
