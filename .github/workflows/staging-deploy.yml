@@ -174,8 +174,24 @@ jobs:
         if: steps.staging_cfg.outputs.configured == 'true'
         id: vercel_deploy
         run: |
-          DEPLOY_OUTPUT=$(vercel deploy --prebuilt --yes --token="$VERCEL_TOKEN" 2>&1 | tail -5)
-          echo "$DEPLOY_OUTPUT"
+          # Round 16: the Vercel free-tier daily cap
+          # (api-deployments-free-per-day) must not red-X pushes on heavy
+          # days — staging is a PREVIEW surface; the quality gates above
+          # already ran green. Detect the cap, warn, skip the deploy.
+          set +e
+          DEPLOY_OUTPUT=$(vercel deploy --prebuilt --yes --token="$VERCEL_TOKEN" 2>&1)
+          DEPLOY_EXIT=$?
+          set -e
+          echo "$DEPLOY_OUTPUT" | tail -8
+          if [ "$DEPLOY_EXIT" -ne 0 ]; then
+            if echo "$DEPLOY_OUTPUT" | grep -q "api-deployments-free-per-day"; then
+              echo "::warning::Vercel free-tier daily cap hit — staging preview deploy skipped (quality gates above are green; production is NOT affected by a skipped preview). The next push after the cap resets (≤24h) deploys staging again."
+              echo "rate_limited=1" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::Vercel preview deploy failed for a reason OTHER than the documented free-tier cap."
+            exit 1
+          fi
           DEPLOY_URL=$(echo "$DEPLOY_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.vercel\.app' | tail -1)
           if [ -z "$DEPLOY_URL" ]; then
             echo "::error::Could not parse the preview deployment URL from vercel output."
@@ -197,7 +213,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Verify the deployed build serves this commit
-        if: steps.staging_cfg.outputs.configured == 'true'
+        if: steps.staging_cfg.outputs.configured == 'true' && steps.vercel_deploy.outputs.rate_limited != '1'
         run: |
           DEPLOY_URL="${{ steps.vercel_deploy.outputs.deploy_url }}"
           ALIAS_URL="${{ steps.vercel_deploy.outputs.alias_url }}"
@@ -224,7 +240,7 @@ jobs:
           exit 1
 
       - name: Point SITE_URL at staging on the staging Convex deployment
-        if: steps.staging_cfg.outputs.configured == 'true'
+        if: steps.staging_cfg.outputs.configured == 'true' && steps.vercel_deploy.outputs.rate_limited != '1'
         continue-on-error: true
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
@@ -239,6 +255,17 @@ jobs:
       - name: Job summary
         if: steps.staging_cfg.outputs.configured == 'true'
         run: |
+          if [ "${{ steps.vercel_deploy.outputs.rate_limited }}" = "1" ]; then
+            {
+              echo "## ⚠️ Staging preview skipped — Vercel free-tier daily cap"
+              echo ""
+              echo "- Commit: \`${{ github.sha }}\`"
+              echo "- Quality gates (typecheck, tests, bundle wiring check) all PASSED."
+              echo "- Staging Convex backend deployed (Vercel preview deploy skipped)."
+              echo "- Staging will deploy again on the next push after the cap resets (≤24h)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           {
             echo "## ✅ Staging deployed"
             echo ""

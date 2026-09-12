@@ -15,6 +15,18 @@ name: Deploy to Production (promote)
 # token is a new token, not deleting a production site the user never asked
 # to remove.
 #
+# Round 16 (2026-09-12): the Vercel free tier caps deployments at 100/day
+# (code api-deployments-free-per-day). On heavy push days the cap is
+# exhausted BEFORE the promote runs, which failed the Vercel CLI step and
+# SKIPPED the Cloudflare mirror — a rate limit on a redundant step (Vercel's
+# Git integration serves production; the cap self-resets in 24h) blocked a
+# full production target for 4 days. Now the cap error is detected and
+# reported as a loud warning: the run continues, verification reports which
+# sha production actually serves, and the Cloudflare mirror deploys. Every
+# OTHER Vercel failure still fails the pipeline. The CLOUDFLARE_API_TOKEN
+# secret was rotated the same day (account-scoped — see the Round 15 note
+# on the fail-fast verify step).
+#
 # HOW TO USE:
 #   Actions tab → "Deploy to Production (promote)" → Run workflow
 #   → leave `sha` blank to promote the latest main commit.
@@ -185,9 +197,37 @@ jobs:
         env:
           COMMIT_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
         run: |
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel build --prod --token="$VERCEL_TOKEN"
-          vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+          # Round 16: the free-tier daily cap (api-deployments-free-per-day)
+          # is a documented non-blocker — Git auto-deploy serves production
+          # and the cap resets within 24h. Detect it, warn LOUDLY, continue.
+          # Any other failure is real and fails the job.
+          set +e
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN" > /tmp/vercel-deploy.log 2>&1
+          PULL_EXIT=$?
+          BUILD_EXIT=0
+          DEPLOY_EXIT=0
+          if [ "$PULL_EXIT" -eq 0 ]; then
+            vercel build --prod --token="$VERCEL_TOKEN" >> /tmp/vercel-deploy.log 2>&1
+            BUILD_EXIT=$?
+          fi
+          if [ "$PULL_EXIT" -eq 0 ] && [ "$BUILD_EXIT" -eq 0 ]; then
+            vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN" >> /tmp/vercel-deploy.log 2>&1
+            DEPLOY_EXIT=$?
+          fi
+          set -e
+          cat /tmp/vercel-deploy.log
+          if [ "$PULL_EXIT" -eq 0 ] && [ "$BUILD_EXIT" -eq 0 ] && [ "$DEPLOY_EXIT" -eq 0 ]; then
+            echo "✓ Vercel production deploy succeeded"
+            exit 0
+          fi
+          if grep -q "api-deployments-free-per-day" /tmp/vercel-deploy.log; then
+            echo "::warning::Vercel free-tier daily deployment cap hit (>100 deploys/24h) — the CLI deploy was SKIPPED, not failed."
+            echo "Documented non-blocker: Vercel's Git integration auto-deploys main, and the cap self-resets within 24h. The verify step below reports which sha production actually serves. Convex (deployed above) and the Cloudflare mirror (next job) are unaffected."
+            echo "VERCEL_RATE_LIMITED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "::error::Vercel deploy failed for a reason OTHER than the documented free-tier cap (see log above)."
+          exit 1
 
       - name: Verify production frontend is healthy and serves the promoted commit
         run: |
@@ -202,6 +242,14 @@ jobs:
             echo "  [${WAITED}s] status=$STATUS sha=$SHA (expecting ${PROMOTED_SHA:0:8})"
             if [ "$STATUS" = "healthy" ] && [ "$SHA" = "${PROMOTED_SHA:0:8}" ]; then
               echo "✅ Vercel production is healthy and serving the promoted commit (${PROMOTED_SHA:0:8})"
+              exit 0
+            fi
+            # Round 16 rate-limit path: our CLI deploy was skipped today.
+            # Healthy + any sha is acceptable WITH a loud warning — never
+            # silent. An unhealthy production still fails the run.
+            if [ "$STATUS" = "healthy" ] && [ "${VERCEL_RATE_LIMITED:-0}" = "1" ] \
+               && [ -n "$SHA" ] && [ "$SHA" != "unknown" ] && [ "$SHA" != "error" ]; then
+              echo "::warning::Vercel CLI deploy was rate-limited today; production is HEALTHY but still serving ${SHA} (promoted: ${PROMOTED_SHA:0:8}). The promoted frontend goes live via Git auto-deploy or the next promote once the daily cap resets (≤24h). The Convex backend and Cloudflare mirror ARE the promoted commit."
               exit 0
             fi
             sleep 10
@@ -225,11 +273,16 @@ jobs:
 
       - name: Job summary
         run: |
+          if [ "${VERCEL_RATE_LIMITED:-0}" = "1" ]; then
+            VERCEL_LINE="Frontend: https://practice-pro-vega.vercel.app — CLI deploy rate-limited today (healthy, serving a prior sha; Git auto-deploy catches up ≤24h)"
+          else
+            VERCEL_LINE="Frontend: https://practice-pro-vega.vercel.app (verified healthy, sha match)"
+          fi
           {
             echo "## 🚀 Production promoted"
             echo ""
             echo "- Promoted commit: \`${PROMOTED_SHA}\`"
-            echo "- Frontend: https://practice-pro-vega.vercel.app (verified healthy, sha match)"
+            echo "- $VERCEL_LINE"
             echo "- Backend: gregarious-malamute-537 (verified via live query probe)"
             echo "- Cloudflare: https://practice-pro-vega.prototypechigo.workers.dev (see deploy-cloudflare job)"
             echo ""
