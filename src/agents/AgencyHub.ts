@@ -71,18 +71,19 @@ export const getSystemInstruction = (
             return false;
         }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10);
 
-        const propertySummary = isAtriumMode && appState.properties ? `
-        - Total Properties: ${appState.properties.length}
-        - Occupied: ${appState.properties.filter((p: any) => p.status === 'Occupied').length}
-        - Vacant: ${appState.properties.filter((p: any) => p.status === 'Vacant').length}
-        ` : "";
+        // PORTFOLIO AWARENESS (2026-09-12): the dashboard used to carry only
+        // aggregate counts (Total/Occupied/Vacant) — the model had no roster to
+        // resolve “which property is the user referring to?”. The full roster
+        // (IDs, addresses, units, tenants, rent/SC + the ACTIVE property when a
+        // detail page is open) is injected by getAtriumSystemInstruction below,
+        // sourced from utils/portfolioContext.ts so the system prompt and the
+        // query_firm_data tool share ONE view of what is on record.
 
         dashboardContext = `
         CURRENT STATUS / DASHBOARD SUMMARY:
         - Pending Tasks: ${pendingTasks.length > 0 ? pendingTasks.map(t => `${t.title} (${t.priority || 'Medium'} Priority)`).join(', ') : 'None immediate'}
         - Upcoming Events/Deadlines: ${upcomingEvents.length > 0 ? upcomingEvents.map(e => e.title + ' (' + new Date(e.date).toLocaleDateString('en-GB') + ')').join(', ') : 'None'}
         ${!isAtriumMode ? `- Active Matters: ${activeMattersOverview.length > 0 ? activeMattersOverview.map(m => m.title).join(', ') : 'None'}` : ""}
-        ${propertySummary}
         - Recent Saved Notes & Endorsements: ${recentNotes.length > 0 ? recentNotes.map(n => {
             const m = appState.matters?.find(mat => mat.id === n.matterId);
             const p = appState.properties?.find(prop => prop.id === (n as any).propertyId);

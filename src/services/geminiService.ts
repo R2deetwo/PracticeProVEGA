@@ -168,15 +168,15 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "query_firm_data",
-        description: "Searches through the firm's data for specific items. Returns full details including IDs for navigation. Use this when the user asks 'Find notes about X', 'What are my tasks relating to Y', or 'Show me endorsements for Z'. IMPORTANT: When a user mentions a matter by NAME (e.g., 'Review Nigerian Sino Truck v Chinedu'), use this tool with category='matters' and the matter name as the query. The results include the matter ID — use that ID with navigate_to to open the matter detail page. NEVER ask the user for a matter ID — search for it by title instead. NEVER say 'I cannot display the details' — if you found the matter, navigate to it.",
+        description: "Searches through the firm's data for specific items. Returns full details including IDs for navigation. Use this when the user asks 'Find notes about X', 'What are my tasks relating to Y', or 'Show me endorsements for Z'. IMPORTANT: When a user mentions a matter by NAME (e.g., 'Review Nigerian Sino Truck v Chinedu'), use this tool with category='matters' and the matter name as the query. IMPORTANT: When a user mentions a property by address, area, unit, or tenant name (e.g., 'the Lekki flat', 'where does Adaeze live', 'the property on Admiralty Way'), use category='properties' — the results include the property ID, per-unit tenant and billing details, and can be passed to navigate_to with view='propertyDetail'. The results include the matter/property ID — use that ID with navigate_to to open the detail page. NEVER ask the user for a matter or property ID — search for it by name instead. NEVER say 'I cannot display the details' — if you found the item, navigate to it.",
         parameters: {
             type: Type.OBJECT,
             properties: {
-                query: { type: Type.STRING, description: "Keywords or matter title to search for." },
+                query: { type: Type.STRING, description: "Keywords, matter title, property address/area/unit, or tenant name to search for." },
                 category: {
                     type: Type.STRING,
-                    enum: ["all", "tasks", "notes", "matters", "documents", "endorsements"],
-                    description: "Optional category to narrow down the search. Use 'matters' when looking for a matter by title."
+                    enum: ["all", "tasks", "notes", "matters", "documents", "endorsements", "properties"],
+                    description: "Optional category to narrow down the search. Use 'matters' when looking for a matter by title. Use 'properties' when looking for a property by address, area, unit, or tenant."
                 }
             },
             required: ["query"]

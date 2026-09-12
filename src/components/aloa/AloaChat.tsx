@@ -38,6 +38,7 @@ import { setPendingDraft } from '../../utils/draftContentStore';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
+import { searchPortfolio, toPropertyToolResult } from '../../utils/portfolioContext';
 import { JurisdictionCard } from './JurisdictionCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
@@ -595,6 +596,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     const query = (args.query || '').toLowerCase();
                     const category = args.category || 'all';
                     const results: any = { tasks: [], notes: [], matters: [], documents: [] };
+
+                    // PORTFOLIO AWARENESS (2026-09-12): 'properties' was missing
+                    // entirely — the AI could not search the portfolio by
+                    // address/area/unit/tenant, which is why it never knew
+                    // which property the user was referring to. Sourced from
+                    // portfolioContext.ts so the system-prompt roster and this
+                    // tool share ONE view of what is on record.
+                    if (category === 'all' || category === 'properties') {
+                        results.properties = searchPortfolio(coreState.properties || [], args.query || '')
+                            .map(toPropertyToolResult);
+                    }
 
                     if (category === 'all' || category === 'tasks') {
                         results.tasks = (executionState.tasks || []).filter(t =>

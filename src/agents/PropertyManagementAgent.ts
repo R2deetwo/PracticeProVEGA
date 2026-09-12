@@ -1,5 +1,6 @@
 import { AppState, User, HistoryEntry } from '../types';
 import { renderAriaIdentity } from '../constants/loadPrompts';
+import { buildPortfolioRoster, buildActivePropertyContext } from '../utils/portfolioContext';
 
 export const getAtriumSystemInstruction = (
     appState: AppState,
@@ -7,13 +8,19 @@ export const getAtriumSystemInstruction = (
     currentHistoryEntry: HistoryEntry,
     currentTime?: string
 ): string => {
+    // PORTFOLIO AWARENESS (2026-09-12): the AI used to see only aggregate
+    // counts + the 5 most recent titles — it could not resolve "which
+    // property is the user referring to?" Now the full roster (IDs,
+    // addresses, units, tenants, rent/SC) plus the ACTIVE property (when a
+    // detail page is open) are injected, sourced from portfolioContext.ts
+    // so the system prompt and the query_firm_data tool share ONE view of
+    // what is on record.
     let propertySummary = "";
     if (appState.properties && appState.properties.length > 0) {
+        const roster = buildPortfolioRoster(appState.properties);
+        const active = buildActivePropertyContext(appState.properties, currentHistoryEntry);
         propertySummary = `
-    CURRENT PROPERTY PORTFOLIO SUMMARY:
-    Total Properties: ${appState.properties.length}
-    Occupied / Vacant Breakdown: ${appState.properties.filter((p: any) => p.status === 'Occupied').length} Occupied, ${appState.properties.filter((p: any) => p.status === 'Vacant').length} Vacant
-    Recent Properties: ${appState.properties.slice(0, 5).map(p => `- ${(p as any).title || p.address || 'Unnamed'} (Status: ${p.status || 'Unknown'})`).join('\n    ')}
+    ${active ? active + '\n' : ''}${roster}
         `;
     }
 
