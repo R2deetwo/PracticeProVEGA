@@ -748,6 +748,14 @@ export const logAutomation = mutation({
     sessionToken: v.optional(v.string()),
     unitId: v.optional(v.string()),
     tenantId: v.optional(v.string()),
+    // NOTE: receipt issuance flows (Quick Payment Drawer auto-issue +
+    // ReceiptModal manual issue) log as "payment_receipt". A caller once
+    // passed "receipt_issued" — NOT in this union — so Convex rejected the
+    // log write AFTER the receipt had already been delivered to the
+    // resident's portal, the receipt number was never persisted and the UI
+    // reported failure. Keep receipt payloads flowing through
+    // src/utils/receiptDelivery.ts (buildReceiptLogArgs), which the
+    // receiptDelivery.test.ts contract locks to this literal.
     messageType: v.union(
       v.literal("custom"),
       v.literal("rent_reminder"),

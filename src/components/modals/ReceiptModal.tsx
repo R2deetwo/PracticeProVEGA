@@ -28,6 +28,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { XIcon, DownloadIcon, CheckCircleIcon, SendIcon } from '../../constants';
 import { formatNairaFull, formatDateShort } from '../../utils/formatting';
+import { buildReceiptLogArgs, buildReceiptContent } from '../../utils/receiptDelivery';
 import { ServiceChargePeriod } from '../../types';
 
 interface ReceiptModalProps {
@@ -130,40 +131,56 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         setIsIssuing(true);
         try {
             const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
-            // Push receipt to resident's portal documents via sendPortalMessage.
-            // The message content serves as the receipt notification; the
-            // receipt itself is downloadable via the [Download PDF] button.
+            // 1. Push receipt to the resident's portal — the PRIMARY delivery.
+            //    (Persist + log happen only after this succeeds.)
             await sendPortalMessage({
                 firmId,
                 senderId: currentUser?.id || '',
                 senderName: currentUser?.name || 'Property Manager',
                 senderRole: 'admin',
                 subject: `Receipt ${receiptNumber} — ${chargeTypeLabel} (${billingPeriod})`,
-                content: `Your ${chargeTypeLabel} receipt for ${billingPeriod} has been issued.\n\nReceipt No: ${receiptNumber}\nAmount Paid: ${formatNairaFull(amountPaid)}\nPayment Date: ${formatDateShort(paymentDate)}\nSettlement: ${settlementMethod}\n\nPlease download the PDF from your portal or contact management if you need a copy.`,
+                content: buildReceiptContent({
+                    receiptNumber,
+                    chargeTypeLabel,
+                    billingPeriod,
+                    amountPaid,
+                    paymentDate,
+                    settlementMethod,
+                }),
                 unitId: unitId,
                 propertyId: propertyId,
             } as any);
 
-            // Write immutable event log to Activity & Tracking timeline
-            await logAutomation({
-                firmId,
-                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
-                unitId,
-                messageType: 'receipt_issued',
-                channel: 'portal',
-                recipient: tenantName,
-                messagePreview: `Receipt #${receiptNumber} issued to ${tenantName} for ${chargeTypeLabel} (${billingPeriod})`,
-                messageContent: `Receipt #${receiptNumber} issued to ${tenantName} for ${chargeTypeLabel} (${billingPeriod}). Amount: ${formatNairaFull(amountPaid)}. Settlement: ${settlementMethod}.`,
-                direction: 'outbound',
-                senderName: currentUser?.name || 'Property Manager',
-                status: 'sent',
-                triggeredBy: currentUser?.id,
-            } as any);
-
+            // 2. Persist the receipt number — immediately after successful
+            //    delivery, BEFORE the log write (a log failure must never
+            //    orphan a delivered receipt — the 2026-09-12 failure).
             setHasIssued(true);
             addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal.`, { type: 'success' });
             onIssued?.(receiptNumber);
+
+            // 3. Activity log — BEST-EFFORT. messageType is built by the
+            //    shared helper with the literal the validator actually
+            //    accepts ('receipt_issued' used to be rejected here).
+            try {
+                await logAutomation(buildReceiptLogArgs({
+                    receiptNumber,
+                    chargeTypeLabel,
+                    billingPeriod,
+                    tenantName,
+                    amountPaid,
+                    settlementMethod,
+                    firmId,
+                    unitId,
+                    senderName: currentUser?.name || 'Property Manager',
+                    senderId: currentUser?.id,
+                    userEmail: currentUser?.email,
+                    sessionToken: (bearerToken ?? undefined),
+                }) as any);
+            } catch (logErr: any) {
+                console.warn('Receipt activity-log write failed (receipt was delivered):', logErr);
+            }
         } catch (err: any) {
+            // Only portal-delivery failures land here now.
             addToast(err.message || 'Failed to issue receipt to portal.', { type: 'error' });
         } finally {
             setIsIssuing(false);
