@@ -11682,3 +11682,19 @@ Stage Summary:
 - User's immediate path: after deploy, open Settings → Communications → WhatsApp Templates → Sync from Meta → map rent_reminder (and others) to the real approved template → Send test. Then re-send the failed demand notice.
 - DEPLOY RECORD (Task 35, continued — user pasted a fresh PAT at 00:10): pushed 8e5c41ec → main; Tests ✓ (297/297 on CI), Staging ✓, APK build #951 ✓ (bot bumped v1.0.570, commits 98da76e7 + e2256de6); production promote run 34660719078: quality gate ✓, Vercel+Convex ✓ SUCCESS, Cloudflare mirror ✗ (standing expired CLOUDFLARE_API_TOKEN secret — unchanged until the user re-pastes a cfat_ token).
 - LIVE VERIFICATION: version.json sha e2256de6, built 2026-09-12T00:12:47Z, healthy, apkVersion 1.0.570/10570 (APK URL 200). Convex production answers whatsappTemplates:getWhatsAppTemplates with the requireFirmUser auth error — proving the new module is deployed AND the bearer-only guard is active. Production settings bundle (module-settings-DJZXfKbG.js) contains "Sync from Meta", "Message-type mappings", "Send test", "last synced". PAT stored local-only (remote URL + ~/.git-credentials); rotate eventually (pasted in chat again).
+
+---
+Task ID: 36 (deploy record)
+Agent: Super Z (main)
+Task: Production deploy record for e2b7adec
+
+Work Log:
+- Tests workflow: SUCCESS (306/306).
+- Staging deploy: SUCCESS.
+- Production promote (run 34662708212): quality gate SUCCESS; Vercel+Convex prod deploy + live verify SUCCESS; Cloudflare mirror FAILED at "Verify the Cloudflare API token is active" — the standing expired CLOUDFLARE_API_TOKEN (same as Task 35; needs a new token from the user, mirror is secondary).
+- APK build: SUCCESS.
+- LIVE-VERIFIED by direct probes: version.json sha=e2b7adec healthy (built 00:48:28Z); whatsappTemplates:getWhatsAppSettings deployed + auth guard active (line 536 of new file); sendWhatsApp accepts the new `fallback` arg on prod (probe reached the quota check at communications.ts:173 of the new handler).
+
+Stage Summary:
+- All three user complaints are fixed and live: sync is automatic (panel load + daily cron) with auto-mapping; the real PracticePro sending line is displayed from gateway-verified data; every send path retries with approved templates when outside the 24h window.
+- Outstanding: Cloudflare mirror token (user action).
