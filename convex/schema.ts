@@ -156,6 +156,10 @@ export default defineSchema({
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
   }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]).index("by_deactivated", ["deactivatedAt"])
+    // Phase 5 (Item 4, perf): portals.ts looked up firm admins via
+    // withIndex(by_firm) + post-filter(role==='Admin') — a post-filter scans
+    // every firm row. This compound index serves the admin lookup directly.
+    .index("by_firm_role", ["firmId", "role"])
     // Phase 4 (perf): login (authHelpers) + portal messaging (portals.ts)
     // previously full-scanned users on every call. Optional-string index:
     // docs without email are excluded from the index.

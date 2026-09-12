@@ -5,6 +5,20 @@ import { requireFirmUser } from "./authHelpers";
 import { requireStaffCaller, requirePortalCaller, resolveCaller, assertSameFirm } from "./callerAuth";
 import { withCronReporting } from "./observability";
 
+// ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
+// Every read in this module is BOUNDED. Unbounded `.collect()` calls were
+// replaced with calibrated `.take(n)` caps (same array return, capped read):
+//   • per-entity streams (messages/tickets/requests/invites/notices): 100–500
+//   • per-firm directories (contacts/properties/matters/ledger): 1000–2000
+//   • whole-table fallback scans (users/properties by tenant email — dual-
+//     field or nested-array matches no index can serve): 2000, commented
+// Post-filters that scanned firm rows were moved onto indexes:
+//   • users.by_firm_role (compound) — admin lookups
+//   • tasks.by_custom_id (existing) — client-visible id lookups
+// Caps preserve newest-first reads (order → take). No public function
+// signature changed. Sizes live far below these caps today; the caps turn
+// unbounded growth into a documented truncation instead of an OOM.
+
 // ─── Portal Access Token Generator ──────────────────────────────────────────
 // Generates a UUID v4 token for portal URLs.
 // Format: 8-4-4-4-12 hex chars (e.g. "2e71135d-003e-42dd-83ff-9f7988e7c6ac")
@@ -151,7 +165,7 @@ export const getMaintenanceTicketsByTenant = query({
       .query("maintenance_tickets")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .order("desc")
-      .collect();
+      .take(500);
 
     // Also try matching by email in case the tenantId stored is the user's email
     // This handles the case where the invite was created with the email as the tenant ID
@@ -166,7 +180,7 @@ export const getMaintenanceTicketsByTenant = query({
           .query("maintenance_tickets")
           .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
           .order("desc")
-          .collect();
+          .take(500);
         return byUserId;
       }
     }
@@ -182,7 +196,7 @@ export const getMaintenanceTicketsByFirm = query({
       .query("maintenance_tickets")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -333,11 +347,11 @@ export const completePortalTask = mutation({
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const now = new Date().toISOString();
 
-    // Fetch the task — use by_firm index + filter (tasks table has no by_custom_id index)
+    // Fetch the task — by_custom_id serves the client-visible id directly
+    // (was: by_firm + post-filter, which scans every firm task row).
     const allTasks = await ctx.db
       .query("tasks")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", auth.firmId))
-      .filter((q: any) => q.eq(q.field("id"), args.taskId))
+      .withIndex("by_custom_id", (q: any) => q.eq("id", args.taskId))
       .first();
 
     if (!allTasks) {
@@ -359,9 +373,8 @@ export const completePortalTask = mutation({
     // Notify the task creator + firm admins
     const firmAdmins = await ctx.db
       .query("users")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", auth.firmId))
-      .filter((q: any) => q.eq(q.field("role"), "Admin"))
-      .collect();
+      .withIndex("by_firm_role", (q: any) => q.eq("firmId", auth.firmId).eq("role", "Admin"))
+      .take(200);
 
     const notifyPromises = (firmAdmins.length > 0 ? firmAdmins : [auth.user]).map((admin: any) => {
       const notificationId = crypto.randomUUID();
@@ -657,7 +670,7 @@ export const getServiceRequestTypes = query({
       .withIndex("by_firm_portal", (q) =>
         q.eq("firmId", args.firmId).eq("portalType", args.portalType)
       )
-      .collect();
+      .take(500);
 
     // First-time fallback: return defaults so the portal works immediately.
     // We don't write here (queries must be pure) — the admin UI will persist
@@ -701,7 +714,7 @@ export const getAllServiceRequestTypes = query({
       .withIndex("by_firm_portal", (q) =>
         q.eq("firmId", args.firmId).eq("portalType", args.portalType)
       )
-      .collect();
+      .take(500);
 
     if (types.length === 0) {
       const defaults = args.portalType === "resident" ? DEFAULT_RESIDENT_TYPES : DEFAULT_CLIENT_TYPES;
@@ -792,7 +805,7 @@ export const createServiceRequestType = mutation({
       .withIndex("by_firm_portal", (q) =>
         q.eq("firmId", args.firmId).eq("portalType", args.portalType)
       )
-      .collect();
+      .take(500);
     const sortOrder = existing.length;
     const typeId = await ctx.db.insert("service_request_types", {
       firmId: args.firmId,
@@ -1002,7 +1015,7 @@ export const getClientServiceRequestsByClient = query({
       .query("client_service_requests")
       .withIndex("by_client", (q) => q.eq("clientId", args.clientId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -1013,7 +1026,7 @@ export const getClientServiceRequestsByFirm = query({
       .query("client_service_requests")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -1091,12 +1104,12 @@ export const getServiceRequestsByFirm = query({
         .query("maintenance_tickets")
         .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
         .order("desc")
-        .collect(),
+        .take(500),
       ctx.db
         .query("client_service_requests")
         .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
         .order("desc")
-        .collect(),
+        .take(500),
     ]);
 
     return {
@@ -1121,7 +1134,7 @@ export const getMaintenanceTicketsByProperty = query({
       .query("maintenance_tickets")
       .withIndex("by_property", (q) => q.eq("propertyId", args.propertyId))
       .order("desc")
-      .collect();
+      .take(500);
 
     const now = Date.now();
     const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -1577,7 +1590,7 @@ export const insertInviteRecord = internalMutation({
       const existingInvites = await ctx.db
         .query("portal_invites")
         .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-        .collect();
+        .take(100);
 
       for (const inv of existingInvites) {
         // Supersede ALL invites for this email, regardless of firm/portal type.
@@ -1655,7 +1668,7 @@ export const ensureContactForClientInvite = internalMutation({
     const allContacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     let contact = email
       ? allContacts.find((c: any) =>
@@ -1756,7 +1769,7 @@ export const linkPortalUserToContact = internalMutation({
     const allContacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     // Find by email first, then by name
     let contact = email
@@ -1965,7 +1978,7 @@ export const getPortalInvitesByFirm = query({
       .query("portal_invites")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .order("desc")
-      .collect();
+      .take(100);
   },
 });
 
@@ -2117,7 +2130,7 @@ export const deletePortalInviteAndCleanup = mutation({
       const otherInvites = await ctx.db
         .query("portal_invites")
         .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-        .collect();
+        .take(100);
 
       for (const inv of otherInvites) {
         if (String(inv._id) === String(args.inviteId)) continue; // Already deleted above
@@ -2139,8 +2152,9 @@ export const deletePortalInviteAndCleanup = mutation({
     // Fallback: try to find user by phone if email search failed (WhatsApp-only invites)
     if (!existingUser && args.inviteePhone) {
       const phone = args.inviteePhone.trim();
-      // Search all users for a matching phone number
-      const allUsers = await ctx.db.query("users").collect();
+      // Bounded whole-table scan (dual-field phone match — no index serves
+      // phone || phoneNumber); take() caps the read.
+      const allUsers = await ctx.db.query("users").take(2000);
       existingUser = allUsers.find((u: any) => {
         const userPhone = (u.phone || u.phoneNumber || "").trim();
         return userPhone === phone;
@@ -2153,7 +2167,8 @@ export const deletePortalInviteAndCleanup = mutation({
       if (relatedId) {
         // For resident invites, the relatedId might contain the unit/property reference
         // Try finding a user with this email stored in a different field
-        const allUsers = await ctx.db.query("users").collect();
+        // Bounded scan (email || tokenIdentifier dual-field match).
+        const allUsers = await ctx.db.query("users").take(2000);
         existingUser = allUsers.find((u: any) => {
           const uEmail = (u.email || u.tokenIdentifier || "").toLowerCase().trim();
           return uEmail && email && uEmail === email;
@@ -2193,7 +2208,7 @@ export const getInviteByToken = query({
     const results = await ctx.db
       .query("portal_invites")
       .withIndex("by_token", (q) => q.eq("token", args.token))
-      .collect();
+      .take(100);
     return results[0] || null;
   },
 });
@@ -2205,7 +2220,7 @@ export const acceptPortalInviteByToken = mutation({
     const results = await ctx.db
       .query("portal_invites")
       .withIndex("by_token", (q) => q.eq("token", args.token))
-      .collect();
+      .take(100);
     const invite = results[0];
     if (!invite) throw new Error("Invalid invitation link");
     if (invite.status === "accepted") return invite; // already accepted, that's fine
@@ -2230,7 +2245,7 @@ export const getPortalInvitesByEmail = query({
     return await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", args.email))
-      .collect();
+      .take(100);
   },
 });
 
@@ -2251,7 +2266,7 @@ export const verifyInviteToken = query({
     const results = await ctx.db
       .query("portal_invites")
       .withIndex("by_token", (q) => q.eq("token", args.token))
-      .collect();
+      .take(100);
     const invite = results[0] || null;
 
     if (!invite) {
@@ -2685,7 +2700,7 @@ export const selfHealClientContactLink = mutation({
     const allContacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     // Find by email first, then by name
     let contact = email
@@ -2791,7 +2806,7 @@ export const repairPortalUserFirmId = mutation({
       const firmProperties = await ctx.db
         .query("properties")
         .withIndex("by_firm", (q) => q.eq("firmId", user.firmId!))
-        .collect();
+        .take(2000);
 
       // Check if the user is linked to any property in this firm
       const userId = String(user._id);
@@ -2824,7 +2839,7 @@ export const repairPortalUserFirmId = mutation({
           const invites = await ctx.db
             .query("portal_invites")
             .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-            .collect();
+            .take(100);
           const activeInvite = invites.find(inv => inv.status !== 'revoked' && inv.firmId);
           const portalRole = activeInvite?.portalType === 'client' ? 'Client' : 'Tenant';
           await ctx.db.patch(user._id, {
@@ -2845,7 +2860,7 @@ export const repairPortalUserFirmId = mutation({
     const invites = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-      .collect();
+      .take(100);
 
     const sorted = invites
       .filter(inv => inv.firmId)
@@ -2876,7 +2891,7 @@ export const repairPortalUserFirmId = mutation({
     }
 
     // 3. Try to find firmId from property records
-    const allProperties = await ctx.db.query("properties").collect();
+    const allProperties = await ctx.db.query("properties").take(2000);
     for (const prop of allProperties) {
       const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
       if (String(propTenantId).toLowerCase() === email && prop.firmId) {
@@ -2942,7 +2957,7 @@ export const relinkPortalUserToProperty = mutation({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     let linked = false;
 
@@ -3010,7 +3025,7 @@ export const getScheduledMessagesByFirm = query({
       .query("scheduled_messages")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -3021,7 +3036,7 @@ export const getPendingScheduledMessages = query({
     const all = await ctx.db
       .query("scheduled_messages")
       .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "scheduled"))
-      .collect();
+      .take(500);
     return all.filter(m => m.scheduledFor > now).sort((a, b) => a.scheduledFor - b.scheduledFor);
   },
 });
@@ -3301,7 +3316,7 @@ export const getDueScheduledMessages = internalQuery({
     const dueMessages = await ctx.db
       .query("scheduled_messages")
       .withIndex("by_status", (q) => q.eq("status", "scheduled"))
-      .collect();
+      .take(500);
     return dueMessages.filter((m) => m.scheduledFor <= now);
   },
 });
@@ -3423,7 +3438,7 @@ export const getTenantInfo = query({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     // Also resolve the user's Convex _id from their email, in case the
     // property record stores the _id but we were passed the email as userId
@@ -3632,7 +3647,7 @@ export const resolveFirmFromInvite = query({
     const invites = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-      .collect();
+      .take(100);
 
     // Sort by creation time descending (most recent first)
     // Prefer active/accepted invites over revoked ones
@@ -3670,7 +3685,7 @@ export const resolveFirmFromInvite = query({
     // 3. Last-resort: search all properties for a unit/tenant matching this email
     //    This handles the edge case where invite records are missing but the
     //    tenant is linked to a property by email.
-    const allProperties = await ctx.db.query("properties").collect();
+    const allProperties = await ctx.db.query("properties").take(2000);
     for (const prop of allProperties) {
       // Check property-level tenant
       const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
@@ -3710,7 +3725,7 @@ export const getTenantLedger = query({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     // Collect all possible tenant IDs (direct ID + email + IDs from matching properties/units)
     const possibleTenantIds = new Set([args.tenantId]);
@@ -3754,7 +3769,7 @@ export const getTenantLedger = query({
     const allLedger = await ctx.db
       .query("ledger_entries")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     return allLedger.filter(e => e.tenantId && possibleTenantIds.has(e.tenantId));
   },
@@ -3773,7 +3788,7 @@ export const getTenantServiceCharges = query({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     // Collect all possible tenant IDs (direct ID + email + resolved user _id
     // + ids discovered on matching properties/units)
@@ -3802,7 +3817,7 @@ export const getTenantServiceCharges = query({
     const allCharges = await ctx.db
       .query("service_charges")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(1000);
 
     // SERVER-SIDE tenant filter — other tenants' charges never leave the server
     return allCharges.filter((sc: any) => sc.tenantId && possibleTenantIds.has(sc.tenantId));
@@ -3818,7 +3833,7 @@ export const getInboundMessagesByTenant = query({
       .query("atrium_inbound_messages")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .order("desc")
-      .collect();
+      .take(500);
 
     // Fallback: also try by user's Convex _id if the tenantId looks like an email
     if (messages.length === 0 && args.tenantId.includes('@')) {
@@ -3831,7 +3846,7 @@ export const getInboundMessagesByTenant = query({
           .query("atrium_inbound_messages")
           .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
           .order("desc")
-          .collect();
+          .take(500);
       }
     }
 
@@ -3848,7 +3863,7 @@ export const getClientDocuments = query({
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     const clientMatters = matters.filter(m => m.clientId === args.contactId);
     const matterIds = clientMatters.map(m => m._id);
@@ -3859,7 +3874,7 @@ export const getClientDocuments = query({
     const allDocs = await ctx.db
       .query("documents")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(1000);
 
     // Also build a map of matterId -> matter title for enrichment
     const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
@@ -3890,7 +3905,7 @@ export const getClientMessages = query({
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     const clientMatters = matters.filter(m => m.clientId === args.contactId);
     const matterIds = clientMatters.map(m => String(m._id));
@@ -3901,7 +3916,7 @@ export const getClientMessages = query({
     const allMessages = await ctx.db
       .query("clientMessages")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(500);
 
     // Build matter title map
     const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
@@ -3914,7 +3929,7 @@ export const getClientMessages = query({
     const firmUsers = await ctx.db
       .query("users")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(200);
     const authorNameMap = new Map<string, string>();
     for (const aid of authorIds) {
       const found = firmUsers.find(u => u.id === aid || u.tokenIdentifier === aid || String(u._id) === aid);
@@ -3950,7 +3965,7 @@ export const getClientActivity = query({
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     const clientMatters = matters.filter(m => m.clientId === args.contactId);
     const matterIds = clientMatters.map(m => String(m._id));
@@ -3961,7 +3976,7 @@ export const getClientActivity = query({
     const allActivity = await ctx.db
       .query("firmActivity")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(500);
 
     return allActivity
       .filter(a => a.matterId && matterIds.includes(a.matterId))
@@ -3993,7 +4008,7 @@ export const getClientInvoices = query({
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     const clientMatters = matters.filter(m => m.clientId === args.contactId);
     const matterIds = clientMatters.map(m => String(m._id));
@@ -4004,7 +4019,7 @@ export const getClientInvoices = query({
     const allInvoices = await ctx.db
       .query("invoices")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(1000);
 
     return allInvoices.filter(inv => {
       const matterField = inv.matter as any;
@@ -4031,7 +4046,7 @@ export const getClientContactByUserId = query({
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     // First try matching by userId field
     let contact = contacts.find(c => c.userId === args.userId) || null;
@@ -4085,7 +4100,7 @@ export const getClientMattersByUserId = query({
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     let clientContact = contacts.find(c => c.userId === args.userId);
 
@@ -4116,7 +4131,7 @@ export const getClientMattersByUserId = query({
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     return matters
       .filter(m => m.clientId === String(clientContact._id))
@@ -4485,7 +4500,7 @@ export const sendAdminReply = mutation({
     const participantMessages = await ctx.db
       .query("portal_messages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
-      .collect();
+      .take(500);
     for (const msg of participantMessages) {
       if (msg.senderRole !== "Admin" && !msg.isRead) {
         await ctx.db.patch(msg._id, { isRead: true, status: "read", updatedAt: now });
@@ -4506,7 +4521,7 @@ export const getPortalConversationsByFirm = query({
     const conversations = await ctx.db
       .query("portal_conversations")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(500);
     // Sort by lastMessageAt descending
     return conversations.sort((a: any, b: any) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
   },
@@ -4521,7 +4536,7 @@ export const getPortalConversationsByParticipant = query({
     return await ctx.db
       .query("portal_conversations")
       .withIndex("by_participant", (q: any) => q.eq("participantId", args.participantId))
-      .collect();
+      .take(500);
   },
 });
 
@@ -4535,7 +4550,7 @@ export const getConversationMessages = query({
     const messages = await ctx.db
       .query("portal_messages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
-      .collect();
+      .take(500);
     return messages.sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0));
   },
 });
@@ -4558,7 +4573,7 @@ export const markConversationReadByAdmin = mutation({
     const messages = await ctx.db
       .query("portal_messages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
-      .collect();
+      .take(500);
     for (const msg of messages) {
       if (msg.senderRole !== "Admin" && !msg.isRead) {
         await ctx.db.patch(msg._id, { isRead: true, status: "read", updatedAt: now });
@@ -4582,7 +4597,7 @@ export const markConversationReadByParticipant = mutation({
     const messages = await ctx.db
       .query("portal_messages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
-      .collect();
+      .take(500);
     for (const msg of messages) {
       if (msg.senderRole === "Admin" && !msg.isRead) {
         await ctx.db.patch(msg._id, { isRead: true, updatedAt: now });
@@ -4615,7 +4630,7 @@ export const markInboundMessagesReadByTenant = mutation({
     let messages = await ctx.db
       .query("atrium_inbound_messages")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
-      .collect();
+      .take(500);
 
     // Fallback: if tenantId looks like an email, resolve to the user's Convex _id
     // and look up by that. This mirrors getInboundMessagesByTenant's fallback logic.
@@ -4628,7 +4643,7 @@ export const markInboundMessagesReadByTenant = mutation({
         messages = await ctx.db
           .query("atrium_inbound_messages")
           .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
-          .collect();
+          .take(500);
       }
     }
 
@@ -4676,7 +4691,7 @@ export const softDeletePortalMessage = mutation({
           .query("portal_messages")
           .withIndex("by_conversation", (q: any) => q.eq("conversationId", message.conversationId))
           .order("desc")
-          .collect();
+          .take(500);
 
         const lastVisible = remainingMessages.find((m: any) => !m.isDeleted);
         if (lastVisible) {
@@ -4756,7 +4771,7 @@ export const adminDeletePortalMessage = mutation({
           .query("portal_messages")
           .withIndex("by_conversation", (q: any) => q.eq("conversationId", message.conversationId))
           .order("desc")
-          .collect();
+          .take(500);
 
         const lastVisible = remainingMessages.find((m: any) => !m.isDeleted);
         if (lastVisible) {
@@ -4815,7 +4830,7 @@ export const getPortalMessagesByFirm = query({
       .query("portal_messages")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -4830,7 +4845,7 @@ export const getPortalMessagesBySender = query({
       .query("portal_messages")
       .withIndex("by_sender", (q: any) => q.eq("senderId", args.senderId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -5006,7 +5021,7 @@ export const getPaymentProofsByFirm = query({
       .query("payment_proofs")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .order("desc")
-      .collect();
+      .take(200);
   },
 });
 
@@ -5020,7 +5035,7 @@ export const getPaymentProofsByTenant = query({
       .query("payment_proofs")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .order("desc")
-      .collect();
+      .take(200);
   },
 });
 
@@ -5075,7 +5090,7 @@ export const getTenantDocuments = query({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     const tenantPropertyIds: string[] = [];
     const tenantMatterIds: string[] = [];
@@ -5116,7 +5131,7 @@ export const getTenantDocuments = query({
     const allDocs = await ctx.db
       .query("documents")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(1000);
 
     // Filter documents that are explicitly shared with the tenant by the property manager
     // Only show documents where isSharedWithClient is true — this is the PM's explicit
@@ -5155,7 +5170,7 @@ export const getPortalUserConsentRecords = query({
     const invites = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-      .collect();
+      .take(100);
 
     return invites
       .filter(inv => inv.status === 'accepted' && inv.termsAcceptedAt)
@@ -5182,7 +5197,7 @@ export const getTenantLeaseDetails = query({
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(2000);
 
     const leases: any[] = [];
 
@@ -5242,7 +5257,7 @@ export const getTenantLeaseDetails = query({
     const tenancies = await ctx.db
       .query("tenancies")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
-      .collect();
+      .take(200);
 
     for (const tenancy of tenancies) {
       // Check if we already have this property in the leases
@@ -5288,7 +5303,7 @@ export const getClientConsentRecords = query({
     const invites = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-      .collect();
+      .take(100);
 
     return invites
       .filter(inv => inv.status === 'accepted')
@@ -5567,7 +5582,7 @@ export const getActiveNotices = query({
     const allNotices = await ctx.db
       .query("portal_notices")
       .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "active"))
-      .collect();
+      .take(200);
 
     // Filter: remove expired, and scope to property/unit if specified
     const filtered = allNotices.filter((n) => {
@@ -5613,7 +5628,7 @@ export const getAllNotices = query({
     // This is less efficient but more resilient — if an index is missing
     // or not yet deployed, the query still works. For a typical firm with
     // a few dozen notices, the performance difference is negligible.
-    const allNotices = await ctx.db.query("portal_notices").collect();
+    const allNotices = await ctx.db.query("portal_notices").take(500);
 
     // Filter by firmId
     let results = allNotices.filter((n: any) => n.firmId === args.firmId);
@@ -5762,7 +5777,7 @@ async function notifyFirmAdmins(
   const allUsers = await ctx.db
     .query("users")
     .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-    .collect();
+    .take(200);
   const adminRoles = new Set(["Admin", "Lawyer", "Paralegal", "ExternalCounsel"]);
   const admins = allUsers.filter((u: any) => adminRoles.has(u.role));
 
@@ -6141,7 +6156,7 @@ export const getFirmPortalInvitesInternal = internalQuery({
     return await ctx.db
       .query("portal_invites")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(100);
   },
 });
 
@@ -6155,7 +6170,7 @@ export const getFirmPortalInvites = query({
     return await ctx.db
       .query("portal_invites")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(100);
   },
 });
 
