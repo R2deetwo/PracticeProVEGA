@@ -156,6 +156,21 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // - Don't overwhelm users — 3-5 bullets is the sweet spot
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        id: 'v1.22.0',
+        version: '1.22.0',
+        date: '2026-09-12',
+        title: 'PDF Receipts, Partial Payments & A Professional Letterhead',
+        description: 'Receipt emails now carry the actual PDF document, every email links residents straight into their own portal, partial payments are supported (and optional), and your firm can finally sign correspondence with its legal form and your professional title.',
+        features: [
+            { icon: 'document', label: 'The Receipt IS the Attachment', text: 'Receipt emails now attach the official receipt as a PDF — the same document the resident sees in their portal. No more wondering whether the email itself is the receipt or just a pretty summary: the attachment is the record.', productScope: 'atrium' },
+            { icon: 'portal', label: 'Emails Link to THEIR Portal', text: 'Every receipt email and rent reminder carries an "Open your resident portal" button that lands the resident in their own portal — payment history, receipts, notices and requests in one place. The link even prefills their email at sign-in.', productScope: 'atrium' },
+            { icon: 'bolt', label: 'Partial Payments (Your Choice)', text: 'Residents can pay part of a charge: the amount banks onto the cycle, the pill reads "Partially Paid" with the remaining balance, and a top-up that completes it settles the cycle and issues the receipt. Prefer full-settlement only? Switch partials off in Automation → Billing Policies — that is also where the late-payment fine lives.', productScope: 'atrium' },
+            { icon: 'shield', label: 'The Fine for Default, Surfaced', text: 'Set a late-fee rate in Automation → Billing Policies and the payment drawer shows exactly what accrues per defaulting cycle — the counterweight for persistently late payers — collected at settlement.', productScope: 'atrium' },
+            { icon: 'pen', label: 'Your Legal Letterhead', text: 'Onboarding (and Firm Settings) now ask for your organization\'s legal form — Ltd, PLC, Cooperative, The Estate of X, and more — plus your own professional title: Property Manager, Facilities Manager, Property Administrator, or your own words. Both appear in the app header and on every receipt you issue.', productScope: 'atrium' },
+            { icon: 'theme', label: 'A Smarter Resident Directory', text: 'Editing a resident\'s email now keeps their contact record current instead of silently drifting stale, and the "linked to existing contacts" message only appears when something actually changed — no more cryptic toasts on every save.', productScope: 'atrium' },
+        ],
+    },
+    {
         id: 'v1.21.0',
         version: '1.21.0',
         date: '2026-09-12',
