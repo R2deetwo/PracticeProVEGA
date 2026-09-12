@@ -445,6 +445,57 @@ describe('summarizeTimeline — late is SETTLED, never "due" (the 3-late-payment
     });
 });
 
+
+// ─── Minimum vend — monthly grid ────────────────────────────────────────────
+describe('minimum vend — monthly grid like SC (the MV tracking report)', () => {
+    // User report 2026-09-12: "minimum vend is a monthly thing as well. So
+    // for some reason, it's not tracking the same way service charge
+    // tracks." Root cause: the units-tab view built the MV timeline at the
+    // RENT frequency (annual for most units) — one MV pill a YEAR — while
+    // onboarding built it monthly. The contract: MV is MONTHLY, period.
+
+    const mvMonthly = monthly(5000);
+
+    it('MV produces one pill per month regardless of annual rent (view parity)', () => {
+        const periods = buildTimeline({
+            leaseStart: '2026-01-01', cadence: mvMonthly, now: new Date('2026-03-15'),
+        });
+        expect(periods.length).toBe(3); // Jan, Feb, Mar — not one pill per year
+        expect(periods.every(p => p.amount === 5000)).toBe(true);
+        expect(periods.map(p => p.dueDate)).toEqual(['2026-01-01', '2026-02-01', '2026-03-01']);
+    });
+
+    it('legacy annual-step MV marks land on their own month of the monthly grid', () => {
+        const periods = buildTimeline({
+            leaseStart: '2026-01-01', cadence: mvMonthly,
+            stored: [
+                { index: 1, dueDate: '2026-01-01', status: 'paid', paidDate: '2026-01-10' },
+                { index: 2, dueDate: '2027-01-01', status: 'paid', paidDate: '2027-01-10' },
+            ],
+            now: new Date('2026-03-15'),
+        });
+        expect(periods.length).toBe(3);
+        expect(periods[0].status).toBe('paid');
+        expect(periods[1].status).toBe('overdue'); // Feb window closed, unpaid
+        expect(periods[2].status).toBe('due');     // Mar current cycle
+    });
+
+    it('MV summary speaks monthly: 2 late-settled + current cycle unpaid → 1 due only', () => {
+        const periods = buildTimeline({
+            leaseStart: '2026-01-01', cadence: mvMonthly,
+            stored: [
+                { index: 1, dueDate: '2026-01-01', status: 'late', paidDate: '2026-01-25', paidOnTime: false },
+                { index: 2, dueDate: '2026-02-01', status: 'late', paidDate: '2026-02-22', paidOnTime: false },
+            ],
+            now: new Date('2026-03-10'),
+        });
+        const s = summarizeTimeline(periods, new Date('2026-03-10'));
+        expect(s.overdueCount).toBe(0);  // the two LATE marks are settled
+        expect(s.dueCount).toBe(1);      // Mar (current cycle, in window)
+        expect(s.outstandingTotal).toBe(5000);
+    });
+});
+
 // ─── High-level convenience ─────────────────────────────────────────────────
 describe('serviceChargeTimeline — one call, whole picture', () => {
     it('production shape: annual rent, monthly rate defined → monthly pills at the rate', () => {

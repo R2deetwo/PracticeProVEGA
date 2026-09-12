@@ -47,7 +47,6 @@ import {
     summarizeTimeline,
     monthAbbr,
     monthLabel,
-    periodMonths,
     type TimelinePeriod,
     type TimelineSummary,
 } from '../../utils/leaseTimeline';
@@ -607,16 +606,20 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         [unit, rental],
     );
 
-    // MV: rent-frequency cadence (no separate MV frequency field exists).
+    // MV: minimum vend is a MONTHLY charge — same monthly grid as SC.
+    // It used to step at the RENT frequency (annual by default → ONE MV
+    // pill a year, 'not tracking the same way service charge tracks').
+    // Stored mvPeriods rows still merge by DUE DATE, so legacy annual-step
+    // marks land on their own month of the monthly grid.
     const mvPeriods = useMemo(() => buildTimeline({
         leaseStart, leaseEnd,
         cadence: {
-            months: periodMonths(rentFrequency),
+            months: 1,
             perPeriodAmount: mvAmount,
-            frequency: 'Annually', explicit: false,
+            frequency: 'Monthly', explicit: false,
         },
         stored: (rental as any)?.mvPeriods,
-    }), [leaseStart, leaseEnd, rentFrequency, mvAmount, (rental as any)?.mvPeriods]);
+    }), [leaseStart, leaseEnd, mvAmount, (rental as any)?.mvPeriods]);
     const mvSummary = useMemo(() => summarizeTimeline(mvPeriods), [mvPeriods]);
 
     // RENT: rent-frequency cadence, settled by recorded rentPaymentHistory rows.
@@ -868,7 +871,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
 
     const scHint = `Service Charge · ${formatNairaCompact(scCadence.perPeriodAmount)}/${scCadence.months === 1 ? 'mo' : `${scCadence.months}mo cycle`}${scCadence.explicit ? '' : ' (monthly tracking)'}`;
     const rentHint = `Rent · ${formatNairaCompact(Number(rental?.rentAmount) || 0)} per ${rentFrequency ? rentFrequency.toLowerCase() : 'period'}`;
-    const mvHint = `${mvLabel} · ${formatNairaCompact(mvAmount)} per ${rentFrequency ? rentFrequency.toLowerCase() : 'period'}`;
+    const mvHint = `${mvLabel} · ${formatNairaCompact(mvAmount)}/mo (monthly tracking)`;
 
     return (
         <div className="space-y-1.5">
