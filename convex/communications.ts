@@ -197,11 +197,24 @@ export const sendWhatsApp = action({
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      // Parse defensively: Chakra sometimes returns non-JSON bodies (HTML
+      // error pages, empty bodies on 502s). response.json() would THROW on
+      // those and land in the generic catch branch, hiding the HTTP status.
+      const rawBody = await response.text();
+      let data: any = null;
+      try { data = rawBody ? JSON.parse(rawBody) : null; } catch { data = null; }
 
-      if (!response.ok) {
-        console.error("[WhatsApp] Chakra API Error:", JSON.stringify(data));
-        return { success: false, simulated: false, error: explainWhatsAppError(extractWaError(data)) || `Chakra API error (HTTP ${response.status})` };
+      if (!response.ok || !data) {
+        const parsed = extractWaError(data);
+        const errText = parsed
+          ?? (rawBody && rawBody.length > 0 ? `${rawBody.slice(0, 300)}` : null);
+        console.error("[WhatsApp] Chakra API Error:", response.status, rawBody.slice(0, 1000));
+        return {
+          success: false,
+          simulated: false,
+          error: explainWhatsAppError(parsed) ??
+            `Chakra/WhatsApp gateway error (HTTP ${response.status})${errText ? `: ${errText}` : " — empty response body"}`,
+        };
       }
 
       // STRICT success verification (Messages false-"sent" bug): a 200 from
@@ -212,12 +225,13 @@ export const sendWhatsApp = action({
       // happened.
       const metaMessageId = data?.messages?.[0]?.id;
       if (!metaMessageId) {
-        const errText = extractWaError(data);
-        console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", JSON.stringify(data));
+        const parsed = extractWaError(data);
+        console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", rawBody.slice(0, 1000));
         return {
           success: false,
           simulated: false,
-          error: explainWhatsAppError(errText) || "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
+          error: (parsed && explainWhatsAppError(parsed)) ||
+            "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
         };
       }
 
@@ -254,15 +268,37 @@ export function normalisePhoneForMeta(raw: string): string | null {
   return null;
 }
 
-/** Extract a human-readable error from a Chakra/Meta error body (multiple shapes). */
-function extractWaError(data: any): string | null {
+/**
+ * Extract a human-readable error from a Chakra/Meta error body.
+ *
+ * SHAPES (learned the hard way — "Unknown WhatsApp gateway error" bug):
+ * 1. Chakra wrapper: { _data, _meta, _errors: ["..."] }  ← THE one we missed
+ * 2. Meta Graph:      { error: { message, type, code, error_data: { message } } }
+ * 3. Meta Graph alt:  { error: "string" } or { message: "..." }
+ * 4. Meta errors array: { errors: [{ message, code }] }
+ * 5. Anything else:   null (caller falls back to HTTP status + raw body text)
+ */
+export function extractWaError(data: any): string | null {
   if (!data) return null;
   if (typeof data.error === "string") return data.error;
   if (data.error?.message) {
     const code = data.error?.code ? ` (code ${data.error.code})` : "";
-    return `${data.error.message}${code}`;
+    const detail = data.error?.error_data?.details || data.error?.error_data?.message;
+    const sub = detail ? ` — ${detail}` : "";
+    return `${data.error.message}${code}${sub}`;
+  }
+  // Chakra's documented envelope: errors ride in _errors (array of strings)
+  if (Array.isArray(data._errors) && data._errors.length > 0) {
+    return data._errors.map((e: any) => (typeof e === "string" ? e : e?.message || JSON.stringify(e))).join("; ");
+  }
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    return data.errors.map((e: any) => {
+      const code = e?.code ? ` (code ${e.code})` : "";
+      return `${e?.message || JSON.stringify(e)}${code}`;
+    }).join("; ");
   }
   if (data.message) return String(data.message);
+  if (typeof data._data === "string" && data._data) return data._data;
   return null;
 }
 
@@ -291,16 +327,45 @@ export function isWhatsAppWindowError(error: string | null | undefined): boolean
 }
 
 /**
- * Append an actionable hint to window-class WhatsApp errors so users see
- * WHY the send failed and what to do, not just the provider's raw text.
+ * Does this provider error mean "the name+language template pair wasn't
+ * found on the WhatsApp Business account"? Meta looks up templates by
+ * NAME + LOCALE — a template registered under "en_US" (or "en_GB") is
+ * invisible to a send that requests "en". Server-side twin of
+ * deliveryErrors.ts isTemplateNotFoundError (kept in sync deliberately:
+ * the Convex bundle can't import client modules).
+ */
+export function isTemplateNotFoundError(error: string | null | undefined): boolean {
+  if (!error) return false;
+  const e = error.toLowerCase();
+  return (
+    e.includes("132000") ||
+    e.includes("132001") ||
+    e.includes("132002") ||
+    (/template/.test(e) && /does not exist|not found|not exist|unavailable|no template/.test(e)) ||
+    (/language/.test(e) && /does not match|not match|mismatch/.test(e))
+  );
+}
+
+/**
+ * Append an actionable hint to WhatsApp send errors so users see WHY the
+ * send failed and what to do, not just the provider's raw text.
  */
 export function explainWhatsAppError(error: string | null | undefined): string {
   if (!error) return "Unknown WhatsApp gateway error.";
   if (isWhatsAppWindowError(error)) {
-    return `${error} — WhatsApp only delivers free-form messages within 24 hours of the resident's last reply. Business-initiated messages need an approved template (e.g. your Rent Reminder template). The resident can also message you first to open the 24-hour window.`;
+    return `${error} — WhatsApp only delivers free-form messages within 24 hours of the resident's last reply. Business-initiated messages need an approved template (Settings → WhatsApp Templates). The resident can also message you first to open the 24-hour window.`;
   }
-  if (/template.*not.*(exist|found)|does not exist/i.test(error)) {
-    return `${error} — this WhatsApp template isn't registered/approved on your account yet. Register it in your WhatsApp Business Manager, or send as a normal reply within 24 hours of the resident's last message.`;
+  if (isTemplateNotFoundError(error)) {
+    return `${error} — the template name or language doesn't match what's registered on this WhatsApp account. Open Settings → WhatsApp Templates and press "Sync from Meta" to see your exact approved template names, languages and variable counts, then map them to your message types.`;
+  }
+  if (/param.*mismatch|incorrect.*param|number of parameters|placeholders|1320[0-9][0-9]/i.test(error)) {
+    return `${error} — the template's variables don't match what was sent (count/order). Check the variable order in Settings → WhatsApp Templates.`;
+  }
+  if (/\(code 190\)|access token|unauthorized|invalid.*token/i.test(error)) {
+    return `${error} — the Chakra access token is missing, expired or revoked. Re-issue it in Chakra Chat (WhatsApp setup) and update CHAKRA_ACCESS_TOKEN in the Convex dashboard.`;
+  }
+  if (/\(code 1310(4[0-9]|5[0-9])\)|recipient|phone number.*not.*valid/i.test(error)) {
+    return `${error} — WhatsApp rejected the recipient's number (not a WhatsApp user, or invalid format). Check the resident's phone in their record.`;
   }
   return error;
 }

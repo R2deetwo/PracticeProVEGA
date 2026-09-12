@@ -8,6 +8,7 @@ import { AutomationMessageType } from '../../types';
 import { useTerminology } from '../../contexts/ProductContext';
 import { ComposeModal } from './ComposeModal';
 import { buildMessage } from '../../utils/messageTemplates';
+import { resolveTemplateFor, buildVarsForOrder, FirmTemplateMapping, isTemplateNotFoundError } from '../../utils/deliveryErrors';
 import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText } from 'lucide-react';
 
@@ -55,6 +56,17 @@ const AutomationCenter: React.FC = () => {
   const logs = (liveLogs ?? (coreState as any).automationLogs ?? []) as any[];
   const logAuto = useMutation(api.sentry.logAutomation);
   const { addToast, navigateTo } = useUI();
+
+  // ── Firm's CONFIGURED WhatsApp template mappings (Settings →
+  // Communications → WhatsApp Templates). The bulk rent reminder uses the
+  // firm's REAL Meta template — exact name + language + variable order —
+  // instead of the old hardcoded "atrium_rent_reminder" guess.
+  const templateMappings = useQuery(
+    api.whatsappTemplates.getWhatsAppTemplateMappings,
+    currentUser?.email && bearerToken
+      ? { sessionToken: bearerToken, userEmail: currentUser.email }
+      : 'skip'
+  ) as FirmTemplateMapping[] | undefined;
 
   const [showCompose, setShowCompose] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -106,33 +118,52 @@ const AutomationCenter: React.FC = () => {
   const handleBulkRentReminder = async () => {
     const props = (coreState.properties || []).filter(p => p.rentalDetails?.tenantPhone);
     if (props.length === 0) { addToast(`No occupied ${terminology.matter.toLowerCase() === 'property' ? 'properties' : terminology.matter.toLowerCase() + 's'} with phone numbers found`, { type: 'error' }); return; }
-    addToast(`Sending ${Math.min(props.length, 20)} reminder(s)…`, { type: 'info' });
+    // Resolve the firm's CONFIGURED rent-reminder template (name, language
+    // chain, variable order) — falls back to the legacy default only when
+    // nothing is configured.
+    const tpl = resolveTemplateFor('rent_reminder', templateMappings);
+    if (!tpl) {
+      addToast('No WhatsApp template mapped for rent reminders yet — open Settings → Communications → WhatsApp Templates to sync and map your approved template.', { type: 'error' });
+      return;
+    }
+    addToast(`Sending ${Math.min(props.length, 20)} reminder(s) via template "${tpl.name}"…`, { type: 'info' });
     let sent = 0, failed = 0;
     for (const p of props.slice(0, 20)) {
       const phone = p.rentalDetails!.tenantPhone!;
       const tenantName = p.rentalDetails?.tenantName || 'Resident';
-      const rentAmount = (p.rentalDetails?.rentAmount || 0).toLocaleString('en-NG');
+      const rentAmount = p.rentalDetails?.rentAmount || 0;
       const address = p.address;
-      const plainMsg = buildMessage('rent_reminder', address, tenantName, p.rentalDetails?.rentAmount, undefined, coreState.firmDetails?.automationSettings?.automationTemplates);
+      const plainMsg = buildMessage('rent_reminder', address, tenantName, rentAmount, undefined, coreState.firmDetails?.automationSettings?.automationTemplates);
       try {
-        const result = await convex.action(api.communications.sendWhatsApp, {
-          to: phone,
-          messageText: plainMsg,
-          templateName: 'atrium_rent_reminder',
-          templateVars: [tenantName, rentAmount, address],
-          firmId,
-        });
+        // Template send across the language chain: the configured language
+        // first; retry under en/en_US/en_GB only when Meta reports the
+        // name+language pair as not found (Meta matches both exactly).
+        const tplVars = tpl.buildVars({ tenantName, amount: rentAmount, address, firmName: coreState.firmDetails?.name });
+        let result: { success: boolean; simulated?: boolean; error?: string; messageId?: string } | null = null;
+        for (const locale of tpl.languages) {
+          const attempt = await convex.action(api.communications.sendWhatsApp, {
+            to: phone,
+            messageText: plainMsg,
+            templateName: tpl.name,
+            templateVars: tplVars,
+            templateLanguage: locale,
+            firmId,
+          });
+          if (attempt.success || !isTemplateNotFoundError(attempt.error)) { result = attempt; break; }
+          result = attempt; // keep the (more actionable) template error
+        }
+        const finalResult = result!;
         // MESSAGES FIX: an honest status — a simulated result means the
         // provider is not configured and NOTHING was delivered; "sent" is
         // only claimed when the gateway accepted the message.
-        const status = result.success && !result.simulated ? 'sent' : result.simulated ? 'simulated' : 'failed';
+        const status = finalResult.success && !finalResult.simulated ? 'sent' : finalResult.simulated ? 'simulated' : 'failed';
         if (status === 'sent') sent++; else failed++;
         // The send RESULT drives the counters; the log write is isolated so
         // a logging failure can never flip a delivered message to "failed"
         // (previously the errorMessage arg was rejected by Convex validation
         // and this catch counted real sends as failures).
         try {
-          await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : result.error, triggeredBy: currentUser?.id });
+          await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : finalResult.error, triggeredBy: currentUser?.id });
         } catch (logErr) {
           console.error('[BulkReminder] automation log write failed (send already completed):', logErr);
         }

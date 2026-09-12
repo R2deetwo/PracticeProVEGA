@@ -1658,6 +1658,57 @@ export default defineSchema({
     .index("by_firm_property", ["firmId", "propertyId"])
     .index("by_firm_pinned", ["firmId", "isPinned"]),
 
+  // ─── WhatsApp Template Registry (synced from Meta) ───────────────────
+  // The firm's ACTUAL approved templates as reported by Meta through the
+  // Chakra pass-through (GET /{wabaId}/message_templates), plus the
+  // per-message-type mapping the app uses when a send needs a template.
+  // This exists because hardcoded template guesses ("atrium_rent_reminder")
+  // never match what the firm actually registered — the exact root cause
+  // of the 2026-09-12 "template approved but send failed" reports.
+  whatsapp_templates: defineTable({
+    firmId: v.string(),
+    // Snapshot of Meta's answer (one row per template+language), replaced
+    // wholesale on every sync.
+    name: v.string(),                        // Meta template name (exact, case-sensitive)
+    language: v.string(),                    // "en" | "en_US" | ... as registered
+    status: v.string(),                      // APPROVED | PENDING | REJECTED
+    category: v.optional(v.string()),        // UTILITY | MARKETING | AUTHENTICATION
+    bodyText: v.optional(v.string()),        // BODY component text with {{1}} placeholders
+    variableCount: v.optional(v.number()),   // number of {{n}} placeholders in BODY
+    metaId: v.optional(v.string()),          // Meta template id
+    syncedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_name", ["firmId", "name"]),
+
+  // The mapping: which of the firm's real templates the app should use for
+  // each AutomationMessageType, in which language, and in which variable
+  // order. varOrder entries name the app-side field whose value fills the
+  // template's nth placeholder.
+  whatsapp_template_mappings: defineTable({
+    firmId: v.string(),
+    messageType: v.string(),                 // AutomationMessageType
+    templateName: v.string(),                // must match a synced/registered template name
+    templateLanguage: v.string(),            // "en" | "en_US" | ...
+    varOrder: v.optional(v.array(            // app field per {{n}} slot
+      v.union(
+        v.literal("tenantName"),
+        v.literal("amount"),
+        v.literal("totalPayable"),
+        v.literal("serviceCharge"),
+        v.literal("address"),
+        v.literal("firmName"),
+        v.literal("dueDate"),
+        v.literal("messageText")
+      )
+    )),
+    updatedBy: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_type", ["firmId", "messageType"]),
+
   // ─── Notification Preferences ─────────────────────────────────────────
   // Per-firm email notification toggles. Each key maps to a notification
   // type; the value controls whether that type triggers an email to the

@@ -17,6 +17,68 @@
 
 import { AutomationMessageType } from '../types';
 
+/** App-side fields a template variable slot can be filled from. */
+export type TemplateVarField =
+  | 'tenantName' | 'amount' | 'totalPayable' | 'serviceCharge'
+  | 'address' | 'firmName' | 'dueDate' | 'messageText';
+
+/**
+ * A firm-configured template mapping (whatsapp_template_mappings row).
+ * When present it REPLACES the hardcoded legacy guess below — the firm's
+ * real Meta template name, its registered language, and which app field
+ * fills each {{n}} slot, in order.
+ */
+export interface FirmTemplateMapping {
+  messageType: string;
+  templateName: string;
+  templateLanguage: string;
+  varOrder?: TemplateVarField[] | string[] | null;
+}
+
+/**
+ * Per-recipient data available when composing a WhatsApp template retry.
+ * Mirrors the fields ComposeModal already resolves for each recipient.
+ */
+export interface TemplateRecipientData {
+  tenantName?: string;
+  amount?: number;        // rent amount (₦)
+  address?: string;       // unit / property address
+  totalPayable?: number;
+  serviceCharge?: number;
+  firmName?: string;
+  dueDate?: string;
+  messageText?: string;
+}
+
+/** Build the ordered variable values from a varOrder + recipient data. */
+export function buildVarsForOrder(
+  order: readonly (TemplateVarField | string)[] | null | undefined,
+  r: TemplateRecipientData
+): string[] {
+  if (!order || order.length === 0) {
+    // Legacy default: [name, amount, address]
+    return [
+      r.tenantName || 'Resident',
+      (r.amount || 0).toLocaleString('en-NG'),
+      r.address || 'your unit',
+    ];
+  }
+  const naira = (n?: number) => `₦${(n || 0).toLocaleString('en-NG')}`;
+  return order.map((f) => {
+    switch (f) {
+      case 'tenantName': return r.tenantName || 'Resident';
+      case 'amount': return (r.amount || 0).toLocaleString('en-NG');
+      case 'totalPayable': return r.totalPayable != null ? r.totalPayable.toLocaleString('en-NG') : naira(r.amount);
+      case 'serviceCharge': return (r.serviceCharge || 0).toLocaleString('en-NG');
+      case 'address': return r.address || 'your unit';
+      case 'firmName': return r.firmName || 'Management';
+      case 'dueDate': return r.dueDate || 'the due date';
+      case 'messageText': return r.messageText || '';
+      default: return String(f);
+    }
+  });
+}
+
 /** Does this provider error mean "outside the 24h window — template required"? */
 export function isWhatsAppWindowError(error: string | null | undefined): boolean {
   if (!error) return false;
@@ -63,22 +125,14 @@ export function isTemplateNotFoundError(error: string | null | undefined): boole
 }
 
 /**
- * Per-recipient data available when composing a WhatsApp template retry.
- * Mirrors the fields ComposeModal already resolves for each recipient.
- */
-export interface TemplateRecipientData {
-  tenantName?: string;
-  amount?: number;        // rent amount (₦)
-  address?: string;       // unit / property address
-}
-
-/**
- * Registered Meta templates usable as an automatic fallback when a
- * free-form send hits the 24h window error. The names MUST match the
- * templates registered on the firm's WhatsApp Business account —
- * `atrium_rent_reminder` is the same template AutomationCenter's bulk
- * rent reminders already use, with variables in the order
- * [tenant name, rent amount, address].
+ * LEGACY fallback mapping — used ONLY when the firm hasn't configured a
+ * real mapping in Settings → Communications → WhatsApp Templates.
+ *
+ * 2026-09-12: "my template is not the same as what you have in the app" —
+ * hardcoded guesses like this NEVER match what the firm actually
+ * registered in Meta Business Manager (name, language, variable order).
+ * The configured mapping (FirmTemplateMapping) always wins; this object
+ * remains only as the last-resort default for rent_reminder.
  */
 export const WHATSAPP_TEMPLATES: Partial<Record<AutomationMessageType, {
   name: string;
@@ -86,49 +140,76 @@ export const WHATSAPP_TEMPLATES: Partial<Record<AutomationMessageType, {
 }>> = {
   rent_reminder: {
     name: 'atrium_rent_reminder',
-    buildVars: (r) => [
-      r.tenantName || 'Resident',
-      (r.amount || 0).toLocaleString('en-NG'),
-      r.address || 'your unit',
-    ],
+    buildVars: (r) => buildVarsForOrder(null, r),
   },
 };
 
 /**
+ * Resolve the template definition to use for a message type:
+ * 1. the firm's CONFIGURED mapping (Settings → WhatsApp Templates) —
+ *    exact name/language the firm registered in Meta, with the variable
+ *    order they chose;
+ * 2. otherwise the legacy hardcoded default (rent_reminder only);
+ * 3. otherwise null (no template retry for this message type).
+ */
+export function resolveTemplateFor(
+  messageType: AutomationMessageType,
+  firmMappings?: FirmTemplateMapping[] | null
+): { name: string; languages: string[]; buildVars: (r: TemplateRecipientData) => string[] } | null {
+  const configured = firmMappings?.find((m) => m.messageType === messageType);
+  if (configured?.templateName) {
+    // Language chain: the configured language first, then the common
+    // English fallbacks (covers Meta's en/en_US/en_US lookup strictness).
+    const langs = [configured.templateLanguage || 'en', 'en', 'en_US', 'en_GB']
+      .filter((l, i, a) => a.indexOf(l) === i);
+    return {
+      name: configured.templateName,
+      languages: langs,
+      buildVars: (r) => buildVarsForOrder(configured.varOrder, r),
+    };
+  }
+  const legacy = WHATSAPP_TEMPLATES[messageType];
+  if (legacy) {
+    return {
+      name: legacy.name,
+      languages: ['en', 'en_US', 'en_GB'],
+      buildVars: legacy.buildVars,
+    };
+  }
+  return null;
+}
+
+/**
  * One free-form WhatsApp send, with automatic template retry when the
  * free-form attempt fails with a window-class error AND a template is
- * registered for the message type. Returns the LAST provider result —
+ * available for the message type. Returns the LAST provider result —
  * either the free-form success, the template retry's result, or the
  * original failure (with its reason) when no retry was possible.
  *
  * TEMPLATE LOCALE CHAIN (2026-09-11, "my template is approved but the
- * message failed"): Meta matches templates by name + language. The
- * first template attempt uses the default "en" locale; when Meta
- * reports the name+language pair as not found (registered under
- * en_US/en_GB instead), we retry the SAME template under the other
- * common English locales before giving up. This covers the most common
- * approval/send mismatch without the firm needing to know the exact
- * locale their template was registered under.
+ * message failed"): Meta matches templates by name + language. The first
+ * template attempt uses the CONFIGURED language (default "en"); when Meta
+ * reports the name+language pair as not found, we retry the SAME template
+ * under the other common English locales before giving up.
  */
-const TEMPLATE_LANGUAGE_CHAIN = ['en', 'en_US', 'en_GB'] as const;
-
 export async function sendWhatsAppWithTemplateFallback(
   send: (args: { templateName?: string; templateVars?: string[]; templateLanguage?: string }) => Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }>,
   opts: {
     messageType: AutomationMessageType;
     recipient: TemplateRecipientData;
+    firmMappings?: FirmTemplateMapping[] | null;
   }
 ): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }> {
   const first = await send({});
   if (first.success) return first;
 
-  const template = WHATSAPP_TEMPLATES[opts.messageType];
+  const template = resolveTemplateFor(opts.messageType, opts.firmMappings);
   if (template && isWhatsAppWindowError(first.error)) {
-    // Try the template under each common English locale in order. Most
-    // sends succeed on the first ("en"); the retries only fire when Meta
-    // says the name+locale pair wasn't found (locale mismatch).
+    // Try the template under each candidate locale in order. Most sends
+    // succeed on the first (the configured language); the retries only
+    // fire when Meta says the name+locale pair wasn't found.
     let last: { success: boolean; simulated?: boolean; error?: string; messageId?: string } | null = null;
-    for (const locale of TEMPLATE_LANGUAGE_CHAIN) {
+    for (const locale of template.languages) {
       const attempt = await send({
         templateName: template.name,
         templateVars: template.buildVars(opts.recipient),

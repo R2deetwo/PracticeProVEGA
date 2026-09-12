@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
-import { useMutation } from 'convex/react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMutation, useConvex, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { translateError } from '../../utils/errorTranslator';
+import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
+import { FirmTemplateMapping, TemplateVarField } from '../../utils/deliveryErrors';
+import { RefreshCw, Send, Trash2 } from 'lucide-react';
 
 const WhatsAppIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -11,14 +15,77 @@ const WhatsAppIcon = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+// Message types that make sense to map to a WhatsApp template. `custom` is
+// excluded — a custom message has no stable content to map variables to.
+const MAPPABLE_TYPES = [
+  'rent_reminder', 'late_notice', 'payment_receipt', 'service_charge_alert',
+  'access_restriction', 'penalty_notice', 'lease_renewal', 'welcome_note',
+  'promotion', 'vendor_update', 'general_announcement', 'maintenance_update',
+] as const;
+
+const VAR_FIELD_LABELS: Record<string, string> = {
+  tenantName: 'Tenant name',
+  amount: 'Rent amount',
+  totalPayable: 'Total payable',
+  serviceCharge: 'Service charge',
+  address: 'Unit / address',
+  firmName: 'Firm name',
+  dueDate: 'Due date',
+  messageText: 'Message text',
+};
+
+const LANGUAGES = ['en', 'en_US', 'en_GB', 'fr', 'pt_BR', 'es', 'hi', 'id', 'pt'];
+
+interface TemplateDoc {
+  _id: string;
+  name: string;
+  language: string;
+  status: string;
+  category?: string;
+  bodyText?: string;
+  variableCount?: number;
+  metaId?: string;
+  syncedAt: number;
+}
+
 const IntegrationSettings: React.FC = () => {
   const { coreState } = useCoreState();
   const { addToast } = useUI();
+  const { currentUser, bearerToken } = useAuth();
+  const convex = useConvex();
   const updateFirm = useMutation(api.myFunctions.updateFirmSettings);
 
   const config = coreState.firmDetails?.automationSettings?.chakra || { isActive: false };
   const [editingConfig, setEditingConfig] = useState(config);
   const [isSaving, setIsSaving] = useState(false);
+
+  const authArgs = currentUser?.email && bearerToken
+    ? { sessionToken: bearerToken, userEmail: currentUser.email }
+    : null;
+
+  // ── Template registry (synced from Meta) + firm mappings ──────────────
+  const templates = (useQuery(
+    api.whatsappTemplates.getWhatsAppTemplates,
+    authArgs ?? 'skip'
+  ) ?? undefined) as TemplateDoc[] | undefined;
+  const mappings = (useQuery(
+    api.whatsappTemplates.getWhatsAppTemplateMappings,
+    authArgs ?? 'skip'
+  ) ?? undefined) as FirmTemplateMapping[] | undefined;
+  const saveMapping = useMutation(api.whatsappTemplates.saveWhatsAppTemplateMapping);
+  const deleteMapping = useMutation(api.whatsappTemplates.deleteWhatsAppTemplateMapping);
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncInfo, setSyncInfo] = useState<string | null>(null);
+  const [expandedMap, setExpandedMap] = useState<string | null>(null);
+
+  // Per-type edit state (seeded from the saved mapping)
+  const [mapEdits, setMapEdits] = useState<Record<string, { templateName: string; templateLanguage: string; varOrder: string[] }>>({});
+  const [savingType, setSavingType] = useState<string | null>(null);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testPhone, setTestPhone] = useState<string>('');
+  const [testResult, setTestResult] = useState<{ type: string; success: boolean; raw?: string; error?: string } | null>(null);
 
   const status = config?.isActive ? 'connected' : 'not_configured';
 
@@ -42,6 +109,115 @@ const IntegrationSettings: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  // ── Sync: pull the firm's REAL templates from Meta via Chakra ────────
+  const handleSync = async () => {
+    if (!authArgs) { addToast('Sign in to sync templates.', { type: 'error' }); return; }
+    setSyncing(true); setSyncError(null); setSyncInfo(null);
+    try {
+      const res = await convex.action(api.whatsappTemplates.syncWhatsAppTemplates, authArgs);
+      if (res.success) {
+        const approved = (res.templates || []).filter((t: any) => String(t.status).toUpperCase() === 'APPROVED').length;
+        setSyncInfo(`Synced ${(res.templates || []).length} template(s) from Meta — ${approved} approved. WABA ${res.wabaId}${res.phoneDisplay ? ` · ${res.phoneDisplay}` : ''}.`);
+        addToast(`Synced ${(res.templates || []).length} template(s) from your WhatsApp account`, { type: 'success' });
+      } else {
+        setSyncError(res.error || 'Sync failed.');
+        addToast(res.error || 'Template sync failed', { type: 'error' });
+      }
+    } catch (e: any) {
+      const msg = translateError(e, 'sync templates');
+      setSyncError(msg);
+      addToast(msg, { type: 'error' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const getMapEdit = (type: string) => {
+    if (mapEdits[type]) return mapEdits[type];
+    const saved = mappings?.find((m) => m.messageType === type);
+    return {
+      templateName: saved?.templateName || '',
+      templateLanguage: saved?.templateLanguage || 'en',
+      varOrder: (saved?.varOrder as string[] | undefined) || ['tenantName', 'amount', 'address'],
+    };
+  };
+
+  const setMapEdit = (type: string, patch: Partial<{ templateName: string; templateLanguage: string; varOrder: string[] }>) => {
+    setMapEdits((prev) => ({ ...prev, [type]: { ...getMapEdit(type), ...patch } }));
+  };
+
+  const selectedTemplateFor = (type: string): TemplateDoc | undefined => {
+    const name = getMapEdit(type).templateName;
+    if (!name) return undefined;
+    return templates?.find((t) => t.name === name);
+  };
+
+  const handleSaveMapping = async (type: string) => {
+    if (!authArgs) { addToast('Sign in first.', { type: 'error' }); return; }
+    const edit = getMapEdit(type);
+    if (!edit.templateName.trim()) { addToast('Choose or type a template name first.', { type: 'error' }); return; }
+    setSavingType(type);
+    try {
+      await saveMapping({ ...authArgs, messageType: type, templateName: edit.templateName.trim(), templateLanguage: edit.templateLanguage, varOrder: edit.varOrder });
+      addToast(`Template mapped for ${MSG_TYPE_LABELS[type as keyof typeof MSG_TYPE_LABELS] || type}`, { type: 'success' });
+    } catch (e: any) {
+      addToast(translateError(e, 'save mapping'), { type: 'error' });
+    } finally {
+      setSavingType(null);
+    }
+  };
+
+  const handleDeleteMapping = async (type: string) => {
+    if (!authArgs) return;
+    setSavingType(type);
+    try {
+      await deleteMapping({ ...authArgs, messageType: type });
+      addToast(`Template mapping removed for ${type}`, { type: 'success' });
+    } catch (e: any) {
+      addToast(translateError(e, 'remove mapping'), { type: 'error' });
+    } finally {
+      setSavingType(null);
+    }
+  };
+
+  const handleTest = async (type: string) => {
+    if (!authArgs) { addToast('Sign in first.', { type: 'error' }); return; }
+    const edit = getMapEdit(type);
+    if (!edit.templateName.trim()) { addToast('Choose a template first.', { type: 'error' }); return; }
+    if (!testPhone.replace(/\D/g, '')) { addToast('Enter your own WhatsApp number to receive the test.', { type: 'error' }); return; }
+    setTesting(type); setTestResult(null);
+    try {
+      const tpl = selectedTemplateFor(type);
+      const varCount = tpl?.variableCount ?? edit.varOrder.length;
+      const sample: Record<string, string> = {
+        tenantName: 'Chigozie', amount: '1,400,000', totalPayable: '1,780,000',
+        serviceCharge: '40,000', address: 'Unit 1', firmName: coreState.firmDetails?.name || 'Management',
+        dueDate: '01/10/2026', messageText: 'This is a test message.',
+      };
+      const vars = edit.varOrder.slice(0, Math.max(varCount, 0)).map((f) => sample[f] ?? '');
+      const res = await convex.action(api.whatsappTemplates.testWhatsAppTemplate, {
+        ...authArgs,
+        templateName: edit.templateName.trim(),
+        templateLanguage: edit.templateLanguage,
+        testPhone: testPhone.replace(/\D/g, ''),
+        templateVars: vars.length ? vars : undefined,
+      });
+      setTestResult({ type, success: res.success, raw: res.rawResponse, error: res.error });
+      if (res.success) addToast('Test message sent — check your WhatsApp.', { type: 'success' });
+      else addToast(res.error ? `Test failed: ${res.error.slice(0, 120)}` : 'Test failed — see details below.', { type: 'error' });
+    } catch (e: any) {
+      setTestResult({ type, success: false, error: translateError(e, 'send test') });
+      addToast(translateError(e, 'send test'), { type: 'error' });
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  const syncedAt = useMemo(() => {
+    if (!templates?.length) return null;
+    return new Date(Math.max(...templates.map((t) => t.syncedAt))).toLocaleString();
+  }, [templates]);
 
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl">
@@ -121,6 +297,238 @@ const IntegrationSettings: React.FC = () => {
               >
                 {isSaving ? 'Saving...' : 'Update Integration'}
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── WhatsApp Templates: the firm's REAL Meta templates ─────────── */}
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-[#25D366]/10 rounded-lg flex items-center justify-center p-2">
+              <WhatsAppIcon className="w-6 h-6 text-[#25D366]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">WhatsApp Message Templates</h3>
+              <p className="text-xs text-slate-500">
+                Your approved templates, exactly as registered in Meta{syncedAt ? ` · last synced ${syncedAt}` : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleSync}
+            disabled={syncing || !authArgs}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync from Meta'}
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {syncInfo && (
+            <div className="p-3 rounded-lg bg-emerald-900/10 border border-emerald-900/30 text-xs text-emerald-400">{syncInfo}</div>
+          )}
+          {syncError && (
+            <div className="p-3 rounded-lg bg-rose-900/10 border border-rose-900/30 text-xs text-rose-400 leading-relaxed">{syncError}</div>
+          )}
+
+          {/* Template registry list */}
+          {templates === undefined ? (
+            <div className="text-xs text-slate-500 py-2">Loading template registry…</div>
+          ) : templates.length === 0 ? (
+            <div className="p-4 rounded-lg border border-dashed border-slate-700 text-sm text-slate-400 leading-relaxed">
+              No templates synced yet. Press <span className="font-bold text-slate-200">Sync from Meta</span> to pull
+              the templates approved on your WhatsApp Business account — their exact names, languages, statuses and
+              variable counts, straight from Meta.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((t) => (
+                <div key={t._id} className="p-3 rounded-lg bg-slate-800/40 border border-slate-800">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-white font-mono">{t.name}</span>
+                      <span className={`text-2xs font-black uppercase px-1.5 py-0.5 rounded ${
+                        String(t.status).toUpperCase() === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400'
+                        : String(t.status).toUpperCase() === 'PENDING' ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-rose-500/20 text-rose-400'}`}>
+                        {t.status}
+                      </span>
+                      <span className="text-2xs text-slate-500 font-mono">{t.language}</span>
+                      {t.category && <span className="text-2xs text-slate-500">{t.category}</span>}
+                      {t.variableCount != null && t.variableCount > 0 && (
+                        <span className="text-2xs text-sky-400">{t.variableCount} variable{t.variableCount === 1 ? '' : 's'}</span>
+                      )}
+                    </div>
+                  </div>
+                  {t.bodyText && (
+                    <p className="text-xs text-slate-400 mt-1.5 leading-relaxed line-clamp-3">{t.bodyText}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ─── Message-type mappings ─────────────────────────────────── */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Message-type mappings</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              When a WhatsApp message can't be sent free-form (outside the 24-hour reply window), the app automatically
+              retries with the template mapped to that message type — using the exact name, language and variable
+              order you set here. Meta matches templates by <span className="font-bold text-slate-300">name and language
+              exactly</span>, and rejects sends whose variable count doesn't match the template.
+            </p>
+            <div>
+              <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Your WhatsApp number (for test sends)</label>
+              <input
+                type="tel"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                placeholder="+234 801 234 5678"
+                className="w-full max-w-xs bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              {MAPPABLE_TYPES.map((type) => {
+                const saved = mappings?.find((m) => m.messageType === type);
+                const edit = getMapEdit(type);
+                const tpl = selectedTemplateFor(type);
+                const varCount = tpl?.variableCount ?? null;
+                const expanded = expandedMap === type;
+                return (
+                  <div key={type} className="rounded-lg border border-slate-800 bg-slate-800/30">
+                    <button
+                      onClick={() => setExpandedMap(expanded ? null : type)}
+                      className="w-full flex items-center justify-between gap-3 p-3 text-left"
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-200">{MSG_TYPE_LABELS[type as keyof typeof MSG_TYPE_LABELS]}</span>
+                        {saved ? (
+                          <span className="text-2xs font-mono text-emerald-400">→ {saved.templateName} ({saved.templateLanguage})</span>
+                        ) : (
+                          <span className="text-2xs text-slate-600">not mapped</span>
+                        )}
+                      </div>
+                      <span className={`text-slate-500 transition-transform ${expanded ? 'rotate-180' : ''}`}>▾</span>
+                    </button>
+
+                    {expanded && (
+                      <div className="p-3 pt-0 space-y-3 border-t border-slate-800">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Template name</label>
+                            {templates && templates.length > 0 ? (
+                              <select
+                                value={edit.templateName}
+                                onChange={(e) => setMapEdit(type, { templateName: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
+                              >
+                                <option value="">— choose a synced template —</option>
+                                {templates.map((t) => (
+                                  <option key={t._id} value={t.name}>
+                                    {t.name} · {t.language} · {t.status}
+                                  </option>
+                                ))}
+                                <option value="__custom__">— type a name manually —</option>
+                              </select>
+                            ) : null}
+                            <input
+                              type="text"
+                              value={edit.templateName === '__custom__' ? '' : edit.templateName}
+                              onChange={(e) => setMapEdit(type, { templateName: e.target.value })}
+                              placeholder={templates && templates.length ? 'e.g. my_exact_template_name' : 'Press Sync from Meta, or type the exact name'}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-emerald-500 mt-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Template language</label>
+                            <select
+                              value={edit.templateLanguage}
+                              onChange={(e) => setMapEdit(type, { templateLanguage: e.target.value })}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
+                            >
+                              {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+                            </select>
+                            {tpl?.bodyText && (
+                              <p className="text-2xs text-slate-500 mt-1.5 leading-relaxed line-clamp-2">{tpl.bodyText}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Variable order — must match the template's {{n}} slots */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-2xs text-slate-500 uppercase tracking-wider">
+                              Variables, in template order ({varCount != null ? `template expects ${varCount}` : 'count unknown — match your template'})
+                            </label>
+                          </div>
+                          <div className="space-y-2">
+                            {edit.varOrder.map((field, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <span className="text-2xs font-mono text-slate-500 w-8">{`{{${idx + 1}}}`}</span>
+                                <select
+                                  value={field}
+                                  onChange={(e) => {
+                                    const next = [...edit.varOrder];
+                                    next[idx] = e.target.value;
+                                    setMapEdit(type, { varOrder: next });
+                                  }}
+                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500"
+                                >
+                                  {Object.entries(VAR_FIELD_LABELS).map(([k, label]) => (
+                                    <option key={k} value={k}>{label}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => setMapEdit(type, { varOrder: edit.varOrder.filter((_, i) => i !== idx) })}
+                                  className="p-1.5 text-slate-500 hover:text-rose-400"
+                                  aria-label="Remove variable"
+                                ><Trash2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => setMapEdit(type, { varOrder: [...edit.varOrder, 'tenantName'] })}
+                              className="text-2xs text-emerald-400 hover:text-emerald-300 font-bold"
+                            >+ add variable slot</button>
+                          </div>
+                        </div>
+
+                        {/* Test send */}
+                        {testResult?.type === type && (
+                          <div className={`p-3 rounded-lg text-xs leading-relaxed ${testResult.success ? 'bg-emerald-900/10 border border-emerald-900/30 text-emerald-400' : 'bg-rose-900/10 border border-rose-900/30 text-rose-400'}`}>
+                            {testResult.success
+                              ? 'Test delivered — check your WhatsApp.'
+                              : <>{testResult.error || 'Test failed.'}{testResult.raw && <details className="mt-2"><summary className="cursor-pointer text-2xs opacity-70">Provider's raw response</summary><pre className="mt-1 whitespace-pre-wrap break-all text-2xs opacity-80">{testResult.raw}</pre></details>}</>}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <button
+                            onClick={() => handleSaveMapping(type)}
+                            disabled={savingType === type}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
+                          >{savingType === type ? 'Saving…' : 'Save mapping'}</button>
+                          <button
+                            onClick={() => handleTest(type)}
+                            disabled={testing === type}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
+                          ><Send className="w-3.5 h-3.5" />{testing === type ? 'Sending…' : 'Send test'}</button>
+                          {saved && (
+                            <button
+                              onClick={() => handleDeleteMapping(type)}
+                              disabled={savingType === type}
+                              className="px-4 py-2 bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 disabled:opacity-50 text-xs font-bold rounded-lg transition-colors"
+                            >Remove</button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

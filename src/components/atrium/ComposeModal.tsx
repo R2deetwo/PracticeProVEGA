@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { useMutation, useConvex } from 'convex/react';
+import { useMutation, useConvex, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -14,7 +14,7 @@ import { translateError } from '../../utils/errorTranslator';
 import { getGeminiApiKey } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { resolveFinancials, parseMoneyInput } from '../../utils/messageFinancials';
-import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError } from '../../utils/deliveryErrors';
+import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError, resolveTemplateFor, FirmTemplateMapping } from '../../utils/deliveryErrors';
 import { buildEmailHtml } from '../../utils/emailTemplate';
 import { MSG_TYPE_LABELS, getMsgTypeLabel, MSG_TYPE_FINANCE, getTypeFinance } from '../../utils/messageTypes';
 import type { FinanceField } from '../../utils/messageTypes';
@@ -130,6 +130,18 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const { isProperty: isPropertyFirm, isLegal: isLegalFirm, isUnified, hasPropertyFeatures, hasLegalFeatures } = useProduct();
   const convex = useConvex();
   const logAuto = useMutation(api.sentry.logAutomation);
+
+  // ── Firm's CONFIGURED WhatsApp template mappings (Settings →
+  // Communications → WhatsApp Templates). These are the firm's REAL
+  // Meta-registered templates — names, languages and variable orders
+  // pulled from Meta itself, not app-side guesses. Used by the automatic
+  // template retry when a free-form send hits the 24h window error.
+  const templateMappings = useQuery(
+    api.whatsappTemplates.getWhatsAppTemplateMappings,
+    currentUser?.email && bearerToken
+      ? { sessionToken: bearerToken, userEmail: currentUser.email }
+      : 'skip'
+  ) as FirmTemplateMapping[] | undefined;
 
   // ── State ────────────────────────────────────────────────────────────
   const [msgType, setMsgType] = useState<AutomationMessageType>(() => prefill?.messageType || 'custom');
@@ -831,6 +843,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               {
                 messageType: msgType,
                 recipient: { tenantName: name, amount: fin.amount, address: r.propertyAddress || label },
+                firmMappings: templateMappings,
               }
             );
           } else if (channel === 'email') {
@@ -1630,13 +1643,19 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               <div className="mb-4 p-3 rounded-lg bg-sky-50 dark:bg-sky-900/10 border border-sky-200 dark:border-sky-800/40 text-xs text-sky-800 dark:text-sky-300 leading-relaxed">
                 <span className="font-bold">Why this happens:</span> WhatsApp only delivers free-form messages within
                 24 hours of the resident's last reply to your business number. For business-initiated reminders, Meta
-                requires an <span className="font-bold">approved message template</span>. Your Rent Reminder template
-                is used automatically — including retries under the common template languages (en, en_US, en_GB), since
-                Meta matches a template by name <span className="font-bold">and language</span> exactly. If all three
-                failed, check in your WhatsApp Business Manager that a template named
-                <span className="font-bold"> atrium_rent_reminder</span> is <span className="font-bold">approved</span> for
-                the SAME phone number connected here, and note its language. If it is registered under a different name,
-                rename it or ask support to align the app's template name.
+                requires an <span className="font-bold">approved message template</span>.
+                {(() => {
+                  const tpl = resolveTemplateFor(msgType, templateMappings);
+                  if (!tpl) return (<> No template is mapped for this message type yet — open
+                    {' '}<span className="font-bold">Settings → Communications → WhatsApp Templates</span> to sync your
+                    approved templates from Meta and map them.</>);
+                  return (<> The template <span className="font-bold">{tpl.name}</span>
+                  {' '}(tried under {tpl.languages.join(', ')}) was used automatically — Meta matches templates by
+                  name <span className="font-bold">and language</span> exactly. If it still failed, open
+                  {' '}<span className="font-bold">Settings → Communications → WhatsApp Templates</span>, press
+                  {' '}"Sync from Meta" to see your exact approved names, languages and variable counts, and map the
+                  right template to this message type.</>);
+                })()}
               </div>
             )}
 
