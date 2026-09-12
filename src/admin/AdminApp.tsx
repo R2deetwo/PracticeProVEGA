@@ -99,7 +99,7 @@ export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' |
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
     const [splashDone, setSplashDone] = useState(false);
-    const { currentUser, isAuthenticated, isLoadingSession } = useFounderAuth();
+    const { currentUser, isAuthenticated, isLoadingSession, bearerToken } = useFounderAuth();
 
     const isFounder = currentUser?.role === 'Founder';
     useFounderSignals({ enabled: isFounder });
@@ -109,7 +109,10 @@ const FounderApp: React.FC = () => {
     // founder receives FCM pushes for: new feedback, sales leads, add-on
     // requests, and app updates. Without this, the founder has NO registered
     // device tokens and all sendFcmPush calls return { sent: 0 }.
-    usePushNotifications(currentUser?.id, currentUser?.firmId);
+    // NOTE (Sept 2026): this only works once 'com.practicepro.admin' is a
+    // registered Android app in the Firebase project — a cloned client entry
+    // in google-services.json is rejected by Firebase at token registration.
+    usePushNotifications(currentUser?.id, currentUser?.firmId, bearerToken);
 
     const showSplash = !splashDone || isLoadingSession;
 

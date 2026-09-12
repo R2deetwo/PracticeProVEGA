@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { Capacitor } from '@capacitor/core';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderTheme, THEME_OPTIONS } from '../useFounderTheme';
 
@@ -48,7 +48,9 @@ export const Settings: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
 
     const envStatus = useQuery(api.debug_env.checkEnv, {});
-    const testPush = useMutation(api.pushNotifications.sendTestPush);
+    // Sept 2026: moved to pushNotificationsNode (node runtime) so the action
+    // dispatches FCM inline and returns the REAL delivery result.
+    const testPush = useAction(api.pushNotificationsNode.sendTestPush);
 
     const [screenCapture, setScreenCapture] = useState(() => safeGetBool('founder_screen_capture', true));
     const [biometric, setBiometric] = useState(() => safeGetBool('founder_biometric', false));
@@ -294,8 +296,14 @@ export const Settings: React.FC = () => {
                                             title: 'PracticePro Test Push',
                                             body: 'If you can see this, push notifications are working correctly!',
                                         });
-                                        if (result.success) {
-                                            addToast(`Test push sent! (${result.sent || 0} device(s) notified)`, { type: 'success' });
+                                        if (result.success && (result.sent || 0) > 0) {
+                                            addToast(`Test push DELIVERED to ${result.sent} of ${result.totalDevices || result.sent} device(s)!`, { type: 'success' });
+                                        } else if (result.reason === 'FCM_NOT_CONFIGURED' || result.reason === 'LEGACY_FCM_REMOVED' || result.reason === 'INVALID_SERVICE_ACCOUNT') {
+                                            addToast(`Server FCM problem (${result.reason}): ${result.error}`, { type: 'error' });
+                                        } else if (result.reason === 'NO_REGISTERED_DEVICES') {
+                                            addToast(result.error || 'No registered devices for your account.', { type: 'error' });
+                                        } else if ((result.failed || 0) > 0) {
+                                            addToast(`FCM reported ${result.failed} failure(s): ${(result.errors || [result.error]).filter(Boolean).join(' | ')}`, { type: 'error' });
                                         } else {
                                             addToast(`Push failed: ${result.error || result.reason || 'Unknown error'}`, { type: 'error' });
                                         }
@@ -319,7 +327,17 @@ export const Settings: React.FC = () => {
                                 <SystemStatusRow label="Convex Backend" status="connected" detail={CONVEX_DEPLOYMENT} />
                                 <SystemStatusRow label="Email Service (Brevo)" status={envStatus?.hasPracticeProMailer || envStatus?.hasBrevoApiKey ? 'connected' : 'pending'} detail={envStatus?.hasPracticeProMailer ? `Key: ${envStatus.mailerPrefix || '...'}...` : envStatus?.hasBrevoApiKey ? 'BREVO_API_KEY set' : 'No API key configured'} />
                                 <SystemStatusRow label="Sender Email" status={envStatus?.hasBrevoSenderEmail ? 'connected' : 'pending'} detail={envStatus?.hasBrevoSenderEmail ? 'Custom domain' : 'Using default (practiceprosystems@gmail.com)'} />
-                                <SystemStatusRow label="Push Notifications" status={Capacitor.isNativePlatform() ? 'connected' : 'pending'} detail={Capacitor.isNativePlatform() ? 'Native (Capacitor)' : 'Web only'} />
+                                <SystemStatusRow
+                                    label="Push Notifications (FCM)"
+                                    status={envStatus?.hasFcmServiceAccount ? 'connected' : 'error'}
+                                    detail={
+                                        envStatus?.hasFcmServiceAccount
+                                            ? `Service account OK (project: ${envStatus.fcmProjectId || '?'})`
+                                            : envStatus?.hasLegacyFcmServerKey
+                                                ? 'FIREBASE_SERVICE_ACCOUNT_JSON missing — FCM_SERVER_KEY is DEAD (legacy API shut down June 2024). Generate a service-account key in Firebase Console → Project Settings → Service accounts, then set it in Convex env.'
+                                                : 'FIREBASE_SERVICE_ACCOUNT_JSON not set on Convex — no push can be delivered. Firebase Console → Project Settings → Service accounts → Generate new private key → set it as a Convex env var.'
+                                    }
+                                />
                                 <SystemStatusRow label="WhatsApp Business" status={envStatus?.hasChakraToken ? 'connected' : 'pending'} detail={envStatus?.hasChakraToken ? 'Connected' : 'Not configured'} />
                             </div>
                         </div>

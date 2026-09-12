@@ -83,8 +83,7 @@ cp .env.example .env.local
 | `VITE_POSTHOG_KEY` | Optional | PostHog analytics key (visitor tracking, funnels) |
 | `VITE_SENTRY_DSN` | Optional | Sentry crash-reporting DSN (production error monitoring) |
 | `CONVEX_DEPLOY_KEY` | Optional | For CI/CD Convex deploys |
-| `FCM_SERVER_KEY` | Optional | Firebase Cloud Messaging server key |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Optional | Firebase service account JSON for FCM |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Required for push | Firebase service account JSON for FCM (legacy `FCM_SERVER_KEY` is DEAD — Google shut down that API in June 2024). See PUSH_NOTIFICATIONS_SETUP.md |
 | `VERCEL_TOKEN` | Optional | For direct Vercel API deploys via scripts/vercel-deploy.cjs |
 | `RELEASE_STORE_FILE` / `RELEASE_KEY_*` | Optional | Android release signing (see `.env.example`) |
 

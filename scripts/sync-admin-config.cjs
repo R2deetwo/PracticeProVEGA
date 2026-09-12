@@ -376,19 +376,31 @@ if (fs.existsSync(VERSION_PROPS)) {
 }
 
 // ─── Step 2c-iv: patch google-services.json to add admin package name ─
-// CRITICAL FIX: The admin APK uses applicationId 'com.practicepro.admin',
-// but google-services.json only has a client for 'com.practicepro.app'.
+// The admin APK uses applicationId 'com.practicepro.admin', but the
+// committed google-services.json only has a client for 'com.practicepro.app'.
 // Firebase's Gradle plugin fails with:
 //   "No matching client found for package name 'com.practicepro.admin'"
 //
-// FIX: Patch google-services.json to add a second client entry for
-// 'com.practicepro.admin'. Uses the same API key and app ID as the
-// existing 'com.practicepro.app' client — Firebase allows multiple
-// Android apps under the same project.
+// PATCH: add a second client entry for 'com.practicepro.admin'.
 //
-// This enables FCM push notifications for the admin APK (the founder
-// needs push notifications for: new feedback, sales leads, add-on
-// requests, and app updates).
+// ─── IMPORTANT LIMITATION (Sept 2026 push-fix) ─────────────────────────────
+// The patch CLONES the consumer client's mobilesdk_app_id. That makes the
+// Gradle build succeed, BUT Firebase validates app-id ↔ package-name when
+// the app requests an FCM token at RUNTIME — a cloned entry is rejected
+// (FirebaseInstallations 403 / FIREBASE_APP_NOT_AUTHORIZED), so the founder
+// APK still cannot register for push this way.
+//
+// The REAL fix is one manual step in the Firebase console:
+//   Firebase Console → practicepro-42178 → Project Settings → Your apps →
+//   Add app → Android → package "com.practicepro.admin" → register →
+//   download the new google-services.json (it will contain BOTH clients,
+//   each with its own genuine mobilesdk_app_id) → commit it to
+//   android/app/google-services.json.
+// Once that json contains a com.practicepro.admin client, this script
+// detects it and skips the clone entirely.
+//
+// Until then, founders should register their device token by logging into
+// the MAIN PracticePro APK (com.practicepro.app) with their founder account.
 if (fs.existsSync(GOOGLE_SERVICES_JSON)) {
     try {
         // Back up the original google-services.json
@@ -397,22 +409,34 @@ if (fs.existsSync(GOOGLE_SERVICES_JSON)) {
         }
         const gsConfig = JSON.parse(fs.readFileSync(GOOGLE_SERVICES_JSON, 'utf8'));
 
-        // Check if the admin client already exists
-        const hasAdminClient = gsConfig.client?.some(
+        const appClientId = gsConfig.client?.find(
+            (c) => c.client_info?.android_client_info?.package_name === 'com.practicepro.app'
+        )?.client_info?.mobilesdk_app_id;
+
+        const adminClient = gsConfig.client?.find(
             (c) => c.client_info?.android_client_info?.package_name === 'com.practicepro.admin'
         );
 
-        if (!hasAdminClient && gsConfig.client?.length > 0) {
-            // Clone the existing client and change the package name
+        if (adminClient && adminClient.client_info?.mobilesdk_app_id && appClientId &&
+            adminClient.client_info.mobilesdk_app_id !== appClientId) {
+            // GENUINE admin app registered in Firebase — FCM will work.
+            log('google-services.json already contains a genuine com.practicepro.admin app — founder APK FCM enabled.');
+        } else if (adminClient) {
+            // Admin entry exists but reuses the consumer app id (old clone).
+            warn('google-services.json contains a com.practicepro.admin client that SHARES the consumer app id.');
+            warn('Firebase rejects cloned app ids at FCM token registration (runtime 403).');
+            warn('Fix: register com.practicepro.admin as a real Android app in Firebase Console and commit the new google-services.json.');
+        } else if (gsConfig.client?.length > 0) {
+            // Clone the existing client so the BUILD succeeds (runtime FCM
+            // will NOT work — see the limitation note above).
             const existingClient = gsConfig.client[0];
-            const adminClient = JSON.parse(JSON.stringify(existingClient));
-            adminClient.client_info.android_client_info.package_name = 'com.practicepro.admin';
-            // Generate a new mobilesdk_app_id (we use the same one — Firebase
-            // doesn't strictly require a unique ID for the same project)
-            gsConfig.client.push(adminClient);
+            const cloned = JSON.parse(JSON.stringify(existingClient));
+            cloned.client_info.android_client_info.package_name = 'com.practicepro.admin';
+            gsConfig.client.push(cloned);
 
             fs.writeFileSync(GOOGLE_SERVICES_JSON, JSON.stringify(gsConfig, null, 2));
-            log('Patched google-services.json → added com.practicepro.admin client for FCM push');
+            log('Patched google-services.json → added com.practicepro.admin client (build-only clone).');
+            warn('The cloned client lets the APK build, but founder-APK FCM registration will be REJECTED by Firebase until com.practicepro.admin is registered as a real Android app in the Firebase console (free, one step — see PUSH_NOTIFICATIONS_SETUP.md).');
         }
     } catch (e) {
         warn(`Failed to patch google-services.json: ${e.message}`);

@@ -621,8 +621,10 @@ export const App: React.FC = () => {
 
     // ─── Push Notifications: Register device on native platform ────────────
     // Registers the device with FCM on app boot (if native + logged in).
-    // Requires google-services.json in android/app/ and FCM_SERVER_KEY in Convex.
-    usePushNotifications(currentUser?.id, currentUser?.firmId);
+    // Requires google-services.json in android/app/ and
+    // FIREBASE_SERVICE_ACCOUNT_JSON on the Convex deployment (the legacy
+    // FCM_SERVER_KEY mechanism was shut down by Google in June 2024).
+    usePushNotifications(currentUser?.id, currentUser?.firmId, bearerToken);
 
     // ─── Visitor Analytics: Track page views on public routes ──────────────
     // Fires a page_view analytics event when unauthenticated users visit

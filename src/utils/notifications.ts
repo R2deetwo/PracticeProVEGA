@@ -77,27 +77,19 @@ export function isPushRegistered(): boolean {
 }
 
 /**
- * registerForNotifications — Should be called on app launch (in App.tsx).
- * Requests permission, creates notification channels (Android), sets up
- * tap handlers, and marks the user as "push registered".
+ * ensureNotificationChannels — Creates the three Android notification
+ * channels WITHOUT requesting permission first (channel creation is always
+ * allowed; only DISPLAYING notifications needs permission on Android 13+).
  *
- * NOTIFICATION CHANNELS (Android):
- *   We create THREE channels so users can customize vibration/sound per
- *   category in their phone's notification settings:
- *   1. 'practicepro-messages' — new messages (highest priority, sound+vibrate)
- *   2. 'practicepro-tasks' — task assignments (high priority, sound+vibrate)
- *   3. 'practicepro-general' — other notifications (default priority)
+ * This must run before FCM registration: background FCM pushes target the
+ * 'practicepro-general' channel, and Android 8+ SILENTLY DROPS any
+ * notification posted to a channel that doesn't exist yet.
+ *
+ * Idempotent: re-creating an existing channel is a no-op.
  */
-export async function registerForNotifications(): Promise<boolean> {
-    if (!Capacitor.isNativePlatform()) return false;
-
-    const granted = await requestNotificationPermission();
-    if (!granted) return false;
-
+export async function ensureNotificationChannels(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
     try {
-        // Create notification channels for Android — each with distinct
-        // vibration pattern and importance level so the user can tell
-        // what type of notification arrived without looking at the screen.
         await LocalNotifications.createChannel({
             id: 'practicepro-messages',
             name: 'Messages',
@@ -127,13 +119,39 @@ export async function registerForNotifications(): Promise<boolean> {
             sound: isSoundEnabled() ? 'notification.wav' : undefined,
             vibration: true,
         });
+    } catch (err) {
+        console.warn('[NotificationManager] Channel creation failed:', err);
+    }
+}
 
+/**
+ * registerForNotifications — Should be called on app launch (in App.tsx).
+ * Requests permission, creates notification channels (Android), sets up
+ * tap handlers, and marks the user as "push registered".
+ *
+ * NOTIFICATION CHANNELS (Android):
+ *   We create THREE channels so users can customize vibration/sound per
+ *   category in their phone's notification settings:
+ *   1. 'practicepro-messages' — new messages (highest priority, sound+vibrate)
+ *   2. 'practicepro-tasks' — task assignments (high priority, sound+vibrate)
+ *   3. 'practicepro-general' — other notifications (default priority)
+ */
+export async function registerForNotifications(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) return false;
+
+    // Channels FIRST — see ensureNotificationChannels().
+    await ensureNotificationChannels();
+
+    const granted = await requestNotificationPermission();
+    if (!granted) return false;
+
+    try {
         // Set up tap handlers — when user taps a notification in the shade,
         // the app opens and we navigate to the target view.
         await LocalNotifications.addListener(
             'localNotificationActionPerformed',
             (action) => {
-                const notification = action.notification;
+                const notification: any = action.notification;
                 const extra = notification.extra || notification.data;
                 if (extra && extra.view) {
                     // Navigate to the target view
@@ -146,6 +164,16 @@ export async function registerForNotifications(): Promise<boolean> {
                             context: extra.context || {},
                         },
                     }));
+                }
+                // App-update notifications carry an APK URL — open the
+                // download directly when tapped (mirrors the FCM tap flow
+                // in usePushNotifications).
+                if (extra && extra.type === 'app_update' && extra.apkUrl) {
+                    import('@capacitor/browser').then(({ Browser }) => {
+                        Browser.open({ url: extra.apkUrl });
+                    }).catch(() => {
+                        window.open(extra.apkUrl, '_blank');
+                    });
                 }
             }
         );
@@ -280,6 +308,7 @@ export async function removeAllNotificationListeners(): Promise<void> {
 export const notificationManager = {
     requestPermission: requestNotificationPermission,
     register: registerForNotifications,
+    ensureChannels: ensureNotificationChannels,
     show: showLocalNotification,
     cancelAll: cancelAllNotifications,
     removeAllListeners: removeAllNotificationListeners,

@@ -8,7 +8,7 @@
  * Data is persisted via the `notification_preferences` Convex table.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -351,7 +351,9 @@ export const NotificationSettings: React.FC = () => {
 const TestPushButton: React.FC = () => {
   const { addToast } = useUI();
   const { currentUser, bearerToken } = useAuth();
-  const testPush = useMutation(api.pushNotifications.sendTestPushToUser);
+  // Sept 2026: moved to pushNotificationsNode (node runtime) so the action
+  // dispatches FCM inline and returns the REAL delivery result.
+  const testPush = useAction(api.pushNotificationsNode.sendTestPushToUser);
   const [isSending, setIsSending] = useState(false);
 
   const handleTestPush = async () => {
@@ -359,10 +361,16 @@ const TestPushButton: React.FC = () => {
     setIsSending(true);
     try {
       const result = await testPush({ userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) });
-      if (result?.sent > 0) {
-        addToast(`Test push sent to ${result.sent} device(s). Check your notification shade.`, { type: 'success' });
+      if (result?.success && (result.sent || 0) > 0) {
+        addToast(`Test push delivered to ${result.sent} device(s). Check your notification shade.`, { type: 'success' });
+      } else if (result?.reason === 'FCM_NOT_CONFIGURED' || result?.reason === 'LEGACY_FCM_REMOVED' || result?.reason === 'INVALID_SERVICE_ACCOUNT') {
+        addToast(`Server FCM problem: ${result.error || result.reason}. Ask your administrator to set FIREBASE_SERVICE_ACCOUNT_JSON on the backend.`, { type: 'error', duration: 10000 });
+      } else if (result?.reason === 'NO_REGISTERED_DEVICES') {
+        addToast(result.error || 'No registered devices found. Make sure you have the APK installed and notifications enabled.', { type: 'info', duration: 8000 });
+      } else if ((result?.failed || 0) > 0) {
+        addToast(`FCM reported ${result.failed} failure(s): ${(result.errors || [result.error]).filter(Boolean).join(' | ')}`, { type: 'error', duration: 10000 });
       } else {
-        addToast('No registered devices found. Make sure you have the APK installed and notifications enabled.', { type: 'info', duration: 6000 });
+        addToast('No devices were notified. Make sure you have the APK installed and notifications enabled.', { type: 'info', duration: 6000 });
       }
     } catch (e: any) {
       addToast(e?.message || 'Failed to send test push.', { type: 'error' });

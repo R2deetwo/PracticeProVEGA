@@ -7,22 +7,29 @@
  *   3. getUserNotifications — fetch in-app notification center entries
  *   4. markNotificationRead — mark a notification as read
  *   5. markAllNotificationsRead — bulk mark read
- *   6. sendPushNotification — internal action that dispatches FCM via firebase-admin
- *   7. notifyAppUpdate — founder-only mutation to push "new APK available" to all users
+ *   6. notifyAppUpdate — founder-only mutation to push "new APK available" to all users
+ *   7. internal helpers used by pushNotificationsNode.ts (token lookup,
+ *      in-app notification writes, stale-token deactivation)
  *
- * FIREBASE SETUP:
- *   Set FCM_SERVER_KEY in Convex env (Project Settings → Cloud Messaging → Server Key).
- *   Or set FIREBASE_SERVICE_ACCOUNT_JSON for service-account auth (recommended).
+ *   The public test actions (sendTestPush, sendTestPushToUser) live in
+ *   pushNotificationsNode.ts (node runtime) so they can dispatch FCM
+ *   inline and return the REAL delivery result to the caller's UI.
  *
- *   In Firebase Console:
- *     1. Create project "PracticePro"
- *     2. Add Android app (com.practicepro.app)
- *     3. Download google-services.json → place in android/app/
- *     4. Project Settings → Cloud Messaging → copy Server Key
- *     5. Set FCM_SERVER_KEY in Convex env
+ * FIREBASE SETUP (Sept 2026 push-fix):
+ *   The legacy FCM server-key API was shut down by Google (June 2024).
+ *   The ONLY supported credential now is a service account:
+ *     1. Create project "practicepro-42178" in Firebase (already done)
+ *     2. Add Android app (com.practicepro.app) → google-services.json in android/app/ (done)
+ *     3. Add Android app (com.practicepro.admin) for the Founder APK (REQUIRED —
+ *        a cloned client entry in google-services.json does NOT work; Firebase
+ *        validates app-id ↔ package-name at token registration)
+ *     4. Project Settings → Service accounts → Generate new private key
+ *     5. Set FIREBASE_SERVICE_ACCOUNT_JSON on the Convex deployment
+ *        (Dashboard → Settings → Environment Variables,
+ *         or `npx convex env set FIREBASE_SERVICE_ACCOUNT_JSON '<json>'`)
  */
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { resolveCaller, assertSameFirm, requireFounderCaller } from "./callerAuth";
@@ -322,145 +329,136 @@ export const notifyAppUpdate = mutation({
 
 // ─── FCM Dispatch ────────────────────────────────────────────────────────────
 // The sendFcmPush internal action lives in pushNotificationsNode.ts because
-// firebase-admin requires the Node.js runtime ("use node" directive).
+// FCM's OAuth2 JWT signing requires the Node.js runtime ("use node" directive).
 // Convex's default runtime doesn't support Node.js APIs like Buffer/crypto.
-// The scheduler calls internal.pushNotificationsNode.sendFcmPush from here.
+// Mutations here schedule internal.pushNotificationsNode.sendFcmPush for
+// fire-and-forget fan-outs (notifyAppUpdate, notifyFounders); the public
+// test actions dispatch inline and return real results.
 
 // Round 8 auth retrofit: sendToUsers was DELETED. It was a public, fully
 // unauthenticated mutation that inserted in-app notifications and dispatched
 // FCM pushes to ARBITRARY user ids — a mass-notification/impersonation
-// primitive with zero callers. (sendTestPush/notifyAppUpdate remain, but
-// both verify the Founder role.)
+// primitive with zero callers. (The test actions and notifyAppUpdate remain,
+// and all verify the caller role / session.)
 
 /**
- * mutation: sendTestPush
- *
- * Sends a test FCM push notification to the founder's own device(s).
- * Used by the "Send Test Push Notification" button in founder Settings.
- * Returns the FCM dispatch result so the founder can see exactly what
- * happened (success count, failure count, or error message).
+ * internalQuery: getFounderPushTargets — session-verified founder gate.
+ * Resolves the founder and their ACTIVE device tokens. Consumed by the
+ * public sendTestPush action in pushNotificationsNode.ts.
  */
-export const sendTestPush = mutation({
+export const getFounderPushTargets = internalQuery({
   args: {
     tokenIdentifier: v.string(),
-    title: v.string(),
-    body: v.string(),
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // R16b: session-verified founder gate (was caller-supplied email match).
-    const founder: any = await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
-
-    // Get the founder's device tokens
-    const tokens = await ctx.db
-      .query("user_push_tokens")
-      .withIndex("by_user_active", (q: any) =>
-        q.eq("userId", String(founder._id)).eq("isActive", true)
-      )
-      .collect();
-
-    const tokenStrings = tokens.map((t: any) => t.token);
-
-    if (tokenStrings.length === 0) {
+    try {
+      const founder: any = await requireFounderCaller(ctx, {
+        sessionToken: args.sessionToken,
+        userEmail: args.tokenIdentifier,
+      });
+      const tokens = await ctx.db
+        .query("user_push_tokens")
+        .withIndex("by_user_active", (q: any) =>
+          q.eq("userId", String(founder._id)).eq("isActive", true)
+        )
+        .collect();
+      if (tokens.length === 0) {
+        return { reason: "NO_REGISTERED_DEVICES", userId: String(founder._id), tokens: [] as string[] };
+      }
       return {
-        success: false,
-        reason: "NO_REGISTERED_DEVICES",
-        error: "No active device tokens found for your account. Open the founder APK on your device first — it will auto-register with FCM on launch.",
+        reason: "OK",
+        userId: String(founder._id),
+        tokens: tokens.map((t: any) => t.token),
       };
+    } catch (err: any) {
+      return { reason: "NOT_FOUNDER", message: String(err?.message || err) };
     }
-
-    // Create an in-app notification too
-    await ctx.db.insert("app_notifications", {
-      userId: String(founder._id),
-      firmId: undefined,
-      title: args.title,
-      body: args.body,
-      type: "system",
-      priority: "normal",
-      actionType: "dismiss",
-      isRead: false,
-      createdAt: Date.now(),
-    });
-
-    // Dispatch FCM push via scheduler (fire-and-forget for the FCM call)
-    ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-      tokens: tokenStrings,
-      title: args.title,
-      body: args.body,
-      data: { type: "test_push" },
-    });
-
-    // Note: scheduler.runAfter doesn't return the action's result.
-    // We return success based on having tokens — the actual FCM result
-    // is logged server-side in pushNotificationsNode.ts.
-    return {
-      success: true,
-      sent: tokenStrings.length,
-      failed: 0,
-      totalDevices: tokenStrings.length,
-      message: `Push dispatched to ${tokenStrings.length} device(s). Check server logs for FCM delivery status.`,
-    };
   },
 });
 
 /**
- * mutation: sendTestPushToUser
- * Allows ANY authenticated user (not just founders) to send a test push
- * notification to their own registered devices. Used by the "Test Push"
- * button in the user app's Notification Settings.
+ * internalQuery: getUserPushTargets — session-verified self-lookup.
+ * The caller may only resolve their own device tokens. Consumed by the
+ * public sendTestPushToUser action in pushNotificationsNode.ts.
  */
-export const sendTestPushToUser = mutation({
+export const getUserPushTargets = internalQuery({
   args: {
     userEmail: v.string(),
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // R16 strict: resolve the caller from the verified bearer session; only
-    // self-tests allowed (the previous bare-email lookup let anyone probe
-    // any user's device tokens).
-    const caller: any = await resolveCaller(ctx, {
-      sessionToken: args.sessionToken,
-      userEmail: args.userEmail,
+    try {
+      const caller: any = await resolveCaller(ctx, {
+        sessionToken: args.sessionToken,
+        userEmail: args.userEmail,
+      });
+      const callerEmail = String(caller.tokenIdentifier || caller.email || "").toLowerCase();
+      if (callerEmail !== args.userEmail.toLowerCase()) {
+        return { reason: "UNAUTHORIZED" };
+      }
+      const tokens = await ctx.db
+        .query("user_push_tokens")
+        .withIndex("by_user_active", (q: any) =>
+          q.eq("userId", String(caller._id)).eq("isActive", true)
+        )
+        .collect();
+      if (tokens.length === 0) {
+        return { reason: "NO_REGISTERED_DEVICES", userId: String(caller._id), tokens: [] as string[] };
+      }
+      return {
+        reason: "OK",
+        userId: String(caller._id),
+        tokens: tokens.map((t: any) => t.token),
+      };
+    } catch (err: any) {
+      return { reason: "USER_NOT_FOUND", message: String(err?.message || err) };
+    }
+  },
+});
+
+/**
+ * internalMutation: recordInAppNotification — used by the node-runtime test
+ * actions to write the notification-center entry (actions can't touch ctx.db).
+ */
+export const recordInAppNotification = internalMutation({
+  args: {
+    userId: v.string(),
+    title: v.string(),
+    body: v.string(),
+    type: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("app_notifications", {
+      userId: args.userId,
+      firmId: undefined,
+      title: args.title,
+      body: args.body,
+      type: args.type,
+      priority: "normal",
+      actionType: "dismiss",
+      isRead: false,
+      createdAt: Date.now(),
     });
-    const callerEmail = String(caller.tokenIdentifier || caller.email || "").toLowerCase();
-    if (callerEmail !== args.userEmail.toLowerCase()) {
-      throw new Error("Unauthorized. You can only send test notifications to yourself.");
-    }
-    // Find the user by email
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", args.userEmail.toLowerCase()))
-      .first();
+    return { success: true };
+  },
+});
 
-    if (!user) {
-      return { success: false, sent: 0, reason: "USER_NOT_FOUND" };
-    }
-
-    // Get the user's device tokens
-    const tokens = await ctx.db
+/**
+ * internalMutation: deactivatePushToken — token hygiene. Called by the FCM
+ * dispatcher when FCM reports a token as UNREGISTERED/NOT_FOUND, so dead
+ * tokens stop being retried in every future send.
+ */
+export const deactivatePushToken = internalMutation({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
       .query("user_push_tokens")
-      .withIndex("by_user_active", (q: any) =>
-        q.eq("userId", String(user._id)).eq("isActive", true)
-      )
-      .collect();
-
-    const tokenStrings = tokens.map((t: any) => t.token);
-
-    if (tokenStrings.length === 0) {
-      return { success: false, sent: 0, reason: "NO_REGISTERED_DEVICES" };
+      .withIndex("by_token", (q: any) => q.eq("token", args.token))
+      .first();
+    if (existing && existing.isActive) {
+      await ctx.db.patch(existing._id, { isActive: false, updatedAt: Date.now() });
     }
-
-    // Dispatch FCM push
-    ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-      tokens: tokenStrings,
-      title: "PracticePro Test Push",
-      body: "This is a test notification from PracticePro. If you can see this, push notifications are working correctly!",
-      data: { type: "test_push" },
-    });
-
-    return {
-      success: true,
-      sent: tokenStrings.length,
-    };
+    return { success: true };
   },
 });
