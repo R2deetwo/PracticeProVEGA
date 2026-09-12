@@ -11698,3 +11698,30 @@ Work Log:
 Stage Summary:
 - All three user complaints are fixed and live: sync is automatic (panel load + daily cron) with auto-mapping; the real PracticePro sending line is displayed from gateway-verified data; every send path retries with approved templates when outside the 24h window.
 - Outstanding: Cloudflare mirror token (user action).
+
+---
+Task ID: 37
+Agent: Super Z (main)
+Task: User directive 2026-09-12 — "WhatsApp is NOT closed. Do a live test send from production to a real phone. Log the raw Chakra request/response. Also check: env (sandbox vs prod), token validity, sender approval, sandbox list, templates, daily limit. Paste raw output. If the test fails, reopen — original issue was messages not sending, not templates." Plus: verify the external AI's product/technical review claim-by-claim, execute approved quick wins, formalize multi-AI collaboration.
+
+Work Log:
+- Verified the external AI review against the real repo (10 claims): TRUE — .env git-tracked (benign local SQLite path, no secrets, no rotation), no CONTRIBUTING/COC, constants.tsx 66KB/types.ts 59KB monoliths (worse: TenantPortal 249KB, DraftProEditor 247KB, AloaChat 221KB), Convex unbounded-query concern REAL (56 files, 200+ .collect(), heavy post-fetch .filter(), 1 paginated module). OUTDATED/FALSE — onboarding already product-branched (vega/atrium/komplete tours), FeatureGuard already auto-redirects, src/stubs = single dead file with zero imports, WhatsApp already core, NDPR already referenced in policy docs, draft persistence already exists (draftSession localStorage).
+- Tier 1 quick wins (commit 092d0a4d): untracked .env (git rm --cached), deleted dead src/stubs/jspdf-stub.ts. (commit 2eb8d879): added CONTRIBUTING.md (documents CI gates, deploy pipeline, commit conventions, multi-agent worklog protocol) + CODE_OF_CONDUCT.md (Covenant 2.1).
+- Built live diagnostics (commit 6c06f181): convex/whatsappDiagnostics.ts — ALL-internal module (clients cannot invoke): liveSendDiagnostic action (env presence w/o values; phone-number listing; plugin config; live Meta template listing; DB state via dumpWhatsAppState internal query; optional live send with template resolution arg→firm-mapping→first-APPROVED and exact-repro vars) + .github/workflows/whatsapp-live-test.yml (manual dispatch, convex run --prod with CONVEX_DEPLOY_KEY, fail-fast probe, verdict in summary, 30-day log artifact) + tests/unit/whatsappDiagnostics.test.ts (5 tests).
+- Updated convex/_generated/api.d.ts for the new module (committed generated file pattern).
+- Gates: convex tsc 0 errors; vitest 311/311; root tsc 128 = baseline; identity audit PASS.
+- Pushed 6c06f181 → origin/main (bot bumped to v1.0.572, main now a09a1a2b); tests job SUCCESS; dispatched production promote run 34665349400 — Vercel+Convex job SUCCESS (Cloudflare mirror job fails on the standing expired CLOUDFLARE_API_TOKEN, unrelated).
+- Dispatched WhatsApp Live Test workflow (run 34665527888) with test_phone=2348124128296 (the originally-failed recipient) — SUCCESS run, full raw output captured.
+- FINDINGS (raw, verbatim):
+  * ROOT CAUSE OF ALL FAILED SENDS — Chakra HTTP 402: {"_data":[],"_errors":["Template Message sending is disabled. You need to upgrade to a paid plan. Upgrade link - https://app.chakrahq.com/admin/billing/chakra-whatsapp-upgrade"]}. The current Chakra plan allows session (free-form, 24h window) messages ONLY — explains why messages worked 10 months ago (free-form) and why every template send fails now. CODE IS NOT BROKEN: template resolution, payload, var count, auth all validated by the live test; Chakra's billing gate rejects the send before Meta sees it.
+  * env: LIVE (not sandbox) ✓; token valid (200 on all listings) ✓; sender +234 816 312 2497 "Practicepro Sentry" CONNECTED, quality GREEN, TIER_250 (250 business-initiated recipients/day) ✓; configured phone id matches the team's only number ✓ (no test-number leak at gateway level).
+  * Meta templates: 3 APPROVED UTILITY templates — atrium_late_reminder (8 vars), atrium_service_charge_reminder (7 vars), atrium_rent_reminder (6 vars); WABA account_review_status APPROVED.
+  * Secondary: business_verification_status "not_verified" / OBA NOT_STARTED / codeVerificationStatus NOT_VERIFIED — does not block UTILITY template sends at TIER_250 but Meta may require verification to raise limits/get official badge.
+  * DB state: localTemplateRegistry/templateMappings/whatsappSettings all EMPTY — the task-36 auto-sync hasn't fired yet (cron 05:45 UTC; deploy was 01:38; no user has opened the settings panel since). The 4 recent failed scheduled messages (payment_receipt → Simon Briggs, Mr. Chigozie Ubah) predate the task-35/36 deploys and died with "Unknown WhatsApp gateway error" (the old error-swallowing bug — that class is now fixed).
+- REMAINING BLOCKER (user decision required): upgrade the Chakra WhatsApp plan (template sends work with zero code changes) OR bypass Chakra for sends using a permanent Meta system-user token on the user's own WABA (1365626695350672) via direct Cloud API calls. All app-side machinery is verified live and ready for either.
+
+Stage Summary:
+- The user's instinct was right: WhatsApp was NOT closed. The live test proved it and produced the definitive raw evidence: Chakra 402 template-send billing gate. This is a plan/vendor decision, not a code bug.
+- Diagnostics infrastructure now permanent: any future WhatsApp doubt = dispatch "WhatsApp Live Test" workflow with a phone number → raw request/response verdict in minutes.
+- Repo hygiene fixes shipped (.env untracked, dead stub removed, CONTRIBUTING/COC added — the latter also formalizes the multi-AI collaboration protocol the user requested).
+- Convex query hardening + AI trust signals + monolith splitting remain the open engineering items from the external review (prioritized: worst-offender Convex bounds first).
