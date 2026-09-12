@@ -14,8 +14,24 @@ export const sendWhatsAppInternal = internalAction({
     templateName: v.optional(v.string()),
     templateVars: v.optional(v.array(v.string())),
     templateLanguage: v.optional(v.string()),
+    // Template retry configuration (mirrors sendWhatsApp's public args) —
+    // lets cron-driven automation use the window-fallback too.
+    fallback: v.optional(v.object({
+      messageType: v.string(),
+      templateVarsData: v.optional(v.object({
+        tenantName: v.optional(v.string()),
+        amount: v.optional(v.number()),
+        totalPayable: v.optional(v.number()),
+        serviceCharge: v.optional(v.number()),
+        address: v.optional(v.string()),
+        firmName: v.optional(v.string()),
+        dueDate: v.optional(v.string()),
+        messageText: v.optional(v.string()),
+      })),
+    })),
+    retryTemplateLocales: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }> => {
     return await ctx.runAction(api.communications.sendWhatsApp, args);
   },
 });
@@ -118,12 +134,41 @@ export const sendWhatsApp = action({
     // Template LOCALE — Meta matches name + language exactly; a template
     // registered under "en_US" is invisible to a send requesting "en"
     // (and vice versa). Callers may pass the locale; default "en". The
-    // client fallback chain (deliveryErrors.ts) retries en_US/en_GB when
-    // the name+language pair isn't found.
+    // server retries en_US/en_GB when the name+language pair isn't found
+    // (retryTemplateLocales, default true).
     templateLanguage: v.optional(v.string()),
     firmId: v.string(),
+    // ── AUTOMATIC TEMPLATE FALLBACK (server-side, 2026-09-12) ──────────
+    // THE bug this kills: every cron/scheduled/bulk send went out
+    // free-form ONLY, and free-form is rejected by Meta (error 131047)
+    // whenever the resident hasn't replied within 24h — so ALL automated
+    // reminders failed silently outside the window. The client-side
+    // fallback only covered ComposeModal; portals.ts scheduled dispatch,
+    // sentry.ts crons and portal invites had nothing.
+    // Now: pass `fallback` with a messageType (+ the recipient's data) and
+    // this action retries a window-class failure with the firm's MAPPED
+    // template — resolved from whatsapp_template_mappings, variables built
+    // from templateVarsData, locale chain tried automatically — inside the
+    // SAME quota charge. No caller churn: absent `fallback` behaves exactly
+    // as before.
+    fallback: v.optional(v.object({
+      messageType: v.string(),               // AutomationMessageType
+      templateVarsData: v.optional(v.object({
+        tenantName: v.optional(v.string()),
+        amount: v.optional(v.number()),
+        totalPayable: v.optional(v.number()),
+        serviceCharge: v.optional(v.number()),
+        address: v.optional(v.string()),
+        firmName: v.optional(v.string()),
+        dueDate: v.optional(v.string()),
+        messageText: v.optional(v.string()),
+      })),
+    })),
+    // When a template-first send fails with a name+locale lookup miss,
+    // automatically retry the other common English locales (default true).
+    retryTemplateLocales: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }> => {
     // Check and increment quota — type explicitly to avoid circular inference
     const quotaResult: { success: boolean; error?: string; limit?: number } = await ctx.runMutation(
       internal.myFunctions.incrementWhatsAppQuota,
@@ -161,87 +206,206 @@ export const sendWhatsApp = action({
       };
     }
 
-    // Build payload — use template if provided, otherwise plain text
-    const payload = args.templateName
-      ? {
-          messaging_product: "whatsapp",
-          to: normalised,
-          type: "template",
-          template: {
-            name: args.templateName,
-            language: { code: args.templateLanguage || "en" },
-            components: args.templateVars?.length
-              ? [{
-                  type: "body",
-                  parameters: args.templateVars.map(v => ({ type: "text", text: v })),
-                }]
-              : [],
-          },
-        }
-      : {
-          messaging_product: "whatsapp",
-          to: normalised,
-          type: "text",
-          text: { preview_url: false, body: args.messageText },
-        };
-
+    // Raw Chakra send — one helper used by the first attempt AND every
+    // retry (template/locale) so quota is charged once per logical message.
     const url = `https://api.chakrahq.com/v1/ext/plugin/whatsapp/${PLUGIN_ID}/api/${WA_VER}/${PHONE_ID}/messages`;
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      // Parse defensively: Chakra sometimes returns non-JSON bodies (HTML
-      // error pages, empty bodies on 502s). response.json() would THROW on
-      // those and land in the generic catch branch, hiding the HTTP status.
-      const rawBody = await response.text();
-      let data: any = null;
-      try { data = rawBody ? JSON.parse(rawBody) : null; } catch { data = null; }
-
-      if (!response.ok || !data) {
-        const parsed = extractWaError(data);
-        const errText = parsed
-          ?? (rawBody && rawBody.length > 0 ? `${rawBody.slice(0, 300)}` : null);
-        console.error("[WhatsApp] Chakra API Error:", response.status, rawBody.slice(0, 1000));
-        return {
-          success: false,
-          simulated: false,
-          error: explainWhatsAppError(parsed) ??
-            `Chakra/WhatsApp gateway error (HTTP ${response.status})${errText ? `: ${errText}` : " — empty response body"}`,
-        };
+    const doSend = async (payload: any): Promise<{
+      ok: boolean; httpStatus: number; data: any; raw: string;
+      error?: string; messageId?: string;
+    }> => {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        // Parse defensively: Chakra sometimes returns non-JSON bodies (HTML
+        // error pages, empty bodies on 502s). response.json() would THROW on
+        // those and hide the HTTP status.
+        const raw = await response.text();
+        let data: any = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+        if (!response.ok || !data) {
+          const parsed = extractWaError(data);
+          const errText = parsed ?? (raw && raw.length > 0 ? raw.slice(0, 300) : null);
+          console.error("[WhatsApp] Chakra API Error:", response.status, raw.slice(0, 1000));
+          return {
+            ok: false, httpStatus: response.status, data, raw,
+            error: explainWhatsAppError(parsed) ??
+              `Chakra/WhatsApp gateway error (HTTP ${response.status})${errText ? `: ${errText}` : " — empty response body"}`,
+          };
+        }
+        // STRICT success verification: a 200 from Chakra is NOT proof of
+        // delivery. Meta's contract returns messages[0].id for every accepted
+        // send; anything else is a failure so logs never claim a phantom send.
+        const messageId = data?.messages?.[0]?.id;
+        if (!messageId) {
+          const parsed = extractWaError(data);
+          console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", raw.slice(0, 1000));
+          return {
+            ok: false, httpStatus: response.status, data, raw,
+            error: (parsed && explainWhatsAppError(parsed)) ||
+              "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
+          };
+        }
+        return { ok: true, httpStatus: response.status, data, raw, messageId };
+      } catch (error: any) {
+        console.error("[WhatsApp] Send failed:", error);
+        return { ok: false, httpStatus: 0, data: null, raw: "", error: error?.message || String(error) };
       }
+    };
 
-      // STRICT success verification (Messages false-"sent" bug): a 200 from
-      // Chakra is NOT proof of delivery. Meta's contract returns
-      // messages[0].id for every accepted send. Anything else (empty
-      // messages array, an error object in the body, or a different shape)
-      // must be treated as a failure so logs never claim a send that never
-      // happened.
-      const metaMessageId = data?.messages?.[0]?.id;
-      if (!metaMessageId) {
-        const parsed = extractWaError(data);
-        console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", rawBody.slice(0, 1000));
-        return {
-          success: false,
-          simulated: false,
-          error: (parsed && explainWhatsAppError(parsed)) ||
-            "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
-        };
+    const templatePayload = (name: string, language: string, vars?: string[]) => ({
+      messaging_product: "whatsapp",
+      to: normalised,
+      type: "template",
+      template: {
+        name,
+        language: { code: language },
+        components: vars?.length
+          ? [{
+              type: "body",
+              parameters: vars.map(v => ({ type: "text", text: v })),
+            }]
+          : [],
+      },
+    });
+
+    // ── SEND PATH 1: template-first (explicit templateName) ──────────────
+    if (args.templateName) {
+      const langs = [args.templateLanguage || "en", "en", "en_US", "en_GB"]
+        .filter((l, i, a) => a.indexOf(l) === i);
+      // Locale retry: try the requested locale; on a name+locale lookup
+      // miss, walk the chain (unless the caller disabled it).
+      const tryLocales = args.retryTemplateLocales === false ? [langs[0]] : langs;
+      let last: Awaited<ReturnType<typeof doSend>> | null = null;
+      for (const locale of tryLocales) {
+        const attempt = await doSend(templatePayload(
+          args.templateName, locale, args.templateVars
+        ));
+        if (attempt.ok) return { success: true, simulated: false, messageId: attempt.messageId, usedTemplate: true };
+        last = attempt;
+        // Only a name+language lookup miss justifies another locale.
+        if (!isTemplateNotFoundError(attempt.error)) break;
       }
-
-      return { success: true, simulated: false, messageId: metaMessageId };
-    } catch (error: any) {
-      console.error("[WhatsApp] Send failed:", error);
-      return { success: false, simulated: false, error: error.message };
+      return { success: false, simulated: false, error: last?.error };
     }
+
+    // ── SEND PATH 2: free-form first, template fallback on window errors ─
+    const free = await doSend({
+      messaging_product: "whatsapp",
+      to: normalised,
+      type: "text",
+      text: { preview_url: false, body: args.messageText },
+    });
+    if (free.ok) return { success: true, simulated: false, messageId: free.messageId };
+
+    // Window-class failure (resident hasn't replied in 24h) + a mapping for
+    // this message type → retry with the firm's approved template. THIS is
+    // the branch that makes automated reminders actually deliverable.
+    if (args.fallback && isWhatsAppWindowError(free.error)) {
+      const mapping = await resolveFirmTemplateMapping(ctx, args.firmId, args.fallback.messageType);
+      if (mapping) {
+        const vars = buildTemplateVarsForOrder(
+          mapping.varOrder,
+          args.fallback.templateVarsData ?? { messageText: args.messageText }
+        );
+        const langs = [mapping.templateLanguage || "en", "en", "en_US", "en_GB"]
+          .filter((l, i, a) => a.indexOf(l) === i);
+        let last: Awaited<ReturnType<typeof doSend>> | null = null;
+        for (const locale of langs) {
+          const attempt = await doSend(templatePayload(
+            mapping.templateName, locale, vars.length ? vars : undefined
+          ));
+          if (attempt.ok) return { success: true, simulated: false, messageId: attempt.messageId, usedTemplate: true };
+          last = attempt;
+          if (!isTemplateNotFoundError(attempt.error)) break;
+        }
+        // Template retry failed — report the template error (the more
+        // actionable one) but keep the original window explanation.
+        return {
+          success: false, simulated: false, usedTemplate: true,
+          error: last?.error
+            ? `${last.error} (free-form was rejected: ${free.error})`
+            : free.error,
+        };
+      }
+    }
+
+    return { success: false, simulated: false, error: free.error };
   },
 });
+
+// ─── Template-fallback helpers (server twins of deliveryErrors.ts) ─────────
+
+interface ServerFirmTemplateMapping {
+  templateName: string;
+  templateLanguage: string;
+  varOrder?: string[];
+}
+
+/** Read the firm's mapping for a message type (actions read via runQuery). */
+async function resolveFirmTemplateMapping(
+  ctx: any,
+  firmId: string,
+  messageType: string
+): Promise<ServerFirmTemplateMapping | null> {
+  try {
+    const doc = await ctx.runQuery(
+      internal.whatsappTemplates.getFirmTemplateMappingInternal,
+      { firmId, messageType }
+    );
+    if (!doc?.templateName) return null;
+    return {
+      templateName: String(doc.templateName),
+      templateLanguage: String(doc.templateLanguage || "en"),
+      varOrder: Array.isArray(doc.varOrder) ? doc.varOrder.map(String) : undefined,
+    };
+  } catch (e: any) {
+    console.warn("[WhatsApp] mapping lookup failed:", e?.message || e);
+    return null;
+  }
+}
+
+/**
+ * Build ordered template variable values from a varOrder + recipient data.
+ * Mirrors buildVarsForOrder in src/utils/deliveryErrors.ts (the Convex
+ * bundle can't import client modules — duplicated deliberately).
+ */
+export function buildTemplateVarsForOrder(
+  order: string[] | undefined | null,
+  r: {
+    tenantName?: string; amount?: number; totalPayable?: number;
+    serviceCharge?: number; address?: string; firmName?: string;
+    dueDate?: string; messageText?: string;
+  }
+): string[] {
+  const naira = (n?: number) => `₦${(n || 0).toLocaleString("en-NG")}`;
+  if (!order || order.length === 0) {
+    // Legacy default: [name, amount, address]
+    return [
+      r.tenantName || "Resident",
+      (r.amount || 0).toLocaleString("en-NG"),
+      r.address || "your unit",
+    ];
+  }
+  return order.map((f) => {
+    switch (f) {
+      case "tenantName": return r.tenantName || "Resident";
+      case "amount": return (r.amount || 0).toLocaleString("en-NG");
+      case "totalPayable": return r.totalPayable != null ? r.totalPayable.toLocaleString("en-NG") : naira(r.amount);
+      case "serviceCharge": return (r.serviceCharge || 0).toLocaleString("en-NG");
+      case "address": return r.address || "your unit";
+      case "firmName": return r.firmName || "Management";
+      case "dueDate": return r.dueDate || "the due date";
+      case "messageText": return r.messageText || "";
+      default: return String(f);
+    }
+  });
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

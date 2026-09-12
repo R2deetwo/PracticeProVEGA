@@ -558,6 +558,15 @@ export const markChargeAsPaid = mutation({
               recipientPhone: tenantPhone || undefined,
               recipientEmail: tenantEmail || undefined,
               recipientName: tenantName || undefined,
+              // Template-retry data: when the free-form send is rejected
+              // outside the 24h window, processScheduledMessages retries
+              // with the firm's mapped payment_receipt template using these.
+              templateData: {
+                tenantName: tenantName || undefined,
+                amount: totalAmount,
+                address: unitName || undefined,
+                messageText: confirmMessage,
+              },
               automationLogId,
               // SCHEMA FIX: `createdBy` isn't a schema field — the schema's
               // equivalent is `triggeredBy`; `updatedAt` is required.
@@ -1266,11 +1275,23 @@ export const sendServiceChargeReminders = internalMutation({
         channel: channel === "whatsapp" ? "whatsapp" : "email",
         scheduledFor: now, // Send immediately
         status: "scheduled",
-        messageType: "service_charge_reminder",
+        // Align with AutomationMessageType and the automation_logs entry —
+        // "service_charge_reminder" isn't a mappable type, so the template
+        // fallback could never resolve a mapping for it.
+        messageType: "service_charge_alert",
         tenantIds: [charge.tenantId || ''],
         recipientPhone: tenantPhone || undefined,
         recipientEmail: tenantEmail || undefined,
         recipientName: tenantName || undefined,
+        // Template-retry data for the 24h-window fallback.
+        templateData: {
+          tenantName: tenantName || undefined,
+          amount: charge.amount,
+          serviceCharge: charge.amount,
+          address: unitName || undefined,
+          dueDate: dueDateStr,
+          messageText: messagePreview,
+        },
         automationLogId,
         // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
         triggeredBy: "system_cron",
@@ -1360,6 +1381,13 @@ export const runDailyAutomation = internalMutation({
         recipientPhone: tenantPhone || undefined,
         recipientEmail: tenantEmail || undefined,
         recipientName: tenantName || undefined,
+        // Template-retry data for the 24h-window fallback.
+        templateData: {
+          tenantName: tenantName || undefined,
+          amount: charge.amount,
+          address: unitName || undefined,
+          messageText: messageText,
+        },
         automationLogId,
         // SCHEMA FIX: createdBy → triggeredBy; updatedAt required
         triggeredBy: "system_cron",

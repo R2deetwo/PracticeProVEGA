@@ -3177,10 +3177,24 @@ export const processScheduledMessages = internalAction({
           for (const phone of phones) {
             try {
               // VERIFY the provider result — see email branch.
+              // 2026-09-12: pass `fallback` so a free-form rejection (Meta
+              // error 131047 — resident hasn't replied within 24h) retries
+              // with the firm's mapped template. THIS was the gap: every
+              // cron reminder went out free-form only and failed silently
+              // outside the 24-hour window.
+              const msgAny = msg as any;
               const result: any = await ctx.runAction(api.communications.sendWhatsApp, {
                 firmId: msg.firmId,
                 to: phone,
                 messageText: msg.content,
+                fallback: {
+                  messageType: msg.messageType,
+                  templateVarsData: {
+                    ...(msgAny.templateData || {}),
+                    tenantName: msgAny.templateData?.tenantName || msg.recipientName || undefined,
+                    messageText: msgAny.templateData?.messageText || msg.content,
+                  },
+                },
               });
               if (result?.success && !result?.simulated) {
                 sendSuccess = true;

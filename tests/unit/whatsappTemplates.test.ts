@@ -17,8 +17,8 @@
  *      chosen fields in order.
  */
 import { describe, it, expect } from 'vitest';
-import { extractWaError, explainWhatsAppError, isTemplateNotFoundError } from '../../convex/communications';
-import { normalizeTemplate } from '../../convex/whatsappTemplates';
+import { extractWaError, explainWhatsAppError, isTemplateNotFoundError, buildTemplateVarsForOrder } from '../../convex/communications';
+import { normalizeTemplate, suggestMappings, scoreTemplateForType, defaultVarOrderFor } from '../../convex/whatsappTemplates';
 import {
   buildVarsForOrder,
   resolveTemplateFor,
@@ -215,5 +215,93 @@ describe('resolveTemplateFor — the CONFIGURED mapping always wins', () => {
     expect(tpl?.name).toBe('overdue_payment_notice');
     // no varOrder → legacy triple
     expect(tpl?.buildVars(recipient)).toEqual(['Mr. Chigozie Ubah', '1,400,000', 'Unit 1']);
+  });
+});
+
+describe('suggestMappings — auto-mapping by keyword (zero-config templates)', () => {
+  const templates = [
+    { name: 'rent_payment_reminder', language: 'en_US', status: 'APPROVED', variableCount: 3,
+      bodyText: 'Dear {{1}}, your rent of {{2}} for {{3}} is due.' },
+    { name: 'payment_confirmation', language: 'en', status: 'APPROVED', variableCount: 2,
+      bodyText: 'Hi {{1}}, we received your payment of {{2}}.' },
+    { name: 'overdue_notice', language: 'en', status: 'APPROVED', variableCount: 2,
+      bodyText: 'Your account is overdue.' },
+    { name: 'draft_only', language: 'en', status: 'PENDING', variableCount: 1,
+      bodyText: 'rent rent rent' },
+  ] as any[];
+
+  it('maps rent_reminder to the rent-flavoured approved template, not the pending one', () => {
+    const s = suggestMappings(templates, []);
+    const rent = s.find((x) => x.messageType === 'rent_reminder');
+    expect(rent).toBeDefined();
+    expect(rent!.templateName).toBe('rent_payment_reminder');
+    expect(rent!.templateLanguage).toBe('en_US');
+    expect(rent!.varOrder).toEqual(['tenantName', 'amount', 'address']);
+  });
+
+  it('maps payment_receipt to the confirmation template', () => {
+    const s = suggestMappings(templates, []);
+    const receipt = s.find((x) => x.messageType === 'payment_receipt');
+    expect(receipt!.templateName).toBe('payment_confirmation');
+    expect(receipt!.varOrder).toEqual(['tenantName', 'amount']);
+  });
+
+  it('maps late_notice to the overdue template (body keyword scores)', () => {
+    const s = suggestMappings(templates, []);
+    const late = s.find((x) => x.messageType === 'late_notice');
+    expect(late!.templateName).toBe('overdue_notice');
+  });
+
+  it('NEVER suggests a type the firm already mapped — manual mappings win', () => {
+    const s = suggestMappings(templates, ['rent_reminder']);
+    expect(s.find((x) => x.messageType === 'rent_reminder')).toBeUndefined();
+  });
+
+  it('ignores non-APPROVED templates entirely', () => {
+    const s = suggestMappings(templates, []);
+    expect(s.every((x) => x.templateName !== 'draft_only')).toBe(true);
+  });
+
+  it('returns nothing when no template matches any keyword', () => {
+    expect(suggestMappings([
+      { name: 'totally_unrelated', language: 'en', status: 'APPROVED' } as any,
+    ], [])).toEqual([]);
+  });
+
+  it('name hits outscore body hits (2x weight)', () => {
+    expect(scoreTemplateForType({ name: 'rent_reminder' }, 'rent_reminder')).toBeGreaterThan(
+      scoreTemplateForType({ name: 'x', bodyText: 'rent' }, 'rent_reminder')
+    );
+  });
+});
+
+describe('defaultVarOrderFor — slot count sizing', () => {
+  it('slices the type default when the template has fewer slots', () => {
+    expect(defaultVarOrderFor('rent_reminder', 2)).toEqual(['tenantName', 'amount']);
+  });
+  it('pads with firmName/dueDate when the template has more slots', () => {
+    const order = defaultVarOrderFor('rent_reminder', 5);
+    expect(order).toHaveLength(5);
+    expect(order.slice(0, 3)).toEqual(['tenantName', 'amount', 'address']);
+    expect(order).toContain('firmName');
+  });
+  it('unknown types get the generic order', () => {
+    expect(defaultVarOrderFor('custom', 1)).toEqual(['tenantName']);
+  });
+});
+
+describe('buildTemplateVarsForOrder (server twin) — identical output to the client', () => {
+  it('renders the configured order the same way buildVarsForOrder does', () => {
+    const order = ['tenantName', 'amount', 'address'] as string[];
+    const r = { tenantName: 'Ada', amount: 150000, address: '12 Marina' };
+    expect(buildTemplateVarsForOrder(order, r)).toEqual(['Ada', '150,000', '12 Marina']);
+  });
+  it('legacy default triple when no order is set', () => {
+    expect(buildTemplateVarsForOrder(undefined, { tenantName: 'Ada' })).toEqual(['Ada', '0', 'your unit']);
+  });
+  it('₦ is NOT prefixed for serviceCharge (mirrors the client exactly)', () => {
+    // Consistency with buildVarsForOrder matters more than the symbol —
+    // the server twin must render identically to the client it replaced.
+    expect(buildTemplateVarsForOrder(['serviceCharge'], { serviceCharge: 40000 })).toEqual(['40,000']);
   });
 });

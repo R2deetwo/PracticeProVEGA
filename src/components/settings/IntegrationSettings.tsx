@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -74,10 +74,18 @@ const IntegrationSettings: React.FC = () => {
   ) ?? undefined) as FirmTemplateMapping[] | undefined;
   const saveMapping = useMutation(api.whatsappTemplates.saveWhatsAppTemplateMapping);
   const deleteMapping = useMutation(api.whatsappTemplates.deleteWhatsAppTemplateMapping);
+  // Connection snapshot: the REAL sending number + WABA, verified live from
+  // the gateway at the last sync (replaces the placeholder inputs).
+  const waSettings = useQuery(
+    api.whatsappTemplates.getWhatsAppSettings,
+    authArgs ?? 'skip'
+  );
 
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncInfo, setSyncInfo] = useState<string | null>(null);
+  const [autoSyncing, setAutoSyncing] = useState(false);
+  const autoSyncRan = useRef(false);
   const [expandedMap, setExpandedMap] = useState<string | null>(null);
 
   // Per-type edit state (seeded from the saved mapping)
@@ -118,7 +126,8 @@ const IntegrationSettings: React.FC = () => {
       const res = await convex.action(api.whatsappTemplates.syncWhatsAppTemplates, authArgs);
       if (res.success) {
         const approved = (res.templates || []).filter((t: any) => String(t.status).toUpperCase() === 'APPROVED').length;
-        setSyncInfo(`Synced ${(res.templates || []).length} template(s) from Meta — ${approved} approved. WABA ${res.wabaId}${res.phoneDisplay ? ` · ${res.phoneDisplay}` : ''}.`);
+        const autoNote = res.autoMappedCount ? ` · ${res.autoMappedCount} message type(s) auto-mapped` : '';
+        setSyncInfo(`Synced ${(res.templates || []).length} template(s) from Meta — ${approved} approved${autoNote}. WABA ${res.wabaId}${res.phoneDisplay ? ` · ${res.phoneDisplay}` : ''}.`);
         addToast(`Synced ${(res.templates || []).length} template(s) from your WhatsApp account`, { type: 'success' });
       } else {
         setSyncError(res.error || 'Sync failed.');
@@ -132,6 +141,43 @@ const IntegrationSettings: React.FC = () => {
       setSyncing(false);
     }
   };
+
+  // ── AUTO-SYNC on panel load (the user's ask: "can we not have the
+  // templates synced already??"). Runs once, silently, when the panel
+  // opens AND the registry is empty or the last sync is older than 12h.
+  // A daily cron (syncAllFirmsWhatsAppTemplates) keeps it fresh even if
+  // the user never opens this panel; this covers the "approved a template
+  // 5 minutes ago, want it in the app NOW" case.
+  const lastSyncAt = (waSettings as any)?.lastSyncAt as number | undefined;
+  useEffect(() => {
+    if (autoSyncRan.current) return;
+    if (!authArgs) return;
+    // Wait for both queries to resolve so we know the real freshness.
+    if (templates === undefined || waSettings === undefined) return;
+    autoSyncRan.current = true;
+    const STALE_MS = 12 * 60 * 60 * 1000;
+    const empty = (templates?.length ?? 0) === 0;
+    const stale = !lastSyncAt || Date.now() - lastSyncAt > STALE_MS;
+    if (!empty && !stale) return;
+    (async () => {
+      setAutoSyncing(true);
+      try {
+        const res = await convex.action(api.whatsappTemplates.syncWhatsAppTemplates, authArgs);
+        if (res.success) {
+          const approved = (res.templates || []).filter((t: any) => String(t.status).toUpperCase() === 'APPROVED').length;
+          const autoNote = res.autoMappedCount ? ` · ${res.autoMappedCount} auto-mapped` : '';
+          setSyncInfo(`Auto-synced ${(res.templates || []).length} template(s) — ${approved} approved${autoNote}. WABA ${res.wabaId}${res.phoneDisplay ? ` · ${res.phoneDisplay}` : ''}.`);
+        } else if (res.error) {
+          // Surface the reason — never a dead-end "try again".
+          setSyncError(`Auto-sync failed: ${res.error}`);
+        }
+      } catch (e: any) {
+        setSyncError(`Auto-sync failed: ${translateError(e, 'sync templates')}`);
+      } finally {
+        setAutoSyncing(false);
+      }
+    })();
+  }, [authArgs, templates, waSettings, lastSyncAt, convex]);
 
   const getMapEdit = (type: string) => {
     if (mapEdits[type]) return mapEdits[type];
@@ -260,29 +306,39 @@ const IntegrationSettings: React.FC = () => {
 
               {editingConfig.isActive && (
                 <div className="space-y-3 animate-slide-down">
-                  <div>
-                    <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Account ID</label>
-                    <input
-                      type="text"
-                      value={editingConfig.accountId || ''}
-                      onChange={e => setEditingConfig({ ...editingConfig, accountId: e.target.value })}
-                      placeholder="ACxxxxxxxxxxxxxxxxxxxx"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Connected Phone</label>
-                    <input
-                      type="text"
-                      value={editingConfig.connectedPhone || ''}
-                      onChange={e => setEditingConfig({ ...editingConfig, connectedPhone: e.target.value })}
-                      placeholder="+234 800 000 0000"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
-                    />
+                  {/* REAL connection facts, verified live from the gateway —
+                      NOT editable placeholders. The number here is the one
+                      that actually sends; it comes from the same Chakra
+                      pass-through the sends use, so it can never drift. */}
+                  <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-2xs text-slate-500 uppercase tracking-wider">Connected WhatsApp line</span>
+                      <span className={`text-2xs font-bold uppercase px-1.5 py-0.5 rounded ${autoSyncing ? 'bg-sky-500/20 text-sky-400' : (waSettings as any)?.phoneDisplay ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                        {autoSyncing ? 'Syncing…' : (waSettings as any)?.phoneDisplay ? 'Live' : 'Not synced yet'}
+                      </span>
+                    </div>
+                    <div className="text-sm font-bold text-white font-mono">
+                      {(waSettings as any)?.phoneDisplay || '—'}
+                    </div>
+                    {(waSettings as any)?.wabaId && (
+                      <div className="text-2xs text-slate-500 font-mono">WABA {(waSettings as any).wabaId}</div>
+                    )}
+                    {(waSettings as any)?.approvedCount != null && (
+                      <div className="text-2xs text-slate-400">
+                        {(waSettings as any).approvedCount} approved template{(waSettings as any).approvedCount === 1 ? '' : 's'} on this line
+                        {(waSettings as any)?.lastSyncSuccessAt ? ` · verified ${new Date((waSettings as any).lastSyncSuccessAt).toLocaleString()}` : ''}
+                      </div>
+                    )}
+                    {(waSettings as any)?.lastSyncError && (
+                      <div className="text-2xs text-rose-400/90 leading-relaxed">
+                        Last sync failed: {(waSettings as any).lastSyncError}
+                      </div>
+                    )}
                   </div>
                   <div className="bg-amber-900/10 border border-amber-900/30 rounded-lg p-3">
                     <p className="text-2xs text-amber-500/80 leading-relaxed italic">
-                      API Keys are configured by the PracticePro administrator during the initial onboarding session for security.
+                      The gateway account (Chakra) and API keys are managed by the PracticePro administrator.
+                      Messages are sent from the line above — verified directly from your WhatsApp Business account.
                     </p>
                   </div>
                 </div>
@@ -318,11 +374,11 @@ const IntegrationSettings: React.FC = () => {
           </div>
           <button
             onClick={handleSync}
-            disabled={syncing || !authArgs}
+            disabled={syncing || autoSyncing || !authArgs}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap"
           >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing…' : 'Sync from Meta'}
+            <RefreshCw className={`w-4 h-4 ${syncing || autoSyncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : autoSyncing ? 'Auto-syncing…' : 'Sync from Meta'}
           </button>
         </div>
 
@@ -339,9 +395,10 @@ const IntegrationSettings: React.FC = () => {
             <div className="text-xs text-slate-500 py-2">Loading template registry…</div>
           ) : templates.length === 0 ? (
             <div className="p-4 rounded-lg border border-dashed border-slate-700 text-sm text-slate-400 leading-relaxed">
-              No templates synced yet. Press <span className="font-bold text-slate-200">Sync from Meta</span> to pull
+              No templates synced yet{autoSyncing ? ' — auto-syncing from Meta…' : '. Press'} <span className="font-bold text-slate-200">Sync from Meta</span> to pull
               the templates approved on your WhatsApp Business account — their exact names, languages, statuses and
-              variable counts, straight from Meta.
+              variable counts, straight from Meta. Templates sync automatically when you open this page (if stale)
+              and every morning, and message types are mapped automatically by name matching.
             </div>
           ) : (
             <div className="space-y-2">
@@ -375,9 +432,11 @@ const IntegrationSettings: React.FC = () => {
           <div className="space-y-3">
             <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Message-type mappings</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
-              When a WhatsApp message can't be sent free-form (outside the 24-hour reply window), the app automatically
-              retries with the template mapped to that message type — using the exact name, language and variable
-              order you set here. Meta matches templates by <span className="font-bold text-slate-300">name and language
+              WhatsApp only delivers free-form text within 24 hours of a resident's last reply — business-initiated
+              messages (reminders, notices) <span className="font-bold text-slate-300">require an approved template</span>.
+              Every send — manual, bulk, and automated — retries automatically with the template mapped here.
+              Mappings are created automatically by name matching after each sync (marked <span className="text-sky-400 font-bold">auto-mapped</span>);
+              adjust any of them below. Meta matches templates by <span className="font-bold text-slate-300">name and language
               exactly</span>, and rejects sends whose variable count doesn't match the template.
             </p>
             <div>
@@ -407,7 +466,14 @@ const IntegrationSettings: React.FC = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-slate-200">{MSG_TYPE_LABELS[type as keyof typeof MSG_TYPE_LABELS]}</span>
                         {saved ? (
-                          <span className="text-2xs font-mono text-emerald-400">→ {saved.templateName} ({saved.templateLanguage})</span>
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-2xs font-mono text-emerald-400">→ {saved.templateName} ({saved.templateLanguage})</span>
+                            {(saved as any).autoMapped && (
+                              <span className="text-2xs font-bold uppercase px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400" title="Created automatically from template name matching — review and adjust in the editor below if needed.">
+                                auto-mapped
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-2xs text-slate-600">not mapped</span>
                         )}

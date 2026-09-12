@@ -139,6 +139,19 @@ crons.interval(
   {}
 );
 
+// ─── WHATSAPP TEMPLATE AUTO-SYNC ──────────────────────────────────────────
+// Daily at 05:45 UTC (6:45 AM WAT) — before the morning reminder crons so a
+// template approved yesterday is already synced AND auto-mapped when today's
+// reminders go out. Answers the user's ask: "can we not have the templates
+// synced already??" — the registry and mappings stay fresh with zero manual
+// button presses. See convex/whatsappTemplates.ts:syncAllFirms.
+crons.daily(
+  "syncAllFirmsWhatsAppTemplates",
+  { hourUTC: 5, minuteUTC: 45 },
+  internal.whatsappTemplates.syncAllFirms,
+  {}
+);
+
 // ─── NIGHTLY R2 BACKUP ───────────────────────────────────────────────────
 // Full database export to Cloudflare R2 at 2:00 AM UTC (3:00 AM WAT).
 // Exports all 72 tables, gzip-compresses, uploads to R2, and cleans up

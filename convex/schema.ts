@@ -1484,6 +1484,21 @@ export default defineSchema({
     recipientPhone: v.optional(v.string()),
     recipientEmail: v.optional(v.string()),
     recipientName: v.optional(v.string()),
+    // Template-retry data captured at scheduling time: when the free-form
+    // WhatsApp send fails outside the 24h window, processScheduledMessages
+    // retries with the firm's mapped template and needs the recipient's
+    // name, the amount, the unit, etc. — data the cron ALREADY has here,
+    // but which is no longer retrievable at dispatch time.
+    templateData: v.optional(v.object({
+      tenantName: v.optional(v.string()),
+      amount: v.optional(v.number()),
+      totalPayable: v.optional(v.number()),
+      serviceCharge: v.optional(v.number()),
+      address: v.optional(v.string()),
+      firmName: v.optional(v.string()),
+      dueDate: v.optional(v.string()),
+      messageText: v.optional(v.string()),
+    })),
     automationLogId: v.optional(v.id("automation_logs")),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1703,11 +1718,35 @@ export default defineSchema({
       )
     )),
     updatedBy: v.optional(v.string()),
+    // true when the mapping was created automatically by template-sync
+    // keyword matching (as opposed to manually by the firm admin). Auto
+    // mappings are good starting points; the badge invites review.
+    autoMapped: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_firm", ["firmId"])
     .index("by_firm_type", ["firmId", "messageType"]),
+
+  // Per-firm WhatsApp connection snapshot written by every template sync.
+  // WHY (2026-09-12 user report: "i even see a test number used — the number
+  // we are using belongs to practicepro"): the settings UI previously
+  // displayed editable PLACEHOLDER fields ("ACxxxx…" / "+234 800 000 0000")
+  // that had no relationship to the number actually sending. The gateway is
+  // the source of truth — after a sync this row holds the REAL display phone
+  // and WABA id verified live from Chakra/Meta, and the UI renders those.
+  whatsapp_settings: defineTable({
+    firmId: v.string(),
+    wabaId: v.optional(v.string()),          // WhatsApp Business Account id
+    phoneDisplay: v.optional(v.string()),    // e.g. "+234 801 234 5678" — the SENDING line
+    phoneId: v.optional(v.string()),         // phone number id used by the gateway
+    templateCount: v.optional(v.number()),   // templates found at last sync
+    approvedCount: v.optional(v.number()),   // of which APPROVED
+    lastSyncAt: v.optional(v.number()),
+    lastSyncSuccessAt: v.optional(v.number()),
+    lastSyncError: v.optional(v.string()),
+  })
+    .index("by_firm", ["firmId"]),
 
   // ─── Notification Preferences ─────────────────────────────────────────
   // Per-firm email notification toggles. Each key maps to a notification

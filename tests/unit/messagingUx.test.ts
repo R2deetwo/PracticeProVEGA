@@ -77,117 +77,62 @@ describe('isWhatsAppWindowError — the Meta 24h-window / template-required clas
   });
 });
 
-describe('sendWhatsAppWithTemplateFallback — free-form first, template retry on window errors', () => {
+describe('sendWhatsAppWithTemplateFallback — ONE call; the server owns the retry', () => {
   const recipient = { tenantName: 'Ada', amount: 150000, address: '12 Marina' };
 
-  it('returns the free-form result when it succeeds (no retry)', async () => {
+  it('makes exactly one call passing fallback (messageType + recipient data) — success passthrough', async () => {
     const calls: any[] = [];
     const result = await sendWhatsAppWithTemplateFallback(
       async (args) => { calls.push(args); return { success: true, messageId: 'wamid.1' }; },
       { messageType: 'rent_reminder', recipient }
     );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].fallback?.messageType).toBe('rent_reminder');
+    expect(calls[0].fallback?.templateVarsData).toEqual(recipient);
     expect(result.success).toBe(true);
     expect(result.messageId).toBe('wamid.1');
-    expect(calls).toHaveLength(1);
-    expect(calls[0].templateName).toBeUndefined();
   });
 
-  it('retries with the rent-reminder template when free-form hits the window error', async () => {
+  it('passes ONE call even when the free-form send fails — the server retries with the mapped template', async () => {
     const calls: any[] = [];
     const result = await sendWhatsAppWithTemplateFallback(
       async (args) => {
         calls.push(args);
-        if (!args.templateName) {
-          return { success: false, error: 'Re-engagement message (code 131047)' };
-        }
-        return { success: true, messageId: 'wamid.2' };
+        // The server did the free-form attempt, hit 131047, retried with the
+        // firm mapping, and the template went through — all inside one call.
+        return { success: true, messageId: 'wamid.2', usedTemplate: true };
       },
       { messageType: 'rent_reminder', recipient }
     );
-    expect(calls).toHaveLength(2);
-    expect(calls[1].templateName).toBe('atrium_rent_reminder');
-    expect(calls[1].templateVars).toEqual(['Ada', '150,000', '12 Marina']);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].fallback?.messageType).toBe('rent_reminder');
     expect(result.success).toBe(true);
     expect(result.usedTemplate).toBe(true);
   });
 
-  it('does NOT retry when the failure is not a window error', async () => {
-    const calls: any[] = [];
+  it('propagates the provider failure verbatim when both free-form and template retry fail', async () => {
     const result = await sendWhatsAppWithTemplateFallback(
-      async (args) => { calls.push(args); return { success: false, error: 'Invalid phone' }; },
-      { messageType: 'rent_reminder', recipient }
-    );
-    expect(calls).toHaveLength(1);
-    expect(result.success).toBe(false);
-  });
-
-  it('does NOT retry for message types without a registered template', async () => {
-    const calls: any[] = [];
-    const result = await sendWhatsAppWithTemplateFallback(
-      async (args) => { calls.push(args); return { success: false, error: 'Re-engagement message (code 131047)' }; },
+      async () => ({
+        success: false,
+        usedTemplate: true,
+        error: 'template payment_reminder_v2 does not exist (free-form was rejected: Re-engagement message)',
+      }),
       { messageType: 'late_notice', recipient }
-    );
-    expect(calls).toHaveLength(1);
-    expect(result.success).toBe(false);
-  });
-
-  it('reports the template retry error when the template ALSO fails', async () => {
-    const result = await sendWhatsAppWithTemplateFallback(
-      async (args) =>
-        args.templateName
-          ? { success: false, error: 'template name atrium_rent_reminder does not exist' }
-          : { success: false, error: 'Re-engagement message (code 131047)' },
-      { messageType: 'rent_reminder', recipient }
     );
     expect(result.success).toBe(false);
     expect(result.error).toContain('does not exist');
+    expect(result.error).toContain('Re-engagement');
   });
 
-  it('retries the template under en_US / en_GB when the en locale pair is not found', async () => {
+  it('still sends ONE call for message types with no mapping configured — the server simply has no fallback', async () => {
     const calls: any[] = [];
     const result = await sendWhatsAppWithTemplateFallback(
-      async (args) => {
-        calls.push(args);
-        if (!args.templateName) {
-          return { success: false, error: 'Re-engagement message (code 131047)' };
-        }
-        // en and en_US both miss (template registered as en_GB)
-        if (args.templateLanguage !== 'en_GB') {
-          return { success: false, error: 'Language code does not match any template registered (132000)' };
-        }
-        return { success: true, messageId: 'wamid.3' };
-      },
-      { messageType: 'rent_reminder', recipient }
+      async (args) => { calls.push(args); return { success: false, error: 'Re-engagement message (code 131047)' }; },
+      { messageType: 'promotion', recipient }
     );
-    // 1 free-form + 3 template locale attempts (en, en_US, en_GB)
-    expect(calls).toHaveLength(4);
-    expect(calls.map(c => c.templateLanguage)).toEqual([undefined, 'en', 'en_US', 'en_GB']);
-    expect(result.success).toBe(true);
-    expect(result.usedTemplate).toBe(true);
-  });
-
-  it('stops the locale chain when the template failure is NOT a name/language lookup miss', async () => {
-    const calls: any[] = [];
-    const result = await sendWhatsAppWithTemplateFallback(
-      async (args) => {
-        calls.push(args);
-        if (!args.templateName) {
-          return { success: false, error: 'Re-engagement message (code 131047)' };
-        }
-        return { success: false, error: 'Monthly WhatsApp limit reached' };
-      },
-      { messageType: 'rent_reminder', recipient }
-    );
-    // 1 free-form + exactly 1 template attempt — locale retries can't help a quota error
-    expect(calls).toHaveLength(2);
-    expect(result.error).toContain('limit');
-  });
-
-  it('the template registry maps rent_reminder with ordered vars', () => {
-    const t = WHATSAPP_TEMPLATES.rent_reminder!;
-    expect(t.name).toBe('atrium_rent_reminder');
-    expect(t.buildVars(recipient)).toEqual(['Ada', '150,000', '12 Marina']);
-    expect(t.buildVars({})).toEqual(['Resident', '0', 'your unit']);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].fallback?.messageType).toBe('promotion');
+    expect(result.success).toBe(false);
   });
 });
 

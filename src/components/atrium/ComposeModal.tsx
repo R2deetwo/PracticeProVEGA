@@ -825,20 +825,18 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               sendResult = { success: false, error: portalErr.message };
             }
           } else if (channel === 'whatsapp') {
-            // Free-form send with an automatic TEMPLATE fallback: Meta
+            // Free-form send with the SERVER-SIDE template fallback: Meta
             // only delivers free-form messages within 24h of the
             // resident's last reply; business-initiated reminders need
-            // an approved template. When the free-form attempt fails
-            // with a window-class error and the message type has a
-            // registered template, we retry with it automatically.
+            // an approved template. The server resolves the firm's
+            // mapping, builds the variables and retries automatically —
+            // one call, one quota charge, locale chain handled server-side.
             sendResult = await sendWhatsAppWithTemplateFallback(
-              (tplArgs) => convex.action(api.communications.sendWhatsApp, {
+              (fallbackArgs) => convex.action(api.communications.sendWhatsApp, {
                 to: finalRecipient,
                 messageText: personalizedMessage,
                 firmId,
-                ...(tplArgs.templateName ? { templateName: tplArgs.templateName } : {}),
-                ...(tplArgs.templateVars ? { templateVars: tplArgs.templateVars } : {}),
-                ...(tplArgs.templateLanguage ? { templateLanguage: tplArgs.templateLanguage } : {}),
+                ...(fallbackArgs.fallback ? { fallback: fallbackArgs.fallback } : {}),
               }),
               {
                 messageType: msgType,

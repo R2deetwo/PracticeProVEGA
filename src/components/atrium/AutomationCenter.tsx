@@ -8,7 +8,7 @@ import { AutomationMessageType } from '../../types';
 import { useTerminology } from '../../contexts/ProductContext';
 import { ComposeModal } from './ComposeModal';
 import { buildMessage } from '../../utils/messageTemplates';
-import { resolveTemplateFor, buildVarsForOrder, FirmTemplateMapping, isTemplateNotFoundError } from '../../utils/deliveryErrors';
+import { resolveTemplateFor, buildVarsForOrder, FirmTemplateMapping } from '../../utils/deliveryErrors';
 import { MSG_TYPE_LABELS, getMsgTypeLabel } from '../../utils/messageTypes';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText } from 'lucide-react';
 
@@ -135,24 +135,19 @@ const AutomationCenter: React.FC = () => {
       const address = p.address;
       const plainMsg = buildMessage('rent_reminder', address, tenantName, rentAmount, undefined, coreState.firmDetails?.automationSettings?.automationTemplates);
       try {
-        // Template send across the language chain: the configured language
-        // first; retry under en/en_US/en_GB only when Meta reports the
-        // name+language pair as not found (Meta matches both exactly).
+        // Template send — ONE call: the server walks the locale chain
+        // (configured language → en → en_US → en_GB) automatically when
+        // Meta reports the name+language pair as not found, and charges
+        // the monthly quota once instead of once per locale retry.
         const tplVars = tpl.buildVars({ tenantName, amount: rentAmount, address, firmName: coreState.firmDetails?.name });
-        let result: { success: boolean; simulated?: boolean; error?: string; messageId?: string } | null = null;
-        for (const locale of tpl.languages) {
-          const attempt = await convex.action(api.communications.sendWhatsApp, {
-            to: phone,
-            messageText: plainMsg,
-            templateName: tpl.name,
-            templateVars: tplVars,
-            templateLanguage: locale,
-            firmId,
-          });
-          if (attempt.success || !isTemplateNotFoundError(attempt.error)) { result = attempt; break; }
-          result = attempt; // keep the (more actionable) template error
-        }
-        const finalResult = result!;
+        const finalResult = await convex.action(api.communications.sendWhatsApp, {
+          to: phone,
+          messageText: plainMsg,
+          templateName: tpl.name,
+          templateVars: tplVars,
+          templateLanguage: tpl.languages[0],
+          firmId,
+        });
         // MESSAGES FIX: an honest status — a simulated result means the
         // provider is not configured and NOTHING was delivered; "sent" is
         // only claimed when the gateway accepted the message.

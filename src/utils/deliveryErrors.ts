@@ -180,50 +180,42 @@ export function resolveTemplateFor(
 }
 
 /**
- * One free-form WhatsApp send, with automatic template retry when the
- * free-form attempt fails with a window-class error AND a template is
- * available for the message type. Returns the LAST provider result —
- * either the free-form success, the template retry's result, or the
- * original failure (with its reason) when no retry was possible.
+ * One free-form WhatsApp send with the server-side template fallback.
  *
- * TEMPLATE LOCALE CHAIN (2026-09-11, "my template is approved but the
- * message failed"): Meta matches templates by name + language. The first
- * template attempt uses the CONFIGURED language (default "en"); when Meta
- * reports the name+language pair as not found, we retry the SAME template
- * under the other common English locales before giving up.
+ * 2026-09-12 rework: the retry used to happen HERE (client called the
+ * gateway twice, once free-form and once per locale, double-charging the
+ * monthly WhatsApp quota and only covering ComposeModal). The fallback now
+ * lives inside the sendWhatsApp Convex action: this helper makes ONE call
+ * passing `fallback` (messageType + the recipient's data); when Meta
+ * rejects the free-form text with the 24-hour-window error (131047), the
+ * server resolves the firm's mapping, builds the variables, walks the
+ * locale chain and retries — all inside the same quota charge. Every
+ * server-initiated send (crons, scheduled dispatch) gets the identical
+ * treatment.
+ *
+ * Returns the provider result — free-form success, or the template retry's
+ * outcome (`usedTemplate: true`), or the original failure with its reason.
  */
 export async function sendWhatsAppWithTemplateFallback(
-  send: (args: { templateName?: string; templateVars?: string[]; templateLanguage?: string }) => Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }>,
+  send: (args: {
+    fallback?: {
+      messageType: AutomationMessageType;
+      templateVarsData?: TemplateRecipientData;
+    };
+  }) => Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }>,
   opts: {
     messageType: AutomationMessageType;
     recipient: TemplateRecipientData;
     firmMappings?: FirmTemplateMapping[] | null;
   }
 ): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }> {
-  const first = await send({});
-  if (first.success) return first;
-
-  const template = resolveTemplateFor(opts.messageType, opts.firmMappings);
-  if (template && isWhatsAppWindowError(first.error)) {
-    // Try the template under each candidate locale in order. Most sends
-    // succeed on the first (the configured language); the retries only
-    // fire when Meta says the name+locale pair wasn't found.
-    let last: { success: boolean; simulated?: boolean; error?: string; messageId?: string } | null = null;
-    for (const locale of template.languages) {
-      const attempt = await send({
-        templateName: template.name,
-        templateVars: template.buildVars(opts.recipient),
-        templateLanguage: locale,
-      });
-      if (attempt.success) return { ...attempt, usedTemplate: true };
-      last = attempt;
-      // Only a name+language lookup miss justifies trying another locale —
-      // any other error (quota, auth, network) won't improve with retries.
-      if (!isTemplateNotFoundError(attempt.error)) break;
-    }
-    // Template send failed — report the last error (usually the more
-    // actionable template-locale/registration one).
-    return { ...(last ?? first), usedTemplate: true };
-  }
-  return first;
+  // firmMappings is still accepted for signature compatibility, but the
+  // server resolves the mapping itself from whatsapp_template_mappings —
+  // the server's copy is authoritative (it's the one that retries).
+  return await send({
+    fallback: {
+      messageType: opts.messageType,
+      templateVarsData: opts.recipient,
+    },
+  });
 }
