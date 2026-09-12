@@ -103,6 +103,75 @@ export function summarizeError(error: string | null | undefined, max = 140): str
   return oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
 }
 
+// ─── Error classes: mapped reasons for every failed WhatsApp send ──────────
+//
+// Client twin of convex/communications.ts classifyWhatsAppError /
+// WHATSAPP_ERROR_CLASS_MESSAGES (kept in sync deliberately — the browser
+// bundle must not import the Convex server module). HTTP status isn't
+// stored on log rows, so the twin classifies by TEXT only; legacy records
+// (written before errorClass existed) still map to a reason this way.
+
+/** Chakra's WhatsApp plan-upgrade billing page (the 402 action link). */
+export const CHAKRA_WHATSAPP_BILLING_URL =
+  'https://app.chakrahq.com/admin/billing/chakra-whatsapp-upgrade';
+
+/** The short, user-facing mapped reason for each error class. */
+export const WHATSAPP_ERROR_CLASS_MESSAGES: Record<string, string> = {
+  plan_upgrade_required: 'WhatsApp plan upgrade required — Chakra billing. Template messages blocked.',
+  payment_issue: 'WhatsApp payment issue. Check Chakra + Meta Business billing.',
+  auth_failed: 'WhatsApp authentication failed. Check Chakra token.',
+  rate_limited: 'Rate limited. Retry in a few minutes.',
+  service_unavailable: 'WhatsApp service temporarily unavailable. Retrying…',
+  window: 'Outside the 24-hour WhatsApp window — an approved template is required for business-initiated messages.',
+  template_not_found: 'Template not found — the name or language doesn\'t match what\'s registered. Sync from Meta in Settings.',
+  param_mismatch: 'Template variables don\'t match what was sent (count/order). Check the variable order in Settings.',
+  recipient_invalid: 'WhatsApp rejected the recipient\'s number. Check the resident\'s phone in their record.',
+  quota_exceeded: 'Monthly WhatsApp limit reached. Upgrade your plan to continue sending automated messages.',
+  not_configured: 'WhatsApp is not configured on this deployment — CHAKRA_* environment variables are missing.',
+  invalid_phone: 'The recipient\'s phone number isn\'t a valid WhatsApp number.',
+  unknown: 'Unknown WhatsApp gateway error.',
+};
+
+/**
+ * Map a raw WhatsApp error string to its error class (text-only — no HTTP
+ * status available client-side). Mirrors the server classifier's text
+ * branches; the 402 billing gate is identifiable by its unambiguous text.
+ */
+export function classifyWhatsAppErrorText(error: string | null | undefined): string {
+  if (!error) return 'unknown';
+  const e = error.toLowerCase();
+  if (e.includes('template message sending is disabled') || e.includes('upgrade to a paid plan')) {
+    return 'plan_upgrade_required';
+  }
+  if (e.includes('rate limit')) return 'rate_limited';
+  if (/network|econnreset|etimedout|socket hang up|fetch failed|service unavailable/i.test(e)) {
+    return 'service_unavailable';
+  }
+  if (isWhatsAppWindowError(error)) return 'window';
+  if (isTemplateNotFoundError(error)) return 'template_not_found';
+  if (/param.*mismatch|incorrect.*param|number of parameters|placeholders|1320[0-9][0-9]/i.test(e)) {
+    return 'param_mismatch';
+  }
+  if (/\(code 190\)|access token|unauthorized|invalid.*token/i.test(e)) return 'auth_failed';
+  if (/\(code 1310(4[0-9]|5[0-9])\)|recipient|phone number.*not.*valid/i.test(e)) {
+    return 'recipient_invalid';
+  }
+  return 'unknown';
+}
+
+/**
+ * The mapped, user-facing reason for a failed log row: the stored
+ * errorClass when present, otherwise re-classified from the raw error text
+ * (covers records written before errorClass existed).
+ */
+export function mappedErrorClass(
+  errorClass: string | null | undefined,
+  errorMessage: string | null | undefined
+): string {
+  if (errorClass) return errorClass;
+  return classifyWhatsAppErrorText(errorMessage);
+}
+
 /**
  * Does this provider error mean "the name+language template pair wasn't
  * found on the WhatsApp Business account"? Meta looks up templates by

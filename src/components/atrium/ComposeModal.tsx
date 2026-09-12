@@ -14,7 +14,7 @@ import { translateError } from '../../utils/errorTranslator';
 import { getGeminiApiKey } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { resolveFinancials, parseMoneyInput } from '../../utils/messageFinancials';
-import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError, resolveTemplateFor, FirmTemplateMapping } from '../../utils/deliveryErrors';
+import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError, resolveTemplateFor, FirmTemplateMapping, CHAKRA_WHATSAPP_BILLING_URL } from '../../utils/deliveryErrors';
 import { buildEmailHtml } from '../../utils/emailTemplate';
 import { MSG_TYPE_LABELS, getMsgTypeLabel, MSG_TYPE_FINANCE, getTypeFinance } from '../../utils/messageTypes';
 import type { FinanceField } from '../../utils/messageTypes';
@@ -142,6 +142,21 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       ? { sessionToken: bearerToken, userEmail: currentUser.email }
       : 'skip'
   ) as FirmTemplateMapping[] | undefined;
+
+  // ── WhatsApp gateway health (Task 39/Item 1 — Chakra 402 billing gate).
+  // The server sets gatewayBlockedClass whenever a send is rejected by
+  // Chakra's billing gate and clears it on any successful send. When
+  // blocked, this modal shows the persistent upgrade banner and disables
+  // the send button (WhatsApp channel) — no more doomed sends.
+  const waSettings = useQuery(
+    api.whatsappTemplates.getWhatsAppSettings,
+    currentUser?.email && bearerToken
+      ? { sessionToken: bearerToken, userEmail: currentUser.email }
+      : 'skip'
+  ) as any;
+  const waPlanBlocked =
+    waSettings?.gatewayBlockedClass === 'plan_upgrade_required' ||
+    waSettings?.gatewayBlockedClass === 'payment_issue';
 
   // ── State ────────────────────────────────────────────────────────────
   const [msgType, setMsgType] = useState<AutomationMessageType>(() => prefill?.messageType || 'custom');
@@ -887,6 +902,9 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             senderName: currentUser?.name || 'Property Manager',
             status,
             errorMessage: status === 'failed' ? sendResult.error : undefined,
+            // MAPPED failure class (Task 39/Item 1) — the Sent tab renders
+            // the mapped reason from this; raw text stays behind Details.
+            errorClass: status === 'failed' ? (sendResult as any).errorClass : undefined,
             messageId: sendResult.messageId,
             triggeredBy: currentUser?.id
           });
@@ -972,6 +990,28 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none p-1" aria-label="Close">×</button>
         </div>
+
+        {/* ── Persistent 402 billing banner (Task 39/Item 1) ───────────
+            Chakra's billing gate is rejecting every template send. NOT
+            dismissable: the gateway stays blocked until the plan is
+            upgraded or the number migrates to direct Meta. */}
+        {waPlanBlocked && (
+          <div className="mx-4 sm:mx-5 mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 flex items-start gap-2">
+            <span className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5">⚠</span>
+            <div className="min-w-0 flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+              <span className="font-bold">WhatsApp plan inactive.</span> Chakra's billing gate is blocking template messages on the current
+              plan — WhatsApp sends are disabled until this is resolved.
+              <a
+                href={CHAKRA_WHATSAPP_BILLING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-1 font-bold text-amber-900 dark:text-amber-200 underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-100"
+              >
+                Upgrade WhatsApp plan →
+              </a>
+            </div>
+          </div>
+        )}
 
         {step === 'compose' ? (
           <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
@@ -1578,7 +1618,12 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             </p>
             <div className="flex gap-3">
               <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">← Edit</button>
-              <button onClick={() => handleSend()} disabled={loading} className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+              <button
+                onClick={() => handleSend()}
+                disabled={loading || (channel === 'whatsapp' && waPlanBlocked)}
+                title={channel === 'whatsapp' && waPlanBlocked ? 'WhatsApp plan inactive.' : undefined}
+                className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <SendIcon /> {loading ? 'Sending…' : `Confirm & Send${isMultiRecipient ? ` (${selectedRecipients.length})` : ''}`}
               </button>
             </div>

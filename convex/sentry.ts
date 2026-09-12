@@ -773,6 +773,9 @@ export const logAutomation = mutation({
     // errorMessage (which Convex REJECTED as an unknown field — the log
     // row silently never persisted); it is now a declared arg.
     errorMessage: v.optional(v.string()),
+    // MAPPED failure class (Task 39/Item 1) — persisted so the Sent tab
+    // renders the mapped reason (raw provider text stays behind Details).
+    errorClass: v.optional(v.string()),
     messageId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),
     userEmail: v.optional(v.string()),
@@ -809,16 +812,27 @@ export const updateAutomationLogStatus = internalMutation({
     logId: v.id("automation_logs"),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
     errorMessage: v.optional(v.string()),
+    // MAPPED failure class (Task 39/Item 1) — stored alongside the raw
+    // error text so the Sent tab can render the mapped reason.
+    errorClass: v.optional(v.string()),
     messageId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const log = await ctx.db.get(args.logId);
     if (!log) return; // log row was deleted — nothing to correct
-    await ctx.db.patch(args.logId, {
-      status: args.status,
-      errorMessage: args.errorMessage,
-      messageId: args.messageId,
-    });
+    // Build the patch conditionally: Convex ignores undefined fields, so a
+    // successful retry EXPLICITLY clears the previous failure's reason —
+    // otherwise the log would keep showing the old error next to a
+    // "Delivered" badge.
+    const patch: any = { status: args.status };
+    if (args.errorMessage !== undefined) patch.errorMessage = args.errorMessage;
+    if (args.errorClass !== undefined) patch.errorClass = args.errorClass;
+    if (args.messageId !== undefined) patch.messageId = args.messageId;
+    if (args.status === "sent") {
+      patch.errorMessage = args.errorMessage ?? "";
+      patch.errorClass = args.errorClass ?? "";
+    }
+    await ctx.db.patch(args.logId, patch);
   },
 });
 

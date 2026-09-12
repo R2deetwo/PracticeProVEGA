@@ -3108,6 +3108,9 @@ export const processScheduledMessages = internalAction({
       try {
         let sendSuccess = false;
         let sendError = '';
+        // MAPPED failure class (Task 39/Item 1) — carried through to the
+        // automation_log so the Sent tab shows the mapped reason.
+        let sendErrorClass: string | undefined;
         let providerMessageId: string | undefined;
 
         // ── Actually send the message via the appropriate channel ──
@@ -3201,6 +3204,7 @@ export const processScheduledMessages = internalAction({
                 providerMessageId = result?.messageId || providerMessageId;
               } else {
                 sendError = result?.error || 'WhatsApp send failed';
+                sendErrorClass = result?.errorClass;
                 console.warn(`[processScheduledMessages] WhatsApp failed for ${phone}:`, sendError);
               }
             } catch (waErr: any) {
@@ -3240,6 +3244,7 @@ export const processScheduledMessages = internalAction({
               logId: msg.automationLogId,
               status: sendSuccess ? "sent" : "failed",
               errorMessage: sendSuccess ? undefined : (sendError || "Delivery failed"),
+              errorClass: sendSuccess ? undefined : sendErrorClass,
               messageId: providerMessageId,
             });
           } catch (logPatchErr: any) {

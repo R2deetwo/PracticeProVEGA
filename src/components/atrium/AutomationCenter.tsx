@@ -158,7 +158,7 @@ const AutomationCenter: React.FC = () => {
         // (previously the errorMessage arg was rejected by Convex validation
         // and this catch counted real sends as failures).
         try {
-          await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : finalResult.error, triggeredBy: currentUser?.id });
+          await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: p.id, messageType: 'rent_reminder', channel: 'whatsapp', recipient: phone, messagePreview: plainMsg, status, errorMessage: status === 'sent' ? undefined : finalResult.error, errorClass: status === 'sent' ? undefined : (finalResult as any).errorClass, triggeredBy: currentUser?.id });
         } catch (logErr) {
           console.error('[BulkReminder] automation log write failed (send already completed):', logErr);
         }

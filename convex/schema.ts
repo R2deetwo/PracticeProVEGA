@@ -1245,6 +1245,12 @@ export default defineSchema({
     sentAt: v.number(),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated"), v.literal("sending"), v.literal("logged")),
     errorMessage: v.optional(v.string()),
+    // MAPPED failure reason (2026-09-12, Task 39/Item 1): the machine-
+    // readable error class (see WHATSAPP_ERROR_CLASS_MESSAGES) — e.g.
+    // "plan_upgrade_required" for Chakra's 402 billing gate. The UI shows
+    // the mapped reason by default; the raw provider text above stays
+    // behind the admin-only Details toggle.
+    errorClass: v.optional(v.string()),
     messageId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()), 
   })
@@ -1745,6 +1751,14 @@ export default defineSchema({
     lastSyncAt: v.optional(v.number()),
     lastSyncSuccessAt: v.optional(v.number()),
     lastSyncError: v.optional(v.string()),
+    // ── Gateway health (Task 39/Item 1 — Chakra 402 billing gate) ──────
+    // Written by sendWhatsApp after every send: a plan-upgrade/payment
+    // failure sets these; a successful send clears them ("" = clear —
+    // Convex patch can't write undefined). Drives the persistent admin
+    // banner + disabled WhatsApp send in the UI.
+    gatewayBlockedClass: v.optional(v.string()),   // "plan_upgrade_required" | "payment_issue" | ""
+    gatewayBlockedReason: v.optional(v.string()),  // raw provider reason (admin Details)
+    gatewayBlockedAt: v.optional(v.number()),      // when the block was last seen
   })
     .index("by_firm", ["firmId"]),
 

@@ -1,6 +1,14 @@
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
+import { requireFirmUser } from "./authHelpers";
+
+// Chakra's WhatsApp plan-upgrade billing page — the action link surfaced in
+// admin UI whenever the gateway returns the 402 billing gate (Task 37 live
+// test: "Template Message sending is disabled. You need to upgrade to a
+// paid plan." — the root cause of EVERY failed template send).
+export const CHAKRA_WHATSAPP_BILLING_URL =
+  "https://app.chakrahq.com/admin/billing/chakra-whatsapp-upgrade";
 
 // ─── INTERNAL WRAPPER: sendWhatsAppInternal ──────────────────────────────
 // internalMutation (like sentry.ts cron jobs) can't call ctx.runAction on
@@ -31,7 +39,7 @@ export const sendWhatsAppInternal = internalAction({
     })),
     retryTemplateLocales: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }> => {
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; errorClass?: string; messageId?: string; usedTemplate?: boolean }> => {
     return await ctx.runAction(api.communications.sendWhatsApp, args);
   },
 });
@@ -168,7 +176,7 @@ export const sendWhatsApp = action({
     // automatically retry the other common English locales (default true).
     retryTemplateLocales: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string; usedTemplate?: boolean }> => {
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; errorClass?: string; messageId?: string; usedTemplate?: boolean }> => {
     // Check and increment quota — type explicitly to avoid circular inference
     const quotaResult: { success: boolean; error?: string; limit?: number } = await ctx.runMutation(
       internal.myFunctions.incrementWhatsAppQuota,
@@ -178,6 +186,7 @@ export const sendWhatsApp = action({
       return { 
         success: false, 
         simulated: false, 
+        errorClass: "quota_exceeded",
         error: `Monthly WhatsApp limit reached (${quotaResult.limit}). Please upgrade your plan to continue sending automated messages.` 
       };
     }
@@ -191,7 +200,7 @@ export const sendWhatsApp = action({
       const missing = [!TOKEN && "CHAKRA_ACCESS_TOKEN", !PLUGIN_ID && "CHAKRA_PLUGIN_ID", !PHONE_ID && "CHAKRA_PHONE_NUMBER_ID"].filter(Boolean).join(", ");
       // Return error instead of throwing — throwing crashes the calling action
       // (e.g. createPortalInvite) even after the invite record is already created.
-      return { success: false, simulated: true, error: `WhatsApp not configured. Missing: ${missing}.` };
+      return { success: false, simulated: true, errorClass: "not_configured", error: `WhatsApp not configured. Missing: ${missing}.` };
     }
 
     // Normalise phone to E.164 digits (no "+") for Meta's API.
@@ -202,6 +211,7 @@ export const sendWhatsApp = action({
       return {
         success: false,
         simulated: false,
+        errorClass: "invalid_phone",
         error: `Invalid WhatsApp recipient phone number: "${args.to}" — must be a valid phone in international format.`,
       };
     }
@@ -211,7 +221,7 @@ export const sendWhatsApp = action({
     const url = `https://api.chakrahq.com/v1/ext/plugin/whatsapp/${PLUGIN_ID}/api/${WA_VER}/${PHONE_ID}/messages`;
     const doSend = async (payload: any): Promise<{
       ok: boolean; httpStatus: number; data: any; raw: string;
-      error?: string; messageId?: string;
+      error?: string; errorClass?: string; messageId?: string;
     }> => {
       try {
         const response = await fetch(url, {
@@ -232,9 +242,14 @@ export const sendWhatsApp = action({
           const parsed = extractWaError(data);
           const errText = parsed ?? (raw && raw.length > 0 ? raw.slice(0, 300) : null);
           console.error("[WhatsApp] Chakra API Error:", response.status, raw.slice(0, 1000));
+          // 402 is Chakra's billing gate (template sends disabled on the
+          // current plan) — classify it so the admin UI can show the upgrade
+          // banner and disabled send instead of a cryptic raw error.
+          const errorClass = classifyWhatsAppError(errText, response.status);
           return {
             ok: false, httpStatus: response.status, data, raw,
-            error: explainWhatsAppError(parsed) ??
+            errorClass,
+            error: explainWhatsAppError(errText, response.status) ??
               `Chakra/WhatsApp gateway error (HTTP ${response.status})${errText ? `: ${errText}` : " — empty response body"}`,
           };
         }
@@ -247,14 +262,37 @@ export const sendWhatsApp = action({
           console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", raw.slice(0, 1000));
           return {
             ok: false, httpStatus: response.status, data, raw,
-            error: (parsed && explainWhatsAppError(parsed)) ||
+            errorClass: classifyWhatsAppError(parsed, response.status),
+            error: (parsed && explainWhatsAppError(parsed, response.status)) ||
               "WhatsApp gateway accepted the request but returned no message id — message NOT delivered.",
           };
         }
         return { ok: true, httpStatus: response.status, data, raw, messageId };
       } catch (error: any) {
         console.error("[WhatsApp] Send failed:", error);
-        return { ok: false, httpStatus: 0, data: null, raw: "", error: error?.message || String(error) };
+        // httpStatus 0 = the fetch itself threw (network/DNS/timeout) —
+        // classified as service_unavailable, never a silent "unknown".
+        return { ok: false, httpStatus: 0, data: null, raw: "", errorClass: "service_unavailable", error: explainWhatsAppError(error?.message || String(error), 0) };
+      }
+    };
+
+    // ── Gateway health tracking (402 billing gate) ──────────────────────
+    // A plan-upgrade/payment failure marks the firm's WhatsApp as blocked
+    // (banner + disabled send in the admin UI); a successful send clears
+    // it. Best-effort: health tracking must never break a send.
+    const recordHealth = async (result: { success: boolean; errorClass?: string; error?: string }) => {
+      try {
+        const blocked =
+          !result.success &&
+          (result.errorClass === "plan_upgrade_required" || result.errorClass === "payment_issue");
+        await ctx.runMutation(internal.communications.recordWhatsAppGatewayHealth, {
+          firmId: args.firmId,
+          blocked,
+          errorClass: blocked ? result.errorClass : undefined,
+          reason: blocked ? (result.error ?? "") : undefined,
+        });
+      } catch (e: any) {
+        console.warn("[WhatsApp] gateway-health write failed:", e?.message || e);
       }
     };
 
@@ -286,12 +324,18 @@ export const sendWhatsApp = action({
         const attempt = await doSend(templatePayload(
           args.templateName, locale, args.templateVars
         ));
-        if (attempt.ok) return { success: true, simulated: false, messageId: attempt.messageId, usedTemplate: true };
+        if (attempt.ok) {
+          const out = { success: true, simulated: false, messageId: attempt.messageId, usedTemplate: true };
+          await recordHealth(out);
+          return out;
+        }
         last = attempt;
         // Only a name+language lookup miss justifies another locale.
         if (!isTemplateNotFoundError(attempt.error)) break;
       }
-      return { success: false, simulated: false, error: last?.error };
+      const out = { success: false, simulated: false, error: last?.error, errorClass: last?.errorClass };
+      await recordHealth(out);
+      return out;
     }
 
     // ── SEND PATH 2: free-form first, template fallback on window errors ─
@@ -301,7 +345,11 @@ export const sendWhatsApp = action({
       type: "text",
       text: { preview_url: false, body: args.messageText },
     });
-    if (free.ok) return { success: true, simulated: false, messageId: free.messageId };
+    if (free.ok) {
+      const out = { success: true, simulated: false, messageId: free.messageId };
+      await recordHealth(out);
+      return out;
+    }
 
     // Window-class failure (resident hasn't replied in 24h) + a mapping for
     // this message type → retry with the firm's approved template. THIS is
@@ -320,22 +368,31 @@ export const sendWhatsApp = action({
           const attempt = await doSend(templatePayload(
             mapping.templateName, locale, vars.length ? vars : undefined
           ));
-          if (attempt.ok) return { success: true, simulated: false, messageId: attempt.messageId, usedTemplate: true };
+          if (attempt.ok) {
+            const out = { success: true, simulated: false, messageId: attempt.messageId, usedTemplate: true };
+            await recordHealth(out);
+            return out;
+          }
           last = attempt;
           if (!isTemplateNotFoundError(attempt.error)) break;
         }
         // Template retry failed — report the template error (the more
         // actionable one) but keep the original window explanation.
-        return {
+        const out = {
           success: false, simulated: false, usedTemplate: true,
           error: last?.error
             ? `${last.error} (free-form was rejected: ${free.error})`
             : free.error,
+          errorClass: last?.errorClass ?? free.errorClass,
         };
+        await recordHealth(out);
+        return out;
       }
     }
 
-    return { success: false, simulated: false, error: free.error };
+    const out = { success: false, simulated: false, error: free.error, errorClass: free.errorClass };
+    await recordHealth(out);
+    return out;
   },
 });
 
@@ -510,26 +567,296 @@ export function isTemplateNotFoundError(error: string | null | undefined): boole
   );
 }
 
+// ─── Error classes: the machine-readable reason for every failed send ───────
+//
+// 2026-09-12 (Task 37 live test): the WhatsApp Live Test workflow proved the
+// definitive root cause of every failed template send — Chakra returns HTTP
+// 402 with "Template Message sending is disabled. You need to upgrade to a
+// paid plan." A billing gate, not a code bug. These classes make that (and
+// every other failure family) a first-class value stored on each failed
+// message record, so the UI can show a mapped reason, a persistent admin
+// banner with the Chakra billing link, and a disabled send button — instead
+// of a raw provider string the user can't act on.
+
+export type WhatsAppErrorClass =
+  | "plan_upgrade_required" // 402 + "Template Message sending is disabled"
+  | "payment_issue"         // 402 (other billing failures)
+  | "auth_failed"           // 401/403 / code 190 / token problems
+  | "rate_limited"          // 429
+  | "service_unavailable"   // 5xx / network-level failures
+  | "window"                // 24h customer-service window (131047)
+  | "template_not_found"    // name+language lookup miss (132000-class)
+  | "param_mismatch"        // template variable count/order mismatch
+  | "recipient_invalid"     // Meta rejected the recipient's number (1310xx)
+  | "quota_exceeded"        // app-side monthly send quota
+  | "not_configured"        // missing CHAKRA_* environment variables
+  | "invalid_phone"         // app-side phone normalisation failed
+  | "unknown";
+
+/**
+ * The short, user-facing mapped reason for each error class. The message log
+ * shows THIS by default; the raw provider string stays on the record behind
+ * an admin-only "Details" toggle. Client twin (same keys) lives in
+ * src/utils/deliveryErrors.ts.
+ */
+export const WHATSAPP_ERROR_CLASS_MESSAGES: Record<WhatsAppErrorClass, string> = {
+  plan_upgrade_required: "WhatsApp plan upgrade required — Chakra billing. Template messages blocked.",
+  payment_issue: "WhatsApp payment issue. Check Chakra + Meta Business billing.",
+  auth_failed: "WhatsApp authentication failed. Check Chakra token.",
+  rate_limited: "Rate limited. Retry in a few minutes.",
+  service_unavailable: "WhatsApp service temporarily unavailable. Retrying…",
+  window: "Outside the 24-hour WhatsApp window — an approved template is required for business-initiated messages.",
+  template_not_found: "Template not found — the name or language doesn't match what's registered. Sync from Meta in Settings.",
+  param_mismatch: "Template variables don't match what was sent (count/order). Check the variable order in Settings.",
+  recipient_invalid: "WhatsApp rejected the recipient's number. Check the resident's phone in their record.",
+  quota_exceeded: "Monthly WhatsApp limit reached. Upgrade your plan to continue sending automated messages.",
+  not_configured: "WhatsApp is not configured on this deployment — CHAKRA_* environment variables are missing.",
+  invalid_phone: "The recipient's phone number isn't a valid WhatsApp number.",
+  unknown: "Unknown WhatsApp gateway error.",
+};
+
+/**
+ * Map a provider error (text + optional HTTP status) to ONE error class.
+ *
+ * Status-based classes are checked FIRST — the 402 billing gate, auth,
+ * rate-limit and 5xx verdicts come from the gateway's HTTP status line and
+ * are more specific than any text matching. Text-only calls (no status)
+ * fall through to the original text classes, so pre-existing callers and
+ * stored error strings keep classifying correctly.
+ */
+export function classifyWhatsAppError(
+  error: string | null | undefined,
+  httpStatus?: number
+): WhatsAppErrorClass {
+  const e = (error || "").toLowerCase();
+  // The billing gate is identifiable by text alone (Chakra's message is
+  // unambiguous) so legacy records without a stored status classify too.
+  const isPlanDisabledText =
+    e.includes("template message sending is disabled") ||
+    e.includes("upgrade to a paid plan");
+  if (httpStatus === 402 || isPlanDisabledText) {
+    return isPlanDisabledText ? "plan_upgrade_required" : "payment_issue";
+  }
+  if (httpStatus === 401 || httpStatus === 403) return "auth_failed";
+  if (httpStatus === 429 || e.includes("rate limit")) return "rate_limited";
+  // httpStatus 0 = the fetch itself threw (network/DNS/timeout).
+  if (httpStatus === 0 || (httpStatus != null && httpStatus >= 500)) {
+    return "service_unavailable";
+  }
+  if (/network|econnreset|etimedout|socket hang up|fetch failed|service unavailable/i.test(e)) {
+    return "service_unavailable";
+  }
+  if (isWhatsAppWindowError(error)) return "window";
+  if (isTemplateNotFoundError(error)) return "template_not_found";
+  if (/param.*mismatch|incorrect.*param|number of parameters|placeholders|1320[0-9][0-9]/i.test(e)) {
+    return "param_mismatch";
+  }
+  if (/\(code 190\)|access token|unauthorized|invalid.*token/i.test(e)) return "auth_failed";
+  if (/\(code 1310(4[0-9]|5[0-9])\)|recipient|phone number.*not.*valid/i.test(e)) {
+    return "recipient_invalid";
+  }
+  return "unknown";
+}
+
 /**
  * Append an actionable hint to WhatsApp send errors so users see WHY the
  * send failed and what to do, not just the provider's raw text.
+ *
+ * 2026-09-12: extended with the status-based classes (402 billing gate /
+ * 401 / 403 / 429 / 5xx / network). The original five text classes keep
+ * their exact messages — existing callers and tests are unchanged.
  */
-export function explainWhatsAppError(error: string | null | undefined): string {
+export function explainWhatsAppError(
+  error: string | null | undefined,
+  httpStatus?: number
+): string {
   if (!error) return "Unknown WhatsApp gateway error.";
-  if (isWhatsAppWindowError(error)) {
-    return `${error} — WhatsApp only delivers free-form messages within 24 hours of the resident's last reply. Business-initiated messages need an approved template (Settings → WhatsApp Templates). The resident can also message you first to open the 24-hour window.`;
+  switch (classifyWhatsAppError(error, httpStatus)) {
+    case "plan_upgrade_required":
+      return `${error} — WhatsApp plan upgrade required: Chakra billing blocks template messages on the current plan. Upgrade at ${CHAKRA_WHATSAPP_BILLING_URL}`;
+    case "payment_issue":
+      return `${error} — WhatsApp payment issue. Check Chakra + Meta Business billing.`;
+    case "auth_failed":
+      return `${error} — WhatsApp authentication failed. Check the Chakra token: re-issue it in Chakra Chat (WhatsApp setup) and update CHAKRA_ACCESS_TOKEN in the Convex dashboard.`;
+    case "rate_limited":
+      return `${error} — Rate limited. Retry in a few minutes.`;
+    case "service_unavailable":
+      return `${error} — WhatsApp service temporarily unavailable. Retrying… If it persists, check the Chakra/Meta status.`;
+    case "window":
+      return `${error} — WhatsApp only delivers free-form messages within 24 hours of the resident's last reply. Business-initiated messages need an approved template (Settings → WhatsApp Templates). The resident can also message you first to open the 24-hour window.`;
+    case "template_not_found":
+      return `${error} — the template name or language doesn't match what's registered on this WhatsApp account. Open Settings → WhatsApp Templates and press "Sync from Meta" to see your exact approved template names, languages and variable counts, then map them to your message types.`;
+    case "param_mismatch":
+      return `${error} — the template's variables don't match what was sent (count/order). Check the variable order in Settings → WhatsApp Templates.`;
+    case "recipient_invalid":
+      return `${error} — WhatsApp rejected the recipient's number (not a WhatsApp user, or invalid format). Check the resident's phone in their record.`;
+    default:
+      return error;
   }
-  if (isTemplateNotFoundError(error)) {
-    return `${error} — the template name or language doesn't match what's registered on this WhatsApp account. Open Settings → WhatsApp Templates and press "Sync from Meta" to see your exact approved template names, languages and variable counts, then map them to your message types.`;
-  }
-  if (/param.*mismatch|incorrect.*param|number of parameters|placeholders|1320[0-9][0-9]/i.test(error)) {
-    return `${error} — the template's variables don't match what was sent (count/order). Check the variable order in Settings → WhatsApp Templates.`;
-  }
-  if (/\(code 190\)|access token|unauthorized|invalid.*token/i.test(error)) {
-    return `${error} — the Chakra access token is missing, expired or revoked. Re-issue it in Chakra Chat (WhatsApp setup) and update CHAKRA_ACCESS_TOKEN in the Convex dashboard.`;
-  }
-  if (/\(code 1310(4[0-9]|5[0-9])\)|recipient|phone number.*not.*valid/i.test(error)) {
-    return `${error} — WhatsApp rejected the recipient's number (not a WhatsApp user, or invalid format). Check the resident's phone in their record.`;
-  }
-  return error;
 }
+
+// ─── Gateway health: persistent 402-blocked state per firm ──────────────────
+//
+// Written by sendWhatsApp after every send: a plan-upgrade/payment failure
+// marks the firm's WhatsApp BLOCKED (admin banner + disabled send in the
+// UI); any successful send clears it. Lives on whatsapp_settings so the UI
+// reads one row instead of scanning logs.
+
+export const recordWhatsAppGatewayHealth = internalMutation({
+  args: {
+    firmId: v.string(),
+    blocked: v.boolean(),
+    errorClass: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("whatsapp_settings")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+    if (args.blocked) {
+      const patch = {
+        gatewayBlockedClass: args.errorClass ?? "unknown",
+        gatewayBlockedReason: (args.reason ?? "").slice(0, 300),
+        gatewayBlockedAt: Date.now(),
+      };
+      if (existing) await ctx.db.patch(existing._id, patch);
+      else await ctx.db.insert("whatsapp_settings", { firmId: args.firmId, ...patch });
+    } else if (existing?.gatewayBlockedClass) {
+      // Clear (Convex patch can't write undefined — "" is the clear value).
+      await ctx.db.patch(existing._id, {
+        gatewayBlockedClass: "",
+        gatewayBlockedReason: "",
+        gatewayBlockedAt: 0,
+      });
+    }
+    return { success: true };
+  },
+});
+
+// ─── Retry all failed (last 24h) ────────────────────────────────────────────
+
+/**
+ * Failed WhatsApp automation_logs from the last 24h for a firm (bounded).
+ * Internal query — read by the retryFailedWhatsApp action.
+ */
+export const listFailedWhatsAppLogs = internalQuery({
+  args: { firmId: v.string(), since: v.number() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("automation_logs")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("channel"), "whatsapp"),
+          q.eq(q.field("status"), "failed"),
+          q.gte(q.field("sentAt"), args.since)
+        )
+      )
+      .take(50);
+  },
+});
+
+/**
+ * Best-effort recipient context for a retry: the unit/property record the
+ * log points at (tenant name, rent, service charge, address) so the firm's
+ * template variables fill with REAL values instead of placeholders.
+ */
+export const getLogRecipientContext = internalQuery({
+  args: { propertyId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (!args.propertyId) return null;
+    try {
+      const p: any = await ctx.db.get(args.propertyId as any);
+      if (!p) return null;
+      const rd = p.rentalDetails || {};
+      return {
+        tenantName: p.tenantName || undefined,
+        rentAmount: Number(rd.rentAmount ?? p.rentAmount ?? 0) || undefined,
+        serviceCharge: Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0) || undefined,
+        propertyAddress: p.propertyAddress || p.address || undefined,
+      };
+    } catch {
+      return null;
+    }
+  },
+});
+
+/**
+ * "Retry all failed (last 24h)" — re-routes every failed WhatsApp send from
+ * the last 24 hours through the SAME sendWhatsApp helper (free-form first,
+ * automatic approved-template fallback when Meta rejects with the 24h window
+ * error — which IS "respecting the 24-hour window"). Each log row is updated
+ * to the real outcome; a successful retry clears the stored failure reason.
+ * Capped at 50 per invocation so a runaway loop can't flood the gateway.
+ */
+export const retryFailedWhatsApp = action({
+  args: {
+    firmId: v.string(),
+    userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ attempted: number; succeeded: number; stillFailed: number; errors: string[] }> => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    const logs: any[] = await ctx.runQuery(internal.communications.listFailedWhatsAppLogs, {
+      firmId: auth.firmId,
+      since,
+    });
+    let attempted = 0;
+    let succeeded = 0;
+    let stillFailed = 0;
+    const errors: string[] = [];
+    for (const log of logs.slice(0, 50)) {
+      attempted++;
+      try {
+        const context = log.unitId
+          ? await ctx.runQuery(internal.communications.getLogRecipientContext, { propertyId: log.unitId })
+          : null;
+        const res: any = await ctx.runAction(api.communications.sendWhatsApp, {
+          firmId: auth.firmId,
+          to: log.recipient,
+          messageText: log.messageContent || log.messagePreview || "",
+          fallback: {
+            messageType: log.messageType || "custom",
+            templateVarsData: {
+              tenantName: context?.tenantName || undefined,
+              amount: context?.rentAmount,
+              serviceCharge: context?.serviceCharge,
+              address: context?.propertyAddress,
+              messageText: log.messageContent || log.messagePreview || "",
+            },
+          },
+        });
+        if (res?.success) {
+          succeeded++;
+        } else {
+          stillFailed++;
+          if (res?.error) errors.push(String(res.error).slice(0, 200));
+        }
+        // Correct the log row to the REAL outcome (same mutation the
+        // scheduled-message dispatcher uses).
+        await ctx.runMutation(internal.sentry.updateAutomationLogStatus, {
+          logId: log._id,
+          status: res?.success ? "sent" : "failed",
+          errorMessage: res?.success ? undefined : res?.error,
+          errorClass: res?.success ? undefined : res?.errorClass,
+          messageId: res?.messageId,
+        });
+      } catch (e: any) {
+        stillFailed++;
+        const msg = e?.message || "Retry failed";
+        errors.push(msg.slice(0, 200));
+        try {
+          await ctx.runMutation(internal.sentry.updateAutomationLogStatus, {
+            logId: log._id,
+            status: "failed",
+            errorMessage: msg,
+            errorClass: "unknown",
+          });
+        } catch { /* best-effort log correction */ }
+      }
+    }
+    return { attempted, succeeded, stillFailed, errors: errors.slice(0, 5) };
+  },
+});
