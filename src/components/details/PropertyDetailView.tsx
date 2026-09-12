@@ -24,6 +24,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
 import { ServiceChargeBars } from './ServiceChargeBars';
+import { serviceChargeTimeline, monthLabel as monthLabelLite } from '../../utils/leaseTimeline';
 // MESSAGES OVERHAUL: the property-side compose entry points now use the
 // ONE unified composer (atrium/ComposeModal) — templates, resident
 // financials auto-fill, honest per-recipient delivery results, retry. The
@@ -1368,34 +1369,18 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     ? 'bg-amber-50/60 dark:bg-amber-950/20'
                                                     : 'bg-blue-50/40 dark:bg-blue-950/10';
 
-                                                // ── SC status badge renderer ──
-                                                const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                const scOutstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
                                                 // Unified service-charge resolution (Item 2): 0 is a REAL value at
                                                 // every level; the parent property is the last-resort fallback.
-                                                // Replaces the old `d.serviceChargeAmount || unit.serviceCharge ||
-                                                // rental.serviceCharge || 0` chain that skipped legitimate 0s.
                                                 const scResolution = resolveServiceCharge({ unit, rental, defaultProperty: property });
                                                 const scAmount = scResolution.amount;
-
-                                                const renderScBadge = () => {
-                                                    if (d.remindersPaused) {
-                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
-                                                    }
-                                                    if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
-                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
-                                                    }
-                                                    if (scStatus === 'PARTIALLY_PAID') {
-                                                        return <>
-                                                            <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
-                                                            {scOutstanding > 0 && <span className="text-3xs text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
-                                                        </>;
-                                                    }
-                                                    if (scStatus === 'UNPAID') {
-                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>;
-                                                    }
-                                                    return null;
-                                                };
+                                                // LIVE billing timeline (units-tab overhaul): the expanded card's
+                                                // SC badge + outstanding figures derive from the same engine the
+                                                // pill strips use — time- and payment-driven, never the stale
+                                                // stored snapshot. Falls back to the stored aggregate only when
+                                                // no timeline can be computed (e.g. no lease dates).
+                                                const scTimeline = serviceChargeTimeline({ unit, rental: (unit as any).rentalDetails, defaultProperty: property });
+                                                const scLive = scTimeline.summary.state;
+                                                const scOutstandingLive = Math.round(scTimeline.summary.outstandingTotal);
 
                                                 // ── Statutory timeline milestone ──
                                                 // DISMISSIBLE + SUPPRESSED if quit notice has been served.
@@ -1549,13 +1534,18 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 </div>
                                                             )}
 
-                                                            {/* Service Charge & Minimum Vend — unexpanded card shows a single
-                                                                primary status pill (CLEAR / LATE / OUTSTANDING) for the current
-                                                                billing cycle. The full multi-period history appears in the
-                                                                expanded detail section below. */}
+                                                            {/* Billing chips — RENT / SC / MV. Readable text chips
+                                                                ("SC DUE", "RENT CLEAR", "SC 3 MO OVERDUE") driven by
+                                                                the live timeline engine: each month a DUE chip appears
+                                                                until settled, then it goes green. Clicking opens the
+                                                                payment drawer (SC/MV) or Collect Rent (RENT). */}
                                                             <ServiceChargeBars
                                                                 unit={unit}
                                                                 expanded={false}
+                                                                includeRent={property.rentCollectionMode !== 'Management Only (No Rent)'}
+                                                                onCollectRent={d.tenantName ? () => {
+                                                                    openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id });
+                                                                } : undefined}
                                                                 onUpdate={(updatedRental) => {
                                                                     const full = units.find((u: Property) => u.id === unit.id) || unit;
                                                                     updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
@@ -1848,7 +1838,16 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 <DetailItem label="Service Charge" value={
                                                                                     <span data-sc-source={import.meta.env.DEV ? scRes.source : undefined} title={serviceChargeDebugTitle(scRes.source)}>
                                                                                         ₦{scRes.amount.toLocaleString()}
+                                                                                        {/* LIVE badge — derived from the billing timeline
+                                                                                            (time + recorded payments), not the stored snapshot.
+                                                                                            Stored aggregate is the fallback when no lease
+                                                                                            dates exist to compute a timeline. */}
                                                                                         {(() => {
+                                                                                            if (d.remindersPaused) return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
+                                                                                            if (scLive === 'clear') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" title={`All cycles settled through ${scTimeline.summary.settledThrough || 'the latest period'}${scTimeline.summary.nextDueDate ? ` · next charge ${scTimeline.summary.nextDueDate}` : ''}`}>Clear</span>;
+                                                                                            if (scLive === 'due') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title={`Current cycle due — ₦${scOutstandingLive.toLocaleString()} outstanding for ${scTimeline.summary.currentPeriod ? monthLabelLite(scTimeline.summary.currentPeriod.dueDate) : 'this cycle'}.`}>Due</span>;
+                                                                                            if (scLive === 'overdue') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" title={`${scTimeline.summary.overdueCount + scTimeline.summary.dueCount} cycle(s) unsettled — ₦${scOutstandingLive.toLocaleString()} outstanding. Oldest: ${scTimeline.summary.currentPeriod ? monthLabelLite(scTimeline.summary.currentPeriod.dueDate) : '—'}.`}>{scTimeline.summary.overdueCount > 1 ? `${scTimeline.summary.overdueCount + scTimeline.summary.dueCount} Cycles Due` : 'Outstanding'}</span>;
+                                                                                            // scLive === 'none' — fall back to the stored aggregate
                                                                                             const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
                                                                                             if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Clear</span>;
                                                                                             if (scSt === 'PARTIALLY_PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
@@ -1860,9 +1859,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 ) : null;
                                                                             })()}
                                                                             {(() => {
-                                                                                const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                                                const outstanding = d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
-                                                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
+                                                                                const outstanding = scLive !== 'none' && scLive !== 'clear'
+                                                                                    ? scOutstandingLive
+                                                                                    : Number(d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0);
+                                                                                return outstanding > 0 ? <DetailItem label="Outstanding" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
                                                                             })()}
                                                                             {((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
                                                                             {((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
@@ -1879,19 +1879,28 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             )}
                                                                         </div>
 
-                                                                        {/* ── Expanded SC/MV History Pills ──────────────────────────
-                                                                            When the unit card is expanded ("More"), show the full
-                                                                            multi-period history: one pill per elapsed tenancy period,
-                                                                            labeled by month (Jan, Feb, Mar...). Each pill is color-coded
-                                                                            (Green=Paid On Time, Orange=Paid Late/Currently Late,
-                                                                            Red=Outstanding) with a rich hover tooltip. */}
+                                                                        {/* ── Billing & Payment History (expanded) ─────────────────
+                                                                            Month-labeled pill strips per stream — RENT, SC, MV —
+                                                                            auto-advancing from lease dates, colored by recorded
+                                                                            payments + due dates (legend above the strips). Clicking
+                                                                            a pill opens the Quick Payment drawer (SC/MV); rent money
+                                                                            is recorded via the Receipt button / Collect Rent. */}
                                                                         <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3 space-y-2">
-                                                                            <p className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1">
-                                                                                Payment History
-                                                                            </p>
+                                                                            <div className="flex items-baseline justify-between gap-2">
+                                                                                <p className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                                                    Billing & Payment History
+                                                                                </p>
+                                                                                <p className="text-3xs text-slate-400 dark:text-zinc-500 mb-1">
+                                                                                    auto-tracked from lease dates &amp; recorded payments
+                                                                                </p>
+                                                                            </div>
                                                                             <ServiceChargeBars
                                                                                 unit={unit}
                                                                                 expanded={true}
+                                                                                includeRent={property.rentCollectionMode !== 'Management Only (No Rent)'}
+                                                                                onCollectRent={d.tenantName ? () => {
+                                                                                    openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id });
+                                                                                } : undefined}
                                                                                 onUpdate={(updatedRental) => {
                                                                                     const full = units.find((u: Property) => u.id === unit.id) || unit;
                                                                                     updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');

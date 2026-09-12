@@ -1,75 +1,62 @@
 /**
- * ServiceChargeBars — Interactive status pills for Service Charge (SC)
- * and Minimum Vend (MV).
+ * ServiceChargeBars — the Units-tab billing timeline: RENT, SC & MV.
  *
- * Two display modes controlled by the `expanded` prop:
+ * OVERHAUL (the "dead pills" fix): the previous implementation stepped at
+ * the RENT frequency (no form ever set serviceChargeFrequency → annual rent
+ * produced ONE pill per year), defaulted every computed period to red
+ * 'outstanding' with the auto-late engine removed, rendered anonymous
+ * color-only dashes (the header claimed month labels that never existed),
+ * and never read a single payment record — while the expanded card labeled
+ * all of this "Payment History".
  *
- * 1. Unexpanded (default — small unit cards):
- *    Renders ONE single primary status pill per charge indicating the unit's
- *    overall standing for the CURRENT billing cycle:
- *      🟢 CLEAR       — current cycle settled on time
- *      🟠 LATE        — current cycle paid late or past due within grace
- *      🟥 OUTSTANDING — current cycle unpaid and past due
- *    No month text is shown — just the status word. Clicking opens the
- *    Quick Payment Drawer for the current period.
+ * NOW — "it does what it claims to do":
+ *   • TIME drives the strip. Periods are derived from leaseStart on every
+ *     render via the shared engine (src/utils/leaseTimeline.ts): each new
+ *     month adds a pill, the timeline visibly moves month-to-month.
+ *   • PAYMENTS drive the colors. rentPaymentHistory rows (Collect Rent)
+ *     settle RENT pills automatically; stored scPeriods/mvPeriods marks and
+ *     receiptNumbers remain honored overrides for SC/MV.
+ *   • STATE IS DERIVED, not stored: unpaid-but-current → amber DUE ("new
+ *     service charge is due" — said out loud), window-closed-unpaid → red
+ *     OVERDUE, settled → green (orange when settled late), pre-paid → blue.
+ *   • READABLE, not cryptic: collapsed cards get text chips ("SC DUE",
+ *     "SC 3 MO OVERDUE", "RENT CLEAR") instead of color-only dashes;
+ *     expanded cards get month-labeled pills + a one-line legend.
+ *   • CADENCE: without an explicit serviceChargeFrequency the SC timeline
+ *     runs MONTHLY at the monthly rate (annual totals spread /12 — never
+ *     12× inflated); explicit frequencies keep their legacy cadence.
  *
- * 2. Expanded (full unit detail):
- *    Renders a horizontal sequence of compact monthly status pills for ALL
- *    elapsed tenancy periods to date:
- *      🟢 Green  = Paid On Time
- *      🟠 Orange = Paid Late (retained permanently in history)
- *                  OR Currently Late (past due & unpaid — auto-flagged)
- *      🔴 Red    = Outstanding (not yet past due)
- *    Each pill is labeled with a month abbreviation (Jan, Feb, Mar...).
- *    Hovering shows a rich tooltip with period details.
- *
- * Automated Late-Status Engine:
- *   When the current calendar date exceeds a period's due date AND no payment
- *   has been logged, the system automatically flags the period as 'late'.
- *   This runs on every render via mergePeriods() — no cron needed.
- *
- * Permanent Historical Record:
- *   Marking a LATE period as PAID settles the balance (allowing receipt
- *   generation) but retains the `paidOnTime: false` flag. The pill stays
- *   orange in the historical timeline (PAID LATE), even though balance is ₦0.
- *
- * Quick Payment Drawer:
- *   A slide-in drawer with 3 toggle buttons (Paid / Late / Outstanding) and
- *   a [Generate & Issue Receipt] prompt. The backdrop is bg-black/60 and
- *   blocks all background pointer events while open.
- *
- * Integration:
- *   Shown on unit cards in PropertyDetailView. The `expanded` prop is wired
- *   to the card's expand/collapse state.
+ * The Quick Payment Drawer (manual mark + auto receipt issuance) is the
+ * input path for SC/MV and is preserved — its marks now land on the
+ * correct month because the engine merges stored rows by DUE DATE (legacy
+ * annual-cadence marks migrate onto the monthly grid correctly).
  */
-
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { Property, ServiceChargePeriod } from '../../types';
+import { Property } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { CalendarIcon, XIcon, CheckCircleIcon, DownloadIcon } from '../../constants';
 import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
+import {
+    buildTimeline,
+    buildRentTimeline,
+    serviceChargeTimeline,
+    summarizeTimeline,
+    monthAbbr,
+    monthLabel,
+    periodMonths,
+    type TimelinePeriod,
+    type TimelineSummary,
+} from '../../utils/leaseTimeline';
 import ReceiptModal from '../modals/ReceiptModal';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const periodMonths = (freq?: string): number => {
-    if (!freq) return 12;
-    const f = freq.toLowerCase();
-    if (f.includes('year') || f.includes('annual')) return 12;
-    if (f.includes('bi') || f.includes('6-month') || f.includes('semi')) return 6;
-    if (f.includes('quarter')) return 3;
-    if (f.includes('month')) return 1;
-    return 12;
-};
-
 const FULL_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const getFullMonthYear = (isoDate: string): string => {
@@ -81,129 +68,22 @@ const getFullMonthYear = (isoDate: string): string => {
     }
 };
 
-/**
- * Compute the list of elapsed billing periods from leaseStart to now.
- * Uses calendar-month arithmetic (not fixed 30.44 days) for accurate
- * period boundaries — a Jan 1 start with monthly frequency produces
- * Feb 1, Mar 1, Apr 1... regardless of month length.
- *
- * Historical periods default to 'outstanding' (red). The auto-late engine
- * from the previous round has been removed per the latest brief: historical
- * periods are RED until explicitly marked as paid/late during onboarding.
- */
-function computeElapsedPeriods(
-    leaseStart: string,
-    leaseEnd: string | undefined,
-    frequency: string | undefined,
-    perPeriodAmount: number,
-): ServiceChargePeriod[] {
-    if (!leaseStart) return [];
-    const start = new Date(leaseStart);
-    if (isNaN(start.getTime())) return [];
-    const now = new Date();
-    const endBoundary = leaseEnd ? new Date(Math.min(now.getTime(), new Date(leaseEnd).getTime())) : now;
-    const periodM = periodMonths(frequency);
+/** Month label under each pill — January pills carry the year. */
+const pillMonthLabel = (isoDate: string): string => {
+    const abbr = monthAbbr(isoDate);
+    try {
+        const d = new Date(isoDate);
+        if (d.getMonth() === 0) return `${abbr}'${String(d.getFullYear()).slice(2)}`;
+        return abbr;
+    } catch { return abbr; }
+};
 
-    const periods: ServiceChargePeriod[] = [];
-    let periodStart = new Date(start);
-    let idx = 1;
-    // Safety cap: never render more than 60 periods (5 years of monthly).
-    while (periodStart < endBoundary && idx <= 60) {
-        const dueDate = periodStart.toISOString().split('T')[0];
-        periods.push({
-            index: idx,
-            dueDate,
-            status: 'outstanding', // default: red — user marks as paid during onboarding
-            amount: perPeriodAmount,
-        });
-        // Advance by calendar months (not fixed days) for accurate boundaries
-        periodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + periodM, periodStart.getDate());
-        idx++;
-    }
-    return periods;
-}
-
-/**
- * Compute advance pre-paid periods — future cycles that the tenant has
- * paid for ahead of time. These are stored periods with status='advance_paid'
- * whose index exceeds the elapsed period count. They appear as blue pills
- * after the historical elapsed pills.
- *
- * Example: 6 months elapsed + 2 months paid in advance = 8 pills total
- * (6 historical + 2 blue advance pills).
- */
-function computeAdvancePeriods(
-    elapsedCount: number,
-    leaseStart: string,
-    frequency: string | undefined,
-    perPeriodAmount: number,
-    stored: ServiceChargePeriod[] | undefined,
-): ServiceChargePeriod[] {
-    if (!leaseStart || !stored || stored.length === 0) return [];
-    const advanceStored = stored.filter(p => p.status === 'advance_paid' && p.index > elapsedCount);
-    if (advanceStored.length === 0) return [];
-
-    const start = new Date(leaseStart);
-    const periodM = periodMonths(frequency);
-
-    return advanceStored.map(s => {
-        // Calculate the due date for this future period
-        const futureStart = new Date(start.getFullYear(), start.getMonth() + (s.index - 1) * periodM, start.getDate());
-        return {
-            index: s.index,
-            dueDate: futureStart.toISOString().split('T')[0],
-            status: 'advance_paid' as const,
-            paidDate: s.paidDate,
-            amount: s.amount || perPeriodAmount,
-            isAdvance: true,
-        };
-    });
-}
-
-/**
- * Merge computed periods with stored status data.
- *
- * Per the latest brief, historical periods default to 'outstanding' (red)
- * — the auto-late engine has been removed. Only explicitly stored statuses
- * override the default.
- *
- * Advance pre-paid periods (status='advance_paid', index > elapsed count)
- * are appended after the historical elapsed periods.
- */
-function mergePeriods(
-    computed: ServiceChargePeriod[],
-    stored: ServiceChargePeriod[] | undefined,
-): ServiceChargePeriod[] {
-    if (!stored || stored.length === 0) {
-        // No stored data — all historical periods default to 'outstanding' (red)
-        return computed;
-    }
-    const storedMap = new Map(stored.map(p => [p.index, p]));
-    const merged = computed.map(p => {
-        const s = storedMap.get(p.index);
-        if (s) {
-            // Stored record exists — use its status + paidOnTime flag
-            return { ...p, status: s.status, paidDate: s.paidDate, paidOnTime: s.paidOnTime, isAdvance: s.isAdvance };
-        }
-        // No stored record — keep as 'outstanding' (red) for historical periods
-        return p;
-    });
-
-    // Append advance pre-paid periods (future cycles beyond elapsed count)
-    const advancePeriods = computeAdvancePeriods(
-        computed.length,
-        computed[0]?.dueDate || '',
-        undefined, // frequency is passed by the caller via stored amounts
-        computed[0]?.amount || 0,
-        stored,
-    );
-    return [...merged, ...advancePeriods];
-}
+/** Max pills rendered inline before a "+N earlier" overflow chip appears. */
+const MAX_VISIBLE_PILLS = 18;
 
 // ─── Status colors & metadata ───────────────────────────────────────────────
-// Note: a 'paid' period with paidOnTime=false is displayed as ORANGE (Paid Late)
-// in the historical timeline, even though its balance is ₦0. This is the
-// "permanent historical record" behavior the user requested.
+// Four-color system, unchanged vocabulary:
+//   green  = Paid On Time   amber = DUE now / Paid Late   red = OVERDUE   blue = Advance
 interface StatusMeta {
     pill: string;       // pill background color
     hover: string;      // hover state
@@ -213,17 +93,17 @@ interface StatusMeta {
     description: string;// long-form description for tooltip
 }
 
-const getStatusMeta = (period: ServiceChargePeriod): StatusMeta => {
+const getStatusMeta = (period: TimelinePeriod): StatusMeta => {
     if (period.status === 'paid') {
         if (period.paidOnTime === false) {
-            // Paid Late — orange pill, balance settled but history retained
+            // Paid Late — amber pill, balance settled but history retained
             return {
                 pill: 'bg-amber-500',
                 hover: 'hover:bg-amber-600',
                 label: 'text-amber-600 dark:text-amber-400',
                 bg: 'bg-amber-50 dark:bg-amber-900/20',
                 name: 'Paid Late',
-                description: `Settled on ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (after due date)`,
+                description: `Settled ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (after window closed ${formatDateShort(period.windowEnd)})`,
             };
         }
         // Paid On Time — green pill
@@ -233,24 +113,22 @@ const getStatusMeta = (period: ServiceChargePeriod): StatusMeta => {
             label: 'text-emerald-600 dark:text-emerald-400',
             bg: 'bg-emerald-50 dark:bg-emerald-900/20',
             name: 'Paid On Time',
-            description: `Settled on ${period.paidDate ? formatDateShort(period.paidDate) : '—'}`,
+            description: `Settled ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (within billing window)`,
         };
     }
     if (period.status === 'late') {
-        // Currently late (past due & unpaid) OR explicitly marked late
         return {
             pill: 'bg-amber-500',
             hover: 'hover:bg-amber-600',
             label: 'text-amber-600 dark:text-amber-400',
             bg: 'bg-amber-50 dark:bg-amber-900/20',
-            name: 'Late',
+            name: 'Paid Late',
             description: period.paidDate
-                ? `Settled on ${formatDateShort(period.paidDate)} (after due date)`
+                ? `Settled ${formatDateShort(period.paidDate)} (after due date)`
                 : 'Past due date — unpaid',
         };
     }
     if (period.status === 'advance_paid') {
-        // Advance Paid — blue pill, settled ahead of future billing date
         return {
             pill: 'bg-blue-500',
             hover: 'hover:bg-blue-600',
@@ -260,28 +138,32 @@ const getStatusMeta = (period: ServiceChargePeriod): StatusMeta => {
             description: `Pre-paid on ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (future cycle)`,
         };
     }
-    // Outstanding — red pill (default for historical periods until marked)
+    if (period.status === 'due') {
+        // NEW derived state — the current cycle's charge is due right now.
+        return {
+            pill: 'bg-amber-500',
+            hover: 'hover:bg-amber-600',
+            label: 'text-amber-600 dark:text-amber-400',
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            name: 'Due',
+            description: `Due since ${formatDateShort(period.dueDate)} — inside its billing window (closes ${formatDateShort(period.windowEnd)})`,
+        };
+    }
+    // 'overdue' (and any legacy 'outstanding' leftovers) — red.
     return {
         pill: 'bg-red-500',
         hover: 'hover:bg-red-600',
         label: 'text-red-600 dark:text-red-400',
         bg: 'bg-red-50 dark:bg-red-900/20',
-        name: 'Outstanding',
-        description: 'Unpaid — past due',
+        name: 'Overdue',
+        description: `Window closed ${formatDateShort(period.windowEnd)} — unpaid`,
     };
 };
 
 // ─── Rich Hover Tooltip (Portal-rendered to avoid clipping) ─────────────────
-// The tooltip is rendered via React Portal at document.body level, so it
-// floats above ALL card containers — even those with overflow-hidden. The
-// parent card's overflow clipping was causing the tooltip text to be cut off
-// (e.g. "o log payment" instead of "Click to log payment").
-//
-// Positioning: we measure the pill's bounding rect on hover and position the
-// tooltip centered above it. A re-measure runs on window scroll/resize.
 interface PillTooltipProps {
-    period: ServiceChargePeriod;
-    chargeType: 'SC' | 'MV';
+    period: TimelinePeriod;
+    chargeType: 'SC' | 'MV' | 'RENT';
     targetRef: React.RefObject<HTMLElement>;
 }
 
@@ -294,13 +176,10 @@ const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType, targetRef
             const el = targetRef.current;
             if (!el) return;
             const rect = el.getBoundingClientRect();
-            // Center the tooltip (w-56 = 224px) above the pill.
-            // If the pill is near the top of the viewport, flip below.
             const tooltipWidth = 224;
             const left = rect.left + rect.width / 2 - tooltipWidth / 2;
-            // Clamp to viewport so the tooltip never overflows horizontally
             const clampedLeft = Math.max(8, Math.min(window.innerWidth - tooltipWidth - 8, left));
-            const showBelow = rect.top < 200; // near top → flip below
+            const showBelow = rect.top < 200;
             const top = showBelow ? rect.bottom + 8 : rect.top - 8;
             setPos({ top, left: clampedLeft });
         };
@@ -323,14 +202,20 @@ const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType, targetRef
             <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
                     <CalendarIcon className="w-3 h-3 text-slate-400" />
-                    <span className="text-2xs font-bold text-slate-300 uppercase tracking-wider">
-                        {getFullMonthYear(period.dueDate)}
+                    <span className="text-2xs font-black uppercase tracking-wider text-slate-300">
+                        {chargeType} · {getFullMonthYear(period.dueDate)}
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <span className="text-2xs text-slate-400 w-12">Amount</span>
                     <span className="text-sm font-bold text-white">{formatNairaCompact(period.amount)}</span>
                 </div>
+                {period.paidAmount > 0 && period.status !== 'paid' && period.status !== 'advance_paid' && (
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-2xs text-slate-400 w-12">Paid</span>
+                        <span className="text-sm font-bold text-emerald-400">{formatNairaCompact(period.paidAmount)}</span>
+                    </div>
+                )}
                 <div className="flex items-center gap-1.5">
                     <span className="text-2xs text-slate-400 w-12">Status</span>
                     <span className={`text-xs font-bold ${meta.label}`}>{meta.name}</span>
@@ -339,7 +224,11 @@ const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType, targetRef
                 <div className="flex items-center gap-1.5 pt-1 border-t border-slate-700/50">
                     <DownloadIcon className="w-3 h-3 text-emerald-400" />
                     <span className="text-2xs font-bold text-emerald-400">
-                        {period.status === 'paid' ? 'View/Issue Receipt' : 'Click to log payment'}
+                        {chargeType === 'RENT'
+                            ? 'Recorded via Collect Rent'
+                            : period.status === 'paid'
+                                ? 'View/Issue Receipt'
+                                : 'Click to log payment'}
                     </span>
                 </div>
             </div>
@@ -350,18 +239,14 @@ const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType, targetRef
 
 // ─── Quick Payment Drawer ───────────────────────────────────────────────────
 interface QuickPaymentDrawerProps {
-    period: ServiceChargePeriod | null;
+    period: TimelinePeriod | null;
     chargeType: 'SC' | 'MV';
     unitName: string;
-    /** Full list of elapsed periods — rendered as a historical pill strip
-     *  at the top of the drawer, above the Charge Amount. Clicking a pill
-     *  switches the drawer's focus to that period. */
-    allPeriods: ServiceChargePeriod[];
+    allPeriods: TimelinePeriod[];
     onClose: () => void;
     onStatusChange: (status: 'paid' | 'late' | 'outstanding' | 'advance_paid') => void;
     onGenerateReceipt: () => void;
-    /** Switch the drawer's focus to a different period in the historical strip. */
-    onPeriodSelect: (period: ServiceChargePeriod) => void;
+    onPeriodSelect: (period: TimelinePeriod) => void;
 }
 
 const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
@@ -372,10 +257,6 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
 
     return (
         <>
-            {/* Backdrop — fixed inset-0, dark overlay (bg-black/60 per spec).
-                pointer-events-auto catches ALL background interactions so they
-                don't bleed through to underlying unit cards. onClick closes
-                the drawer. */}
             <div
                 className="fixed inset-0 z-[4500] bg-black/60 sm:backdrop-blur-sm pointer-events-auto"
                 onClick={(e) => {
@@ -385,13 +266,6 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                 onMouseDown={(e) => e.stopPropagation()}
                 aria-hidden="true"
             />
-            {/* Drawer — slides in from the right.
-                z-[4501] sits above the backdrop. pointer-events-auto explicitly
-                enables interaction on the drawer itself.
-                CRITICAL: onClick + onMouseDown stopPropagation prevents clicks
-                inside the drawer from bleeding through to the backdrop (which
-                would close the drawer) or to background unit cards (which
-                would trigger accidental card expansions). */}
             <div
                 className="fixed top-0 right-0 bottom-0 z-[4501] w-full sm:max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 pointer-events-auto"
                 role="dialog"
@@ -423,18 +297,13 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                    {/* ── Historical Pill Strip ──────────────────────────────
-                        Renders the full timeline of elapsed periods at the top
-                        of the drawer, above the Charge Amount. Each pill is a
-                        slim color-only bar (no text). Clicking a pill switches
-                        the drawer's focus to that period — updating the amount,
-                        status, and receipt prompt below. */}
+                    {/* ── Historical Pill Strip (month-labeled) ───────────── */}
                     {allPeriods.length > 0 && (
                         <div>
                             <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                                 Payment History · {allPeriods.length} period{allPeriods.length === 1 ? '' : 's'}
                             </p>
-                            <div className="flex items-center gap-1 flex-wrap p-2 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700/60">
+                            <div className="flex flex-wrap items-start gap-x-1 gap-y-1.5 p-2 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700/60">
                                 {allPeriods.map(p => {
                                     const m = getStatusMeta(p);
                                     const isActive = p.index === period.index;
@@ -443,20 +312,24 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                                             key={p.index}
                                             onClick={() => onPeriodSelect(p)}
                                             title={`${getFullMonthYear(p.dueDate)} — ${m.name}`}
-                                            className={`h-2 w-7 rounded-full ${m.pill} transition-all cursor-pointer ${
+                                            className="flex flex-col items-center gap-0.5 group/pill"
+                                        >
+                                            <span className={`h-2 w-7 rounded-full ${m.pill} transition-all cursor-pointer ${
                                                 isActive
                                                     ? 'ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-800 ring-slate-400 scale-110'
-                                                    : 'opacity-80 hover:opacity-100 hover:scale-105'
-                                            }`}
-                                        />
+                                                    : 'opacity-80 group-hover/pill:opacity-100 group-hover/pill:scale-105'
+                                            }`} />
+                                            <span className={`text-3xs font-bold leading-none ${isActive ? 'text-slate-700 dark:text-zinc-200' : 'text-slate-400 dark:text-zinc-500'}`}>
+                                                {pillMonthLabel(p.dueDate)}
+                                            </span>
+                                        </button>
                                     );
                                 })}
                             </div>
                         </div>
                     )}
 
-                    {/* Amount — single Naira symbol via formatNairaCompact (which
-                        already injects ₦). No hardcoded ₦ prefix here. */}
+                    {/* Charge Amount */}
                     <div className="p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-700/60">
                         <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                             Charge Amount
@@ -486,8 +359,6 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                         <div className="grid grid-cols-2 gap-2">
                             {(['paid', 'late', 'outstanding', 'advance_paid'] as const).map(s => {
-                                // For the toggle button highlight, 'paid' with paidOnTime=false
-                                // should highlight the 'paid' button (balance is settled).
                                 const isActive = period.status === s;
                                 const colorClass =
                                     s === 'paid' ? 'bg-emerald-500' :
@@ -520,10 +391,7 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                     </div>
 
-                    {/* Receipt prompt — shown when status is 'paid' (balance settled).
-                        Dynamic button toggle:
-                        - No receipt issued → [Generate Receipt]
-                        - Receipt already issued → [View Issued Receipt] */}
+                    {/* Receipt prompt */}
                     {period.status === 'paid' && (
                         <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="flex items-start gap-3">
@@ -547,17 +415,8 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                                                 : 'bg-emerald-600 hover:bg-emerald-700'
                                         }`}
                                     >
-                                        {period.receiptNumber ? (
-                                            <>
-                                                <DownloadIcon className="w-3.5 h-3.5" />
-                                                View Issued Receipt
-                                            </>
-                                        ) : (
-                                            <>
-                                                <DownloadIcon className="w-3.5 h-3.5" />
-                                                Generate Receipt
-                                            </>
-                                        )}
+                                        <DownloadIcon className="w-3.5 h-3.5" />
+                                        {period.receiptNumber ? 'View Issued Receipt' : 'Generate Receipt'}
                                     </button>
                                 </div>
                             </div>
@@ -569,15 +428,15 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     );
 };
 
-// ─── Status Pill (slim color-only bar with portal tooltip) ──────────────────
-// Renders a slim color-only bar (h-2 w-7 rounded-full) — NO text label.
-// Pure color encoding: Green=Paid On Time, Orange=Paid Late/Currently Late,
-// Red=Outstanding. Hover shows a portal-rendered tooltip that floats above
-// all card containers (avoids overflow clipping).
+// ─── Status Pill (month-labeled, portal tooltip) ────────────────────────────
+// Each pill now says its month out loud (Jan, Feb...; Jan'26 carries the
+// year) — the old color-only dashes forced users to hover to learn anything.
+// `interactive` false (RENT row) renders a non-button: rent is recorded via
+// Collect Rent, not this drawer.
 interface StatusPillProps {
-    period: ServiceChargePeriod;
-    chargeType: 'SC' | 'MV';
-    onClick: () => void;
+    period: TimelinePeriod;
+    chargeType: 'SC' | 'MV' | 'RENT';
+    onClick?: () => void;
 }
 
 const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) => {
@@ -585,24 +444,45 @@ const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) 
     const meta = getStatusMeta(period);
     const pillRef = useRef<HTMLButtonElement>(null);
 
-    return (
-        <div
-            className="relative inline-block"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-        >
-            <motion.button
-                ref={pillRef}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onClick();
-                }}
+    const inner = (
+        <>
+            <motion.span
                 initial={{ scaleX: 0, opacity: 0 }}
                 animate={{ scaleX: 1, opacity: 1 }}
                 transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                className={`h-2 w-7 rounded-full ${meta.pill} ${meta.hover} transition-all hover:scale-110 hover:shadow-sm cursor-pointer origin-left`}
-                aria-label={`${meta.name} — ${getFullMonthYear(period.dueDate)}`}
+                className={`block h-2 w-7 rounded-full ${meta.pill} ${meta.hover} transition-all origin-left ${onClick ? 'cursor-pointer' : ''} ${onClick ? 'group-hover:scale-110' : ''}`}
             />
+            <span className="text-3xs font-bold leading-none text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-colors">
+                {pillMonthLabel(period.dueDate)}
+            </span>
+        </>
+    );
+
+    const sharedHandlers = {
+        onMouseEnter: () => setHovered(true),
+        onMouseLeave: () => setHovered(false),
+    };
+
+    return (
+        <div className="relative inline-flex flex-col items-center gap-0.5 group" {...sharedHandlers}>
+            {onClick ? (
+                <motion.button
+                    ref={pillRef as React.RefObject<HTMLButtonElement>}
+                    onClick={(e) => { e.stopPropagation(); onClick(); }}
+                    className="block"
+                    aria-label={`${meta.name} — ${getFullMonthYear(period.dueDate)}`}
+                >
+                    {inner}
+                </motion.button>
+            ) : (
+                <span
+                    ref={pillRef as React.RefObject<HTMLSpanElement>}
+                    className="block"
+                    aria-label={`${meta.name} — ${getFullMonthYear(period.dueDate)}`}
+                >
+                    {inner}
+                </span>
+            )}
             {hovered && pillRef.current && (
                 <PillTooltip period={period} chargeType={chargeType} targetRef={pillRef} />
             )}
@@ -610,91 +490,91 @@ const StatusPill: React.FC<StatusPillProps> = ({ period, chargeType, onClick }) 
     );
 };
 
-// ─── Primary Status Pill (for unexpanded cards) ─────────────────────────────
-// Renders ONE single slim color-only bar showing the unit's overall standing
-// for the CURRENT billing cycle. NO text label — pure color encoding:
-//   Green  = Clear (current cycle settled on time)
-//   Orange = Late (current cycle paid late or past due)
-//   Red    = Outstanding (current cycle unpaid and past due)
-// Clicking opens the Quick Payment Drawer for the current (most recent) period.
-interface PrimaryStatusPillProps {
-    periods: ServiceChargePeriod[];
-    chargeType: 'SC' | 'MV';
-    onClick: (period: ServiceChargePeriod) => void;
+// ─── Timeline Status Chip (collapsed cards) ─────────────────────────────────
+// Replaces the color-only 8×28px dash: the unit's billing state in WORDS.
+//   emerald "SC CLEAR" / amber "SC DUE" / red "SC 3 MO OVERDUE"
+// Tooltip carries the amount + month. Same chip vocabulary as every other
+// badge in the units tab (text-3xs font-black uppercase rounded-full).
+interface TimelineStatusChipProps {
+    chargeLabel: string;                    // "SC" | "RENT" | "MV" etc.
+    summary: TimelineSummary;
+    onClick?: () => void;
+    chargeType: 'SC' | 'MV' | 'RENT';
 }
 
-const PrimaryStatusPill: React.FC<PrimaryStatusPillProps> = ({ periods, chargeType, onClick }) => {
-    const [hovered, setHovered] = useState(false);
-    const pillRef = useRef<HTMLButtonElement>(null);
-    if (periods.length === 0) return null;
+const TimelineStatusChip: React.FC<TimelineStatusChipProps> = ({ chargeLabel, summary, onClick, chargeType }) => {
+    let cls: string;
+    let text: string;
+    let title: string;
 
-    // The "current" period is the most recent elapsed period (last in the array).
-    const currentPeriod = periods[periods.length - 1];
-
-    // Map the detailed status to the 3-bucket primary color:
-    // - paid + paidOnTime=true  → green (Clear)
-    // - paid + paidOnTime=false → orange (Late — settled but was late)
-    // - late (auto or manual)   → orange (Late)
-    // - advance_paid            → blue (Advance Paid)
-    // - outstanding             → red (Outstanding)
-    let primaryColor: string;
-    let primaryLabel: string; // kept for aria-label + tooltip only, not rendered
-    if (currentPeriod.status === 'paid' && currentPeriod.paidOnTime === true) {
-        primaryColor = 'bg-emerald-500 hover:bg-emerald-600';
-        primaryLabel = 'Clear';
-    } else if (
-        (currentPeriod.status === 'paid' && currentPeriod.paidOnTime === false) ||
-        currentPeriod.status === 'late'
-    ) {
-        primaryColor = 'bg-amber-500 hover:bg-amber-600';
-        primaryLabel = 'Late';
-    } else if (currentPeriod.status === 'advance_paid') {
-        primaryColor = 'bg-blue-500 hover:bg-blue-600';
-        primaryLabel = 'Advance Paid';
+    if (summary.state === 'overdue') {
+        cls = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+        const count = summary.overdueCount + summary.dueCount;
+        text = `${chargeLabel} ${count > 1 ? `${count} MO ` : ''}OVERDUE`;
+        const cur = summary.currentPeriod;
+        title = `${chargeLabel}: ${count} month${count > 1 ? 's' : ''} unsettled — ${formatNairaFull(summary.outstandingTotal)} outstanding${cur ? ` · oldest ${monthLabel(cur.dueDate)}` : ''}. Click to open payment drawer.`;
+    } else if (summary.state === 'due') {
+        cls = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+        text = `${chargeLabel} DUE`;
+        const cur = summary.currentPeriod;
+        const partial = cur && cur.paidAmount > 0 ? ` (${formatNairaCompact(cur.paidAmount)} paid)` : '';
+        title = `${chargeLabel}: ${formatNairaFull(summary.outstandingTotal)} due for ${cur ? monthLabel(cur.dueDate) : 'current cycle'}${partial}. Click to open payment drawer.`;
+    } else if (summary.state === 'clear') {
+        cls = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+        text = `${chargeLabel} CLEAR`;
+        title = `${chargeLabel}: settled through ${summary.settledThrough || 'latest period'}${summary.nextDueDate ? ` · next charge ${summary.nextDueDate}` : ''}.`;
     } else {
-        primaryColor = 'bg-red-500 hover:bg-red-600';
-        primaryLabel = 'Outstanding';
+        return null; // nothing tracked (no lease/amount) — render nothing
     }
 
+    const body = (
+        <span className={`inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap ${cls}`} title={title}>
+            {summary.state === 'overdue' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+            {text}
+        </span>
+    );
+
+    if (!onClick) return body;
     return (
-        <div
-            className="relative inline-block"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-        >
-            <button
-                ref={pillRef}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onClick(currentPeriod);
-                }}
-                className={`h-2 w-7 rounded-full ${primaryColor} transition-all hover:scale-110 hover:shadow-sm cursor-pointer`}
-                aria-label={`${chargeType} — ${primaryLabel}`}
-            />
-            {hovered && pillRef.current && (
-                <PillTooltip period={currentPeriod} chargeType={chargeType} targetRef={pillRef} />
-            )}
-        </div>
+        <button onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={title} className="inline-flex">
+            {body}
+        </button>
     );
 };
 
+// ─── Legend (expanded view) ─────────────────────────────────────────────────
+const TimelineLegend: React.FC = () => (
+    <div className="flex items-center gap-3 flex-wrap text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">
+        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Paid</span>
+        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Due / Paid Late</span>
+        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Overdue</span>
+        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Advance</span>
+    </div>
+);
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 interface ServiceChargeBarsProps {
-    /** The unit (Property) to render pills for. */
+    /** The unit (Property) to render the timeline for. */
     unit: Property;
     /** Called when period status changes, with the updated rentalDetails. */
     onUpdate: (updatedRentalDetails: Property['rentalDetails']) => void;
     /** Callback to generate a receipt for a paid period. */
-    onGenerateReceipt?: (period: ServiceChargePeriod, chargeType: 'SC' | 'MV') => void;
-    /** When true (expanded card), shows the full multi-period history pills.
-     *  When false (unexpanded card), shows a single primary status pill
-     *  (CLEAR / LATE / OUTSTANDING) for the current billing cycle. */
+    onGenerateReceipt?: (period: TimelinePeriod, chargeType: 'SC' | 'MV') => void;
+    /** When true (expanded card), shows the full month-labeled history.
+     *  When false (collapsed card), shows readable status chips. */
     expanded?: boolean;
+    /** Render the RENT row/chip (rent timeline from rentPaymentHistory).
+     *  Pass false for "Management Only (No Rent)" properties. Default true. */
+    includeRent?: boolean;
+    /** Opens Collect Rent for this unit — the input path for rent money. */
+    onCollectRent?: () => void;
 }
 
-export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUpdate, onGenerateReceipt, expanded = false }) => {
+export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
+    unit, onUpdate, onGenerateReceipt, expanded = false, includeRent = true, onCollectRent,
+}) => {
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [selectedPeriod, setSelectedPeriod] = useState<ServiceChargePeriod | null>(null);
+    const [selectedPeriod, setSelectedPeriod] = useState<TimelinePeriod | null>(null);
     const [selectedChargeType, setSelectedChargeType] = useState<'SC' | 'MV'>('SC');
     const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
@@ -709,58 +589,56 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     const leaseStart = rental?.leaseStart || '';
     const leaseEnd = rental?.leaseEnd;
     const rentFrequency = rental?.rentFrequency;
-    // SC frequency: use serviceChargeFrequency if set, otherwise fall back
-    // to rentFrequency. This fixes the bug where monthly SC was stepping
-    // yearly because it used the rent frequency (which might be Annual).
-    const scFrequency = rental?.serviceChargeFrequency ?? rentFrequency;
 
     // Property-level minimum vend config
     const mvEnabled = (unit as any).minimumVendEnabled || false;
     const mvAmount = Number((unit as any).minimumVendAmount || 0);
     const mvLabel = (unit as any).minimumVendLabel || 'Min Vend';
 
-    // SC amount
-    // Unified resolution (Item 2) — same chain as the units grid / SC table;
-    // a defined 0 is respected (rendered as no SC), never skipped.
+    // SC money — unified resolution (Item 2): a defined 0 renders no SC row.
     const scAmount = resolveServiceChargeAmount({ unit, rental: unit.rentalDetails });
 
-    // Compute periods — SC uses its own frequency (with rent fallback),
-    // MV uses rent frequency (no separate MV frequency field exists yet).
-    const scPeriods = useMemo(
-        () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, scFrequency, scAmount), rental?.scPeriods),
-        [leaseStart, leaseEnd, scFrequency, scAmount, rental?.scPeriods],
-    );
-    const mvPeriods = useMemo(
-        () => mergePeriods(computeElapsedPeriods(leaseStart, leaseEnd, rentFrequency, mvAmount), rental?.mvPeriods),
-        [leaseStart, leaseEnd, rentFrequency, mvAmount, rental?.mvPeriods],
+    // ── The three timelines — one engine, one clock ──
+    // SC: engine resolves cadence (monthly unless the lease explicitly set
+    // serviceChargeFrequency) + merges stored scPeriods overrides by dueDate.
+    const { periods: scPeriods, cadence: scCadence, summary: scSummary } = useMemo(
+        () => serviceChargeTimeline({ unit, rental }),
+        [unit, rental],
     );
 
-    const handleBarClick = useCallback((period: ServiceChargePeriod, chargeType: 'SC' | 'MV') => {
+    // MV: rent-frequency cadence (no separate MV frequency field exists).
+    const mvPeriods = useMemo(() => buildTimeline({
+        leaseStart, leaseEnd,
+        cadence: {
+            months: periodMonths(rentFrequency),
+            perPeriodAmount: mvAmount,
+            frequency: 'Annually', explicit: false,
+        },
+        stored: (rental as any)?.mvPeriods,
+    }), [leaseStart, leaseEnd, rentFrequency, mvAmount, (rental as any)?.mvPeriods]);
+    const mvSummary = useMemo(() => summarizeTimeline(mvPeriods), [mvPeriods]);
+
+    // RENT: rent-frequency cadence, settled by recorded rentPaymentHistory rows.
+    const rentPeriods = useMemo(() => includeRent ? buildRentTimeline({
+        leaseStart, leaseEnd,
+        rentFrequency,
+        rentAmount: Number(rental?.rentAmount) || 0,
+        payments: (unit as any).rentPaymentHistory || [],
+    }) : [], [includeRent, leaseStart, leaseEnd, rentFrequency, rental?.rentAmount, (unit as any).rentPaymentHistory]);
+    const rentSummary = useMemo(() => summarizeTimeline(rentPeriods), [rentPeriods]);
+
+    const handleBarClick = useCallback((period: TimelinePeriod, chargeType: 'SC' | 'MV') => {
         setSelectedPeriod(period);
         setSelectedChargeType(chargeType);
         setDrawerOpen(true);
     }, []);
 
-    // ── Zero-Touch Receipt Automation ────────────────────────────────────
-    // When a payment is marked as 'paid', 'late', or 'advance_paid', this
-    // function automatically:
-    //   1. Generates a receipt number
-    //   2. Publishes the receipt to the resident's portal (sendPortalMessage)
-    //   3. Writes an immutable activity log entry (logAutomation)
-    //   4. Persists the receipt number to the period (via onUpdate)
-    //
-    // This eliminates the manual "Generate Receipt" → "Issue to Resident"
-    // multi-click flow. The user can still click [View Issued Receipt] in
-    // the drawer to preview/download the PDF.
+    // ── Zero-Touch Receipt Automation (unchanged behavior) ──────────────
     const autoIssueReceipt = useCallback(async (
-        period: ServiceChargePeriod,
+        period: TimelinePeriod,
         chargeType: 'SC' | 'MV',
         periodsKey: 'scPeriods' | 'mvPeriods',
     ) => {
-        // BRIEF #4: Track receipt issuance success/failure.
-        // Only persist the receiptNumber to the period if the portal message
-        // was actually sent. If it fails, leave the period without a receipt
-        // number so the button shows "Generate Receipt" (not "View Issued Receipt").
         const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
         const tenantName = rental?.tenantName || 'Resident';
         const unitName = rental?.unitName || unit.description || 'Unit';
@@ -775,7 +653,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
 
         try {
             // 1. Publish receipt to resident's portal — if this fails, do NOT
-            // persist the receipt number (BRIEF #4: consistent status state).
+            // persist the receipt number (consistent status state).
             await sendPortalMessage({
                 firmId,
                 senderId: currentUser?.id || '',
@@ -803,7 +681,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             } as any);
 
             // 3. Persist receipt number to the period — ONLY after successful send
-            const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
+            const currentPeriods = ((rental as any)?.[periodsKey] as any[]) || [];
             const updatedPeriods = currentPeriods.map(p =>
                 p.index === period.index ? { ...p, receiptNumber } : p
             );
@@ -813,13 +691,10 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             } as Property['rentalDetails'];
             onUpdate(updatedRental!);
 
-            // 4. Toast confirmation — action confirmation, NOT a self-notification
-            // (BRIEF #4: admin sees a brief toast, no notification center entry).
+            // 4. Toast confirmation
             addToast(`Receipt ${receiptNumber} issued to ${tenantName}'s portal.`, { type: 'success' });
         } catch (err: any) {
             console.warn('Auto-receipt issuance failed:', err);
-            // BRIEF #4: Do NOT persist the receipt number — leave the button as
-            // "Generate Receipt" so the user knows it wasn't actually sent.
             addToast('Payment logged, but receipt could not be sent to the resident. Click "Generate Receipt" to retry.', { type: 'warning', duration: 8000 });
         }
     }, [coreState, currentUser, rental, unit, sendPortalMessage, logAutomation, onUpdate, addToast]);
@@ -827,40 +702,20 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     const handleStatusChange = useCallback((newStatus: 'paid' | 'late' | 'outstanding' | 'advance_paid') => {
         if (!selectedPeriod) return;
         const periodsKey = selectedChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
-        const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
+        const currentPeriods = ((rental as any)?.[periodsKey] as any[]) || [];
         const updatedPeriods = [...currentPeriods];
         const existingIdx = updatedPeriods.findIndex(p => p.index === selectedPeriod.index);
 
-        // Determine paidOnTime flag based on USER INTENT (not auto-calculated):
-        // - 'paid' (user clicked "Paid On Time") → paidOnTime = TRUE (green pill)
-        // - 'late' (user clicked "Paid Late") → paidOnTime = FALSE (orange pill)
-        // - 'advance_paid' → paidOnTime = TRUE (blue pill, pre-paid)
-        // - 'outstanding' → clear the flag
-        //
-        // CRITICAL FIX: The previous code auto-calculated paidOnTime by comparing
-        // today's date to the due date. This meant clicking "Paid On Time" on a
-        // past-due period would silently override the user's intent and set
-        // paidOnTime=false → orange pill instead of green. Now we respect the
-        // user's explicit selection.
+        // paidOnTime reflects USER INTENT (Paid On Time → green, Paid Late →
+        // orange) — never auto-override the explicit selection.
         let paidOnTime: boolean | undefined;
         const todayIso = new Date().toISOString().split('T')[0];
-        if (newStatus === 'paid') {
-            paidOnTime = true;  // User explicitly marked as Paid On Time → green
-        } else if (newStatus === 'late') {
-            paidOnTime = false; // User explicitly marked as Paid Late → orange
-        } else if (newStatus === 'advance_paid') {
-            paidOnTime = true;  // Advance payment is always "on time" (pre-paid)
-        } else {
-            paidOnTime = undefined; // Outstanding → clear flag
-        }
+        if (newStatus === 'paid') paidOnTime = true;
+        else if (newStatus === 'late') paidOnTime = false;
+        else if (newStatus === 'advance_paid') paidOnTime = true;
+        else paidOnTime = undefined;
 
-        const updated: ServiceChargePeriod = {
-            ...selectedPeriod,
-            status: newStatus,
-            paidDate: newStatus === 'paid' || newStatus === 'late' || newStatus === 'advance_paid' ? todayIso : undefined,
-            paidOnTime,
-            isAdvance: newStatus === 'advance_paid' ? true : undefined,
-        };
+        const updated = { ...selectedPeriod, status: newStatus, paidOnTime };
 
         if (existingIdx >= 0) {
             updatedPeriods[existingIdx] = updated;
@@ -869,54 +724,53 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             updatedPeriods.sort((a, b) => a.index - b.index);
         }
 
-        // Update the aggregate serviceChargeStatus based on all periods.
-        // A period counts as "settled" if its balance is ₦0 (status === 'paid'
-        // regardless of paidOnTime, or 'advance_paid'). 'late' without a
-        // paidDate is still unpaid. 'outstanding' is unpaid.
-        const allSettled = updatedPeriods.every(p => p.status === 'paid' || p.status === 'advance_paid');
-        const anyUnsettled = updatedPeriods.some(p =>
-            p.status === 'outstanding' || (p.status === 'late' && !p.paidDate)
-        );
+        // ── Aggregate derived from the ENGINE over the full timeline ──
+        // (the old code aggregated over stored rows only — marking period 5
+        // of 12 paid reported "PAID_FULLY" for the unit). The stored
+        // serviceChargeStatus / outstandingServiceChargeBalance are what the
+        // tenant portal + messaging surfaces read, so keep them live.
         let aggregateStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' = 'UNPAID';
-        if (allSettled) aggregateStatus = 'PAID_FULLY';
-        else if (anyUnsettled && updatedPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')) aggregateStatus = 'PARTIALLY_PAID';
-        else if (anyUnsettled) aggregateStatus = 'UNPAID';
-        else aggregateStatus = 'PARTIALLY_PAID';
+        let outstandingBalance: number | undefined;
+        if (selectedChargeType === 'SC') {
+            const mergedRental = { ...rental, scPeriods: updatedPeriods };
+            const { summary } = serviceChargeTimeline({ unit, rental: mergedRental });
+            if (summary.state === 'clear') aggregateStatus = 'PAID_FULLY';
+            else if (summary.state === 'due' || summary.state === 'overdue') {
+                aggregateStatus = scPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')
+                    || updatedPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')
+                    ? 'PARTIALLY_PAID' : 'UNPAID';
+            }
+            outstandingBalance = Math.round(summary.outstandingTotal);
+        }
 
         const updatedRental = {
             ...rental,
             [periodsKey]: updatedPeriods,
-            // Only update aggregate SC status (not MV — MV doesn't have an aggregate field)
-            ...(selectedChargeType === 'SC' ? { serviceChargeStatus: aggregateStatus } : {}),
+            ...(selectedChargeType === 'SC' ? {
+                serviceChargeStatus: aggregateStatus,
+                outstandingServiceChargeBalance: outstandingBalance,
+            } : {}),
         } as Property['rentalDetails'];
         onUpdate(updatedRental!);
-        // Update the selected period in the drawer so the UI reflects the new status
         setSelectedPeriod(updated);
 
-        // ── ZERO-TOUCH RECEIPT AUTOMATION ───────────────────────────────
-        // When a payment is settled (paid / late / advance_paid), automatically
-        // issue the receipt to the resident's portal + activity log. This
-        // eliminates the manual "Generate Receipt" → "Issue to Resident"
-        // multi-click flow. Skip if a receipt was already issued for this period.
+        // ── ZERO-TOUCH RECEIPT AUTOMATION ──
         if ((newStatus === 'paid' || newStatus === 'late' || newStatus === 'advance_paid') && !updated.receiptNumber) {
-            // Fire async — don't block the UI
             autoIssueReceipt(updated, selectedChargeType, periodsKey);
         }
-    }, [selectedPeriod, selectedChargeType, rental, onUpdate, autoIssueReceipt]);
+    }, [selectedPeriod, selectedChargeType, rental, unit, onUpdate, autoIssueReceipt, scPeriods]);
 
     const handleGenerateReceipt = useCallback(() => {
         if (!selectedPeriod) return;
-        // Open the ReceiptModal instead of firing a dead toast.
-        // The modal handles PDF download + portal issuance + activity log.
         setReceiptModalOpen(true);
     }, [selectedPeriod]);
 
-    // Called when the ReceiptModal successfully issues a receipt — persists
-    // the receipt number to the period so the button toggles to [View Issued Receipt].
+    // Persist a receipt number to the stored period (button toggles to
+    // [View Issued Receipt]).
     const handleReceiptIssued = useCallback((receiptNumber: string) => {
         if (!selectedPeriod) return;
         const periodsKey = selectedChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
-        const currentPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
+        const currentPeriods = ((rental as any)?.[periodsKey] as any[]) || [];
         const updatedPeriods = currentPeriods.map(p =>
             p.index === selectedPeriod.index ? { ...p, receiptNumber } : p
         );
@@ -925,7 +779,6 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             [periodsKey]: updatedPeriods,
         } as Property['rentalDetails'];
         onUpdate(updatedRental!);
-        // Update selectedPeriod so the drawer reflects the issued state
         setSelectedPeriod(prev => prev ? { ...prev, receiptNumber } : prev);
     }, [selectedPeriod, selectedChargeType, rental, onUpdate]);
 
@@ -939,68 +792,85 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
         return () => document.removeEventListener('keydown', handleEsc);
     }, [drawerOpen]);
 
-    // Render nothing if no SC and no MV
-    if (scAmount <= 0 && (!mvEnabled || mvAmount <= 0)) return null;
+    // Nothing tracked on any stream → render nothing.
+    if (scPeriods.length === 0 && mvPeriods.length === 0 && rentPeriods.length === 0) {
+        // Lease data exists but no timeline? Prompt for lease dates — silence
+        // is worse than a nudge (the old UI simply vanished).
+        if (scAmount > 0 && !leaseStart) {
+            return (
+                <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400" title="Service charge exists but no lease start date is set — add lease dates so the billing timeline can track it.">
+                    SC · set lease dates
+                </span>
+            );
+        }
+        return null;
+    }
+
+    // ── Row renderer (expanded): label + frequency hint + overflow + pills ──
+    const renderStrip = (
+        label: string,
+        hint: string,
+        periods: TimelinePeriod[],
+        chargeType: 'SC' | 'MV' | 'RENT',
+        onClickPeriod?: (p: TimelinePeriod) => void,
+    ) => {
+        if (periods.length === 0) return null;
+        const overflow = periods.length - MAX_VISIBLE_PILLS;
+        const visible = overflow > 0 ? periods.slice(overflow) : periods;
+        return (
+            <div className="flex items-start gap-1.5 flex-wrap">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs flex-shrink-0 pt-1" title={hint}>{label}</span>
+                <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
+                    {overflow > 0 && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); const p = periods[0]; onClickPeriod ? onClickPeriod(p) : undefined; }}
+                            className="text-3xs font-black text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 rounded-full px-1.5 py-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                            title={`${overflow} earlier period${overflow > 1 ? 's' : ''} (since ${monthLabel(periods[0].dueDate)})`}
+                        >
+                            +{overflow}
+                        </button>
+                    )}
+                    {visible.map(period => (
+                        <StatusPill
+                            key={`${period.index}-${period.dueDate}`}
+                            period={period}
+                            chargeType={chargeType}
+                            onClick={onClickPeriod ? () => onClickPeriod(period) : undefined}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const scHint = `Service Charge · ${formatNairaCompact(scCadence.perPeriodAmount)}/${scCadence.months === 1 ? 'mo' : `${scCadence.months}mo cycle`}${scCadence.explicit ? '' : ' (monthly tracking)'}`;
+    const rentHint = `Rent · ${formatNairaCompact(Number(rental?.rentAmount) || 0)} per ${rentFrequency ? rentFrequency.toLowerCase() : 'period'}`;
+    const mvHint = `${mvLabel} · ${formatNairaCompact(mvAmount)} per ${rentFrequency ? rentFrequency.toLowerCase() : 'period'}`;
 
     return (
-        <>
-            {/* SC — single primary pill (unexpanded) or full history (expanded) */}
-            {scAmount > 0 && scPeriods.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs w-6 flex-shrink-0">SC</span>
-                    {expanded ? (
-                        <div className="flex items-center gap-1 flex-wrap">
-                            {scPeriods.map(period => (
-                                <StatusPill
-                                    key={period.index}
-                                    period={period}
-                                    chargeType="SC"
-                                    onClick={() => handleBarClick(period, 'SC')}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <PrimaryStatusPill
-                            periods={scPeriods}
-                            chargeType="SC"
-                            onClick={(period) => handleBarClick(period, 'SC')}
-                        />
-                    )}
+        <div className="space-y-1.5">
+            {expanded ? (
+                <>
+                    <TimelineLegend />
+                    {renderStrip('RENT', rentHint, rentPeriods, 'RENT', onCollectRent ? () => onCollectRent() : undefined)}
+                    {renderStrip('SC', scHint, scPeriods, 'SC', (p) => handleBarClick(p, 'SC'))}
+                    {mvEnabled && renderStrip('MV', mvHint, mvPeriods, 'MV', (p) => handleBarClick(p, 'MV'))}
+                </>
+            ) : (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <TimelineStatusChip chargeLabel="SC" chargeType="SC" summary={scSummary} onClick={() => {
+                        const target = scSummary.currentPeriod || scPeriods[scPeriods.length - 1];
+                        if (target) handleBarClick(target, 'SC');
+                    }} />
+                    <TimelineStatusChip chargeLabel="RENT" chargeType="RENT" summary={rentSummary} onClick={onCollectRent} />
+                    {mvEnabled && <TimelineStatusChip chargeLabel="MV" chargeType="MV" summary={mvSummary} onClick={() => {
+                        const target = mvSummary.currentPeriod || mvPeriods[mvPeriods.length - 1];
+                        if (target) handleBarClick(target, 'MV');
+                    }} />}
                 </div>
             )}
 
-            {/* MV — single primary pill (unexpanded) or full history (expanded) */}
-            {mvEnabled && mvAmount > 0 && mvPeriods.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs w-6 flex-shrink-0">MV</span>
-                    {expanded ? (
-                        <>
-                            <span className="text-3xs font-bold text-slate-500 dark:text-zinc-400 mr-0.5">{mvLabel}</span>
-                            <div className="flex items-center gap-1 flex-wrap">
-                                {mvPeriods.map(period => (
-                                    <StatusPill
-                                        key={period.index}
-                                        period={period}
-                                        chargeType="MV"
-                                        onClick={() => handleBarClick(period, 'MV')}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <PrimaryStatusPill
-                            periods={mvPeriods}
-                            chargeType="MV"
-                            onClick={(period) => handleBarClick(period, 'MV')}
-                        />
-                    )}
-                </div>
-            )}
-
-            {/* Quick Payment Drawer — rendered via portal-free fixed overlay.
-                The backdrop blocks all background pointer events.
-                Passes the full allPeriods array so the drawer can render the
-                historical pill strip at the top. */}
+            {/* Quick Payment Drawer */}
             {drawerOpen && (
                 <QuickPaymentDrawer
                     period={selectedPeriod}
@@ -1015,11 +885,10 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
             )}
 
             {/* ReceiptModal — opened by [Generate Receipt] / [View Issued Receipt]
-                in the Quick Payment Drawer. Handles PDF download + portal issuance
-                + activity log + dynamic button toggle. */}
+                in the Quick Payment Drawer. */}
             {receiptModalOpen && selectedPeriod && (
                 <ReceiptModal
-                    period={selectedPeriod}
+                    period={selectedPeriod as any}
                     chargeType={selectedChargeType}
                     unitName={rental?.unitName || unit.description || 'Unit'}
                     tenantName={rental?.tenantName || 'Resident'}
@@ -1028,7 +897,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
                     onIssued={handleReceiptIssued}
                 />
             )}
-        </>
+        </div>
     );
 };
 

@@ -21,20 +21,11 @@ import React, { useMemo } from 'react';
 import { Property, RentPayment } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
+import { buildRentTimeline, serviceChargeTimeline } from '../../utils/leaseTimeline';
 import NairaSymbol from '../NairaSymbol';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const periodMonths = (freq?: string): number => {
-    if (!freq) return 12;
-    const f = freq.toLowerCase();
-    if (f.includes('year') || f.includes('annual')) return 12;
-    if (f.includes('bi') || f.includes('6-month') || f.includes('semi')) return 6;
-    if (f.includes('quarter')) return 3;
-    if (f.includes('month')) return 1;
-    return 12;
-};
 
 const clampPct = (n: number): number => Math.max(0, Math.min(100, n));
 
@@ -83,25 +74,28 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
     }, [rental?.leaseStart, rental?.leaseEnd]);
 
     // ── 2. Rent Collection progress ──────────────────────────────────────────
+    // Engine-driven (units-tab overhaul): calendar-accurate elapsed periods
+    // (the old 30.44-day average drifted) and paid amounts matched from the
+    // recorded rentPaymentHistory rows — the bar now moves with real money.
     const rentCollection = useMemo(() => {
         // Hide rent collection bar for Management Only properties
         if (isManagementOnly) return null;
         if (!rental?.rentAmount || !rental?.leaseStart) return null;
         const rentPerPeriod = rental.rentAmount;
-        const periodM = periodMonths(rental.rentFrequency);
-        const start = new Date(rental.leaseStart).getTime();
-        const now = Date.now();
 
-        // Number of complete periods elapsed since lease start (capped to lease end if present)
-        const endBoundary = rental.leaseEnd ? Math.min(now, new Date(rental.leaseEnd).getTime()) : now;
-        const elapsedMs = Math.max(0, endBoundary - start);
-        const elapsedMonths = elapsedMs / (MS_PER_DAY * 30.44); // average month length
-        const periodsElapsed = Math.max(0, Math.floor(elapsedMonths / periodM));
+        const periods = buildRentTimeline({
+            leaseStart: rental.leaseStart,
+            leaseEnd: rental.leaseEnd,
+            rentFrequency: rental.rentFrequency,
+            rentAmount: rentPerPeriod,
+            payments,
+        });
+        if (periods.length === 0) return null;
 
+        const periodsElapsed = periods.filter(p => !p.isAdvance).length;
         const expectedSoFar = periodsElapsed * rentPerPeriod;
-        const collectedSoFar = payments
-            .filter(p => p.status === 'paid')
-            .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const collectedSoFar = periods.reduce((sum, p) =>
+            sum + (p.status === 'paid' || p.status === 'advance_paid' || p.status === 'late' ? p.amount : p.paidAmount), 0);
 
         const outstanding = Math.max(0, expectedSoFar - collectedSoFar);
         const collectionPct = expectedSoFar > 0 ? clampPct((collectedSoFar / expectedSoFar) * 100) : 0;
@@ -123,32 +117,33 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
     }, [isManagementOnly, rental?.rentAmount, rental?.rentFrequency, rental?.leaseStart, rental?.leaseEnd, payments]);
 
     // ── 3. Service Charge progress ───────────────────────────────────────────
-    // Service charge is a per-cycle fee (e.g. annual vend/estate fee) tracked
-    // separately from rent. The data model stores:
-    //   - serviceCharge / serviceChargeAmount: the expected total for the cycle
-    //   - serviceChargeStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID'
-    //   - outstandingServiceChargeBalance: remaining amount when partially paid
-    //
-    // When the expected amount is 0 or undefined, we render nothing for this bar.
+    // Engine-driven (units-tab overhaul): expected = what the billing
+    // timeline has accrued to date (monthly cadence unless the lease set an
+    // explicit serviceChargeFrequency); paid = settled marks + matched
+    // partials. No longer trusts the stale stored aggregate snapshot.
     const serviceCharge = useMemo(() => {
-        // Unified resolution (Item 2) — same chain as the units grid / SC
-        // table, 0 kept as a real value (the `<= 0` guard below then hides
-        // the bar, which is a display choice, not a resolution one).
-        const expected = resolveServiceChargeAmount({ unit: property, rental });
-        if (!expected || expected <= 0) return null;
+        const expectedCycle = resolveServiceChargeAmount({ unit: property, rental });
+        if (!expectedCycle || expectedCycle <= 0) return null;
 
-        const status = (rental?.serviceChargeStatus || 'UNPAID').toUpperCase();
-        const outstandingBalance = Number(rental?.outstandingServiceChargeBalance ?? 0);
-
-        let paid = 0;
-        if (status === 'PAID_FULLY' || status === 'PAID') {
-            paid = expected;
-        } else if (status === 'PARTIALLY_PAID') {
-            // If we have an explicit outstanding balance, derive paid from it.
-            // Otherwise fall back to 0 (treat as nothing collected yet).
-            paid = Math.max(0, expected - outstandingBalance);
+        const { periods, summary } = serviceChargeTimeline({ unit: property, rental });
+        if (periods.length === 0) {
+            // No lease dates to compute a timeline — fall back to the stored
+            // aggregate snapshot (previous behavior).
+            const status = (rental?.serviceChargeStatus || 'UNPAID').toUpperCase();
+            const outstandingBalance = Number(rental?.outstandingServiceChargeBalance ?? 0);
+            let paid = 0;
+            if (status === 'PAID_FULLY' || status === 'PAID') paid = expectedCycle;
+            else if (status === 'PARTIALLY_PAID') paid = Math.max(0, expectedCycle - outstandingBalance);
+            const pct = expectedCycle > 0 ? clampPct((paid / expectedCycle) * 100) : 0;
+            let state: 'on-track' | 'behind' | 'critical' = 'on-track';
+            if (pct < 50) state = 'critical';
+            else if (pct < 100) state = 'behind';
+            return { expected: expectedCycle, paid, remaining: Math.max(0, expectedCycle - paid), pct, state, status };
         }
-        // UNPAID → paid stays 0.
+
+        const expected = periods.reduce((sum, p) => sum + (p.isAdvance ? 0 : p.amount), 0);
+        const paid = periods.reduce((sum, p) =>
+            sum + (p.status === 'paid' || p.status === 'advance_paid' || p.status === 'late' ? p.amount : p.paidAmount), 0);
 
         const pct = expected > 0 ? clampPct((paid / expected) * 100) : 0;
         const remaining = Math.max(0, expected - paid);
@@ -157,15 +152,12 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
         if (pct < 50) state = 'critical';
         else if (pct < 100) state = 'behind';
 
-        return {
-            expected,
-            paid,
-            remaining,
-            pct,
-            state,
-            status,
-        };
-    }, [rental?.serviceChargeAmount, rental?.serviceCharge, rental?.serviceChargeStatus, rental?.outstandingServiceChargeBalance]);
+        const status = summary.state === 'clear' ? 'PAID_FULLY'
+            : summary.state === 'due' || summary.state === 'overdue' ? 'UNPAID'
+            : (rental?.serviceChargeStatus || 'UNPAID').toUpperCase();
+
+        return { expected, paid, remaining, pct, state, status };
+    }, [rental?.serviceChargeAmount, rental?.serviceCharge, rental?.serviceChargeStatus, rental?.outstandingServiceChargeBalance, property, rental]);
 
     // If we have nothing to show, render nothing.
     if (!leaseTimeline && !rentCollection && !serviceCharge) return null;

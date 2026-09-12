@@ -20,6 +20,7 @@ export interface UnitRentalInput {
   tenancyPeriod?: string;
   serviceCharge?: number;
   serviceChargeAmount?: number;
+  serviceChargeFrequency?: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
   serviceChargeStatus?: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID';
   outstandingServiceChargeBalance?: number;
   legalFee?: number;

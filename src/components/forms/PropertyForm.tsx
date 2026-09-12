@@ -258,6 +258,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             serviceCharge: 0,
             serviceChargeAmount: 0,
             serviceChargeStatus: 'UNPAID' as const,
+            serviceChargeFrequency: 'Monthly' as const,
             outstandingServiceChargeBalance: 0,
             legalFee: 0,
             legalFeePercentage: 0,
@@ -308,6 +309,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             serviceCharge: 0,
             serviceChargeAmount: 0,
             serviceChargeStatus: 'UNPAID' as const,
+            serviceChargeFrequency: 'Monthly' as const,
             outstandingServiceChargeBalance: 0,
             legalFee: 0,
             legalFeePercentage: 0,
@@ -400,6 +402,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         serviceCharge: 0,
                         serviceChargeAmount: 0,
                         serviceChargeStatus: 'UNPAID' as const,
+            serviceChargeFrequency: 'Monthly' as const,
                         outstandingServiceChargeBalance: 0,
                         legalFee: 0,
                         legalFeePercentage: 0,
@@ -1477,6 +1480,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         serviceCharge: 0,
                                         serviceChargeAmount: 0,
                                         serviceChargeStatus: 'UNPAID' as const,
+            serviceChargeFrequency: 'Monthly' as const,
                                         outstandingServiceChargeBalance: 0,
                                         legalFee: 0,
                                         legalFeePercentage: 0,
@@ -1633,8 +1637,22 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <option value="PAID_FULLY">Paid Fully</option>
                                     </select>
                                 </div>
-                                {activeUnit.serviceChargeStatus === 'PARTIALLY_PAID' && (
-                                    <div className="space-y-2 group animate-fade-in">
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Service Charge Frequency</label>
+                                    <select
+                                        value={activeUnit.serviceChargeFrequency || 'Monthly'}
+                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeFrequency', e.target.value as 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly')}
+                                        className={commonInputClass}
+                                    >
+                                        <option value="Monthly">Monthly</option>
+                                        <option value="Quarterly">Quarterly</option>
+                                        <option value="Bi-Annually">Bi-Annually</option>
+                                        <option value="Annually">Annually</option>
+                                    </select>
+                                    <p className="text-3xs text-slate-400 pl-1">How often the billing timeline bills this charge (default: Monthly)</p>
+                                </div>
+                            {activeUnit.serviceChargeStatus === 'PARTIALLY_PAID' && (
+                                <div className="space-y-2 group animate-fade-in">
                                         <label className={labelClass}>Outstanding Balance</label>
                                         <div className="relative rounded-lg shadow-xs">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
@@ -1647,8 +1665,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                             />
                                         </div>
                                     </div>
-                                )}
-                                <div className="space-y-2 group">
+                            )}
+                            <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className={labelClass}>Legal Fee (<NairaSymbol />)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">

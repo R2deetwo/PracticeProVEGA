@@ -25,46 +25,8 @@ import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatDateShort } from '../../utils/formatting';
 import { XIcon, CheckCircleIcon, PlusIcon, DownloadIcon } from '../../constants';
 import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
-
-// ─── Helpers (duplicated from ServiceChargeBars for independence) ────────────
-const periodMonths = (freq?: string): number => {
-    if (!freq) return 12;
-    const f = freq.toLowerCase();
-    if (f.includes('year') || f.includes('annual')) return 12;
-    if (f.includes('bi') || f.includes('6-month') || f.includes('semi')) return 6;
-    if (f.includes('quarter')) return 3;
-    if (f.includes('month')) return 1;
-    return 12;
-};
-
-function computeElapsedPeriods(
-    leaseStart: string,
-    leaseEnd: string | undefined,
-    frequency: string | undefined,
-    perPeriodAmount: number,
-): ServiceChargePeriod[] {
-    if (!leaseStart) return [];
-    const start = new Date(leaseStart);
-    if (isNaN(start.getTime())) return [];
-    const now = new Date();
-    const endBoundary = leaseEnd ? new Date(Math.min(now.getTime(), new Date(leaseEnd).getTime())) : now;
-    const periodM = periodMonths(frequency);
-
-    const periods: ServiceChargePeriod[] = [];
-    let periodStart = new Date(start);
-    let idx = 1;
-    while (periodStart < endBoundary && idx <= 60) {
-        periods.push({
-            index: idx,
-            dueDate: periodStart.toISOString().split('T')[0],
-            status: 'outstanding',
-            amount: perPeriodAmount,
-        });
-        periodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + periodM, periodStart.getDate());
-        idx++;
-    }
-    return periods;
-}
+import { buildTimeline, resolveCadence, type TimelinePeriod } from '../../utils/leaseTimeline';
+// ─── Period computation: SHARED ENGINE (see src/utils/leaseTimeline.ts) ────
 
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const getMonthYear = (iso: string) => {
@@ -92,34 +54,43 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
     const rental = (unit.rentalDetails || unit) as Property['rentalDetails'];
     const leaseStart = rental?.leaseStart || '';
     const leaseEnd = rental?.leaseEnd;
-    // Use SC-specific frequency when available, fall back to rent frequency.
-    // This fixes the bug where monthly SC stepped yearly because it used
-    // the rent frequency (which might be Annual).
-    const frequency = chargeType === 'SC'
-        ? (rental?.serviceChargeFrequency ?? rental?.rentFrequency)
-        : rental?.rentFrequency;
 
     // Unified resolution (Item 2) — 0 is a real value; same chain as the
     // property view so the onboarding ledger matches what every surface shows.
     const scAmount = resolveServiceChargeAmount({ unit, rental: unit.rentalDetails });
     const mvAmount = Number((unit as any).minimumVendAmount || 0);
-    const perPeriodAmount = chargeType === 'SC' ? scAmount : mvAmount;
 
     const periodsKey = chargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
     const storedPeriods = (rental?.[periodsKey] as ServiceChargePeriod[]) || [];
 
-    // Compute initial periods (historical elapsed + stored advance)
+    // ── Effective cadence — SHARED ENGINE (units-tab overhaul). SC resolves
+    // its own cadence (monthly unless serviceChargeFrequency is explicit;
+    // annual totals spread /12), MV stays per-period. Used both by the
+    // initial-period build and by [Add Advance Month] so future pills land
+    // on the same grid the units tab renders.
+    const effCadence = chargeType === 'SC'
+        ? resolveCadence({
+            scFrequency: rental?.serviceChargeFrequency,
+            rentFrequency: rental?.rentFrequency,
+            monthlyRate: Number(rental?.serviceCharge) || 0,
+            resolvedTotal: scAmount,
+        })
+        : resolveCadence({ scFrequency: 'Monthly', monthlyRate: mvAmount, resolvedTotal: mvAmount });
+
+    // Compute initial periods (historical elapsed + stored advance) — via the
+    // SHARED engine: stored marks merge by DUE DATE (legacy annual-cadence
+    // marks land on the right month of the new monthly grid). Unpaid periods
+    // map to this modal's 'outstanding' editing state; the engine re-derives
+    // due/overdue on read.
     const initialPeriods = useMemo(() => {
-        const elapsed = computeElapsedPeriods(leaseStart, leaseEnd, frequency, perPeriodAmount);
-        const storedMap = new Map(storedPeriods.map(p => [p.index, p]));
-        const merged = elapsed.map(p => {
-            const s = storedMap.get(p.index);
-            return s ? { ...p, status: s.status, paidDate: s.paidDate, paidOnTime: s.paidOnTime } : p;
+        const timeline: TimelinePeriod[] = buildTimeline({
+            leaseStart, leaseEnd, cadence: effCadence, stored: storedPeriods,
         });
-        // Append stored advance periods
-        const advance = storedPeriods.filter(p => p.status === 'advance_paid' && p.index > elapsed.length);
-        return [...merged, ...advance];
-    }, [leaseStart, leaseEnd, frequency, perPeriodAmount, storedPeriods]);
+        return timeline.map(p => ({
+            ...p,
+            status: (p.status === 'due' || p.status === 'overdue' ? 'outstanding' : p.status),
+        })) as unknown as ServiceChargePeriod[];
+    }, [leaseStart, leaseEnd, effCadence, storedPeriods]);
 
     const [periods, setPeriods] = useState<ServiceChargePeriod[]>(initialPeriods);
 
@@ -179,7 +150,7 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
             // Calculate the due date for this future period
             if (!leaseStart) return prev;
             const start = new Date(leaseStart);
-            const periodM = periodMonths(frequency);
+            const periodM = effCadence.months;
             const futureStart = new Date(start.getFullYear(), start.getMonth() + (nextIndex - 1) * periodM, start.getDate());
             const todayIso = new Date().toISOString().split('T')[0];
             return [...prev, {
@@ -187,12 +158,12 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                 dueDate: futureStart.toISOString().split('T')[0],
                 status: 'advance_paid' as const,
                 paidDate: todayIso,
-                amount: perPeriodAmount,
+                amount: effCadence.perPeriodAmount,
                 paidOnTime: true,
                 isAdvance: true,
             }];
         });
-    }, [leaseStart, frequency, perPeriodAmount]);
+    }, [leaseStart, effCadence]);
 
     const handleApply = useCallback(() => {
         onApply(periods);
