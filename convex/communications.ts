@@ -61,6 +61,16 @@ export const sendEmail = action({
     senderName: v.optional(v.string()),
     replyTo: v.optional(v.string()),
     recordLog: v.optional(v.boolean()),
+    // PDF ATTACHMENT (user feedback 2026-09-12: "should we not make it a
+    // pdf as well so that what they see in the email attachment is what
+    // they get from their portal"). Receipts ride as a real PDF document
+    // so the inbox copy is the document itself, not an email that merely
+    // LOOKS like a receipt. Brevo expects { name, content } with content
+    // base64-encoded.
+    attachment: v.optional(v.object({
+      name: v.string(),
+      contentBase64: v.string(),
+    })),
   },
   handler: async (_ctx, args) => {
     // Use the same env var as myFunctions.ts sendBrevoEmail (PracticePro_Vega_Mailer)
@@ -84,6 +94,19 @@ export const sendEmail = action({
       return { success: false, simulated: false, error: `Invalid recipient email address: "${args.to}"` };
     }
 
+    // Attachment guards: a malformed or oversized payload must fail LOUDLY
+    // before the API call, not as a vague Brevo 400 afterwards. Receipt
+    // PDFs are ~10-30KB; the cap catches accidental whole-file uploads.
+    if (args.attachment) {
+      const b64 = String(args.attachment.contentBase64 || "");
+      if (!b64) {
+        return { success: false, simulated: false, error: "Attachment contentBase64 is empty — the email was NOT sent." };
+      }
+      if (b64.length > 8_000_000) {
+        return { success: false, simulated: false, error: `Attachment "${args.attachment.name}" is too large (${Math.round(b64.length / 1024)}KB base64) — the email was NOT sent.` };
+      }
+    }
+
     try {
       const replyTo = args.replyTo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(args.replyTo).trim())
         ? [{ email: String(args.replyTo).trim() }]
@@ -104,6 +127,9 @@ export const sendEmail = action({
           ...(replyTo ? { replyTo } : {}),
           subject: args.subject,
           htmlContent: args.htmlContent,
+          ...(args.attachment
+            ? { attachment: [{ name: args.attachment.name, content: String(args.attachment.contentBase64) }] }
+            : {}),
         }),
       });
 

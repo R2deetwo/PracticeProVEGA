@@ -29,7 +29,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { XIcon, DownloadIcon, CheckCircleIcon, SendIcon } from '../../constants';
 import { formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { buildReceiptLogArgs, buildReceiptContent } from '../../utils/receiptDelivery';
-import { buildReceiptEmailHtml, buildReceiptEmailSubject } from '../../utils/emailDelivery';
+import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName } from '../../utils/emailDelivery';
 import { ServiceChargePeriod } from '../../types';
 
 interface ReceiptModalProps {
@@ -165,11 +165,33 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             setHasIssued(true);
             onIssued?.(receiptNumber);
 
-            // 2b. Email the receipt — BEST-EFFORT, secondary to the portal
-            //     (the WhatsApp-pause inbox channel; Brevo).
+            // 2b. Email the receipt — BEST-EFFORT, secondary to the portal.
+            //     The receipt rides as a real PDF attachment (the same
+            //     document shape as the portal copy) so there is never any
+            //     confusion about whether the email itself is the receipt.
             let emailedTo: string | null = null;
             const to = (tenantEmail || '').trim();
             if (to) {
+                let attachment: { name: string; contentBase64: string } | undefined;
+                try {
+                    attachment = {
+                        name: receiptPdfFileName(receiptNumber),
+                        contentBase64: buildReceiptPdfBase64({
+                            firmName,
+                            receiptNumber,
+                            tenantName,
+                            unitName,
+                            chargeTypeLabel,
+                            billingPeriod,
+                            amountPaid,
+                            paymentDate,
+                            settlementMethod,
+                            coverageNote,
+                        }),
+                    };
+                } catch (pdfErr: any) {
+                    console.warn('Receipt PDF generation failed — emailing without attachment:', pdfErr);
+                }
                 try {
                     const emailResult = await sendEmail({
                         to,
@@ -186,10 +208,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                             paymentDate,
                             settlementMethod,
                             coverageNote,
+                            pdfAttached: !!attachment,
                         }),
                         firmId,
                         senderName: firmName,
                         replyTo: currentUser?.email || undefined,
+                        ...(attachment ? { attachment } : {}),
                     } as any);
                     if (emailResult?.success && !emailResult?.simulated) emailedTo = to;
                     else console.warn('Receipt email not delivered:', emailResult?.error);

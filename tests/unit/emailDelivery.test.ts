@@ -12,6 +12,8 @@ import {
     resolvePreferredChannel,
     buildReceiptEmailHtml,
     buildReceiptEmailSubject,
+    buildReceiptPdfBase64,
+    receiptPdfFileName,
     escapeHtml,
 } from '../../src/utils/emailDelivery';
 
@@ -66,6 +68,18 @@ describe('buildReceiptEmailHtml — the receipt in the resident\u2019s inbox', (
         expect(html).not.toContain('Covers');
     });
 
+    it('says the PDF is attached when pdfAttached is set', () => {
+        const html = buildReceiptEmailHtml({ ...input, pdfAttached: true });
+        expect(html).toContain('attached as a PDF');
+        expect(html).toContain('same document you will find in your resident portal');
+    });
+
+    it('keeps the plain portal-copy intro when no PDF rides along', () => {
+        const html = buildReceiptEmailHtml({ ...input, pdfAttached: false });
+        expect(html).toContain('a copy is also available in your resident portal');
+        expect(html).not.toContain('attached as a PDF');
+    });
+
     it('escapes HTML in tenant-provided fields', () => {
         const html = buildReceiptEmailHtml({ ...input, tenantName: '<script>alert(1)</script>' });
         expect(html).not.toContain('<script>');
@@ -91,5 +105,50 @@ describe('buildReceiptEmailSubject', () => {
 describe('escapeHtml', () => {
     it('neutralizes the dangerous five', () => {
         expect(escapeHtml('<>&"\'')).toBe('&lt;&gt;&amp;&quot;&#39;');
+    });
+});
+
+describe('buildReceiptPdfBase64 — the receipt as a real PDF document', () => {
+    const input = {
+        firmName: 'Atrium Estates',
+        receiptNumber: 'RC-123456-3',
+        tenantName: 'Ada Obi',
+        unitName: 'Block B, Unit 4',
+        chargeTypeLabel: 'Service Charge',
+        billingPeriod: 'September 2026',
+        amountPaid: 720000,
+        paymentDate: '2026-09-12',
+        settlementMethod: 'Advance Payment (6 months)',
+        coverageNote: 'Sep 2026 – Feb 2027 (6 months)',
+    };
+
+    it('returns raw base64 of a real PDF (magic header, no data: prefix)', () => {
+        const b64 = buildReceiptPdfBase64(input);
+        expect(b64).not.toContain('data:');
+        expect(b64.startsWith('JVBERi0')).toBe(true); // base64('%PDF-')
+        expect(b64.length).toBeGreaterThan(1000);     // a real document, not a stub
+    });
+
+    it('decodes to a PDF with the receipt metadata as plain content', () => {
+        const b64 = buildReceiptPdfBase64(input);
+        const decoded = Buffer.from(b64, 'base64').toString('latin1');
+        expect(decoded.startsWith('%PDF-')).toBe(true);
+        expect(decoded).toContain('RC-123456-3');
+        expect(decoded).toContain('Atrium Estates');
+        expect(decoded).toContain('NGN 720,000');
+    });
+
+    it('renders the naira amount as NGN (PDF core fonts carry no naira glyph)', () => {
+        const decoded = Buffer.from(buildReceiptPdfBase64(input), 'base64').toString('latin1');
+        expect(decoded).not.toContain('\u20A6');
+        expect(decoded).toContain('NGN');
+    });
+});
+
+describe('receiptPdfFileName', () => {
+    it('derives a stable, filesystem-safe name from the receipt number', () => {
+        expect(receiptPdfFileName('RC-123456-3')).toBe('Receipt-RC-123456-3.pdf');
+        expect(receiptPdfFileName('RC 12/34:56')).toBe('Receipt-RC-12-34-56.pdf');
+        expect(receiptPdfFileName('')).toBe('Receipt-receipt.pdf');
     });
 });

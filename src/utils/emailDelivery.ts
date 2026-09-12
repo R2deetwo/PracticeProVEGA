@@ -16,6 +16,7 @@
  */
 
 import { buildEmailHtml } from './emailTemplate';
+import { jsPDF } from 'jspdf';
 import type { AutomationChannel } from '../types';
 
 /**
@@ -57,6 +58,8 @@ export interface ReceiptEmailInput {
     paymentDate: string;        // ISO yyyy-mm-dd
     settlementMethod: string;
     coverageNote?: string;      // "Sep 2026 – Feb 2027 (6 months)"
+    /** True when the email carries the receipt as a PDF attachment. */
+    pdfAttached?: boolean;
 }
 
 const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
@@ -78,9 +81,13 @@ export function buildReceiptEmailHtml(input: ReceiptEmailInput): string {
     rows.push(['Payment Date', escapeHtml(input.paymentDate)]);
     rows.push(['Settlement', escapeHtml(input.settlementMethod)]);
 
+    const intro = input.pdfAttached
+        ? 'Your official receipt is attached as a PDF — the same document you will find in your resident portal. Keep it for your records.'
+        : 'Your payment receipt is below — a copy is also available in your resident portal.';
+
     const body = [
         '<div style="max-width:520px;">',
-        '<p style="margin:0 0 16px 0;color:#1f2937;font-size:15px;line-height:1.7;">Your payment receipt is below — a copy is also available in your resident portal.</p>',
+        `<p style="margin:0 0 16px 0;color:#1f2937;font-size:15px;line-height:1.7;">${intro}</p>`,
         '<div style="margin-bottom:20px;">',
         rows.map(([label, value]) =>
             `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;">` +
@@ -108,4 +115,108 @@ export function buildReceiptEmailSubject(input: {
     billingPeriod: string;
 }): string {
     return `Receipt ${input.receiptNumber} — ${input.chargeTypeLabel} (${input.billingPeriod})`;
+}
+
+// ─── Receipt PDF attachment ──────────────────────────────────────────────────
+/**
+ * The receipt as a real PDF document (user feedback 2026-09-12: "should we
+ * not make it a pdf as well so that what they see in the email attachment
+ * is what they get from their portal so that there is no confusion as to
+ * whether the email itself is the receipt or an actual document").
+ *
+ * Same field set and order as the email body / portal receipt preview, so
+ * the PDF, the email and the portal are ONE document shape. Currency is
+ * rendered "NGN" because the PDF core fonts carry no naira glyph — the
+ * meaning is identical, and the glyph lives in every HTML surface.
+ *
+ * Returns RAW base64 (no data: prefix) — exactly what Brevo's
+ * `attachment.content` expects and what communications.sendEmail accepts.
+ */
+export function buildReceiptPdfBase64(input: ReceiptEmailInput): string {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    // Header — firm name + document kind, centred, emerald accent.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(5, 150, 105);
+    doc.text(input.firmName || 'PracticePro', 105, 28, { align: 'center' });
+
+    doc.setFontSize(9.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('OFFICIAL PAYMENT RECEIPT', 105, 35, { align: 'center' });
+    doc.text(`Receipt No: ${input.receiptNumber}`, 105, 40, { align: 'center' });
+    doc.setDrawColor(16, 185, 129);
+    doc.setLineWidth(0.7);
+    doc.line(62, 44, 148, 44);
+
+    // Detail rows — identical order to the email + portal preview.
+    const rows: Array<[string, string]> = [
+        ['Resident', input.tenantName],
+        ['Unit', input.unitName],
+        ['Charge Type', input.chargeTypeLabel],
+        ['Billing Period', input.billingPeriod],
+    ];
+    if (input.coverageNote) rows.push(['Covers', input.coverageNote]);
+    rows.push(['Payment Date', input.paymentDate]);
+    rows.push(['Settlement', input.settlementMethod]);
+
+    let y = 56;
+    for (const [label, value] of rows) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(label, 25, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(String(value), 185, y, { align: 'right' });
+        doc.setDrawColor(241, 245, 249);
+        doc.setLineWidth(0.2);
+        doc.line(25, y + 2, 185, y + 2);
+        y += 10;
+    }
+
+    // Amount block — the one number that must be unmissable.
+    y += 5;
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(55, y, 100, 22, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(16, 185, 129);
+    doc.text('AMOUNT PAID', 105, y + 7.5, { align: 'center' });
+    doc.setFontSize(15);
+    doc.setTextColor(5, 150, 105);
+    doc.text(nairaPdf(input.amountPaid), 105, y + 16.5, { align: 'center' });
+
+    // Footer — issuer + issue date.
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`This is an official receipt issued by ${input.firmName || 'PracticePro'} via PracticePro.`, 105, 282, { align: 'center' });
+    doc.text(`Issued on ${new Date().toISOString().split('T')[0]}`, 105, 287, { align: 'center' });
+
+    return arrayBufferToBase64(doc.output('arraybuffer'));
+}
+
+/** Naira in PDF-safe text — core fonts carry no naira glyph. */
+function nairaPdf(n: number): string {
+    return `NGN ${Math.round(n).toLocaleString('en-NG')}`;
+}
+
+/** Chunked ArrayBuffer → raw base64 (works in browser and Node). */
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+    const bytes = new Uint8Array(buf);
+    const CHUNK = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    if (typeof btoa === 'function') return btoa(binary);
+    // Node fallback (vitest / non-DOM runtimes)
+    return Buffer.from(binary, 'binary').toString('base64');
+}
+
+/** File name for the receipt attachment — stable + receipt-numbered. */
+export function receiptPdfFileName(receiptNumber: string): string {
+    const safe = String(receiptNumber || 'receipt').replace(/[^A-Za-z0-9_-]+/g, '-');
+    return `Receipt-${safe}.pdf`;
 }

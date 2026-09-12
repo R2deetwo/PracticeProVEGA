@@ -55,7 +55,7 @@ import {
 } from '../../utils/leaseTimeline';
 import ReceiptModal from '../modals/ReceiptModal';
 import { buildReceiptLogArgs, buildReceiptContent, upsertReceiptNumber } from '../../utils/receiptDelivery';
-import { buildReceiptEmailHtml, buildReceiptEmailSubject } from '../../utils/emailDelivery';
+import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName } from '../../utils/emailDelivery';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -781,6 +781,30 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         let emailedTo: string | null = null;
         const tenantEmail = (rental?.tenantEmail || '').trim();
         if (tenantEmail) {
+            // The receipt rides as a real PDF attachment — the inbox copy
+            // is the document (same shape as the portal copy), not an email
+            // that merely looks like a receipt. PDF failure degrades to the
+            // plain email; it never blocks delivery.
+            let attachment: { name: string; contentBase64: string } | undefined;
+            try {
+                attachment = {
+                    name: receiptPdfFileName(receiptNumber),
+                    contentBase64: buildReceiptPdfBase64({
+                        firmName: coreState?.firmDetails?.name || 'PracticePro',
+                        receiptNumber,
+                        tenantName,
+                        unitName,
+                        chargeTypeLabel,
+                        billingPeriod,
+                        amountPaid: period.amount,
+                        paymentDate,
+                        settlementMethod,
+                        coverageNote: coverage?.label,
+                    }),
+                };
+            } catch (pdfErr: any) {
+                console.warn('Receipt PDF generation failed — emailing without attachment:', pdfErr);
+            }
             try {
                 const emailResult = await sendEmail({
                     to: tenantEmail,
@@ -797,9 +821,11 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                         paymentDate,
                         settlementMethod,
                         coverageNote: coverage?.label,
+                        pdfAttached: !!attachment,
                     }),
                     firmId,
                     senderName: coreState?.firmDetails?.name || 'PracticePro',
+                    ...(attachment ? { attachment } : {}),
                 } as any);
                 if (emailResult?.success && !emailResult?.simulated) emailedTo = tenantEmail;
                 else console.warn('Receipt email not delivered:', emailResult?.error);
