@@ -71,6 +71,7 @@ export type PeriodStatus =
     | 'paid'          // settled (stored or payment-matched); paidOnTime flag refines the color
     | 'late'          // settled after its window (stored, or payment-matched late)
     | 'advance_paid'  // pre-paid future cycle (stored)
+    | 'partial'       // part-paid: 0 < paidAmount < amount — the remainder stays owed
     | 'due'           // unpaid, inside its own billing window (amber)
     | 'overdue'       // unpaid, window closed past grace (red)
     | 'outstanding';  // legacy stored value — normalized at build time
@@ -100,12 +101,16 @@ export interface TimelinePayment {
 
 export interface TimelineSummary {
     state: 'none' | 'clear' | 'due' | 'overdue';
-    /** Periods currently due (unpaid, in window). */
+    /** Periods currently due (unpaid, in window) — partials count here. */
     dueCount: number;
     /** Periods past their window and still unpaid (or marked late). */
     overdueCount: number;
-    /** Total unpaid amount across due + overdue periods. */
+    /** Total unpaid amount across due + overdue periods (net of partial payments). */
     outstandingTotal: number;
+    /** Cycles with a recorded partial payment still short of their amount. */
+    partialCount: number;
+    /** Sum of money actually banked on those partial cycles. */
+    partialPaidTotal: number;
     /** The most recent unsettled period (due or overdue). */
     currentPeriod: TimelinePeriod | null;
     /** Next period start after the timeline head (when nothing is owed). */
@@ -225,7 +230,7 @@ export function buildTimeline(args: {
 
         const amount = cadence.perPeriodAmount;
         const matched = matchPayments(payments, dueDate, windowEnd);
-        const paidAmount = matched.total;
+        let paidAmount = matched.total;
         const override = storedByDue.get(dueDate) || storedByIndex.get(idx) || null;
 
         let status: PeriodStatus;
@@ -245,6 +250,20 @@ export function buildTimeline(args: {
             } else if (os === 'late') {
                 status = 'late';
                 paidOnTime = false;
+            } else if (os === 'partial') {
+                // PARTIAL PAYMENT: the stored row carries the banked total
+                // (accumulated across top-ups). A partial that has grown to
+                // the full amount reads as paid — the remainder is what
+                // stays owed, never a phantom "due" on a banked cycle.
+                const storedPartial = Math.max(0, Number(override.paidAmount) || 0);
+                paidAmount = Math.max(paidAmount, storedPartial);
+                if (paidAmount >= amount * 0.999) {
+                    status = 'paid';
+                    paidOnTime = paidDate ? withinWindow(paidDate, windowEnd) : true;
+                } else {
+                    status = 'partial';
+                    paidOnTime = undefined;
+                }
             } else {
                 // 'outstanding' (legacy) or anything else unpaid — re-derive
                 // from time so stale stored rows don't freeze the strip red.
@@ -255,8 +274,9 @@ export function buildTimeline(args: {
             paidDate = matched.lastPaidDate;
             paidOnTime = withinWindow(paidDate, windowEnd);
         } else if (paidAmount > 0) {
-            // partial — stays in its due/overdue state, paidAmount shown
-            ({ status, paidOnTime } = deriveFromTime(nowMs, dueDate, windowEnd, graceDays));
+            // partial — a banked amount keeps the cycle part-settled; the
+            // remainder is owed (counted amber, never invisible)
+            status = 'partial';
         } else {
             ({ status, paidOnTime } = deriveFromTime(nowMs, dueDate, windowEnd, graceDays));
         }
@@ -333,6 +353,7 @@ export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Dat
     });
     if (real.length === 0) return {
         state: 'none', dueCount: 0, overdueCount: 0, outstandingTotal: 0,
+        partialCount: 0, partialPaidTotal: 0,
         currentPeriod: null, nextDueDate: null, settledThrough: null,
     };
 
@@ -340,10 +361,16 @@ export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Dat
     // Counting it as unsettled produced "SC 3 MO OVERDUE" chips + inflated
     // outstanding totals on units where every cycle was paid (late) —
     // "it cannot be due if they have paid; late or otherwise".
-    const unsettled = real.filter(p => p.status === 'due' || p.status === 'overdue' || p.status === 'outstanding');
-    const duePeriods = unsettled.filter(p => p.status === 'due');
-    const overduePeriods = unsettled.filter(p => p.status !== 'due');
+    // 'partial' IS still owed its remainder, but a banked amount must never
+    // be counted as unpaid either — outstanding nets it out and the cycle
+    // counts amber (due-like), not red (overdue).
+    const unsettled = real.filter(p => p.status === 'due' || p.status === 'overdue' || p.status === 'outstanding' || p.status === 'partial');
+    const partials = unsettled.filter(p => p.status === 'partial');
+    const duePeriods = unsettled.filter(p => p.status === 'due' || p.status === 'partial');
+    const overduePeriods = unsettled.filter(p => p.status !== 'due' && p.status !== 'partial');
     const outstandingTotal = unsettled.reduce((sum, p) => sum + Math.max(0, p.amount - p.paidAmount), 0);
+    const partialCount = partials.length;
+    const partialPaidTotal = partials.reduce((sum, p) => sum + Math.min(p.paidAmount, p.amount), 0);
 
     const lastPeriod = real[real.length - 1];
     const nextDueDate = lastPeriod ? toDateISO(addMonths(new Date(lastPeriod.dueDate), 1)) : null;
@@ -360,19 +387,22 @@ export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Dat
     if (overduePeriods.length > 0) {
         return {
             state: 'overdue', dueCount: duePeriods.length, overdueCount: overduePeriods.length,
-            outstandingTotal, currentPeriod: overduePeriods[overduePeriods.length - 1] ?? null,
+            outstandingTotal, partialCount, partialPaidTotal,
+            currentPeriod: overduePeriods[overduePeriods.length - 1] ?? null,
             nextDueDate, settledThrough,
         };
     }
     if (duePeriods.length > 0) {
         return {
             state: 'due', dueCount: duePeriods.length, overdueCount: 0,
-            outstandingTotal, currentPeriod: duePeriods[duePeriods.length - 1] ?? null,
+            outstandingTotal, partialCount, partialPaidTotal,
+            currentPeriod: duePeriods[duePeriods.length - 1] ?? null,
             nextDueDate, settledThrough,
         };
     }
     return {
         state: 'clear', dueCount: 0, overdueCount: 0, outstandingTotal: 0,
+        partialCount: 0, partialPaidTotal: 0,
         currentPeriod: null, nextDueDate, settledThrough,
     };
 }

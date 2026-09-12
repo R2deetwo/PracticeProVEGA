@@ -142,6 +142,20 @@ const getStatusMeta = (period: TimelinePeriod): StatusMeta => {
             description: `Pre-paid on ${period.paidDate ? formatDateShort(period.paidDate) : '—'} (future cycle)`,
         };
     }
+    if (period.status === 'partial') {
+        // PARTIAL PAYMENT: banked amount + remainder. Never red — money is
+        // in. The pill is amber because the remainder is still owed.
+        const banked = period.paidAmount || 0;
+        const remaining = Math.max(0, period.amount - banked);
+        return {
+            pill: 'bg-amber-500',
+            hover: 'hover:bg-amber-600',
+            label: 'text-amber-600 dark:text-amber-400',
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            name: 'Partially Paid',
+            description: `${formatNairaCompact(banked)} banked of ${formatNairaFull(period.amount)} — ${formatNairaFull(remaining)} remaining. Click to top up or settle.`,
+        };
+    }
     if (period.status === 'due') {
         // NEW derived state — the current cycle's charge is due right now.
         return {
@@ -253,18 +267,37 @@ interface QuickPaymentDrawerProps {
     onPeriodSelect: (period: TimelinePeriod) => void;
     /** Log an advance payment: N cycles from this period, ONE receipt. */
     onAdvancePayment: (cycles: number) => void;
+    /** Log a partial payment (or top-up) on this cycle — banked amount persists. */
+    onPartialPayment: (amount: number) => void;
     /** Cadence of the selected stream (1 = monthly) + per-cycle charge. */
     cadenceMonths: number;
     perPeriodAmount: number;
+    /** Firm policy — partial payments are optional (not every manager wants them). */
+    allowPartial: boolean;
+    /** Firm late-payment fine rate, % per defaulting cycle (displayed, non-destructive). */
+    latePenaltyRate: number;
 }
 
 const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     period, chargeType, unitName, allPeriods, onClose, onStatusChange, onGenerateReceipt, onPeriodSelect,
-    onAdvancePayment, cadenceMonths, perPeriodAmount,
+    onAdvancePayment, onPartialPayment, cadenceMonths, perPeriodAmount, allowPartial, latePenaltyRate,
 }) => {
     const [advanceCycles, setAdvanceCycles] = useState(1);
+    const [partialAmount, setPartialAmount] = useState('');
     if (!period) return null;
     const meta = getStatusMeta(period);
+
+    // PARTIAL PAYMENT — the banked vs remaining math for this cycle.
+    const banked = period.paidAmount || 0;
+    const remaining = Math.max(0, period.amount - banked);
+
+    // LATE FEE — the firm's fine for default, surfaced per cycle so the
+    // manager sees the lever for persistent late/incomplete payers. Flat
+    // rate % of the cycle charge, per defaulting (late-settled or overdue)
+    // cycle. Display + collection-at-settlement copy — nothing is mutated.
+    const lateFinePerCycle = Math.round(period.amount * (latePenaltyRate / 100));
+    const fineableCycles = allPeriods.filter(p => p.status === 'late' || p.status === 'overdue').length;
+    const lateFineTotal = lateFinePerCycle * fineableCycles;
 
     return (
         <>
@@ -360,6 +393,79 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                         <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1">
                             {meta.description}
+                        </p>
+                    </div>
+
+                    {/* ── Partial Payment — banked amount + remainder, optional by firm policy ── */}
+                    {allowPartial && remaining > 0 && (
+                        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+                            <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-1">
+                                Partial Payment
+                            </p>
+                            {banked > 0 ? (
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400 mb-2">
+                                    {formatNairaCompact(banked)} already banked on this cycle — {formatNairaFull(remaining)} remaining.
+                                    A top-up that completes the cycle settles it and issues the receipt.
+                                </p>
+                            ) : (
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400 mb-2">
+                                    Resident paid part of the charge? Bank the amount — the cycle stays amber
+                                    until the remainder arrives, and the outstanding balance only counts what is truly owed.
+                                </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1">
+                                    <label htmlFor="partial-amount" className="text-2xs font-bold text-slate-400 uppercase tracking-wide">Amount (₦)</label>
+                                    <input
+                                        id="partial-amount"
+                                        type="number"
+                                        min={1}
+                                        max={remaining}
+                                        inputMode="numeric"
+                                        value={partialAmount}
+                                        onChange={(e) => setPartialAmount(e.target.value)}
+                                        placeholder={String(remaining)}
+                                        className="w-full mt-0.5 px-3 py-2 text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-800/60 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        const parsed = Math.round(Number(partialAmount));
+                                        if (!parsed || parsed <= 0) return;
+                                        const applied = Math.min(parsed, remaining);
+                                        onPartialPayment(applied);
+                                        setPartialAmount('');
+                                    }}
+                                    disabled={!Number(partialAmount) || Number(partialAmount) <= 0}
+                                    className="mt-4 px-4 py-2.5 h-9 text-white text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-600 shadow-sm transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Bank {formatNairaCompact(Math.min(Number(partialAmount) || 0, remaining) || 0)}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Late Payment Policy — the fine for default, surfaced ── */}
+                    <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-700/60">
+                        <div className="flex items-center justify-between">
+                            <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                                Late Payment Policy
+                            </p>
+                            <span className={`text-2xs font-black px-2 py-0.5 rounded-full ${latePenaltyRate > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-slate-100 text-slate-400 dark:bg-zinc-700 dark:text-zinc-500'}`}>
+                                {latePenaltyRate > 0 ? `${latePenaltyRate}% fine` : 'no fine set'}
+                            </span>
+                        </div>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                            {latePenaltyRate > 0 ? (
+                                <>
+                                    {fineableCycles > 0
+                                        ? `${fineableCycles} defaulting cycle${fineableCycles === 1 ? '' : 's'} on this stream — ${formatNairaFull(lateFineTotal)} in fines accrue at ${latePenaltyRate}% per cycle, collected at settlement.`
+                                        : `A ${formatNairaFull(lateFinePerCycle)} fine applies to each cycle that defaults (settled late or left overdue). Nothing accrues yet — this stream is clean.`}
+                                    {' Configure the rate in Automation → Billing Policies.'}
+                                </>
+                            ) : (
+                                'No late fee configured — set a rate in Automation → Billing Policies if persistent late payers should carry the fine for default.'
+                            )}
                         </p>
                     </div>
 
@@ -695,6 +801,16 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
     }) : [], [includeRent, leaseStart, leaseEnd, rentFrequency, rental?.rentAmount, (unit as any).rentPaymentHistory]);
     const rentSummary = useMemo(() => summarizeTimeline(rentPeriods), [rentPeriods]);
 
+    // FIRM BILLING POLICIES (Automation → Billing Policies):
+    // - allowPartialPayments: partial payments are possible but OPTIONAL —
+    //   "not all people may subscribe to because it could build a bad
+    //   relationship... but it may be a thing that some people may accept"
+    //   (user, 2026-09-12). Defaults ON so the possibility exists from the
+    //   onset; managers who dislike the practice switch it off.
+    // - latePenaltyRate: the fine for default on payment, % per cycle.
+    const allowPartialPayments = (coreState?.firmDetails as any)?.automationSettings?.allowPartialPayments !== false;
+    const firmLatePenaltyRate = Number((coreState?.firmDetails as any)?.automationSettings?.latePenaltyRate) || 0;
+
     const handleBarClick = useCallback((period: TimelinePeriod, chargeType: 'SC' | 'MV') => {
         setSelectedPeriod(period);
         setSelectedChargeType(chargeType);
@@ -1004,6 +1120,84 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         );
     }, [selectedPeriod, selectedChargeType, rental, unit, scCadence, mvAmount, onUpdate, autoIssueReceipt]);
 
+    // ── PARTIAL PAYMENT — "ensure there is the possibility of partial payment" ──
+    // Banked amount accumulates on the stored row (status 'partial',
+    // paidAmount, paidDate). The engine reads it back: cycle stays amber with
+    // the remainder owed, outstanding nets out the banked money. A top-up
+    // that completes the cycle settles it and auto-issues the receipt (same
+    // path as the manual Paid toggle).
+    const handlePartialPayment = useCallback((amount: number) => {
+        if (!selectedPeriod || amount <= 0) return;
+        const periodsKey = selectedChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
+        const currentPeriods = ((rental as any)?.[periodsKey] as any[]) || [];
+        const existing = currentPeriods.find(p => p.index === selectedPeriod.index);
+
+        const prevBanked = Number(existing?.paidAmount) || (selectedPeriod.paidAmount || 0);
+        const newBanked = Math.min(prevBanked + amount, selectedPeriod.amount);
+        const nowRemaining = Math.max(0, selectedPeriod.amount - newBanked);
+        const todayIso = new Date().toISOString().split('T')[0];
+        const completed = newBanked >= selectedPeriod.amount * 0.999;
+
+        const updatedRow = {
+            index: selectedPeriod.index,
+            dueDate: selectedPeriod.dueDate,
+            status: completed ? 'paid' : 'partial',
+            amount: selectedPeriod.amount,
+            paidAmount: newBanked,
+            paidDate: todayIso,
+            paidOnTime: completed ? new Date(todayIso) <= new Date(selectedPeriod.windowEnd) : undefined,
+            ...(existing?.receiptNumber ? { receiptNumber: existing.receiptNumber } : {}),
+        };
+
+        const updatedPeriods = existing
+            ? currentPeriods.map(p => (p.index === selectedPeriod.index ? { ...p, ...updatedRow } : p))
+            : [...currentPeriods, updatedRow].sort((a, b) => (a.index || 0) - (b.index || 0));
+
+        // SC aggregates stay live off the engine (tenant portal reads them).
+        let aggregateStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' | undefined;
+        let outstandingBalance: number | undefined;
+        if (selectedChargeType === 'SC') {
+            const mergedRental = { ...rental, scPeriods: updatedPeriods };
+            const { summary } = serviceChargeTimeline({ unit, rental: mergedRental });
+            if (summary.state === 'clear') aggregateStatus = 'PAID_FULLY';
+            else {
+                aggregateStatus = updatedPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid' || p.status === 'partial')
+                    || scPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')
+                    ? 'PARTIALLY_PAID' : 'UNPAID';
+            }
+            outstandingBalance = Math.round(summary.outstandingTotal);
+        }
+
+        const updatedRental = {
+            ...rental,
+            [periodsKey]: updatedPeriods,
+            ...(selectedChargeType === 'SC' ? {
+                serviceChargeStatus: aggregateStatus,
+                outstandingServiceChargeBalance: outstandingBalance,
+            } : {}),
+        } as Property['rentalDetails'];
+        onUpdate(updatedRental!);
+
+        const updatedSelected: TimelinePeriod = {
+            ...selectedPeriod,
+            status: completed ? 'paid' : 'partial',
+            paidAmount: newBanked,
+            paidDate: todayIso,
+            paidOnTime: completed ? new Date(todayIso) <= new Date(selectedPeriod.windowEnd) : undefined,
+        };
+        setSelectedPeriod(updatedSelected);
+
+        if (completed) {
+            addToast(`Cycle completed — ${formatNairaFull(newBanked)} banked in total. Issuing receipt…`, { type: 'success' });
+            // Same zero-touch automation as a full manual settle.
+            if (!updatedRow.receiptNumber) {
+                autoIssueReceipt(updatedSelected, selectedChargeType, periodsKey, updatedRental);
+            }
+        } else {
+            addToast(`Partial payment banked — ${formatNairaFull(newBanked)} of ${formatNairaFull(selectedPeriod.amount)} (${formatNairaFull(nowRemaining)} remaining).`, { type: 'success' });
+        }
+    }, [selectedPeriod, selectedChargeType, rental, unit, onUpdate, autoIssueReceipt, scPeriods, addToast]);
+
     // Persist a receipt number to the stored period (button toggles to
     // [View Issued Receipt]). Upsert — a mark that hasn't been persisted
     // yet still gets its receipt number instead of losing it.
@@ -1120,8 +1314,11 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                     onGenerateReceipt={handleGenerateReceipt}
                     onPeriodSelect={(p) => setSelectedPeriod(p)}
                     onAdvancePayment={handleAdvancePayment}
+                    onPartialPayment={handlePartialPayment}
                     cadenceMonths={selectedChargeType === 'SC' ? scCadence.months : 1}
                     perPeriodAmount={selectedChargeType === 'SC' ? scCadence.perPeriodAmount : mvAmount}
+                    allowPartial={allowPartialPayments}
+                    latePenaltyRate={firmLatePenaltyRate}
                 />
             )}
 

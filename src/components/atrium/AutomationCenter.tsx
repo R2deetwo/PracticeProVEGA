@@ -43,7 +43,7 @@ const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileT
 const AutomationCenter: React.FC = () => {
   const terminology = useTerminology();
   const { currentUser, bearerToken } = useAuth();
-  const { coreState } = useCoreState();
+  const { coreState, coreActions } = useCoreState();
   const convex = useConvex();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
@@ -58,6 +58,37 @@ const AutomationCenter: React.FC = () => {
   const logs = (liveLogs ?? (coreState as any).automationLogs ?? []) as any[];
   const logAuto = useMutation(api.sentry.logAutomation);
   const { addToast, navigateTo } = useUI();
+
+  // ── Billing Policies (Late fee + partial payments) ──────────────────────
+  // User, 2026-09-12: "remember to ensure there is the possibility of partial
+  // payment. this is something not all people may subscribe to because it
+  // could build a bad relationship... i think this is where the fine (for
+  // default in payment on time)." Partial payments default ON (the
+  // possibility exists from the onset); the fine is the counterweight.
+  const firmAutomation = (coreState.firmDetails as any)?.automationSettings || {};
+  const [penaltyRateInput, setPenaltyRateInput] = useState<string>(
+    String(firmAutomation.latePenaltyRate ?? 0));
+  const [allowPartialInput, setAllowPartialInput] = useState<boolean>(
+    firmAutomation.allowPartialPayments !== false);
+
+  const handleSaveBillingPolicies = async () => {
+    const rate = Math.max(0, Math.min(50, Number(penaltyRateInput) || 0));
+    try {
+      await coreActions.handleUpdateFirmDetails({
+        ...coreState.firmDetails,
+        automationSettings: {
+          ...firmAutomation,
+          latePenaltyRate: rate,
+          allowPartialPayments: allowPartialInput,
+        },
+      });
+      setPenaltyRateInput(String(rate));
+      addToast(`Billing policies saved — late fee ${rate}% per defaulting cycle, partial payments ${allowPartialInput ? 'accepted' : 'off'}.`, { type: 'success' });
+    } catch (e: any) {
+      console.error('[AutomationCenter] billing policies save failed:', e);
+      addToast(e?.message || 'Failed to save billing policies. Please try again.', { type: 'error' });
+    }
+  };
 
   // ── Firm's CONFIGURED WhatsApp template mappings (Settings →
   // Communications → WhatsApp Templates). The bulk rent reminder uses the
@@ -323,16 +354,59 @@ const AutomationCenter: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-amber-900/10 border border-amber-900/30 rounded-lg p-3 flex items-start gap-3">
-          <div className="p-1.5 bg-amber-500/20 text-amber-500 rounded-lg"></div>
-          <div className="flex-1">
-            <h4 className="text-xs font-bold text-amber-400">Late Penalty Fee</h4>
-            <p className="text-2xs text-slate-400 mt-0.5 mb-2 leading-relaxed">
-              When a resident defaults on payment, a late notice is automatically sent. You can choose to apply an automatic penalty fee to their ledger balance.
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-2xs text-slate-500">Current Rate:</span>
-              <span className="text-2xs font-bold text-white px-2 py-0.5 bg-slate-800 rounded">{coreState.firmDetails?.automationSettings?.latePenaltyRate || 0}% / month</span>
+        <div className="bg-amber-900/10 border border-amber-900/30 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="p-1.5 bg-amber-500/20 text-amber-500 rounded-lg"></div>
+            <div className="flex-1">
+              <h4 className="text-xs font-bold text-amber-400">Billing Policies</h4>
+              <p className="text-2xs text-slate-400 mt-0.5 mb-3 leading-relaxed">
+                How your firm handles residents who pay late or incomplete. The fine for default
+                applies per cycle settled late or left overdue; partial payments let residents
+                bank what they have while the remainder stays owed.
+              </p>
+
+              {/* Late penalty rate */}
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-2xs text-slate-500 w-28 flex-shrink-0">Late fee (fine for default):</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  step={0.5}
+                  inputMode="decimal"
+                  value={penaltyRateInput}
+                  onChange={(e) => setPenaltyRateInput(e.target.value)}
+                  aria-label="Late penalty rate percent"
+                  className="w-20 px-2 py-1 text-xs font-bold text-white bg-slate-800 border border-slate-700 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                />
+                <span className="text-2xs text-slate-500">% per defaulting cycle</span>
+              </div>
+
+              {/* Partial payments toggle */}
+              <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allowPartialInput}
+                  onChange={(e) => setAllowPartialInput(e.target.checked)}
+                  className="w-4 h-4 accent-amber-500 cursor-pointer"
+                />
+                <span className="text-2xs text-slate-300 leading-snug">
+                  Accept partial payments
+                  <span className="text-slate-500"> — {allowPartialInput
+                    ? 'residents can bank part of a charge; the cycle stays amber until completed.'
+                    : 'off: cycles settle in full or stay owed — some managers prefer this with persistently late residents.'}</span>
+                </span>
+              </label>
+
+              <button
+                onClick={handleSaveBillingPolicies}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                Save Policies
+              </button>
+              <p className="text-2xs text-slate-500 mt-1.5 italic">
+                Fines are surfaced per defaulting cycle in the payment drawer and collected at settlement.
+              </p>
             </div>
           </div>
         </div>

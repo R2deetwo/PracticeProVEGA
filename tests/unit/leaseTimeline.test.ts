@@ -155,14 +155,68 @@ describe('buildTimeline — time drives the strip', () => {
         expect(periods[1].paidOnTime).toBe(true);
     });
 
-    it('partial payment keeps the period due/overdue but records paidAmount', () => {
+    it('partial payment is PART-SETTLED — partial status, banked amount, remainder owed', () => {
         const periods = buildTimeline({
             leaseStart: '2026-02-01', cadence: monthly(10000),
             payments: [{ amount: 4000, paidDate: '2026-02-10', status: 'paid' }],
             now: new Date('2026-02-20'),
         });
-        expect(periods[0].status).toBe('due');
+        expect(periods[0].status).toBe('partial');
         expect(periods[0].paidAmount).toBe(4000);
+        const summary = summarizeTimeline(periods, new Date('2026-02-20'));
+        expect(summary.partialCount).toBe(1);
+        expect(summary.partialPaidTotal).toBe(4000);
+        expect(summary.outstandingTotal).toBe(6000);   // remainder, not the whole cycle
+        expect(summary.dueCount).toBe(1);              // amber, not invisible
+        expect(summary.overdueCount).toBe(0);          // never red on a banked cycle
+    });
+
+    it('a partial top-up to the full amount settles the cycle', () => {
+        const periods = buildTimeline({
+            leaseStart: '2026-02-01', cadence: monthly(10000),
+            payments: [
+                { amount: 4000, paidDate: '2026-02-10', status: 'paid' },
+                { amount: 6000, paidDate: '2026-02-25', status: 'paid' },
+            ],
+            now: new Date('2026-03-05'),
+        });
+        expect(periods[0].status).toBe('paid');
+        expect(periods[0].paidAmount).toBe(10000);
+    });
+
+    it('a stored partial row carries its banked total and reads partial', () => {
+        const periods = buildTimeline({
+            leaseStart: '2026-02-01', cadence: monthly(10000),
+            stored: [{ index: 1, dueDate: '2026-02-01', status: 'partial', paidAmount: 3500, paidDate: '2026-02-12' }],
+            now: new Date('2026-03-05'),
+        });
+        expect(periods[0].status).toBe('partial');
+        expect(periods[0].paidAmount).toBe(3500);
+        expect(periods[0].paidDate).toBe('2026-02-12');
+    });
+
+    it('a stored partial row that has grown to the full amount reads as paid', () => {
+        const periods = buildTimeline({
+            leaseStart: '2026-02-01', cadence: monthly(10000),
+            stored: [{ index: 1, dueDate: '2026-02-01', status: 'partial', paidAmount: 10000, paidDate: '2026-02-28' }],
+            now: new Date('2026-03-05'),
+        });
+        expect(periods[0].status).toBe('paid');
+        expect(periods[0].paidOnTime).toBe(true); // settled within the Feb window
+    });
+
+    it('partials never count red: an overdue cycle with a banked partial stays amber-ish (due-set)', () => {
+        const periods = buildTimeline({
+            leaseStart: '2025-11-01', cadence: monthly(10000),
+            stored: [{ index: 1, dueDate: '2025-11-01', status: 'partial', paidAmount: 2000, paidDate: '2025-11-20' }],
+            now: new Date('2026-01-05'),
+        });
+        expect(periods[0].status).toBe('partial');
+        const summary = summarizeTimeline(periods, new Date('2026-01-05'));
+        expect(summary.dueCount).toBeGreaterThanOrEqual(1); // the partial + later cycles
+        expect(summary.partialCount).toBe(1);
+        expect(summary.partialPaidTotal).toBe(2000);
+        expect(summary.outstandingTotal).toBe(10000 - 2000 + 10000 * (periods.length - 1));
     });
 
     it('payment rows with periodStart/periodEnd (Collect Rent shape) match by overlap', () => {
