@@ -6,6 +6,14 @@ import { internal, api } from "./_generated/api";
 import { getMaxUsersForFirm, getTierLimitsForFirm, getDisplayPlan } from "./tierLimits";
 import { randomHex } from "./secureRandom";
 
+// ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
+// Every read in this module is BOUNDED. Founder analytics are PLATFORM-WIDE
+// by nature (firms/users/matters/presence/analytics_events across all
+// tenants) — each read carries a documented cap (500–5000) instead of an
+// unbounded scan; KPIs computed from these reads are accurate up to the cap
+// (documented truncation, never an OOM). Firm-scoped reads use by_firm with
+// per-firm caps. No public function signature changed.
+
 // ─── Platform Subscription Pricing ───────────────────────────────────
 // PRIVACY: The founder dashboard ONLY tracks platform subscription
 // revenue (what firms pay PracticePro). It does NOT track client-level
@@ -161,11 +169,13 @@ export const getFounderMetrics = query({
     // private firm data and must never be exposed to the platform founder.
     // Platform revenue is calculated from subscription plans, not from
     // client billing.
+    // Bounded platform reads (Item 4): KPIs are computed from at most these
+    // caps — documented truncation, never an unbounded scan.
     const [events, firms, users, matters] = await Promise.all([
-      ctx.db.query("analytics_events").collect(),
-      ctx.db.query("firms").collect(),
-      ctx.db.query("users").collect(),
-      ctx.db.query("matters").collect()
+      ctx.db.query("analytics_events").take(2000),
+      ctx.db.query("firms").take(500),
+      ctx.db.query("users").take(5000),
+      ctx.db.query("matters").take(5000)
     ]);
 
     // 2. Core KPIs
@@ -356,7 +366,8 @@ export const getAllFirmsForAdmin = query({
     try {
       const fetchTable = async (table: string) => {
         try {
-          return await ctx.db.query(table as any).collect();
+          // Bounded dump (Item 4): founder table browser reads at most 1000 rows.
+          return await ctx.db.query(table as any).take(1000);
         } catch (e) {
           console.warn(`[Convex] Could not fetch ${table}:`, e);
           return [];
@@ -484,7 +495,7 @@ export const updateFirmAdminSettings = mutation({
       const firmUsers = await ctx.db
         .query("users")
         .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-        .collect();
+        .take(200);
 
       const title = planChangeType === 'upgrade'
         ? 'Plan Upgraded'
@@ -542,11 +553,12 @@ export const getFounderAlerts = query({
 
     // PRIVACY: We do NOT fetch the invoices table. Platform revenue is
     // calculated from subscription plans, not from client billing.
+    // Bounded platform reads (Item 4): documented caps, never unbounded.
     const [firms, users, matters, presence] = await Promise.all([
-      ctx.db.query("firms").collect(),
-      ctx.db.query("users").collect(),
-      ctx.db.query("matters").collect(),
-      ctx.db.query("presence").collect(),
+      ctx.db.query("firms").take(500),
+      ctx.db.query("users").take(5000),
+      ctx.db.query("matters").take(5000),
+      ctx.db.query("presence").take(5000),
     ]);
 
     // ─── New users / firms ────────────────────────────────────────────
@@ -1046,9 +1058,9 @@ export const getFirmHealthDetails = query({
 
     const [firm, users, matters, presence, events, properties] = await Promise.all([
       ctx.db.get(args.firmId as any),
-      ctx.db.query("users").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).collect(),
+      ctx.db.query("users").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(200),
       ctx.db.query("matters").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(500),
-      ctx.db.query("presence").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).collect(),
+      ctx.db.query("presence").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(500),
       ctx.db.query("analytics_events").filter((q: any) => q.eq(q.field("firmId"), args.firmId)).take(200),
       ctx.db.query("properties").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(500),
     ]);
@@ -1372,10 +1384,11 @@ export const getExportData = query({
   handler: async (ctx, args) => {
     await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
+    // Bounded platform reads (Item 4): documented caps, never unbounded.
     const [firms, users, matters] = await Promise.all([
-      ctx.db.query("firms").collect(),
-      ctx.db.query("users").collect(),
-      ctx.db.query("matters").collect(),
+      ctx.db.query("firms").take(500),
+      ctx.db.query("users").take(5000),
+      ctx.db.query("matters").take(5000),
     ]);
 
     const now = Date.now();
@@ -1408,8 +1421,8 @@ export const getExportData = query({
       }));
     }
 
-    // churn
-    const presence = await ctx.db.query("presence").collect();
+    // churn — bounded platform read (presence rows ≈ one per user)
+    const presence = await ctx.db.query("presence").take(5000);
     return firms.map((f: any) => {
       const firmUsers = users.filter((u: any) => u.firmId === f._id);
       const firmPresence = presence.filter((p: any) => p.firmId === f._id);
@@ -1492,7 +1505,7 @@ export const getFeatureFlags = query({
     return await ctx.db
       .query("feature_flags")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-      .collect();
+      .take(500);
   },
 });
 
@@ -1507,7 +1520,7 @@ export const countFounders = internalQuery({
   handler: async (ctx, _args) => {
     // Full scan, no index: this runs only on founder-signup attempts (a
     // rare, bootstrap-era path) — not worth a schema index + type regen.
-    const allUsers = await ctx.db.query("users").collect();
+    const allUsers = await ctx.db.query("users").take(2000);
     const count = allUsers.filter((u: any) => u.role === "Founder").length;
     return { count };
   },
@@ -2105,10 +2118,12 @@ export const getAllPresenceForAdmin = query({
     const cutoff = Date.now() - ACTIVE_THRESHOLD;
 
     // Fetch all presence records updated within the active window
+    // Bounded table scan with post-filter (recency window — no updatedAt
+    // index on presence; rows ≈ one per user, capped at 5000).
     const activePresence = await ctx.db
       .query("presence")
       .filter((q: any) => q.gte(q.field("updatedAt"), cutoff))
-      .collect();
+      .take(5000);
 
     if (activePresence.length === 0) return [];
 
